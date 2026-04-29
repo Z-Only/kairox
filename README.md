@@ -15,6 +15,31 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 - [Release guide](https://github.com/Z-Only/kairox/blob/main/docs/releasing.md)
 - [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
 
+## Architecture
+
+```mermaid
+graph TD
+    UI["User Interfaces"]
+    TUI["TUI (Rust)"]
+    GUI["GUI (Tauri + Vue)"]
+    CORE["agent-core"]
+    RUNTIME["agent-runtime"]
+    MODELS["agent-models"]
+    TOOLS["agent-tools"]
+    MEMORY["agent-memory"]
+    STORE["agent-store"]
+
+    UI --> TUI
+    UI --> GUI
+    TUI --> CORE
+    GUI --> CORE
+    CORE --> RUNTIME
+    RUNTIME --> MODELS
+    RUNTIME --> TOOLS
+    RUNTIME --> MEMORY
+    RUNTIME --> STORE
+```
+
 ## Features
 
 - **Shared Rust core** for agent IDs, events, projections, manifests, memory, tools, and runtime orchestration
@@ -142,6 +167,11 @@ This repository also includes:
 - Dependabot for npm and Cargo dependency updates
 - GitHub Release Notes configuration via `.github/release.yml`
 - Automatic GitHub Release publishing on `v*` tags
+- GitHub Discussions for questions and design discussion
+
+## Discussions
+
+Use [GitHub Discussions](https://github.com/Z-Only/kairox/discussions) for questions, design ideas, and broader product conversations. Use Issues for actionable bugs and feature work.
 
 ## License
 
