@@ -6,7 +6,9 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-models = { path = "../agent-models" }
 agent-runtime = { path = "../agent-runtime" }
+agent-store = { path = "../agent-store" }
 anyhow.workspace = true
 ratatui.workspace = true
 tokio.workspace = true

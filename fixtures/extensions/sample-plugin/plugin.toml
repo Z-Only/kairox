@@ -1,0 +1,10 @@
+id = "plugin.sample-tools"
+name = "Sample Tools"
+version = "0.1.0"
+description = "Declares sample local tool capabilities"
+extension_type = "plugin"
+triggers = ["sample"]
+prompt_templates = ["Use sample tools when explicitly requested."]
+required_tools = ["mcp.read_doc"]
+required_permissions = ["mcp.invoke"]
+core_version = ">=0.1.0"

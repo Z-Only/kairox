@@ -10,6 +10,8 @@ pub enum StoreError {
     Sqlx(#[from] sqlx::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;
