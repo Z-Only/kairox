@@ -127,6 +127,14 @@ Current published release:
 3. Run local checks before pushing
 4. Open a pull request using the provided template
 
+## Automation
+
+This repository also includes:
+
+- Dependabot for npm and Cargo dependency updates
+- GitHub Release Notes configuration via `.github/release.yml`
+- Automatic GitHub Release publishing on `v*` tags
+
 ## License
 
 Apache License 2.0. See `/Users/chanyu/AIProjects/kairox/LICENSE`.

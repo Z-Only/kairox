@@ -45,3 +45,7 @@ This repository uses Conventional Commits. Examples:
 - Rust: `cargo fmt` and `cargo clippy`
 - Frontend/docs: `prettier`, `eslint`, `stylelint`
 - Hooks: `husky`, `lint-staged`, `commitlint`
+
+## Dependency updates
+
+Dependabot is configured for the root npm workspace, the GUI workspace, and Cargo dependencies. Please keep dependency PRs scoped and green in CI.
