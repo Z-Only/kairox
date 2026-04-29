@@ -16,6 +16,16 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 - [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
 - [Discussions guide](https://github.com/Z-Only/kairox/blob/main/docs/github/discussions.md)
 
+## Demo
+
+> Demo assets are not added yet. Recommended next step: add GUI screenshots or a short animated capture of the Tauri app here.
+
+Suggested assets:
+
+- main GUI window screenshot
+- trace / permission center screenshot
+- short gif or mp4 showing a local-first workflow
+
 ## Why Kairox?
 
 Kairox aims to provide a local-first foundation for AI agent workflows with explicit boundaries between shared core logic, runtime orchestration, model integration, and user interfaces.

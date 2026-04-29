@@ -54,3 +54,13 @@ git push origin v0.1.1 -f
 - [ ] tag pushed
 - [ ] Release Build succeeded on all matrix jobs
 - [ ] GitHub Release page looks correct
+
+## Helper script
+
+A helper script is available:
+
+```bash
+/Users/chanyu/AIProjects/kairox/scripts/release.sh 0.1.1
+```
+
+This script runs checks, verifies builds, updates the tag, and pushes it.
