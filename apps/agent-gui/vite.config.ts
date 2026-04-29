@@ -3,5 +3,5 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [vue()],
-  clearScreen: false,
+  clearScreen: false
 });

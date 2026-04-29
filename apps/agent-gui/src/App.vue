@@ -2,7 +2,10 @@
 import PermissionCenter from "./components/PermissionCenter.vue";
 import TraceTimeline from "./components/TraceTimeline.vue";
 
-const events = [{ event_type: "WorkspaceOpened" }, { event_type: "UserMessageAdded" }];
+const events = [
+  { event_type: "WorkspaceOpened" },
+  { event_type: "UserMessageAdded" }
+];
 </script>
 
 <template>

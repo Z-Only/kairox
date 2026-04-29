@@ -53,6 +53,7 @@ All paths are relative to `/Users/chanyu/AIProjects/kairox`.
 ### Task 1: Rust Workspace Scaffold
 
 **Files:**
+
 - Create: `Cargo.toml`
 - Create: `.gitignore`
 - Create: `crates/agent-core/Cargo.toml`
@@ -301,6 +302,7 @@ git commit -m "chore: scaffold rust workspace"
 ### Task 2: Core IDs, Events, and Projections
 
 **Files:**
+
 - Create: `crates/agent-core/src/ids.rs`
 - Create: `crates/agent-core/src/events.rs`
 - Create: `crates/agent-core/src/projection.rs`
@@ -663,6 +665,7 @@ git commit -m "feat(core): add event schema and session projection"
 ### Task 3: App Facade Traits
 
 **Files:**
+
 - Create: `crates/agent-core/src/facade.rs`
 - Modify: `crates/agent-core/src/lib.rs`
 - Modify: `crates/agent-core/Cargo.toml`
@@ -834,6 +837,7 @@ git commit -m "feat(core): define app facade boundary"
 ### Task 4: SQLite Event Store
 
 **Files:**
+
 - Create: `crates/agent-store/migrations/0001_events.sql`
 - Create: `crates/agent-store/src/event_store.rs`
 - Modify: `crates/agent-store/src/lib.rs`
@@ -1022,6 +1026,7 @@ git commit -m "feat(store): persist append-only events in sqlite"
 ### Task 5: Fake Model Provider and Session Runtime
 
 **Files:**
+
 - Create: `crates/agent-models/src/types.rs`
 - Create: `crates/agent-models/src/fake.rs`
 - Modify: `crates/agent-models/src/lib.rs`
@@ -1475,6 +1480,7 @@ git commit -m "feat(runtime): run fake model session through facade"
 ### Task 6: TUI Single-Agent Shell
 
 **Files:**
+
 - Create: `crates/agent-tui/src/app.rs`
 - Create: `crates/agent-tui/src/view.rs`
 - Modify: `crates/agent-tui/src/main.rs`
@@ -1613,6 +1619,7 @@ git commit -m "feat(tui): show fake session through shared facade"
 ### Task 7: Permission Engine and Local Tools
 
 **Files:**
+
 - Create: `crates/agent-tools/src/permission.rs`
 - Create: `crates/agent-tools/src/registry.rs`
 - Create: `crates/agent-tools/src/filesystem.rs`
@@ -1905,6 +1912,7 @@ git commit -m "feat(tools): add permission engine and filesystem read tool"
 ### Task 8: Model Profiles, OpenAI-Compatible, and Ollama Adapter Boundaries
 
 **Files:**
+
 - Create: `crates/agent-models/src/profile.rs`
 - Create: `crates/agent-models/src/openai_compatible.rs`
 - Create: `crates/agent-models/src/ollama.rs`
@@ -2063,6 +2071,7 @@ git commit -m "feat(models): define profiles and provider adapter boundaries"
 ### Task 9: Tauri/Vue GUI Shell
 
 **Files:**
+
 - Create: `apps/agent-gui/package.json`
 - Create: `apps/agent-gui/index.html`
 - Create: `apps/agent-gui/vite.config.ts`
@@ -2130,10 +2139,12 @@ import { traceLabels } from "./TraceTimeline";
 
 describe("traceLabels", () => {
   it("renders event types in order", () => {
-    expect(traceLabels([{ event_type: "UserMessageAdded" }, { event_type: "AssistantMessageCompleted" }])).toEqual([
-      "UserMessageAdded",
-      "AssistantMessageCompleted",
-    ]);
+    expect(
+      traceLabels([
+        { event_type: "UserMessageAdded" },
+        { event_type: "AssistantMessageCompleted" }
+      ])
+    ).toEqual(["UserMessageAdded", "AssistantMessageCompleted"]);
   });
 });
 ```
@@ -2148,7 +2159,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [vue()],
-  clearScreen: false,
+  clearScreen: false
 });
 ```
 
@@ -2249,7 +2260,10 @@ Create `apps/agent-gui/src/App.vue`:
 import PermissionCenter from "./components/PermissionCenter.vue";
 import TraceTimeline from "./components/TraceTimeline.vue";
 
-const events = [{ event_type: "WorkspaceOpened" }, { event_type: "UserMessageAdded" }];
+const events = [
+  { event_type: "WorkspaceOpened" },
+  { event_type: "UserMessageAdded" }
+];
 </script>
 
 <template>
@@ -2385,6 +2399,7 @@ git commit -m "feat(gui): scaffold tauri vue workbench shell"
 ### Task 10: Memory and Context Assembly
 
 **Files:**
+
 - Create: `crates/agent-memory/src/memory.rs`
 - Create: `crates/agent-memory/src/context.rs`
 - Modify: `crates/agent-memory/src/lib.rs`
@@ -2578,6 +2593,7 @@ git commit -m "feat(memory): assemble local context from accepted memory"
 ### Task 11: MCP and Manifest Discovery
 
 **Files:**
+
 - Create: `crates/agent-tools/src/mcp.rs`
 - Create: `crates/agent-core/src/manifest.rs`
 - Create: `fixtures/extensions/sample-skill/skill.toml`
@@ -2786,6 +2802,7 @@ git commit -m "feat(extensions): parse manifests and map mcp tools"
 ### Task 12: Multi-Agent Task Graph
 
 **Files:**
+
 - Create: `crates/agent-runtime/src/task_graph.rs`
 - Create: `crates/agent-runtime/src/agents.rs`
 - Modify: `crates/agent-runtime/src/lib.rs`
@@ -2990,6 +3007,7 @@ git commit -m "feat(runtime): add multi-agent task graph"
 ### Task 13: Optional Account Boundary
 
 **Files:**
+
 - Create: `crates/agent-core/src/account.rs`
 - Modify: `crates/agent-core/src/lib.rs`
 
@@ -3088,6 +3106,7 @@ git commit -m "feat(core): add optional account boundary"
 ### Task 14: End-to-End Fake Session and Trace Replay
 
 **Files:**
+
 - Create: `crates/agent-runtime/tests/fake_session.rs`
 - Create: `docs/dev/local-development.md`
 
@@ -3096,6 +3115,7 @@ git commit -m "feat(core): add optional account boundary"
 No additional crate is required. Rust integration tests can live under root `tests/e2e` only if the root is a package. Because this repository root is a virtual workspace, create `crates/agent-runtime/tests/fake_session.rs` instead.
 
 Use file:
+
 - Create: `crates/agent-runtime/tests/fake_session.rs`
 
 - [ ] **Step 2: Write e2e test**
