@@ -7,6 +7,14 @@
 
 Kairox is a local-first AI agent workbench built with a shared Rust core, a terminal UI, and a Tauri + Vue desktop GUI.
 
+## Project navigation
+
+- [Contributing guide](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/Z-Only/kairox/blob/main/SECURITY.md)
+- [Code of conduct](https://github.com/Z-Only/kairox/blob/main/CODE_OF_CONDUCT.md)
+- [Release guide](https://github.com/Z-Only/kairox/blob/main/docs/releasing.md)
+- [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
+
 ## Features
 
 - **Shared Rust core** for agent IDs, events, projections, manifests, memory, tools, and runtime orchestration
