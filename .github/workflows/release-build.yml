@@ -65,9 +65,11 @@ jobs:
       - name: Install repo tooling deps
         run: npm ci
 
-      - name: Install GUI deps
+      - name: Reinstall GUI deps for platform-native optional packages
         working-directory: apps/agent-gui
-        run: npm ci
+        run: |
+          rm -rf node_modules
+          npm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0

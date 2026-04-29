@@ -18,7 +18,7 @@
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "lint:web": "npm run lint:eslint && npm run lint:style",
-    "prepare": "node -e 'if (process.env.CI || process.env.NODE_ENV === \"production\") process.exit(0)' || husky"
+    "prepare": "node scripts/prepare.cjs"
   },
   "lint-staged": {
     "*.rs": [

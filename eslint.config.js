@@ -35,5 +35,18 @@ export default [
       "vue/multi-word-component-names": "off"
     }
   },
+  {
+    files: ["scripts/**/*.cjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "commonjs",
+      globals: {
+        ...globals.node
+      }
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off"
+    }
+  },
   eslintConfigPrettier
 ];
