@@ -68,7 +68,7 @@ jobs:
       - name: Reinstall GUI deps for platform-native optional packages
         working-directory: apps/agent-gui
         run: |
-          rm -rf node_modules
+          node -e "require('fs').rmSync('node_modules', { recursive: true, force: true })"
           npm install
 
       - name: Build Tauri app
