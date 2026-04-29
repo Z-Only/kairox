@@ -1,5 +1,10 @@
 # Kairox
 
+[![CI](https://github.com/Z-Only/kairox/actions/workflows/ci.yml/badge.svg)](https://github.com/Z-Only/kairox/actions/workflows/ci.yml)
+[![Release Build](https://github.com/Z-Only/kairox/actions/workflows/release-build.yml/badge.svg)](https://github.com/Z-Only/kairox/actions/workflows/release-build.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Z-Only/kairox/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/Z-Only/kairox)](https://github.com/Z-Only/kairox/releases)
+
 Kairox is a local-first AI agent workbench built with a shared Rust core, a terminal UI, and a Tauri + Vue desktop GUI.
 
 ## Features
@@ -110,6 +115,10 @@ GitHub Actions are configured to:
 - build TUI binaries
 - build GUI web assets
 - build Tauri desktop bundles on macOS, Linux, and Windows
+
+Current published release:
+
+- [v0.1.0](https://github.com/Z-Only/kairox/releases/tag/v0.1.0)
 
 ## Contributing
 
