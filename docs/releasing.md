@@ -44,7 +44,8 @@ git push origin v0.1.1 -f
 
 - `CI` runs on pushes to `main` and on pull requests
 - `Release Build` runs on `v*` tags
-- `Release Publish` runs on `v*` tags and creates or updates the GitHub Release entry
+- `Release Build` creates or updates the GitHub Release entry with generated notes
+- `Release Build` uploads TUI packages and Tauri desktop bundles as release assets
 
 ## Release checklist
 
@@ -53,6 +54,7 @@ git push origin v0.1.1 -f
 - [ ] local verification passed
 - [ ] tag pushed
 - [ ] Release Build succeeded on all matrix jobs
+- [ ] release assets include TUI packages and Tauri desktop bundles
 - [ ] GitHub Release page looks correct
 
 ## Helper script
