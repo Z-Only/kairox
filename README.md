@@ -25,6 +25,17 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 - [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
 - [Discussions guide](https://github.com/Z-Only/kairox/blob/main/docs/github/discussions.md)
 
+## Visuals
+
+The repository is ready for screenshots and demo assets. Recommended future additions:
+
+- `docs/assets/logo.svg`
+- `docs/assets/banner.png`
+- `docs/assets/gui-main.png`
+- `docs/assets/demo.gif`
+
+Asset guidance lives in [docs/assets/README.md](https://github.com/Z-Only/kairox/blob/main/docs/assets/README.md).
+
 ## Demo
 
 > Demo assets are not added yet. Recommended next step: add GUI screenshots or a short animated capture of the Tauri app here.
@@ -63,6 +74,13 @@ graph TD
     RUNTIME --> MEMORY
     RUNTIME --> STORE
 ```
+
+## Highlights
+
+- Local-first architecture with a shared Rust core
+- Two user surfaces: TUI and Tauri + Vue desktop GUI
+- Structured runtime, memory, tools, and persistence layers
+- Complete open-source repository baseline with CI, release automation, and community docs
 
 ## Features
 
