@@ -16,7 +16,7 @@ permissions:
 jobs:
   auto-merge:
     if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]') ||
+      (github.event_name == 'pull_request' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'app/dependabot')) ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') ||
       (github.event_name == 'check_suite' && github.event.check_suite.pull_requests[0].number)
     runs-on: ubuntu-latest
@@ -51,7 +51,8 @@ jobs:
               pull_number: prNumber,
             });
 
-            const isDependabot = pr.user?.login === 'dependabot[bot]';
+            const author = pr.user?.login || '';
+            const isDependabot = author === 'dependabot[bot]' || author === 'app/dependabot';
             const isOpen = pr.state === 'open';
             const headSha = pr.head.sha;
 
@@ -62,6 +63,7 @@ jobs:
             });
 
             const checksOk = combined.state === 'success';
+            core.info(`PR #${prNumber} author=${author} checks=${combined.state}`);
             core.setOutput('dependabot', String(isDependabot));
             core.setOutput('open', String(isOpen));
             core.setOutput('checks_ok', String(checksOk));
@@ -89,6 +91,7 @@ jobs:
 
             try {
               await github.graphql(query, { pullRequestId: pr.node_id });
+              core.info(`Enabled auto-merge for PR #${prNumber}`);
             } catch (error) {
               core.info(`Auto-merge may already be enabled or not applicable: ${error.message}`);
             }
