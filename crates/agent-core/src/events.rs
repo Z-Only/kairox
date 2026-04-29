@@ -199,6 +199,8 @@ mod tests {
         assert_eq!(json["schema_version"], 1);
         assert_eq!(json["event_type"], "UserMessageAdded");
         assert_eq!(json["privacy"], "full_trace");
+        assert_eq!(json["timestamp"], "2026-04-29T02:00:00Z");
+        assert_eq!(json["source_agent_id"], "agent_system");
         assert_eq!(json["payload"]["content"], "explain the repo");
         assert!(json["workspace_id"].as_str().unwrap().starts_with("wrk_"));
         assert!(json["session_id"].as_str().unwrap().starts_with("ses_"));

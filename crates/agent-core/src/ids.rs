@@ -50,4 +50,27 @@ impl AgentId {
     pub fn reviewer() -> Self {
         Self("agent_reviewer".into())
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AgentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AgentId;
+
+    #[test]
+    fn agent_id_exposes_string_value_consistently() {
+        let agent_id = AgentId::planner();
+
+        assert_eq!(agent_id.as_str(), "agent_planner");
+        assert_eq!(agent_id.to_string(), "agent_planner");
+    }
 }
