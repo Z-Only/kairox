@@ -30,8 +30,17 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     let projection = runtime.get_session_projection(session_id).await?;
-    for line in view::render_lines(&projection) {
+    let mut app = app::TuiApp::default();
+    app.set_projection(projection);
+    app.input = "hello".into();
+    app.set_status(format!("ready (input-bytes: {})", app.input.len()));
+
+    for line in view::render_lines(&app.projection) {
         println!("{line}");
+    }
+
+    if !app.status.is_empty() {
+        println!("status: {}", app.status);
     }
 
     Ok(())

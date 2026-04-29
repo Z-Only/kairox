@@ -35,8 +35,8 @@ mod tests {
         let service = LocalNoAccountService;
         let state = service.current_account().await.unwrap();
 
-        assert_eq!(state.login_required, false);
-        assert_eq!(state.settings_sync_enabled, false);
+        assert!(!state.login_required);
+        assert!(!state.settings_sync_enabled);
         assert_eq!(state.subscription_plan, None);
     }
 }

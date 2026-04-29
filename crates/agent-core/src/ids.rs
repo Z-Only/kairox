@@ -8,6 +8,12 @@ macro_rules! prefixed_id {
         #[serde(transparent)]
         pub struct $name(String);
 
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
         impl $name {
             pub fn new() -> Self {
                 Self(format!("{}_{}", $prefix, Uuid::new_v4().simple()))

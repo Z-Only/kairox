@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 1420",
     "test": "vitest run",
-    "build": "vite build"
+    "build": "vite build",
+    "lint:style": "stylelint \"src/**/*.{vue,css,scss,sass,less}\""
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
