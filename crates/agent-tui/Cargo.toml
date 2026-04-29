@@ -1,0 +1,12 @@
+[package]
+name = "agent-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+agent-core = { path = "../agent-core" }
+agent-runtime = { path = "../agent-runtime" }
+anyhow.workspace = true
+ratatui.workspace = true
+tokio.workspace = true
