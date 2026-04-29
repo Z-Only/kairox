@@ -54,6 +54,8 @@ jobs:
             const author = pr.user?.login || '';
             const isDependabot = author === 'dependabot[bot]' || author === 'app/dependabot';
             const isOpen = pr.state === 'open';
+            const isDraft = !!pr.draft;
+            const mergeState = pr.mergeable_state || '';
             const headSha = pr.head.sha;
 
             const { data: combined } = await github.rest.repos.getCombinedStatusForRef({
@@ -63,35 +65,29 @@ jobs:
             });
 
             const checksOk = combined.state === 'success';
-            core.info(`PR #${prNumber} author=${author} checks=${combined.state}`);
+            const clean = mergeState === 'clean' || mergeState === 'unstable' || mergeState === 'has_hooks';
+            core.info(`PR #${prNumber} author=${author} mergeState=${mergeState} checks=${combined.state}`);
             core.setOutput('dependabot', String(isDependabot));
             core.setOutput('open', String(isOpen));
+            core.setOutput('draft', String(isDraft));
             core.setOutput('checks_ok', String(checksOk));
+            core.setOutput('clean', String(clean));
             core.setOutput('number', String(prNumber));
 
-      - name: Enable auto-merge
-        if: steps.info.outputs.dependabot == 'true' && steps.info.outputs.open == 'true' && steps.info.outputs.checks_ok == 'true'
+      - name: Merge PR
+        if: steps.info.outputs.dependabot == 'true' && steps.info.outputs.open == 'true' && steps.info.outputs.draft == 'false' && steps.info.outputs.checks_ok == 'true' && steps.info.outputs.clean == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            const query = `
-              mutation EnableAutoMerge($pullRequestId: ID!) {
-                enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
-                  pullRequest { number autoMergeRequest { enabledAt } }
-                }
-              }
-            `;
-
             const prNumber = Number('${{ steps.info.outputs.number }}');
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-            });
-
             try {
-              await github.graphql(query, { pullRequestId: pr.node_id });
-              core.info(`Enabled auto-merge for PR #${prNumber}`);
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash'
+              });
+              core.info(`Merged PR #${prNumber}`);
             } catch (error) {
-              core.info(`Auto-merge may already be enabled or not applicable: ${error.message}`);
+              core.info(`Merge skipped or failed: ${error.message}`);
             }
