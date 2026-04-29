@@ -60,7 +60,7 @@
   <g>
     <rect x="694" y="392" width="456" height="128" rx="24" fill="#0B1220" stroke="#334155"/>
     <text x="728" y="440" fill="#F8FAFC" font-size="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="600">Current release</text>
-    <text x="728" y="478" fill="#93C5FD" font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">v0.1.0</text>
+    <text x="728" y="478" fill="#93C5FD" font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">v0.1.1</text>
     <text x="818" y="478" fill="#94A3B8" font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Cross-platform TUI and Tauri packaging ready</text>
   </g>
 </svg>

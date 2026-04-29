@@ -13,7 +13,7 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 
 ## Quick links
 
-- [Latest release](https://github.com/Z-Only/kairox/releases/tag/v0.1.0)
+- [Latest release](https://github.com/Z-Only/kairox/releases/tag/v0.1.1)
 - [Release notes](https://github.com/Z-Only/kairox/releases)
 - [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
 - [Contributing](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
@@ -214,7 +214,7 @@ GitHub Actions are configured to:
 
 Current published release:
 
-- [v0.1.0](https://github.com/Z-Only/kairox/releases/tag/v0.1.0)
+- [v0.1.1](https://github.com/Z-Only/kairox/releases/tag/v0.1.1)
 
 ## Contributing
 
