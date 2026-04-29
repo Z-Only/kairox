@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-30
+
+### Fixed
+
+- Release workflow now uploads TUI and Tauri build artifacts as GitHub Release assets.
+- Added `permissions: contents: write` so the GITHUB_TOKEN can upload release assets.
+- Added `tagName` and `assetNamePattern` inputs to `tauri-action@v0` so Tauri desktop bundles are published.
+- Added Package and Upload steps for TUI binaries (tar.gz on Linux/macOS, zip on Windows).
+- Merged the separate `release-publish.yml` into `release-build.yml` for a single workflow.
+
+### Added
+
+- Tauri bundle configuration with proper app icons for all platforms.
+
 ## [0.1.1] - 2026-04-29
 
 ### Changed
