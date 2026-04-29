@@ -7,6 +7,15 @@
 
 Kairox is a local-first AI agent workbench built with a shared Rust core, a terminal UI, and a Tauri + Vue desktop GUI.
 
+## Quick links
+
+- [Latest release](https://github.com/Z-Only/kairox/releases/tag/v0.1.0)
+- [Release notes](https://github.com/Z-Only/kairox/releases)
+- [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
+- [Contributing](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/Z-Only/kairox/blob/main/SECURITY.md)
+- [Discussions](https://github.com/Z-Only/kairox/discussions)
+
 ## Project navigation
 
 - [Contributing guide](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
@@ -89,6 +98,10 @@ For Tauri desktop packaging:
 - macOS: Xcode Command Line Tools
 - Linux: WebKitGTK and Tauri native dependencies
 - Windows: WebView2 toolchain
+
+## Getting started
+
+If you want to try Kairox quickly, start with the local setup and quality gates below, then run either the TUI or the GUI shell.
 
 ## Quick start
 
