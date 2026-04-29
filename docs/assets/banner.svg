@@ -1,0 +1,66 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Kairox banner</title>
+  <desc id="desc">A dark product banner showing Kairox positioning as a local-first AI agent workbench.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="230" y1="120" x2="1140" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="blur" x="610" y="90" width="580" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+  <circle cx="1010" cy="300" r="160" fill="url(#glow)" filter="url(#blur)" opacity="0.35"/>
+
+  <g opacity="0.14" stroke="#94A3B8">
+    <path d="M0 112H1280"/>
+    <path d="M0 208H1280"/>
+    <path d="M0 304H1280"/>
+    <path d="M0 400H1280"/>
+    <path d="M0 496H1280"/>
+    <path d="M160 0V640"/>
+    <path d="M320 0V640"/>
+    <path d="M480 0V640"/>
+    <path d="M640 0V640"/>
+    <path d="M800 0V640"/>
+    <path d="M960 0V640"/>
+    <path d="M1120 0V640"/>
+  </g>
+
+  <g>
+    <rect x="86" y="98" width="108" height="108" rx="28" fill="#0F172A" stroke="#334155"/>
+    <path d="M118 120C118 116.686 120.686 114 124 114H132C135.314 114 138 116.686 138 120V143.657L161.758 116.485C162.896 115.183 164.543 114.371 166.27 114.219C167.996 114.067 169.763 114.588 171.108 115.667L175.394 119.108C177.854 121.084 178.247 124.676 176.271 127.136L155.156 153.429L178.209 176.278C180.563 178.611 180.58 182.406 178.247 184.759L173.982 189.061C171.649 191.415 167.854 191.432 165.5 189.099L138 161.844V184C138 187.314 135.314 190 132 190H124C120.686 190 118 187.314 118 184V120Z" fill="url(#glow)"/>
+  </g>
+
+  <g>
+    <text x="86" y="300" fill="#E2E8F0" font-size="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700">Kairox</text>
+    <text x="86" y="352" fill="#93C5FD" font-size="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Local-first AI agent workbench</text>
+    <text x="86" y="416" fill="#CBD5E1" font-size="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Shared Rust core · TUI · Tauri + Vue GUI · CI · Release automation</text>
+  </g>
+
+  <g>
+    <rect x="760" y="120" width="390" height="250" rx="24" fill="#0F172A" stroke="#334155"/>
+    <rect x="790" y="158" width="92" height="10" rx="5" fill="#22D3EE"/>
+    <rect x="790" y="188" width="210" height="10" rx="5" fill="#475569"/>
+    <rect x="790" y="218" width="260" height="10" rx="5" fill="#334155"/>
+    <rect x="790" y="266" width="128" height="72" rx="16" fill="#111827" stroke="#334155"/>
+    <rect x="934" y="266" width="186" height="72" rx="16" fill="#111827" stroke="#334155"/>
+    <circle cx="814" cy="290" r="9" fill="#22D3EE"/>
+    <circle cx="814" cy="313" r="9" fill="#3B82F6"/>
+    <circle cx="814" cy="336" r="9" fill="#8B5CF6"/>
+  </g>
+
+  <g>
+    <rect x="694" y="392" width="456" height="128" rx="24" fill="#0B1220" stroke="#334155"/>
+    <text x="728" y="440" fill="#F8FAFC" font-size="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="600">Current release</text>
+    <text x="728" y="478" fill="#93C5FD" font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">v0.1.0</text>
+    <text x="818" y="478" fill="#94A3B8" font-size="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Cross-platform TUI and Tauri packaging ready</text>
+  </g>
+</svg>

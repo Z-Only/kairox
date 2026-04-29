@@ -1,11 +1,15 @@
 # Kairox
 
+![Kairox banner](https://github.com/Z-Only/kairox/blob/main/docs/assets/banner.svg)
+
 [![CI](https://github.com/Z-Only/kairox/actions/workflows/ci.yml/badge.svg)](https://github.com/Z-Only/kairox/actions/workflows/ci.yml)
 [![Release Build](https://github.com/Z-Only/kairox/actions/workflows/release-build.yml/badge.svg)](https://github.com/Z-Only/kairox/actions/workflows/release-build.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Z-Only/kairox/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/v/release/Z-Only/kairox)](https://github.com/Z-Only/kairox/releases)
 
 Kairox is a local-first AI agent workbench built with a shared Rust core, a terminal UI, and a Tauri + Vue desktop GUI.
+
+![Kairox logo](https://github.com/Z-Only/kairox/blob/main/docs/assets/logo.svg)
 
 ## Quick links
 
@@ -45,6 +49,15 @@ Suggested assets:
 - main GUI window screenshot
 - trace / permission center screenshot
 - short gif or mp4 showing a local-first workflow
+
+### Screenshot placeholders
+
+Once real app captures are available, replace this section with embedded images such as:
+
+- `docs/assets/gui-main.png`
+- `docs/assets/gui-trace.png`
+- `docs/assets/gui-permissions.png`
+- `docs/assets/demo.gif`
 
 ## Why Kairox?
 

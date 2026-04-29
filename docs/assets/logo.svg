@@ -1,0 +1,17 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Kairox logo</title>
+  <desc id="desc">A geometric K monogram with a gradient accent for the Kairox project.</desc>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="64" y1="48" x2="196" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="216" height="216" rx="44" fill="url(#bg)"/>
+  <path d="M78 64C78 57.3726 83.3726 52 90 52H106C112.627 52 118 57.3726 118 64V111.314L165.515 56.9706C167.793 54.3658 171.085 52.7412 174.539 52.4373C177.992 52.1335 181.526 53.1757 184.215 55.3341L192.787 62.2169C197.707 66.1678 198.493 73.3527 194.542 78.2727L152.312 130.858L198.418 176.555C203.126 181.221 203.161 188.812 198.495 193.52L189.965 202.122C185.299 206.83 177.708 206.866 173 202.2L118 147.688V192C118 198.627 112.627 204 106 204H90C83.3726 204 78 198.627 78 192V64Z" fill="url(#accent)"/>
+</svg>
