@@ -1,2 +1,15 @@
 .superpowers/
-
+/target/
+/node_modules/
+/dist/
+/.DS_Store
+**/.DS_Store
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+apps/agent-gui/src-tauri/target/
+apps/agent-gui/node_modules/
+apps/agent-gui/dist/

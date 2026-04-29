@@ -1,0 +1,10 @@
+id = "skill.sample-review"
+name = "Sample Review"
+version = "0.1.0"
+description = "Reviews simple local changes"
+extension_type = "skill"
+triggers = ["review", "diff"]
+prompt_templates = ["Review correctness, tests, and permission risk."]
+required_tools = ["git.diff"]
+required_permissions = ["filesystem.read"]
+core_version = ">=0.1.0"

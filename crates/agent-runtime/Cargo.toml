@@ -1,0 +1,17 @@
+[package]
+name = "agent-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+agent-core = { path = "../agent-core" }
+agent-models = { path = "../agent-models" }
+agent-store = { path = "../agent-store" }
+agent-tools = { path = "../agent-tools" }
+anyhow.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+thiserror.workspace = true
