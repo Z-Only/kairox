@@ -206,7 +206,9 @@ jobs:
           tool: git-cliff
 
       - name: Verify git-cliff works
-        run: git cliff --strip header HEAD
+        run: |
+          # In PR context HEAD may be a merge commit; use origin/main as the range
+          git cliff --strip header origin/main..HEAD || git cliff --strip header HEAD~1..HEAD || git cliff --strip header --unreleased
 
       - name: Build TUI (release)
         run: cargo build -p agent-tui --release
