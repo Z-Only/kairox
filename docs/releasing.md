@@ -71,16 +71,16 @@ git push origin v0.3.0 -f
 
 The changelog format is defined in `cliff.toml` at the repo root. Commits are grouped into:
 
-| Group | Commit prefix |
-|-------|--------------|
-| Features | `feat` |
-| Bug Fixes | `fix` |
-| Performance | `perf` |
-| Documentation | `docs` |
-| Testing | `test` |
-| Refactor | `refactor` |
-| Styling | `style` |
-| Dependencies | `chore(deps)` |
+| Group         | Commit prefix   |
+| ------------- | --------------- |
+| Features      | `feat`          |
+| Bug Fixes     | `fix`           |
+| Performance   | `perf`          |
+| Documentation | `docs`          |
+| Testing       | `test`          |
+| Refactor      | `refactor`      |
+| Styling       | `style`         |
+| Dependencies  | `chore(deps)`   |
 | Miscellaneous | `chore` (other) |
 
 `chore(release):` commits are excluded from the changelog automatically.

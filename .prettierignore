@@ -6,3 +6,4 @@ coverage
 apps/agent-gui/src-tauri/gen
 apps/agent-gui/package-lock.json
 Cargo.lock
+CHANGELOG.md
