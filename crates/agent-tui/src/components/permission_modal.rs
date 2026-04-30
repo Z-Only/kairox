@@ -14,6 +14,12 @@ pub struct PermissionModal {
     pub request: Option<PermissionRequest>,
 }
 
+impl Default for PermissionModal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PermissionModal {
     pub fn new() -> Self {
         Self {

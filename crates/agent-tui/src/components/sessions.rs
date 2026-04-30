@@ -17,6 +17,12 @@ pub struct SessionsPanel {
     pub search_query: Option<String>,
 }
 
+impl Default for SessionsPanel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionsPanel {
     pub fn new() -> Self {
         let mut state = ListState::default();

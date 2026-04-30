@@ -16,6 +16,12 @@ pub struct TracePanel {
     pub scroll_offset: usize,
 }
 
+impl Default for TracePanel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TracePanel {
     pub fn new() -> Self {
         Self {
