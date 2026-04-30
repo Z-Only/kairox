@@ -11,5 +11,17 @@ agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 anyhow.workspace = true
+crossterm = { version = "0.29", features = ["event-stream"] }
+futures.workspace = true
 ratatui.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+agent-core = { path = "../agent-core" }
+agent-models = { path = "../agent-models" }
+agent-runtime = { path = "../agent-runtime" }
+agent-store = { path = "../agent-store" }
+agent-tools = { path = "../agent-tools" }
+insta.workspace = true
+tokio.workspace = true
+futures.workspace = true

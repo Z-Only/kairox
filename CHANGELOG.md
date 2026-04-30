@@ -4,21 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2026-04-30
+## [0.4.0] - 2026-04-30
 
 ### 🚀 Features
 
 - **ci**: add git-cliff for automated changelog and release notes (#21)
 - **tools**: implement ToolProvider abstraction and builtin tools (#22)
 - **deps**: migrate npm→pnpm, upgrade deps, fix security alerts (#23)
+- **tui**: add crossterm dependency and Component trait skeleton
+- **tui**: add AppState with FocusManager, RenderScheduler, and Ctrl-C handling
+- **tui**: add keybinding resolver with L1-L4 layer support
+- **tui**: add StatusBar component with render helper
+- **tui**: add ChatPanel with input handling, permission, and history
+- **tui**: add SessionsPanel, TracePanel, and PermissionModal components
+- **tui**: add App composition and interactive event loop
 
 ### 📚 Documentation
 
 - update all docs for pnpm migration and improve README structure (#29)
 
+### 🧪 Testing
+
+- **tui**: add integration tests for session flow and event subscription
+- **tui**: add snapshot tests for chat panel rendering
+
 ### 🎨 Styling
 
 - format markdown files with prettier
+
+### 👷 CI
+
+- add workflow smoke test for PRs that change workflow files (#30)
+- **smoke-test**: bump actions to v6 to match release-build versions
+
+### 📦 Dependencies
+
+- **deps**: bump pnpm/action-setup from 4 to 6 (#24)
+- **deps**: bump actions/checkout from 4 to 6 (#25)
+- **deps**: bump actions/github-script from 7 to 9 (#26)
+- **deps**: bump actions/setup-node from 4 to 6 (#27)
+- **deps**: bump softprops/action-gh-release from 2 to 3 (#28)
+
+### 🔧 Miscellaneous Tasks
+
+- add .worktrees/ to gitignore for worktree isolation
+- **tui**: final verification and cleanup for interactive TUI
+- **tui**: lock insta dependency for snapshot tests
 
 ## [0.2.0] - 2026-04-30
 

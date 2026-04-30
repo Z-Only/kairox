@@ -1,0 +1,29 @@
+---
+source: crates/agent-tui/tests/snapshot_tests.rs
+assertion_line: 34
+expression: terminal.backend().to_string()
+---
+"You: What is the meaning of life?                                               "
+"Agent: 42                                                                       "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
+"                                                                                "
