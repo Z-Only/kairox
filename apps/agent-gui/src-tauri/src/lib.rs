@@ -1,3 +1,6 @@
+mod app_state;
+mod event_forwarder;
+
 mod commands {
     #[tauri::command]
     pub fn list_model_profiles() -> Vec<String> {
