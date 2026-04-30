@@ -37,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
     let store = SqliteEventStore::in_memory().await?;
     let profiles = detect_profiles();
     let profile = choose_profile(&profiles);
+    let workspace_path = std::env::current_dir()?;
 
     // Use FakeModelClient for the TUI demo — real model adapters are available
     // via OpenAiCompatibleClient and OllamaClient. Full ModelRouter dispatch
@@ -44,10 +45,12 @@ async fn main() -> anyhow::Result<()> {
     let model = FakeModelClient::new(vec!["hello from fake model".into()]);
     let runtime = LocalRuntime::new(store, model)
         .with_permission_mode(PermissionMode::Suggest)
-        .with_context_limit(100_000);
+        .with_context_limit(100_000)
+        .with_builtin_tools(workspace_path.clone())
+        .await;
 
     let workspace = runtime
-        .open_workspace(std::env::current_dir()?.display().to_string())
+        .open_workspace(workspace_path.display().to_string())
         .await?;
     let session_id = runtime
         .start_session(StartSessionRequest {
