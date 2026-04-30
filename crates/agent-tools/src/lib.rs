@@ -2,6 +2,7 @@ pub mod filesystem;
 pub mod mcp;
 pub mod patch;
 pub mod permission;
+pub mod provider;
 pub mod registry;
 pub mod search;
 pub mod shell;
@@ -10,6 +11,7 @@ pub use filesystem::FsReadTool;
 pub use mcp::{map_mcp_tool, McpServerConfig, McpTool};
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
 pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
+pub use provider::{BuiltinProvider, McpProvider};
 pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
     ToolRegistry,
