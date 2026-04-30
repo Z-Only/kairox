@@ -20,5 +20,6 @@ thiserror.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 agent-tools = { path = "../agent-tools" }
 agent-memory = { path = "../agent-memory" }
