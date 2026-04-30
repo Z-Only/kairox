@@ -6,6 +6,7 @@ This file provides project-specific guidance for AI coding assistants (Codex, Cl
 
 - **Rust workspace** at the root: `crates/agent-core`, `agent-runtime`, `agent-models`, `agent-tools`, `agent-memory`, `agent-store`, `agent-tui`
 - **Tauri + Vue GUI**: `apps/agent-gui/`
+- **Package manager**: pnpm 10+ (use `pnpm` instead of `npm` for all commands)
 - **Tooling**: Prettier, ESLint, Stylelint, cargo fmt, clippy, husky, lint-staged, commitlint
 
 ## Commit conventions
@@ -22,12 +23,12 @@ Examples:
 
 ## Git worktrees
 
-This project uses git worktrees for isolated branch development. After creating a worktree, always run `npm install` to set up husky hooks (the `prepare` script auto-links hooks for worktrees):
+This project uses git worktrees for isolated branch development. After creating a worktree, always run `pnpm install` to set up husky hooks (the `prepare` script auto-links hooks for worktrees):
 
 ```bash
 git worktree add ../kairox-<branch> -b <branch> main
 cd ../kairox-<branch>
-npm install   # triggers prepare.cjs which links husky hooks
+pnpm install   # triggers prepare.cjs which links husky hooks
 ```
 
 The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.husky` to the worktree's `.husky` directory so that pre-commit and commit-msg hooks fire correctly.
@@ -37,8 +38,8 @@ The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.
 Run before opening a PR or pushing to main:
 
 ```bash
-npm run format:check
-npm run lint
+pnpm run format:check
+pnpm run lint
 cargo test --workspace --all-targets
 ```
 

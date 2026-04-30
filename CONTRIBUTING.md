@@ -5,10 +5,7 @@ Thanks for contributing to Kairox.
 ## Development setup
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-npm install
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm install
+pnpm install
 ```
 
 ## Local verification
@@ -16,13 +13,11 @@ npm install
 Run these before opening a pull request:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-npm run format:check
-npm run lint
+pnpm run format:check
+pnpm run lint
 cargo test --workspace --all-targets
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm run build
-npm run tauri:build
+pnpm --filter agent-gui run build
+pnpm --filter agent-gui run tauri:build
 ```
 
 ## Commit messages
@@ -48,4 +43,4 @@ This repository uses Conventional Commits. Examples:
 
 ## Dependency updates
 
-Dependabot is configured for the root npm workspace, the GUI workspace, and Cargo dependencies. Please keep dependency PRs scoped and green in CI.
+Dependabot is configured for the root npm workspace, the GUI workspace, Cargo dependencies, and GitHub Actions. Please keep dependency PRs scoped and green in CI.

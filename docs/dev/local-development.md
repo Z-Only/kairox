@@ -19,19 +19,33 @@ cargo run -p agent-tui
 Install frontend dependencies:
 
 ```bash
-cd apps/agent-gui && npm install
+pnpm install
 ```
 
 Run Vue unit tests:
 
 ```bash
-cd apps/agent-gui && npm test
+pnpm --filter agent-gui run test
 ```
 
 Run the Vite development server:
 
 ```bash
-cd apps/agent-gui && npm run dev
+pnpm --filter agent-gui run dev
+```
+
+## Tauri desktop app
+
+Run the Tauri app in development mode (starts both Vite dev server and the native window with hot-reload):
+
+```bash
+pnpm --filter agent-gui run tauri:dev
+```
+
+Build the Tauri desktop app:
+
+```bash
+pnpm --filter agent-gui run tauri:build
 ```
 
 ## Privacy Defaults
