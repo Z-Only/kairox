@@ -4,22 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-04-30
 
 ### 🚀 Features
 
-- **ci**: add git-cliff for automated changelog and release notes
-- **hooks**: fix husky hooks for git worktrees and update AGENTS.md
-
-### 🐛 Bug Fixes
-
-- **ci**: exclude CHANGELOG.md from prettier and fix cliff.toml template
-- **lint**: remove unused mkdirSync import in prepare.cjs
+- **ci**: add git-cliff for automated changelog and release notes (#21)
+- **tools**: implement ToolProvider abstraction and builtin tools (#22)
+- **deps**: migrate npm→pnpm, upgrade deps, fix security alerts (#23)
 
 ### 📚 Documentation
 
-- add tool provider and builtin tools design spec
-- add tool provider and builtin tools implementation plan
+- update all docs for pnpm migration and improve README structure (#29)
+
+### 🎨 Styling
+
+- format markdown files with prettier
 
 ## [0.2.0] - 2026-04-30
 

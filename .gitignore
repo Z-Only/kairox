@@ -14,3 +14,4 @@ apps/agent-gui/src-tauri/target/
 apps/agent-gui/node_modules/
 apps/agent-gui/dist/
 package-lock.json
+.superpowers/
