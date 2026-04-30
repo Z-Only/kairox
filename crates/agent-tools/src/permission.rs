@@ -13,12 +13,13 @@ pub enum PermissionOutcome {
     Denied(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolEffect {
     Read,
     Write,
     Shell { destructive: bool },
     Network,
+    Destructive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,6 +49,13 @@ impl ToolRisk {
             effect: ToolEffect::Shell { destructive },
         }
     }
+
+    pub fn destructive(tool_id: impl Into<String>) -> Self {
+        Self {
+            tool_id: tool_id.into(),
+            effect: ToolEffect::Destructive,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +80,9 @@ impl PermissionEngine {
             (PermissionMode::ReadOnly, ToolEffect::Network) => {
                 PermissionOutcome::Denied("read-only mode blocks network access".into())
             }
+            (PermissionMode::ReadOnly, ToolEffect::Destructive) => {
+                PermissionOutcome::Denied("read-only mode blocks destructive operations".into())
+            }
             (PermissionMode::Suggest, ToolEffect::Read) => PermissionOutcome::Allowed,
             (PermissionMode::Suggest, _) => PermissionOutcome::RequiresApproval,
             (PermissionMode::Agent, ToolEffect::Read) => PermissionOutcome::Allowed,
@@ -79,11 +90,15 @@ impl PermissionEngine {
             (PermissionMode::Agent, ToolEffect::Shell { destructive: false }) => {
                 PermissionOutcome::Allowed
             }
+            (PermissionMode::Agent, ToolEffect::Destructive) => PermissionOutcome::RequiresApproval,
             (PermissionMode::Agent, _) => PermissionOutcome::RequiresApproval,
             (PermissionMode::Autonomous, ToolEffect::Shell { destructive: true }) => {
                 PermissionOutcome::RequiresApproval
             }
             (PermissionMode::Autonomous, ToolEffect::Network) => {
+                PermissionOutcome::RequiresApproval
+            }
+            (PermissionMode::Autonomous, ToolEffect::Destructive) => {
                 PermissionOutcome::RequiresApproval
             }
             (PermissionMode::Autonomous, _) => PermissionOutcome::Allowed,
@@ -131,5 +146,36 @@ mod tests {
             engine.decide(&ToolRisk::shell("shell.exec", true)),
             PermissionOutcome::RequiresApproval
         );
+    }
+
+    #[test]
+    fn destructive_risk_requires_approval_even_in_autonomous_mode() {
+        let engine = PermissionEngine::new(PermissionMode::Autonomous);
+        let risk = ToolRisk::destructive("rm.rf");
+        assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
+    }
+
+    #[test]
+    fn destructive_risk_denied_in_readonly_mode() {
+        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        let risk = ToolRisk::destructive("rm.rf");
+        assert_eq!(
+            engine.decide(&risk),
+            PermissionOutcome::Denied("read-only mode blocks destructive operations".into())
+        );
+    }
+
+    #[test]
+    fn destructive_risk_requires_approval_in_suggest_mode() {
+        let engine = PermissionEngine::new(PermissionMode::Suggest);
+        let risk = ToolRisk::destructive("rm.rf");
+        assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
+    }
+
+    #[test]
+    fn destructive_risk_requires_approval_in_agent_mode() {
+        let engine = PermissionEngine::new(PermissionMode::Agent);
+        let risk = ToolRisk::destructive("rm.rf");
+        assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
     }
 }
