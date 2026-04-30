@@ -1,4 +1,4 @@
-const { existsSync, mkdirSync, symlinkSync, lstatSync, rmSync } = require('node:fs');
+const { existsSync, symlinkSync, lstatSync, rmSync } = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
