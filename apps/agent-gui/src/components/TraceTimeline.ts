@@ -1,7 +1,2 @@
-export type TraceEvent = {
-  event_type: string;
-};
-
-export function traceLabels(events: TraceEvent[]): string[] {
-  return events.map((event) => event.event_type);
-}
+// Trace timeline types — feature coming in v0.6.0
+// This file is kept for forward compatibility.
