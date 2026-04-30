@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-30
+
+### 🚀 Features
+
+- **core**: add from_string() constructor and From<String> impl to ID types
+- **gui**: add runtime dependencies to Tauri backend
+- **gui**: add GuiState and event forwarder module
+- **gui**: add Tauri command handlers for workspace, session, and chat
+- **gui**: wire up Tauri app with runtime state and command registration
+- **gui**: add TypeScript types, session store, and Tauri events composable
+- **gui**: add ChatPanel, SessionsSidebar, and StatusBar components
+- **gui**: wire App.vue with real data, add global styles, replace placeholders
+- **gui**: add Tauri capabilities for event emission and listening
+
+### 📚 Documentation
+
+- **gui**: add progressive MVP design spec for Tauri+Vue integration
+- **gui**: add implementation plan for Tauri+Vue progressive MVP
+
+### 🧪 Testing
+
+- **gui**: add integration tests for command handlers and event serialization
+- **gui**: add session store unit tests for event projection
+
+### 🔧 Miscellaneous Tasks
+
+- **gui**: fix clippy dead_code warnings for Tauri backend modules
+
 ## [0.4.0] - 2026-04-30
 
 ### 🚀 Features
@@ -11,22 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **ci**: add git-cliff for automated changelog and release notes (#21)
 - **tools**: implement ToolProvider abstraction and builtin tools (#22)
 - **deps**: migrate npm→pnpm, upgrade deps, fix security alerts (#23)
-- **tui**: add crossterm dependency and Component trait skeleton
-- **tui**: add AppState with FocusManager, RenderScheduler, and Ctrl-C handling
-- **tui**: add keybinding resolver with L1-L4 layer support
-- **tui**: add StatusBar component with render helper
-- **tui**: add ChatPanel with input handling, permission, and history
-- **tui**: add SessionsPanel, TracePanel, and PermissionModal components
-- **tui**: add App composition and interactive event loop
+- **tui**: interactive ratatui TUI with three-panel layout (#31)
 
 ### 📚 Documentation
 
 - update all docs for pnpm migration and improve README structure (#29)
-
-### 🧪 Testing
-
-- **tui**: add integration tests for session flow and event subscription
-- **tui**: add snapshot tests for chat panel rendering
 
 ### 🎨 Styling
 
@@ -48,8 +65,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 🔧 Miscellaneous Tasks
 
 - add .worktrees/ to gitignore for worktree isolation
-- **tui**: final verification and cleanup for interactive TUI
-- **tui**: lock insta dependency for snapshot tests
 
 ## [0.2.0] - 2026-04-30
 

@@ -10,6 +10,46 @@ use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
 
+#[cfg(not(test))]
+pub fn run() {
+    use tauri::Manager;
+
+    tauri::Builder::default()
+        .setup(|app| {
+            let handle = app.handle().clone();
+            tauri::async_runtime::block_on(async move {
+                let store = SqliteEventStore::in_memory()
+                    .await
+                    .expect("Failed to create in-memory store");
+                let model = FakeModelClient::new(vec!["hello from Kairox".into()]);
+                let cwd = std::env::current_dir().expect("Cannot get current dir");
+
+                let runtime = LocalRuntime::new(store, model)
+                    .with_permission_mode(PermissionMode::Suggest)
+                    .with_context_limit(100_000)
+                    .with_builtin_tools(cwd)
+                    .await;
+
+                handle.manage(GuiState::new(runtime));
+            });
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::list_profiles,
+            commands::initialize_workspace,
+            commands::start_session,
+            commands::send_message,
+            commands::switch_session,
+            commands::list_sessions,
+        ])
+        .run(tauri::generate_context!())
+        .expect("failed to run tauri application");
+}
+
+#[cfg(test)]
+pub fn run() {}
+
+// Keep build_runtime for tests that need it
 pub fn build_runtime() -> Result<LocalRuntime<SqliteEventStore, FakeModelClient>, String> {
     let tokio_rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -36,27 +76,6 @@ pub fn build_runtime() -> Result<LocalRuntime<SqliteEventStore, FakeModelClient>
 
     runtime
 }
-
-#[cfg(not(test))]
-pub fn run() {
-    let runtime = build_runtime().expect("failed to build runtime");
-
-    tauri::Builder::default()
-        .manage(GuiState::new(runtime))
-        .invoke_handler(tauri::generate_handler![
-            commands::list_profiles,
-            commands::initialize_workspace,
-            commands::start_session,
-            commands::send_message,
-            commands::switch_session,
-            commands::list_sessions,
-        ])
-        .run(tauri::generate_context!())
-        .expect("failed to run tauri application");
-}
-
-#[cfg(test)]
-pub fn run() {}
 
 #[cfg(test)]
 mod tests {
