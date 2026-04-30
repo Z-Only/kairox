@@ -9,6 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
 use ratatui::Frame;
 
+#[allow(dead_code)]
 pub struct SessionsPanel {
     focused: bool,
     pub state: ListState,
@@ -28,6 +29,7 @@ impl SessionsPanel {
         }
     }
 
+    #[allow(dead_code)]
     pub fn selected_session_id(&self, sessions: &[SessionInfo]) -> Option<SessionId> {
         self.state
             .selected()
@@ -35,6 +37,7 @@ impl SessionsPanel {
             .map(|s| s.id.clone())
     }
 
+    #[allow(dead_code)]
     pub fn filtered_sessions<'a>(&self, sessions: &'a [SessionInfo]) -> Vec<&'a SessionInfo> {
         if let Some(query) = &self.search_query {
             let q = query.to_lowercase();

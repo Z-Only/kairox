@@ -13,8 +13,10 @@ use ratatui::Frame;
 /// Components never directly reference other components.
 /// Cross-panel communication flows exclusively through `CrossPanelEffect`
 /// routed by the App layer.
+#[allow(unused_variables)]
 pub trait Component {
     /// Process an incoming event. Returns (cross-panel effects, runtime commands).
+    #[allow(dead_code)]
     fn handle_event(
         &mut self,
         ctx: &EventContext,
@@ -57,6 +59,7 @@ pub struct PermissionRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum SessionState {
     Active,
     Idle,
@@ -83,6 +86,7 @@ pub struct StatusInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum CrossPanelEffect {
     SwitchFocus(FocusTarget),
     ShowPermissionPrompt(PermissionRequest),
@@ -116,6 +120,7 @@ pub enum Command {
 }
 
 /// Read-only shared state passed to components on every event.
+#[allow(dead_code)]
 pub struct EventContext<'a> {
     pub focus: FocusTarget,
     pub current_session: &'a agent_core::projection::SessionProjection,

@@ -33,7 +33,7 @@ use components::{Command, SessionInfo, SessionState};
 
 enum AppEvent {
     Key(crossterm::event::KeyEvent),
-    DomainEvent(agent_core::DomainEvent),
+    DomainEvent(Box<agent_core::DomainEvent>),
     Tick,
 }
 
@@ -253,7 +253,11 @@ async fn main() -> Result<()> {
     let event_task = tokio::spawn(async move {
         let mut stream = rt_handle.subscribe_session(rt_session_id);
         while let Some(event) = stream.next().await {
-            if tx_events.send(AppEvent::DomainEvent(event)).await.is_err() {
+            if tx_events
+                .send(AppEvent::DomainEvent(Box::new(event)))
+                .await
+                .is_err()
+            {
                 break;
             }
         }

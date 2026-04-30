@@ -1,4 +1,4 @@
-use crate::components::{Command, Component, CrossPanelEffect, EventContext, FocusTarget};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 use crate::keybindings::TraceDensity;
 use agent_core::events::EventPayload;
 use crossterm::event::Event;
@@ -8,6 +8,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem};
 use ratatui::Frame;
 
+#[allow(dead_code)]
 pub struct TracePanel {
     focused: bool,
     pub density: TraceDensity,

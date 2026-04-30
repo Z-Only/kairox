@@ -76,9 +76,10 @@ pub enum KeyAction {
 // ---------------------------------------------------------------------------
 
 /// Controls how much detail the trace panel shows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TraceDensity {
     /// One-line summary per tool call.
+    #[default]
     Summary,
     /// Expand tool call arguments and results.
     Expanded,
@@ -94,12 +95,6 @@ impl TraceDensity {
             Self::Expanded => Self::FullEventStream,
             Self::FullEventStream => Self::Summary,
         }
-    }
-}
-
-impl Default for TraceDensity {
-    fn default() -> Self {
-        Self::Summary
     }
 }
 

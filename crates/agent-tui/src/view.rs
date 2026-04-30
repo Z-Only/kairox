@@ -1,5 +1,6 @@
 use agent_core::projection::{ProjectedRole, SessionProjection};
 
+#[allow(dead_code)]
 pub fn render_lines(projection: &SessionProjection) -> Vec<String> {
     projection
         .messages

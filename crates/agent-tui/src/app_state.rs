@@ -249,6 +249,7 @@ pub enum CtrlCAction {
 // ---------------------------------------------------------------------------
 
 /// Central shared state for the interactive TUI.
+#[allow(dead_code)]
 pub struct AppState {
     pub focus_manager: FocusManager,
     pub render_scheduler: RenderScheduler,
@@ -304,6 +305,7 @@ impl AppState {
     }
 
     /// Build a borrow of `EventContext` from the current state.
+    #[allow(dead_code)]
     pub fn event_context(&self) -> crate::components::EventContext<'_> {
         crate::components::EventContext {
             focus: self.focus_manager.current(),

@@ -388,6 +388,7 @@ impl App {
     // Rendering
     // -----------------------------------------------------------------------
 
+    #[allow(unused_assignments)]
     pub fn render(&mut self, frame: &mut Frame) {
         let area = frame.area();
 

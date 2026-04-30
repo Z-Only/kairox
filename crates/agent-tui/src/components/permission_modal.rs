@@ -1,5 +1,5 @@
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, FocusTarget, PermissionRequest, RiskLevel,
+    Command, Component, CrossPanelEffect, EventContext, PermissionRequest, RiskLevel,
 };
 
 use crossterm::event::{Event, KeyCode};
@@ -145,6 +145,7 @@ impl Component for PermissionModal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::components::FocusTarget;
 
     fn test_ctx() -> EventContext<'static> {
         use agent_core::projection::SessionProjection;

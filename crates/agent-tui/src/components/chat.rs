@@ -8,7 +8,7 @@ use ratatui::Frame;
 
 use crate::app_state::{InputMode, InputState};
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, FocusTarget, PermissionRequest, RiskLevel,
+    Command, Component, CrossPanelEffect, EventContext, FocusTarget, RiskLevel,
 };
 use crate::keybindings::KeyAction;
 
@@ -18,6 +18,7 @@ use crate::keybindings::KeyAction;
 
 /// The main chat panel: displays messages from a [`SessionProjection`] and
 /// handles text input, history navigation, and permission decisions.
+#[allow(dead_code)]
 pub struct ChatPanel {
     focused: bool,
     pub input_content: String,
@@ -336,7 +337,7 @@ fn prev_char_boundary(s: &str, pos: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::{EventContext, SessionInfo, SessionState};
+    use crate::components::{EventContext, PermissionRequest, SessionInfo, SessionState};
     use std::sync::OnceLock;
 
     /// Shared static [`EventContext`] for tests. We leak the owned data so
