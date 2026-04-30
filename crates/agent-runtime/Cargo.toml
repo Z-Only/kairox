@@ -6,12 +6,20 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-memory = { path = "../agent-memory" }
 agent-models = { path = "../agent-models" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 anyhow.workspace = true
+async-stream.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+agent-tools = { path = "../agent-tools" }
+agent-memory = { path = "../agent-memory" }
