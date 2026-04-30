@@ -11,9 +11,15 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 agent-core = { path = "../../../crates/agent-core" }
+agent-models = { path = "../../../crates/agent-models" }
+agent-runtime = { path = "../../../crates/agent-runtime" }
+agent-store = { path = "../../../crates/agent-store" }
+agent-tools = { path = "../../../crates/agent-tools" }
+futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "process", "fs"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
