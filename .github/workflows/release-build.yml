@@ -54,7 +54,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.notes.outputs.body }}
@@ -95,7 +95,7 @@ jobs:
           Compress-Archive -Path target/release/agent-tui.exe -DestinationPath "dist/agent-tui-${env:GITHUB_REF_NAME}-${env:RUNNER_OS}-${env:RUNNER_ARCH}.zip" -Force
 
       - name: Upload TUI package to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           files: dist/*
