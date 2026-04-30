@@ -14,11 +14,11 @@
 
 Please check all that apply and paste key output when relevant.
 
-- [ ] `npm run format:check`
-- [ ] `npm run lint`
+- [ ] `pnpm run format:check`
+- [ ] `pnpm run lint`
 - [ ] `cargo test --workspace --all-targets`
-- [ ] `cd apps/agent-gui && npm run build`
-- [ ] `cd apps/agent-gui && npm run tauri build`
+- [ ] `pnpm --filter agent-gui run build`
+- [ ] `pnpm --filter agent-gui run tauri build`
 
 ## Screenshots / recordings
 

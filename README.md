@@ -13,55 +13,13 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 
 ## Quick links
 
-- [Latest release](https://github.com/Z-Only/kairox/releases/tag/v0.1.1)
-- [Release notes](https://github.com/Z-Only/kairox/releases)
+- [Latest release](https://github.com/Z-Only/kairox/releases/latest)
 - [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
 - [Contributing](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
 - [Security policy](https://github.com/Z-Only/kairox/blob/main/SECURITY.md)
 - [Discussions](https://github.com/Z-Only/kairox/discussions)
-
-## Project navigation
-
-- [Contributing guide](https://github.com/Z-Only/kairox/blob/main/CONTRIBUTING.md)
-- [Security policy](https://github.com/Z-Only/kairox/blob/main/SECURITY.md)
 - [Code of conduct](https://github.com/Z-Only/kairox/blob/main/CODE_OF_CONDUCT.md)
 - [Release guide](https://github.com/Z-Only/kairox/blob/main/docs/releasing.md)
-- [Roadmap](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md)
-- [Discussions guide](https://github.com/Z-Only/kairox/blob/main/docs/github/discussions.md)
-
-## Visuals
-
-The repository is ready for screenshots and demo assets. Recommended future additions:
-
-- `docs/assets/logo.svg`
-- `docs/assets/banner.png`
-- `docs/assets/gui-main.png`
-- `docs/assets/demo.gif`
-
-Asset guidance lives in [docs/assets/README.md](https://github.com/Z-Only/kairox/blob/main/docs/assets/README.md).
-
-## Demo
-
-> Demo assets are not added yet. Recommended next step: add GUI screenshots or a short animated capture of the Tauri app here.
-
-Suggested assets:
-
-- main GUI window screenshot
-- trace / permission center screenshot
-- short gif or mp4 showing a local-first workflow
-
-### Screenshot placeholders
-
-Once real app captures are available, replace this section with embedded images such as:
-
-- `docs/assets/gui-main.png`
-- `docs/assets/gui-trace.png`
-- `docs/assets/gui-permissions.png`
-- `docs/assets/demo.gif`
-
-## Why Kairox?
-
-Kairox aims to provide a local-first foundation for AI agent workflows with explicit boundaries between shared core logic, runtime orchestration, model integration, and user interfaces.
 
 ## Architecture
 
@@ -105,14 +63,14 @@ graph TD
 
 ## Repository layout
 
-- `/Users/chanyu/AIProjects/kairox/crates/agent-core` — shared domain types and application facade
-- `/Users/chanyu/AIProjects/kairox/crates/agent-runtime` — runtime orchestration and task graph
-- `/Users/chanyu/AIProjects/kairox/crates/agent-models` — model profile and provider boundaries
-- `/Users/chanyu/AIProjects/kairox/crates/agent-tools` — permission and tool abstractions
-- `/Users/chanyu/AIProjects/kairox/crates/agent-memory` — memory and context assembly
-- `/Users/chanyu/AIProjects/kairox/crates/agent-store` — SQLite-backed event store
-- `/Users/chanyu/AIProjects/kairox/crates/agent-tui` — terminal UI app
-- `/Users/chanyu/AIProjects/kairox/apps/agent-gui` — Vue frontend + Tauri desktop app
+- `crates/agent-core` — shared domain types and application facade
+- `crates/agent-runtime` — runtime orchestration and task graph
+- `crates/agent-models` — model profile and provider boundaries
+- `crates/agent-tools` — permission and tool abstractions
+- `crates/agent-memory` — memory and context assembly
+- `crates/agent-store` — SQLite-backed event store
+- `crates/agent-tui` — terminal UI app
+- `apps/agent-gui` — Vue frontend + Tauri desktop app
 
 ## Status
 
@@ -121,65 +79,71 @@ Kairox is in an early-stage but fully structured open-source state, with CI, rel
 ## Requirements
 
 - Rust stable toolchain
-- Node.js 20+
-- npm 10+
+- Node.js 22+
+- pnpm 10+
 
 For Tauri desktop packaging:
 
 - macOS: Xcode Command Line Tools
-- Linux: WebKitGTK and Tauri native dependencies
+- Linux: WebKitGTK and Tauri native dependencies (see `ci.yml` for the full list)
 - Windows: WebView2 toolchain
+
+## Demo
+
+> Demo assets are not added yet. Recommended next step: add GUI screenshots or a short animated capture of the Tauri app here.
+
+## Why Kairox?
+
+Kairox aims to provide a local-first foundation for AI agent workflows with explicit boundaries between shared core logic, runtime orchestration, model integration, and user interfaces.
 
 ## Getting started
 
 If you want to try Kairox quickly, start with the local setup and quality gates below, then run either the TUI or the GUI shell.
 
-## Quick start
-
 ### Install dependencies
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-npm install
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm install
+pnpm install
 ```
 
 ### Run quality gates
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-npm run format:check
-npm run lint
+pnpm run format:check
+pnpm run lint
 cargo test --workspace --all-targets
 ```
 
 ### Run TUI
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
 cargo run -p agent-tui
 ```
 
-### Run GUI in development
+### Run GUI (Vite dev server)
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm run dev
+pnpm --filter agent-gui run dev
 ```
+
+### Run Tauri desktop app in development
+
+```bash
+pnpm --filter agent-gui run tauri:dev
+```
+
+This starts the Vite dev server and the native Tauri window together, providing hot-reload for both the frontend and the Rust backend.
 
 ### Build GUI web assets
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm run build
+pnpm --filter agent-gui run build
 ```
 
 ### Build Tauri desktop app
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
-npm run tauri build
+pnpm --filter agent-gui run tauri:build
 ```
 
 ## Tooling
@@ -197,10 +161,9 @@ Repository-level quality tooling includes:
 Useful commands:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-npm run format
-npm run format:check
-npm run lint
+pnpm run format
+pnpm run format:check
+pnpm run lint
 ```
 
 ## Releases and packaging
@@ -212,9 +175,7 @@ GitHub Actions are configured to:
 - build GUI web assets
 - build Tauri desktop bundles on macOS, Linux, and Windows
 
-Current published release:
-
-- [v0.1.1](https://github.com/Z-Only/kairox/releases/tag/v0.1.1)
+See the [latest release](https://github.com/Z-Only/kairox/releases/latest) for downloadable assets.
 
 ## Contributing
 
@@ -227,7 +188,7 @@ Current published release:
 
 This repository also includes:
 
-- Dependabot for npm and Cargo dependency updates
+- Dependabot for npm, Cargo, and GitHub Actions dependency updates
 - GitHub Release Notes configuration via `.github/release.yml`
 - Automatic GitHub Release publishing on `v*` tags
 - GitHub Discussions for questions and design discussion
@@ -238,4 +199,4 @@ Use [GitHub Discussions](https://github.com/Z-Only/kairox/discussions) for quest
 
 ## License
 
-Apache License 2.0. See `/Users/chanyu/AIProjects/kairox/LICENSE`.
+Apache License 2.0. See [LICENSE](https://github.com/Z-Only/kairox/blob/main/LICENSE).

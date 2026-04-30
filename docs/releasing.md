@@ -32,13 +32,12 @@ If you need more control, follow these steps:
 ### Local verification
 
 ```bash
-npm run format:check
-npm run lint
+pnpm run format:check
+pnpm run lint
 cargo test --workspace --all-targets
 cargo build -p agent-tui --release
-cd apps/agent-gui
-npm run build
-npm run tauri:build
+pnpm --filter agent-gui run build
+pnpm --filter agent-gui run tauri:build
 ```
 
 ### Generate the changelog
