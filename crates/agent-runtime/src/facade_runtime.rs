@@ -268,7 +268,7 @@ where
             let registry = self.tool_registry.lock().await;
             for tc in &tool_calls {
                 // Check permission
-                let risk = if let Some(tool) = registry.get(&tc.name) {
+                let risk = if let Some(tool) = registry.get(&tc.name).await {
                     let inv = ToolInvocation {
                         tool_id: tc.name.clone(),
                         arguments: tc.arguments.clone(),

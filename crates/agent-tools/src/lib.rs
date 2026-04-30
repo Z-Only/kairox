@@ -10,7 +10,8 @@ pub use filesystem::FsReadTool;
 pub use mcp::{map_mcp_tool, McpServerConfig, McpTool};
 pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
 pub use registry::{
-    require_permission, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRegistry,
+    require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
+    ToolRegistry,
 };
 
 #[derive(Debug, thiserror::Error)]
