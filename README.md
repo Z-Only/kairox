@@ -69,12 +69,12 @@ graph TD
 - `crates/agent-tools` — permission and tool abstractions
 - `crates/agent-memory` — memory and context assembly
 - `crates/agent-store` — SQLite-backed event store
-- `crates/agent-tui` — terminal UI app
+- `crates/agent-tui` — interactive ratatui terminal UI app
 - `apps/agent-gui` — Vue frontend + Tauri desktop app
 
 ## Status
 
-Kairox is in an early-stage but fully structured open-source state, with CI, release workflows, repository policies, and initial TUI/GUI packaging in place.
+Kairox is in active development with a working interactive TUI (ratatui), real model adapters (OpenAI, Ollama), builtin tools (shell, search, patch, fs), event-sourced runtime, and CI/release workflows in place. The GUI (Tauri + Vue) is still a shell awaiting integration.
 
 ## Requirements
 
@@ -90,7 +90,7 @@ For Tauri desktop packaging:
 
 ## Demo
 
-> Demo assets are not added yet. Recommended next step: add GUI screenshots or a short animated capture of the Tauri app here.
+> Run `cargo run -p agent-tui` for a live demo of the interactive TUI with streaming chat, tool trace, and sidebar controls.
 
 ## Why Kairox?
 
