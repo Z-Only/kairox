@@ -23,14 +23,17 @@ jobs:
         with:
           tool: git-cliff
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
+          cache: pnpm
 
       - name: Install tooling deps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Generate release notes with git-cliff
         id: notes
@@ -109,14 +112,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/agent-gui/package-lock.json
+          node-version: 22
+          cache: pnpm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -135,13 +138,7 @@ jobs:
             patchelf
 
       - name: Install repo tooling deps
-        run: npm ci
-
-      - name: Reinstall GUI deps for platform-native optional packages
-        working-directory: apps/agent-gui
-        run: |
-          node -e "require('fs').rmSync('node_modules', { recursive: true, force: true })"
-          npm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build and upload Tauri app
         uses: tauri-apps/tauri-action@v0
