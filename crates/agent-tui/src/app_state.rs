@@ -139,6 +139,11 @@ impl RenderScheduler {
         self.interval = Duration::from_millis(Self::BASE_INTERVAL_MS);
     }
 
+    /// Check whether we are currently in streaming mode.
+    pub fn is_streaming(&self) -> bool {
+        self.streaming
+    }
+
     /// Enter or exit streaming mode.
     pub fn set_streaming(&mut self, streaming: bool) {
         self.streaming = streaming;
@@ -414,19 +419,15 @@ mod tests {
     fn focus_manager_set_replaces_top() {
         let mut fm = FocusManager::new(FocusTarget::Chat);
 
-        // Direct set replaces the current (top) focus
         fm.set(FocusTarget::Trace);
         assert_eq!(fm.current(), FocusTarget::Trace);
 
-        // Push a modal on top
         fm.push(FocusTarget::PermissionModal);
         assert_eq!(fm.current(), FocusTarget::PermissionModal);
 
-        // Set replaces the modal at the top
         fm.set(FocusTarget::Sessions);
         assert_eq!(fm.current(), FocusTarget::Sessions);
 
-        // Pop returns the replaced top (Sessions), going back to Trace
         assert_eq!(fm.pop(), Some(FocusTarget::Sessions));
         assert_eq!(fm.current(), FocusTarget::Trace);
     }
@@ -438,23 +439,19 @@ mod tests {
         let mut rs = RenderScheduler::new();
         rs.set_streaming(true);
 
-        // < 5 tokens: base interval (16 ms)
         rs.add_tokens(4);
         rs.mark_dirty();
-        // Force last_render far enough back
         rs.last_render = Instant::now() - Duration::from_millis(200);
-        let _ = rs.should_render(); // triggers update_interval
+        let _ = rs.should_render();
         assert_eq!(rs.interval, Duration::from_millis(16));
 
-        // ≥ 5 tokens: 60 ms
-        rs.add_tokens(2); // total 6
+        rs.add_tokens(2);
         rs.mark_dirty();
         rs.last_render = Instant::now() - Duration::from_millis(200);
         let _ = rs.should_render();
         assert_eq!(rs.interval, Duration::from_millis(60));
 
-        // ≥ 20 tokens: 120 ms — reset first
-        rs.did_render(); // resets tokens_since_render
+        rs.did_render();
         rs.set_streaming(true);
         rs.add_tokens(20);
         rs.mark_dirty();
@@ -471,7 +468,6 @@ mod tests {
         rs.mark_dirty();
         rs.last_render = Instant::now() - Duration::from_millis(200);
         let _ = rs.should_render();
-        // Non-streaming should always use base interval (16 ms)
         assert_eq!(rs.interval, Duration::from_millis(16));
     }
 
@@ -481,13 +477,8 @@ mod tests {
     fn ctrl_c_progressive_exit_interrupt_then_confirm_then_force() {
         let mut state = AppState::new("fake", PermissionMode::Suggest);
 
-        // 1st press → Interrupt
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
-
-        // 2nd press (immediately) → ConfirmQuit
         assert_eq!(state.record_ctrl_c(), CtrlCAction::ConfirmQuit);
-
-        // 3rd press (immediately) → ForceQuit
         assert_eq!(state.record_ctrl_c(), CtrlCAction::ForceQuit);
     }
 
@@ -495,14 +486,11 @@ mod tests {
     fn ctrl_c_resets_after_timeout() {
         let mut state = AppState::new("fake", PermissionMode::Suggest);
 
-        // 1st press
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
 
-        // Simulate 6 seconds passing by directly manipulating internal state
         state.last_ctrl_c = Some(Instant::now() - Duration::from_secs(6));
 
-        // After timeout, should start over at Interrupt
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
-        assert_eq!(state.ctrl_c_count, 1); // counter was reset to 0 then incremented to 1
+        assert_eq!(state.ctrl_c_count, 1);
     }
 }

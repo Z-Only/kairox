@@ -1,5 +1,8 @@
 pub mod chat;
+pub mod permission_modal;
+pub mod sessions;
 pub mod status_bar;
+pub mod trace;
 
 use agent_core::SessionId;
 use ratatui::layout::Rect;
