@@ -1,4 +1,5 @@
 mod app;
+mod components;
 mod view;
 
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};

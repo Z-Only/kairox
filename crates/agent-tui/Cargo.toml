@@ -11,5 +11,6 @@ agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 anyhow.workspace = true
+crossterm = "0.29"
 ratatui.workspace = true
 tokio.workspace = true
