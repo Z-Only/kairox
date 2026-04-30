@@ -59,10 +59,15 @@ pub enum EventPayload {
     },
     ToolInvocationCompleted {
         invocation_id: String,
+        tool_id: String,
         output_preview: String,
+        exit_code: Option<i32>,
+        duration_ms: u64,
+        truncated: bool,
     },
     ToolInvocationFailed {
         invocation_id: String,
+        tool_id: String,
         error: String,
     },
     FilePatchProposed {

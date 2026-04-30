@@ -362,6 +362,8 @@ where
                         output_limit_bytes: 102_400,
                     };
 
+                    let tool_start = std::time::Instant::now();
+
                     let start_event = DomainEvent::new(
                         request.workspace_id.clone(),
                         request.session_id.clone(),
@@ -386,7 +388,11 @@ where
                             PrivacyClassification::FullTrace,
                             EventPayload::ToolInvocationCompleted {
                                 invocation_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
                                 output_preview: output.text.chars().take(500).collect(),
+                                exit_code: None,
+                                duration_ms: tool_start.elapsed().as_millis() as u64,
+                                truncated: output.truncated,
                             },
                         ),
                         Err(e) => DomainEvent::new(
@@ -396,6 +402,7 @@ where
                             PrivacyClassification::FullTrace,
                             EventPayload::ToolInvocationFailed {
                                 invocation_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
                                 error: e.to_string(),
                             },
                         ),
