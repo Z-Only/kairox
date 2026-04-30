@@ -20,6 +20,18 @@ Examples:
 - `fix(gui): handle empty trace state`
 - `chore(deps): bump reqwest to 0.12`
 
+## Git worktrees
+
+This project uses git worktrees for isolated branch development. After creating a worktree, always run `npm install` to set up husky hooks (the `prepare` script auto-links hooks for worktrees):
+
+```bash
+git worktree add ../kairox-<branch> -b <branch> main
+cd ../kairox-<branch>
+npm install   # triggers prepare.cjs which links husky hooks
+```
+
+The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.husky` to the worktree's `.husky` directory so that pre-commit and commit-msg hooks fire correctly.
+
 ## Local verification
 
 Run before opening a PR or pushing to main:
@@ -29,6 +41,13 @@ npm run format:check
 npm run lint
 cargo test --workspace --all-targets
 ```
+
+Pre-commit hooks (husky + lint-staged) automatically run on staged files:
+
+- `*.{json,md}` → `prettier --write`
+- `apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}` → `prettier --write` + `eslint --fix`
+- `apps/agent-gui/src/**/*.{vue,css,scss,sass,less}` → `prettier --write` + `stylelint --fix`
+- `*.rs` → `cargo fmt --all`
 
 ## Release flow
 
