@@ -3,7 +3,6 @@ use agent_core::projection::SessionProjection;
 #[derive(Debug, Default)]
 pub struct TuiApp {
     pub projection: SessionProjection,
-    pub input: String,
     pub status: String,
 }
 
