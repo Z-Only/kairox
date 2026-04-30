@@ -5,11 +5,20 @@ use futures::{stream, stream::BoxStream};
 #[derive(Debug, Clone)]
 pub struct FakeModelClient {
     tokens: Vec<String>,
+    include_tool_call: bool,
 }
 
 impl FakeModelClient {
     pub fn new(tokens: Vec<String>) -> Self {
-        Self { tokens }
+        Self {
+            tokens,
+            include_tool_call: false,
+        }
+    }
+
+    pub fn with_tool_call(mut self) -> Self {
+        self.include_tool_call = true;
+        self
     }
 }
 
@@ -27,6 +36,15 @@ impl ModelClient for FakeModelClient {
             .map(ModelEvent::TokenDelta)
             .map(Ok)
             .collect();
+
+        if self.include_tool_call {
+            events.push(Ok(ModelEvent::ToolCallRequested {
+                tool_call_id: "call_fake_1".into(),
+                tool_id: "fs.read".into(),
+                arguments: serde_json::json!({"path": "README.md"}),
+            }));
+        }
+
         events.push(Ok(ModelEvent::Completed { usage: None }));
         Ok(Box::pin(stream::iter(events)))
     }
@@ -60,5 +78,21 @@ mod tests {
                 ModelEvent::Completed { usage: None },
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn optionally_includes_tool_call_event() {
+        let client = FakeModelClient::new(vec!["reading".into()]).with_tool_call();
+        let mut stream = client
+            .stream(ModelRequest::user_text("test", "read"))
+            .await
+            .unwrap();
+
+        let mut seen = Vec::new();
+        while let Some(event) = stream.next().await {
+            seen.push(event.unwrap());
+        }
+
+        assert!(matches!(&seen[1], ModelEvent::ToolCallRequested { .. }));
     }
 }
