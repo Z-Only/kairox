@@ -6,11 +6,13 @@ use agent_memory::ContextAssembler;
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
 use agent_store::EventStore;
 use agent_tools::{
-    PermissionEngine, PermissionMode, PermissionOutcome, ToolInvocation, ToolRegistry,
+    BuiltinProvider, PermissionEngine, PermissionMode, PermissionOutcome, ToolInvocation,
+    ToolProvider, ToolRegistry,
 };
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use futures::StreamExt;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -51,6 +53,23 @@ impl<S, M> LocalRuntime<S, M> {
 
     pub fn tool_registry(&self) -> Arc<Mutex<ToolRegistry>> {
         self.tool_registry.clone()
+    }
+
+    /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
+    pub async fn with_builtin_tools(self, workspace_root: PathBuf) -> Self {
+        let provider = BuiltinProvider::with_defaults(workspace_root);
+        self.tool_registry
+            .lock()
+            .await
+            .add_provider(Box::new(provider))
+            .await;
+        self
+    }
+
+    /// Register a custom tool provider
+    pub async fn with_provider(self, provider: Box<dyn ToolProvider>) -> Self {
+        self.tool_registry.lock().await.add_provider(provider).await;
+        self
     }
 }
 
@@ -163,11 +182,25 @@ where
 
         let messages = build_model_messages(&request.content, &session_events);
 
+        // Inject registered tool definitions into model request
+        let tool_defs = {
+            let registry = self.tool_registry.lock().await;
+            let definitions = registry.list_all().await;
+            definitions
+                .into_iter()
+                .map(|td| agent_models::ToolDefinition {
+                    name: td.tool_id,
+                    description: td.description,
+                    parameters: serde_json::json!({"type": "object"}),
+                })
+                .collect()
+        };
+
         let model_request = ModelRequest {
             model_profile: "default".into(),
             messages,
             system_prompt: Some("You are a helpful assistant.".into()),
-            tools: Vec::new(),
+            tools: tool_defs,
         };
 
         // Agent loop: model -> tool call -> permission -> execute -> feed back
@@ -268,7 +301,7 @@ where
             let registry = self.tool_registry.lock().await;
             for tc in &tool_calls {
                 // Check permission
-                let risk = if let Some(tool) = registry.get(&tc.name) {
+                let risk = if let Some(tool) = registry.get(&tc.name).await {
                     let inv = ToolInvocation {
                         tool_id: tc.name.clone(),
                         arguments: tc.arguments.clone(),
@@ -329,6 +362,8 @@ where
                         output_limit_bytes: 102_400,
                     };
 
+                    let tool_start = std::time::Instant::now();
+
                     let start_event = DomainEvent::new(
                         request.workspace_id.clone(),
                         request.session_id.clone(),
@@ -353,7 +388,11 @@ where
                             PrivacyClassification::FullTrace,
                             EventPayload::ToolInvocationCompleted {
                                 invocation_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
                                 output_preview: output.text.chars().take(500).collect(),
+                                exit_code: None,
+                                duration_ms: tool_start.elapsed().as_millis() as u64,
+                                truncated: output.truncated,
                             },
                         ),
                         Err(e) => DomainEvent::new(
@@ -363,6 +402,7 @@ where
                             PrivacyClassification::FullTrace,
                             EventPayload::ToolInvocationFailed {
                                 invocation_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
                                 error: e.to_string(),
                             },
                         ),
@@ -381,20 +421,35 @@ where
                 .load_session(&request.session_id)
                 .await
                 .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-            let tool_results: Vec<String> = session_events
-                .iter()
-                .filter_map(|e| match &e.payload {
-                    EventPayload::ToolInvocationCompleted { output_preview, .. } => {
-                        Some(output_preview.clone())
-                    }
-                    _ => None,
-                })
-                .collect();
-            if !tool_results.is_empty() {
-                current_request = current_request.add_message(
-                    "user",
-                    format!("[Tool results]:\n{}", tool_results.join("\n")),
-                );
+            for tc in &tool_calls {
+                let tool_results_for_call: Vec<String> = session_events
+                    .iter()
+                    .filter_map(|e| match &e.payload {
+                        EventPayload::ToolInvocationCompleted {
+                            invocation_id,
+                            output_preview,
+                            ..
+                        } => {
+                            if invocation_id == &tc.id {
+                                Some(output_preview.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                if !tool_results_for_call.is_empty() {
+                    current_request = current_request.add_message(
+                        "tool",
+                        format!(
+                            "tool_call_id={}\ntool_id={}\nresult={}",
+                            tc.id,
+                            tc.name,
+                            tool_results_for_call.join("\n")
+                        ),
+                    );
+                }
             }
         }
 
