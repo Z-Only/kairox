@@ -1,26 +1,11 @@
 mod app_state;
+mod commands;
 mod event_forwarder;
-
-mod commands {
-    #[tauri::command]
-    pub fn list_model_profiles() -> Vec<String> {
-        vec![
-            "fake".into(),
-            "fast".into(),
-            "local-code".into(),
-            "reviewer".into(),
-        ]
-    }
-}
-
-pub fn default_model_profiles() -> Vec<String> {
-    commands::list_model_profiles()
-}
 
 #[cfg(not(test))]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![commands::list_model_profiles])
+        .invoke_handler(tauri::generate_handler![commands::list_profiles])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
 }
@@ -33,7 +18,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exposes_default_profiles() {
-        assert!(default_model_profiles().contains(&"fake".to_string()));
+    fn detect_profiles_always_includes_fake() {
+        assert!(commands::detect_profiles().contains(&"fake".to_string()));
+    }
+
+    #[test]
+    fn choose_default_profile_prefers_fast() {
+        let profiles = vec![
+            "fast".to_string(),
+            "local-code".to_string(),
+            "fake".to_string(),
+        ];
+        assert_eq!(commands::choose_default_profile(&profiles), "fast");
+    }
+
+    #[test]
+    fn choose_default_profile_falls_back_to_local_code() {
+        let profiles = vec!["local-code".to_string(), "fake".to_string()];
+        assert_eq!(commands::choose_default_profile(&profiles), "local-code");
+    }
+
+    #[test]
+    fn choose_default_profile_falls_back_to_fake() {
+        let profiles = vec!["fake".to_string()];
+        assert_eq!(commands::choose_default_profile(&profiles), "fake");
     }
 }
