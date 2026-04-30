@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
 
 permissions:
   contents: write
@@ -11,6 +14,7 @@ permissions:
 jobs:
   publish-release:
     name: Publish release notes
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,6 +66,7 @@ jobs:
 
   tui-build:
     name: TUI build (${{ matrix.os }})
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: publish-release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -102,6 +107,7 @@ jobs:
 
   tauri-build:
     name: Tauri build (${{ matrix.os }})
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: publish-release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -151,3 +157,62 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           assetNamePattern: Kairox_${{ github.ref_name }}_[platform]_[arch][ext]
           args: --verbose
+
+  # Smoke test for workflow changes: runs on PRs that modify workflow files
+  # to validate that all actions used in release-build.yml can initialize and
+  # the core build toolchain works, without actually publishing a release.
+  workflow-smoke-test:
+    name: Workflow smoke test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux system deps for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install repo tooling deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Verify git-cliff works
+        run: |
+          # In PR context HEAD may be a merge commit; use origin/main as the range
+          git cliff --strip header origin/main..HEAD || git cliff --strip header HEAD~1..HEAD || git cliff --strip header --unreleased
+
+      - name: Build TUI (release)
+        run: cargo build -p agent-tui --release
+
+      - name: Build GUI web
+        working-directory: apps/agent-gui
+        run: pnpm run build
