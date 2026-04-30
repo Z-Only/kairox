@@ -22,6 +22,19 @@ macro_rules! prefixed_id {
             pub fn as_str(&self) -> &str {
                 &self.0
             }
+
+            /// Reconstruct an ID from a previously serialized string.
+            /// This should only be used when receiving IDs from external sources
+            /// (e.g., Tauri frontend, API). Prefer `new()` for creating fresh IDs.
+            pub fn from_string(s: String) -> Self {
+                Self(s)
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(s: String) -> Self {
+                Self(s)
+            }
         }
 
         impl fmt::Display for $name {
