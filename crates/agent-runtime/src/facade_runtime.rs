@@ -393,7 +393,7 @@ where
             if !tool_results.is_empty() {
                 current_request = current_request.add_message(
                     "user",
-                    &format!("[Tool results]:\n{}", tool_results.join("\n")),
+                    format!("[Tool results]:\n{}", tool_results.join("\n")),
                 );
             }
         }
