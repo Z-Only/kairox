@@ -5,64 +5,92 @@ This document describes the recommended release flow for Kairox.
 ## Prerequisites
 
 - `main` is green in CI
-- release-related docs are up to date
-- `CHANGELOG.md` is updated
+- `git-cliff` is installed (`cargo install git-cliff`)
 - local verification has passed
 
-## Local verification
+## Quick release
+
+Use the helper script to run checks, generate the changelog, tag, and push in one step:
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
+scripts/release.sh 0.3.0
+```
+
+The script performs these steps automatically:
+
+1. Run format checks, lint, and tests
+2. Verify the GUI build
+3. Generate `CHANGELOG.md` with git-cliff
+4. Commit the changelog update
+5. Create (or update) the `vX.Y.Z` tag
+6. Push `main` and the tag to origin
+
+## Manual release steps
+
+If you need more control, follow these steps:
+
+### Local verification
+
+```bash
 npm run format:check
 npm run lint
 cargo test --workspace --all-targets
 cargo build -p agent-tui --release
-cd /Users/chanyu/AIProjects/kairox/apps/agent-gui
+cd apps/agent-gui
 npm run build
 npm run tauri:build
 ```
 
-## Create or update a release tag
-
-Example for a new version:
+### Generate the changelog
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-git tag -a v0.1.1 -m "v0.1.1"
-git push origin v0.1.1
+git cliff --tag v0.3.0 -o CHANGELOG.md
+git add CHANGELOG.md
+git commit -m "chore(release): update CHANGELOG for v0.3.0"
 ```
 
-If a tag must be corrected after fixing release workflow issues:
+Always commit the updated `CHANGELOG.md` **before** creating the tag, so the tagged commit includes the changelog.
+
+### Create or update a release tag
 
 ```bash
-cd /Users/chanyu/AIProjects/kairox
-git tag -fa v0.1.1 -m "v0.1.1"
-git push origin v0.1.1 -f
+git tag -fa v0.3.0 -m "v0.3.0"
+git push origin main
+git push origin v0.3.0 -f
 ```
 
 ## GitHub Actions behavior
 
-- `CI` runs on pushes to `main` and on pull requests
-- `Release Build` runs on `v*` tags
-- `Release Build` creates or updates the GitHub Release entry with generated notes
-- `Release Build` uploads TUI packages and Tauri desktop bundles as release assets
+- **CI** runs on pushes to `main` and on pull requests
+- **Release Build** runs on `v*` tags
+- Release Build uses git-cliff to generate categorized release notes from conventional commits
+- Release Build creates or updates the GitHub Release entry with git-cliff generated notes
+- Release Build uploads TUI packages and Tauri desktop bundles as release assets
+
+## git-cliff configuration
+
+The changelog format is defined in `cliff.toml` at the repo root. Commits are grouped into:
+
+| Group | Commit prefix |
+|-------|--------------|
+| Features | `feat` |
+| Bug Fixes | `fix` |
+| Performance | `perf` |
+| Documentation | `docs` |
+| Testing | `test` |
+| Refactor | `refactor` |
+| Styling | `style` |
+| Dependencies | `chore(deps)` |
+| Miscellaneous | `chore` (other) |
+
+`chore(release):` commits are excluded from the changelog automatically.
 
 ## Release checklist
 
-- [ ] `CHANGELOG.md` updated
-- [ ] `README.md` version or release links checked
 - [ ] local verification passed
+- [ ] `CHANGELOG.md` generated with `git cliff --tag vX.Y.Z -o CHANGELOG.md`
+- [ ] changelog committed before tagging
 - [ ] tag pushed
 - [ ] Release Build succeeded on all matrix jobs
+- [ ] GitHub Release page shows categorized notes (not just "Full Changelog" link)
 - [ ] release assets include TUI packages and Tauri desktop bundles
-- [ ] GitHub Release page looks correct
-
-## Helper script
-
-A helper script is available:
-
-```bash
-/Users/chanyu/AIProjects/kairox/scripts/release.sh 0.1.1
-```
-
-This script runs checks, verifies builds, updates the tag, and pushes it.
