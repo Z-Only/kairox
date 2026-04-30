@@ -1,3 +1,5 @@
+pub mod status_bar;
+
 use agent_core::SessionId;
 use ratatui::layout::Rect;
 use ratatui::Frame;
