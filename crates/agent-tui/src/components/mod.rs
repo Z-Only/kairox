@@ -1,3 +1,4 @@
+pub mod chat;
 pub mod status_bar;
 
 use agent_core::SessionId;
