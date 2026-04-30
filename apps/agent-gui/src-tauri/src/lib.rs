@@ -89,3 +89,132 @@ mod tests {
         assert_eq!(commands::choose_default_profile(&profiles), "fake");
     }
 }
+
+#[cfg(test)]
+mod integration_tests {
+    use agent_core::AppFacade;
+
+    async fn create_test_runtime(
+    ) -> agent_runtime::LocalRuntime<agent_store::SqliteEventStore, agent_models::FakeModelClient>
+    {
+        let store = agent_store::SqliteEventStore::in_memory().await.unwrap();
+        let model = agent_models::FakeModelClient::new(vec!["test response".into()]);
+        agent_runtime::LocalRuntime::new(store, model)
+            .with_permission_mode(agent_tools::PermissionMode::Suggest)
+            .with_context_limit(100_000)
+    }
+
+    #[tokio::test]
+    async fn workspace_initialization_creates_session() {
+        let runtime = create_test_runtime().await;
+        let workspace = runtime.open_workspace("/tmp/test".into()).await.unwrap();
+
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        assert!(!session_id.to_string().is_empty());
+    }
+
+    #[tokio::test]
+    async fn send_message_produces_user_and_assistant_events() {
+        let runtime = create_test_runtime().await;
+        let workspace = runtime.open_workspace("/tmp/test".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .send_message(agent_core::SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "hello".into(),
+            })
+            .await
+            .unwrap();
+
+        let projection = runtime.get_session_projection(session_id).await.unwrap();
+        assert_eq!(projection.messages.len(), 2);
+        assert_eq!(projection.messages[0].content, "hello");
+        assert_eq!(projection.messages[1].content, "test response");
+    }
+
+    #[tokio::test]
+    async fn session_projection_serializes_for_frontend() {
+        let runtime = create_test_runtime().await;
+        let workspace = runtime.open_workspace("/tmp/test".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .send_message(agent_core::SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "hi".into(),
+            })
+            .await
+            .unwrap();
+
+        let projection = runtime.get_session_projection(session_id).await.unwrap();
+        let json = serde_json::to_value(&projection).unwrap();
+        assert!(json["messages"].is_array());
+        assert_eq!(json["messages"][0]["role"], "user");
+        assert_eq!(json["messages"][1]["role"], "assistant");
+    }
+
+    #[tokio::test]
+    async fn domain_event_serializes_with_payload_type_tag() {
+        let runtime = create_test_runtime().await;
+        let workspace = runtime.open_workspace("/tmp/test".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(agent_core::StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        // Subscribe BEFORE sending so the stream captures events
+        let mut stream = runtime.subscribe_session(session_id.clone());
+
+        runtime
+            .send_message(agent_core::SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id,
+                content: "test".into(),
+            })
+            .await
+            .unwrap();
+        let events: Vec<agent_core::DomainEvent> = {
+            use futures::StreamExt;
+            let mut collected = Vec::new();
+            for _ in 0..10 {
+                tokio::select! {
+                    Some(event) = stream.next() => collected.push(event),
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => break,
+                }
+            }
+            collected
+        };
+
+        assert!(!events.is_empty());
+        for event in &events {
+            let json = serde_json::to_value(event).unwrap();
+            assert!(json["payload"]["type"].is_string());
+            assert!(json["session_id"].is_string());
+        }
+    }
+}
