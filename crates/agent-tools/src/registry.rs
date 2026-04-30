@@ -69,6 +69,7 @@ pub fn require_permission(engine: &PermissionEngine, risk: &ToolRisk) -> crate::
     }
 }
 
+#[derive(Default)]
 pub struct ToolRegistry {
     /// Tools registered via register() — stored as Arc for cheap cloning.
     internal: HashMap<String, Arc<dyn Tool>>,
@@ -76,16 +77,6 @@ pub struct ToolRegistry {
     providers: Vec<Box<dyn ToolProvider>>,
     /// tool_id → 0 means internal, 1..=N means providers[N-1].
     index: HashMap<String, usize>,
-}
-
-impl Default for ToolRegistry {
-    fn default() -> Self {
-        Self {
-            internal: HashMap::new(),
-            providers: Vec::new(),
-            index: HashMap::new(),
-        }
-    }
 }
 
 impl ToolRegistry {

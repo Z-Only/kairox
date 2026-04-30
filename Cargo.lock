@@ -101,6 +101,7 @@ version = "0.2.0"
 dependencies = [
  "agent-core",
  "async-trait",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",

@@ -122,7 +122,7 @@ impl RipgrepSearchTool {
         let truncated = total_matches >= max_results;
 
         Ok(SearchResults {
-            results: results,
+            results,
             total_matches,
             truncated,
             engine: SearchEngine::Ripgrep,
@@ -243,6 +243,7 @@ impl RipgrepSearchTool {
     }
 
     /// Recursive async directory walk + grep.
+    #[allow(clippy::too_many_arguments)]
     async fn walk_and_grep(
         dir: &Path,
         workspace_root: &Path,
@@ -332,8 +333,8 @@ impl RipgrepSearchTool {
                             file_path,
                             line_number: i + 1,
                             line_content: line.to_string(),
-                            match_start: m.start() as usize,
-                            match_end: m.end() as usize,
+                            match_start: m.start(),
+                            match_end: m.end(),
                         });
                     }
                 }
