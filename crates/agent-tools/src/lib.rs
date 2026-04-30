@@ -9,7 +9,9 @@ pub mod shell;
 pub use filesystem::FsReadTool;
 pub use mcp::{map_mcp_tool, McpServerConfig, McpTool};
 pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
-pub use registry::{require_permission, Tool, ToolDefinition, ToolInvocation, ToolOutput};
+pub use registry::{
+    require_permission, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRegistry,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ToolError {
@@ -19,6 +21,8 @@ pub enum ToolError {
     PermissionDenied(String),
     #[error("path escapes workspace: {0}")]
     WorkspaceEscape(String),
+    #[error("tool not found: {0}")]
+    NotFound(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
