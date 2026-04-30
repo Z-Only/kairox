@@ -37,3 +37,4 @@ reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], defau
 eventsource-stream = "0.2"
 tracing = "0.1"
 wiremock = "0.6" 
+async-stream = "0.3"
