@@ -13,6 +13,7 @@ pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
     ToolRegistry,
 };
+pub use search::{glob_matches, RipgrepSearchTool, SearchEngine, SearchResult, SearchResults};
 pub use shell::{classify_command, parse_command, CommandRisk, ShellExecTool};
 
 #[derive(Debug, thiserror::Error)]
