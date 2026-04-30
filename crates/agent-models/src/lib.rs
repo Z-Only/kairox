@@ -2,10 +2,16 @@ pub mod fake;
 pub mod ollama;
 pub mod openai_compatible;
 pub mod profile;
+pub mod router;
 pub mod types;
 
 pub use fake::FakeModelClient;
+pub use ollama::OllamaClient;
+pub use ollama::OllamaConfig;
+pub use openai_compatible::OpenAiCompatibleClient;
+pub use openai_compatible::OpenAiCompatibleConfig;
 pub use profile::{ModelCapabilities, ModelProfile};
+pub use router::ModelRouter;
 pub use types::{
     ModelClient, ModelEvent, ModelMessage, ModelRequest, ModelUsage, ToolCall, ToolDefinition,
 };
