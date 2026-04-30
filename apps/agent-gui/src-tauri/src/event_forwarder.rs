@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use agent_core::AppFacade;
 use futures::StreamExt;
 use tauri::AppHandle;

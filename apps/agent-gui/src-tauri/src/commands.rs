@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::app_state::{GuiState, WorkspaceSession};
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_core::projection::SessionProjection;

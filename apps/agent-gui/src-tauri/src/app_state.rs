@@ -7,12 +7,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+#[allow(dead_code)]
 pub struct WorkspaceSession {
     pub workspace_id: WorkspaceId,
     pub session_id: SessionId,
     pub profile: String,
 }
 
+#[allow(dead_code)]
 pub struct GuiState {
     pub runtime: Arc<LocalRuntime<SqliteEventStore, FakeModelClient>>,
     pub workspace_id: Mutex<Option<WorkspaceId>>,
@@ -22,6 +24,7 @@ pub struct GuiState {
 }
 
 impl GuiState {
+    #[allow(dead_code)]
     pub fn new(runtime: LocalRuntime<SqliteEventStore, FakeModelClient>) -> Self {
         Self {
             runtime: Arc::new(runtime),
