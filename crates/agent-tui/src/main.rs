@@ -1,6 +1,7 @@
 mod app;
 mod app_state;
 mod components;
+mod keybindings;
 mod view;
 
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
