@@ -23,9 +23,10 @@ npm run build
 npm run tauri:build
 cd "$ROOT"
 
-echo "[3/7] Generating CHANGELOG.md with git-cliff"
+echo "[3/7] Generating and formatting CHANGELOG.md with git-cliff"
 if command -v git-cliff &>/dev/null; then
   git cliff --tag "$TAG" -o CHANGELOG.md
+  npx prettier --write CHANGELOG.md
 else
   echo "⚠️  git-cliff not found. Install it: cargo install git-cliff"
   echo "   Skipping CHANGELOG.md generation. CI will still generate Release Notes."

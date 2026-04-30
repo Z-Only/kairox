@@ -2,17 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
 ### 🚀 Features
 
 - **ci**: add git-cliff for automated changelog and release notes
+- **hooks**: fix husky hooks for git worktrees and update AGENTS.md
+
+### 🐛 Bug Fixes
+
+- **ci**: exclude CHANGELOG.md from prettier and fix cliff.toml template
+- **lint**: remove unused mkdirSync import in prepare.cjs
+
 ### 📚 Documentation
 
 - add tool provider and builtin tools design spec
 - add tool provider and builtin tools implementation plan
+
 ## [0.2.0] - 2026-04-30
 
 ### 🚀 Features
@@ -27,24 +35,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add real model adapters and runtime agent loop
 - **tui**: wire model profile detection, permission mode, and context limit
 - **tui**: wire model profile detection, permission mode, and context limit
+
 ### 🧪 Testing
 
 - **runtime**: add agent loop integration tests
+
 ### 🔧 Miscellaneous Tasks
 
 - **models**: add reqwest and streaming dependencies
 - fix clippy warnings and workspace verification
+
 ## [0.1.2] - 2026-04-29
 
 ### 🐛 Bug Fixes
 
 - **actions**: upload release assets for TUI and Tauri builds
+
 ## [0.1.1] - 2026-04-29
 
 ### 🐛 Bug Fixes
 
 - **dependabot**: support app actor identity
 - **dependabot**: merge green dependency PRs directly
+
 ### 📚 Documentation
 
 - **readme**: add badges and release link
@@ -57,9 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **readme**: refine landing page and repo metadata
 - **readme**: add visuals and asset guidance
 - **readme**: add logo banner and screenshot placeholders
+
 ### 👷 CI
 
 - **dependabot**: enable safe auto-merge after green checks
+
 ### 📦 Dependencies
 
 - **deps-dev**: bump typescript from 5.9.3 to 6.0.3 in /apps/agent-gui (#14)
@@ -69,6 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deps-dev**: bump vitest from 2.1.9 to 4.1.5 (#7)
 - **deps-dev**: bump globals from 15.15.0 to 17.5.0 (#2)
 - **deps-dev**: bump vitest from 2.1.9 to 4.1.5 in /apps/agent-gui (#12)
+
 ## [0.1.0] - 2026-04-29
 
 ### 🚀 Features
@@ -77,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **core**: define app facade boundary
 - **store**: persist append-only events in sqlite
 - **workbench**: complete ai agent workbench baseline
+
 ### 🐛 Bug Fixes
 
 - **core**: strengthen projection serialization and tests
@@ -88,13 +105,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **gui**: sync rollup optional deps in lockfile
 - **lockfile**: sync workspace rollup optional deps
 - **actions**: use cross-platform node_modules cleanup
+
 ### 📚 Documentation
 
 - add AI agent workbench design spec
 - add AI agent workbench implementation plan
+
 ### 🎨 Styling
 
 - **format**: apply prettier to updated files
+
 ### 🔧 Miscellaneous Tasks
 
 - scaffold rust workspace
