@@ -9,6 +9,7 @@ agent-core = { path = "../agent-core" }
 agent-models = { path = "../agent-models" }
 agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
+agent-tools = { path = "../agent-tools" }
 anyhow.workspace = true
 ratatui.workspace = true
 tokio.workspace = true

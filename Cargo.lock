@@ -115,6 +115,7 @@ dependencies = [
  "agent-models",
  "agent-runtime",
  "agent-store",
+ "agent-tools",
  "anyhow",
  "ratatui",
  "tokio",
