@@ -57,20 +57,18 @@ impl ChatPanel {
 
         match action {
             // -- Send ----------------------------------------------------------
-            KeyAction::SendInput => {
-                if !self.input_content.is_empty() {
-                    self.input_history.push(self.input_content.clone());
-                    let content = std::mem::take(&mut self.input_content);
-                    self.input_cursor = 0;
-                    self.input_history_index = None;
+            KeyAction::SendInput if !self.input_content.is_empty() => {
+                self.input_history.push(self.input_content.clone());
+                let content = std::mem::take(&mut self.input_content);
+                self.input_cursor = 0;
+                self.input_history_index = None;
 
-                    if let Some(session) = ctx.sessions.first() {
-                        commands.push(Command::SendMessage {
-                            workspace_id: agent_core::WorkspaceId::new(),
-                            session_id: session.id.clone(),
-                            content,
-                        });
-                    }
+                if let Some(session) = ctx.sessions.first() {
+                    commands.push(Command::SendMessage {
+                        workspace_id: agent_core::WorkspaceId::new(),
+                        session_id: session.id.clone(),
+                        content,
+                    });
                 }
             }
 
@@ -81,20 +79,16 @@ impl ChatPanel {
             }
 
             // -- Backspace ------------------------------------------------------
-            KeyAction::InputBackspace => {
-                if self.input_cursor > 0 {
-                    let prev = prev_char_boundary(&self.input_content, self.input_cursor);
-                    self.input_content.drain(prev..self.input_cursor);
-                    self.input_cursor = prev;
-                }
+            KeyAction::InputBackspace if self.input_cursor > 0 => {
+                let prev = prev_char_boundary(&self.input_content, self.input_cursor);
+                self.input_content.drain(prev..self.input_cursor);
+                self.input_cursor = prev;
             }
 
             // -- Newline (multi-line only) ------------------------------------
-            KeyAction::InputNewline => {
-                if self.input_mode == InputMode::MultiLine {
-                    self.input_content.insert(self.input_cursor, '\n');
-                    self.input_cursor += 1;
-                }
+            KeyAction::InputNewline if self.input_mode == InputMode::MultiLine => {
+                self.input_content.insert(self.input_cursor, '\n');
+                self.input_cursor += 1;
             }
 
             // -- Toggle input mode ---------------------------------------------
@@ -106,17 +100,15 @@ impl ChatPanel {
             }
 
             // -- History navigation --------------------------------------------
-            KeyAction::InputHistoryUp => {
-                if !self.input_history.is_empty() {
-                    let idx = match self.input_history_index {
-                        Some(i) if i > 0 => i - 1,
-                        Some(i) => i,
-                        None => self.input_history.len() - 1,
-                    };
-                    self.input_history_index = Some(idx);
-                    self.input_content = self.input_history[idx].clone();
-                    self.input_cursor = self.input_content.len();
-                }
+            KeyAction::InputHistoryUp if !self.input_history.is_empty() => {
+                let idx = match self.input_history_index {
+                    Some(i) if i > 0 => i - 1,
+                    Some(i) => i,
+                    None => self.input_history.len() - 1,
+                };
+                self.input_history_index = Some(idx);
+                self.input_content = self.input_history[idx].clone();
+                self.input_cursor = self.input_content.len();
             }
 
             KeyAction::InputHistoryDown => {
@@ -171,10 +163,10 @@ impl ChatPanel {
             }
 
             // -- Escape --------------------------------------------------------
-            KeyAction::Escape => {
-                if self.input_mode == InputMode::MultiLine && self.input_content.is_empty() {
-                    self.input_mode = InputMode::SingleLine;
-                }
+            KeyAction::Escape
+                if self.input_mode == InputMode::MultiLine && self.input_content.is_empty() =>
+            {
+                self.input_mode = InputMode::SingleLine;
             }
 
             // -- Paste ---------------------------------------------------------
@@ -220,16 +212,15 @@ impl Component for ChatPanel {
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
         match effect {
-            CrossPanelEffect::ShowPermissionPrompt(req) => {
+            CrossPanelEffect::ShowPermissionPrompt(req) if req.risk_level == RiskLevel::Write => {
                 // Only handle Write-level risks in ChatPanel.
                 // Destructive risks are handled by PermissionModal.
-                if req.risk_level == RiskLevel::Write {
-                    self.input_state = InputState::PermissionWait {
-                        request_id: req.request_id.clone(),
-                        pending_prompt: req.tool_preview.clone(),
-                    };
-                }
+                self.input_state = InputState::PermissionWait {
+                    request_id: req.request_id.clone(),
+                    pending_prompt: req.tool_preview.clone(),
+                };
             }
+            CrossPanelEffect::ShowPermissionPrompt(_) => {}
             CrossPanelEffect::DismissPermissionPrompt => {
                 if matches!(self.input_state, InputState::PermissionWait { .. }) {
                     self.input_state = InputState::Normal;
