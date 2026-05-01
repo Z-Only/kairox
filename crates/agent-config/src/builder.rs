@@ -2,8 +2,9 @@
 
 use crate::{Config, ProfileDef};
 use agent_models::{
-    FakeModelClient, ModelCapabilities, ModelClient, ModelProfile, ModelRouter, OllamaClient,
-    OllamaConfig, OpenAiCompatibleClient, OpenAiCompatibleConfig,
+    AnthropicClient, AnthropicConfig, FakeModelClient, ModelCapabilities, ModelClient,
+    ModelProfile, ModelRouter, OllamaClient, OllamaConfig, OpenAiCompatibleClient,
+    OpenAiCompatibleConfig,
 };
 use std::sync::Arc;
 
@@ -27,6 +28,16 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             streaming: true,
             tool_calling: true,
             json_schema: true,
+            vision: false,
+            reasoning_controls: false,
+            context_window: def.context_window,
+            output_limit: def.output_limit,
+            local_model: false,
+        },
+        "anthropic" => ModelCapabilities {
+            streaming: true,
+            tool_calling: true,
+            json_schema: false,
             vision: false,
             reasoning_controls: false,
             context_window: def.context_window,
@@ -73,6 +84,21 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
     }
 }
 
+/// Resolve API key: direct key takes priority, otherwise read from env var.
+fn resolve_api_key_env(alias: &str, def: &ProfileDef) -> String {
+    if def.api_key.is_some() {
+        let env_name = format!("KAIROX_KEY_{}", alias.replace('-', "_").to_uppercase());
+        if let Some(ref key) = def.api_key {
+            std::env::set_var(&env_name, key);
+        }
+        env_name
+    } else {
+        def.api_key_env
+            .clone()
+            .unwrap_or_else(|| "OPENAI_API_KEY".to_string())
+    }
+}
+
 fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
     match def.provider.as_str() {
         "openai_compatible" => {
@@ -80,21 +106,7 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .base_url
                 .clone()
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-
-            // If api_key is set directly (not via env var), create a synthetic env var
-            // so that OpenAiCompatibleConfig can read it at request time.
-            // This avoids mutating global env vars in a conflicting way.
-            let api_key_env = if def.api_key.is_some() {
-                let env_name = format!("KAIROX_KEY_{}", alias.replace('-', "_").to_uppercase());
-                if let Some(ref key) = def.api_key {
-                    std::env::set_var(&env_name, key);
-                }
-                env_name
-            } else {
-                def.api_key_env
-                    .clone()
-                    .unwrap_or_else(|| "OPENAI_API_KEY".to_string())
-            };
+            let api_key_env = resolve_api_key_env(alias, def);
 
             let config = OpenAiCompatibleConfig {
                 base_url,
@@ -104,6 +116,23 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 capability_overrides: None,
             };
             Box::new(OpenAiCompatibleClient::new(config))
+        }
+        "anthropic" => {
+            let base_url = def
+                .base_url
+                .clone()
+                .unwrap_or_else(|| "https://api.anthropic.com".to_string());
+            let api_key_env = resolve_api_key_env(alias, def);
+
+            let config = AnthropicConfig {
+                base_url,
+                api_key_env,
+                default_model: def.model_id.clone(),
+                max_tokens: def.output_limit,
+                headers: Vec::new(),
+                capability_overrides: None,
+            };
+            Box::new(AnthropicClient::new(config))
         }
         "ollama" => {
             let config = OllamaConfig {
@@ -147,7 +176,7 @@ mod tests {
         let config = Config::defaults();
         let router = build_router(&config);
         let profiles = router.list_profiles();
-        assert!(profiles.len() >= 2); // at least fake and local-code
+        assert!(profiles.len() >= 2);
         assert!(profiles.iter().any(|p| p.alias == "fake"));
         assert!(profiles.iter().any(|p| p.alias == "local-code"));
     }
@@ -192,12 +221,12 @@ mod tests {
     #[test]
     fn build_profile_sets_capabilities_per_provider() {
         let fast_def = ProfileDef {
-            provider: "openai_compatible".into(),
-            model_id: "gpt-4.1-mini".into(),
-            base_url: Some("https://api.openai.com/v1".into()),
+            provider: "anthropic".into(),
+            model_id: "claude-sonnet-4-20250514".into(),
+            base_url: Some("https://api.anthropic.com".into()),
             api_key: None,
-            api_key_env: Some("OPENAI_API_KEY".into()),
-            context_window: 128_000,
+            api_key_env: Some("ANTHROPIC_API_KEY".into()),
+            context_window: 200_000,
             output_limit: 16_384,
             response: None,
         };

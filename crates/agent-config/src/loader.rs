@@ -80,7 +80,7 @@ pub fn resolve_api_keys(config: &mut Config) {
 
 /// Validate the configuration: check for unknown providers, missing fields, etc.
 pub fn validate(config: &Config) -> Result<(), ConfigError> {
-    let known_providers = ["openai_compatible", "ollama", "fake"];
+    let known_providers = ["openai_compatible", "anthropic", "ollama", "fake"];
 
     for (alias, profile) in &config.profiles {
         if !known_providers.contains(&profile.provider.as_str()) {
