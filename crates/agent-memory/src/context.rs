@@ -96,8 +96,11 @@ mod tests {
             memories: vec![MemoryEntry {
                 id: "mem1".into(),
                 scope: MemoryScope::Workspace,
+                key: None,
                 content: "Use cargo test --workspace".into(),
                 accepted: true,
+                session_id: None,
+                workspace_id: None,
             }],
             active_task: Some("repair failing test".into()),
         });

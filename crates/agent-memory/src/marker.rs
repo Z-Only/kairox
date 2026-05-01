@@ -9,10 +9,9 @@ pub struct MemoryMarker {
 }
 
 pub fn extract_memory_markers(text: &str) -> Vec<MemoryMarker> {
-    let re = Regex::new(
-        r#"<memory(?:\s+scope="([^"]*)")?(?:\s+key="([^"]*)")?\s*>([\s\S]*?)</memory>"#,
-    )
-    .unwrap();
+    let re =
+        Regex::new(r#"<memory(?:\s+scope="([^"]*)")?(?:\s+key="([^"]*)")?\s*>([\s\S]*?)</memory>"#)
+            .unwrap();
 
     re.captures_iter(text)
         .map(|cap| MemoryMarker {
@@ -32,10 +31,9 @@ pub fn extract_memory_markers(text: &str) -> Vec<MemoryMarker> {
 }
 
 pub fn strip_memory_markers(text: &str) -> String {
-    let re = Regex::new(
-        r#"<memory(?:\s+scope="[^"]*")?(?:\s+key="[^"]*")?\s*>[\s\S]*?</memory>\n?"#,
-    )
-    .unwrap();
+    let re =
+        Regex::new(r#"<memory(?:\s+scope="[^"]*")?(?:\s+key="[^"]*")?\s*>[\s\S]*?</memory>\n?"#)
+            .unwrap();
     re.replace_all(text, "").trim_end().to_string()
 }
 
