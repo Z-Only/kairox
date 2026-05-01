@@ -5,6 +5,16 @@ import type {
   DomainEvent
 } from "../types";
 
+/** Report a send error to the UI when the background task fails. */
+export function reportSendError(message: string) {
+  sessionState.projection.messages.push({
+    role: "assistant",
+    content: `[error] ${message}`
+  });
+  sessionState.projection.token_stream = "";
+  sessionState.isStreaming = false;
+}
+
 export const sessionState = reactive({
   sessions: [] as SessionInfoResponse[],
   currentSessionId: null as string | null,
@@ -51,6 +61,15 @@ export function applyEvent(event: DomainEvent) {
       break;
     case "AgentTaskCreated":
       sessionState.projection.task_titles.push(p.title);
+      break;
+    case "AgentTaskFailed":
+      // Show the error as an assistant message and reset streaming state
+      sessionState.projection.messages.push({
+        role: "assistant",
+        content: `[error] ${p.error || "Unknown error"}`
+      });
+      sessionState.projection.token_stream = "";
+      sessionState.isStreaming = false;
       break;
     case "ToolInvocationStarted":
     case "ToolInvocationCompleted":

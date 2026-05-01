@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 use crate::app_state::{GuiState, WorkspaceSession};
 use crate::event_forwarder::spawn_event_forwarder;
+use agent_config::ProfileInfo;
 use agent_core::projection::SessionProjection;
 use agent_core::AppFacade;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,31 +21,14 @@ pub struct SessionInfoResponse {
     pub profile: String,
 }
 
-pub fn detect_profiles() -> Vec<String> {
-    let mut profiles = vec!["fake".to_string()];
-    if std::env::var("OPENAI_API_KEY").is_ok() {
-        profiles.insert(0, "fast".to_string());
-    }
-    profiles.insert(
-        if profiles.len() > 1 { 1 } else { 0 },
-        "local-code".to_string(),
-    );
-    profiles
-}
-
-pub fn choose_default_profile(profiles: &[String]) -> &str {
-    if profiles.iter().any(|p| p == "fast") {
-        "fast"
-    } else if profiles.iter().any(|p| p == "local-code") {
-        "local-code"
-    } else {
-        "fake"
-    }
+#[tauri::command]
+pub async fn list_profiles(state: State<'_, GuiState>) -> Result<Vec<String>, String> {
+    Ok(state.config.profile_names())
 }
 
 #[tauri::command]
-pub async fn list_profiles() -> Vec<String> {
-    detect_profiles()
+pub async fn get_profile_info(state: State<'_, GuiState>) -> Result<Vec<ProfileInfo>, String> {
+    Ok(state.config.profile_info())
 }
 
 #[tauri::command]
@@ -71,14 +56,13 @@ pub async fn initialize_workspace(
         .map_err(|e| format!("Failed to open workspace: {e}"))?;
 
     let workspace_id = workspace.workspace_id.clone();
-    let profiles = detect_profiles();
-    let profile = choose_default_profile(&profiles);
+    let profile = state.config.default_profile();
 
     let session_id = state
         .runtime
         .start_session(agent_core::StartSessionRequest {
             workspace_id: workspace_id.clone(),
-            model_profile: profile.to_string(),
+            model_profile: profile.clone(),
         })
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;
@@ -95,7 +79,7 @@ pub async fn initialize_workspace(
             WorkspaceSession {
                 workspace_id: workspace_id.clone(),
                 session_id: session_id.clone(),
-                profile: profile.to_string(),
+                profile: profile.clone(),
             },
         );
     }
@@ -166,7 +150,11 @@ pub async fn start_session(
 }
 
 #[tauri::command]
-pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result<(), String> {
+pub async fn send_message(
+    content: String,
+    state: State<'_, GuiState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
     let workspace_id = {
         let ws = state.workspace_id.lock().await;
         ws.clone().ok_or("Workspace not initialized")?
@@ -176,15 +164,58 @@ pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result
         current.clone().ok_or("No active session")?
     };
 
-    state
-        .runtime
-        .send_message(agent_core::SendMessageRequest {
-            workspace_id,
-            session_id,
-            content,
-        })
-        .await
-        .map_err(|e| format!("Failed to send message: {e}"))?;
+    // Spawn the message processing on a background task so that
+    // the Tauri command returns immediately and streaming events
+    // can flow to the frontend in real-time through the event forwarder.
+    let session_id_str = session_id.to_string();
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/kairox-debug.log")
+    {
+        use std::io::Write;
+        let _ = writeln!(
+            f,
+            "[commands] send_message: session={} content_len={}",
+            session_id_str,
+            content.len()
+        );
+    }
+    let runtime = state.runtime.clone();
+    tokio::spawn(async move {
+        let result = runtime
+            .send_message(agent_core::SendMessageRequest {
+                workspace_id,
+                session_id,
+                content,
+            })
+            .await;
+
+        if let Err(e) = result {
+            eprintln!("[commands] send_message background task failed: {e}");
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/tmp/kairox-debug.log")
+            {
+                use std::io::Write;
+                let _ = writeln!(f, "[commands] send_message FAILED: {e}");
+            }
+            // Emit an error event to the frontend so the UI can display
+            // the error and reset the streaming state.
+            let error_payload = serde_json::json!({
+                "type": "AgentTaskFailed",
+                "task_id": "",
+                "error": e.to_string()
+            });
+            let event = serde_json::json!({
+                "schema_version": 1,
+                "session_id": session_id_str,
+                "payload": error_payload
+            });
+            let _ = app_handle.emit("session-event", &event);
+        }
+    });
 
     Ok(())
 }

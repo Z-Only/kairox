@@ -1,3 +1,4 @@
+pub mod anthropic;
 pub mod fake;
 pub mod ollama;
 pub mod openai_compatible;
@@ -5,6 +6,8 @@ pub mod profile;
 pub mod router;
 pub mod types;
 
+pub use anthropic::AnthropicClient;
+pub use anthropic::AnthropicConfig;
 pub use fake::FakeModelClient;
 pub use ollama::OllamaClient;
 pub use ollama::OllamaConfig;

@@ -44,6 +44,7 @@ export type EventPayload =
       error: string;
     }
   | { type: "SessionCancelled"; reason: string }
+  | { type: "AgentTaskFailed"; task_id: string; error: string }
   | { type: string };
 
 export interface DomainEvent {
@@ -66,4 +67,12 @@ export interface SessionInfoResponse {
 export interface WorkspaceInfoResponse {
   workspace_id: string;
   path: string;
+}
+
+export interface ProfileInfo {
+  alias: string;
+  provider: string;
+  model_id: string;
+  local: boolean;
+  has_api_key: boolean;
 }
