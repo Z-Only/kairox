@@ -4,7 +4,7 @@ use agent_core::{
 };
 use agent_memory::{
     durable_memory_requires_confirmation, extract_memory_markers, strip_memory_markers,
-    ContextAssembler, MemoryEntry, MemoryStore, SqliteMemoryStore,
+    ContextAssembler, MemoryEntry, MemoryStore,
 };
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
 use agent_store::EventStore;

@@ -1,7 +1,9 @@
 use crate::extractor::extract_keywords;
 use crate::memory::{MemoryEntry, MemoryScope};
 use async_trait::async_trait;
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::SqlitePool;
+#[cfg(test)]
+use sqlx::sqlite::SqlitePoolOptions;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryStoreError {
@@ -150,7 +152,7 @@ impl MemoryStore for SqliteMemoryStore {
             let conditions: Vec<String> = query
                 .keywords
                 .iter()
-                .map(|kw| {
+                .map(|_kw| {
                     let idx = param_idx;
                     param_idx += 1;
                     format!("(content LIKE ?{idx} OR keywords LIKE ?{idx})")

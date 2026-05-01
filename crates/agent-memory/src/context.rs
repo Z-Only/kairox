@@ -14,7 +14,7 @@ pub enum ContextSource {
     SelectedFile,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ContextRequest {
     pub system_prompt: Option<String>,
     pub user_request: String,
@@ -25,22 +25,6 @@ pub struct ContextRequest {
     pub active_task: Option<String>,
     pub session_id: Option<String>,
     pub workspace_id: Option<String>,
-}
-
-impl Default for ContextRequest {
-    fn default() -> Self {
-        Self {
-            system_prompt: None,
-            user_request: String::new(),
-            session_history: Vec::new(),
-            selected_files: Vec::new(),
-            tool_results: Vec::new(),
-            memories: Vec::new(),
-            active_task: None,
-            session_id: None,
-            workspace_id: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

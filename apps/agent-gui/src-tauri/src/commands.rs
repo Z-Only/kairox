@@ -1,9 +1,12 @@
 #![allow(dead_code)]
+#![allow(clippy::new_without_default)]
 use crate::app_state::{GuiState, WorkspaceSession};
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::projection::SessionProjection;
 use agent_core::AppFacade;
+use agent_core::PermissionDecision;
+use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri::State;
@@ -300,4 +303,91 @@ async fn switch_session_inner(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryEntryResponse {
+    pub id: String,
+    pub scope: String,
+    pub key: Option<String>,
+    pub content: String,
+    pub accepted: bool,
+}
+
+impl From<MemoryEntry> for MemoryEntryResponse {
+    fn from(e: MemoryEntry) -> Self {
+        Self {
+            id: e.id,
+            scope: match e.scope {
+                MemoryScope::User => "user".into(),
+                MemoryScope::Workspace => "workspace".into(),
+                MemoryScope::Session => "session".into(),
+            },
+            key: e.key,
+            content: e.content,
+            accepted: e.accepted,
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn resolve_permission(
+    state: State<'_, GuiState>,
+    request_id: String,
+    decision: String,
+    reason: Option<String>,
+) -> Result<(), String> {
+    let perm_decision = match decision.as_str() {
+        "grant" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: true,
+            reason: None,
+        },
+        "deny" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: false,
+            reason: reason.or_else(|| Some("User denied".into())),
+        },
+        _ => return Err("Invalid decision: must be 'grant' or 'deny'".into()),
+    };
+    state
+        .runtime
+        .resolve_permission(&request_id, perm_decision)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn query_memories(
+    state: State<'_, GuiState>,
+    scope: Option<String>,
+    keywords: Option<Vec<String>>,
+    limit: Option<usize>,
+) -> Result<Vec<MemoryEntryResponse>, String> {
+    let scope = scope.map(|s| match s.as_str() {
+        "user" => MemoryScope::User,
+        "workspace" => MemoryScope::Workspace,
+        _ => MemoryScope::Session,
+    });
+    let entries = state
+        .memory_store
+        .query(MemoryQuery {
+            scope,
+            keywords: keywords.unwrap_or_default(),
+            limit: limit.unwrap_or(50),
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(entries.into_iter().map(MemoryEntryResponse::from).collect())
+}
+
+#[tauri::command]
+pub async fn delete_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    state
+        .memory_store
+        .delete(&id)
+        .await
+        .map_err(|e| e.to_string())
 }

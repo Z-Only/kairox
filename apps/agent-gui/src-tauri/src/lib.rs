@@ -24,6 +24,12 @@ pub fn run() {
                     .await
                     .expect("Failed to create in-memory store");
 
+                let mem_store = std::sync::Arc::new(
+                    agent_memory::SqliteMemoryStore::new(store.pool().clone())
+                        .await
+                        .expect("Failed to create memory store"),
+                ) as std::sync::Arc<dyn agent_memory::MemoryStore>;
+
                 let config = Config::load().unwrap_or_else(|e| {
                     eprintln!("Config warning: {e}, using defaults");
                     Config::defaults()
@@ -32,16 +38,18 @@ pub fn run() {
 
                 eprintln!("Available model profiles: {:?}", config.profile_names());
                 eprintln!("Default profile: {}", config.default_profile());
+                eprintln!("Permission mode: Interactive");
 
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
 
                 let runtime = LocalRuntime::new(store, router)
-                    .with_permission_mode(PermissionMode::Suggest)
+                    .with_permission_mode(PermissionMode::Interactive)
                     .with_context_limit(100_000)
+                    .with_memory_store(mem_store.clone())
                     .with_builtin_tools(cwd)
                     .await;
 
-                handle.manage(GuiState::new(runtime, config));
+                handle.manage(GuiState::new(runtime, config, mem_store));
             });
             Ok(())
         })
@@ -53,6 +61,9 @@ pub fn run() {
             commands::send_message,
             commands::switch_session,
             commands::list_sessions,
+            commands::resolve_permission,
+            commands::query_memories,
+            commands::delete_memory,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
