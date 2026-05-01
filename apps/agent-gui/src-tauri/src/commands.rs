@@ -5,6 +5,7 @@ use agent_config::ProfileInfo;
 use agent_core::projection::SessionProjection;
 use agent_core::AppFacade;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,7 +150,11 @@ pub async fn start_session(
 }
 
 #[tauri::command]
-pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result<(), String> {
+pub async fn send_message(
+    content: String,
+    state: State<'_, GuiState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
     let workspace_id = {
         let ws = state.workspace_id.lock().await;
         ws.clone().ok_or("Workspace not initialized")?
@@ -162,6 +167,7 @@ pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result
     // Spawn the message processing on a background task so that
     // the Tauri command returns immediately and streaming events
     // can flow to the frontend in real-time through the event forwarder.
+    let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
         let result = runtime
@@ -174,6 +180,19 @@ pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result
 
         if let Err(e) = result {
             eprintln!("[commands] send_message background task failed: {e}");
+            // Emit an error event to the frontend so the UI can display
+            // the error and reset the streaming state.
+            let error_payload = serde_json::json!({
+                "type": "AgentTaskFailed",
+                "task_id": "",
+                "error": e.to_string()
+            });
+            let event = serde_json::json!({
+                "schema_version": 1,
+                "session_id": session_id_str,
+                "payload": error_payload
+            });
+            let _ = app_handle.emit("session-event", &event);
         }
     });
 

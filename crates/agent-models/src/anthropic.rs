@@ -228,6 +228,7 @@ fn parse_anthropic_event(data: &str) -> Result<Vec<ModelEvent>> {
         "message_delta" => {
             if let Some(stop_reason) = value["delta"]["stop_reason"].as_str() {
                 if stop_reason == "end_turn"
+                    || stop_reason == "max_tokens"
                     || stop_reason == "stop_sequence"
                     || stop_reason == "tool_use"
                 {
@@ -287,7 +288,11 @@ fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent>> {
 
     // Check for completion
     let stop_reason = value["stop_reason"].as_str().unwrap_or("");
-    if stop_reason == "end_turn" || stop_reason == "stop_sequence" || stop_reason == "tool_use" {
+    if stop_reason == "end_turn"
+        || stop_reason == "max_tokens"
+        || stop_reason == "stop_sequence"
+        || stop_reason == "tool_use"
+    {
         let usage_value = &value["usage"];
         let usage = if usage_value.is_object() {
             Some(crate::ModelUsage {

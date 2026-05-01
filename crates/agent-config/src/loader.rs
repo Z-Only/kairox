@@ -66,8 +66,11 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
 
 /// Resolve API keys: if `api_key_env` is set and `api_key` is not,
 /// read the environment variable and populate `api_key`.
+///
+/// For Anthropic profiles, if the env var is not set, falls back to
+/// reading `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json`.
 pub fn resolve_api_keys(config: &mut Config) {
-    for (_alias, profile) in &mut config.profiles {
+    for (alias, profile) in &mut config.profiles {
         if profile.api_key.is_none() {
             if let Some(ref env_var) = profile.api_key_env {
                 if let Ok(key) = std::env::var(env_var) {
@@ -75,7 +78,38 @@ pub fn resolve_api_keys(config: &mut Config) {
                 }
             }
         }
+
+        // Fallback for Anthropic profiles: try ~/.claude/settings.json
+        if profile.api_key.is_none() && profile.provider == "anthropic" {
+            if let Some(key) = try_read_claude_auth_token() {
+                eprintln!(
+                    "[agent-config] profile '{}': resolved Anthropic API key from ~/.claude/settings.json (ANTHROPIC_AUTH_TOKEN)",
+                    alias
+                );
+                profile.api_key = Some(key);
+                // Also set the env var so that AnthropicConfig::api_key() can find it
+                let env_name = format!("KAIROX_KEY_{}", alias.replace('-', "_").to_uppercase());
+                std::env::set_var(&env_name, profile.api_key.as_ref().unwrap());
+                profile.api_key_env = Some(env_name);
+            }
+        }
     }
+}
+
+/// Try to read `ANTHROPIC_AUTH_TOKEN` from `~/.claude/settings.json`.
+fn try_read_claude_auth_token() -> Option<String> {
+    let home = dirs::home_dir()?;
+    let settings_path = home.join(".claude").join("settings.json");
+    if !settings_path.is_file() {
+        return None;
+    }
+    let content = std::fs::read_to_string(&settings_path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&content).ok()?;
+    value
+        .get("env")?
+        .get("ANTHROPIC_AUTH_TOKEN")?
+        .as_str()
+        .map(|s| s.to_string())
 }
 
 /// Validate the configuration: check for unknown providers, missing fields, etc.

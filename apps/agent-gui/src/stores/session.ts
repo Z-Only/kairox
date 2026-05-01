@@ -62,6 +62,15 @@ export function applyEvent(event: DomainEvent) {
     case "AgentTaskCreated":
       sessionState.projection.task_titles.push(p.title);
       break;
+    case "AgentTaskFailed":
+      // Show the error as an assistant message and reset streaming state
+      sessionState.projection.messages.push({
+        role: "assistant",
+        content: `[error] ${p.error || "Unknown error"}`
+      });
+      sessionState.projection.token_stream = "";
+      sessionState.isStreaming = false;
+      break;
     case "ToolInvocationStarted":
     case "ToolInvocationCompleted":
     case "ToolInvocationFailed":

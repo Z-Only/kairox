@@ -238,11 +238,26 @@ where
             }
             iterations += 1;
 
-            let mut stream = self
-                .model
-                .stream(current_request.clone())
-                .await
-                .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+            let stream_result = self.model.stream(current_request.clone()).await;
+
+            let mut stream = match stream_result {
+                Ok(s) => s,
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    let fail_event = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::AgentTaskFailed {
+                            task_id: agent_core::TaskId::new(),
+                            error: error_msg.clone(),
+                        },
+                    );
+                    let _ = append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                    return Err(agent_core::CoreError::InvalidState(error_msg));
+                }
+            };
 
             let mut assistant_text = String::new();
             let mut tool_calls: Vec<ToolCall> = Vec::new();
@@ -298,10 +313,35 @@ where
                         }
                     }
                     Ok(ModelEvent::Failed { message }) => {
+                        let fail_event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: agent_core::TaskId::new(),
+                                error: message.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
                         return Err(agent_core::CoreError::InvalidState(message));
                     }
                     Err(e) => {
-                        return Err(agent_core::CoreError::InvalidState(e.to_string()));
+                        let error_msg = e.to_string();
+                        let fail_event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: agent_core::TaskId::new(),
+                                error: error_msg.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                        return Err(agent_core::CoreError::InvalidState(error_msg));
                     }
                 }
             }
