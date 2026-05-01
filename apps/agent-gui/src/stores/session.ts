@@ -5,6 +5,16 @@ import type {
   DomainEvent
 } from "../types";
 
+/** Report a send error to the UI when the background task fails. */
+export function reportSendError(message: string) {
+  sessionState.projection.messages.push({
+    role: "assistant",
+    content: `[error] ${message}`
+  });
+  sessionState.projection.token_stream = "";
+  sessionState.isStreaming = false;
+}
+
 export const sessionState = reactive({
   sessions: [] as SessionInfoResponse[],
   currentSessionId: null as string | null,

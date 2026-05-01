@@ -44,6 +44,7 @@ export type EventPayload =
       error: string;
     }
   | { type: "SessionCancelled"; reason: string }
+  | { type: "AgentTaskFailed"; task_id: string; error: string }
   | { type: string };
 
 export interface DomainEvent {

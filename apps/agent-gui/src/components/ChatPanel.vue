@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { sessionState } from "../stores/session";
+import { sessionState, reportSendError } from "../stores/session";
 
 const inputText = ref("");
 const messageList = ref<HTMLElement | null>(null);
@@ -15,6 +15,7 @@ async function sendMessage() {
     await invoke("send_message", { content });
   } catch (e) {
     console.error("Failed to send message:", e);
+    reportSendError(String(e));
   }
 }
 

@@ -5,9 +5,7 @@
 
 use crate::{ModelError, ModelEvent, ModelRequest, Result};
 use async_trait::async_trait;
-use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
-use futures::{StreamExt, TryStreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -149,33 +147,66 @@ impl AnthropicClient {
             return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
         }
 
-        let stream = response
-            .bytes_stream()
-            .eventsource()
-            .map_err(|e| ModelError::StreamParse(e.to_string()))
-            .and_then(|event| async move {
-                if event.data == "[DONE]" {
-                    Ok(None)
-                } else {
-                    parse_anthropic_event(&event.data).map(Some)
-                }
-            })
-            .filter_map(
-                |result: std::result::Result<Option<Vec<ModelEvent>>, ModelError>| async move {
-                    match result {
-                        Ok(Some(events)) => {
-                            let iter: Vec<Result<ModelEvent>> =
-                                events.into_iter().map(Ok).collect();
-                            Some(futures::stream::iter(iter).boxed())
-                        }
-                        Ok(None) => Some(futures::stream::empty::<Result<ModelEvent>>().boxed()),
-                        Err(e) => Some(futures::stream::once(async { Err(e) }).boxed()),
-                    }
-                },
-            )
-            .flatten();
+        // Read the full response body and parse SSE events from it.
+        // This avoids issues with bytes_stream() + eventsource_stream
+        // not producing events in certain async runtime contexts (e.g., Tauri).
+        // The trade-off is that tokens arrive as a batch rather than streamed,
+        // but this is more reliable across different runtime environments.
+        let body_bytes = response
+            .bytes()
+            .await
+            .map_err(|e| ModelError::Http(e.to_string()))?;
+        let body_text = String::from_utf8_lossy(&body_bytes);
 
-        Ok(Box::pin(stream))
+        let mut events: Vec<Result<ModelEvent>> = Vec::new();
+
+        // Detect response format: SSE streaming vs non-streaming JSON
+        let trimmed = body_text.trim();
+        if trimmed.starts_with("event:") || trimmed.starts_with("data:") {
+            // SSE streaming format - parse event blocks
+            for block in trimmed.split("\n\n") {
+                let mut data_line = "";
+                for line in block.lines() {
+                    if let Some(rest) = line.strip_prefix("data: ") {
+                        data_line = rest;
+                    } else if let Some(rest) = line.strip_prefix("data:") {
+                        data_line = rest.trim_start();
+                    }
+                }
+                if data_line.is_empty() || data_line == "[DONE]" {
+                    continue;
+                }
+                match parse_anthropic_event(data_line) {
+                    Ok(model_events) => {
+                        for event in model_events {
+                            events.push(Ok(event));
+                        }
+                    }
+                    Err(e) => {
+                        events.push(Err(e));
+                    }
+                }
+            }
+        } else if trimmed.starts_with('{') {
+            // Non-streaming JSON response - parse directly
+            match parse_anthropic_json_response(trimmed) {
+                Ok(model_events) => {
+                    for event in model_events {
+                        events.push(Ok(event));
+                    }
+                }
+                Err(e) => {
+                    events.push(Err(e));
+                }
+            }
+        } else {
+            events.push(Err(ModelError::StreamParse(format!(
+                "unexpected response format: {}...",
+                &trimmed[..trimmed.len().min(50)]
+            ))));
+        }
+
+        Ok(Box::pin(futures::stream::iter(events)))
     }
 }
 
@@ -227,6 +258,56 @@ fn parse_anthropic_event(data: &str) -> Result<Vec<ModelEvent>> {
         _ => {
             // Unknown event type — skip
         }
+    }
+
+    Ok(events)
+}
+
+/// Parse a non-streaming (JSON) response from the Anthropic Messages API.
+/// The proxy may return a complete JSON object instead of SSE events when
+/// `stream: true` is requested but the proxy does not support streaming.
+fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent>> {
+    let value: serde_json::Value =
+        serde_json::from_str(data).map_err(|e| ModelError::StreamParse(e.to_string()))?;
+
+    let mut events = Vec::new();
+
+    // Extract text content from the response
+    if let Some(content) = value["content"].as_array() {
+        for block in content {
+            if block["type"].as_str() == Some("text") {
+                if let Some(text) = block["text"].as_str() {
+                    if !text.is_empty() {
+                        events.push(ModelEvent::TokenDelta(text.to_string()));
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for completion
+    let stop_reason = value["stop_reason"].as_str().unwrap_or("");
+    if stop_reason == "end_turn" || stop_reason == "stop_sequence" || stop_reason == "tool_use" {
+        let usage_value = &value["usage"];
+        let usage = if usage_value.is_object() {
+            Some(crate::ModelUsage {
+                input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
+                output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
+            })
+        } else {
+            None
+        };
+        events.push(ModelEvent::Completed { usage });
+    }
+
+    // Check for error
+    if value["type"].as_str() == Some("error") {
+        let msg = value["error"]["message"]
+            .as_str()
+            .unwrap_or("Unknown Anthropic API error");
+        events.push(ModelEvent::Failed {
+            message: msg.to_string(),
+        });
     }
 
     Ok(events)
@@ -327,6 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn streams_from_wiremock_server() {
+        use futures::StreamExt;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -159,15 +159,23 @@ pub async fn send_message(content: String, state: State<'_, GuiState>) -> Result
         current.clone().ok_or("No active session")?
     };
 
-    state
-        .runtime
-        .send_message(agent_core::SendMessageRequest {
-            workspace_id,
-            session_id,
-            content,
-        })
-        .await
-        .map_err(|e| format!("Failed to send message: {e}"))?;
+    // Spawn the message processing on a background task so that
+    // the Tauri command returns immediately and streaming events
+    // can flow to the frontend in real-time through the event forwarder.
+    let runtime = state.runtime.clone();
+    tokio::spawn(async move {
+        let result = runtime
+            .send_message(agent_core::SendMessageRequest {
+                workspace_id,
+                session_id,
+                content,
+            })
+            .await;
+
+        if let Err(e) = result {
+            eprintln!("[commands] send_message background task failed: {e}");
+        }
+    });
 
     Ok(())
 }
