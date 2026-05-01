@@ -70,6 +70,10 @@ impl PermissionEngine {
         Self { mode }
     }
 
+    pub fn mode(&self) -> &PermissionMode {
+        &self.mode
+    }
+
     pub fn decide(&self, risk: &ToolRisk) -> PermissionOutcome {
         match (self.mode, &risk.effect) {
             (PermissionMode::ReadOnly, ToolEffect::Read) => PermissionOutcome::Allowed,
