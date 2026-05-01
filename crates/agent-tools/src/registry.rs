@@ -66,6 +66,9 @@ pub fn require_permission(engine: &PermissionEngine, risk: &ToolRisk) -> crate::
             Err(crate::ToolError::PermissionRequired(risk.tool_id.clone()))
         }
         PermissionOutcome::Denied(reason) => Err(crate::ToolError::PermissionDenied(reason)),
+        PermissionOutcome::Pending => Err(crate::ToolError::PermissionRequired(
+            "awaiting user confirmation".into(),
+        )),
     }
 }
 
@@ -153,6 +156,9 @@ impl ToolRegistry {
                 invocation.tool_id.clone(),
             )),
             PermissionOutcome::Denied(reason) => Err(crate::ToolError::PermissionDenied(reason)),
+            PermissionOutcome::Pending => Err(crate::ToolError::PermissionRequired(
+                "awaiting user confirmation".into(),
+            )),
         }
     }
 }

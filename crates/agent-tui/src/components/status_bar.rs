@@ -27,6 +27,7 @@ impl PermissionModeExt for agent_tools::PermissionMode {
             agent_tools::PermissionMode::Suggest => "suggest",
             agent_tools::PermissionMode::Agent => "agent",
             agent_tools::PermissionMode::Autonomous => "autonomous",
+            agent_tools::PermissionMode::Interactive => "interactive",
         }
     }
 }

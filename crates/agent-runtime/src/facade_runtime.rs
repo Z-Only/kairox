@@ -389,6 +389,16 @@ where
                             reason: "requires user approval".into(),
                         },
                     ),
+                    PermissionOutcome::Pending => DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::PermissionDenied {
+                            request_id: tc.id.clone(),
+                            reason: "awaiting user confirmation".into(),
+                        },
+                    ),
                     PermissionOutcome::Denied(reason) => DomainEvent::new(
                         request.workspace_id.clone(),
                         request.session_id.clone(),
