@@ -142,8 +142,10 @@ impl AnthropicClient {
             .map_err(|e| ModelError::Http(e.to_string()))?;
 
         let status = response.status();
+
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
+
             return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
         }
 
@@ -158,10 +160,11 @@ impl AnthropicClient {
             .map_err(|e| ModelError::Http(e.to_string()))?;
         let body_text = String::from_utf8_lossy(&body_bytes);
 
-        let mut events: Vec<Result<ModelEvent>> = Vec::new();
-
         // Detect response format: SSE streaming vs non-streaming JSON
         let trimmed = body_text.trim();
+
+        let mut events: Vec<Result<ModelEvent>> = Vec::new();
+
         if trimmed.starts_with("event:") || trimmed.starts_with("data:") {
             // SSE streaming format - parse event blocks
             for block in trimmed.split("\n\n") {
