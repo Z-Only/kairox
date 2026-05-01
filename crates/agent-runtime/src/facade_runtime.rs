@@ -36,7 +36,7 @@ impl<S, M> LocalRuntime<S, M> {
             model: Arc::new(model),
             permission_engine: PermissionEngine::new(PermissionMode::Suggest),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
-            context_assembler: ContextAssembler::new(100_000),
+            context_assembler: ContextAssembler::new_standalone(100_000),
             event_tx,
         }
     }
@@ -47,7 +47,7 @@ impl<S, M> LocalRuntime<S, M> {
     }
 
     pub fn with_context_limit(mut self, max_tokens: usize) -> Self {
-        self.context_assembler = ContextAssembler::new(max_tokens);
+        self.context_assembler = ContextAssembler::new_standalone(max_tokens);
         self
     }
 
