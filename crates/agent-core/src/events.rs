@@ -79,10 +79,15 @@ pub enum EventPayload {
     },
     MemoryProposed {
         memory_id: String,
+        scope: String,
+        key: Option<String>,
         content: String,
     },
     MemoryAccepted {
         memory_id: String,
+        scope: String,
+        key: Option<String>,
+        content: String,
     },
     MemoryRejected {
         memory_id: String,
