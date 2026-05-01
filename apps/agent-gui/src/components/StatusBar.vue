@@ -17,6 +17,8 @@ import { sessionState } from "../stores/session";
     <span class="status-item">{{
       sessionState.connected ? "connected" : "disconnected"
     }}</span>
+    <span class="status-divider">│</span>
+    <span class="status-item">mode: interactive</span>
   </footer>
 </template>
 

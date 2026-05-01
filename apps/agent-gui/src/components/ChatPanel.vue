@@ -2,6 +2,7 @@
 import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { sessionState, reportSendError } from "../stores/session";
+import { renderMarkdown } from "../utils/markdown";
 
 const inputText = ref("");
 const messageList = ref<HTMLElement | null>(null);
@@ -58,7 +59,12 @@ watch(
         <span class="message-role">{{
           msg.role === "user" ? "You" : "Agent"
         }}</span>
-        <span class="message-content">{{ msg.content }}</span>
+        <span
+          v-if="msg.role === 'assistant'"
+          class="message-content markdown-body"
+          v-html="renderMarkdown(msg.content)"
+        ></span>
+        <span v-else class="message-content">{{ msg.content }}</span>
       </div>
       <div
         v-if="sessionState.projection.token_stream"
@@ -186,5 +192,30 @@ watch(
 .send-button:disabled {
   background: #a0c4e8;
   cursor: not-allowed;
+}
+.markdown-body :deep(pre) {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.markdown-body :deep(code) {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+.markdown-body :deep(:not(pre) > code) {
+  background: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 20px;
+}
+.markdown-body :deep(p) {
+  margin: 6px 0;
 }
 </style>

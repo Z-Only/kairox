@@ -79,6 +79,12 @@ export function applyEvent(event: DomainEvent) {
     case "PermissionDenied":
       // Trace/permission events — stored but not rendered in MVP
       break;
+    case "MemoryProposed":
+      break;
+    case "MemoryAccepted":
+      break;
+    case "MemoryRejected":
+      break;
   }
 }
 
