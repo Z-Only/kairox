@@ -212,7 +212,7 @@ Key design points:
 - `keywords` is a JSON array of extracted tokens, used for LIKE matching
 - `accepted` column gates whether a memory appears in query results; only accepted memories are retrieved by ContextAssembler
 - `key` column enables deduplication: storing with the same `scope + key` updates the existing entry instead of creating a duplicate
-- `SqliteMemoryStore` takes a `sqlx::SqlitePool` reference, sharing the same database as `SqliteEventStore`
+- `SqliteMemoryStore` takes a `sqlx::SqlitePool` reference. `SqliteEventStore` gains a `pub fn pool(&self) -> &SqlitePool` accessor so both stores share the same connection pool
 
 ### 2. Keyword Extraction
 
