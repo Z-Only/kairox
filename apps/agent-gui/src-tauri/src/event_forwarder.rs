@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 use agent_core::AppFacade;
+use agent_models::ModelRouter;
+use agent_store::SqliteEventStore;
 use futures::StreamExt;
 use tauri::AppHandle;
 use tauri::Emitter;
@@ -8,10 +10,7 @@ use tauri::Emitter;
 /// subscription to the Vue frontend via Tauri events.
 /// Returns the JoinHandle so the caller can abort it on session switch.
 pub fn spawn_event_forwarder(
-    runtime: &agent_runtime::LocalRuntime<
-        agent_store::SqliteEventStore,
-        agent_models::FakeModelClient,
-    >,
+    runtime: &agent_runtime::LocalRuntime<SqliteEventStore, ModelRouter>,
     session_id: agent_core::SessionId,
     app_handle: AppHandle,
 ) -> tokio::task::JoinHandle<()> {

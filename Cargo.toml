@@ -6,6 +6,7 @@ members = [
   "crates/agent-tools",
   "crates/agent-memory",
   "crates/agent-store",
+  "crates/agent-config",
   "crates/agent-tui",
   "apps/agent-gui/src-tauri",
 ]

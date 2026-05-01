@@ -8,8 +8,9 @@ use std::io::stdout;
 use std::sync::Arc;
 use std::time::Duration;
 
+use agent_config::Config;
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
-use agent_models::FakeModelClient;
+use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
@@ -38,40 +39,11 @@ enum AppEvent {
 }
 
 // ---------------------------------------------------------------------------
-// Profile detection (preserved from previous main)
-// ---------------------------------------------------------------------------
-
-fn detect_profiles() -> Vec<String> {
-    let mut profiles = vec!["fake".to_string()];
-    if std::env::var("OPENAI_API_KEY").is_ok() {
-        profiles.insert(0, "fast".to_string());
-    }
-    profiles.insert(
-        if profiles.len() > 1 { 1 } else { 0 },
-        "local-code".to_string(),
-    );
-    profiles
-}
-
-fn choose_profile(profiles: &[String]) -> &str {
-    eprintln!("Available model profiles: {:?}", profiles);
-    let chosen = if profiles.iter().any(|p| p == "fast") {
-        "fast"
-    } else if profiles.iter().any(|p| p == "local-code") {
-        "local-code"
-    } else {
-        "fake"
-    };
-    eprintln!("Using profile: {chosen}");
-    chosen
-}
-
-// ---------------------------------------------------------------------------
 // Command dispatch — executes runtime commands and updates app state
 // ---------------------------------------------------------------------------
 
 async fn dispatch_commands(
-    runtime: &Arc<LocalRuntime<SqliteEventStore, FakeModelClient>>,
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
     app: &mut App,
     commands: Vec<Command>,
 ) {
@@ -201,15 +173,23 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    // 3. Init runtime
+    // 3. Load config and build runtime
+    let config = Config::load().unwrap_or_else(|e| {
+        eprintln!("Config warning: {e}, using defaults");
+        Config::defaults()
+    });
+    let router = config.build_router();
+    let profiles = config.profile_names();
+    let profile = config.default_profile();
+
+    eprintln!("Available model profiles: {:?}", profiles);
+    eprintln!("Using profile: {profile}");
+
     let store = SqliteEventStore::in_memory().await?;
-    let profiles = detect_profiles();
-    let profile = choose_profile(&profiles);
     let workspace_path = std::env::current_dir()?;
 
-    let model = FakeModelClient::new(vec!["hello from fake model".into()]);
     let runtime = Arc::new(
-        LocalRuntime::new(store, model)
+        LocalRuntime::new(store, router)
             .with_permission_mode(PermissionMode::Suggest)
             .with_context_limit(100_000)
             .with_builtin_tools(workspace_path.clone())
@@ -222,13 +202,13 @@ async fn main() -> Result<()> {
     let session_id = runtime
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
-            model_profile: profile.to_string(),
+            model_profile: profile.clone(),
         })
         .await?;
 
     // 4. Create App
     let mut app = App::new(
-        profile,
+        &profile,
         PermissionMode::Suggest,
         workspace.workspace_id.clone(),
     );
@@ -236,7 +216,7 @@ async fn main() -> Result<()> {
     app.state.sessions.push(SessionInfo {
         id: session_id.clone(),
         title: format!("Session using {profile}"),
-        model_profile: profile.to_string(),
+        model_profile: profile.clone(),
         state: SessionState::Idle,
         pinned: false,
     });

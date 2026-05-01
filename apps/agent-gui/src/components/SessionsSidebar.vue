@@ -10,6 +10,7 @@ import {
 
 const showNewSession = ref(false);
 const selectedProfile = ref("fake");
+const availableProfiles = ref<string[]>([]);
 
 async function refreshSessions() {
   try {
@@ -45,6 +46,7 @@ async function createSession() {
 async function loadProfiles() {
   try {
     const profiles: string[] = await invoke("list_profiles");
+    availableProfiles.value = profiles;
     if (profiles.length > 0) {
       selectedProfile.value = profiles[0];
     }
@@ -89,9 +91,13 @@ function openNewSessionDialog() {
       <label>
         Profile:
         <select v-model="selectedProfile">
-          <option value="fake">fake (Testing)</option>
-          <option value="fast">fast (OpenAI)</option>
-          <option value="local-code">local-code (Ollama)</option>
+          <option
+            v-for="profile in availableProfiles"
+            :key="profile"
+            :value="profile"
+          >
+            {{ profile }}
+          </option>
         </select>
       </label>
       <div class="dialog-actions">

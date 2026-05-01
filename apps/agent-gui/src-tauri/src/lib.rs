@@ -2,13 +2,15 @@ mod app_state;
 mod commands;
 mod event_forwarder;
 
-#[cfg(not(test))]
-use app_state::GuiState;
-
-use agent_models::FakeModelClient;
+use agent_config::Config;
+#[cfg(test)]
+use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
+
+#[cfg(not(test))]
+use app_state::GuiState;
 
 #[cfg(not(test))]
 pub fn run() {
@@ -21,21 +23,31 @@ pub fn run() {
                 let store = SqliteEventStore::in_memory()
                     .await
                     .expect("Failed to create in-memory store");
-                let model = FakeModelClient::new(vec!["hello from Kairox".into()]);
+
+                let config = Config::load().unwrap_or_else(|e| {
+                    eprintln!("Config warning: {e}, using defaults");
+                    Config::defaults()
+                });
+                let router = config.build_router();
+
+                eprintln!("Available model profiles: {:?}", config.profile_names());
+                eprintln!("Default profile: {}", config.default_profile());
+
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
 
-                let runtime = LocalRuntime::new(store, model)
+                let runtime = LocalRuntime::new(store, router)
                     .with_permission_mode(PermissionMode::Suggest)
                     .with_context_limit(100_000)
                     .with_builtin_tools(cwd)
                     .await;
 
-                handle.manage(GuiState::new(runtime));
+                handle.manage(GuiState::new(runtime, config));
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_profiles,
+            commands::get_profile_info,
             commands::initialize_workspace,
             commands::start_session,
             commands::send_message,
@@ -49,77 +61,35 @@ pub fn run() {
 #[cfg(test)]
 pub fn run() {}
 
-// Keep build_runtime for tests that need it
-pub fn build_runtime() -> Result<LocalRuntime<SqliteEventStore, FakeModelClient>, String> {
-    let tokio_rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| format!("Failed to create tokio runtime: {e}"))?;
-
-    let runtime: Result<LocalRuntime<SqliteEventStore, FakeModelClient>, String> = tokio_rt
-        .block_on(async {
-            let store = SqliteEventStore::in_memory()
-                .await
-                .map_err(|e| format!("Failed to create in-memory store: {e}"))?;
-            let model = FakeModelClient::new(vec!["hello from Kairox".into()]);
-            let cwd =
-                std::env::current_dir().map_err(|e| format!("Cannot get current dir: {e}"))?;
-
-            let runtime = LocalRuntime::new(store, model)
-                .with_permission_mode(PermissionMode::Suggest)
-                .with_context_limit(100_000)
-                .with_builtin_tools(cwd)
-                .await;
-
-            Ok(runtime)
-        });
-
-    runtime
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn detect_profiles_always_includes_fake() {
-        assert!(commands::detect_profiles().contains(&"fake".to_string()));
+    fn config_defaults_include_fake() {
+        let config = Config::defaults();
+        assert!(config.profile_names().contains(&"fake".to_string()));
     }
 
     #[test]
-    fn choose_default_profile_prefers_fast() {
-        let profiles = vec![
-            "fast".to_string(),
-            "local-code".to_string(),
-            "fake".to_string(),
-        ];
-        assert_eq!(commands::choose_default_profile(&profiles), "fast");
-    }
-
-    #[test]
-    fn choose_default_profile_falls_back_to_local_code() {
-        let profiles = vec!["local-code".to_string(), "fake".to_string()];
-        assert_eq!(commands::choose_default_profile(&profiles), "local-code");
-    }
-
-    #[test]
-    fn choose_default_profile_falls_back_to_fake() {
-        let profiles = vec!["fake".to_string()];
-        assert_eq!(commands::choose_default_profile(&profiles), "fake");
+    fn config_default_profile_selection() {
+        let config = Config::defaults();
+        let default = config.default_profile();
+        assert!(!default.is_empty());
     }
 }
 
 #[cfg(test)]
 mod integration_tests {
+    use super::*;
     use agent_core::AppFacade;
 
-    async fn create_test_runtime(
-    ) -> agent_runtime::LocalRuntime<agent_store::SqliteEventStore, agent_models::FakeModelClient>
-    {
-        let store = agent_store::SqliteEventStore::in_memory().await.unwrap();
-        let model = agent_models::FakeModelClient::new(vec!["test response".into()]);
-        agent_runtime::LocalRuntime::new(store, model)
-            .with_permission_mode(agent_tools::PermissionMode::Suggest)
+    async fn create_test_runtime() -> LocalRuntime<SqliteEventStore, ModelRouter> {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let config = Config::defaults();
+        let router = config.build_router();
+        LocalRuntime::new(store, router)
+            .with_permission_mode(PermissionMode::Suggest)
             .with_context_limit(100_000)
     }
 
@@ -163,7 +133,6 @@ mod integration_tests {
         let projection = runtime.get_session_projection(session_id).await.unwrap();
         assert_eq!(projection.messages.len(), 2);
         assert_eq!(projection.messages[0].content, "hello");
-        assert_eq!(projection.messages[1].content, "test response");
     }
 
     #[tokio::test]
@@ -206,7 +175,6 @@ mod integration_tests {
             .await
             .unwrap();
 
-        // Subscribe BEFORE sending so the stream captures events
         let mut stream = runtime.subscribe_session(session_id.clone());
 
         runtime

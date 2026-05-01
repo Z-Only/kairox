@@ -1,4 +1,5 @@
 use crate::{ModelClient, ModelEvent, ModelProfile, ModelRequest, Result};
+use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -38,7 +39,9 @@ impl ModelRouter {
         profiles
     }
 
-    pub async fn stream(
+    /// Route a model request to the correct client by profile alias.
+    /// This is the inherent method; the `ModelClient` trait impl delegates here.
+    pub async fn route(
         &self,
         request: ModelRequest,
     ) -> Result<BoxStream<'static, Result<ModelEvent>>> {
@@ -49,6 +52,16 @@ impl ModelRouter {
             ))
         })?;
         client.stream(request).await
+    }
+}
+
+#[async_trait]
+impl ModelClient for ModelRouter {
+    async fn stream(
+        &self,
+        request: ModelRequest,
+    ) -> Result<BoxStream<'static, Result<ModelEvent>>> {
+        self.route(request).await
     }
 }
 
@@ -86,7 +99,7 @@ mod tests {
         router.register(test_profile("deep-reasoning"), deep_client);
 
         let mut stream = router
-            .stream(ModelRequest::user_text("fast", "hello"))
+            .route(ModelRequest::user_text("fast", "hello"))
             .await
             .unwrap();
 
@@ -98,7 +111,7 @@ mod tests {
     async fn returns_error_for_unknown_profile() {
         let router = ModelRouter::new();
         let result = router
-            .stream(ModelRequest::user_text("nonexistent", "hello"))
+            .route(ModelRequest::user_text("nonexistent", "hello"))
             .await;
         assert!(result.is_err());
     }
@@ -118,5 +131,21 @@ mod tests {
             .map(|p| p.alias.as_str())
             .collect();
         assert_eq!(names, vec!["deep-reasoning", "fast"]);
+    }
+
+    #[tokio::test]
+    async fn model_client_trait_impl_delegates_to_route() {
+        let mut router = ModelRouter::new();
+        let client = Arc::new(FakeModelClient::new(vec!["trait response".into()]));
+        router.register(test_profile("test"), client);
+
+        // Call via ModelClient trait
+        let mut stream = router
+            .stream(ModelRequest::user_text("test", "hello"))
+            .await
+            .unwrap();
+
+        let first = stream.next().await.unwrap().unwrap();
+        assert_eq!(first, ModelEvent::TokenDelta("trait response".into()));
     }
 }

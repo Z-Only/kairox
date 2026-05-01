@@ -67,3 +67,11 @@ export interface WorkspaceInfoResponse {
   workspace_id: string;
   path: string;
 }
+
+export interface ProfileInfo {
+  alias: string;
+  provider: string;
+  model_id: string;
+  local: boolean;
+  has_api_key: boolean;
+}

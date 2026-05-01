@@ -196,8 +196,22 @@ where
                 .collect()
         };
 
+        // Use the session's model profile to route to the correct model client.
+        // When sessions are created via start_session(), the profile is recorded
+        // in the AgentTaskCreated event title as "Session using {profile}".
+        // We extract it, or fall back to "fake" for backward compatibility.
+        let model_profile = session_events
+            .iter()
+            .find_map(|e| match &e.payload {
+                EventPayload::AgentTaskCreated { title, .. } => {
+                    title.strip_prefix("Session using ").map(|s| s.to_string())
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| "fake".to_string());
+
         let model_request = ModelRequest {
-            model_profile: "default".into(),
+            model_profile,
             messages,
             system_prompt: Some("You are a helpful assistant.".into()),
             tools: tool_defs,
