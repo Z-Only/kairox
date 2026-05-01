@@ -46,6 +46,10 @@ impl SqliteEventStore {
         Ok(store)
     }
 
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
+
     async fn migrate(&self) -> crate::Result<()> {
         sqlx::query(include_str!("../migrations/0001_events.sql"))
             .execute(&self.pool)
