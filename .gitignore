@@ -16,3 +16,4 @@ apps/agent-gui/dist/
 package-lock.json
 .superpowers/
 .worktrees/
+.idea

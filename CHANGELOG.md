@@ -4,33 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2026-04-30
+## [0.6.0] - 2026-05-02
 
 ### 🚀 Features
 
-- **core**: add from_string() constructor and From<String> impl to ID types
-- **gui**: add runtime dependencies to Tauri backend
-- **gui**: add GuiState and event forwarder module
-- **gui**: add Tauri command handlers for workspace, session, and chat
-- **gui**: wire up Tauri app with runtime state and command registration
-- **gui**: add TypeScript types, session store, and Tauri events composable
-- **gui**: add ChatPanel, SessionsSidebar, and StatusBar components
-- **gui**: wire App.vue with real data, add global styles, replace placeholders
-- **gui**: add Tauri capabilities for event emission and listening
+- **models**: add Anthropic Messages API client with SSE streaming support
+- **models**: add OpenAI-compatible API client with streaming support
+- **config**: add agent-config crate for model profile discovery, TOML parsing, and API key resolution
+- **config**: auto-discover Anthropic API key from `~/.claude/settings.json` as fallback when env var is not set
+- **models**: handle `max_tokens` stop reason in Anthropic SSE parser (proxy compatibility)
+- **models**: sanitize tool names for Anthropic API compatibility (replace dots with underscores, e.g. `fs.read` → `fs_read`)
+- **models**: detect proxy error responses in `{"error":{}}` format from Anthropic API
+- **runtime**: broadcast `AgentTaskFailed` events on model errors for frontend error display
+- **gui**: propagate send_message errors to frontend via Tauri events
+- **gui**: handle `AgentTaskFailed` events in session store to show errors and reset streaming state
 
-### 📚 Documentation
+### 🐛 Bug Fixes
 
-- **gui**: add progressive MVP design spec for Tauri+Vue integration
-- **gui**: add implementation plan for Tauri+Vue progressive MVP
-
-### 🧪 Testing
-
-- **gui**: add integration tests for command handlers and event serialization
-- **gui**: add session store unit tests for event projection
-
-### 🔧 Miscellaneous Tasks
-
-- **gui**: fix clippy dead_code warnings for Tauri backend modules
+- **models**: fix Anthropic SSE parsing to handle `max_tokens` stop reason from proxies
+- **config**: resolve Anthropic API key when `KAIROX_ANTHROPIC_KEY` env var is not set
+- **runtime**: prevent frontend from permanently showing "streaming" when model API calls fail
 
 ## [0.4.0] - 2026-04-30
 
