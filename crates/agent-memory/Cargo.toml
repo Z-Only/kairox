@@ -6,5 +6,6 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+regex = { workspace = true }
 serde.workspace = true
 thiserror.workspace = true
