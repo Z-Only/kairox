@@ -168,6 +168,19 @@ pub async fn send_message(
     // the Tauri command returns immediately and streaming events
     // can flow to the frontend in real-time through the event forwarder.
     let session_id_str = session_id.to_string();
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/kairox-debug.log")
+    {
+        use std::io::Write;
+        let _ = writeln!(
+            f,
+            "[commands] send_message: session={} content_len={}",
+            session_id_str,
+            content.len()
+        );
+    }
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
         let result = runtime
@@ -180,6 +193,14 @@ pub async fn send_message(
 
         if let Err(e) = result {
             eprintln!("[commands] send_message background task failed: {e}");
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/tmp/kairox-debug.log")
+            {
+                use std::io::Write;
+                let _ = writeln!(f, "[commands] send_message FAILED: {e}");
+            }
             // Emit an error event to the frontend so the UI can display
             // the error and reset the streaming state.
             let error_payload = serde_json::json!({

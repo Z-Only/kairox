@@ -94,13 +94,26 @@ impl AnthropicClient {
         }
 
         // Tool definitions — map to Anthropic tool format if present
+        // Anthropic tool names must match ^[a-zA-Z0-9_-]{1,128}$,
+        // so we replace dots and other invalid chars with underscores.
         if !request.tools.is_empty() {
             let tools: Vec<_> = request
                 .tools
                 .iter()
                 .map(|t| {
+                    let safe_name: String = t
+                        .name
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect();
                     serde_json::json!({
-                        "name": t.name,
+                        "name": safe_name,
                         "description": t.description,
                         "input_schema": t.parameters,
                     })
@@ -159,6 +172,25 @@ impl AnthropicClient {
             .await
             .map_err(|e| ModelError::Http(e.to_string()))?;
         let body_text = String::from_utf8_lossy(&body_bytes);
+
+        // Debug: write response info to log file
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/tmp/kairox-debug.log")
+        {
+            use std::io::Write;
+            let _ = writeln!(f, "[anthropic] status={} body_len={} starts_with_event={} starts_with_data={} starts_with_brace={}", 
+                status, body_text.len(),
+                body_text.trim().starts_with("event:"),
+                body_text.trim().starts_with("data:"),
+                body_text.trim().starts_with('{'));
+            let _ = writeln!(
+                f,
+                "[anthropic] body_preview: {}",
+                &body_text[..body_text.len().min(500)]
+            );
+        }
 
         // Detect response format: SSE streaming vs non-streaming JSON
         let trimmed = body_text.trim();
@@ -308,10 +340,11 @@ fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent>> {
         events.push(ModelEvent::Completed { usage });
     }
 
-    // Check for error
-    if value["type"].as_str() == Some("error") {
+    // Check for error — handle both {"type":"error"} (standard) and {"error":{}} (proxy) formats
+    if value["type"].as_str() == Some("error") || value["error"].is_object() {
         let msg = value["error"]["message"]
             .as_str()
+            .or_else(|| value["error"]["type"].as_str())
             .unwrap_or("Unknown Anthropic API error");
         events.push(ModelEvent::Failed {
             message: msg.to_string(),
@@ -376,7 +409,7 @@ mod tests {
 
         let body = client.build_messages_request(&request);
         let tools = body["tools"].as_array().unwrap();
-        assert_eq!(tools[0]["name"], "fs.read");
+        assert_eq!(tools[0]["name"], "fs_read");
         assert!(tools[0]["input_schema"].is_object());
     }
 
