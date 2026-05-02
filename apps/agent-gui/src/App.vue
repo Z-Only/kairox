@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useTauriEvents } from "./composables/useTauriEvents";
 import { sessionState } from "./stores/session";
+import { traceState } from "./composables/useTraceStore";
 import ChatPanel from "./components/ChatPanel.vue";
 import SessionsSidebar from "./components/SessionsSidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
@@ -17,8 +18,20 @@ onMounted(async () => {
     sessionState.initialized = true;
     sessionState.sessions = await invoke("list_sessions");
     if (sessionState.sessions.length > 0) {
-      sessionState.currentSessionId = sessionState.sessions[0].id;
-      sessionState.currentProfile = sessionState.sessions[0].profile;
+      const firstSession = sessionState.sessions[0];
+      sessionState.currentSessionId = firstSession.id;
+      sessionState.currentProfile = firstSession.profile;
+      // Add a trace entry for the initial session since the event
+      // was broadcast before the event forwarder was listening
+      traceState.entries.push({
+        id: `init-${firstSession.id}`,
+        kind: "tool",
+        status: "completed",
+        toolId: "task",
+        title: firstSession.title,
+        startedAt: Date.now(),
+        expanded: false
+      });
     }
   } catch (e) {
     console.error("Failed to initialize workspace:", e);

@@ -21,6 +21,12 @@ const statusIcon: Record<string, string> = {
   failed: "❌",
   pending: "🔑"
 };
+
+const kindIcon: Record<string, string> = {
+  tool: "🔧",
+  permission: "🔑",
+  memory: "🧠"
+};
 </script>
 
 <template>
@@ -32,11 +38,15 @@ const statusIcon: Record<string, string> = {
     ]"
   >
     <PermissionPrompt
-      v-if="entry.kind === 'permission' && entry.status === 'pending'"
+      v-if="
+        (entry.kind === 'permission' || entry.kind === 'memory') &&
+        entry.status === 'pending'
+      "
       :entry="entry"
     />
     <template v-else>
       <div class="entry-row" @click="toggle">
+        <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
         <span class="entry-status">{{ statusIcon[entry.status] }}</span>
         <span class="entry-tool">{{ entry.toolId || entry.title }}</span>
         <span v-if="entry.durationMs != null" class="entry-duration">
@@ -85,12 +95,15 @@ const statusIcon: Record<string, string> = {
 .entry-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 5px 8px;
   cursor: pointer;
 }
 .entry-row:hover {
   background: #f8f8f8;
+}
+.entry-icon {
+  font-size: 11px;
 }
 .entry-status {
   font-size: 11px;
@@ -133,6 +146,6 @@ const statusIcon: Record<string, string> = {
   line-height: 1.4;
   overflow-x: auto;
   white-space: pre-wrap;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 </style>

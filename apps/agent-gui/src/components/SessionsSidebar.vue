@@ -7,9 +7,10 @@ import {
   setProjection,
   resetProjection
 } from "../stores/session";
+import { clearTrace } from "../composables/useTraceStore";
 
 const showNewSession = ref(false);
-const selectedProfile = ref("fake");
+const selectedProfile = ref("fast");
 const availableProfiles = ref<string[]>([]);
 
 async function refreshSessions() {
@@ -23,11 +24,17 @@ async function refreshSessions() {
 async function switchToSession(sessionId: string) {
   try {
     resetProjection();
+    clearTrace();
     const projection: SessionProjection = await invoke("switch_session", {
       sessionId
     });
     setProjection(projection);
     sessionState.currentSessionId = sessionId;
+    // Update currentProfile from the matching session info
+    const session = sessionState.sessions.find((s) => s.id === sessionId);
+    if (session) {
+      sessionState.currentProfile = session.profile;
+    }
   } catch (e) {
     console.error("Failed to switch session:", e);
   }
@@ -35,8 +42,16 @@ async function switchToSession(sessionId: string) {
 
 async function createSession() {
   try {
-    await invoke("start_session", { profile: selectedProfile.value });
+    const result = await invoke<{ id: string; title: string; profile: string }>(
+      "start_session",
+      { profile: selectedProfile.value }
+    );
     await refreshSessions();
+    // Update current session info immediately
+    sessionState.currentSessionId = result.id;
+    sessionState.currentProfile = result.profile;
+    // Clear trace for the new session
+    clearTrace();
     showNewSession.value = false;
   } catch (e) {
     console.error("Failed to start session:", e);
@@ -47,7 +62,9 @@ async function loadProfiles() {
   try {
     const profiles: string[] = await invoke("list_profiles");
     availableProfiles.value = profiles;
-    if (profiles.length > 0) {
+    // Set selected profile to the one that's not currently active,
+    // defaulting to the first available
+    if (profiles.length > 0 && !profiles.includes(selectedProfile.value)) {
       selectedProfile.value = profiles[0];
     }
   } catch (e) {

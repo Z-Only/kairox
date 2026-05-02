@@ -20,9 +20,14 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                let store = SqliteEventStore::in_memory()
+                // Use shared-cache in-memory SQLite so all pool connections
+                // (event store + memory store) see the same database.
+                // `sqlite::memory:` is per-connection, so table migrations
+                // can be lost when the pool recycles connections.
+                let db_url = "sqlite:file:kairox_gui?mode=memory&cache=shared";
+                let store = SqliteEventStore::connect(db_url)
                     .await
-                    .expect("Failed to create in-memory store");
+                    .expect("Failed to create event store");
 
                 let mem_store = std::sync::Arc::new(
                     agent_memory::SqliteMemoryStore::new(store.pool().clone())

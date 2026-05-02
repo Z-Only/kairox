@@ -11,11 +11,11 @@ import { sessionState } from "../stores/session";
     >
     <span class="status-divider">│</span>
     <span class="status-item">{{
-      sessionState.isStreaming ? "streaming..." : "idle"
+      sessionState.isStreaming ? "streaming: yes" : "streaming: no"
     }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">{{
-      sessionState.connected ? "connected" : "disconnected"
+      sessionState.connected ? "connected: yes" : "connected: no"
     }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">mode: interactive</span>

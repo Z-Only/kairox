@@ -61,6 +61,18 @@ pub async fn initialize_workspace(
     let workspace_id = workspace.workspace_id.clone();
     let profile = state.config.default_profile();
 
+    // Subscribe to the event stream BEFORE creating the session so that
+    // we don't miss the AgentTaskCreated event for the initial session.
+    // We use a placeholder session ID pattern: subscribe after start_session
+    // returns the real ID. However the event is broadcast inside
+    // start_session before we have the ID. To handle this, we subscribe
+    // to ALL events from the runtime (empty filter would be ideal, but
+    // subscribe_session filters by session_id). Instead, we subscribe
+    // with the session_id returned from start_session immediately after
+    // it's created, which starts the stream. The AgentTaskCreated event
+    // is already in the broadcast channel buffer and can still be received
+    // if we subscribe fast enough. In practice, the broadcast::channel
+    // has capacity 1024 so the event should still be in the buffer.
     let session_id = state
         .runtime
         .start_session(agent_core::StartSessionRequest {
@@ -69,6 +81,17 @@ pub async fn initialize_workspace(
         })
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;
+
+    // Spawn event forwarder immediately — the broadcast channel retains
+    // recent events so the AgentTaskCreated should still be delivered.
+    {
+        let mut handle = state.forwarder_handle.lock().await;
+        *handle = Some(spawn_event_forwarder(
+            &state.runtime,
+            session_id.clone(),
+            app_handle,
+        ));
+    }
 
     // Store workspace and session info
     {
@@ -89,16 +112,6 @@ pub async fn initialize_workspace(
     {
         let mut current = state.current_session_id.lock().await;
         *current = Some(session_id.clone());
-    }
-
-    // Spawn event forwarder for the initial session
-    {
-        let mut handle = state.forwarder_handle.lock().await;
-        *handle = Some(spawn_event_forwarder(
-            &state.runtime,
-            session_id.clone(),
-            app_handle,
-        ));
     }
 
     Ok(WorkspaceInfoResponse {
@@ -142,7 +155,7 @@ pub async fn start_session(
         );
     }
 
-    // Switch to the new session
+    // Switch to the new session (spawns new forwarder)
     switch_session_inner(&state, session_id.clone(), &app_handle).await?;
 
     Ok(SessionInfoResponse {

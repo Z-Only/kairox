@@ -4,6 +4,8 @@ import type { TraceEntryData } from "../types/trace";
 
 const props = defineProps<{ entry: TraceEntryData }>();
 
+const isMemory = props.entry.kind === "memory";
+
 async function allow() {
   try {
     await invoke("resolve_permission", {
@@ -28,19 +30,30 @@ async function deny() {
 </script>
 
 <template>
-  <div class="permission-prompt">
-    <div class="permission-icon">🔑</div>
+  <div :class="['permission-prompt', isMemory ? 'memory-prompt' : '']">
+    <div class="permission-icon">{{ isMemory ? "🧠" : "🔑" }}</div>
     <div class="permission-body">
-      <p class="permission-title">Permission Required</p>
+      <p class="permission-title">
+        {{ isMemory ? "Memory Proposed" : "Permission Required" }}
+      </p>
       <p class="permission-description">{{ entry.title }}</p>
       <div v-if="entry.scope" class="permission-meta">
         Scope: {{ entry.scope }}
       </div>
-      <div class="permission-meta">Tool: {{ entry.toolId }}</div>
+      <div v-if="entry.content" class="permission-meta">
+        {{ entry.content }}
+      </div>
+      <div class="permission-meta">
+        {{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}
+      </div>
     </div>
     <div class="permission-actions">
-      <button class="btn-allow" @click="allow">Allow</button>
-      <button class="btn-deny" @click="deny">Deny</button>
+      <button class="btn-allow" @click="allow">
+        {{ isMemory ? "Accept" : "Allow" }}
+      </button>
+      <button class="btn-deny" @click="deny">
+        {{ isMemory ? "Reject" : "Deny" }}
+      </button>
     </div>
   </div>
 </template>
@@ -55,6 +68,10 @@ async function deny() {
   border: 1px solid #ffcc02;
   border-radius: 6px;
   margin: 4px 0;
+}
+.memory-prompt {
+  background: #f0faf0;
+  border-color: #a0d8a0;
 }
 .permission-icon {
   font-size: 16px;
@@ -78,6 +95,7 @@ async function deny() {
   font-size: 11px;
   color: #777;
   margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 .permission-actions {
   display: flex;

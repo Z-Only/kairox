@@ -24,7 +24,7 @@ export const sessionState = reactive({
     token_stream: "",
     cancelled: false
   } as SessionProjection,
-  currentProfile: "fake",
+  currentProfile: "fast",
   isStreaming: false,
   connected: false,
   initialized: false
@@ -37,53 +37,60 @@ export const sessionState = reactive({
 export function applyEvent(event: DomainEvent) {
   const p = event.payload;
   switch (p.type) {
-    case "UserMessageAdded":
+    case "UserMessageAdded": {
+      const typed = p as { type: "UserMessageAdded"; content: string };
       sessionState.projection.messages.push({
         role: "user",
-        content: p.content
+        content: typed.content
       });
       sessionState.isStreaming = true;
       break;
-    case "ModelTokenDelta":
-      sessionState.projection.token_stream += p.delta;
+    }
+    case "ModelTokenDelta": {
+      const typed = p as { type: "ModelTokenDelta"; delta: string };
+      sessionState.projection.token_stream += typed.delta;
       break;
-    case "AssistantMessageCompleted":
+    }
+    case "AssistantMessageCompleted": {
+      const typed = p as { type: "AssistantMessageCompleted"; content: string };
       sessionState.projection.messages.push({
         role: "assistant",
-        content: p.content
+        content: typed.content
       });
       sessionState.projection.token_stream = "";
       sessionState.isStreaming = false;
       break;
+    }
     case "SessionCancelled":
       sessionState.projection.cancelled = true;
       sessionState.isStreaming = false;
       break;
-    case "AgentTaskCreated":
-      sessionState.projection.task_titles.push(p.title);
+    case "AgentTaskCreated": {
+      const typed = p as { type: "AgentTaskCreated"; title: string };
+      sessionState.projection.task_titles.push(typed.title);
       break;
-    case "AgentTaskFailed":
+    }
+    case "AgentTaskFailed": {
+      const typed = p as { type: "AgentTaskFailed"; error: string };
       // Show the error as an assistant message and reset streaming state
       sessionState.projection.messages.push({
         role: "assistant",
-        content: `[error] ${p.error || "Unknown error"}`
+        content: `[error] ${typed.error || "Unknown error"}`
       });
       sessionState.projection.token_stream = "";
       sessionState.isStreaming = false;
       break;
+    }
     case "ToolInvocationStarted":
     case "ToolInvocationCompleted":
     case "ToolInvocationFailed":
     case "PermissionRequested":
     case "PermissionGranted":
     case "PermissionDenied":
-      // Trace/permission events — stored but not rendered in MVP
-      break;
     case "MemoryProposed":
-      break;
     case "MemoryAccepted":
-      break;
     case "MemoryRejected":
+      // Trace/permission/memory events — handled by useTraceStore
       break;
   }
 }
