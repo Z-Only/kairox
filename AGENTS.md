@@ -247,6 +247,10 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 
 ## AI coding guidelines
 
+### Why not tauri-specta for type generation?
+
+[tauri-specta](https://github.com/specta-rs/tauri-specta) can auto-generate TypeScript types from `#[tauri::command]` return types and arguments, which eliminates drift for **command IPC**. However, Kairox's `EventPayload` types flow through `app_handle.emit()` (broadcast events), not through command return values. specta does not generate types for arbitrary serialized event payloads emitted this way. Therefore, the Rust↔TypeScript EventPayload sync must be maintained manually and is enforced by `just check-types` (and the `type-sync` CI job).
+
 ### When adding a new feature
 
 1. **Start from `agent-core`** if the feature introduces new domain types, events, or facade methods. Define the types and trait changes there first.

@@ -70,6 +70,12 @@ export function applyEvent(event: DomainEvent) {
       sessionState.projection.task_titles.push(typed.title);
       break;
     }
+    case "AgentTaskStarted":
+      // Task is now running — no projection change needed
+      break;
+    case "AgentTaskCompleted":
+      // Task finished successfully — no projection change needed
+      break;
     case "AgentTaskFailed": {
       const typed = p as { type: "AgentTaskFailed"; error: string };
       // Show the error as an assistant message and reset streaming state
@@ -81,16 +87,22 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     }
+    case "ContextAssembled":
+    case "ModelRequestStarted":
+    case "ModelToolCallRequested":
     case "ToolInvocationStarted":
     case "ToolInvocationCompleted":
     case "ToolInvocationFailed":
     case "PermissionRequested":
     case "PermissionGranted":
     case "PermissionDenied":
+    case "FilePatchProposed":
+    case "FilePatchApplied":
     case "MemoryProposed":
     case "MemoryAccepted":
     case "MemoryRejected":
-      // Trace/permission/memory events — handled by useTraceStore
+    case "ReviewerFindingAdded":
+      // Trace/permission/memory/patch/review events — handled by useTraceStore
       break;
   }
 }

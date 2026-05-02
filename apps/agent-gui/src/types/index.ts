@@ -16,9 +16,14 @@ export type EventPayload =
   | { type: "WorkspaceOpened"; path: string }
   | { type: "UserMessageAdded"; message_id: string; content: string }
   | { type: "AgentTaskCreated"; task_id: string; title: string }
+  | { type: "AgentTaskStarted"; task_id: string }
+  | { type: "AgentTaskCompleted"; task_id: string }
+  | { type: "AgentTaskFailed"; task_id: string; error: string }
+  | { type: "ContextAssembled"; token_estimate: number; sources: string[] }
+  | { type: "ModelRequestStarted"; model_profile: string; model_id: string }
   | { type: "ModelTokenDelta"; delta: string }
-  | { type: "AssistantMessageCompleted"; message_id: string; content: string }
   | { type: "ModelToolCallRequested"; tool_call_id: string; tool_id: string }
+  | { type: "AssistantMessageCompleted"; message_id: string; content: string }
   | {
       type: "PermissionRequested";
       request_id: string;
@@ -43,8 +48,8 @@ export type EventPayload =
       tool_id: string;
       error: string;
     }
-  | { type: "SessionCancelled"; reason: string }
-  | { type: "AgentTaskFailed"; task_id: string; error: string }
+  | { type: "FilePatchProposed"; patch_id: string; diff: string }
+  | { type: "FilePatchApplied"; patch_id: string }
   | {
       type: "MemoryProposed";
       memory_id: string;
@@ -60,6 +65,13 @@ export type EventPayload =
       content: string;
     }
   | { type: "MemoryRejected"; memory_id: string; reason: string }
+  | {
+      type: "ReviewerFindingAdded";
+      finding_id: string;
+      severity: string;
+      message: string;
+    }
+  | { type: "SessionCancelled"; reason: string }
   | { type: string };
 
 export interface DomainEvent {

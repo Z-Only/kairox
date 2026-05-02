@@ -13,20 +13,20 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
 echo "[1/7] Running checks"
-npm run format:check
-npm run lint
+pnpm run format:check
+pnpm run lint
 cargo test --workspace --all-targets
 
 echo "[2/7] Verifying GUI build"
 cd "$ROOT/apps/agent-gui"
-npm run build
-npm run tauri:build
+pnpm run build
+pnpm run tauri:build
 cd "$ROOT"
 
 echo "[3/7] Generating and formatting CHANGELOG.md with git-cliff"
 if command -v git-cliff &>/dev/null; then
   git cliff --tag "$TAG" -o CHANGELOG.md
-  npx prettier --write CHANGELOG.md
+  pnpm exec prettier --write CHANGELOG.md
 else
   echo "⚠️  git-cliff not found. Install it: cargo install git-cliff"
   echo "   Skipping CHANGELOG.md generation. CI will still generate Release Notes."

@@ -8,17 +8,34 @@ Thanks for contributing to Kairox.
 pnpm install
 ```
 
-## Local verification
-
-Run these before opening a pull request:
+Optionally install [just](https://github.com/casey/just) for shortcut commands:
 
 ```bash
-pnpm run format:check
-pnpm run lint
-cargo test --workspace --all-targets
-pnpm --filter agent-gui run build
-pnpm --filter agent-gui run tauri:build
+cargo install just    # or: brew install just
+just --list           # show all available tasks
 ```
+
+## Local verification
+
+Run the full CI gate before opening a PR:
+
+```bash
+just check
+```
+
+This runs format check, lint, and tests — equivalent to CI.
+
+Individual commands:
+
+| Task            | Command                                               |
+| --------------- | ----------------------------------------------------- |
+| Format check    | `just fmt-check` or `pnpm run format:check`           |
+| Lint            | `just lint` or `pnpm run lint`                        |
+| Rust tests      | `just test` or `cargo test --workspace --all-targets` |
+| GUI tests       | `just test-gui`                                       |
+| Type sync check | `just check-types`                                    |
+| Build GUI web   | `just gui-build`                                      |
+| Build Tauri app | `just tauri-build`                                    |
 
 ## Commit messages
 
@@ -40,6 +57,10 @@ This repository uses Conventional Commits. Examples:
 - Rust: `cargo fmt` and `cargo clippy`
 - Frontend/docs: `prettier`, `eslint`, `stylelint`
 - Hooks: `husky`, `lint-staged`, `commitlint`
+
+## Adding new event types
+
+When adding a new `EventPayload` variant in Rust, also update the TypeScript type in `apps/agent-gui/src/types/index.ts`. Run `just check-types` to verify both sides are in sync.
 
 ## Dependency updates
 

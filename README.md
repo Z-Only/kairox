@@ -109,27 +109,36 @@ pnpm install
 ### Run quality gates
 
 ```bash
-pnpm run format:check
-pnpm run lint
-cargo test --workspace --all-targets
+just check
 ```
+
+Or individually:
+
+```bash
+just fmt-check      # format check
+just lint           # clippy + eslint + stylelint
+just test           # cargo test
+just check-types    # Rust ↔ TypeScript type sync
+```
+
+> Install [just](https://github.com/casey/just) with `cargo install just` or `brew install just`.
 
 ### Run TUI
 
 ```bash
-cargo run -p agent-tui
+just tui
 ```
 
 ### Run GUI (Vite dev server)
 
 ```bash
-pnpm --filter agent-gui run dev
+just gui-dev
 ```
 
 ### Run Tauri desktop app in development
 
 ```bash
-pnpm --filter agent-gui run tauri:dev
+just tauri-dev
 ```
 
 This starts the Vite dev server and the native Tauri window together, providing hot-reload for both the frontend and the Rust backend.
@@ -137,13 +146,13 @@ This starts the Vite dev server and the native Tauri window together, providing 
 ### Build GUI web assets
 
 ```bash
-pnpm --filter agent-gui run build
+just gui-build
 ```
 
 ### Build Tauri desktop app
 
 ```bash
-pnpm --filter agent-gui run tauri:build
+just tauri-build
 ```
 
 ## Tooling
@@ -158,7 +167,18 @@ Repository-level quality tooling includes:
 - **Husky + lint-staged** for pre-commit enforcement
 - **commitlint** for Conventional Commits on `commit-msg`
 
-Useful commands:
+Useful commands (with [just](https://github.com/casey/just)):
+
+```bash
+just check        # full CI gate: format + lint + test
+just fmt          # auto-format all code
+just tui          # run the TUI app
+just gui-dev      # run the GUI dev server
+just bump-version X.Y.Z  # bump version in all config files
+just check-types  # verify Rust ↔ TypeScript type sync
+```
+
+Or the underlying pnpm/cargo commands:
 
 ```bash
 pnpm run format
