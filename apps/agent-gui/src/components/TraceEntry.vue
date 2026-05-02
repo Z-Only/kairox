@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TraceEntryData } from "../types/trace";
 import { traceState } from "../composables/useTraceStore";
-import PermissionPrompt from "./PermissionPrompt.vue";
 
 const props = defineProps<{
   entry: TraceEntryData;
@@ -37,53 +36,50 @@ const kindIcon: Record<string, string> = {
       `trace-entry--${entry.kind}`
     ]"
   >
-    <PermissionPrompt
-      v-if="
-        (entry.kind === 'permission' || entry.kind === 'memory') &&
-        entry.status === 'pending'
-      "
-      :entry="entry"
-    />
-    <template v-else>
-      <div class="entry-row" @click="toggle">
-        <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
-        <span class="entry-status">{{ statusIcon[entry.status] }}</span>
-        <span class="entry-tool">{{ entry.toolId || entry.title }}</span>
-        <span v-if="entry.durationMs != null" class="entry-duration">
-          {{ (entry.durationMs / 1000).toFixed(1) }}s
-        </span>
-        <span v-if="entry.status === 'running'" class="entry-running"
-          >running...</span
-        >
+    <!-- All entries show as a trace row; pending permission/memory
+         interactions are handled exclusively by PermissionCenter -->
+    <div class="entry-row" @click="toggle">
+      <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
+      <span class="entry-status">{{ statusIcon[entry.status] }}</span>
+      <span class="entry-tool">{{ entry.toolId || entry.title }}</span>
+      <span v-if="entry.scope" class="entry-scope">{{ entry.scope }}</span>
+      <span v-if="entry.durationMs != null" class="entry-duration">
+        {{ (entry.durationMs / 1000).toFixed(1) }}s
+      </span>
+      <span v-if="entry.status === 'running'" class="entry-running"
+        >running...</span
+      >
+      <span v-if="entry.status === 'pending'" class="entry-pending"
+        >pending</span
+      >
+    </div>
+    <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
+      <div v-if="entry.input" class="entry-section">
+        <span class="entry-label">Input:</span>
+        <pre class="entry-code">{{ entry.input }}</pre>
       </div>
-      <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
-        <div v-if="entry.input" class="entry-section">
-          <span class="entry-label">Input:</span>
-          <pre class="entry-code">{{ entry.input }}</pre>
-        </div>
-        <div v-if="entry.outputPreview" class="entry-section">
-          <span class="entry-label">Output:</span>
-          <pre class="entry-code">{{ entry.outputPreview }}</pre>
-        </div>
-        <div v-if="entry.reason" class="entry-section">
-          <span class="entry-label">Reason:</span>
-          <span>{{ entry.reason }}</span>
-        </div>
-        <div
-          v-if="entry.content && entry.kind === 'memory'"
-          class="entry-section"
-        >
-          <span class="entry-label">Content:</span>
-          <pre class="entry-code">{{ entry.content }}</pre>
-        </div>
+      <div v-if="entry.outputPreview" class="entry-section">
+        <span class="entry-label">Output:</span>
+        <pre class="entry-code">{{ entry.outputPreview }}</pre>
+      </div>
+      <div v-if="entry.reason" class="entry-section">
+        <span class="entry-label">Reason:</span>
+        <span>{{ entry.reason }}</span>
       </div>
       <div
-        v-if="density === 'L3' && entry.expanded && entry.rawEvent"
-        class="entry-raw"
+        v-if="entry.content && entry.kind === 'memory'"
+        class="entry-section"
       >
-        <pre class="entry-code">{{ entry.rawEvent }}</pre>
+        <span class="entry-label">Content:</span>
+        <pre class="entry-code">{{ entry.content }}</pre>
       </div>
-    </template>
+    </div>
+    <div
+      v-if="density === 'L3' && entry.expanded && entry.rawEvent"
+      class="entry-raw"
+    >
+      <pre class="entry-code">{{ entry.rawEvent }}</pre>
+    </div>
   </div>
 </template>
 
@@ -91,6 +87,9 @@ const kindIcon: Record<string, string> = {
 .trace-entry {
   font-size: 12px;
   border-bottom: 1px solid #eee;
+}
+.trace-entry--pending {
+  background: #fffbf0;
 }
 .entry-row {
   display: flex;
@@ -115,6 +114,13 @@ const kindIcon: Record<string, string> = {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.entry-scope {
+  font-size: 10px;
+  padding: 1px 4px;
+  background: #e8f0fe;
+  border-radius: 3px;
+  color: #3367d6;
+}
 .entry-duration {
   color: #777;
   font-size: 11px;
@@ -122,6 +128,11 @@ const kindIcon: Record<string, string> = {
 .entry-running {
   color: #0077cc;
   font-size: 11px;
+}
+.entry-pending {
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 600;
 }
 .entry-detail,
 .entry-raw {
