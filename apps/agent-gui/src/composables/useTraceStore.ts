@@ -14,6 +14,15 @@ function updateEntry(id: string, updates: Partial<TraceEntryData>) {
   }
 }
 
+/** Store the raw JSON of the event for L3 display. */
+function rawJson(event: DomainEvent): string {
+  try {
+    return JSON.stringify(event, null, 2);
+  } catch {
+    return "";
+  }
+}
+
 export function applyTraceEvent(event: DomainEvent) {
   const p = event.payload;
   switch (p.type) {
@@ -30,7 +39,8 @@ export function applyTraceEvent(event: DomainEvent) {
         toolId: "task",
         title: typed.title,
         startedAt: Date.now(),
-        expanded: false
+        expanded: false,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -49,7 +59,8 @@ export function applyTraceEvent(event: DomainEvent) {
         title: `User: ${typed.content.slice(0, 80)}${typed.content.length > 80 ? "…" : ""}`,
         startedAt: Date.now(),
         expanded: false,
-        input: typed.content
+        input: typed.content,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -68,7 +79,8 @@ export function applyTraceEvent(event: DomainEvent) {
         title: `Context assembled (${typed.token_estimate} tokens)`,
         startedAt: Date.now(),
         expanded: false,
-        outputPreview: typed.sources.join(", ")
+        outputPreview: typed.sources.join(", "),
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -86,8 +98,14 @@ export function applyTraceEvent(event: DomainEvent) {
         toolId: "model",
         title: `Model: ${typed.model_profile} / ${typed.model_id}`,
         startedAt: Date.now(),
-        expanded: false
+        expanded: false,
+        rawEvent: rawJson(event)
       });
+      break;
+    }
+
+    case "ModelTokenDelta": {
+      // Skip — too many per request; not useful as trace entries
       break;
     }
 
@@ -97,7 +115,6 @@ export function applyTraceEvent(event: DomainEvent) {
         message_id: string;
         content: string;
       };
-      // Update the running "Model: ..." entry if found
       const runningModel = traceState.entries.find(
         (e) =>
           e.kind === "tool" && e.toolId === "model" && e.status === "running"
@@ -106,6 +123,19 @@ export function applyTraceEvent(event: DomainEvent) {
         runningModel.status = "completed";
         runningModel.durationMs = Date.now() - runningModel.startedAt;
         runningModel.outputPreview = typed.content.slice(0, 200);
+        runningModel.rawEvent = rawJson(event);
+      } else {
+        traceState.entries.push({
+          id: typed.message_id,
+          kind: "tool",
+          status: "completed",
+          toolId: "assistant",
+          title: "Assistant response",
+          startedAt: Date.now(),
+          expanded: false,
+          outputPreview: typed.content.slice(0, 200),
+          rawEvent: rawJson(event)
+        });
       }
       break;
     }
@@ -123,7 +153,8 @@ export function applyTraceEvent(event: DomainEvent) {
         toolId: typed.tool_id,
         title: `Tool call: ${typed.tool_id}`,
         startedAt: Date.now(),
-        expanded: false
+        expanded: false,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -141,7 +172,8 @@ export function applyTraceEvent(event: DomainEvent) {
         toolId: typed.tool_id,
         title: typed.tool_id,
         startedAt: Date.now(),
-        expanded: false
+        expanded: false,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -161,7 +193,8 @@ export function applyTraceEvent(event: DomainEvent) {
         durationMs: typed.duration_ms,
         outputPreview: typed.output_preview,
         exitCode: typed.exit_code,
-        truncated: typed.truncated
+        truncated: typed.truncated,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -174,7 +207,8 @@ export function applyTraceEvent(event: DomainEvent) {
         error: string;
       };
       updateEntry(typed.invocation_id, {
-        status: "failed"
+        status: "failed",
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -193,20 +227,27 @@ export function applyTraceEvent(event: DomainEvent) {
         toolId: typed.tool_id,
         title: typed.preview || typed.tool_id,
         startedAt: Date.now(),
-        expanded: true
+        expanded: true,
+        rawEvent: rawJson(event)
       });
       break;
     }
 
     case "PermissionGranted": {
       const typed = p as { type: "PermissionGranted"; request_id: string };
-      updateEntry(typed.request_id, { status: "completed" });
+      updateEntry(typed.request_id, {
+        status: "completed",
+        rawEvent: rawJson(event)
+      });
       break;
     }
 
     case "PermissionDenied": {
       const typed = p as { type: "PermissionDenied"; request_id: string };
-      updateEntry(typed.request_id, { status: "failed" });
+      updateEntry(typed.request_id, {
+        status: "failed",
+        rawEvent: rawJson(event)
+      });
       break;
     }
 
@@ -227,7 +268,8 @@ export function applyTraceEvent(event: DomainEvent) {
         startedAt: Date.now(),
         expanded: true,
         scope: typed.scope,
-        content: typed.content
+        content: typed.content,
+        rawEvent: rawJson(event)
       });
       break;
     }
@@ -237,7 +279,10 @@ export function applyTraceEvent(event: DomainEvent) {
         type: "MemoryAccepted";
         memory_id: string;
       };
-      updateEntry(typed.memory_id, { status: "completed" });
+      updateEntry(typed.memory_id, {
+        status: "completed",
+        rawEvent: rawJson(event)
+      });
       break;
     }
 
@@ -247,7 +292,11 @@ export function applyTraceEvent(event: DomainEvent) {
         memory_id: string;
         reason: string;
       };
-      updateEntry(typed.memory_id, { status: "failed", reason: typed.reason });
+      updateEntry(typed.memory_id, {
+        status: "failed",
+        reason: typed.reason,
+        rawEvent: rawJson(event)
+      });
       break;
     }
   }
