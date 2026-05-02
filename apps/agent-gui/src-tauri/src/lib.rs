@@ -20,12 +20,19 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                // Use shared-cache in-memory SQLite so all pool connections
-                // (event store + memory store) see the same database.
-                // `sqlite::memory:` is per-connection, so table migrations
-                // can be lost when the pool recycles connections.
-                let db_url = "sqlite:file:kairox_gui?mode=memory&cache=shared";
-                let store = SqliteEventStore::connect(db_url)
+                // Use a file-backed SQLite database in the system temp directory.
+                // In-memory SQLite (`sqlite::memory:` or `sqlite:file:...?mode=memory&cache=shared`)
+                // is destroyed when all connections close, which causes "no such table: events"
+                // errors when the pool recycles connections. A file-backed DB persists across
+                // connection recycling and is cleaned up when the OS reclaims temp files.
+                let db_dir = std::env::temp_dir().join("kairox-gui");
+                tokio::fs::create_dir_all(&db_dir).await.ok();
+                let db_path = db_dir.join("kairox.db");
+                let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+
+                eprintln!("Database: {}", db_url);
+
+                let store = SqliteEventStore::connect(&db_url)
                     .await
                     .expect("Failed to create event store");
 
