@@ -59,7 +59,8 @@ async function createSession() {
     // Update current session info immediately
     sessionState.currentSessionId = result.id;
     sessionState.currentProfile = result.profile;
-    // Clear trace for the new session (fresh session, no history)
+    // Clear chat and trace for the new session (fresh session, no history)
+    resetProjection();
     clearTrace();
     showNewSession.value = false;
   } catch (e) {
