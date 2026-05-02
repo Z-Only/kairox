@@ -12,8 +12,8 @@ pub use account::{AccountService, AccountState, LocalNoAccountService};
 pub use error::CoreError;
 pub use events::{DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
-    AppFacade, PermissionDecision, SendMessageRequest, StartSessionRequest, TraceEntry,
-    WorkspaceInfo,
+    AppFacade, PermissionDecision, SendMessageRequest, SessionMeta, StartSessionRequest,
+    TraceEntry, WorkspaceInfo,
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

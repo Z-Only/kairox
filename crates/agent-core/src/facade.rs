@@ -45,6 +45,20 @@ pub struct TraceEntry {
     pub event: DomainEvent,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Metadata for a session, used for listing and display.
+pub struct SessionMeta {
+    pub session_id: SessionId,
+    pub workspace_id: WorkspaceId,
+    pub title: String,
+    pub model_profile: String,
+    pub model_id: Option<String>,
+    pub provider: Option<String>,
+    pub deleted_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[async_trait]
 /// The primary integration point for Kairox.
 ///
@@ -79,6 +93,19 @@ pub trait AppFacade: Send + Sync {
     async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>>;
     /// Subscribe to a real-time stream of domain events for a session.
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent>;
+    /// List all workspaces known to the runtime.
+    async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>>;
+    /// List all sessions in a workspace, including soft-deleted ones.
+    async fn list_sessions(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<SessionMeta>>;
+    /// Rename a session.
+    async fn rename_session(&self, session_id: &SessionId, title: String) -> crate::Result<()>;
+    /// Soft-delete a session (marks as deleted without removing data).
+    async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()>;
+    /// Clean up sessions that were soft-deleted longer than the specified duration ago.
+    async fn cleanup_expired_sessions(
+        &self,
+        older_than: std::time::Duration,
+    ) -> crate::Result<usize>;
 }
 
 #[cfg(test)]
@@ -140,6 +167,36 @@ mod tests {
         fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
             let _ = session_id;
             Box::pin(futures::stream::empty())
+        }
+
+        async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>> {
+            Ok(Vec::new())
+        }
+
+        async fn list_sessions(
+            &self,
+            workspace_id: &WorkspaceId,
+        ) -> crate::Result<Vec<SessionMeta>> {
+            let _ = workspace_id;
+            Ok(Vec::new())
+        }
+
+        async fn rename_session(&self, session_id: &SessionId, title: String) -> crate::Result<()> {
+            let _ = (session_id, title);
+            Ok(())
+        }
+
+        async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
+            let _ = session_id;
+            Ok(())
+        }
+
+        async fn cleanup_expired_sessions(
+            &self,
+            older_than: std::time::Duration,
+        ) -> crate::Result<usize> {
+            let _ = older_than;
+            Ok(0)
         }
     }
 

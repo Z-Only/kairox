@@ -856,6 +856,45 @@ where
             }
         })
     }
+
+    async fn list_workspaces(&self) -> agent_core::Result<Vec<WorkspaceInfo>> {
+        // TODO: implement with event store projection
+        Ok(Vec::new())
+    }
+
+    async fn list_sessions(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> agent_core::Result<Vec<agent_core::SessionMeta>> {
+        let _ = workspace_id;
+        // TODO: implement with event store projection
+        Ok(Vec::new())
+    }
+
+    async fn rename_session(
+        &self,
+        session_id: &SessionId,
+        title: String,
+    ) -> agent_core::Result<()> {
+        let _ = (session_id, title);
+        // TODO: implement with event store projection
+        Ok(())
+    }
+
+    async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        let _ = session_id;
+        // TODO: implement with event store projection
+        Ok(())
+    }
+
+    async fn cleanup_expired_sessions(
+        &self,
+        older_than: std::time::Duration,
+    ) -> agent_core::Result<usize> {
+        let _ = older_than;
+        // TODO: implement with event store projection
+        Ok(0)
+    }
 }
 
 #[cfg(test)]
