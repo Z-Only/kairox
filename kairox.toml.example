@@ -1,0 +1,32 @@
+# Kairox configuration — copy to kairox.toml and fill in your profiles.
+# Place in project root (./kairox.toml) or user home (~/.kairox/config.toml).
+
+# OpenAI-compatible provider (e.g. OpenAI, DeepSeek, Groq)
+[profiles.gpt4o]
+provider = "openai_compatible"
+model_id = "gpt-4o"
+api_key_env = "OPENAI_API_KEY"
+
+[profiles.deepseek]
+provider = "openai_compatible"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+
+# Anthropic Claude
+[profiles.claude]
+provider = "anthropic"
+model_id = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"
+
+# Local Ollama
+[profiles.local]
+provider = "ollama"
+model_id = "qwen3:8b"
+base_url = "http://localhost:11434"
+
+# Fake provider for testing
+[profiles.fake]
+provider = "fake"
+model_id = "fake-model"
+response = "Hello from the fake provider!"

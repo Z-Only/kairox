@@ -17,3 +17,7 @@ package-lock.json
 .superpowers/
 .worktrees/
 .idea
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+kairox.toml
