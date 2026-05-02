@@ -67,6 +67,9 @@ impl SqliteEventStore {
         sqlx::query(include_str!("../migrations/0001_events.sql"))
             .execute(&self.pool)
             .await?;
+        sqlx::query(include_str!("../migrations/0002_metadata.sql"))
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 }
