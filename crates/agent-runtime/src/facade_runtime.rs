@@ -263,16 +263,35 @@ where
         let mut system_prompt = SYSTEM_PROMPT.to_string();
         if let Some(ref mem_store) = self.memory_store {
             let keywords = agent_memory::extract_keywords(&request.content);
-            let memories = mem_store
+
+            // First try keyword-based retrieval; if no matches found,
+            // fall back to returning all accepted user/workspace memories.
+            // This ensures cross-session context is always available even
+            // when the query keywords don't directly match memory content
+            // (common with Chinese text where extract_keywords is limited).
+            let mut memories = mem_store
                 .query(agent_memory::MemoryQuery {
                     scope: None,
-                    keywords,
+                    keywords: keywords.clone(),
                     limit: 20,
                     session_id: None,
                     workspace_id: None,
                 })
                 .await
                 .unwrap_or_default();
+
+            if memories.is_empty() {
+                memories = mem_store
+                    .query(agent_memory::MemoryQuery {
+                        scope: None,
+                        keywords: Vec::new(),
+                        limit: 20,
+                        session_id: None,
+                        workspace_id: None,
+                    })
+                    .await
+                    .unwrap_or_default();
+            }
             if !memories.is_empty() {
                 let memory_section = memories
                     .iter()
