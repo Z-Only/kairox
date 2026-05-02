@@ -1,6 +1,6 @@
 pub mod event_store;
 
-pub use event_store::{EventStore, SqliteEventStore};
+pub use event_store::{EventStore, SessionRow, SqliteEventStore, WorkspaceRow};
 
 pub const STORE_CRATE_NAME: &str = "agent-store";
 

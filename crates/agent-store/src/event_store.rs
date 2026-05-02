@@ -15,6 +15,56 @@ pub trait EventStore: Send + Sync {
     async fn load_session(&self, session_id: &SessionId) -> crate::Result<Vec<DomainEvent>>;
 }
 
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct WorkspaceRow {
+    pub workspace_id: String,
+    pub path: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionRow {
+    pub session_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    pub model_profile: String,
+    pub model_id: Option<String>,
+    pub provider: Option<String>,
+    pub deleted_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct SessionRowForQuery {
+    session_id: String,
+    workspace_id: String,
+    title: String,
+    model_profile: String,
+    model_id: Option<String>,
+    provider: Option<String>,
+    deleted_at: Option<String>,
+    created_at: String,
+    updated_at: String,
+}
+
+impl From<SessionRowForQuery> for SessionRow {
+    fn from(r: SessionRowForQuery) -> Self {
+        Self {
+            session_id: r.session_id,
+            workspace_id: r.workspace_id,
+            title: r.title,
+            model_profile: r.model_profile,
+            model_id: r.model_id,
+            provider: r.provider,
+            deleted_at: r.deleted_at,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SqliteEventStore {
     pool: SqlitePool,
@@ -71,6 +121,123 @@ impl SqliteEventStore {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    // --- Metadata repository methods ---
+
+    pub async fn upsert_workspace(&self, workspace_id: &str, path: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO kairox_workspaces (workspace_id, path, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(workspace_id) DO UPDATE SET path = ?2, updated_at = ?4",
+        )
+        .bind(workspace_id)
+        .bind(path)
+        .bind(&now)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn upsert_session(&self, meta: &SessionRow) -> crate::Result<()> {
+        sqlx::query(
+            "INSERT INTO kairox_sessions (session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+             ON CONFLICT(session_id) DO UPDATE SET title = ?3, model_profile = ?4, model_id = ?5, provider = ?6, updated_at = ?9",
+        )
+        .bind(&meta.session_id)
+        .bind(&meta.workspace_id)
+        .bind(&meta.title)
+        .bind(&meta.model_profile)
+        .bind(&meta.model_id)
+        .bind(&meta.provider)
+        .bind(&meta.deleted_at)
+        .bind(&meta.created_at)
+        .bind(&meta.updated_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceRow>> {
+        let rows = sqlx::query_as::<_, WorkspaceRow>(
+            "SELECT workspace_id, path, created_at, updated_at FROM kairox_workspaces ORDER BY created_at ASC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
+        let rows = sqlx::query_as::<_, SessionRowForQuery>(
+            "SELECT session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at
+             FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY created_at ASC",
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(SessionRow::from).collect())
+    }
+
+    pub async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("UPDATE kairox_sessions SET title = ?1, updated_at = ?2 WHERE session_id = ?3")
+            .bind(title)
+            .bind(&now)
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE kairox_sessions SET deleted_at = ?1, updated_at = ?1 WHERE session_id = ?2",
+        )
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn cleanup_expired_sessions(
+        &self,
+        older_than: std::time::Duration,
+    ) -> crate::Result<usize> {
+        let threshold = chrono::Utc::now()
+            - chrono::Duration::from_std(older_than)
+                .unwrap_or_else(|_| chrono::Duration::seconds(0));
+        let threshold_str = threshold.to_rfc3339();
+
+        let expired: Vec<String> = sqlx::query_scalar(
+            "SELECT session_id FROM kairox_sessions WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
+        )
+        .bind(&threshold_str)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let count = expired.len();
+        if count == 0 {
+            return Ok(0);
+        }
+
+        for sid in &expired {
+            sqlx::query("DELETE FROM events WHERE session_id = ?1")
+                .bind(sid)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        sqlx::query("DELETE FROM kairox_sessions WHERE deleted_at IS NOT NULL AND deleted_at < ?1")
+            .bind(&threshold_str)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(count)
     }
 }
 
@@ -220,5 +387,173 @@ mod tests {
         assert_eq!(replayed, vec![event]);
 
         std::fs::remove_file(db_path).unwrap();
+    }
+
+    // --- Metadata repository tests ---
+
+    #[tokio::test]
+    async fn upsert_and_list_workspaces() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project-a")
+            .await
+            .unwrap();
+        store
+            .upsert_workspace("wrk_2", "/tmp/project-b")
+            .await
+            .unwrap();
+
+        let workspaces = store.list_workspaces().await.unwrap();
+        assert_eq!(workspaces.len(), 2);
+        assert_eq!(workspaces[0].workspace_id, "wrk_1");
+        assert_eq!(workspaces[0].path, "/tmp/project-a");
+    }
+
+    #[tokio::test]
+    async fn upsert_workspace_is_idempotent() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store.upsert_workspace("wrk_1", "/tmp/old").await.unwrap();
+        store.upsert_workspace("wrk_1", "/tmp/new").await.unwrap();
+
+        let workspaces = store.list_workspaces().await.unwrap();
+        assert_eq!(workspaces.len(), 1);
+        assert_eq!(workspaces[0].path, "/tmp/new");
+    }
+
+    #[tokio::test]
+    async fn upsert_and_list_active_sessions() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Session using fast".into(),
+                model_profile: "fast".into(),
+                model_id: Some("gpt-4.1-mini".into()),
+                provider: Some("openai_compatible".into()),
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].title, "Session using fast");
+        assert_eq!(sessions[0].model_id, Some("gpt-4.1-mini".into()));
+    }
+
+    #[tokio::test]
+    async fn soft_delete_hides_session_from_active_list() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "To delete".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        store.soft_delete_session("ses_1").await.unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn rename_session_updates_title() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old title".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        store.rename_session("ses_1", "New title").await.unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions[0].title, "New title");
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_deletes_old_soft_deleted_sessions() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let old_deleted = chrono::Utc::now() - chrono::Duration::days(10);
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_old".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old deleted".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(old_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_recent".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Recent deleted".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(chrono::Utc::now().to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let deleted = store
+            .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+            .await
+            .unwrap();
+        assert_eq!(deleted, 1);
     }
 }
