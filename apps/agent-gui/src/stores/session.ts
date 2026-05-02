@@ -1,9 +1,11 @@
 import { reactive } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import type {
   SessionProjection,
   SessionInfoResponse,
   DomainEvent
 } from "../types";
+import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
 
 /** Report a send error to the UI when the background task fails. */
 export function reportSendError(message: string) {
@@ -18,6 +20,7 @@ export function reportSendError(message: string) {
 export const sessionState = reactive({
   sessions: [] as SessionInfoResponse[],
   currentSessionId: null as string | null,
+  workspaceId: null as string | null,
   projection: {
     messages: [],
     task_titles: [],
@@ -126,4 +129,97 @@ export function resetProjection() {
     cancelled: false
   };
   sessionState.isStreaming = false;
+}
+
+export async function deleteSession(sessionId: string) {
+  try {
+    await invoke("delete_session", { sessionId });
+    sessionState.sessions = sessionState.sessions.filter(
+      (s) => s.id !== sessionId
+    );
+    // If we deleted the current session, switch to the first remaining one
+    if (sessionState.currentSessionId === sessionId) {
+      if (sessionState.sessions.length > 0) {
+        const firstSession = sessionState.sessions[0];
+        sessionState.currentSessionId = firstSession.id;
+        sessionState.currentProfile = firstSession.profile;
+        resetProjection();
+        clearTrace();
+        try {
+          const projection: SessionProjection = await invoke("switch_session", {
+            sessionId: firstSession.id
+          });
+          setProjection(projection);
+          const events: DomainEvent[] = await invoke("get_trace", {
+            sessionId: firstSession.id
+          });
+          for (const event of events) {
+            applyTraceEvent(event);
+          }
+        } catch (e) {
+          console.error("Failed to switch after delete:", e);
+        }
+      } else {
+        sessionState.currentSessionId = null;
+        resetProjection();
+        clearTrace();
+      }
+    }
+  } catch (e) {
+    console.error("Failed to delete session:", e);
+  }
+}
+
+export async function renameSession(sessionId: string, title: string) {
+  try {
+    await invoke("rename_session", { sessionId, title });
+    const session = sessionState.sessions.find((s) => s.id === sessionId);
+    if (session) {
+      session.title = title;
+    }
+  } catch (e) {
+    console.error("Failed to rename session:", e);
+  }
+}
+
+export async function recoverSessions(): Promise<boolean> {
+  try {
+    const workspaces: { workspace_id: string; path: string }[] =
+      await invoke("list_workspaces");
+    if (workspaces.length === 0) {
+      return false;
+    }
+
+    const ws = workspaces[0];
+    sessionState.workspaceId = ws.workspace_id;
+
+    sessionState.sessions = await invoke("list_sessions");
+
+    if (sessionState.sessions.length > 0) {
+      const firstSession = sessionState.sessions[0];
+      sessionState.currentSessionId = firstSession.id;
+      sessionState.currentProfile = firstSession.profile;
+
+      try {
+        const projection: SessionProjection = await invoke("switch_session", {
+          sessionId: firstSession.id
+        });
+        setProjection(projection);
+        const events: DomainEvent[] = await invoke("get_trace", {
+          sessionId: firstSession.id
+        });
+        for (const event of events) {
+          applyTraceEvent(event);
+        }
+      } catch (e) {
+        console.error("Failed to load session history:", e);
+      }
+    }
+
+    sessionState.initialized = true;
+    return true;
+  } catch (e) {
+    console.error("Failed to recover sessions:", e);
+    return false;
+  }
 }

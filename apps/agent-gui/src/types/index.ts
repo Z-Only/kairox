@@ -103,3 +103,23 @@ export interface ProfileInfo {
   local: boolean;
   has_api_key: boolean;
 }
+
+export interface SessionMeta {
+  session_id: string;
+  workspace_id: string;
+  title: string;
+  model_profile: string;
+  model_id: string | null;
+  provider: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileDetail {
+  alias: string;
+  provider: string;
+  model_id: string;
+  local: boolean;
+  has_api_key: boolean;
+}
