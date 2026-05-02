@@ -212,6 +212,8 @@ When bumping the version for a release, edit these files (all must stay in sync)
 
 Do NOT edit `version` in individual crate `Cargo.toml` files — they inherit from the workspace.
 
+> **⚠️ AI assistant reminder**: Bumping the version number alone is NOT sufficient. Every version bump MUST be followed by the full release flow: update CHANGELOG (`git cliff`), commit changelog, create the git tag, and push both the branch and tag to remote. Missing any of these steps will cause release artifacts (installers, CHANGELOG, GitHub Release) to be incomplete or missing. If you only bump the version without completing the release flow, the version will not have a corresponding release.
+
 ## Release flow
 
 Use `scripts/release.sh <version>` to publish a release:
