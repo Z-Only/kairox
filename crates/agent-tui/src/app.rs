@@ -368,6 +368,43 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
 
+            EventPayload::MemoryProposed {
+                memory_id: _,
+                scope,
+                key,
+                content,
+            } => {
+                let label = match key {
+                    Some(k) => format!("[{scope}] {k}: {content}"),
+                    None => format!("[{scope}] {content}"),
+                };
+                self.state.current_session.messages.push(ProjectedMessage {
+                    role: agent_core::projection::ProjectedRole::Assistant,
+                    content: format!("🧠 Memory proposed: {label}"),
+                });
+                self.state.render_scheduler.mark_dirty();
+            }
+
+            EventPayload::MemoryAccepted { memory_id: _, .. } => {
+                self.state.current_session.messages.push(ProjectedMessage {
+                    role: agent_core::projection::ProjectedRole::Assistant,
+                    content: "✅ Memory saved".to_string(),
+                });
+                self.state.render_scheduler.mark_dirty();
+            }
+
+            EventPayload::MemoryRejected {
+                memory_id: _,
+                reason,
+                ..
+            } => {
+                self.state.current_session.messages.push(ProjectedMessage {
+                    role: agent_core::projection::ProjectedRole::Assistant,
+                    content: format!("❌ Memory rejected: {reason}"),
+                });
+                self.state.render_scheduler.mark_dirty();
+            }
+
             // All other events — just mark dirty
             _ => {
                 self.state.render_scheduler.mark_dirty();

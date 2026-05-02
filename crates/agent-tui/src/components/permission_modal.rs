@@ -42,10 +42,25 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &Permissi
 
     frame.render_widget(Clear, modal_area);
 
-    let lines = vec![
-        Line::from(Span::styled(
+    let (title, risk_label, risk_color, warning) = match request.risk_level {
+        RiskLevel::Destructive => (
             "⛔ Destructive Operation",
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            "Destructive",
+            Color::Red,
+            "This operation cannot be undone.",
+        ),
+        RiskLevel::Write => (
+            "🧠 Memory Write",
+            "Write",
+            Color::Yellow,
+            "This will save a memory entry.",
+        ),
+    };
+
+    let mut lines = vec![
+        Line::from(Span::styled(
+            title,
+            Style::default().fg(risk_color).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
@@ -58,23 +73,25 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &Permissi
         ]),
         Line::from(vec![
             Span::styled("Risk: ", Style::default().fg(Color::Gray)),
-            Span::styled("Destructive", Style::default().fg(Color::Red)),
-        ]),
-        Line::from(""),
-        Line::from("This operation cannot be undone."),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("[Y] Allow once  ", Style::default().fg(Color::Yellow)),
-            Span::styled("[N] Deny  ", Style::default().fg(Color::Gray)),
-            Span::styled("[Esc] Cancel", Style::default().fg(Color::DarkGray)),
+            Span::styled(risk_label, Style::default().fg(risk_color)),
         ]),
     ];
+    if !warning.is_empty() {
+        lines.push(Line::from(""));
+        lines.push(Line::from(warning));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("[Y] Allow once  ", Style::default().fg(Color::Yellow)),
+        Span::styled("[N] Deny  ", Style::default().fg(Color::Gray)),
+        Span::styled("[Esc] Cancel", Style::default().fg(Color::DarkGray)),
+    ]));
 
     let paragraph = Paragraph::new(lines)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Red)),
+                .border_style(Style::default().fg(risk_color)),
         )
         .wrap(Wrap { trim: false });
     frame.render_widget(paragraph, modal_area);
@@ -122,9 +139,8 @@ impl Component for PermissionModal {
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
         match effect {
             CrossPanelEffect::ShowPermissionPrompt(req) => {
-                if matches!(req.risk_level, RiskLevel::Destructive) {
-                    self.request = Some(req.clone());
-                }
+                // Show modal for Destructive risks and Write (memory) risks
+                self.request = Some(req.clone());
             }
             CrossPanelEffect::DismissPermissionPrompt => {
                 self.request = None;
@@ -190,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn modal_ignores_write_risk() {
+    fn modal_visible_on_write_risk() {
         let mut modal = PermissionModal::new();
         modal.handle_effect(&CrossPanelEffect::ShowPermissionPrompt(PermissionRequest {
             request_id: "req2".into(),
@@ -198,7 +214,7 @@ mod tests {
             tool_preview: "cargo build".into(),
             risk_level: RiskLevel::Write,
         }));
-        assert!(!modal.is_visible());
+        assert!(modal.is_visible());
     }
 
     #[test]

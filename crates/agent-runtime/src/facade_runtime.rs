@@ -2,7 +2,10 @@ use agent_core::{
     AgentId, AppFacade, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
     SendMessageRequest, SessionId, StartSessionRequest, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
-use agent_memory::ContextAssembler;
+use agent_memory::{
+    durable_memory_requires_confirmation, extract_memory_markers, strip_memory_markers,
+    ContextAssembler, MemoryEntry, MemoryStore,
+};
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
 use agent_store::EventStore;
 use agent_tools::{
@@ -12,9 +15,28 @@ use agent_tools::{
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use futures::StreamExt;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+const SYSTEM_PROMPT: &str = "\
+You are Kairox, a helpful AI assistant with memory capabilities.\n\n\
+## Memory Protocol\n\
+When you learn something worth remembering about the user or workspace, \
+use <memory> tags to save it. Examples:\n\
+- <memory scope=\"session\">Temporary note for this session</memory>\n\
+- <memory scope=\"user\" key=\"preferred-language\">User prefers Rust</memory>\n\
+- <memory scope=\"workspace\" key=\"build-cmd\">Use cargo nextest</memory>\n\n\
+Guidelines:\n\
+- Use scope=\"session\" for temporary notes (auto-accepted)\n\
+- Use scope=\"user\" for user preferences (requires approval)\n\
+- Use scope=\"workspace\" for project settings (requires approval)\n\
+- Always include a key when using user or workspace scope\n\
+- You may include multiple <memory> tags in one response\n\
+- The <memory> tags will be stripped from displayed output, so also state \
+the information naturally in your response.\n\
+";
 
 const MAX_AGENT_LOOP_ITERATIONS: usize = 20;
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
@@ -25,6 +47,9 @@ pub struct LocalRuntime<S, M> {
     permission_engine: PermissionEngine,
     tool_registry: Arc<Mutex<ToolRegistry>>,
     context_assembler: ContextAssembler,
+    memory_store: Option<Arc<dyn MemoryStore>>,
+    pending_permissions:
+        Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
 }
 
@@ -36,7 +61,9 @@ impl<S, M> LocalRuntime<S, M> {
             model: Arc::new(model),
             permission_engine: PermissionEngine::new(PermissionMode::Suggest),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
-            context_assembler: ContextAssembler::new(100_000),
+            context_assembler: ContextAssembler::new_standalone(100_000),
+            memory_store: None,
+            pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
         }
     }
@@ -47,12 +74,19 @@ impl<S, M> LocalRuntime<S, M> {
     }
 
     pub fn with_context_limit(mut self, max_tokens: usize) -> Self {
-        self.context_assembler = ContextAssembler::new(max_tokens);
+        self.context_assembler = ContextAssembler::new_standalone(max_tokens);
         self
     }
 
     pub fn tool_registry(&self) -> Arc<Mutex<ToolRegistry>> {
         self.tool_registry.clone()
+    }
+
+    /// Set the memory store for persistent memory.
+    pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
+        self.memory_store = Some(store.clone());
+        self.context_assembler = ContextAssembler::new(100_000, store);
+        self
     }
 
     /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
@@ -121,6 +155,20 @@ fn build_model_messages(
         });
     }
     messages
+}
+
+/// Resolve a pending permission request (used by GUI Interactive mode).
+impl<S, M> LocalRuntime<S, M> {
+    pub async fn resolve_permission(
+        &self,
+        request_id: &str,
+        decision: PermissionDecision,
+    ) -> agent_core::Result<()> {
+        if let Some(tx) = self.pending_permissions.lock().await.remove(request_id) {
+            let _ = tx.send(decision);
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -210,10 +258,68 @@ where
             })
             .unwrap_or_else(|| "fake".to_string());
 
+        // Retrieve relevant memories from the MemoryStore and inject them
+        // into the system prompt so the model can use prior context.
+        let mut system_prompt = SYSTEM_PROMPT.to_string();
+        if let Some(ref mem_store) = self.memory_store {
+            let keywords = agent_memory::extract_keywords(&request.content);
+
+            // First try keyword-based retrieval; if no matches found,
+            // fall back to returning all accepted user/workspace memories.
+            // This ensures cross-session context is always available even
+            // when the query keywords don't directly match memory content
+            // (common with Chinese text where extract_keywords is limited).
+            let mut memories = mem_store
+                .query(agent_memory::MemoryQuery {
+                    scope: None,
+                    keywords: keywords.clone(),
+                    limit: 20,
+                    session_id: None,
+                    workspace_id: None,
+                })
+                .await
+                .unwrap_or_default();
+
+            if memories.is_empty() {
+                memories = mem_store
+                    .query(agent_memory::MemoryQuery {
+                        scope: None,
+                        keywords: Vec::new(),
+                        limit: 20,
+                        session_id: None,
+                        workspace_id: None,
+                    })
+                    .await
+                    .unwrap_or_default();
+            }
+            if !memories.is_empty() {
+                let memory_section = memories
+                    .iter()
+                    .filter(|m| m.accepted)
+                    .map(|m| {
+                        let scope_label = match m.scope {
+                            agent_memory::MemoryScope::User => "user",
+                            agent_memory::MemoryScope::Workspace => "workspace",
+                            agent_memory::MemoryScope::Session => "session",
+                        };
+                        match &m.key {
+                            Some(k) => format!("- [{scope_label}] {k}: {}", m.content),
+                            None => format!("- [{scope_label}] {}", m.content),
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if !memory_section.is_empty() {
+                    system_prompt.push_str("\n\n## Relevant Memories\nThe following memories were previously saved and may be relevant to the user's request. Use this context naturally in your response.\n\n");
+                    system_prompt.push_str(&memory_section);
+                }
+            }
+        }
+
         let model_request = ModelRequest {
             model_profile,
             messages,
-            system_prompt: Some("You are a helpful assistant.".into()),
+            system_prompt: Some(system_prompt),
             tools: tool_defs,
         };
 
@@ -299,6 +405,7 @@ where
                     }
                     Ok(ModelEvent::Completed { .. }) => {
                         if !assistant_text.is_empty() {
+                            let display_content = strip_memory_markers(&assistant_text);
                             let event = DomainEvent::new(
                                 request.workspace_id.clone(),
                                 request.session_id.clone(),
@@ -306,7 +413,7 @@ where
                                 PrivacyClassification::FullTrace,
                                 EventPayload::AssistantMessageCompleted {
                                     message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
-                                    content: assistant_text.clone(),
+                                    content: display_content,
                                 },
                             );
                             append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
@@ -342,6 +449,177 @@ where
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
                         return Err(agent_core::CoreError::InvalidState(error_msg));
+                    }
+                }
+            }
+
+            // Process memory markers from assistant response
+            if !assistant_text.is_empty() {
+                if let Some(ref mem_store) = self.memory_store {
+                    let markers = extract_memory_markers(&assistant_text);
+                    for marker in markers {
+                        let entry = MemoryEntry::from_marker(marker, None, None, false);
+                        let mem_id = entry.id.clone();
+                        let mem_scope = entry.scope.clone();
+                        let mem_key = entry.key.clone();
+                        let mem_content = entry.content.clone();
+                        if durable_memory_requires_confirmation(&entry.scope) {
+                            match self.permission_engine.mode() {
+                                PermissionMode::Interactive => {
+                                    let (tx, rx) = tokio::sync::oneshot::channel();
+                                    self.pending_permissions
+                                        .lock()
+                                        .await
+                                        .insert(mem_id.clone(), tx);
+                                    let perm_event = DomainEvent::new(
+                                        request.workspace_id.clone(),
+                                        request.session_id.clone(),
+                                        AgentId::system(),
+                                        PrivacyClassification::FullTrace,
+                                        EventPayload::MemoryProposed {
+                                            memory_id: mem_id.clone(),
+                                            scope: format!("{:?}", entry.scope).to_lowercase(),
+                                            key: mem_key.clone(),
+                                            content: mem_content.clone(),
+                                        },
+                                    );
+                                    let _ = append_and_broadcast(
+                                        &*self.store,
+                                        &self.event_tx,
+                                        &perm_event,
+                                    )
+                                    .await;
+                                    match rx.await {
+                                        Ok(PermissionDecision { approve: true, .. }) => {
+                                            let mut accepted = entry.clone();
+                                            accepted.accepted = true;
+                                            let _ = mem_store.store(accepted).await;
+                                            let accept_event = DomainEvent::new(
+                                                request.workspace_id.clone(),
+                                                request.session_id.clone(),
+                                                AgentId::system(),
+                                                PrivacyClassification::FullTrace,
+                                                EventPayload::MemoryAccepted {
+                                                    memory_id: mem_id,
+                                                    scope: format!("{:?}", mem_scope)
+                                                        .to_lowercase(),
+                                                    key: mem_key,
+                                                    content: mem_content,
+                                                },
+                                            );
+                                            let _ = append_and_broadcast(
+                                                &*self.store,
+                                                &self.event_tx,
+                                                &accept_event,
+                                            )
+                                            .await;
+                                        }
+                                        Ok(PermissionDecision {
+                                            approve: false,
+                                            reason,
+                                            ..
+                                        }) => {
+                                            let reject_event = DomainEvent::new(
+                                                request.workspace_id.clone(),
+                                                request.session_id.clone(),
+                                                AgentId::system(),
+                                                PrivacyClassification::FullTrace,
+                                                EventPayload::MemoryRejected {
+                                                    memory_id: mem_id,
+                                                    reason: reason
+                                                        .unwrap_or_else(|| "denied".into()),
+                                                },
+                                            );
+                                            let _ = append_and_broadcast(
+                                                &*self.store,
+                                                &self.event_tx,
+                                                &reject_event,
+                                            )
+                                            .await;
+                                        }
+                                        Err(_) => {
+                                            let reject_event = DomainEvent::new(
+                                                request.workspace_id.clone(),
+                                                request.session_id.clone(),
+                                                AgentId::system(),
+                                                PrivacyClassification::FullTrace,
+                                                EventPayload::MemoryRejected {
+                                                    memory_id: mem_id,
+                                                    reason: "cancelled".into(),
+                                                },
+                                            );
+                                            let _ = append_and_broadcast(
+                                                &*self.store,
+                                                &self.event_tx,
+                                                &reject_event,
+                                            )
+                                            .await;
+                                        }
+                                    }
+                                }
+                                PermissionMode::Suggest | PermissionMode::ReadOnly => {
+                                    let reject_event = DomainEvent::new(
+                                        request.workspace_id.clone(),
+                                        request.session_id.clone(),
+                                        AgentId::system(),
+                                        PrivacyClassification::FullTrace,
+                                        EventPayload::MemoryRejected {
+                                            memory_id: mem_id,
+                                            reason: "Auto-denied in Suggest mode".into(),
+                                        },
+                                    );
+                                    let _ = append_and_broadcast(
+                                        &*self.store,
+                                        &self.event_tx,
+                                        &reject_event,
+                                    )
+                                    .await;
+                                }
+                                PermissionMode::Agent | PermissionMode::Autonomous => {
+                                    let mut accepted = entry.clone();
+                                    accepted.accepted = true;
+                                    let _ = mem_store.store(accepted).await;
+                                    let accept_event = DomainEvent::new(
+                                        request.workspace_id.clone(),
+                                        request.session_id.clone(),
+                                        AgentId::system(),
+                                        PrivacyClassification::FullTrace,
+                                        EventPayload::MemoryAccepted {
+                                            memory_id: mem_id,
+                                            scope: format!("{:?}", mem_scope).to_lowercase(),
+                                            key: mem_key,
+                                            content: mem_content,
+                                        },
+                                    );
+                                    let _ = append_and_broadcast(
+                                        &*self.store,
+                                        &self.event_tx,
+                                        &accept_event,
+                                    )
+                                    .await;
+                                }
+                            }
+                        } else {
+                            // Session scope: auto-accept
+                            let mut accepted = entry.clone();
+                            accepted.accepted = true;
+                            let _ = mem_store.store(accepted).await;
+                            let accept_event = DomainEvent::new(
+                                request.workspace_id.clone(),
+                                request.session_id.clone(),
+                                AgentId::system(),
+                                PrivacyClassification::FullTrace,
+                                EventPayload::MemoryAccepted {
+                                    memory_id: mem_id,
+                                    scope: format!("{:?}", mem_scope).to_lowercase(),
+                                    key: mem_key,
+                                    content: mem_content,
+                                },
+                            );
+                            let _ =
+                                append_and_broadcast(&*self.store, &self.event_tx, &accept_event)
+                                    .await;
+                        }
                     }
                 }
             }
@@ -387,6 +665,16 @@ where
                         EventPayload::PermissionDenied {
                             request_id: tc.id.clone(),
                             reason: "requires user approval".into(),
+                        },
+                    ),
+                    PermissionOutcome::Pending => DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::PermissionDenied {
+                            request_id: tc.id.clone(),
+                            reason: "awaiting user confirmation".into(),
                         },
                     ),
                     PermissionOutcome::Denied(reason) => DomainEvent::new(

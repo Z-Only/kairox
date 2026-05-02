@@ -4,12 +4,14 @@ pub enum PermissionMode {
     Suggest,
     Agent,
     Autonomous,
+    Interactive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionOutcome {
     Allowed,
     RequiresApproval,
+    Pending,
     Denied(String),
 }
 
@@ -68,6 +70,10 @@ impl PermissionEngine {
         Self { mode }
     }
 
+    pub fn mode(&self) -> &PermissionMode {
+        &self.mode
+    }
+
     pub fn decide(&self, risk: &ToolRisk) -> PermissionOutcome {
         match (self.mode, &risk.effect) {
             (PermissionMode::ReadOnly, ToolEffect::Read) => PermissionOutcome::Allowed,
@@ -92,6 +98,11 @@ impl PermissionEngine {
             }
             (PermissionMode::Agent, ToolEffect::Destructive) => PermissionOutcome::RequiresApproval,
             (PermissionMode::Agent, _) => PermissionOutcome::RequiresApproval,
+            (PermissionMode::Interactive, ToolEffect::Read) => PermissionOutcome::Allowed,
+            (PermissionMode::Interactive, ToolEffect::Write) => PermissionOutcome::Pending,
+            (PermissionMode::Interactive, ToolEffect::Shell { .. }) => PermissionOutcome::Pending,
+            (PermissionMode::Interactive, ToolEffect::Network) => PermissionOutcome::Pending,
+            (PermissionMode::Interactive, ToolEffect::Destructive) => PermissionOutcome::Pending,
             (PermissionMode::Autonomous, ToolEffect::Shell { destructive: true }) => {
                 PermissionOutcome::RequiresApproval
             }
@@ -177,5 +188,47 @@ mod tests {
         let engine = PermissionEngine::new(PermissionMode::Agent);
         let risk = ToolRisk::destructive("rm.rf");
         assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
+    }
+
+    #[test]
+    fn interactive_allows_reads_but_pends_writes() {
+        let engine = PermissionEngine::new(PermissionMode::Interactive);
+        assert_eq!(
+            engine.decide(&ToolRisk::read("fs.read")),
+            PermissionOutcome::Allowed
+        );
+        assert_eq!(
+            engine.decide(&ToolRisk::write("fs.write")),
+            PermissionOutcome::Pending
+        );
+        assert_eq!(
+            engine.decide(&ToolRisk::shell("shell.exec", false)),
+            PermissionOutcome::Pending
+        );
+    }
+
+    #[test]
+    fn interactive_pends_destructive_operations() {
+        let engine = PermissionEngine::new(PermissionMode::Interactive);
+        assert_eq!(
+            engine.decide(&ToolRisk::destructive("rm.rf")),
+            PermissionOutcome::Pending
+        );
+        assert_eq!(
+            engine.decide(&ToolRisk::shell("shell.exec", true)),
+            PermissionOutcome::Pending
+        );
+    }
+
+    #[test]
+    fn interactive_pends_network() {
+        let engine = PermissionEngine::new(PermissionMode::Interactive);
+        assert_eq!(
+            engine.decide(&ToolRisk {
+                tool_id: "http.fetch".into(),
+                effect: ToolEffect::Network
+            }),
+            PermissionOutcome::Pending
+        );
     }
 }

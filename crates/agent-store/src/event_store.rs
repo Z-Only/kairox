@@ -1,6 +1,7 @@
 use agent_core::{DomainEvent, SessionId};
 use async_trait::async_trait;
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use std::time::Duration;
 
 #[async_trait]
 pub trait EventStore: Send + Sync {
@@ -28,7 +29,10 @@ impl SqliteEventStore {
             }
         }
         let pool = SqlitePoolOptions::new()
-            .max_connections(1)
+            .max_connections(5)
+            .min_connections(1)
+            .idle_timeout(Duration::from_secs(600))
+            .max_lifetime(Duration::from_secs(1800))
             .connect(database_url)
             .await?;
         let store = Self { pool };
@@ -38,12 +42,19 @@ impl SqliteEventStore {
 
     pub async fn in_memory() -> crate::Result<Self> {
         let pool = SqlitePoolOptions::new()
-            .max_connections(1)
+            .max_connections(5)
+            .min_connections(1)
+            .idle_timeout(Duration::from_secs(600))
+            .max_lifetime(Duration::from_secs(1800))
             .connect("sqlite::memory:")
             .await?;
         let store = Self { pool };
         store.migrate().await?;
         Ok(store)
+    }
+
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
     }
 
     async fn migrate(&self) -> crate::Result<()> {

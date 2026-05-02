@@ -20,9 +20,27 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                let store = SqliteEventStore::in_memory()
+                // Use a file-backed SQLite database in the system temp directory.
+                // In-memory SQLite (`sqlite::memory:` or `sqlite:file:...?mode=memory&cache=shared`)
+                // is destroyed when all connections close, which causes "no such table: events"
+                // errors when the pool recycles connections. A file-backed DB persists across
+                // connection recycling and is cleaned up when the OS reclaims temp files.
+                let db_dir = std::env::temp_dir().join("kairox-gui");
+                tokio::fs::create_dir_all(&db_dir).await.ok();
+                let db_path = db_dir.join("kairox.db");
+                let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+
+                eprintln!("Database: {}", db_url);
+
+                let store = SqliteEventStore::connect(&db_url)
                     .await
-                    .expect("Failed to create in-memory store");
+                    .expect("Failed to create event store");
+
+                let mem_store = std::sync::Arc::new(
+                    agent_memory::SqliteMemoryStore::new(store.pool().clone())
+                        .await
+                        .expect("Failed to create memory store"),
+                ) as std::sync::Arc<dyn agent_memory::MemoryStore>;
 
                 let config = Config::load().unwrap_or_else(|e| {
                     eprintln!("Config warning: {e}, using defaults");
@@ -32,16 +50,18 @@ pub fn run() {
 
                 eprintln!("Available model profiles: {:?}", config.profile_names());
                 eprintln!("Default profile: {}", config.default_profile());
+                eprintln!("Permission mode: Interactive");
 
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
 
                 let runtime = LocalRuntime::new(store, router)
-                    .with_permission_mode(PermissionMode::Suggest)
+                    .with_permission_mode(PermissionMode::Interactive)
                     .with_context_limit(100_000)
+                    .with_memory_store(mem_store.clone())
                     .with_builtin_tools(cwd)
                     .await;
 
-                handle.manage(GuiState::new(runtime, config));
+                handle.manage(GuiState::new(runtime, config, mem_store));
             });
             Ok(())
         })
@@ -53,6 +73,10 @@ pub fn run() {
             commands::send_message,
             commands::switch_session,
             commands::list_sessions,
+            commands::resolve_permission,
+            commands::query_memories,
+            commands::delete_memory,
+            commands::get_trace,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

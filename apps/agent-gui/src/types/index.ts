@@ -45,6 +45,21 @@ export type EventPayload =
     }
   | { type: "SessionCancelled"; reason: string }
   | { type: "AgentTaskFailed"; task_id: string; error: string }
+  | {
+      type: "MemoryProposed";
+      memory_id: string;
+      scope: string;
+      key: string | null;
+      content: string;
+    }
+  | {
+      type: "MemoryAccepted";
+      memory_id: string;
+      scope: string;
+      key: string | null;
+      content: string;
+    }
+  | { type: "MemoryRejected"; memory_id: string; reason: string }
   | { type: string };
 
 export interface DomainEvent {

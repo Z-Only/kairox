@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use agent_config::Config;
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+use agent_memory::SqliteMemoryStore;
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -77,11 +78,14 @@ async fn dispatch_commands(
                 approved,
             } => {
                 if let Err(e) = runtime
-                    .decide_permission(agent_core::PermissionDecision {
-                        request_id,
-                        approve: approved,
-                        reason: None,
-                    })
+                    .resolve_permission(
+                        &request_id,
+                        agent_core::PermissionDecision {
+                            request_id: request_id.clone(),
+                            approve: approved,
+                            reason: None,
+                        },
+                    )
                     .await
                 {
                     app.state.current_session.messages.push(
@@ -186,12 +190,15 @@ async fn main() -> Result<()> {
     eprintln!("Using profile: {profile}");
 
     let store = SqliteEventStore::in_memory().await?;
+    let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
+        as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
 
     let runtime = Arc::new(
         LocalRuntime::new(store, router)
             .with_permission_mode(PermissionMode::Suggest)
             .with_context_limit(100_000)
+            .with_memory_store(mem_store)
             .with_builtin_tools(workspace_path.clone())
             .await,
     );

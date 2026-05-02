@@ -1,9 +1,12 @@
 #![allow(dead_code)]
+#![allow(clippy::new_without_default)]
 use crate::app_state::{GuiState, WorkspaceSession};
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::projection::SessionProjection;
 use agent_core::AppFacade;
+use agent_core::PermissionDecision;
+use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri::State;
@@ -67,6 +70,17 @@ pub async fn initialize_workspace(
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;
 
+    // Spawn event forwarder immediately — the broadcast channel retains
+    // recent events so the AgentTaskCreated should still be delivered.
+    {
+        let mut handle = state.forwarder_handle.lock().await;
+        *handle = Some(spawn_event_forwarder(
+            &state.runtime,
+            session_id.clone(),
+            app_handle,
+        ));
+    }
+
     // Store workspace and session info
     {
         let mut ws = state.workspace_id.lock().await;
@@ -86,16 +100,6 @@ pub async fn initialize_workspace(
     {
         let mut current = state.current_session_id.lock().await;
         *current = Some(session_id.clone());
-    }
-
-    // Spawn event forwarder for the initial session
-    {
-        let mut handle = state.forwarder_handle.lock().await;
-        *handle = Some(spawn_event_forwarder(
-            &state.runtime,
-            session_id.clone(),
-            app_handle,
-        ));
     }
 
     Ok(WorkspaceInfoResponse {
@@ -139,7 +143,7 @@ pub async fn start_session(
         );
     }
 
-    // Switch to the new session
+    // Switch to the new session (spawns new forwarder)
     switch_session_inner(&state, session_id.clone(), &app_handle).await?;
 
     Ok(SessionInfoResponse {
@@ -164,9 +168,6 @@ pub async fn send_message(
         current.clone().ok_or("No active session")?
     };
 
-    // Spawn the message processing on a background task so that
-    // the Tauri command returns immediately and streaming events
-    // can flow to the frontend in real-time through the event forwarder.
     let session_id_str = session_id.to_string();
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
@@ -201,8 +202,6 @@ pub async fn send_message(
                 use std::io::Write;
                 let _ = writeln!(f, "[commands] send_message FAILED: {e}");
             }
-            // Emit an error event to the frontend so the UI can display
-            // the error and reset the streaming state.
             let error_payload = serde_json::json!({
                 "type": "AgentTaskFailed",
                 "task_id": "",
@@ -236,6 +235,25 @@ pub async fn switch_session(
         .map_err(|e| format!("Failed to get session projection: {e}"))?;
 
     Ok(projection)
+}
+
+/// Returns historical trace events for a session as a JSON array.
+/// Used by the frontend to repopulate the trace panel when switching sessions.
+#[tauri::command]
+pub async fn get_trace(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let trace = state
+        .runtime
+        .get_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to get trace: {e}"))?;
+    Ok(trace
+        .into_iter()
+        .filter_map(|entry| serde_json::to_value(&entry.event).ok())
+        .collect())
 }
 
 #[tauri::command]
@@ -300,4 +318,91 @@ async fn switch_session_inner(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryEntryResponse {
+    pub id: String,
+    pub scope: String,
+    pub key: Option<String>,
+    pub content: String,
+    pub accepted: bool,
+}
+
+impl From<MemoryEntry> for MemoryEntryResponse {
+    fn from(e: MemoryEntry) -> Self {
+        Self {
+            id: e.id,
+            scope: match e.scope {
+                MemoryScope::User => "user".into(),
+                MemoryScope::Workspace => "workspace".into(),
+                MemoryScope::Session => "session".into(),
+            },
+            key: e.key,
+            content: e.content,
+            accepted: e.accepted,
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn resolve_permission(
+    state: State<'_, GuiState>,
+    request_id: String,
+    decision: String,
+    reason: Option<String>,
+) -> Result<(), String> {
+    let perm_decision = match decision.as_str() {
+        "grant" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: true,
+            reason: None,
+        },
+        "deny" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: false,
+            reason: reason.or_else(|| Some("User denied".into())),
+        },
+        _ => return Err("Invalid decision: must be 'grant' or 'deny'".into()),
+    };
+    state
+        .runtime
+        .resolve_permission(&request_id, perm_decision)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn query_memories(
+    state: State<'_, GuiState>,
+    scope: Option<String>,
+    keywords: Option<Vec<String>>,
+    limit: Option<usize>,
+) -> Result<Vec<MemoryEntryResponse>, String> {
+    let scope = scope.map(|s| match s.as_str() {
+        "user" => MemoryScope::User,
+        "workspace" => MemoryScope::Workspace,
+        _ => MemoryScope::Session,
+    });
+    let entries = state
+        .memory_store
+        .query(MemoryQuery {
+            scope,
+            keywords: keywords.unwrap_or_default(),
+            limit: limit.unwrap_or(50),
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(entries.into_iter().map(MemoryEntryResponse::from).collect())
+}
+
+#[tauri::command]
+pub async fn delete_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    state
+        .memory_store
+        .delete(&id)
+        .await
+        .map_err(|e| e.to_string())
 }

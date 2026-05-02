@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionProjection } from "../types";
+import type { SessionProjection, DomainEvent } from "../types";
 import {
   sessionState,
   setProjection,
   resetProjection
 } from "../stores/session";
+import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
 
 const showNewSession = ref(false);
-const selectedProfile = ref("fake");
+const selectedProfile = ref("fast");
 const availableProfiles = ref<string[]>([]);
 
 async function refreshSessions() {
@@ -23,11 +24,26 @@ async function refreshSessions() {
 async function switchToSession(sessionId: string) {
   try {
     resetProjection();
+    clearTrace();
     const projection: SessionProjection = await invoke("switch_session", {
       sessionId
     });
     setProjection(projection);
     sessionState.currentSessionId = sessionId;
+    // Update currentProfile from the matching session info
+    const session = sessionState.sessions.find((s) => s.id === sessionId);
+    if (session) {
+      sessionState.currentProfile = session.profile;
+    }
+    // Reload trace from historical events for this session
+    try {
+      const events: DomainEvent[] = await invoke("get_trace", { sessionId });
+      for (const event of events) {
+        applyTraceEvent(event);
+      }
+    } catch (e) {
+      console.error("Failed to load trace for session:", e);
+    }
   } catch (e) {
     console.error("Failed to switch session:", e);
   }
@@ -35,8 +51,17 @@ async function switchToSession(sessionId: string) {
 
 async function createSession() {
   try {
-    await invoke("start_session", { profile: selectedProfile.value });
+    const result = await invoke<{ id: string; title: string; profile: string }>(
+      "start_session",
+      { profile: selectedProfile.value }
+    );
     await refreshSessions();
+    // Update current session info immediately
+    sessionState.currentSessionId = result.id;
+    sessionState.currentProfile = result.profile;
+    // Clear chat and trace for the new session (fresh session, no history)
+    resetProjection();
+    clearTrace();
     showNewSession.value = false;
   } catch (e) {
     console.error("Failed to start session:", e);
@@ -47,7 +72,9 @@ async function loadProfiles() {
   try {
     const profiles: string[] = await invoke("list_profiles");
     availableProfiles.value = profiles;
-    if (profiles.length > 0) {
+    // Set selected profile to the one that's not currently active,
+    // defaulting to the first available
+    if (profiles.length > 0 && !profiles.includes(selectedProfile.value)) {
       selectedProfile.value = profiles[0];
     }
   } catch (e) {
