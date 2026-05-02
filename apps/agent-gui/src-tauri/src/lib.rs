@@ -69,6 +69,7 @@ pub fn run() {
             commands::resolve_permission,
             commands::query_memories,
             commands::delete_memory,
+            commands::get_trace,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

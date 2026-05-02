@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionProjection } from "../types";
+import type { SessionProjection, DomainEvent } from "../types";
 import {
   sessionState,
   setProjection,
   resetProjection
 } from "../stores/session";
-import { clearTrace } from "../composables/useTraceStore";
+import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
 
 const showNewSession = ref(false);
 const selectedProfile = ref("fast");
@@ -35,6 +35,15 @@ async function switchToSession(sessionId: string) {
     if (session) {
       sessionState.currentProfile = session.profile;
     }
+    // Reload trace from historical events for this session
+    try {
+      const events: DomainEvent[] = await invoke("get_trace", { sessionId });
+      for (const event of events) {
+        applyTraceEvent(event);
+      }
+    } catch (e) {
+      console.error("Failed to load trace for session:", e);
+    }
   } catch (e) {
     console.error("Failed to switch session:", e);
   }
@@ -50,7 +59,7 @@ async function createSession() {
     // Update current session info immediately
     sessionState.currentSessionId = result.id;
     sessionState.currentProfile = result.profile;
-    // Clear trace for the new session
+    // Clear trace for the new session (fresh session, no history)
     clearTrace();
     showNewSession.value = false;
   } catch (e) {

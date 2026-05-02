@@ -61,18 +61,6 @@ pub async fn initialize_workspace(
     let workspace_id = workspace.workspace_id.clone();
     let profile = state.config.default_profile();
 
-    // Subscribe to the event stream BEFORE creating the session so that
-    // we don't miss the AgentTaskCreated event for the initial session.
-    // We use a placeholder session ID pattern: subscribe after start_session
-    // returns the real ID. However the event is broadcast inside
-    // start_session before we have the ID. To handle this, we subscribe
-    // to ALL events from the runtime (empty filter would be ideal, but
-    // subscribe_session filters by session_id). Instead, we subscribe
-    // with the session_id returned from start_session immediately after
-    // it's created, which starts the stream. The AgentTaskCreated event
-    // is already in the broadcast channel buffer and can still be received
-    // if we subscribe fast enough. In practice, the broadcast::channel
-    // has capacity 1024 so the event should still be in the buffer.
     let session_id = state
         .runtime
         .start_session(agent_core::StartSessionRequest {
@@ -180,9 +168,6 @@ pub async fn send_message(
         current.clone().ok_or("No active session")?
     };
 
-    // Spawn the message processing on a background task so that
-    // the Tauri command returns immediately and streaming events
-    // can flow to the frontend in real-time through the event forwarder.
     let session_id_str = session_id.to_string();
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
@@ -217,8 +202,6 @@ pub async fn send_message(
                 use std::io::Write;
                 let _ = writeln!(f, "[commands] send_message FAILED: {e}");
             }
-            // Emit an error event to the frontend so the UI can display
-            // the error and reset the streaming state.
             let error_payload = serde_json::json!({
                 "type": "AgentTaskFailed",
                 "task_id": "",
@@ -252,6 +235,25 @@ pub async fn switch_session(
         .map_err(|e| format!("Failed to get session projection: {e}"))?;
 
     Ok(projection)
+}
+
+/// Returns historical trace events for a session as a JSON array.
+/// Used by the frontend to repopulate the trace panel when switching sessions.
+#[tauri::command]
+pub async fn get_trace(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let trace = state
+        .runtime
+        .get_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to get trace: {e}"))?;
+    Ok(trace
+        .into_iter()
+        .filter_map(|entry| serde_json::to_value(&entry.event).ok())
+        .collect())
 }
 
 #[tauri::command]
