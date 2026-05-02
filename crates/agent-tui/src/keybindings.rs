@@ -66,6 +66,7 @@ pub enum KeyAction {
     // -- Navigation --------------------------------------------------------
     ScrollUp,
     ScrollDown,
+    SelectSession,
 
     /// Key was not bound in the current context.
     Unhandled,
@@ -182,6 +183,8 @@ pub fn resolve_key(
                     InputMode::SingleLine => KeyAction::SendInput,
                     InputMode::MultiLine => KeyAction::InputNewline,
                 }
+            } else if focus == FocusTarget::Sessions {
+                KeyAction::SelectSession
             } else {
                 KeyAction::FocusCycleNext
             }
@@ -524,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn enter_in_non_chat_cycles_focus() {
+    fn enter_in_sessions_selects_session() {
         assert_eq!(
             resolve_key(
                 key(KeyCode::Enter),
@@ -532,7 +535,7 @@ mod tests {
                 false,
                 InputMode::SingleLine
             ),
-            KeyAction::FocusCycleNext
+            KeyAction::SelectSession
         );
         assert_eq!(
             resolve_key(

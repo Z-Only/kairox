@@ -184,6 +184,8 @@ mod tests {
             permission_mode: agent_tools::PermissionMode::Suggest,
             sidebar_left_visible: true,
             sidebar_right_visible: true,
+            workspace_id: Box::leak(Box::new(agent_core::WorkspaceId::new())),
+            current_session_id: Box::leak(Box::new(None)),
         }
     }
 

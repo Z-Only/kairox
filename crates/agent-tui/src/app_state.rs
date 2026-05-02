@@ -306,7 +306,11 @@ impl AppState {
 
     /// Build a borrow of `EventContext` from the current state.
     #[allow(dead_code)]
-    pub fn event_context(&self) -> crate::components::EventContext<'_> {
+    pub fn event_context<'a>(
+        &'a self,
+        workspace_id: &'a agent_core::WorkspaceId,
+        current_session_id: &'a Option<agent_core::SessionId>,
+    ) -> crate::components::EventContext<'a> {
         crate::components::EventContext {
             focus: self.focus_manager.current(),
             current_session: &self.current_session,
@@ -315,6 +319,8 @@ impl AppState {
             permission_mode: self.permission_mode,
             sidebar_left_visible: self.sidebar_left_visible,
             sidebar_right_visible: self.sidebar_right_visible,
+            workspace_id,
+            current_session_id,
         }
     }
 

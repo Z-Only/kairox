@@ -63,10 +63,10 @@ impl ChatPanel {
                 self.input_cursor = 0;
                 self.input_history_index = None;
 
-                if let Some(session) = ctx.sessions.first() {
+                if let Some(session_id) = ctx.current_session_id {
                     commands.push(Command::SendMessage {
-                        workspace_id: agent_core::WorkspaceId::new(),
-                        session_id: session.id.clone(),
+                        workspace_id: ctx.workspace_id.clone(),
+                        session_id: session_id.clone(),
                         content,
                     });
                 }
@@ -341,6 +341,8 @@ mod tests {
                 agent_core::projection::SessionProjection::default(),
             ));
             let sessions: &[SessionInfo] = Box::leak(Vec::<SessionInfo>::new().into_boxed_slice());
+            let workspace_id = Box::leak(Box::new(agent_core::WorkspaceId::new()));
+            let current_session_id = Box::leak(Box::new(None));
             EventContext {
                 focus: FocusTarget::Chat,
                 current_session: projection,
@@ -349,6 +351,8 @@ mod tests {
                 permission_mode: agent_tools::PermissionMode::Suggest,
                 sidebar_left_visible: true,
                 sidebar_right_visible: false,
+                workspace_id,
+                current_session_id,
             }
         })
     }
@@ -361,9 +365,10 @@ mod tests {
             let projection = Box::leak(Box::new(
                 agent_core::projection::SessionProjection::default(),
             ));
+            let session_id = agent_core::SessionId::new();
             let sessions: &[SessionInfo] = Box::leak(
                 vec![SessionInfo {
-                    id: agent_core::SessionId::new(),
+                    id: session_id.clone(),
                     title: "test session".to_string(),
                     model_profile: "fast".to_string(),
                     state: SessionState::Active,
@@ -371,6 +376,8 @@ mod tests {
                 }]
                 .into_boxed_slice(),
             );
+            let workspace_id = Box::leak(Box::new(agent_core::WorkspaceId::new()));
+            let current_session_id = Box::leak(Box::new(Some(session_id)));
             EventContext {
                 focus: FocusTarget::Chat,
                 current_session: projection,
@@ -379,6 +386,8 @@ mod tests {
                 permission_mode: agent_tools::PermissionMode::Suggest,
                 sidebar_left_visible: true,
                 sidebar_right_visible: false,
+                workspace_id,
+                current_session_id,
             }
         })
     }

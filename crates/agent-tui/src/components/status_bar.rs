@@ -256,6 +256,10 @@ mod tests {
     #[test]
     fn status_bar_component_handle_event_returns_empty() {
         let mut bar = StatusBar::new();
+        static WS_ID: std::sync::OnceLock<agent_core::WorkspaceId> = std::sync::OnceLock::new();
+        static SID: std::sync::OnceLock<Option<agent_core::SessionId>> = std::sync::OnceLock::new();
+        let ws_id = WS_ID.get_or_init(agent_core::WorkspaceId::new);
+        let sid = SID.get_or_init(|| None);
         let ctx = EventContext {
             focus: super::super::FocusTarget::Chat,
             current_session: &agent_core::projection::SessionProjection::default(),
@@ -264,6 +268,8 @@ mod tests {
             permission_mode: agent_tools::PermissionMode::Suggest,
             sidebar_left_visible: true,
             sidebar_right_visible: false,
+            workspace_id: ws_id,
+            current_session_id: sid,
         };
         let event = crossterm::event::Event::Key(crossterm::event::KeyEvent::new(
             crossterm::event::KeyCode::Char('a'),

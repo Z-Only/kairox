@@ -93,6 +93,8 @@ pub trait AppFacade: Send + Sync {
     async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>>;
     /// Subscribe to a real-time stream of domain events for a session.
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent>;
+    /// Subscribe to a real-time stream of all domain events across all sessions.
+    fn subscribe_all(&self) -> BoxStream<'static, DomainEvent>;
     /// List all workspaces known to the runtime.
     async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>>;
     /// List all sessions in a workspace, including soft-deleted ones.
@@ -166,6 +168,10 @@ mod tests {
 
         fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
             let _ = session_id;
+            Box::pin(futures::stream::empty())
+        }
+
+        fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
             Box::pin(futures::stream::empty())
         }
 

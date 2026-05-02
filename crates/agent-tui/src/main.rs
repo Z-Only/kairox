@@ -114,13 +114,13 @@ async fn dispatch_commands(
             }
 
             Command::StartSession {
-                workspace_id,
-                model_profile,
+                workspace_id: ws_id,
+                model_profile: mp,
             } => {
                 match runtime
                     .start_session(StartSessionRequest {
-                        workspace_id,
-                        model_profile: model_profile.clone(),
+                        workspace_id: ws_id,
+                        model_profile: mp.clone(),
                     })
                     .await
                 {
@@ -128,8 +128,8 @@ async fn dispatch_commands(
                         app.current_session_id = Some(session_id.clone());
                         app.state.sessions.push(SessionInfo {
                             id: session_id,
-                            title: format!("Session using {model_profile}"),
-                            model_profile,
+                            title: format!("Session using {mp}"),
+                            model_profile: mp,
                             state: SessionState::Idle,
                             pinned: false,
                         });
@@ -137,6 +137,10 @@ async fn dispatch_commands(
                             agent_core::projection::SessionProjection::default();
                         app.domain_events.clear();
                         app.state.render_scheduler.reset();
+                        // Select the new session in the sessions panel
+                        app.sessions
+                            .state
+                            .select(Some(app.state.sessions.len() - 1));
                     }
                     Err(e) => {
                         app.state.current_session.messages.push(
@@ -148,6 +152,33 @@ async fn dispatch_commands(
                         app.state.render_scheduler.mark_dirty();
                     }
                 }
+            }
+
+            Command::SwitchSession { session_id } => {
+                let sid = session_id.clone();
+                app.current_session_id = Some(sid.clone());
+
+                // Update session states
+                for session in &mut app.state.sessions {
+                    if session.id == sid {
+                        session.state = SessionState::Active;
+                    } else if session.state == SessionState::Active {
+                        session.state = SessionState::Idle;
+                    }
+                }
+
+                // Load historical data for the switched-to session
+                let projection = runtime.get_session_projection(sid.clone()).await;
+                let trace = runtime.get_trace(sid.clone()).await;
+
+                if let Ok(proj) = projection {
+                    app.state.current_session = proj;
+                }
+                if let Ok(trc) = trace {
+                    app.domain_events = trc.into_iter().map(|t| t.event).collect();
+                }
+
+                app.state.render_scheduler.mark_dirty_immediate();
             }
         }
     }
@@ -189,7 +220,12 @@ async fn main() -> Result<()> {
     eprintln!("Available model profiles: {:?}", profiles);
     eprintln!("Using profile: {profile}");
 
-    let store = SqliteEventStore::in_memory().await?;
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let data_dir = std::path::PathBuf::from(home).join(".kairox");
+    tokio::fs::create_dir_all(&data_dir).await?;
+    let db_path = data_dir.join("kairox.sqlite");
+    let database_url = format!("sqlite:{}", db_path.display());
+    let store = SqliteEventStore::connect(&database_url).await?;
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
@@ -203,42 +239,89 @@ async fn main() -> Result<()> {
             .await,
     );
 
-    let workspace = runtime
-        .open_workspace(workspace_path.display().to_string())
-        .await?;
-    let session_id = runtime
-        .start_session(StartSessionRequest {
-            workspace_id: workspace.workspace_id.clone(),
-            model_profile: profile.clone(),
-        })
-        .await?;
+    // Try to restore previous workspace and sessions, or create fresh ones
+    let workspace_path_str = workspace_path.display().to_string();
 
-    // 4. Create App
-    let mut app = App::new(
-        &profile,
-        PermissionMode::Suggest,
-        workspace.workspace_id.clone(),
-    );
-    app.current_session_id = Some(session_id.clone());
-    app.state.sessions.push(SessionInfo {
-        id: session_id.clone(),
-        title: format!("Session using {profile}"),
-        model_profile: profile.clone(),
-        state: SessionState::Idle,
-        pinned: false,
-    });
+    let (workspace_id, mut app_sessions) = {
+        // Try to find an existing workspace for this path
+        let workspaces = runtime.list_workspaces().await.unwrap_or_default();
+        let existing = workspaces.iter().find(|w| w.path == workspace_path_str);
+
+        if let Some(ws) = existing {
+            let sessions = runtime
+                .list_sessions(&ws.workspace_id)
+                .await
+                .unwrap_or_default();
+            let session_infos: Vec<SessionInfo> = sessions
+                .iter()
+                .map(|s| SessionInfo {
+                    id: s.session_id.clone(),
+                    title: s.title.clone(),
+                    model_profile: s.model_profile.clone(),
+                    state: SessionState::Idle,
+                    pinned: false,
+                })
+                .collect();
+            (ws.workspace_id.clone(), session_infos)
+        } else {
+            let ws = runtime.open_workspace(workspace_path_str).await?;
+            (ws.workspace_id, Vec::new())
+        }
+    };
+
+    // If no sessions exist, create a new one
+    if app_sessions.is_empty() {
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace_id.clone(),
+                model_profile: profile.clone(),
+            })
+            .await?;
+        app_sessions.push(SessionInfo {
+            id: session_id,
+            title: format!("Session using {profile}"),
+            model_profile: profile.clone(),
+            state: SessionState::Idle,
+            pinned: false,
+        });
+    }
+
+    // 4. Create App with restored sessions
+    let active_session_id = app_sessions.last().unwrap().id.clone();
+
+    let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
+    app.current_session_id = Some(active_session_id.clone());
+    app.state.sessions = app_sessions;
+
+    // Load the initial session projection and trace
+    if let Ok(projection) = runtime
+        .get_session_projection(active_session_id.clone())
+        .await
+    {
+        app.state.current_session = projection;
+    }
+    if let Ok(trace) = runtime.get_trace(active_session_id.clone()).await {
+        app.domain_events = trace.into_iter().map(|t| t.event).collect();
+    }
+
+    // Select the current session in the sessions panel
+    if !app.state.sessions.is_empty() {
+        app.sessions
+            .state
+            .select(Some(app.state.sessions.len() - 1));
+    }
+
     app.sync_status_bar();
     app.sync_component_focus();
 
     // 5. Create channels + spawn tasks
     let (tx, mut rx) = mpsc::channel::<AppEvent>(256);
 
-    // Domain event forwarder — subscribes to runtime events for the current session
+    // Domain event forwarder — subscribes to ALL runtime events
     let tx_events = tx.clone();
-    let rt_session_id = session_id.clone();
     let rt_handle = runtime.clone();
     let event_task = tokio::spawn(async move {
-        let mut stream = rt_handle.subscribe_session(rt_session_id);
+        let mut stream = rt_handle.subscribe_all();
         while let Some(event) = stream.next().await {
             if tx_events
                 .send(AppEvent::DomainEvent(Box::new(event)))
@@ -285,7 +368,12 @@ async fn main() -> Result<()> {
                     dispatch_commands(&runtime, &mut app, commands).await;
                 }
                 AppEvent::DomainEvent(domain_event) => {
-                    app.handle_domain_event(&domain_event);
+                    // Only process events for the current session
+                    if let Some(ref sid) = app.current_session_id {
+                        if domain_event.session_id == *sid {
+                            app.handle_domain_event(&domain_event);
+                        }
+                    }
                 }
                 AppEvent::Tick => {
                     if app.state.render_scheduler.should_render() {

@@ -885,6 +885,15 @@ where
         })
     }
 
+    fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
+        let mut rx = self.event_tx.subscribe();
+        Box::pin(async_stream::stream! {
+            while let Ok(event) = rx.recv().await {
+                yield event;
+            }
+        })
+    }
+
     async fn list_workspaces(&self) -> agent_core::Result<Vec<WorkspaceInfo>> {
         let rows = self
             .store
