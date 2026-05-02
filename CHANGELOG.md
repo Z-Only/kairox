@@ -4,13 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.0] - 2026-05-02
+## [0.8.0] - 2026-05-02
 
 ### 🚀 Features
 
-- **gui**: Tauri+Vue GUI integration MVP (v0.5.0) (#32)
-- **config**: add agent-config crate with real model adapters (#33)
-- **memory+trace**: implement memory layer, GUI trace visualization, and TUI memory integration (#34)
 - **devex**: add justfile, cursorrules, type-sync check, and workflow recipes
 - add doc comments to public APIs, optimize CI cache, update ROADMAP
 - **gui**: integrate tauri-specta for auto-generated TypeScript command bindings
@@ -18,11 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 🐛 Bug Fixes
 
 - **gui**: sync missing EventPayload variants with Rust, update docs
+- **ci**: add specta derive feature and remove dead specta-export main
 
 ### 📚 Documentation
 
 - rewrite AGENTS.md with comprehensive project context for AI assistants
 - add copilot-instructions.md and CLAUDE.md for AI coding assistants
+- update README, ROADMAP, CONTRIBUTING, SECURITY, releasing, and PR template
 
 ### 👷 CI
 
@@ -31,6 +30,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 🔧 Miscellaneous Tasks
 
 - add editorconfig, rust-toolchain, vscode config, and example env/config
+
+## [0.7.0] - 2026-05-02
+
+### 🚀 Features
+
+- **memory+trace**: implement memory layer, GUI trace visualization, and TUI memory integration (#34)
+
+## [0.6.0] - 2026-05-01
+
+### 🚀 Features
+
+- **gui**: Tauri+Vue GUI integration MVP (v0.5.0) (#32)
+- **config**: add agent-config crate with real model adapters (#33)
 
 ## [0.4.0] - 2026-04-30
 
