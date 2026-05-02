@@ -4,15 +4,34 @@ use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::time::Duration;
 
 #[async_trait]
-/// Trait for the append-only event store.
+/// Trait for the append-only event store with metadata support.
 ///
 /// Events are stored in the order they are appended and can be replayed
-/// per session. The canonical implementation is [`SqliteEventStore`].
+/// per session. Metadata methods support workspace and session lifecycle
+/// persistence for session recovery. The canonical implementation is
+/// [`SqliteEventStore`].
 pub trait EventStore: Send + Sync {
     /// Append a domain event to the store.
     async fn append(&self, event: &DomainEvent) -> crate::Result<()>;
     /// Load all events for a session in append order.
     async fn load_session(&self, session_id: &SessionId) -> crate::Result<Vec<DomainEvent>>;
+
+    // --- Metadata methods ---
+
+    /// Insert or update a workspace record.
+    async fn upsert_workspace(&self, workspace_id: &str, path: &str) -> crate::Result<()>;
+    /// Insert or update a session metadata record.
+    async fn upsert_session(&self, meta: &SessionRow) -> crate::Result<()>;
+    /// List all known workspaces.
+    async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceRow>>;
+    /// List all active (non-deleted) sessions for a workspace.
+    async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>>;
+    /// Rename a session by updating its title.
+    async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()>;
+    /// Soft-delete a session by setting deleted_at.
+    async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()>;
+    /// Hard-delete sessions that were soft-deleted longer than the specified duration ago.
+    async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -278,6 +297,36 @@ impl EventStore for SqliteEventStore {
                 Ok(event)
             })
             .collect()
+    }
+
+    // --- Metadata methods (delegate to inherent implementations) ---
+
+    async fn upsert_workspace(&self, workspace_id: &str, path: &str) -> crate::Result<()> {
+        SqliteEventStore::upsert_workspace(self, workspace_id, path).await
+    }
+
+    async fn upsert_session(&self, meta: &SessionRow) -> crate::Result<()> {
+        SqliteEventStore::upsert_session(self, meta).await
+    }
+
+    async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceRow>> {
+        SqliteEventStore::list_workspaces(self).await
+    }
+
+    async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
+        SqliteEventStore::list_active_sessions(self, workspace_id).await
+    }
+
+    async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()> {
+        SqliteEventStore::rename_session(self, session_id, title).await
+    }
+
+    async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()> {
+        SqliteEventStore::soft_delete_session(self, session_id).await
+    }
+
+    async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize> {
+        SqliteEventStore::cleanup_expired_sessions(self, older_than).await
     }
 }
 
