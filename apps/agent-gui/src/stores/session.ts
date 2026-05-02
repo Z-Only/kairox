@@ -193,6 +193,10 @@ export async function recoverSessions(): Promise<boolean> {
     const ws = workspaces[0];
     sessionState.workspaceId = ws.workspace_id;
 
+    // Tell the Rust backend which workspace to use so that
+    // list_sessions and other commands work correctly.
+    await invoke("restore_workspace", { workspaceId: ws.workspace_id });
+
     sessionState.sessions = await invoke("list_sessions");
 
     if (sessionState.sessions.length > 0) {

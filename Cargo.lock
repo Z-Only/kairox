@@ -117,6 +117,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
+ "chrono",
  "futures",
  "serde_json",
  "thiserror 2.0.18",
@@ -131,6 +132,7 @@ version = "0.8.0"
 dependencies = [
  "agent-core",
  "async-trait",
+ "chrono",
  "serde_json",
  "sqlx",
  "thiserror 2.0.18",

@@ -422,6 +422,19 @@ pub async fn get_profile_detail(
     })
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_workspace(
+    workspace_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let wid: agent_core::WorkspaceId = workspace_id.into();
+    {
+        let mut ws = state.workspace_id.lock().await;
+        *ws = Some(wid);
+    }
+    Ok(())
+}
 /// Inner helper: abort old forwarder, spawn new one, update current session.
 async fn switch_session_inner(
     state: &GuiState,

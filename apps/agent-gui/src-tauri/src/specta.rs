@@ -22,6 +22,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             rename_session,
             delete_session,
             get_profile_detail,
+            restore_workspace,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()

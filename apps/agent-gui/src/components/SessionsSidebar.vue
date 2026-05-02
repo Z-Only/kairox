@@ -237,10 +237,15 @@ function keyIcon(hasApiKey: boolean): string {
               ]"
               @click="selectProfile(p.alias)"
             >
-              <span class="profile-alias">{{ p.alias }}</span>
-              <span class="profile-detail">
-                {{ p.provider }} · {{ p.model_id }}
-              </span>
+              <div class="profile-info">
+                <span class="profile-alias">{{ p.alias }}</span>
+                <span
+                  class="profile-detail"
+                  :title="`${p.provider} · ${p.model_id}`"
+                >
+                  {{ p.provider }} · {{ p.model_id }}
+                </span>
+              </div>
               <span class="profile-key">{{ keyIcon(p.has_api_key) }}</span>
             </div>
           </div>
@@ -371,6 +376,7 @@ function keyIcon(hasApiKey: boolean): string {
 
 /* New Session Dialog */
 .new-session-dialog {
+  min-width: 340px;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -417,7 +423,7 @@ function keyIcon(hasApiKey: boolean): string {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
+  min-width: 320px;
   background: white;
   border: 1px solid #d7d7d7;
   border-radius: 4px;
@@ -430,7 +436,7 @@ function keyIcon(hasApiKey: boolean): string {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   cursor: pointer;
   font-size: 12px;
 }
@@ -442,16 +448,24 @@ function keyIcon(hasApiKey: boolean): string {
   font-weight: 600;
 }
 .profile-alias {
-  font-weight: 500;
-  min-width: 60px;
+  font-weight: 600;
+  font-size: 13px;
 }
 .profile-detail {
-  color: #777;
-  flex: 1;
+  color: #666;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .profile-key {
   flex-shrink: 0;
   font-size: 11px;
