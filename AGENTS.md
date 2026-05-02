@@ -282,3 +282,62 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 ## Privacy defaults
 
 The initial runtime stores event envelopes and full fake-session content in SQLite during tests. Production configuration must default to `minimal_trace` when a real model or shell tool is configured.
+
+## Quick command reference (`just`)
+
+A `justfile` is provided for common tasks. Install with `cargo install just` or `brew install just`.
+
+| Command                   | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `just check`              | Full CI gate: format check + lint + test |
+| `just fmt-check`          | Check formatting (Rust + web)            |
+| `just lint`               | Run clippy + eslint + stylelint          |
+| `just test`               | Run all Rust tests                       |
+| `just test-gui`           | Run GUI (Vitest) tests                   |
+| `just fmt`                | Auto-format all code                     |
+| `just tui`                | Run the TUI app                          |
+| `just gui-dev`            | Run GUI dev server (Vite)                |
+| `just tauri-dev`          | Run Tauri desktop app in dev mode        |
+| `just bump-version X.Y.Z` | Bump version in all config files         |
+| `just check-types`        | Verify Rust↔TypeScript EventPayload sync |
+| `just worktree <name>`    | Create a git worktree with pnpm install  |
+
+## Common workflow recipes
+
+### Adding a new event type
+
+1. **Add the variant** to `EventPayload` in `crates/agent-core/src/events.rs`
+2. **Add the match arm** in `EventPayload::event_type()` (same file)
+3. **Mirror the type** in `apps/agent-gui/src/types/index.ts` as a TypeScript discriminated union variant
+4. **Run `just check-types`** to verify Rust and TS are in sync
+5. **Emit the event** from the appropriate place in `agent-runtime` (e.g., `facade_runtime.rs`)
+6. **Handle the event** in the UI:
+   - TUI: update the relevant component in `crates/agent-tui/src/components/`
+   - GUI: update `useTraceStore.ts` or the relevant Pinia store/composable
+
+### Adding a new tool
+
+1. **Implement the `Tool` trait** in a new module under `crates/agent-tools/src/` (e.g., `my_tool.rs`)
+2. **Register the tool** in `crates/agent-tools/src/registry.rs` via `BuiltinProvider`
+3. **Define risk level** in `crates/agent-tools/src/permission.rs` using `ToolRisk`
+4. **Add tests** in `crates/agent-tools/src/my_tool.rs` under `#[cfg(test)]`
+5. **Wire into runtime** in `crates/agent-runtime/src/facade_runtime.rs` — register the tool in the `ToolRegistry`
+6. **Update permission UI** if the tool has a new `ToolEffect` variant (TUI: `permission_modal.rs`, GUI: `PermissionPrompt.vue`)
+
+### Adding a new model provider
+
+1. **Implement `ModelClient` trait** in a new module under `crates/agent-models/src/` (e.g., `my_provider.rs`)
+2. **Add a config struct** (e.g., `MyProviderConfig`) with `base_url`, `api_key_env`, etc.
+3. **Register in `ModelRouter`** via `crates/agent-models/src/router.rs`
+4. **Add profile entry** in `crates/agent-config/src/builder.rs` to map provider string → client constructor
+5. **Update `ProfileDef` docs** in `crates/agent-config/src/lib.rs` and `kairox.toml.example`
+6. **Add tests** using the existing `FakeModelClient` pattern as a reference
+
+### Adding a new GUI component
+
+1. **Create the Vue SFC** in `apps/agent-gui/src/components/` with `<script setup lang="ts">`
+2. **If it needs Tauri IPC**: add a `#[tauri::command]` in `apps/agent-gui/src-tauri/src/commands.rs`, register it in `lib.rs`
+3. **If it needs reactive state**: create a Pinia store in `apps/agent-gui/src/stores/` or a composable in `composables/`
+4. **If it handles events**: use `useTauriEvents.ts` to listen for `DomainEvent` payloads
+5. **Add types** to `apps/agent-gui/src/types/` as needed
+6. **Import and use** the component in `App.vue` or the relevant parent component

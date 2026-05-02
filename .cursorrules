@@ -1,0 +1,58 @@
+# Kairox — Cursor Rules
+
+## Project
+Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI + ratatui TUI.
+
+## Quick commands
+- Format check: `just fmt-check` or `pnpm run format:check`
+- Lint: `just lint` or `pnpm run lint`
+- Test: `just test` or `cargo test --workspace --all-targets`
+- Full CI gate: `just check`
+- Type sync check: `just check-types`
+- Run TUI: `just tui`
+- Run GUI dev: `just gui-dev`
+- Bump version: `just bump-version X.Y.Z`
+
+## Language & tooling
+- Rust workspace (edition 2021, resolver 2) + Vue 3 + TypeScript
+- Package manager: **pnpm only** (never npm or yarn)
+- Lint: `cargo clippy -D warnings`, ESLint, Stylelint
+- Format: `cargo fmt`, Prettier
+
+## Crate structure & dependency direction
+- agent-core ← agent-runtime ← agent-tui / agent-gui
+- agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config
+- agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config
+- Never create reverse dependencies. New domain types/events go in agent-core first.
+
+## Key patterns
+- Workspace version: all crates use `version.workspace = true` — never set version in individual crate Cargo.toml
+- Error handling: each crate has `XxxError` enum via `thiserror::Error` and `type Result<T>`
+- Trait boundaries: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool` — use `Arc<dyn Trait>` or generics
+- Async: Tokio + `async_trait`
+- Testing: `FakeModelClient` for runtime, in-memory SQLite for stores
+- Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `app_handle.emit()` + `useTauriEvents.ts`
+- When adding Rust `EventPayload` variants, also update `apps/agent-gui/src/types/index.ts`
+
+## Vue conventions
+- Vue 3 Composition API (`<script setup lang="ts">`)
+- Pinia stores: `apps/agent-gui/src/stores/`
+- Composables: `apps/agent-gui/src/composables/`
+- Types: `apps/agent-gui/src/types/`
+
+## Commit format
+Conventional Commits with scopes: core, runtime, models, tools, memory, store, config, tui, gui, deps, ci
+
+## Version bump files (must stay in sync)
+1. Cargo.toml (workspace.package.version)
+2. Cargo.lock (run `cargo generate-lockfile`)
+3. apps/agent-gui/package.json
+4. apps/agent-gui/src-tauri/tauri.conf.json
+5. package.json (root)
+
+## Common mistakes to avoid
+- Using `npm` instead of `pnpm`
+- Setting `version` in individual crate Cargo.toml
+- Hardcoding API keys (use agent-config's `api_key_env`)
+- Forgetting to update both Rust and TypeScript types when changing events
+- Skipping `pnpm install` after creating a git worktree

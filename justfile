@@ -1,0 +1,96 @@
+# Kairox — task runner
+# Install just: cargo install just
+# List all tasks: just --list
+
+set dotenv-load := false
+
+# Default: list available tasks
+default:
+    @just --list
+
+# ─── Quick checks ──────────────────────────────────────────────
+
+# Run all format checks (Rust + web)
+fmt-check:
+    pnpm run format:check
+
+# Run all linters (clippy + eslint + stylelint)
+lint:
+    pnpm run lint
+
+# Run all Rust tests
+test:
+    cargo test --workspace --all-targets
+
+# Run GUI (Vitest) tests
+test-gui:
+    pnpm --filter agent-gui run test
+
+# Run everything: format check + lint + test (the full CI gate)
+check: fmt-check lint test
+    @echo "✅ All checks passed"
+
+# ─── Formatting ────────────────────────────────────────────────
+
+# Auto-format all code (Rust + web)
+fmt:
+    pnpm run format
+
+# ─── Development ───────────────────────────────────────────────
+
+# Run the TUI app
+tui:
+    cargo run -p agent-tui
+
+# Run the GUI dev server (Vite hot-reload)
+gui-dev:
+    pnpm --filter agent-gui run dev
+
+# Run the Tauri desktop app in dev mode (Vite + native window)
+tauri-dev:
+    pnpm --filter agent-gui run tauri:dev
+
+# Build GUI web assets
+gui-build:
+    pnpm --filter agent-gui run build
+
+# Build Tauri desktop app
+tauri-build:
+    pnpm --filter agent-gui run tauri:build
+
+# ─── Release ───────────────────────────────────────────────────
+
+# Prepare a release (version required, e.g.: just release 0.8.0)
+release version:
+    scripts/release.sh {{ version }}
+
+# Generate changelog for a tag (e.g.: just changelog v0.7.0)
+changelog tag:
+    git cliff --tag {{ tag }} -o CHANGELOG.md && pnpm prettier --write CHANGELOG.md
+
+# ─── Version ───────────────────────────────────────────────────
+
+# Bump version across all config files (e.g.: just bump-version 0.8.0)
+bump-version version:
+    @echo "Bumping version to {{ version }}..."
+    sed -i '' 's/^version = ".*"/version = "{{ version }}"/' Cargo.toml
+    sed -i '' 's/"version": ".*"/"version": "{{ version }}"/' apps/agent-gui/package.json
+    sed -i '' 's/"version": ".*"/"version": "{{ version }}"/' apps/agent-gui/src-tauri/tauri.conf.json
+    sed -i '' 's/"version": ".*"/"version": "{{ version }}"/' package.json
+    cargo generate-lockfile
+    @echo "✅ Version bumped to {{ version }} in Cargo.toml, Cargo.lock, package.json (root), apps/agent-gui/package.json, tauri.conf.json"
+    @echo "⚠️  Remember to review the diff and commit"
+
+# ─── Worktree ──────────────────────────────────────────────────
+
+# Create a git worktree for isolated branch development
+worktree name:
+    git worktree add ../kairox-{{ name }} -b {{ name }} main
+    cd ../kairox-{{ name }} && pnpm install
+    @echo "✅ Worktree created at ../kairox-{{ name }}"
+
+# ─── Type sync check ──────────────────────────────────────────
+
+# Check that Rust EventPayload variants match TypeScript types
+check-types:
+    bash scripts/check-types.sh
