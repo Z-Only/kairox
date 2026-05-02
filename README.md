@@ -81,7 +81,7 @@ graph TD
 
 ## Status
 
-Kairox v0.7.0 is in active development with a fully interactive TUI and a functional GUI featuring session management, trace visualization, memory browsing, and permission control. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
+Kairox is in active development with a fully interactive TUI and a functional GUI featuring session management, trace visualization, memory browsing, and permission control. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
 
 ## Requirements
 
