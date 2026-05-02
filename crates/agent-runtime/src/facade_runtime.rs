@@ -258,10 +258,49 @@ where
             })
             .unwrap_or_else(|| "fake".to_string());
 
+        // Retrieve relevant memories from the MemoryStore and inject them
+        // into the system prompt so the model can use prior context.
+        let mut system_prompt = SYSTEM_PROMPT.to_string();
+        if let Some(ref mem_store) = self.memory_store {
+            let keywords = agent_memory::extract_keywords(&request.content);
+            let memories = mem_store
+                .query(agent_memory::MemoryQuery {
+                    scope: None,
+                    keywords,
+                    limit: 20,
+                    session_id: None,
+                    workspace_id: None,
+                })
+                .await
+                .unwrap_or_default();
+            if !memories.is_empty() {
+                let memory_section = memories
+                    .iter()
+                    .filter(|m| m.accepted)
+                    .map(|m| {
+                        let scope_label = match m.scope {
+                            agent_memory::MemoryScope::User => "user",
+                            agent_memory::MemoryScope::Workspace => "workspace",
+                            agent_memory::MemoryScope::Session => "session",
+                        };
+                        match &m.key {
+                            Some(k) => format!("- [{scope_label}] {k}: {}", m.content),
+                            None => format!("- [{scope_label}] {}", m.content),
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if !memory_section.is_empty() {
+                    system_prompt.push_str("\n\n## Relevant Memories\nThe following memories were previously saved and may be relevant to the user's request. Use this context naturally in your response.\n\n");
+                    system_prompt.push_str(&memory_section);
+                }
+            }
+        }
+
         let model_request = ModelRequest {
             model_profile,
             messages,
-            system_prompt: Some(SYSTEM_PROMPT.into()),
+            system_prompt: Some(system_prompt),
             tools: tool_defs,
         };
 
