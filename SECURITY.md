@@ -2,20 +2,18 @@
 
 ## Supported versions
 
-Kairox is currently in early-stage development.
-
 | Version | Supported |
 | ------- | --------- |
-| 0.3.x   | Yes       |
-| 0.2.x   | Yes       |
-| 0.1.x   | No        |
-| < 0.1.0 | No        |
+| 0.7.x   | Yes       |
+| 0.6.x   | Yes       |
+| 0.5.x   | No        |
+| < 0.5.0 | No        |
 
 ## Reporting a vulnerability
 
 If you discover a security issue, please do not open a public issue first.
 
-Instead, report it privately via GitHub Security Advisories if enabled for the repository, or contact the maintainer directly through the repository owner account:
+Instead, report it privately via [GitHub Security Advisories](https://github.com/Z-Only/kairox/security/advisories/new), or contact the maintainer directly through the repository owner account:
 
 - GitHub: [@Z-Only](https://github.com/Z-Only)
 

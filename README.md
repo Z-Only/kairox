@@ -26,7 +26,7 @@ Kairox is a local-first AI agent workbench built with a shared Rust core, a term
 ```mermaid
 graph TD
     UI["User Interfaces"]
-    TUI["TUI (Rust)"]
+    TUI["TUI (ratatui)"]
     GUI["GUI (Tauri + Vue)"]
     CORE["agent-core"]
     RUNTIME["agent-runtime"]
@@ -34,6 +34,7 @@ graph TD
     TOOLS["agent-tools"]
     MEMORY["agent-memory"]
     STORE["agent-store"]
+    CONFIG["agent-config"]
 
     UI --> TUI
     UI --> GUI
@@ -44,6 +45,7 @@ graph TD
     RUNTIME --> TOOLS
     RUNTIME --> MEMORY
     RUNTIME --> STORE
+    RUNTIME --> CONFIG
 ```
 
 ## Highlights
@@ -55,11 +57,15 @@ graph TD
 
 ## Features
 
-- **Shared Rust core** for agent IDs, events, projections, manifests, memory, tools, and runtime orchestration
-- **TUI application** for lightweight terminal-based interaction
-- **GUI desktop shell** built with Tauri 2 + Vue 3
-- **Local-first architecture** designed for offline-friendly workflows and explicit permission control
-- **Unified quality gates** with Rust + frontend linting, formatting, commit hooks, and CI
+- **Shared Rust core** — domain types, event-sourced runtime, facade trait, typed IDs
+- **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol and keyword retrieval
+- **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing
+- **Tool system** — built-in tools (shell, search, patch, fs) with 5-level permission control
+- **Config discovery** — TOML config with profile management and env-variable API keys
+- **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
+- **GUI desktop app** — Tauri 2 + Vue 3 with session management, trace visualization, memory browser, and permission center
+- **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
+- **Quality gates** — parallel CI, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
 
 ## Repository layout
 
@@ -67,14 +73,15 @@ graph TD
 - `crates/agent-runtime` — runtime orchestration and task graph
 - `crates/agent-models` — model profile and provider boundaries
 - `crates/agent-tools` — permission and tool abstractions
-- `crates/agent-memory` — memory and context assembly
+- `crates/agent-memory` — memory and context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store
+- `crates/agent-config` — TOML config loading, model profile discovery, API key resolution
 - `crates/agent-tui` — interactive ratatui terminal UI app
-- `apps/agent-gui` — Vue frontend + Tauri desktop app
+- `apps/agent-gui` — Vue 3 frontend + Tauri 2 desktop app
 
 ## Status
 
-Kairox is in active development with a working interactive TUI (ratatui), real model adapters (OpenAI, Ollama), builtin tools (shell, search, patch, fs), event-sourced runtime, and CI/release workflows in place. The GUI (Tauri + Vue) is still a shell awaiting integration.
+Kairox v0.7.0 is in active development with a fully interactive TUI and a functional GUI featuring session management, trace visualization, memory browsing, and permission control. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
 
 ## Requirements
 
@@ -175,7 +182,9 @@ just fmt          # auto-format all code
 just tui          # run the TUI app
 just gui-dev      # run the GUI dev server
 just bump-version X.Y.Z  # bump version in all config files
-just check-types  # verify Rust ↔ TypeScript type sync
+just check-types  # verify Rust ↔ TypeScript EventPayload sync
+just gen-types    # regenerate Tauri command TypeScript bindings
+just worktree <name>    # create isolated git worktree
 ```
 
 Or the underlying pnpm/cargo commands:

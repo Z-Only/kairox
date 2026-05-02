@@ -4,26 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - 2026-05-02
+## [0.7.0] - 2026-05-02
 
 ### 🚀 Features
 
-- **models**: add Anthropic Messages API client with SSE streaming support
-- **models**: add OpenAI-compatible API client with streaming support
-- **config**: add agent-config crate for model profile discovery, TOML parsing, and API key resolution
-- **config**: auto-discover Anthropic API key from `~/.claude/settings.json` as fallback when env var is not set
-- **models**: handle `max_tokens` stop reason in Anthropic SSE parser (proxy compatibility)
-- **models**: sanitize tool names for Anthropic API compatibility (replace dots with underscores, e.g. `fs.read` → `fs_read`)
-- **models**: detect proxy error responses in `{"error":{}}` format from Anthropic API
-- **runtime**: broadcast `AgentTaskFailed` events on model errors for frontend error display
-- **gui**: propagate send_message errors to frontend via Tauri events
-- **gui**: handle `AgentTaskFailed` events in session store to show errors and reset streaming state
+- **gui**: Tauri+Vue GUI integration MVP (v0.5.0) (#32)
+- **config**: add agent-config crate with real model adapters (#33)
+- **memory+trace**: implement memory layer, GUI trace visualization, and TUI memory integration (#34)
+- **devex**: add justfile, cursorrules, type-sync check, and workflow recipes
+- add doc comments to public APIs, optimize CI cache, update ROADMAP
+- **gui**: integrate tauri-specta for auto-generated TypeScript command bindings
 
 ### 🐛 Bug Fixes
 
-- **models**: fix Anthropic SSE parsing to handle `max_tokens` stop reason from proxies
-- **config**: resolve Anthropic API key when `KAIROX_ANTHROPIC_KEY` env var is not set
-- **runtime**: prevent frontend from permanently showing "streaming" when model API calls fail
+- **gui**: sync missing EventPayload variants with Rust, update docs
+
+### 📚 Documentation
+
+- rewrite AGENTS.md with comprehensive project context for AI assistants
+- add copilot-instructions.md and CLAUDE.md for AI coding assistants
+
+### 👷 CI
+
+- split monolithic job into parallel jobs and add type-sync check
+
+### 🔧 Miscellaneous Tasks
+
+- add editorconfig, rust-toolchain, vscode config, and example env/config
 
 ## [0.4.0] - 2026-04-30
 

@@ -12,13 +12,15 @@
 
 ## Validation
 
-Please check all that apply and paste key output when relevant.
+Run `just check` and verify all jobs pass. Check applicable items:
 
-- [ ] `pnpm run format:check`
-- [ ] `pnpm run lint`
-- [ ] `cargo test --workspace --all-targets`
-- [ ] `pnpm --filter agent-gui run build`
-- [ ] `pnpm --filter agent-gui run tauri build`
+- [ ] `just fmt-check` — format check
+- [ ] `just lint` — clippy + eslint + stylelint
+- [ ] `just test` — cargo test
+- [ ] `just test-gui` — vitest
+- [ ] `just check-types` — Rust ↔ TypeScript EventPayload sync
+- [ ] `just gen-types` — run if any `#[tauri::command]` signature changed
+- [ ] `just tauri-build` — verify GUI builds
 
 ## Screenshots / recordings
 
