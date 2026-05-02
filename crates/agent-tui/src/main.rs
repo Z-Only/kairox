@@ -224,7 +224,10 @@ async fn main() -> Result<()> {
     let data_dir = std::path::PathBuf::from(home).join(".kairox");
     tokio::fs::create_dir_all(&data_dir).await?;
     let db_path = data_dir.join("kairox.sqlite");
-    let database_url = format!("sqlite:{}", db_path.display());
+    let database_url = format!(
+        "sqlite:///{}",
+        db_path.display().to_string().trim_start_matches('/')
+    );
     let store = SqliteEventStore::connect(&database_url).await?;
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;

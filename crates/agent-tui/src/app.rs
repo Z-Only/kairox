@@ -17,7 +17,8 @@ use crate::components::sessions::SessionsPanel;
 use crate::components::status_bar::{PermissionModeExt, StatusBar};
 use crate::components::trace::TracePanel;
 use crate::components::{
-    Command, Component, CrossPanelEffect, FocusTarget, PermissionRequest, RiskLevel, SessionState,
+    Command, Component, CrossPanelEffect, FocusTarget, PermissionRequest, RiskLevel, SessionInfo,
+    SessionState,
 };
 use crate::keybindings::{resolve_key, resolve_paste, KeyAction};
 
@@ -58,6 +59,12 @@ impl App {
             quit_confirmed: false,
             quitting: false,
         }
+    }
+
+    /// Find the currently active session by `current_session_id`.
+    fn current_session_mut(&mut self) -> Option<&mut SessionInfo> {
+        let sid = self.current_session_id.clone()?;
+        self.state.sessions.iter_mut().find(|s| s.id == sid)
     }
 
     // -----------------------------------------------------------------------
@@ -320,21 +327,21 @@ impl App {
 
             EventPayload::ToolInvocationStarted { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Active;
                 }
             }
 
             EventPayload::ToolInvocationCompleted { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Idle;
                 }
             }
 
             EventPayload::ToolInvocationFailed { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Idle;
                 }
             }
@@ -360,7 +367,7 @@ impl App {
                     self.sync_component_focus();
                 }
 
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::AwaitingPermission;
                 }
                 self.state.render_scheduler.mark_dirty();
@@ -372,14 +379,14 @@ impl App {
                     self.state.focus_manager.pop();
                     self.sync_component_focus();
                 }
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Active;
                 }
                 self.state.render_scheduler.mark_dirty();
             }
 
             EventPayload::AgentTaskCreated { title, .. } => {
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     if session.title.starts_with("Session using ") {
                         session.title = title.clone();
                     }
