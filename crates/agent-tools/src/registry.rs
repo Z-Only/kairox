@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Schema definition exposed by a tool to the model and runtime.
 pub struct ToolDefinition {
     pub tool_id: String,
     pub description: String,
@@ -12,6 +13,7 @@ pub struct ToolDefinition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A request to invoke a tool with specific arguments.
 pub struct ToolInvocation {
     pub tool_id: String,
     pub arguments: serde_json::Value,
@@ -22,19 +24,30 @@ pub struct ToolInvocation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// The result of a tool invocation.
 pub struct ToolOutput {
     pub text: String,
     pub truncated: bool,
 }
 
 #[async_trait]
+/// Trait for a single tool that the agent can invoke.
+///
+/// Each tool provides a definition, a risk assessment, and an async invoke method.
 pub trait Tool: Send + Sync {
+    /// Return the tool's schema definition.
     fn definition(&self) -> ToolDefinition;
+    /// Assess the risk level of a prospective invocation.
     fn risk(&self, invocation: &ToolInvocation) -> ToolRisk;
+    /// Execute the tool invocation and return the output.
     async fn invoke(&self, invocation: ToolInvocation) -> crate::Result<ToolOutput>;
 }
 
 #[async_trait]
+/// Trait for a provider that supplies a collection of tools.
+///
+/// Implementations include [`BuiltinProvider`](crate::BuiltinProvider) for built-in tools
+/// and [`McpProvider`](crate::McpProvider) for MCP server tools.
 pub trait ToolProvider: Send + Sync {
     async fn list_tools(&self) -> Vec<ToolDefinition>;
     async fn get_tool(&self, tool_id: &str) -> Option<Box<dyn Tool>>;

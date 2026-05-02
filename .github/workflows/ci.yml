@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   format:
     name: Format
@@ -50,6 +53,9 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci
 
       - name: Install Linux system deps for Tauri crates
         run: |
@@ -102,6 +108,9 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci
 
       - name: Install Linux system deps for Tauri crates
         run: |
@@ -139,6 +148,9 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci
 
       - name: Install Linux system deps
         run: |

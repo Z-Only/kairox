@@ -4,8 +4,14 @@ use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::time::Duration;
 
 #[async_trait]
+/// Trait for the append-only event store.
+///
+/// Events are stored in the order they are appended and can be replayed
+/// per session. The canonical implementation is [`SqliteEventStore`].
 pub trait EventStore: Send + Sync {
+    /// Append a domain event to the store.
     async fn append(&self, event: &DomainEvent) -> crate::Result<()>;
+    /// Load all events for a session in append order.
     async fn load_session(&self, session_id: &SessionId) -> crate::Result<Vec<DomainEvent>>;
 }
 

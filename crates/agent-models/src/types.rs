@@ -3,12 +3,14 @@ use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A single message in a model conversation.
 pub struct ModelMessage {
     pub role: String,
     pub content: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A tool call requested by the model during generation.
 pub struct ToolCall {
     pub id: String,
     pub name: String,
@@ -16,6 +18,7 @@ pub struct ToolCall {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Schema definition for a tool that the model can invoke.
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
@@ -23,6 +26,7 @@ pub struct ToolDefinition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A request to the model, including messages, system prompt, and available tools.
 pub struct ModelRequest {
     pub model_profile: String,
     pub messages: Vec<ModelMessage>,
@@ -63,12 +67,14 @@ impl ModelRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Token usage statistics returned by the model.
 pub struct ModelUsage {
     pub input_tokens: u64,
     pub output_tokens: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Streaming events emitted by the model during generation.
 pub enum ModelEvent {
     TokenDelta(String),
     ToolCallRequested {
@@ -85,7 +91,12 @@ pub enum ModelEvent {
 }
 
 #[async_trait]
+/// Trait for model providers (OpenAI, Anthropic, Ollama, etc.).
+///
+/// Implementations stream [`ModelEvent`]s in response to a [`ModelRequest`].
+/// Use [`FakeModelClient`](crate::FakeModelClient) for testing.
 pub trait ModelClient: Send + Sync {
+    /// Send a request to the model and receive a stream of events.
     async fn stream(
         &self,
         request: ModelRequest,

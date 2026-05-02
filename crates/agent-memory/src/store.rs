@@ -16,6 +16,7 @@ pub enum MemoryStoreError {
 pub type Result<T> = std::result::Result<T, MemoryStoreError>;
 
 #[derive(Debug, Clone)]
+/// Query parameters for searching memories.
 pub struct MemoryQuery {
     pub scope: Option<MemoryScope>,
     pub keywords: Vec<String>,
@@ -25,11 +26,20 @@ pub struct MemoryQuery {
 }
 
 #[async_trait]
+/// Trait for durable memory storage backends.
+///
+/// Implementations persist [`MemoryEntry`]s across sessions and support
+/// keyword-based retrieval. The canonical implementation is [`SqliteMemoryStore`].
 pub trait MemoryStore: Send + Sync {
+    /// Store a new memory entry.
     async fn store(&self, entry: MemoryEntry) -> Result<()>;
+    /// Query memories by scope, keywords, and limits. Only accepted memories are returned.
     async fn query(&self, query: MemoryQuery) -> Result<Vec<MemoryEntry>>;
+    /// Delete a memory entry by ID.
     async fn delete(&self, id: &str) -> Result<()>;
+    /// List all accepted memories within a given scope.
     async fn list_by_scope(&self, scope: MemoryScope) -> Result<Vec<MemoryEntry>>;
+    /// Count memories, optionally filtered by scope.
     async fn count(&self, scope: Option<MemoryScope>) -> Result<usize>;
 }
 
