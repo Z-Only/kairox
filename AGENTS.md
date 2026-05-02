@@ -247,9 +247,26 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 
 ## AI coding guidelines
 
-### Why not tauri-specta for type generation?
+### tauri-specta for command IPC type generation
 
-[tauri-specta](https://github.com/specta-rs/tauri-specta) can auto-generate TypeScript types from `#[tauri::command]` return types and arguments, which eliminates drift for **command IPC**. However, Kairox's `EventPayload` types flow through `app_handle.emit()` (broadcast events), not through command return values. specta does not generate types for arbitrary serialized event payloads emitted this way. Therefore, the Rust↔TypeScript EventPayload sync must be maintained manually and is enforced by `just check-types` (and the `type-sync` CI job).
+[tauri-specta](https://github.com/specta-rs/tauri-specta) auto-generates TypeScript types from `#[tauri::command]` return types and arguments, eliminating drift for **command IPC**. These bindings are generated into `apps/agent-gui/src/generated/commands.ts`.
+
+**When to regenerate**: after adding/modifying/removing any `#[tauri::command]` function or its parameter/return types:
+
+```bash
+just gen-types
+```
+
+**What specta covers**: command function signatures and their return types (`WorkspaceInfoResponse`, `SessionInfoResponse`, `MemoryEntryResponse`, `ProfileInfo`, etc.).
+
+**What specta does NOT cover**: `EventPayload` types that flow through `app_handle.emit()` (broadcast events). These are not command return values, so specta cannot generate types for them. Rust↔TypeScript EventPayload sync is enforced by `just check-types` (and the `type-sync` CI job).
+
+**When adding a new command**:
+
+1. Add `#[specta::specta]` attribute to the command function
+2. Add the command to the `collect_commands![]` macro in `src/specta.rs`
+3. Add any new response types with `#[derive(specta::Type)]`
+4. Run `just gen-types` to regenerate the TypeScript bindings
 
 ### When adding a new feature
 

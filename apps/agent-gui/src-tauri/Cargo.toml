@@ -9,6 +9,13 @@ license.workspace = true
 name = "agent_gui_tauri"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[bin]]
+name = "export-specta"
+path = "src/bin/export_specta.rs"
+
+[features]
+specta-export = []
+
 [dependencies]
 agent-core = { path = "../../../crates/agent-core" }
 agent-models = { path = "../../../crates/agent-models" }
@@ -20,7 +27,10 @@ agent-tools = { path = "../../../crates/agent-tools" }
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+specta = "=2.0.0-rc.24"
+specta-typescript = "0.0.11"
 tauri = { version = "2", features = [] }
+tauri-specta = { version = "=2.0.0-rc.24", features = ["derive", "typescript"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "process", "fs"] }
 
 [build-dependencies]

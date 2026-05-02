@@ -43,7 +43,7 @@ fn default_output_limit() -> u64 {
 }
 
 /// Metadata about a profile for UI display.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileInfo {
     pub alias: String,
     pub provider: String,

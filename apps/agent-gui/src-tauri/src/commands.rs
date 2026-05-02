@@ -3,7 +3,6 @@
 use crate::app_state::{GuiState, WorkspaceSession};
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
-use agent_core::projection::SessionProjection;
 use agent_core::AppFacade;
 use agent_core::PermissionDecision;
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
@@ -11,30 +10,58 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri::State;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct WorkspaceInfoResponse {
     pub workspace_id: String,
     pub path: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct SessionInfoResponse {
     pub id: String,
     pub title: String,
     pub profile: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct MemoryEntryResponse {
+    pub id: String,
+    pub scope: String,
+    pub key: Option<String>,
+    pub content: String,
+    pub accepted: bool,
+}
+
+impl From<MemoryEntry> for MemoryEntryResponse {
+    fn from(e: MemoryEntry) -> Self {
+        Self {
+            id: e.id,
+            scope: match e.scope {
+                MemoryScope::User => "user".into(),
+                MemoryScope::Workspace => "workspace".into(),
+                MemoryScope::Session => "session".into(),
+            },
+            key: e.key,
+            content: e.content,
+            accepted: e.accepted,
+        }
+    }
+}
+
 #[tauri::command]
+#[specta::specta]
 pub async fn list_profiles(state: State<'_, GuiState>) -> Result<Vec<String>, String> {
     Ok(state.config.profile_names())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_profile_info(state: State<'_, GuiState>) -> Result<Vec<ProfileInfo>, String> {
     Ok(state.config.profile_info())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn initialize_workspace(
     state: State<'_, GuiState>,
     app_handle: tauri::AppHandle,
@@ -109,6 +136,7 @@ pub async fn initialize_workspace(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_session(
     profile: String,
     state: State<'_, GuiState>,
@@ -154,6 +182,7 @@ pub async fn start_session(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn send_message(
     content: String,
     state: State<'_, GuiState>,
@@ -169,19 +198,6 @@ pub async fn send_message(
     };
 
     let session_id_str = session_id.to_string();
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/kairox-debug.log")
-    {
-        use std::io::Write;
-        let _ = writeln!(
-            f,
-            "[commands] send_message: session={} content_len={}",
-            session_id_str,
-            content.len()
-        );
-    }
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
         let result = runtime
@@ -194,14 +210,6 @@ pub async fn send_message(
 
         if let Err(e) = result {
             eprintln!("[commands] send_message background task failed: {e}");
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/kairox-debug.log")
-            {
-                use std::io::Write;
-                let _ = writeln!(f, "[commands] send_message FAILED: {e}");
-            }
             let error_payload = serde_json::json!({
                 "type": "AgentTaskFailed",
                 "task_id": "",
@@ -224,7 +232,7 @@ pub async fn switch_session(
     session_id: String,
     state: State<'_, GuiState>,
     app_handle: tauri::AppHandle,
-) -> Result<SessionProjection, String> {
+) -> Result<serde_json::Value, String> {
     let sid: agent_core::SessionId = session_id.into();
     switch_session_inner(&state, sid.clone(), &app_handle).await?;
 
@@ -234,7 +242,7 @@ pub async fn switch_session(
         .await
         .map_err(|e| format!("Failed to get session projection: {e}"))?;
 
-    Ok(projection)
+    Ok(serde_json::to_value(&projection).unwrap_or_default())
 }
 
 /// Returns historical trace events for a session as a JSON array.
@@ -243,7 +251,7 @@ pub async fn switch_session(
 pub async fn get_trace(
     session_id: String,
     state: State<'_, GuiState>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<String>, String> {
     let sid: agent_core::SessionId = session_id.into();
     let trace = state
         .runtime
@@ -252,11 +260,12 @@ pub async fn get_trace(
         .map_err(|e| format!("Failed to get trace: {e}"))?;
     Ok(trace
         .into_iter()
-        .filter_map(|entry| serde_json::to_value(&entry.event).ok())
+        .filter_map(|entry| serde_json::to_string(&entry.event).ok())
         .collect())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfoResponse>, String> {
     let sessions = state.sessions.lock().await;
     let current_session_id = state.current_session_id.lock().await;
@@ -285,6 +294,71 @@ pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfo
     }
 
     Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_permission(
+    state: State<'_, GuiState>,
+    request_id: String,
+    decision: String,
+    reason: Option<String>,
+) -> Result<(), String> {
+    let perm_decision = match decision.as_str() {
+        "grant" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: true,
+            reason: None,
+        },
+        "deny" => PermissionDecision {
+            request_id: request_id.clone(),
+            approve: false,
+            reason: reason.or_else(|| Some("User denied".into())),
+        },
+        _ => return Err("Invalid decision: must be 'grant' or 'deny'".into()),
+    };
+    state
+        .runtime
+        .resolve_permission(&request_id, perm_decision)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn query_memories(
+    state: State<'_, GuiState>,
+    scope: Option<String>,
+    keywords: Option<Vec<String>>,
+    limit: Option<usize>,
+) -> Result<Vec<MemoryEntryResponse>, String> {
+    let scope = scope.map(|s| match s.as_str() {
+        "user" => MemoryScope::User,
+        "workspace" => MemoryScope::Workspace,
+        _ => MemoryScope::Session,
+    });
+    let entries = state
+        .memory_store
+        .query(MemoryQuery {
+            scope,
+            keywords: keywords.unwrap_or_default(),
+            limit: limit.unwrap_or(50),
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(entries.into_iter().map(MemoryEntryResponse::from).collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    state
+        .memory_store
+        .delete(&id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Inner helper: abort old forwarder, spawn new one, update current session.
@@ -318,91 +392,4 @@ async fn switch_session_inner(
     }
 
     Ok(())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MemoryEntryResponse {
-    pub id: String,
-    pub scope: String,
-    pub key: Option<String>,
-    pub content: String,
-    pub accepted: bool,
-}
-
-impl From<MemoryEntry> for MemoryEntryResponse {
-    fn from(e: MemoryEntry) -> Self {
-        Self {
-            id: e.id,
-            scope: match e.scope {
-                MemoryScope::User => "user".into(),
-                MemoryScope::Workspace => "workspace".into(),
-                MemoryScope::Session => "session".into(),
-            },
-            key: e.key,
-            content: e.content,
-            accepted: e.accepted,
-        }
-    }
-}
-
-#[tauri::command]
-pub async fn resolve_permission(
-    state: State<'_, GuiState>,
-    request_id: String,
-    decision: String,
-    reason: Option<String>,
-) -> Result<(), String> {
-    let perm_decision = match decision.as_str() {
-        "grant" => PermissionDecision {
-            request_id: request_id.clone(),
-            approve: true,
-            reason: None,
-        },
-        "deny" => PermissionDecision {
-            request_id: request_id.clone(),
-            approve: false,
-            reason: reason.or_else(|| Some("User denied".into())),
-        },
-        _ => return Err("Invalid decision: must be 'grant' or 'deny'".into()),
-    };
-    state
-        .runtime
-        .resolve_permission(&request_id, perm_decision)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn query_memories(
-    state: State<'_, GuiState>,
-    scope: Option<String>,
-    keywords: Option<Vec<String>>,
-    limit: Option<usize>,
-) -> Result<Vec<MemoryEntryResponse>, String> {
-    let scope = scope.map(|s| match s.as_str() {
-        "user" => MemoryScope::User,
-        "workspace" => MemoryScope::Workspace,
-        _ => MemoryScope::Session,
-    });
-    let entries = state
-        .memory_store
-        .query(MemoryQuery {
-            scope,
-            keywords: keywords.unwrap_or_default(),
-            limit: limit.unwrap_or(50),
-            session_id: None,
-            workspace_id: None,
-        })
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(entries.into_iter().map(MemoryEntryResponse::from).collect())
-}
-
-#[tauri::command]
-pub async fn delete_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
-    state
-        .memory_store
-        .delete(&id)
-        .await
-        .map_err(|e| e.to_string())
 }

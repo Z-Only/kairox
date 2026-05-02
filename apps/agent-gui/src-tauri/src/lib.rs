@@ -1,6 +1,7 @@
 mod app_state;
-mod commands;
+pub mod commands;
 mod event_forwarder;
+pub mod specta;
 
 use agent_config::Config;
 #[cfg(test)]
@@ -16,8 +17,10 @@ use app_state::GuiState;
 pub fn run() {
     use tauri::Manager;
 
+    let specta_builder = specta::create_specta();
+
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
                 // Use a file-backed SQLite database in the system temp directory.
@@ -65,21 +68,25 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::list_profiles,
-            commands::get_profile_info,
-            commands::initialize_workspace,
-            commands::start_session,
-            commands::send_message,
-            commands::switch_session,
-            commands::list_sessions,
-            commands::resolve_permission,
-            commands::query_memories,
-            commands::delete_memory,
-            commands::get_trace,
-        ])
+        .invoke_handler(specta_builder.invoke_handler())
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
+}
+
+/// Export specta TypeScript bindings to a directory.
+/// Usage: `cargo run -p agent-gui-tauri --features specta-export -- export-specta <dir>`
+#[cfg(feature = "specta-export")]
+fn main() {
+    let out_dir = std::path::PathBuf::from(
+        std::env::args()
+            .nth(1)
+            .unwrap_or_else(|| "../src/generated".into()),
+    );
+    let specta_builder = specta::create_specta();
+    specta_builder
+        .export(specta_typescript::Typescript::default(), &out_dir)
+        .expect("Failed to export specta types");
+    eprintln!("TypeScript bindings exported to {}", out_dir.display());
 }
 
 #[cfg(test)]

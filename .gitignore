@@ -21,3 +21,4 @@ package-lock.json
 !.vscode/extensions.json
 !.vscode/settings.json
 kairox.toml
+apps/agent-gui/src/generated/

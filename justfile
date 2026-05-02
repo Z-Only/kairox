@@ -94,3 +94,10 @@ worktree name:
 # Check that Rust EventPayload variants match TypeScript types
 check-types:
     bash scripts/check-types.sh
+
+# ─── Code generation ──────────────────────────────────────────
+
+# Regenerate TypeScript bindings from Tauri commands via specta
+gen-types:
+    cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
+    @echo "✅ TypeScript bindings regenerated"
