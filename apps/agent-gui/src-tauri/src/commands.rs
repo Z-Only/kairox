@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![allow(clippy::new_without_default)]
-use crate::app_state::{GuiState, WorkspaceSession};
+use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::AppFacade;
@@ -30,6 +30,15 @@ pub struct MemoryEntryResponse {
     pub key: Option<String>,
     pub content: String,
     pub accepted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProfileDetailResponse {
+    pub alias: String,
+    pub provider: String,
+    pub model_id: String,
+    pub local: bool,
+    pub has_api_key: bool,
 }
 
 impl From<MemoryEntry> for MemoryEntryResponse {
@@ -114,17 +123,6 @@ pub async fn initialize_workspace(
         *ws = Some(workspace_id.clone());
     }
     {
-        let mut sessions = state.sessions.lock().await;
-        sessions.insert(
-            session_id.to_string(),
-            WorkspaceSession {
-                workspace_id: workspace_id.clone(),
-                session_id: session_id.clone(),
-                profile: profile.clone(),
-            },
-        );
-    }
-    {
         let mut current = state.current_session_id.lock().await;
         *current = Some(session_id.clone());
     }
@@ -157,19 +155,6 @@ pub async fn start_session(
         .map_err(|e| format!("Failed to start session: {e}"))?;
 
     let title = format!("Session using {profile}");
-
-    // Register session
-    {
-        let mut sessions = state.sessions.lock().await;
-        sessions.insert(
-            session_id.to_string(),
-            WorkspaceSession {
-                workspace_id,
-                session_id: session_id.clone(),
-                profile: profile.clone(),
-            },
-        );
-    }
 
     // Switch to the new session (spawns new forwarder)
     switch_session_inner(&state, session_id.clone(), &app_handle).await?;
@@ -267,20 +252,30 @@ pub async fn get_trace(
 #[tauri::command]
 #[specta::specta]
 pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfoResponse>, String> {
-    let sessions = state.sessions.lock().await;
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+
+    let sessions = state
+        .runtime
+        .list_sessions(&workspace_id)
+        .await
+        .map_err(|e| format!("Failed to list sessions: {e}"))?;
+
     let current_session_id = state.current_session_id.lock().await;
 
     let mut result: Vec<SessionInfoResponse> = sessions
-        .values()
+        .into_iter()
         .map(|s| SessionInfoResponse {
             id: s.session_id.to_string(),
-            title: format!("Session using {}", s.profile),
-            profile: s.profile.clone(),
+            title: s.title.clone(),
+            profile: s.model_profile.clone(),
         })
         .collect();
 
     // Sort: current session first
-    if let Some(current_id) = current_session_id.as_ref() {
+    if let Some(ref current_id) = *current_session_id {
         let current_str = current_id.to_string();
         result.sort_by(|a, b| {
             if a.id == current_str {
@@ -359,6 +354,72 @@ pub async fn delete_memory(state: State<'_, GuiState>, id: String) -> Result<(),
         .delete(&id)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_workspaces(
+    state: State<'_, GuiState>,
+) -> Result<Vec<WorkspaceInfoResponse>, String> {
+    let workspaces = state
+        .runtime
+        .list_workspaces()
+        .await
+        .map_err(|e| format!("Failed to list workspaces: {e}"))?;
+    Ok(workspaces
+        .into_iter()
+        .map(|w| WorkspaceInfoResponse {
+            workspace_id: w.workspace_id.to_string(),
+            path: w.path,
+        })
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_session(
+    session_id: String,
+    title: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .rename_session(&sid, title)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_session(session_id: String, state: State<'_, GuiState>) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .soft_delete_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_profile_detail(
+    profile: String,
+    state: State<'_, GuiState>,
+) -> Result<ProfileDetailResponse, String> {
+    let info = state
+        .config
+        .profile_info()
+        .into_iter()
+        .find(|p| p.alias == profile)
+        .ok_or_else(|| format!("Profile '{}' not found", profile))?;
+    Ok(ProfileDetailResponse {
+        alias: info.alias,
+        provider: info.provider,
+        model_id: info.model_id,
+        local: info.local,
+        has_api_key: info.has_api_key,
+    })
 }
 
 /// Inner helper: abort old forwarder, spawn new one, update current session.

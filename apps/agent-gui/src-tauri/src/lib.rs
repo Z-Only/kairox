@@ -4,6 +4,8 @@ mod event_forwarder;
 pub mod specta;
 
 use agent_config::Config;
+#[cfg(not(test))]
+use agent_core::AppFacade;
 #[cfg(test)]
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
@@ -65,6 +67,28 @@ pub fn run() {
                     .await;
 
                 handle.manage(GuiState::new(runtime, config, mem_store));
+
+                // Background task: cleanup expired soft-deleted sessions (hourly, 7-day threshold)
+                {
+                    let runtime = handle.state::<GuiState>().inner().runtime.clone();
+                    tokio::spawn(async move {
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_secs(3600));
+                        loop {
+                            interval.tick().await;
+                            match runtime
+                                .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+                                .await
+                            {
+                                Ok(count) if count > 0 => {
+                                    eprintln!("[cleanup] Removed {count} expired session(s)")
+                                }
+                                Ok(_) => {}
+                                Err(e) => eprintln!("[cleanup] Failed: {e}"),
+                            }
+                        }
+                    });
+                }
             });
             Ok(())
         })

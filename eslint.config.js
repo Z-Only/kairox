@@ -11,7 +11,8 @@ export default [
       "**/dist/**",
       "**/coverage/**",
       "target/**",
-      "apps/agent-gui/src-tauri/gen/**"
+      "apps/agent-gui/src-tauri/gen/**",
+      "apps/agent-gui/src/generated/**"
     ]
   },
   js.configs.recommended,
