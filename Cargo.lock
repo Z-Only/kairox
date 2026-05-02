@@ -148,6 +148,7 @@ version = "0.6.0"
 dependencies = [
  "agent-config",
  "agent-core",
+ "agent-memory",
  "agent-models",
  "agent-runtime",
  "agent-store",

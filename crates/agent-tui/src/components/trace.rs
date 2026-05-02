@@ -37,6 +37,7 @@ impl TracePanel {
 pub struct TraceEntry {
     pub tool_id: String,
     pub status: TraceStatus,
+    pub kind: TraceKind,
     pub duration_ms: Option<u64>,
     pub args_preview: Option<String>,
     pub output_preview: Option<String>,
@@ -47,6 +48,13 @@ pub enum TraceStatus {
     Running,
     Success,
     Failed,
+    Pending,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TraceKind {
+    Tool,
+    Memory,
 }
 
 impl std::fmt::Display for TraceStatus {
@@ -55,6 +63,7 @@ impl std::fmt::Display for TraceStatus {
             Self::Running => write!(f, "⏳"),
             Self::Success => write!(f, "✓"),
             Self::Failed => write!(f, "✕"),
+            Self::Pending => write!(f, "?"),
         }
     }
 }
@@ -67,6 +76,7 @@ pub fn extract_tool_traces(events: &[agent_core::DomainEvent]) -> Vec<TraceEntry
                 traces.push(TraceEntry {
                     tool_id: tool_id.clone(),
                     status: TraceStatus::Running,
+                    kind: TraceKind::Tool,
                     duration_ms: None,
                     args_preview: None,
                     output_preview: None,
@@ -98,6 +108,45 @@ pub fn extract_tool_traces(events: &[agent_core::DomainEvent]) -> Vec<TraceEntry
                     entry.output_preview = Some(error.clone());
                 }
             }
+            EventPayload::MemoryProposed {
+                memory_id: _,
+                scope,
+                key,
+                content,
+            } => {
+                let label = match key {
+                    Some(k) => format!("memory[{scope}:{k}]"),
+                    None => format!("memory[{scope}]"),
+                };
+                traces.push(TraceEntry {
+                    tool_id: label,
+                    status: TraceStatus::Pending,
+                    kind: TraceKind::Memory,
+                    duration_ms: None,
+                    args_preview: Some(content.clone()),
+                    output_preview: None,
+                });
+            }
+            EventPayload::MemoryAccepted { memory_id: _, .. } => {
+                if let Some(entry) = traces.iter_mut().rev().find(|t| {
+                    matches!(t.kind, TraceKind::Memory) && t.status == TraceStatus::Pending
+                }) {
+                    entry.status = TraceStatus::Success;
+                    entry.output_preview = Some("accepted".to_string());
+                }
+            }
+            EventPayload::MemoryRejected {
+                memory_id: _,
+                reason,
+                ..
+            } => {
+                if let Some(entry) = traces.iter_mut().rev().find(|t| {
+                    matches!(t.kind, TraceKind::Memory) && t.status == TraceStatus::Pending
+                }) {
+                    entry.status = TraceStatus::Failed;
+                    entry.output_preview = Some(reason.clone());
+                }
+            }
             _ => {}
         }
     }
@@ -118,13 +167,18 @@ pub fn render_trace_l1(area: Rect, frame: &mut Frame, traces: &[TraceEntry], foc
                 TraceStatus::Running => Color::Yellow,
                 TraceStatus::Success => Color::Green,
                 TraceStatus::Failed => Color::Red,
+                TraceStatus::Pending => Color::Magenta,
+            };
+            let icon = match entry.kind {
+                TraceKind::Tool => "▶ ",
+                TraceKind::Memory => "🧠",
             };
             let duration = entry
                 .duration_ms
                 .map(|d| format!(" {:.1}s", d as f64 / 1000.0))
                 .unwrap_or_default();
             let line = Line::from(vec![
-                Span::styled("▶ ", Style::default()),
+                Span::styled(icon, Style::default()),
                 Span::styled(&entry.tool_id, Style::default()),
                 Span::styled(
                     format!(" {}{}", entry.status, duration),
