@@ -74,21 +74,6 @@ pub fn run() {
 }
 
 /// Export specta TypeScript bindings to a directory.
-/// Usage: `cargo run -p agent-gui-tauri --features specta-export -- export-specta <dir>`
-#[cfg(feature = "specta-export")]
-fn main() {
-    let out_dir = std::path::PathBuf::from(
-        std::env::args()
-            .nth(1)
-            .unwrap_or_else(|| "../src/generated".into()),
-    );
-    let specta_builder = specta::create_specta();
-    specta_builder
-        .export(specta_typescript::Typescript::default(), &out_dir)
-        .expect("Failed to export specta types");
-    eprintln!("TypeScript bindings exported to {}", out_dir.display());
-}
-
 #[cfg(test)]
 pub fn run() {}
 

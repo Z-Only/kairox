@@ -13,8 +13,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "export-specta"
 path = "src/bin/export_specta.rs"
 
-[features]
-specta-export = []
 
 [dependencies]
 agent-core = { path = "../../../crates/agent-core" }
