@@ -25,15 +25,16 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                // Use a file-backed SQLite database in the system temp directory.
-                // In-memory SQLite (`sqlite::memory:` or `sqlite:file:...?mode=memory&cache=shared`)
-                // is destroyed when all connections close, which causes "no such table: events"
-                // errors when the pool recycles connections. A file-backed DB persists across
-                // connection recycling and is cleaned up when the OS reclaims temp files.
-                let db_dir = std::env::temp_dir().join("kairox-gui");
+                // Use a file-backed SQLite database in the user's .kairox directory
+                // for persistent storage across app restarts.
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                let db_dir = std::path::PathBuf::from(home).join(".kairox");
                 tokio::fs::create_dir_all(&db_dir).await.ok();
-                let db_path = db_dir.join("kairox.db");
-                let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+                let db_path = db_dir.join("kairox-gui.sqlite");
+                let db_url = format!(
+                    "sqlite:///{}?mode=rwc",
+                    db_path.display().to_string().trim_start_matches('/')
+                );
 
                 eprintln!("Database: {}", db_url);
 

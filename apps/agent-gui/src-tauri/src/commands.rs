@@ -88,33 +88,52 @@ pub async fn initialize_workspace(
         .display()
         .to_string();
 
-    let workspace = state
-        .runtime
-        .open_workspace(workspace_path)
-        .await
-        .map_err(|e| format!("Failed to open workspace: {e}"))?;
+    // Try to reuse an existing workspace for this path
+    let workspace = {
+        let workspaces = state
+            .runtime
+            .list_workspaces()
+            .await
+            .map_err(|e| format!("Failed to list workspaces: {e}"))?;
+        if let Some(existing) = workspaces.iter().find(|w| w.path == workspace_path) {
+            existing.clone()
+        } else {
+            state
+                .runtime
+                .open_workspace(workspace_path)
+                .await
+                .map_err(|e| format!("Failed to open workspace: {e}"))?
+        }
+    };
 
     let workspace_id = workspace.workspace_id.clone();
     let profile = state.config.default_profile();
 
-    let session_id = state
-        .runtime
-        .start_session(agent_core::StartSessionRequest {
-            workspace_id: workspace_id.clone(),
-            model_profile: profile.clone(),
-        })
-        .await
-        .map_err(|e| format!("Failed to start session: {e}"))?;
+    // Try to restore an existing session, or create a new one
+    let session_id = {
+        let sessions = state
+            .runtime
+            .list_sessions(&workspace_id)
+            .await
+            .map_err(|e| format!("Failed to list sessions: {e}"))?;
+        if let Some(last) = sessions.last() {
+            last.session_id.clone()
+        } else {
+            state
+                .runtime
+                .start_session(agent_core::StartSessionRequest {
+                    workspace_id: workspace_id.clone(),
+                    model_profile: profile.clone(),
+                })
+                .await
+                .map_err(|e| format!("Failed to start session: {e}"))?
+        }
+    };
 
-    // Spawn event forwarder immediately — the broadcast channel retains
-    // recent events so the AgentTaskCreated should still be delivered.
+    // Spawn event forwarder for all sessions
     {
         let mut handle = state.forwarder_handle.lock().await;
-        *handle = Some(spawn_event_forwarder(
-            &state.runtime,
-            session_id.clone(),
-            app_handle,
-        ));
+        *handle = Some(spawn_event_forwarder(&state.runtime, &app_handle));
     }
 
     // Store workspace and session info
@@ -156,7 +175,7 @@ pub async fn start_session(
 
     let title = format!("Session using {profile}");
 
-    // Switch to the new session (spawns new forwarder)
+    // Switch to the new session (no forwarder respawn needed with subscribe_all)
     switch_session_inner(&state, session_id.clone(), &app_handle).await?;
 
     Ok(SessionInfoResponse {
@@ -435,34 +454,18 @@ pub async fn restore_workspace(
     }
     Ok(())
 }
-/// Inner helper: abort old forwarder, spawn new one, update current session.
+
+/// Inner helper: update current session.
+/// No forwarder respawning needed since we use subscribe_all().
 async fn switch_session_inner(
     state: &GuiState,
     session_id: agent_core::SessionId,
-    app_handle: &tauri::AppHandle,
+    _app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
-    // Abort existing forwarder
-    {
-        let mut handle = state.forwarder_handle.lock().await;
-        if let Some(h) = handle.take() {
-            h.abort();
-        }
-    }
-
     // Update current session
     {
         let mut current = state.current_session_id.lock().await;
-        *current = Some(session_id.clone());
-    }
-
-    // Spawn new forwarder for the target session
-    {
-        let mut handle = state.forwarder_handle.lock().await;
-        *handle = Some(spawn_event_forwarder(
-            &state.runtime,
-            session_id,
-            app_handle.clone(),
-        ));
+        *current = Some(session_id);
     }
 
     Ok(())
