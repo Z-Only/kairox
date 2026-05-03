@@ -1,7 +1,8 @@
 //! Integration test: every EventPayload variant round-trips through JSON serde.
 
 use agent_core::{
-    AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId, WorkspaceId,
+    AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, SessionId, TaskId,
+    WorkspaceId,
 };
 use chrono::TimeZone;
 
@@ -39,9 +40,12 @@ fn user_message_added_roundtrips() {
 
 #[test]
 fn agent_task_created_roundtrips() {
+    let dep = TaskId::new();
     let event = make_event(EventPayload::AgentTaskCreated {
         task_id: TaskId::new(),
         title: "inspect repo".into(),
+        role: AgentRole::Planner,
+        dependencies: vec![dep.clone()],
     });
     assert_eq!(roundtrip(&event), event);
 }

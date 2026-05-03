@@ -211,6 +211,8 @@ where
             EventPayload::AgentTaskCreated {
                 task_id: agent_core::TaskId::new(),
                 title: format!("Session using {}", request.model_profile),
+                role: agent_core::AgentRole::Planner,
+                dependencies: vec![],
             },
         );
         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;

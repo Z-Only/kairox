@@ -1,4 +1,5 @@
 use crate::ids::{AgentId, SessionId, TaskId, WorkspaceId};
+use crate::AgentRole;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +23,8 @@ pub enum EventPayload {
     AgentTaskCreated {
         task_id: TaskId,
         title: String,
+        role: AgentRole,
+        dependencies: Vec<TaskId>,
     },
     AgentTaskStarted {
         task_id: TaskId,

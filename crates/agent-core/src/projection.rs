@@ -57,7 +57,7 @@ impl SessionProjection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AgentId, EventPayload, PrivacyClassification, SessionId, WorkspaceId};
+    use crate::{AgentId, AgentRole, EventPayload, PrivacyClassification, SessionId, WorkspaceId};
 
     #[test]
     fn projects_user_and_assistant_messages() {
@@ -147,6 +147,8 @@ mod tests {
                 EventPayload::AgentTaskCreated {
                     task_id,
                     title: "inspect repo".into(),
+                    role: AgentRole::Planner,
+                    dependencies: vec![],
                 },
             ),
             DomainEvent::new(
