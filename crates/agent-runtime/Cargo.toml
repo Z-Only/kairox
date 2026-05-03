@@ -24,3 +24,4 @@ chrono.workspace = true
 [dev-dependencies]
 agent-tools = { path = "../agent-tools" }
 agent-memory = { path = "../agent-memory" }
+sqlx = { workspace = true }
