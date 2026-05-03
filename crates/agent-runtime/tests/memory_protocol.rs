@@ -29,10 +29,9 @@ async fn runtime_with_memory(
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(model_responses);
     let mem_store = SqliteMemoryStore::new(memory_pool().await).await.unwrap();
-    let runtime = LocalRuntime::new(store, model)
+    LocalRuntime::new(store, model)
         .with_permission_mode(permission_mode)
-        .with_memory_store(Arc::new(mem_store));
-    runtime
+        .with_memory_store(Arc::new(mem_store))
 }
 
 /// Helper: open a workspace and start a session, returning (workspace_id, session_id).
