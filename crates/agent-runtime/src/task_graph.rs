@@ -95,4 +95,88 @@ mod tests {
         graph.mark_completed(&plan).unwrap();
         assert_eq!(graph.ready_tasks(), vec![work]);
     }
+
+    #[test]
+    fn empty_graph_has_no_ready_tasks() {
+        let graph = TaskGraph::default();
+        assert!(graph.ready_tasks().is_empty());
+    }
+
+    #[test]
+    fn independent_tasks_are_all_ready() {
+        let mut graph = TaskGraph::default();
+        let t1 = graph.add_task("task 1", AgentRole::Worker, vec![]);
+        let t2 = graph.add_task("task 2", AgentRole::Worker, vec![]);
+
+        let mut ready = graph.ready_tasks();
+        ready.sort_by_key(|id| id.to_string());
+        let mut expected = vec![t1, t2];
+        expected.sort_by_key(|id| id.to_string());
+        assert_eq!(ready, expected);
+    }
+
+    #[test]
+    fn diamond_dependency_unblocks_after_all_parents_complete() {
+        let mut graph = TaskGraph::default();
+        let a = graph.add_task("A", AgentRole::Planner, vec![]);
+        let b = graph.add_task("B", AgentRole::Worker, vec![a.clone()]);
+        let c = graph.add_task("C", AgentRole::Worker, vec![a.clone()]);
+        let d = graph.add_task("D", AgentRole::Reviewer, vec![b.clone(), c.clone()]);
+
+        assert_eq!(graph.ready_tasks(), vec![a.clone()]);
+
+        graph.mark_completed(&a).unwrap();
+        let mut ready = graph.ready_tasks();
+        ready.sort_by_key(|id| id.to_string());
+        let mut expected = vec![b.clone(), c.clone()];
+        expected.sort_by_key(|id| id.to_string());
+        assert_eq!(ready, expected);
+
+        graph.mark_completed(&b).unwrap();
+        assert_eq!(graph.ready_tasks(), vec![c.clone()]);
+
+        graph.mark_completed(&c).unwrap();
+        assert_eq!(graph.ready_tasks(), vec![d]);
+    }
+
+    #[test]
+    fn mark_completed_unknown_task_returns_error() {
+        let mut graph = TaskGraph::default();
+        let unknown_id = TaskId::new();
+        let result = graph.mark_completed(&unknown_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn partial_completion_only_unblocks_fully_resolved() {
+        let mut graph = TaskGraph::default();
+        let a = graph.add_task("A", AgentRole::Planner, vec![]);
+        let b = graph.add_task("B", AgentRole::Worker, vec![]);
+        let c = graph.add_task("C", AgentRole::Reviewer, vec![a.clone(), b.clone()]);
+
+        assert_eq!(graph.ready_tasks().len(), 2);
+
+        graph.mark_completed(&a).unwrap();
+        assert_eq!(graph.ready_tasks(), vec![b.clone()]);
+
+        graph.mark_completed(&b).unwrap();
+        assert_eq!(graph.ready_tasks(), vec![c]);
+    }
+
+    #[test]
+    fn multiple_tasks_share_dependency() {
+        let mut graph = TaskGraph::default();
+        let a = graph.add_task("A", AgentRole::Planner, vec![]);
+        let b = graph.add_task("B", AgentRole::Worker, vec![a.clone()]);
+        let c = graph.add_task("C", AgentRole::Worker, vec![a.clone()]);
+
+        assert_eq!(graph.ready_tasks(), vec![a.clone()]);
+
+        graph.mark_completed(&a).unwrap();
+        let mut ready = graph.ready_tasks();
+        ready.sort_by_key(|id| id.to_string());
+        let mut expected = vec![b, c];
+        expected.sort_by_key(|id| id.to_string());
+        assert_eq!(ready, expected);
+    }
 }
