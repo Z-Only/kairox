@@ -123,7 +123,8 @@ describe("setProjection", () => {
       ],
       task_titles: ["task 1"],
       token_stream: "",
-      cancelled: false
+      cancelled: false,
+      task_graph: { tasks: [] }
     });
 
     expect(sessionState.projection.messages).toHaveLength(2);

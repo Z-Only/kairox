@@ -16,6 +16,9 @@ pub enum EventPayload {
     WorkspaceOpened {
         path: String,
     },
+    SessionInitialized {
+        model_profile: String,
+    },
     UserMessageAdded {
         message_id: String,
         content: String,
@@ -121,6 +124,7 @@ impl EventPayload {
     pub fn event_type(&self) -> &'static str {
         match self {
             Self::WorkspaceOpened { .. } => "WorkspaceOpened",
+            Self::SessionInitialized { .. } => "SessionInitialized",
             Self::UserMessageAdded { .. } => "UserMessageAdded",
             Self::AgentTaskCreated { .. } => "AgentTaskCreated",
             Self::AgentTaskStarted { .. } => "AgentTaskStarted",

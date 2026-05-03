@@ -385,12 +385,16 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
 
-            EventPayload::AgentTaskCreated { title, .. } => {
+            EventPayload::SessionInitialized { model_profile } => {
                 if let Some(session) = self.current_session_mut() {
                     if session.title.starts_with("Session using ") {
-                        session.title = title.clone();
+                        session.title = format!("Session using {}", model_profile);
                     }
                 }
+                self.state.render_scheduler.mark_dirty();
+            }
+
+            EventPayload::AgentTaskCreated { title, .. } => {
                 self.state.current_session.task_titles.push(title.clone());
                 self.state.render_scheduler.mark_dirty();
             }

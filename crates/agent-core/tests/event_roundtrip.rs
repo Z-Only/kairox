@@ -261,3 +261,11 @@ fn event_with_fixed_timestamp_roundtrips() {
     assert_eq!(rt.timestamp, event.timestamp);
     assert_eq!(rt.payload, event.payload);
 }
+
+#[test]
+fn session_initialized_roundtrips() {
+    let event = make_event(EventPayload::SessionInitialized {
+        model_profile: "fast".into(),
+    });
+    assert_eq!(roundtrip(&event), event);
+}

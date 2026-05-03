@@ -75,6 +75,9 @@ impl SessionProjection {
                 }
             }
             EventPayload::SessionCancelled { .. } => self.cancelled = true,
+            EventPayload::SessionInitialized { .. } => {
+                // Session metadata event — no projection state change needed
+            }
             _ => {}
         }
     }

@@ -8,6 +8,7 @@ export interface ProjectedMessage {
 export interface SessionProjection {
   messages: ProjectedMessage[];
   task_titles: string[];
+  task_graph: TaskGraphSnapshot;
   token_stream: string;
   cancelled: boolean;
 }
@@ -36,6 +37,7 @@ export interface TaskGraphSnapshot {
 
 export type EventPayload =
   | { type: "WorkspaceOpened"; path: string }
+  | { type: "SessionInitialized"; model_profile: string }
   | { type: "UserMessageAdded"; message_id: string; content: string }
   | {
       type: "AgentTaskCreated";

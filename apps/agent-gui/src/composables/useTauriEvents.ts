@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { DomainEvent } from "../types";
 import { sessionState, applyEvent } from "../stores/session";
 import { applyTraceEvent } from "./useTraceStore";
-import { refreshTaskGraph } from "../stores/taskGraph";
+import { taskGraphState } from "../stores/taskGraph";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -22,16 +22,77 @@ export function useTauriEvents() {
         applyEvent(domainEvent);
         applyTraceEvent(domainEvent);
 
-        // Refresh task graph on AgentTask* events.
-        // Always call refreshTaskGraph — its internal staleness guard
-        // prevents stale updates after the async invoke completes.
-        switch (domainEvent.payload.type) {
-          case "AgentTaskCreated":
-          case "AgentTaskStarted":
-          case "AgentTaskCompleted":
-          case "AgentTaskFailed":
-            refreshTaskGraph(sessionId);
+        // Update task graph state from real-time events.
+        // This mirrors the Rust SessionProjection::apply() logic
+        // so the Tasks panel updates immediately without an async invoke.
+        const p = domainEvent.payload;
+        switch (p.type) {
+          case "AgentTaskCreated": {
+            const typed = p as {
+              type: "AgentTaskCreated";
+              task_id: string;
+              title: string;
+              role: string;
+              dependencies: string[];
+            };
+            // Only add if not already present (dedup against projection load)
+            if (!taskGraphState.tasks.some((t) => t.id === typed.task_id)) {
+              taskGraphState.tasks.push({
+                id: typed.task_id,
+                title: typed.title,
+                role: typed.role as "Planner" | "Worker" | "Reviewer",
+                state: "Pending",
+                dependencies: typed.dependencies,
+                error: null
+              });
+              if (taskGraphState.currentSessionId === sessionId) {
+                // Trigger reactivity
+                taskGraphState.tasks = [...taskGraphState.tasks];
+              }
+            }
             break;
+          }
+          case "AgentTaskStarted": {
+            const typed = p as { type: "AgentTaskStarted"; task_id: string };
+            const task = taskGraphState.tasks.find(
+              (t) => t.id === typed.task_id
+            );
+            if (task) {
+              task.state = "Running";
+              taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            break;
+          }
+          case "AgentTaskCompleted": {
+            const typed = p as {
+              type: "AgentTaskCompleted";
+              task_id: string;
+            };
+            const task = taskGraphState.tasks.find(
+              (t) => t.id === typed.task_id
+            );
+            if (task) {
+              task.state = "Completed";
+              taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            break;
+          }
+          case "AgentTaskFailed": {
+            const typed = p as {
+              type: "AgentTaskFailed";
+              task_id: string;
+              error: string;
+            };
+            const task = taskGraphState.tasks.find(
+              (t) => t.id === typed.task_id
+            );
+            if (task) {
+              task.state = "Failed";
+              task.error = typed.error;
+              taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            break;
+          }
         }
       }
     });

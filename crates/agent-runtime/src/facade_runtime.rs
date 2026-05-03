@@ -211,11 +211,8 @@ where
             session_id.clone(),
             AgentId::system(),
             PrivacyClassification::MinimalTrace,
-            EventPayload::AgentTaskCreated {
-                task_id: agent_core::TaskId::new(),
-                title: format!("Session using {}", request.model_profile),
-                role: agent_core::AgentRole::Planner,
-                dependencies: vec![],
+            EventPayload::SessionInitialized {
+                model_profile: request.model_profile.clone(),
             },
         );
         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
@@ -278,15 +275,12 @@ where
         };
 
         // Use the session's model profile to route to the correct model client.
-        // When sessions are created via start_session(), the profile is recorded
-        // in the AgentTaskCreated event title as "Session using {profile}".
-        // We extract it, or fall back to "fake" for backward compatibility.
+        // The model profile is recorded in the SessionInitialized event.
+        // Fall back to "fake" for backward compatibility with pre-0.7 sessions.
         let model_profile = session_events
             .iter()
             .find_map(|e| match &e.payload {
-                EventPayload::AgentTaskCreated { title, .. } => {
-                    title.strip_prefix("Session using ").map(|s| s.to_string())
-                }
+                EventPayload::SessionInitialized { model_profile } => Some(model_profile.clone()),
                 _ => None,
             })
             .unwrap_or_else(|| "fake".to_string());

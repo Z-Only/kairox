@@ -7,11 +7,24 @@ export const traceState = reactive({
   density: "L2" as "L1" | "L2" | "L3"
 });
 
+/** Set of entry IDs currently in the trace, used for dedup. */
+const entryIds = new Set<string>();
+
 function updateEntry(id: string, updates: Partial<TraceEntryData>) {
   const idx = traceState.entries.findIndex((e) => e.id === id);
   if (idx !== -1) {
     Object.assign(traceState.entries[idx], updates);
   }
+}
+
+/** Add an entry only if its ID is not already present. Returns true if added. */
+function pushEntry(entry: TraceEntryData): boolean {
+  if (entryIds.has(entry.id)) {
+    return false;
+  }
+  entryIds.add(entry.id);
+  traceState.entries.push(entry);
+  return true;
 }
 
 /** Store the raw JSON of the event for L3 display. */
@@ -34,7 +47,7 @@ export function applyTraceEvent(event: DomainEvent) {
         role: string;
         dependencies: string[];
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.task_id,
         kind: "tool",
         status: "completed",
@@ -53,7 +66,7 @@ export function applyTraceEvent(event: DomainEvent) {
         message_id: string;
         content: string;
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.message_id,
         kind: "tool",
         status: "completed",
@@ -73,7 +86,9 @@ export function applyTraceEvent(event: DomainEvent) {
         token_estimate: number;
         sources: string[];
       };
-      traceState.entries.push({
+      // ContextAssembled events have no unique ID; use a generated one
+      // that cannot conflict with real-time events (different format).
+      pushEntry({
         id: `ctx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         kind: "tool",
         status: "completed",
@@ -93,7 +108,8 @@ export function applyTraceEvent(event: DomainEvent) {
         model_profile: string;
         model_id: string;
       };
-      traceState.entries.push({
+      // ModelRequestStarted events have no durable ID; use a generated one.
+      pushEntry({
         id: `model-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         kind: "tool",
         status: "running",
@@ -126,8 +142,8 @@ export function applyTraceEvent(event: DomainEvent) {
         runningModel.durationMs = Date.now() - runningModel.startedAt;
         runningModel.outputPreview = typed.content.slice(0, 200);
         runningModel.rawEvent = rawJson(event);
-      } else {
-        traceState.entries.push({
+      } else if (!entryIds.has(typed.message_id)) {
+        pushEntry({
           id: typed.message_id,
           kind: "tool",
           status: "completed",
@@ -148,7 +164,7 @@ export function applyTraceEvent(event: DomainEvent) {
         tool_call_id: string;
         tool_id: string;
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.tool_call_id,
         kind: "tool",
         status: "running",
@@ -167,7 +183,7 @@ export function applyTraceEvent(event: DomainEvent) {
         invocation_id: string;
         tool_id: string;
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.invocation_id,
         kind: "tool",
         status: "running",
@@ -222,7 +238,7 @@ export function applyTraceEvent(event: DomainEvent) {
         tool_id: string;
         preview: string;
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.request_id,
         kind: "permission",
         status: "pending",
@@ -261,7 +277,7 @@ export function applyTraceEvent(event: DomainEvent) {
         key: string | null;
         content: string;
       };
-      traceState.entries.push({
+      pushEntry({
         id: typed.memory_id,
         kind: "memory",
         status: "pending",
@@ -306,4 +322,5 @@ export function applyTraceEvent(event: DomainEvent) {
 
 export function clearTrace() {
   traceState.entries = [];
+  entryIds.clear();
 }

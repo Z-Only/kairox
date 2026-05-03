@@ -10,7 +10,7 @@ import {
   renameSession
 } from "../stores/session";
 import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
-import { refreshTaskGraph, clearTaskGraph } from "../stores/taskGraph";
+import { clearTaskGraph } from "../stores/taskGraph";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
 const showNewSession = ref(false);
@@ -43,7 +43,6 @@ async function switchToSession(sessionId: string) {
     });
     setProjection(projection);
     sessionState.currentSessionId = sessionId;
-    refreshTaskGraph(sessionId);
     const session = sessionState.sessions.find((s) => s.id === sessionId);
     if (session) {
       sessionState.currentProfile = session.profile;

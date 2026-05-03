@@ -6,7 +6,7 @@ import type {
   DomainEvent
 } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
-import { clearTaskGraph, refreshTaskGraph } from "./taskGraph";
+import { taskGraphState, clearTaskGraph } from "./taskGraph";
 
 /** Report a send error to the UI when the background task fails. */
 export function reportSendError(message: string) {
@@ -25,6 +25,7 @@ export const sessionState = reactive({
   projection: {
     messages: [],
     task_titles: [],
+    task_graph: { tasks: [] },
     token_stream: "",
     cancelled: false
   } as SessionProjection,
@@ -91,6 +92,7 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     }
+    case "SessionInitialized":
     case "ContextAssembled":
     case "ModelRequestStarted":
     case "ModelToolCallRequested":
@@ -113,10 +115,16 @@ export function applyEvent(event: DomainEvent) {
 
 /**
  * Replace the current projection entirely (used after session switch).
+ * Also populates the task graph from the projection's embedded task_graph.
  */
 export function setProjection(projection: SessionProjection) {
   sessionState.projection = projection;
   sessionState.isStreaming = false;
+  // Populate task graph from the projection data (rebuilt from persistent events)
+  if (projection.task_graph?.tasks) {
+    taskGraphState.tasks = projection.task_graph.tasks;
+    taskGraphState.currentSessionId = sessionState.currentSessionId;
+  }
 }
 
 /**
@@ -126,6 +134,7 @@ export function resetProjection() {
   sessionState.projection = {
     messages: [],
     task_titles: [],
+    task_graph: { tasks: [] },
     token_stream: "",
     cancelled: false
   };
@@ -152,7 +161,6 @@ export async function deleteSession(sessionId: string) {
             sessionId: firstSession.id
           });
           setProjection(projection);
-          refreshTaskGraph(firstSession.id);
           const traceStrings: string[] = await invoke("get_trace", {
             sessionId: firstSession.id
           });
@@ -217,7 +225,6 @@ export async function recoverSessions(): Promise<boolean> {
           sessionId: firstSession.id
         });
         setProjection(projection);
-        refreshTaskGraph(firstSession.id);
         const traceStrings: string[] = await invoke("get_trace", {
           sessionId: firstSession.id
         });

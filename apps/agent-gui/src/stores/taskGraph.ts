@@ -1,5 +1,4 @@
 import { reactive } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import type { TaskSnapshot } from "../types";
 
 export const taskGraphState = reactive({
@@ -8,24 +7,10 @@ export const taskGraphState = reactive({
   loading: false
 });
 
-export async function refreshTaskGraph(sessionId: string) {
+/** Set task graph data directly (e.g., from SessionProjection.task_graph). */
+export function setTaskGraph(tasks: TaskSnapshot[], sessionId: string | null) {
+  taskGraphState.tasks = tasks;
   taskGraphState.currentSessionId = sessionId;
-  taskGraphState.loading = true;
-  try {
-    const tasks: TaskSnapshot[] = await invoke("get_task_graph", {
-      sessionId
-    });
-    if (taskGraphState.currentSessionId === sessionId) {
-      taskGraphState.tasks = tasks;
-    }
-  } catch (e) {
-    console.error("Failed to load task graph:", e);
-    if (taskGraphState.currentSessionId === sessionId) {
-      taskGraphState.tasks = [];
-    }
-  } finally {
-    taskGraphState.loading = false;
-  }
 }
 
 export function clearTaskGraph() {
