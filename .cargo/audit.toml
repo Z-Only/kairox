@@ -1,0 +1,13 @@
+# Cargo audit configuration
+# https://docs.rs/cargo-audit/latest/cargo_audit/config/index.html
+
+[advisories]
+ignore = [
+    # RUSTSEC-2024-0429: Unsoundness in glib::VariantStrIter
+    # glib 0.18.5 is a transitive dependency via tauri -> gtk ^0.18 -> glib ^0.18.
+    # Tauri v2.11.0 pins gtk to ^0.18, preventing a glib upgrade to 0.20+.
+    # The vulnerable VariantStrIter API is NOT used by Kairox or any dependency
+    # in the tree — Tauri only uses glib for GLib event loop and GTK integration.
+    # Upstream tracking: https://github.com/tauri-apps/tauri/issues/12564
+    "RUSTSEC-2024-0429",
+]
