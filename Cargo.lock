@@ -120,6 +120,7 @@ dependencies = [
  "chrono",
  "futures",
  "serde_json",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
