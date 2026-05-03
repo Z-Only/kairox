@@ -31,7 +31,7 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Trait boundaries: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool` — use `Arc<dyn Trait>` or generics
 - Async: Tokio + `async_trait`
 - Testing: `FakeModelClient` for runtime, in-memory SQLite for stores
-- Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `app_handle.emit()` + `useTauriEvents.ts`
+- Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `event_forwarder.rs` + `useTauriEvents.ts` (filters by session)
 - When adding Rust `EventPayload` variants, also update `apps/agent-gui/src/types/index.ts`
 
 ## Vue conventions
@@ -55,4 +55,5 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 - Setting `version` in individual crate Cargo.toml
 - Hardcoding API keys (use agent-config's `api_key_env`)
 - Forgetting to update both Rust and TypeScript types when changing events
+- Forgetting to register new Tauri commands in both `generate_handler!` (invocation) and `collect_commands!` (specta type-gen)
 - Skipping `pnpm install` after creating a git worktree

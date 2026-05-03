@@ -9,8 +9,8 @@
 - ✅ Interactive permission mode with per-request approval
 - ✅ Harden CI/CD: parallel jobs, type-sync checks, shared Rust cache
 - ✅ Integrate tauri-specta for auto-generated TypeScript command bindings
-- Complete the GUI shell with full session management UX
-- Add richer session state visualization and task graph inspection
+- ✅ Complete the GUI shell with full session management UX (persistent storage, switching, rename, delete, startup recovery)
+- Add richer session state visualization and task graph inspection (TUI session switching now persist across restarts)
 - Improve packaging outputs and release metadata (updater support)
 
 ## Mid term

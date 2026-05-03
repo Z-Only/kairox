@@ -42,17 +42,17 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 
 ### Crate responsibilities
 
-| Crate             | Purpose                                                                          | Key types                                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections           | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision` |
-| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions    | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `TaskGraph`                          |
-| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)          | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                         |
-| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs, patch, search, MCP) | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`                             |
-| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken     | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                |
-| **agent-store**   | SQLite-backed event store (append-only)                                          | `EventStore` trait, `SqliteEventStore`                                                                     |
-| **agent-config**  | TOML config loading, model profile discovery, API key resolution                 | `ProfileDef`, `load_from_str`, `build_router`                                                              |
-| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace)             | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                       |
-| **agent-gui**     | Tauri 2 + Vue 3 desktop app (Tauri commands → Vue Pinia stores → components)     | `commands.rs`, `GuiState`, Vue: `session.ts` store, `useTraceStore.ts` composable                          |
+| Crate             | Purpose                                                                                  | Key types                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections                   | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`  |
+| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions            | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `TaskGraph`                           |
+| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                  | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                          |
+| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs, patch, search, MCP)         | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`                              |
+| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken             | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                 |
+| **agent-store**   | SQLite-backed event store (append-only) + metadata tables for workspace/session tracking | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, metadata repos                                       |
+| **agent-config**  | TOML config loading, model profile discovery, API key resolution                         | `ProfileDef`, `load_from_str`, `build_router`                                                               |
+| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace)                     | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                        |
+| **agent-gui**     | Tauri 2 + Vue 3 desktop app with persistent session management                           | `commands.rs`, `GuiState`, `event_forwarder.rs`, Vue: `session.ts`, `useTraceStore.ts`, `ConfirmDialog.vue` |
 
 ## Coding conventions
 
@@ -80,9 +80,9 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 The GUI follows this pattern:
 
 1. Rust `commands.rs` defines `#[tauri::command]` functions that call `AppFacade` methods
-2. `lib.rs` registers all commands and manages `GuiState` (holds `Arc<LocalRuntime<...>>`)
+2. `lib.rs` registers all commands, manages `GuiState` (holds `Arc<LocalRuntime<...>>`), and starts the event forwarder
 3. Vue frontend calls `invoke("command_name", { args })` via `@tauri-apps/api`
-4. Events flow Rust→Vue via `app_handle.emit("event-name", payload)` and `useTauriEvents.ts` listener
+4. Events flow Rust→Vue via `event_forwarder.rs` (using `subscribe_all()`) → `app_handle.emit()` → `useTauriEvents.ts` listener (filters by `currentSessionId`)
 
 ### Permission system
 
@@ -123,15 +123,15 @@ kairox/
 │   ├── agent-models/       # ModelClient trait + adapters
 │   ├── agent-tools/        # Tool registry, permission engine
 │   ├── agent-memory/       # Memory store, context assembler
-│   ├── agent-store/        # SQLite event store
+│   ├── agent-store/        # SQLite event store + metadata tables
 │   ├── agent-config/       # Config loading, profile discovery
 │   └── agent-tui/          # ratatui TUI app
 ├── apps/
 │   └── agent-gui/          # Tauri 2 + Vue 3 desktop app
 │       ├── src/            # Vue frontend
-│       │   ├── components/ # ChatPanel, TraceTimeline, PermissionPrompt, etc.
-│       │   ├── stores/     # Pinia stores (session.ts)
-│       │   ├── composables/# useTauriEvents, useTraceStore
+│       │   ├── components/ # ChatPanel, TraceTimeline, PermissionPrompt, SessionsSidebar, ConfirmDialog
+│       │   ├── stores/     # Pinia stores (session.ts with persistent SessionMeta)
+│       │   ├── composables/# useTauriEvents (session-filtered), useTraceStore
 │       │   └── types/      # TypeScript type definitions
 │       ├── src-tauri/      # Rust Tauri backend
 │       │   ├── src/        # commands.rs, app_state.rs, event_forwarder.rs, lib.rs
@@ -268,7 +268,8 @@ just gen-types
 1. Add `#[specta::specta]` attribute to the command function
 2. Add the command to the `collect_commands![]` macro in `src/specta.rs`
 3. Add any new response types with `#[derive(specta::Type)]`
-4. Run `just gen-types` to regenerate the TypeScript bindings
+4. Add the command to `generate_handler![]` in `src/lib.rs` so the frontend can invoke it
+5. Run `just gen-types` to regenerate the TypeScript bindings
 
 ### When adding a new feature
 
@@ -301,6 +302,7 @@ just gen-types
 - **Don't forget `pnpm install` after creating a worktree**: husky hooks won't fire otherwise
 - **Don't hardcode API keys**: use `agent-config`'s `api_key_env` to reference environment variables
 - **Don't forget to update both Rust and TypeScript types** when changing the event/domain model
+- **Don't forget to register new Tauri commands in both `generate_handler!` (for invocation) and `collect_commands!` (for specta type generation)**; missing either one causes runtime or type-gen failures
 
 ## Privacy defaults
 

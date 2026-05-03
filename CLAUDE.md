@@ -15,14 +15,14 @@
 | Crate         | Role                                     | Key trait/type                     |
 | ------------- | ---------------------------------------- | ---------------------------------- |
 | agent-core    | Domain types, events, facade             | `AppFacade`                        |
-| agent-store   | SQLite event store                       | `EventStore`                       |
+| agent-store   | SQLite event store + metadata            | `EventStore`                       |
 | agent-memory  | Memory & context assembly                | `MemoryStore`                      |
 | agent-models  | LLM adapters (OpenAI, Anthropic, Ollama) | `ModelClient`                      |
 | agent-tools   | Tool registry & permissions              | `ToolRegistry`, `PermissionEngine` |
 | agent-config  | TOML config, profile discovery           | `ProfileDef`                       |
 | agent-runtime | Orchestrates agent loop                  | `LocalRuntime<S,M>`                |
 | agent-tui     | Terminal UI (ratatui)                    | `App`                              |
-| agent-gui     | Desktop app (Tauri + Vue)                | `commands.rs` → Pinia stores       |
+| agent-gui     | Desktop app (Tauri + Vue), sessions      | `commands.rs` → Pinia stores       |
 
 ## Before starting work
 

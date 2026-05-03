@@ -63,7 +63,7 @@ graph TD
 - **Tool system** — built-in tools (shell, search, patch, fs) with 5-level permission control
 - **Config discovery** — TOML config with profile management and env-variable API keys
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
-- **GUI desktop app** — Tauri 2 + Vue 3 with session management, trace visualization, memory browser, and permission center
+- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, and permission center
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
 
@@ -81,7 +81,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development with a fully interactive TUI and a functional GUI featuring session management, trace visualization, memory browsing, and permission control. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
+Kairox is in active development with a fully interactive TUI and a functional GUI featuring persistent session management with switching, trace visualization, memory browsing, and permission control. Sessions persist across restarts via SQLite storage. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
 
 ## Requirements
 

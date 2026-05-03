@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.0] - 2026-05-02
+## [0.9.0] - 2026-05-03
+
+### 🚀 Features
+
+- **gui**: session management with persistent storage and switching (#35)
+
+### 📦 Dependencies
+
+- **deps**: add .cargo/audit.toml to ignore RUSTSEC-2024-0429 (glib)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: add devcontainer config to fix codespaces prebuild
+
+## [0.8.0] - 2026-05-03
 
 ### 🚀 Features
 
@@ -16,12 +30,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - **gui**: sync missing EventPayload variants with Rust, update docs
 - **ci**: add specta derive feature and remove dead specta-export main
+- **ci**: add default-run and binary entry for Tauri build, add cache-on-failure to rust-cache
 
 ### 📚 Documentation
 
 - rewrite AGENTS.md with comprehensive project context for AI assistants
 - add copilot-instructions.md and CLAUDE.md for AI coding assistants
 - update README, ROADMAP, CONTRIBUTING, SECURITY, releasing, and PR template
+- **readme**: remove hardcoded version number from Status section
+- **agents**: add reminder to complete full release flow after version bump
+- **specs**: add session management UX design spec
+- **plans**: add session management UX implementation plan
 
 ### 👷 CI
 
