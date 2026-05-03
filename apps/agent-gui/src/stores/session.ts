@@ -6,6 +6,7 @@ import type {
   DomainEvent
 } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
+import { clearTaskGraph, refreshTaskGraph } from "./taskGraph";
 
 /** Report a send error to the UI when the background task fails. */
 export function reportSendError(message: string) {
@@ -145,11 +146,13 @@ export async function deleteSession(sessionId: string) {
         sessionState.currentProfile = firstSession.profile;
         resetProjection();
         clearTrace();
+        clearTaskGraph();
         try {
           const projection: SessionProjection = await invoke("switch_session", {
             sessionId: firstSession.id
           });
           setProjection(projection);
+          refreshTaskGraph(firstSession.id);
           const traceStrings: string[] = await invoke("get_trace", {
             sessionId: firstSession.id
           });
@@ -167,6 +170,7 @@ export async function deleteSession(sessionId: string) {
         sessionState.currentSessionId = null;
         resetProjection();
         clearTrace();
+        clearTaskGraph();
       }
     }
   } catch (e) {
@@ -213,6 +217,7 @@ export async function recoverSessions(): Promise<boolean> {
           sessionId: firstSession.id
         });
         setProjection(projection);
+        refreshTaskGraph(firstSession.id);
         const traceStrings: string[] = await invoke("get_trace", {
           sessionId: firstSession.id
         });

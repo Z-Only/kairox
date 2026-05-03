@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { DomainEvent } from "../types";
 import { sessionState, applyEvent } from "../stores/session";
 import { applyTraceEvent } from "./useTraceStore";
-import { refreshTaskGraph, taskGraphState } from "../stores/taskGraph";
+import { refreshTaskGraph } from "../stores/taskGraph";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -22,15 +22,15 @@ export function useTauriEvents() {
         applyEvent(domainEvent);
         applyTraceEvent(domainEvent);
 
-        // Refresh task graph on AgentTask* events
+        // Refresh task graph on AgentTask* events.
+        // Always call refreshTaskGraph — its internal staleness guard
+        // prevents stale updates after the async invoke completes.
         switch (domainEvent.payload.type) {
           case "AgentTaskCreated":
           case "AgentTaskStarted":
           case "AgentTaskCompleted":
           case "AgentTaskFailed":
-            if (taskGraphState.currentSessionId === sessionId) {
-              refreshTaskGraph(sessionId);
-            }
+            refreshTaskGraph(sessionId);
             break;
         }
       }

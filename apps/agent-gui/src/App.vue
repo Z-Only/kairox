@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useTauriEvents } from "./composables/useTauriEvents";
 import { sessionState, recoverSessions } from "./stores/session";
+import { refreshTaskGraph } from "./stores/taskGraph";
 import ChatPanel from "./components/ChatPanel.vue";
 import SessionsSidebar from "./components/SessionsSidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
@@ -25,6 +26,8 @@ onMounted(async () => {
         const firstSession = sessionState.sessions[0];
         sessionState.currentSessionId = firstSession.id;
         sessionState.currentProfile = firstSession.profile;
+        // Load task graph for the initial session
+        refreshTaskGraph(firstSession.id);
       }
     } catch (e) {
       console.error("Failed to initialize workspace:", e);
