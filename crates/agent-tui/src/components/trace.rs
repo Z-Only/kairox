@@ -5,7 +5,7 @@ use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
 
 #[allow(dead_code)]
@@ -55,6 +55,17 @@ pub enum TraceStatus {
 pub enum TraceKind {
     Tool,
     Memory,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct TaskTreeNode {
+    pub id: String,
+    pub title: String,
+    pub role: String,
+    pub status: TraceStatus,
+    pub error: Option<String>,
+    pub children: Vec<TaskTreeNode>,
 }
 
 impl std::fmt::Display for TraceStatus {
@@ -153,6 +164,68 @@ pub fn extract_tool_traces(events: &[agent_core::DomainEvent]) -> Vec<TraceEntry
     traces
 }
 
+pub fn extract_task_traces(events: &[agent_core::DomainEvent]) -> Vec<TaskTreeNode> {
+    struct TaskInfo {
+        id: String,
+        title: String,
+        role: String,
+        status: TraceStatus,
+        error: Option<String>,
+    }
+
+    let mut tasks: Vec<TaskInfo> = Vec::new();
+
+    for event in events {
+        match &event.payload {
+            EventPayload::AgentTaskCreated {
+                task_id,
+                title,
+                role,
+                dependencies: _,
+            } => {
+                let role_str = format!("{:?}", role);
+                tasks.push(TaskInfo {
+                    id: task_id.to_string(),
+                    title: title.clone(),
+                    role: role_str,
+                    status: TraceStatus::Pending,
+                    error: None,
+                });
+            }
+            EventPayload::AgentTaskStarted { task_id } => {
+                if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id.to_string()) {
+                    t.status = TraceStatus::Running;
+                }
+            }
+            EventPayload::AgentTaskCompleted { task_id } => {
+                if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id.to_string()) {
+                    t.status = TraceStatus::Success;
+                }
+            }
+            EventPayload::AgentTaskFailed { task_id, error } => {
+                if let Some(t) = tasks.iter_mut().find(|t| t.id == task_id.to_string()) {
+                    t.status = TraceStatus::Failed;
+                    t.error = Some(error.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Build flat tree — children will be attached when full dependency resolution is wired
+    tasks
+        .into_iter()
+        .map(|t| TaskTreeNode {
+            id: t.id,
+            title: t.title,
+            role: t.role,
+            status: t.status,
+            error: t.error,
+            children: Vec::new(),
+        })
+        .collect()
+}
+
 pub fn render_trace_l1(area: Rect, frame: &mut Frame, traces: &[TraceEntry], focused: bool) {
     let border_style = if focused {
         Style::default().fg(Color::Cyan)
@@ -196,6 +269,67 @@ pub fn render_trace_l1(area: Rect, frame: &mut Frame, traces: &[TraceEntry], foc
             .border_style(border_style),
     );
     frame.render_widget(list, area);
+}
+
+pub fn render_task_graph(area: Rect, frame: &mut Frame, tasks: &[TaskTreeNode], focused: bool) {
+    let border_style = if focused {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let items: Vec<ListItem> = tasks
+        .iter()
+        .map(|task| {
+            let status_color = match task.status {
+                TraceStatus::Running => Color::Yellow,
+                TraceStatus::Success => Color::Green,
+                TraceStatus::Failed => Color::Red,
+                TraceStatus::Pending => Color::Magenta,
+            };
+            let role_label = match task.role.as_str() {
+                "Planner" => "P",
+                "Worker" => "W",
+                "Reviewer" => "R",
+                _ => "?",
+            };
+            let line = Line::from(vec![
+                Span::styled(format!("{} ", role_label), Style::default().fg(Color::Blue)),
+                Span::styled(&task.title, Style::default()),
+                Span::styled(
+                    format!(" {}", task.status),
+                    Style::default().fg(status_color),
+                ),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::LEFT)
+            .title(" Tasks ")
+            .border_style(border_style),
+    );
+    frame.render_widget(list, area);
+}
+
+pub fn render_task_graph_placeholder(area: Rect, frame: &mut Frame, focused: bool) {
+    let border_style = if focused {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    let paragraph = Paragraph::new(
+        "Task Graph view\n\nSwitch density (F5) for event details.\n\n(Full task graph integration pending)",
+    )
+    .block(
+        Block::default()
+            .borders(Borders::LEFT)
+            .title(" Tasks ")
+            .border_style(border_style),
+    );
+    frame.render_widget(paragraph, area);
 }
 
 impl Component for TracePanel {
@@ -292,7 +426,11 @@ mod tests {
     fn trace_density_cycles() {
         assert_eq!(TraceDensity::Summary.next(), TraceDensity::Expanded);
         assert_eq!(TraceDensity::Expanded.next(), TraceDensity::FullEventStream);
-        assert_eq!(TraceDensity::FullEventStream.next(), TraceDensity::Summary);
+        assert_eq!(
+            TraceDensity::FullEventStream.next(),
+            TraceDensity::TaskGraph
+        );
+        assert_eq!(TraceDensity::TaskGraph.next(), TraceDensity::Summary);
     }
 
     #[test]
@@ -300,5 +438,59 @@ mod tests {
         assert_eq!(format!("{}", TraceStatus::Running), "⏳");
         assert_eq!(format!("{}", TraceStatus::Success), "✓");
         assert_eq!(format!("{}", TraceStatus::Failed), "✕");
+    }
+
+    #[test]
+    fn extract_task_traces_from_events() {
+        use agent_core::{AgentRole, TaskId};
+
+        let task_id = TaskId::new();
+        let events = vec![
+            make_event(EventPayload::AgentTaskCreated {
+                task_id: task_id.clone(),
+                title: "Plan features".into(),
+                role: AgentRole::Planner,
+                dependencies: vec![],
+            }),
+            make_event(EventPayload::AgentTaskStarted {
+                task_id: task_id.clone(),
+            }),
+            make_event(EventPayload::AgentTaskCompleted {
+                task_id: task_id.clone(),
+            }),
+        ];
+
+        let tasks = extract_task_traces(&events);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "Plan features");
+        assert_eq!(tasks[0].role, "Planner");
+        assert_eq!(tasks[0].status, TraceStatus::Success);
+    }
+
+    #[test]
+    fn extract_task_traces_handles_failure() {
+        use agent_core::{AgentRole, TaskId};
+
+        let task_id = TaskId::new();
+        let events = vec![
+            make_event(EventPayload::AgentTaskCreated {
+                task_id: task_id.clone(),
+                title: "Run tests".into(),
+                role: AgentRole::Worker,
+                dependencies: vec![],
+            }),
+            make_event(EventPayload::AgentTaskStarted {
+                task_id: task_id.clone(),
+            }),
+            make_event(EventPayload::AgentTaskFailed {
+                task_id: task_id.clone(),
+                error: "timeout".into(),
+            }),
+        ];
+
+        let tasks = extract_task_traces(&events);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].status, TraceStatus::Failed);
+        assert_eq!(tasks[0].error, Some("timeout".into()));
     }
 }

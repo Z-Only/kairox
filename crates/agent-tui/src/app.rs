@@ -533,13 +533,34 @@ impl App {
 
         // Render trace
         if let Some(trace_area) = trace_area {
-            let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
-            crate::components::trace::render_trace_l1(
-                trace_area,
-                frame,
-                &traces,
-                self.trace.focused(),
-            );
+            match self.trace.density {
+                crate::keybindings::TraceDensity::TaskGraph => {
+                    let tasks = crate::components::trace::extract_task_traces(&self.domain_events);
+                    if tasks.is_empty() {
+                        crate::components::trace::render_task_graph_placeholder(
+                            trace_area,
+                            frame,
+                            self.trace.focused(),
+                        );
+                    } else {
+                        crate::components::trace::render_task_graph(
+                            trace_area,
+                            frame,
+                            &tasks,
+                            self.trace.focused(),
+                        );
+                    }
+                }
+                _ => {
+                    let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
+                    crate::components::trace::render_trace_l1(
+                        trace_area,
+                        frame,
+                        &traces,
+                        self.trace.focused(),
+                    );
+                }
+            }
         }
 
         // Render status bar
