@@ -41,6 +41,16 @@ pub struct ProfileDetailResponse {
     pub has_api_key: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct TaskSnapshotResponse {
+    pub id: String,
+    pub title: String,
+    pub role: String,
+    pub state: String,
+    pub dependencies: Vec<String>,
+    pub error: Option<String>,
+}
+
 impl From<MemoryEntry> for MemoryEntryResponse {
     fn from(e: MemoryEntry) -> Self {
         Self {
@@ -439,6 +449,32 @@ pub async fn get_profile_detail(
         local: info.local,
         has_api_key: info.has_api_key,
     })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_task_graph(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<Vec<TaskSnapshotResponse>, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    let snapshot = state
+        .runtime
+        .get_task_graph(sid)
+        .await
+        .map_err(|e| format!("Failed to get task graph: {e}"))?;
+    Ok(snapshot
+        .tasks
+        .into_iter()
+        .map(|t| TaskSnapshotResponse {
+            id: t.id.to_string(),
+            title: t.title,
+            role: format!("{:?}", t.role),
+            state: format!("{:?}", t.state),
+            dependencies: t.dependencies.iter().map(|d| d.to_string()).collect(),
+            error: t.error,
+        })
+        .collect())
 }
 
 #[tauri::command]
