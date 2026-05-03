@@ -1,3 +1,4 @@
+use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AppFacade, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
     SendMessageRequest, SessionId, StartSessionRequest, TraceEntry, WorkspaceId, WorkspaceInfo,
@@ -51,6 +52,7 @@ pub struct LocalRuntime<S, M> {
     pending_permissions:
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+    task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
 }
 
 impl<S, M> LocalRuntime<S, M> {
@@ -65,6 +67,7 @@ impl<S, M> LocalRuntime<S, M> {
             memory_store: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
+            task_graphs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -357,6 +360,49 @@ where
         let mut current_request = model_request;
         let mut iterations = 0;
 
+        // Create root task for this message
+        let root_title: String = if request.content.chars().count() > 50 {
+            let truncated: String = request.content.chars().take(50).collect();
+            format!("{truncated}...")
+        } else {
+            request.content.clone()
+        };
+        let root_task_id = {
+            let mut task_graphs = self.task_graphs.lock().await;
+            let graph = task_graphs
+                .entry(request.session_id.to_string())
+                .or_insert_with(TaskGraph::default);
+            let root_task = graph.add_task(&root_title, agent_core::AgentRole::Planner, vec![]);
+            graph.mark_running(&root_task).unwrap();
+            root_task
+        };
+
+        // Emit AgentTaskCreated and AgentTaskStarted for root task
+        let task_created = DomainEvent::new(
+            request.workspace_id.clone(),
+            request.session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::AgentTaskCreated {
+                task_id: root_task_id.clone(),
+                title: root_title,
+                role: agent_core::AgentRole::Planner,
+                dependencies: vec![],
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &task_created).await?;
+
+        let task_started = DomainEvent::new(
+            request.workspace_id.clone(),
+            request.session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::AgentTaskStarted {
+                task_id: root_task_id.clone(),
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &task_started).await?;
+
         loop {
             if iterations >= MAX_AGENT_LOOP_ITERATIONS {
                 let event = DomainEvent::new(
@@ -370,6 +416,26 @@ where
                     },
                 );
                 append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
+                // Mark root task as failed due to max iterations
+                {
+                    let mut task_graphs = self.task_graphs.lock().await;
+                    if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                        let _ = graph.mark_failed(&root_task_id, "max iterations exceeded".into());
+                    }
+                }
+                let root_fail = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::MinimalTrace,
+                    EventPayload::AgentTaskFailed {
+                        task_id: root_task_id.clone(),
+                        error: "max iterations exceeded".into(),
+                    },
+                );
+                let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+
                 break;
             }
             iterations += 1;
@@ -391,6 +457,24 @@ where
                         },
                     );
                     let _ = append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                    // Mark root task as failed
+                    {
+                        let mut task_graphs = self.task_graphs.lock().await;
+                        if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                            let _ = graph.mark_failed(&root_task_id, error_msg.clone());
+                        }
+                    }
+                    let root_fail = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::MinimalTrace,
+                        EventPayload::AgentTaskFailed {
+                            task_id: root_task_id.clone(),
+                            error: error_msg.clone(),
+                        },
+                    );
+                    let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                     return Err(agent_core::CoreError::InvalidState(error_msg));
                 }
             };
@@ -462,6 +546,27 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                        // Mark root task as failed
+                        {
+                            let mut task_graphs = self.task_graphs.lock().await;
+                            if let Some(graph) =
+                                task_graphs.get_mut(&request.session_id.to_string())
+                            {
+                                let _ = graph.mark_failed(&root_task_id, message.clone());
+                            }
+                        }
+                        let root_fail = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: root_task_id.clone(),
+                                error: message.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                         return Err(agent_core::CoreError::InvalidState(message));
                     }
                     Err(e) => {
@@ -478,6 +583,27 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                        // Mark root task as failed
+                        {
+                            let mut task_graphs = self.task_graphs.lock().await;
+                            if let Some(graph) =
+                                task_graphs.get_mut(&request.session_id.to_string())
+                            {
+                                let _ = graph.mark_failed(&root_task_id, error_msg.clone());
+                            }
+                        }
+                        let root_fail = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: root_task_id.clone(),
+                                error: error_msg.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                         return Err(agent_core::CoreError::InvalidState(error_msg));
                     }
                 }
@@ -654,8 +780,24 @@ where
                 }
             }
 
-            // If no tool calls, the agent loop ends
+            // If no tool calls, the agent loop ends — mark root task as completed
             if tool_calls.is_empty() {
+                {
+                    let mut task_graphs = self.task_graphs.lock().await;
+                    if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                        let _ = graph.mark_completed(&root_task_id);
+                    }
+                }
+                let root_done = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::MinimalTrace,
+                    EventPayload::AgentTaskCompleted {
+                        task_id: root_task_id.clone(),
+                    },
+                );
+                let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_done).await;
                 break;
             }
 
@@ -725,6 +867,51 @@ where
                     &permission_event.payload,
                     EventPayload::PermissionGranted { .. }
                 ) {
+                    // Create sub-task for this tool call
+                    let sub_task_id = {
+                        let mut task_graphs = self.task_graphs.lock().await;
+                        if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                            let sub_task = graph.add_task(
+                                &tc.name,
+                                agent_core::AgentRole::Worker,
+                                vec![root_task_id.clone()],
+                            );
+                            graph.mark_running(&sub_task).unwrap();
+                            Some(sub_task)
+                        } else {
+                            None
+                        }
+                    };
+
+                    if let Some(ref sub_id) = sub_task_id {
+                        let sub_created = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskCreated {
+                                task_id: sub_id.clone(),
+                                title: tc.name.clone(),
+                                role: agent_core::AgentRole::Worker,
+                                dependencies: vec![root_task_id.clone()],
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &sub_created).await;
+
+                        let sub_started = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskStarted {
+                                task_id: sub_id.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &sub_started).await;
+                    }
+
                     let invocation = ToolInvocation {
                         tool_id: tc.name.clone(),
                         arguments: tc.arguments.clone(),
@@ -780,6 +967,53 @@ where
                         ),
                     };
                     append_and_broadcast(&*self.store, &self.event_tx, &completion_event).await?;
+
+                    // Mark sub-task as completed or failed
+                    if let Some(sub_id) = sub_task_id {
+                        let task_event = match &completion_event.payload {
+                            EventPayload::ToolInvocationCompleted { .. } => {
+                                {
+                                    let mut task_graphs = self.task_graphs.lock().await;
+                                    if let Some(graph) =
+                                        task_graphs.get_mut(&request.session_id.to_string())
+                                    {
+                                        let _ = graph.mark_completed(&sub_id);
+                                    }
+                                }
+                                Some(DomainEvent::new(
+                                    request.workspace_id.clone(),
+                                    request.session_id.clone(),
+                                    AgentId::system(),
+                                    PrivacyClassification::MinimalTrace,
+                                    EventPayload::AgentTaskCompleted { task_id: sub_id },
+                                ))
+                            }
+                            EventPayload::ToolInvocationFailed { error, .. } => {
+                                {
+                                    let mut task_graphs = self.task_graphs.lock().await;
+                                    if let Some(graph) =
+                                        task_graphs.get_mut(&request.session_id.to_string())
+                                    {
+                                        let _ = graph.mark_failed(&sub_id, error.clone());
+                                    }
+                                }
+                                Some(DomainEvent::new(
+                                    request.workspace_id.clone(),
+                                    request.session_id.clone(),
+                                    AgentId::system(),
+                                    PrivacyClassification::MinimalTrace,
+                                    EventPayload::AgentTaskFailed {
+                                        task_id: sub_id,
+                                        error: error.clone(),
+                                    },
+                                ))
+                            }
+                            _ => None,
+                        };
+                        if let Some(evt) = task_event {
+                            let _ = append_and_broadcast(&*self.store, &self.event_tx, &evt).await;
+                        }
+                    }
                 }
             }
             drop(registry);
@@ -968,13 +1202,25 @@ where
         &self,
         session_id: SessionId,
     ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
-        let events = self
-            .store
-            .load_session(&session_id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        let projection = agent_core::projection::SessionProjection::from_events(&events);
-        Ok(projection.task_graph)
+        let graphs = self.task_graphs.lock().await;
+        match graphs.get(&session_id.to_string()) {
+            Some(graph) => {
+                let tasks = graph
+                    .snapshot()
+                    .into_iter()
+                    .map(|t| agent_core::facade::TaskSnapshot {
+                        id: t.id,
+                        title: t.title,
+                        role: t.role,
+                        state: t.state,
+                        dependencies: t.dependencies,
+                        error: t.error,
+                    })
+                    .collect();
+                Ok(agent_core::TaskGraphSnapshot { tasks })
+            }
+            None => Ok(agent_core::TaskGraphSnapshot::default()),
+        }
     }
 }
 
