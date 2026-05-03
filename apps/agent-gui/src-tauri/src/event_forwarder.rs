@@ -6,16 +6,18 @@ use futures::StreamExt;
 use tauri::AppHandle;
 use tauri::Emitter;
 
-/// Spawn a background task that forwards DomainEvents from the runtime
-/// subscription to the Vue frontend via Tauri events.
-/// Returns the JoinHandle so the caller can abort it on session switch.
+/// Spawn a background task that forwards all DomainEvents from the runtime
+/// to the Vue frontend via Tauri events.
+/// Uses subscribe_all() to receive events for all sessions, not just one.
+/// The frontend filters events by currentSessionId.
+/// Returns the JoinHandle so the caller can abort it if needed.
 pub fn spawn_event_forwarder(
     runtime: &agent_runtime::LocalRuntime<SqliteEventStore, ModelRouter>,
-    session_id: agent_core::SessionId,
-    app_handle: AppHandle,
+    app_handle: &AppHandle,
 ) -> tokio::task::JoinHandle<()> {
-    let mut stream = runtime.subscribe_session(session_id);
+    let mut stream = runtime.subscribe_all();
 
+    let app_handle = app_handle.clone();
     tokio::spawn(async move {
         while let Some(event) = stream.next().await {
             match serde_json::to_value(&event) {

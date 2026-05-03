@@ -18,8 +18,14 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             resolve_permission,
             query_memories,
             delete_memory,
+            list_workspaces,
+            rename_session,
+            delete_session,
+            get_profile_detail,
+            restore_workspace,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<MemoryEntryResponse>()
+        .typ::<ProfileDetailResponse>()
 }

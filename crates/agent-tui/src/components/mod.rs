@@ -117,6 +117,9 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         model_profile: String,
     },
+    SwitchSession {
+        session_id: SessionId,
+    },
 }
 
 /// Read-only shared state passed to components on every event.
@@ -129,4 +132,6 @@ pub struct EventContext<'a> {
     pub permission_mode: agent_tools::PermissionMode,
     pub sidebar_left_visible: bool,
     pub sidebar_right_visible: bool,
+    pub workspace_id: &'a agent_core::WorkspaceId,
+    pub current_session_id: &'a Option<agent_core::SessionId>,
 }

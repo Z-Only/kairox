@@ -17,7 +17,8 @@ use crate::components::sessions::SessionsPanel;
 use crate::components::status_bar::{PermissionModeExt, StatusBar};
 use crate::components::trace::TracePanel;
 use crate::components::{
-    Command, Component, CrossPanelEffect, FocusTarget, PermissionRequest, RiskLevel, SessionState,
+    Command, Component, CrossPanelEffect, FocusTarget, PermissionRequest, RiskLevel, SessionInfo,
+    SessionState,
 };
 use crate::keybindings::{resolve_key, resolve_paste, KeyAction};
 
@@ -58,6 +59,12 @@ impl App {
             quit_confirmed: false,
             quitting: false,
         }
+    }
+
+    /// Find the currently active session by `current_session_id`.
+    fn current_session_mut(&mut self) -> Option<&mut SessionInfo> {
+        let sid = self.current_session_id.clone()?;
+        self.state.sessions.iter_mut().find(|s| s.id == sid)
     }
 
     // -----------------------------------------------------------------------
@@ -149,6 +156,8 @@ impl App {
                         permission_mode,
                         sidebar_left_visible: sidebar_left,
                         sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
                     };
                     self.chat.apply_key_action(KeyAction::Escape, &ctx)
                 };
@@ -236,6 +245,8 @@ impl App {
                         permission_mode,
                         sidebar_left_visible: sidebar_left,
                         sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
                     };
                     self.chat.apply_key_action(action, &ctx)
                 };
@@ -243,8 +254,24 @@ impl App {
                 self.dispatch_effects(effects);
             }
 
+            // -- Session selection ----------------------------------------
+            KeyAction::SelectSession => {
+                if let Some(session_id) = self.sessions.selected_session_id(&self.state.sessions) {
+                    commands.push(Command::SwitchSession { session_id });
+                }
+            }
+
             // Scroll actions
-            KeyAction::ScrollUp | KeyAction::ScrollDown => {
+            KeyAction::ScrollUp => {
+                if self.state.focus_manager.current() == FocusTarget::Sessions {
+                    self.sessions.scroll_up(self.state.sessions.len());
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::ScrollDown => {
+                if self.state.focus_manager.current() == FocusTarget::Sessions {
+                    self.sessions.scroll_down(self.state.sessions.len());
+                }
                 self.state.render_scheduler.mark_dirty();
             }
 
@@ -300,21 +327,21 @@ impl App {
 
             EventPayload::ToolInvocationStarted { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Active;
                 }
             }
 
             EventPayload::ToolInvocationCompleted { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Idle;
                 }
             }
 
             EventPayload::ToolInvocationFailed { .. } => {
                 self.state.render_scheduler.mark_dirty();
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Idle;
                 }
             }
@@ -340,7 +367,7 @@ impl App {
                     self.sync_component_focus();
                 }
 
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::AwaitingPermission;
                 }
                 self.state.render_scheduler.mark_dirty();
@@ -352,14 +379,14 @@ impl App {
                     self.state.focus_manager.pop();
                     self.sync_component_focus();
                 }
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     session.state = SessionState::Active;
                 }
                 self.state.render_scheduler.mark_dirty();
             }
 
             EventPayload::AgentTaskCreated { title, .. } => {
-                if let Some(session) = self.state.sessions.first_mut() {
+                if let Some(session) = self.current_session_mut() {
                     if session.title.starts_with("Session using ") {
                         session.title = title.clone();
                     }
@@ -486,6 +513,7 @@ impl App {
                 frame,
                 &self.state.sessions,
                 self.sessions.focused(),
+                &mut self.sessions.state,
             );
         }
 
@@ -588,12 +616,36 @@ impl App {
     /// Fan-out cross-panel effects to all components.
     pub fn dispatch_effects(&mut self, effects: Vec<CrossPanelEffect>) {
         for effect in effects {
+            if let CrossPanelEffect::NavigateToSession(session_id) = &effect {
+                self.current_session_id = Some(session_id.clone());
+                // Mark session states
+                for session in &mut self.state.sessions {
+                    if session.id == *session_id {
+                        session.state = SessionState::Active;
+                    } else if session.state == SessionState::Active {
+                        session.state = SessionState::Idle;
+                    }
+                }
+            }
             self.chat.handle_effect(&effect);
             self.sessions.handle_effect(&effect);
             self.trace.handle_effect(&effect);
             self.status_bar.handle_effect(&effect);
             self.permission_modal.handle_effect(&effect);
         }
+    }
+
+    /// Load projection and trace for a session from historical data.
+    /// Called when switching to a different session.
+    #[allow(dead_code)]
+    pub fn load_session_projection(
+        &mut self,
+        projection: agent_core::projection::SessionProjection,
+        trace_events: Vec<DomainEvent>,
+    ) {
+        self.state.current_session = projection;
+        self.domain_events = trace_events;
+        self.state.render_scheduler.mark_dirty_immediate();
     }
 
     // -----------------------------------------------------------------------

@@ -4,6 +4,8 @@ mod event_forwarder;
 pub mod specta;
 
 use agent_config::Config;
+#[cfg(not(test))]
+use agent_core::AppFacade;
 #[cfg(test)]
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
@@ -17,21 +19,22 @@ use app_state::GuiState;
 pub fn run() {
     use tauri::Manager;
 
-    let specta_builder = specta::create_specta();
+    let _specta_builder = specta::create_specta();
 
     tauri::Builder::default()
         .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                // Use a file-backed SQLite database in the system temp directory.
-                // In-memory SQLite (`sqlite::memory:` or `sqlite:file:...?mode=memory&cache=shared`)
-                // is destroyed when all connections close, which causes "no such table: events"
-                // errors when the pool recycles connections. A file-backed DB persists across
-                // connection recycling and is cleaned up when the OS reclaims temp files.
-                let db_dir = std::env::temp_dir().join("kairox-gui");
+                // Use a file-backed SQLite database in the user's .kairox directory
+                // for persistent storage across app restarts.
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+                let db_dir = std::path::PathBuf::from(home).join(".kairox");
                 tokio::fs::create_dir_all(&db_dir).await.ok();
-                let db_path = db_dir.join("kairox.db");
-                let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+                let db_path = db_dir.join("kairox-gui.sqlite");
+                let db_url = format!(
+                    "sqlite:///{}?mode=rwc",
+                    db_path.display().to_string().trim_start_matches('/')
+                );
 
                 eprintln!("Database: {}", db_url);
 
@@ -65,10 +68,49 @@ pub fn run() {
                     .await;
 
                 handle.manage(GuiState::new(runtime, config, mem_store));
+
+                // Background task: cleanup expired soft-deleted sessions (hourly, 7-day threshold)
+                {
+                    let runtime = handle.state::<GuiState>().inner().runtime.clone();
+                    tokio::spawn(async move {
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_secs(3600));
+                        loop {
+                            interval.tick().await;
+                            match runtime
+                                .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+                                .await
+                            {
+                                Ok(count) if count > 0 => {
+                                    eprintln!("[cleanup] Removed {count} expired session(s)")
+                                }
+                                Ok(_) => {}
+                                Err(e) => eprintln!("[cleanup] Failed: {e}"),
+                            }
+                        }
+                    });
+                }
             });
             Ok(())
         })
-        .invoke_handler(specta_builder.invoke_handler())
+        .invoke_handler(tauri::generate_handler![
+            crate::commands::list_profiles,
+            crate::commands::get_profile_info,
+            crate::commands::initialize_workspace,
+            crate::commands::start_session,
+            crate::commands::send_message,
+            crate::commands::switch_session,
+            crate::commands::get_trace,
+            crate::commands::list_sessions,
+            crate::commands::resolve_permission,
+            crate::commands::query_memories,
+            crate::commands::delete_memory,
+            crate::commands::list_workspaces,
+            crate::commands::rename_session,
+            crate::commands::delete_session,
+            crate::commands::get_profile_detail,
+            crate::commands::restore_workspace,
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
 }

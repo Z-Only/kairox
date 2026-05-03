@@ -7,7 +7,7 @@ use agent_memory::{
     ContextAssembler, MemoryEntry, MemoryStore,
 };
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
-use agent_store::EventStore;
+use agent_store::{EventStore, SessionRow};
 use agent_tools::{
     BuiltinProvider, PermissionEngine, PermissionMode, PermissionOutcome, ToolInvocation,
     ToolProvider, ToolRegistry,
@@ -188,13 +188,23 @@ where
             EventPayload::WorkspaceOpened { path: path.clone() },
         );
         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
+        // Persist workspace metadata for session recovery
+        if let Err(e) = self
+            .store
+            .upsert_workspace(&workspace_id.to_string(), &path)
+            .await
+        {
+            eprintln!("[runtime] Failed to persist workspace metadata: {e}");
+        }
+
         Ok(WorkspaceInfo { workspace_id, path })
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
         let session_id = SessionId::new();
         let event = DomainEvent::new(
-            request.workspace_id,
+            request.workspace_id.clone(),
             session_id.clone(),
             AgentId::system(),
             PrivacyClassification::MinimalTrace,
@@ -204,6 +214,24 @@ where
             },
         );
         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
+        // Persist session metadata for session recovery
+        let now = chrono::Utc::now().to_rfc3339();
+        let session_row = SessionRow {
+            session_id: session_id.to_string(),
+            workspace_id: request.workspace_id.to_string(),
+            title: format!("Session using {}", request.model_profile),
+            model_profile: request.model_profile.clone(),
+            model_id: None,
+            provider: None,
+            deleted_at: None,
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        if let Err(e) = self.store.upsert_session(&session_row).await {
+            eprintln!("[runtime] Failed to persist session metadata: {e}");
+        }
+
         Ok(session_id)
     }
 
@@ -856,6 +884,83 @@ where
             }
         })
     }
+
+    fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
+        let mut rx = self.event_tx.subscribe();
+        Box::pin(async_stream::stream! {
+            while let Ok(event) = rx.recv().await {
+                yield event;
+            }
+        })
+    }
+
+    async fn list_workspaces(&self) -> agent_core::Result<Vec<WorkspaceInfo>> {
+        let rows = self
+            .store
+            .list_workspaces()
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| WorkspaceInfo {
+                workspace_id: WorkspaceId::from_string(r.workspace_id),
+                path: r.path,
+            })
+            .collect())
+    }
+
+    async fn list_sessions(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> agent_core::Result<Vec<agent_core::SessionMeta>> {
+        let rows = self
+            .store
+            .list_active_sessions(&workspace_id.to_string())
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| agent_core::SessionMeta {
+                session_id: SessionId::from_string(r.session_id),
+                workspace_id: WorkspaceId::from_string(r.workspace_id),
+                title: r.title,
+                model_profile: r.model_profile,
+                model_id: r.model_id,
+                provider: r.provider,
+                deleted_at: r.deleted_at,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+            })
+            .collect())
+    }
+
+    async fn rename_session(
+        &self,
+        session_id: &SessionId,
+        title: String,
+    ) -> agent_core::Result<()> {
+        self.store
+            .rename_session(&session_id.to_string(), &title)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
+    async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        self.store
+            .soft_delete_session(&session_id.to_string())
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
+    async fn cleanup_expired_sessions(
+        &self,
+        older_than: std::time::Duration,
+    ) -> agent_core::Result<usize> {
+        self.store
+            .cleanup_expired_sessions(older_than)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
 }
 
 #[cfg(test)]
@@ -896,5 +1001,94 @@ mod tests {
         assert_eq!(projection.messages.len(), 2);
         assert_eq!(projection.messages[0].content, "hi");
         assert_eq!(projection.messages[1].content, "hello");
+    }
+
+    #[tokio::test]
+    async fn open_workspace_persists_metadata() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime.open_workspace("/tmp/project".into()).await.unwrap();
+
+        let workspaces = runtime.list_workspaces().await.unwrap();
+        assert_eq!(workspaces.len(), 1);
+        assert_eq!(workspaces[0].workspace_id, workspace.workspace_id);
+        assert_eq!(workspaces[0].path, "/tmp/project");
+    }
+
+    #[tokio::test]
+    async fn start_session_persists_metadata() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime.open_workspace("/tmp/project".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        let sessions = runtime
+            .list_sessions(&workspace.workspace_id)
+            .await
+            .unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].session_id, session_id);
+        assert_eq!(sessions[0].title, "Session using fake");
+    }
+
+    #[tokio::test]
+    async fn rename_session_updates_metadata() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime.open_workspace("/tmp/project".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .rename_session(&session_id, "My Custom Title".into())
+            .await
+            .unwrap();
+
+        let sessions = runtime
+            .list_sessions(&workspace.workspace_id)
+            .await
+            .unwrap();
+        assert_eq!(sessions[0].title, "My Custom Title");
+    }
+
+    #[tokio::test]
+    async fn soft_delete_hides_session() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime.open_workspace("/tmp/project".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime.soft_delete_session(&session_id).await.unwrap();
+
+        let sessions = runtime
+            .list_sessions(&workspace.workspace_id)
+            .await
+            .unwrap();
+        assert!(sessions.is_empty());
     }
 }

@@ -58,6 +58,24 @@ impl SessionsPanel {
             sessions.iter().collect()
         }
     }
+
+    pub fn scroll_up(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let i = self.state.selected().unwrap_or(0);
+        let next = if i == 0 { len - 1 } else { i - 1 };
+        self.state.select(Some(next));
+    }
+
+    pub fn scroll_down(&mut self, len: usize) {
+        if len == 0 {
+            return;
+        }
+        let i = self.state.selected().unwrap_or(0);
+        let next = if i >= len - 1 { 0 } else { i + 1 };
+        self.state.select(Some(next));
+    }
 }
 
 fn session_state_icon(state: &SessionState) -> (&'static str, Color) {
@@ -69,7 +87,13 @@ fn session_state_icon(state: &SessionState) -> (&'static str, Color) {
     }
 }
 
-pub fn render_sessions(area: Rect, frame: &mut Frame, sessions: &[SessionInfo], focused: bool) {
+pub fn render_sessions(
+    area: Rect,
+    frame: &mut Frame,
+    sessions: &[SessionInfo],
+    focused: bool,
+    state: &mut ListState,
+) {
     let border_style = if focused {
         Style::default().fg(Color::Cyan)
     } else {
@@ -99,13 +123,16 @@ pub fn render_sessions(area: Rect, frame: &mut Frame, sessions: &[SessionInfo], 
         })
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .borders(Borders::RIGHT)
-            .title(" Sessions ")
-            .border_style(border_style),
-    );
-    frame.render_widget(list, area);
+    let list = List::new(items)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_symbol("❯ ")
+        .block(
+            Block::default()
+                .borders(Borders::RIGHT)
+                .title(" Sessions ")
+                .border_style(border_style),
+        );
+    frame.render_stateful_widget(list, area, state);
 }
 
 impl Component for SessionsPanel {
