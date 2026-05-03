@@ -31,6 +31,8 @@ export function applyTraceEvent(event: DomainEvent) {
         type: "AgentTaskCreated";
         task_id: string;
         title: string;
+        role: string;
+        dependencies: string[];
       };
       traceState.entries.push({
         id: typed.task_id,
