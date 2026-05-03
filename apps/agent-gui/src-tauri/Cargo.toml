@@ -4,10 +4,15 @@ build = "build.rs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+default-run = "agent-gui-tauri"
 
 [lib]
 name = "agent_gui_tauri"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "agent-gui-tauri"
+path = "src/main.rs"
 
 [[bin]]
 name = "export-specta"
