@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionProjection, DomainEvent, ProfileDetail } from "../types";
+import type { SessionProjection, ProfileDetail } from "../types";
 import {
   sessionState,
   setProjection,
@@ -46,9 +46,13 @@ async function switchToSession(sessionId: string) {
       sessionState.currentProfile = session.profile;
     }
     try {
-      const events: DomainEvent[] = await invoke("get_trace", { sessionId });
-      for (const event of events) {
-        applyTraceEvent(event);
+      const traceStrings: string[] = await invoke("get_trace", { sessionId });
+      for (const jsonStr of traceStrings) {
+        try {
+          applyTraceEvent(JSON.parse(jsonStr));
+        } catch {
+          // Skip malformed trace entries
+        }
       }
     } catch (e) {
       console.error("Failed to load trace for session:", e);

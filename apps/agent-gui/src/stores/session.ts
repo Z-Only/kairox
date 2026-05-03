@@ -150,11 +150,15 @@ export async function deleteSession(sessionId: string) {
             sessionId: firstSession.id
           });
           setProjection(projection);
-          const events: DomainEvent[] = await invoke("get_trace", {
+          const traceStrings: string[] = await invoke("get_trace", {
             sessionId: firstSession.id
           });
-          for (const event of events) {
-            applyTraceEvent(event);
+          for (const jsonStr of traceStrings) {
+            try {
+              applyTraceEvent(JSON.parse(jsonStr));
+            } catch {
+              // Skip malformed trace entries
+            }
           }
         } catch (e) {
           console.error("Failed to switch after delete:", e);
@@ -209,11 +213,15 @@ export async function recoverSessions(): Promise<boolean> {
           sessionId: firstSession.id
         });
         setProjection(projection);
-        const events: DomainEvent[] = await invoke("get_trace", {
+        const traceStrings: string[] = await invoke("get_trace", {
           sessionId: firstSession.id
         });
-        for (const event of events) {
-          applyTraceEvent(event);
+        for (const jsonStr of traceStrings) {
+          try {
+            applyTraceEvent(JSON.parse(jsonStr));
+          } catch {
+            // Skip malformed trace entries
+          }
         }
       } catch (e) {
         console.error("Failed to load session history:", e);
