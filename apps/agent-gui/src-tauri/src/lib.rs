@@ -19,7 +19,7 @@ use app_state::GuiState;
 pub fn run() {
     use tauri::Manager;
 
-    let specta_builder = specta::create_specta();
+    let _specta_builder = specta::create_specta();
 
     tauri::Builder::default()
         .setup(move |app| {
@@ -93,7 +93,24 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(specta_builder.invoke_handler())
+        .invoke_handler(tauri::generate_handler![
+            crate::commands::list_profiles,
+            crate::commands::get_profile_info,
+            crate::commands::initialize_workspace,
+            crate::commands::start_session,
+            crate::commands::send_message,
+            crate::commands::switch_session,
+            crate::commands::get_trace,
+            crate::commands::list_sessions,
+            crate::commands::resolve_permission,
+            crate::commands::query_memories,
+            crate::commands::delete_memory,
+            crate::commands::list_workspaces,
+            crate::commands::rename_session,
+            crate::commands::delete_session,
+            crate::commands::get_profile_detail,
+            crate::commands::restore_workspace,
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");
 }
