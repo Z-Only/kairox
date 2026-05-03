@@ -512,20 +512,25 @@ where
                         });
                     }
                     Ok(ModelEvent::Completed { .. }) => {
-                        if !assistant_text.is_empty() {
-                            let display_content = strip_memory_markers(&assistant_text);
-                            let event = DomainEvent::new(
-                                request.workspace_id.clone(),
-                                request.session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::AssistantMessageCompleted {
-                                    message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
-                                    content: display_content,
-                                },
-                            );
-                            append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
-                        }
+                        // Always emit AssistantMessageCompleted when the model
+                        // finishes, even with empty text (e.g., tool-only response).
+                        // The GUI relies on this event to reset the streaming state.
+                        let display_content = if assistant_text.is_empty() {
+                            String::new()
+                        } else {
+                            strip_memory_markers(&assistant_text)
+                        };
+                        let event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::AssistantMessageCompleted {
+                                message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
+                                content: display_content,
+                            },
+                        );
+                        append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
                     }
                     Ok(ModelEvent::Failed { message }) => {
                         let fail_event = DomainEvent::new(
@@ -813,54 +818,89 @@ where
                     agent_tools::ToolRisk::read(&tc.name)
                 };
 
-                let permission_event = match self.permission_engine.decide(&risk) {
-                    PermissionOutcome::Allowed => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionGranted {
-                            request_id: tc.id.clone(),
-                        },
+                let permission_outcome = self.permission_engine.decide(&risk);
+                let (permission_event, should_execute) = match &permission_outcome {
+                    PermissionOutcome::Allowed => (
+                        DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionGranted {
+                                request_id: tc.id.clone(),
+                            },
+                        ),
+                        true,
                     ),
-                    PermissionOutcome::RequiresApproval => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason: "requires user approval".into(),
-                        },
+                    PermissionOutcome::Denied(reason) => (
+                        DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionDenied {
+                                request_id: tc.id.clone(),
+                                reason: reason.clone(),
+                            },
+                        ),
+                        false,
                     ),
-                    PermissionOutcome::Pending => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason: "awaiting user confirmation".into(),
-                        },
-                    ),
-                    PermissionOutcome::Denied(reason) => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason,
-                        },
-                    ),
+                    PermissionOutcome::RequiresApproval | PermissionOutcome::Pending => {
+                        // Emit PermissionRequested so the UI can show a prompt,
+                        // then wait for the user's decision via resolve_permission.
+                        let preview = format!("{}({})", tc.name, tc.arguments);
+                        let request_event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionRequested {
+                                request_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
+                                preview,
+                            },
+                        );
+                        append_and_broadcast(&*self.store, &self.event_tx, &request_event).await?;
+
+                        // Wait for the user to resolve the permission request
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        self.pending_permissions
+                            .lock()
+                            .await
+                            .insert(tc.id.clone(), tx);
+
+                        let decision = rx.await;
+                        let approved =
+                            matches!(decision, Ok(PermissionDecision { approve: true, .. }));
+
+                        let result_event = if approved {
+                            DomainEvent::new(
+                                request.workspace_id.clone(),
+                                request.session_id.clone(),
+                                AgentId::system(),
+                                PrivacyClassification::FullTrace,
+                                EventPayload::PermissionGranted {
+                                    request_id: tc.id.clone(),
+                                },
+                            )
+                        } else {
+                            DomainEvent::new(
+                                request.workspace_id.clone(),
+                                request.session_id.clone(),
+                                AgentId::system(),
+                                PrivacyClassification::FullTrace,
+                                EventPayload::PermissionDenied {
+                                    request_id: tc.id.clone(),
+                                    reason: "denied by user".into(),
+                                },
+                            )
+                        };
+                        (result_event, approved)
+                    }
                 };
                 append_and_broadcast(&*self.store, &self.event_tx, &permission_event).await?;
 
-                // Only execute if permission was granted
-                if matches!(
-                    &permission_event.payload,
-                    EventPayload::PermissionGranted { .. }
-                ) {
+                if should_execute {
                     // Create sub-task for this tool call
                     let sub_task_id = {
                         let mut task_graphs = self.task_graphs.lock().await;
@@ -1012,7 +1052,10 @@ where
             }
             drop(registry);
 
-            // Build next request with tool results appended
+            // Build next request with tool results appended.
+            // For tool calls where permission was denied (no ToolInvocationCompleted
+            // event exists), we still need to include a tool result so the model
+            // knows the tool was not executed and can respond accordingly.
             current_request = current_request
                 .clone()
                 .add_message("assistant", &assistant_text);
@@ -1047,6 +1090,29 @@ where
                             tc.id,
                             tc.name,
                             tool_results_for_call.join("\n")
+                        ),
+                    );
+                } else {
+                    // No ToolInvocationCompleted for this call - permission was denied
+                    // or the invocation failed. Provide a fallback result so the
+                    // model knows the tool was not executed.
+                    let permission_denied = session_events.iter().any(|e| {
+                        matches!(
+                            &e.payload,
+                            EventPayload::PermissionDenied { request_id, .. }
+                            if request_id == &tc.id
+                        )
+                    });
+                    let denial_reason = if permission_denied {
+                        "Permission denied by user"
+                    } else {
+                        "Tool invocation failed or was not executed"
+                    };
+                    current_request = current_request.add_message(
+                        "tool",
+                        format!(
+                            "tool_call_id={}\ntool_id={}\nresult=Error: {}",
+                            tc.id, tc.name, denial_reason
                         ),
                     );
                 }
@@ -1107,9 +1173,18 @@ where
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
         let mut rx = self.event_tx.subscribe();
         Box::pin(async_stream::stream! {
-            while let Ok(event) = rx.recv().await {
-                if event.session_id == session_id {
-                    yield event;
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        if event.session_id == session_id {
+                            yield event;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[subscribe_session] Broadcast lagged, skipped {n} events");
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         })
@@ -1118,8 +1193,15 @@ where
     fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
         let mut rx = self.event_tx.subscribe();
         Box::pin(async_stream::stream! {
-            while let Ok(event) = rx.recv().await {
-                yield event;
+            loop {
+                match rx.recv().await {
+                    Ok(event) => yield event,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[subscribe_all] Broadcast lagged, skipped {n} events");
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
             }
         })
     }

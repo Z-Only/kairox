@@ -79,7 +79,11 @@ export function applyEvent(event: DomainEvent) {
       // Task is now running — no projection change needed
       break;
     case "AgentTaskCompleted":
-      // Task finished successfully — no projection change needed
+      // Safety net: when a task completes, ensure streaming is reset.
+      // This catches the edge case where the agent loop ends with a
+      // tool-only response (empty AssistantMessageCompleted) and the
+      // root task completes, but isStreaming wasn't properly cleared.
+      sessionState.isStreaming = false;
       break;
     case "AgentTaskFailed": {
       const typed = p as { type: "AgentTaskFailed"; error: string };
