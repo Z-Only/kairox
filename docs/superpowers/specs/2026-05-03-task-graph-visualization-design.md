@@ -20,17 +20,39 @@ Users have no way to understand what the agent is doing, which tasks are running
 
 ## Design Decisions
 
-| Decision                | Choice                                                        | Rationale                                                                             |
-| ----------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Task creation model     | Root task per user message + sub-tasks per tool call          | Reflects real structure (multi-tool fan-out); no fake phases                          |
-| TaskGraph storage       | Per-session `HashMap<SessionId, TaskGraph>` in `LocalRuntime` | Session isolation; simple lifecycle management                                        |
-| API style               | Snapshot (`get_task_graph`) not streaming                     | Existing `AgentTask*` events are natural refresh triggers; no new event types needed  |
-| GUI layout              | Tab within Trace panel (Trace / Tasks)                        | Reuses existing space; natural context switch; no layout change                       |
-| TUI layout              | 4th density mode (TaskGraph) in trace panel                   | Follows existing density cycling pattern                                              |
-| State machine extension | `Pending → Running → Completed/Failed` on `TaskGraph`         | Current `TaskGraph` only has `mark_completed`; needs `mark_running` and `mark_failed` |
-| `AgentTask.error` field | New `Option<String>` field on `AgentTask`                     | Failed tasks need error info for display                                              |
+| Decision                     | Choice                                                        | Rationale                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Task creation model          | Root task per user message + sub-tasks per tool call          | Reflects real structure (multi-tool fan-out); no fake phases                                                    |
+| TaskGraph storage            | Per-session `HashMap<SessionId, TaskGraph>` in `LocalRuntime` | Session isolation; simple lifecycle management                                                                  |
+| API style                    | Snapshot (`get_task_graph`) not streaming                     | Existing `AgentTask*` events are natural refresh triggers; no new event types needed                            |
+| GUI layout                   | Tab within Trace panel (Trace / Tasks)                        | Reuses existing space; natural context switch; no layout change                                                 |
+| TUI layout                   | 4th density mode (TaskGraph) in trace panel                   | Follows existing density cycling pattern                                                                        |
+| State machine extension      | `Pending → Running → Completed/Failed` on `TaskGraph`         | Current `TaskGraph` only has `mark_completed`; needs `mark_running` and `mark_failed`                           |
+| `AgentTask.error` field      | New `Option<String>` field on `AgentTask`                     | Failed tasks need error info for display                                                                        |
+| AgentRole/TaskState location | Move from `agent-runtime` to `agent-core`                     | `TaskSnapshot` in `agent-core::facade` needs them; `agent-core` cannot depend on `agent-runtime` (circular dep) |
 
 ## Architecture
+
+### Type Relocation: AgentRole and TaskState to agent-core
+
+**Problem**: `TaskSnapshot` (defined in `agent-core/src/facade.rs`) references `AgentRole` and `TaskState`. These currently live in `agent-runtime/src/task_graph.rs`. Since `agent-runtime` depends on `agent-core` (not vice versa), `agent-core` cannot reference `agent-runtime` types.
+
+**Solution**: Move `AgentRole` and `TaskState` to `agent-core`, re-export from `agent-runtime` for backward compatibility.
+
+```
+agent-core/src/task_types.rs (NEW):
+  - pub enum AgentRole { Planner, Worker, Reviewer }
+  - pub enum TaskState { Pending, Running, Blocked, Completed, Failed, Cancelled }
+
+agent-core/src/lib.rs:
+  + pub mod task_types;
+  + pub use task_types::{AgentRole, TaskState};
+
+agent-runtime/src/task_graph.rs:
+  - remove AgentRole, TaskState definitions
+  + use agent_core::{AgentRole, TaskState};  // import from core
+  // AgentTask, TaskGraph remain here (they are runtime constructs)
+```
 
 ### Agent Loop Integration
 
@@ -96,13 +118,36 @@ Pending ──mark_running()──→ Running ──mark_completed()──→ Co
 ### Data Model
 
 ```rust
-// agent-core
+// agent-core/src/task_types.rs (NEW)
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum AgentRole {
+    Planner,
+    Worker,
+    Reviewer,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum TaskState {
+    Pending,
+    Running,
+    Blocked,
+    Completed,
+    Failed,
+    Cancelled,
+}
+```
+
+```rust
+// agent-core/src/facade.rs (additions)
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskSnapshot {
     pub id: TaskId,
     pub title: String,
-    pub role: AgentRole,  // from agent-runtime, re-exported or mirrored
+    pub role: AgentRole,
     pub state: TaskState,
     pub dependencies: Vec<TaskId>,
     pub error: Option<String>,
@@ -133,11 +178,54 @@ pub struct SessionProjection {
 }
 ```
 
-`apply()` handles `AgentTask*` events to build `task_graph` incrementally.
+`apply()` handles `AgentTask*` events to build `task_graph` incrementally:
+
+```rust
+EventPayload::AgentTaskCreated { task_id, title } => {
+    self.task_titles.push(title.clone());
+    self.task_graph.tasks.push(TaskSnapshot {
+        id: task_id.clone(),
+        title,
+        role: AgentRole::Planner, // default; may be overridden by runtime context
+        state: TaskState::Pending,
+        dependencies: vec![],
+        error: None,
+    });
+}
+EventPayload::AgentTaskStarted { task_id } => {
+    if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+        t.state = TaskState::Running;
+    }
+}
+EventPayload::AgentTaskCompleted { task_id } => {
+    if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+        t.state = TaskState::Completed;
+    }
+}
+EventPayload::AgentTaskFailed { task_id, error } => {
+    if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+        t.state = TaskState::Failed;
+        t.error = Some(error.clone());
+    }
+}
+```
+
+**Note on `AgentTaskCreated` and role/dependencies**: The current `AgentTaskCreated` event payload only carries `task_id` and `title`. To fully reconstruct the task graph from events, we need to add `role` and `dependencies` to this event variant:
+
+```rust
+EventPayload::AgentTaskCreated {
+    task_id: TaskId,
+    title: String,
+    role: AgentRole,           // NEW
+    dependencies: Vec<TaskId>, // NEW
+}
+```
+
+This allows `SessionProjection::apply` to correctly populate `TaskSnapshot.role` and `TaskSnapshot.dependencies` from events alone, without requiring a `get_task_graph` call.
 
 ### GUI Refresh Strategy
 
-No new event types. GUI refreshes on existing `AgentTask*` events:
+No new event types (beyond the `AgentTaskCreated` field additions). GUI refreshes on existing `AgentTask*` events:
 
 ```
 AgentTaskCreated   → invoke("get_task_graph", { sessionId })
@@ -161,42 +249,45 @@ TraceTimeline.vue
 
 ## File Changes Summary
 
-| Layer    | File                                               | Change                                                                                  |
-| -------- | -------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| core     | `crates/agent-core/src/events.rs`                  | No changes (AgentTask\* variants already exist)                                         |
-| core     | `crates/agent-core/src/facade.rs`                  | +`TaskSnapshot`, `TaskGraphSnapshot`, +`get_task_graph` trait method, +NoopFacade impl  |
-| core     | `crates/agent-core/src/projection.rs`              | +`task_graph` field on `SessionProjection`, +`AgentTask*` apply handlers                |
-| core     | `crates/agent-core/src/lib.rs`                     | Re-export new types                                                                     |
-| runtime  | `crates/agent-runtime/src/task_graph.rs`           | +`error` field on `AgentTask`, +`mark_running()`, +`mark_failed()`, +`snapshot()`       |
-| runtime  | `crates/agent-runtime/src/facade_runtime.rs`       | +`task_graphs` field, inject task tracking in agent loop, +`get_task_graph` impl        |
-| runtime  | `crates/agent-runtime/src/lib.rs`                  | Re-export as needed                                                                     |
-| gui-rust | `apps/agent-gui/src-tauri/src/commands.rs`         | +`get_task_graph` Tauri command                                                         |
-| gui-rust | `apps/agent-gui/src-tauri/src/specta.rs`           | Register new command + types                                                            |
-| gui-rust | `apps/agent-gui/src-tauri/src/lib.rs`              | Register command in handler                                                             |
-| gui-vue  | `apps/agent-gui/src/components/TaskSteps.vue`      | NEW: task steps tree view component                                                     |
-| gui-vue  | `apps/agent-gui/src/components/TraceTimeline.vue`  | Add Tab switcher (Trace / Tasks)                                                        |
-| gui-vue  | `apps/agent-gui/src/stores/taskGraph.ts`           | NEW: task graph state + tree builder                                                    |
-| gui-vue  | `apps/agent-gui/src/composables/useTauriEvents.ts` | Refresh task graph on AgentTask\* events                                                |
-| gui-vue  | `apps/agent-gui/src/types/index.ts`                | +AgentRole, TaskState, TaskSnapshot, TaskGraphSnapshot                                  |
-| gui-ts   | `apps/agent-gui/src/generated/commands.ts`         | Regenerated via `just gen-types`                                                        |
-| tui      | `crates/agent-tui/src/components/trace.rs`         | +`TaskGraph` density, +`extract_task_traces()`, +`render_task_graph()`, +`TaskTreeNode` |
-| tui      | `crates/agent-tui/src/keybindings.rs`              | Update density cycling: Summary → Expanded → FullEventStream → TaskGraph → Summary      |
+| Layer    | File                                               | Change                                                                                                                                           |
+| -------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| core     | `crates/agent-core/src/task_types.rs`              | **NEW**: `AgentRole`, `TaskState` enums (moved from runtime)                                                                                     |
+| core     | `crates/agent-core/src/lib.rs`                     | Re-export `AgentRole`, `TaskState` from `task_types`                                                                                             |
+| core     | `crates/agent-core/src/events.rs`                  | `AgentTaskCreated` gains `role: AgentRole` + `dependencies: Vec<TaskId>` fields                                                                  |
+| core     | `crates/agent-core/src/facade.rs`                  | +`TaskSnapshot`, `TaskGraphSnapshot`, +`get_task_graph` trait method, +NoopFacade impl                                                           |
+| core     | `crates/agent-core/src/projection.rs`              | +`task_graph` field on `SessionProjection`, +`AgentTask*` apply handlers                                                                         |
+| runtime  | `crates/agent-runtime/src/task_graph.rs`           | Remove `AgentRole`/`TaskState` definitions (import from core), +`error` field on `AgentTask`, +`mark_running()`, +`mark_failed()`, +`snapshot()` |
+| runtime  | `crates/agent-runtime/src/facade_runtime.rs`       | +`task_graphs` field, inject task tracking in agent loop, +`get_task_graph` impl                                                                 |
+| runtime  | `crates/agent-runtime/src/lib.rs`                  | Re-export `AgentRole`/`TaskState` from `agent_core` for backward compat                                                                          |
+| gui-rust | `apps/agent-gui/src-tauri/src/commands.rs`         | +`get_task_graph` Tauri command                                                                                                                  |
+| gui-rust | `apps/agent-gui/src-tauri/src/specta.rs`           | Register new command + types                                                                                                                     |
+| gui-rust | `apps/agent-gui/src-tauri/src/lib.rs`              | Register command in handler                                                                                                                      |
+| gui-vue  | `apps/agent-gui/src/components/TaskSteps.vue`      | **NEW**: task steps tree view component                                                                                                          |
+| gui-vue  | `apps/agent-gui/src/components/TraceTimeline.vue`  | Add Tab switcher (Trace / Tasks)                                                                                                                 |
+| gui-vue  | `apps/agent-gui/src/stores/taskGraph.ts`           | **NEW**: task graph state + tree builder                                                                                                         |
+| gui-vue  | `apps/agent-gui/src/composables/useTauriEvents.ts` | Refresh task graph on `AgentTask*` events                                                                                                        |
+| gui-vue  | `apps/agent-gui/src/types/index.ts`                | +`AgentRole`, `TaskState`, `TaskSnapshot`, `TaskGraphSnapshot`; update `AgentTaskCreated` variant                                                |
+| gui-ts   | `apps/agent-gui/src/generated/commands.ts`         | Regenerated via `just gen-types`                                                                                                                 |
+| tui      | `crates/agent-tui/src/components/trace.rs`         | +`TaskGraph` density, +`extract_task_traces()`, +`render_task_graph()`, +`TaskTreeNode`                                                          |
+| tui      | `crates/agent-tui/src/keybindings.rs`              | Update density cycling: Summary → Expanded → FullEventStream → TaskGraph → Summary                                                               |
+| tests    | `crates/agent-core/tests/event_roundtrip.rs`       | Update `AgentTaskCreated` test case with new `role` + `dependencies` fields                                                                      |
 
 ## Testing Strategy
 
-| Layer            | Test                                                | What it verifies                                                    |
-| ---------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
-| agent-core       | `SessionProjection::apply` for `AgentTask*` events  | task_graph field updates correctly through state transitions        |
-| agent-core       | `TaskGraphSnapshot` serde roundtrip                 | Serialization consistency                                           |
-| agent-runtime    | `TaskGraph::mark_running` / `mark_failed`           | State transitions and error paths                                   |
-| agent-runtime    | `TaskGraph::snapshot`                               | Snapshot contains all tasks with correct state                      |
-| agent-runtime    | `send_message` emits task events (single tool call) | Event sequence: Created→Started→Created→Started→Completed→Completed |
-| agent-runtime    | `send_message` with parallel tool calls             | Fan-out: two Worker sub-tasks share root Planner dependency         |
-| agent-runtime    | `get_task_graph` API                                | Returns correct snapshot after agent loop                           |
-| agent-runtime    | Tool failure creates Failed subtask                 | AgentTaskFailed emitted, error field populated                      |
-| agent-runtime    | Plain message (no tool calls)                       | Root task Completed, zero sub-tasks                                 |
-| agent-tui        | `extract_task_traces`                               | Hierarchy extraction from event list                                |
-| agent-gui (Rust) | `get_task_graph` command                            | Parameter passing and return format                                 |
+| Layer            | Test                                                | What it verifies                                                                                     |
+| ---------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| agent-core       | `SessionProjection::apply` for `AgentTask*` events  | task_graph field updates correctly through state transitions                                         |
+| agent-core       | `TaskGraphSnapshot` serde roundtrip                 | Serialization consistency                                                                            |
+| agent-core       | `AgentRole`/`TaskState` serde roundtrip             | Relocated types serialize correctly with `PascalCase`                                                |
+| agent-runtime    | `TaskGraph::mark_running` / `mark_failed`           | State transitions and error paths                                                                    |
+| agent-runtime    | `TaskGraph::snapshot`                               | Snapshot contains all tasks with correct state/role/dependencies                                     |
+| agent-runtime    | `send_message` emits task events (single tool call) | Event sequence: Created(root)→Started(root)→Created(sub)→Started(sub)→Completed(sub)→Completed(root) |
+| agent-runtime    | `send_message` with parallel tool calls             | Fan-out: two Worker sub-tasks share root Planner dependency                                          |
+| agent-runtime    | `get_task_graph` API                                | Returns correct snapshot after agent loop                                                            |
+| agent-runtime    | Tool failure creates Failed subtask                 | AgentTaskFailed emitted, error field populated                                                       |
+| agent-runtime    | Plain message (no tool calls)                       | Root task Completed, zero sub-tasks                                                                  |
+| agent-tui        | `extract_task_traces`                               | Hierarchy extraction from event list                                                                 |
+| agent-gui (Rust) | `get_task_graph` command                            | Parameter passing and return format                                                                  |
 
 ## Non-Goals
 
