@@ -446,12 +446,29 @@ pub async fn get_profile_detail(
 pub async fn restore_workspace(
     workspace_id: String,
     state: State<'_, GuiState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let wid: agent_core::WorkspaceId = workspace_id.into();
     {
         let mut ws = state.workspace_id.lock().await;
         *ws = Some(wid);
     }
+
+    // Spawn event forwarder if not already running.
+    // This is needed because restore_workspace is called on app restart
+    // (via recoverSessions), which bypasses initialize_workspace where
+    // the forwarder is normally started.
+    {
+        let handle = state.forwarder_handle.lock().await;
+        if handle.is_none() {
+            drop(handle); // Release lock before spawning
+            let mut handle = state.forwarder_handle.lock().await;
+            if handle.is_none() {
+                *handle = Some(spawn_event_forwarder(&state.runtime, &app_handle));
+            }
+        }
+    }
+
     Ok(())
 }
 
