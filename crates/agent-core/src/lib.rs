@@ -5,6 +5,7 @@ pub mod facade;
 pub mod ids;
 pub mod manifest;
 pub mod projection;
+pub mod task_types;
 
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
@@ -17,6 +18,7 @@ pub use facade::{
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};
+pub use task_types::{AgentRole, TaskState};
 
 pub type Result<T> = std::result::Result<T, CoreError>;
 

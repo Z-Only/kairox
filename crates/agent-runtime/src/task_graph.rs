@@ -1,22 +1,5 @@
-use agent_core::TaskId;
+use agent_core::{AgentRole, TaskId, TaskState};
 use std::collections::{BTreeMap, BTreeSet};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AgentRole {
-    Planner,
-    Worker,
-    Reviewer,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TaskState {
-    Pending,
-    Running,
-    Blocked,
-    Completed,
-    Failed,
-    Cancelled,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentTask {
