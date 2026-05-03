@@ -4,7 +4,7 @@
 //! This trait provides a stable, object-safe interface for workspace management,
 //! session lifecycle, messaging, permissions, and event streaming.
 
-use crate::{DomainEvent, SessionId, WorkspaceId};
+use crate::{DomainEvent, SessionId, TaskId, WorkspaceId};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,23 @@ pub struct SessionMeta {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// A snapshot of a single task in the task graph.
+pub struct TaskSnapshot {
+    pub id: TaskId,
+    pub title: String,
+    pub role: crate::AgentRole,
+    pub state: crate::TaskState,
+    pub dependencies: Vec<TaskId>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// A snapshot of the entire task graph for a session.
+pub struct TaskGraphSnapshot {
+    pub tasks: Vec<TaskSnapshot>,
+}
+
 #[async_trait]
 /// The primary integration point for Kairox.
 ///
@@ -108,6 +125,8 @@ pub trait AppFacade: Send + Sync {
         &self,
         older_than: std::time::Duration,
     ) -> crate::Result<usize>;
+    /// Get the current task graph snapshot for a session.
+    async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot>;
 }
 
 #[cfg(test)]
@@ -203,6 +222,11 @@ mod tests {
         ) -> crate::Result<usize> {
             let _ = older_than;
             Ok(0)
+        }
+
+        async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot> {
+            let _ = session_id;
+            Ok(TaskGraphSnapshot::default())
         }
     }
 

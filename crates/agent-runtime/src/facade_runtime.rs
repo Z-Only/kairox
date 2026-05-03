@@ -963,6 +963,19 @@ where
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
     }
+
+    async fn get_task_graph(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
+        let events = self
+            .store
+            .load_session(&session_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        let projection = agent_core::projection::SessionProjection::from_events(&events);
+        Ok(projection.task_graph)
+    }
 }
 
 #[cfg(test)]

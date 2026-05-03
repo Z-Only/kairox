@@ -14,7 +14,7 @@ pub use error::CoreError;
 pub use events::{DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
     AppFacade, PermissionDecision, SendMessageRequest, SessionMeta, StartSessionRequest,
-    TraceEntry, WorkspaceInfo,
+    TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

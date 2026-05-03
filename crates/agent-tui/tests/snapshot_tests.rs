@@ -1,5 +1,6 @@
 //! Snapshot tests for rendered UI — chat panel rendering via ratatui TestBackend + insta.
 
+use agent_core::facade::TaskGraphSnapshot;
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 use agent_tui::components::chat::render_messages;
 use ratatui::backend::TestBackend;
@@ -19,6 +20,7 @@ fn chat_panel_renders_user_and_assistant_messages() {
             },
         ],
         task_titles: vec![],
+        task_graph: TaskGraphSnapshot::default(),
         token_stream: String::new(),
         cancelled: false,
     };
@@ -42,6 +44,7 @@ fn chat_panel_renders_streaming_token_with_cursor() {
             content: "tell me a story".to_string(),
         }],
         task_titles: vec![],
+        task_graph: TaskGraphSnapshot::default(),
         token_stream: "Once upon a time".to_string(),
         cancelled: false,
     };
@@ -73,6 +76,7 @@ fn chat_panel_renders_cancelled_marker() {
             content: "do something dangerous".to_string(),
         }],
         task_titles: vec![],
+        task_graph: TaskGraphSnapshot::default(),
         token_stream: String::new(),
         cancelled: true,
     };

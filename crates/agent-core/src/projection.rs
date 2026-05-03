@@ -1,10 +1,13 @@
 use crate::events::{DomainEvent, EventPayload};
+use crate::facade::TaskGraphSnapshot;
+use crate::{TaskSnapshot, TaskState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SessionProjection {
     pub messages: Vec<ProjectedMessage>,
     pub task_titles: Vec<String>,
+    pub task_graph: TaskGraphSnapshot,
     pub token_stream: String,
     pub cancelled: bool,
 }
@@ -39,7 +42,38 @@ impl SessionProjection {
                 });
                 self.token_stream.clear();
             }
-            EventPayload::AgentTaskCreated { title, .. } => self.task_titles.push(title.clone()),
+            EventPayload::AgentTaskCreated {
+                task_id,
+                title,
+                role,
+                dependencies,
+            } => {
+                self.task_titles.push(title.clone());
+                self.task_graph.tasks.push(TaskSnapshot {
+                    id: task_id.clone(),
+                    title: title.clone(),
+                    role: *role,
+                    state: TaskState::Pending,
+                    dependencies: dependencies.clone(),
+                    error: None,
+                });
+            }
+            EventPayload::AgentTaskStarted { task_id } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Running;
+                }
+            }
+            EventPayload::AgentTaskCompleted { task_id } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Completed;
+                }
+            }
+            EventPayload::AgentTaskFailed { task_id, error } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Failed;
+                    t.error = Some(error.clone());
+                }
+            }
             EventPayload::SessionCancelled { .. } => self.cancelled = true,
             _ => {}
         }
@@ -101,6 +135,7 @@ mod tests {
                 content: "hello".into(),
             }],
             task_titles: vec!["inspect repo".into()],
+            task_graph: TaskGraphSnapshot::default(),
             token_stream: "hello".into(),
             cancelled: true,
         };
