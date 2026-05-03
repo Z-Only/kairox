@@ -333,7 +333,7 @@ impl EventStore for SqliteEventStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_core::{AgentId, EventPayload, PrivacyClassification, WorkspaceId};
+    use agent_core::{AgentId, EventPayload, PrivacyClassification, SessionId, WorkspaceId};
     use sqlx::Row;
 
     #[tokio::test]
@@ -604,5 +604,224 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(deleted, 1);
+    }
+
+    #[tokio::test]
+    async fn list_active_sessions_returns_empty_for_unknown_workspace() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let sessions = store.list_active_sessions("wrk_nonexistent").await.unwrap();
+        assert!(sessions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_also_deletes_associated_events() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let old_deleted = chrono::Utc::now() - chrono::Duration::days(10);
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_old".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old deleted".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(old_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let workspace_id = WorkspaceId::from_string("wrk_1".into());
+        let session_id = SessionId::from_string("ses_old".into());
+        let event = DomainEvent::new(
+            workspace_id,
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: "m1".into(),
+                content: "hello".into(),
+            },
+        );
+        store.append(&event).await.unwrap();
+
+        let events_before = store.load_session(&session_id).await.unwrap();
+        assert_eq!(events_before.len(), 1);
+
+        let deleted = store
+            .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+            .await
+            .unwrap();
+        assert_eq!(deleted, 1);
+
+        let events_after = store.load_session(&session_id).await.unwrap();
+        assert!(events_after.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_skips_recently_deleted() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let recent_deleted = chrono::Utc::now() - chrono::Duration::days(1);
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_recent".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Recently deleted".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(recent_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let deleted = store
+            .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+            .await
+            .unwrap();
+        assert_eq!(deleted, 0);
+    }
+
+    #[tokio::test]
+    async fn upsert_session_updates_existing_record() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Original".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Updated title".into(),
+                model_profile: "fast".into(),
+                model_id: Some("gpt-4.1-mini".into()),
+                provider: Some("openai_compatible".into()),
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            })
+            .await
+            .unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].title, "Updated title");
+        assert_eq!(sessions[0].model_profile, "fast");
+        assert_eq!(sessions[0].model_id, Some("gpt-4.1-mini".into()));
+        assert_eq!(sessions[0].provider, Some("openai_compatible".into()));
+    }
+
+    #[tokio::test]
+    async fn metadata_survives_across_reopen() {
+        let db_path = std::env::temp_dir().join(format!(
+            "kairox-store-metadata-{}.sqlite",
+            uuid::Uuid::new_v4()
+        ));
+        let database_url = format!("sqlite://{}", db_path.display());
+
+        {
+            let store = SqliteEventStore::connect(&database_url).await.unwrap();
+            store
+                .upsert_workspace("wrk_1", "/tmp/project")
+                .await
+                .unwrap();
+            let now = chrono::Utc::now().to_rfc3339();
+            store
+                .upsert_session(&SessionRow {
+                    session_id: "ses_1".into(),
+                    workspace_id: "wrk_1".into(),
+                    title: "Persistent session".into(),
+                    model_profile: "fast".into(),
+                    model_id: Some("gpt-4.1-mini".into()),
+                    provider: Some("openai_compatible".into()),
+                    deleted_at: None,
+                    created_at: now.clone(),
+                    updated_at: now,
+                })
+                .await
+                .unwrap();
+        }
+
+        let reopened = SqliteEventStore::connect(&database_url).await.unwrap();
+        let workspaces = reopened.list_workspaces().await.unwrap();
+        assert_eq!(workspaces.len(), 1);
+        assert_eq!(workspaces[0].workspace_id, "wrk_1");
+
+        let sessions = reopened.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].title, "Persistent session");
+        assert_eq!(sessions[0].model_id, Some("gpt-4.1-mini".into()));
+
+        std::fs::remove_file(db_path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn soft_deleted_session_still_exists_in_table() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "To delete".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now,
+            })
+            .await
+            .unwrap();
+
+        store.soft_delete_session("ses_1").await.unwrap();
+
+        let active = store.list_active_sessions("wrk_1").await.unwrap();
+        assert!(active.is_empty());
+
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM kairox_sessions WHERE session_id = 'ses_1'")
+                .fetch_one(&store.pool)
+                .await
+                .unwrap();
+        assert_eq!(count, 1);
     }
 }
