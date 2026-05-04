@@ -91,13 +91,16 @@ worktree name:
 
 # ─── Type sync check ──────────────────────────────────────────
 
-# Check that Rust EventPayload variants match TypeScript types
+# Check that generated TypeScript types are in sync with Rust definitions
 check-types:
-    bash scripts/check-types.sh
+    just gen-types
+    git diff --exit-code apps/agent-gui/src/generated/ || (echo "❌ Generated types are out of sync! Run 'just gen-types' and commit the result." && exit 1)
+    @echo "✅ Generated types are in sync"
 
 # ─── Code generation ──────────────────────────────────────────
 
-# Regenerate TypeScript bindings from Tauri commands via specta
+# Regenerate TypeScript bindings from Tauri commands and event types via specta
 gen-types:
     cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
+    cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
