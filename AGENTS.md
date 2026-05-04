@@ -132,7 +132,9 @@ kairox/
 │       │   ├── components/ # ChatPanel, TraceTimeline, TaskSteps, PermissionPrompt, SessionsSidebar, ConfirmDialog
 │       │   ├── stores/     # Pinia stores (session.ts with persistent SessionMeta, taskGraph.ts)
 │       │   ├── composables/# useTauriEvents (session-filtered), useTraceStore
-│       │   └── types/      # TypeScript type definitions
+│       │   ├── types/      # TypeScript type definitions (re-exports from generated/)
+│       │   │   └── events-helpers.ts  # ExtractPayload, EventPayloadHandlers, matchPayload
+│       │   └── generated/  # Auto-generated TypeScript bindings (commands.ts, events.ts)
 │       ├── src-tauri/      # Rust Tauri backend
 │       │   ├── src/        # commands.rs, app_state.rs, event_forwarder.rs, lib.rs
 │       │   ├── Cargo.toml  # version.workspace = true
@@ -249,27 +251,26 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 
 ## AI coding guidelines
 
-### tauri-specta for command IPC type generation
+### tauri-specta for type generation
 
-[tauri-specta](https://github.com/specta-rs/tauri-specta) auto-generates TypeScript types from `#[tauri::command]` return types and arguments, eliminating drift for **command IPC**. These bindings are generated into `apps/agent-gui/src/generated/commands.ts`.
+[tauri-specta](https://github.com/specta-rs/tauri-specta) auto-generates TypeScript types from Rust definitions. TypeScript bindings are generated into two files:
 
-**When to regenerate**: after adding/modifying/removing any `#[tauri::command]` function or its parameter/return types:
+| File                                       | What it covers                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/agent-gui/src/generated/commands.ts` | `#[tauri::command]` function signatures and return types                                                                             |
+| `apps/agent-gui/src/generated/events.ts`   | `EventPayload`, `DomainEvent`, `AgentRole`, `TaskState`, `TaskSnapshot`, `TaskGraphSnapshot`, `MemoryScope`, `PrivacyClassification` |
+
+**When to regenerate**: after adding/modifying/removing any `#[tauri::command]` function, its parameter/return types, or any `EventPayload` variant / domain type used in events:
 
 ```bash
 just gen-types
 ```
 
-**What specta covers**: command function signatures and their return types (`WorkspaceInfoResponse`, `SessionInfoResponse`, `MemoryEntryResponse`, `ProfileInfo`, etc.).
+**How it works for commands**: add `#[specta::specta]` to the command function, register it in `collect_commands![]` (in `src/specta.rs`) and `generate_handler![]` (in `src/lib.rs`), then run `just gen-types`.
 
-**What specta does NOT cover**: `EventPayload` types that flow through `app_handle.emit()` (broadcast events). These are not command return values, so specta cannot generate types for them. Rust↔TypeScript EventPayload sync is enforced by `just check-types` (and the `type-sync` CI job).
+**How it works for events**: domain types in `agent-core` and `agent-memory` have `#[cfg_attr(feature = "specta", derive(specta::Type))]` attributes. The `agent-gui-tauri` crate enables the `specta` feature and registers these types in `src/specta.rs`. The `export-events` binary generates `events.ts`. TypeScript consumers use discriminated union narrowing (no `as` casts needed).
 
-**When adding a new command**:
-
-1. Add `#[specta::specta]` attribute to the command function
-2. Add the command to the `collect_commands![]` macro in `src/specta.rs`
-3. Add any new response types with `#[derive(specta::Type)]`
-4. Add the command to `generate_handler![]` in `src/lib.rs` so the frontend can invoke it
-5. Run `just gen-types` to regenerate the TypeScript bindings
+**Type sync check**: `just check-types` runs `gen-types` and verifies no uncommitted changes in `apps/agent-gui/src/generated/`. The `type-sync` CI job enforces this.
 
 ### When adding a new feature
 
@@ -291,8 +292,11 @@ just gen-types
 - Pinia stores go in `apps/agent-gui/src/stores/`
 - Composables go in `apps/agent-gui/src/composables/`
 - TypeScript types go in `apps/agent-gui/src/types/`
+- Auto-generated event types are in `apps/agent-gui/src/generated/events.ts` — **never edit this file manually**, run `just gen-types` instead
+- Event helper types (`ExtractPayload`, `EventPayloadHandlers`, `matchPayload`) are in `apps/agent-gui/src/types/events-helpers.ts`
 - Always update the corresponding Rust `#[tauri::command]` in `commands.rs` if the IPC surface changes
 - Use `useTauriEvents.ts` for real-time Rust→Vue event streaming
+- Use TypeScript discriminated union narrowing (not `as` casts) when handling `EventPayload` variants
 
 ### Common pitfalls
 
@@ -301,7 +305,7 @@ just gen-types
 - **Don't use `npm`**: this project uses `pnpm` exclusively
 - **Don't forget `pnpm install` after creating a worktree**: husky hooks won't fire otherwise
 - **Don't hardcode API keys**: use `agent-config`'s `api_key_env` to reference environment variables
-- **Don't forget to update both Rust and TypeScript types** when changing the event/domain model
+- **Don't forget to run `just gen-types`** when changing Rust event/domain types — the TypeScript types are auto-generated, not manually maintained
 - **Don't forget to register new Tauri commands in both `generate_handler!` (for invocation) and `collect_commands!` (for specta type generation)**; missing either one causes runtime or type-gen failures
 
 ## Privacy defaults
@@ -312,20 +316,20 @@ The initial runtime stores event envelopes and full fake-session content in SQLi
 
 A `justfile` is provided for common tasks. Install with `cargo install just` or `brew install just`.
 
-| Command                   | Description                              |
-| ------------------------- | ---------------------------------------- |
-| `just check`              | Full CI gate: format check + lint + test |
-| `just fmt-check`          | Check formatting (Rust + web)            |
-| `just lint`               | Run clippy + eslint + stylelint          |
-| `just test`               | Run all Rust tests                       |
-| `just test-gui`           | Run GUI (Vitest) tests                   |
-| `just fmt`                | Auto-format all code                     |
-| `just tui`                | Run the TUI app                          |
-| `just gui-dev`            | Run GUI dev server (Vite)                |
-| `just tauri-dev`          | Run Tauri desktop app in dev mode        |
-| `just bump-version X.Y.Z` | Bump version in all config files         |
-| `just check-types`        | Verify Rust↔TypeScript EventPayload sync |
-| `just worktree <name>`    | Create a git worktree with pnpm install  |
+| Command                   | Description                                             |
+| ------------------------- | ------------------------------------------------------- |
+| `just check`              | Full CI gate: format check + lint + test                |
+| `just fmt-check`          | Check formatting (Rust + web)                           |
+| `just lint`               | Run clippy + eslint + stylelint                         |
+| `just test`               | Run all Rust tests                                      |
+| `just test-gui`           | Run GUI (Vitest) tests                                  |
+| `just fmt`                | Auto-format all code                                    |
+| `just tui`                | Run the TUI app                                         |
+| `just gui-dev`            | Run GUI dev server (Vite)                               |
+| `just tauri-dev`          | Run Tauri desktop app in dev mode                       |
+| `just bump-version X.Y.Z` | Bump version in all config files                        |
+| `just check-types`        | Verify generated TypeScript types are in sync with Rust |
+| `just worktree <name>`    | Create a git worktree with pnpm install                 |
 
 ## Common workflow recipes
 
@@ -333,10 +337,10 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 
 1. **Add the variant** to `EventPayload` in `crates/agent-core/src/events.rs` (along with any new structs in `task_types.rs` if task-related)
 2. **Add the match arm** in `EventPayload::event_type()` (same file)
-3. **Mirror the type** in `apps/agent-gui/src/types/index.ts` as a TypeScript discriminated union variant
-4. **Run `just check-types`** to verify Rust and TS are in sync
+3. **If adding types in agent-core or agent-memory**, ensure they have `#[cfg_attr(feature = "specta", derive(specta::Type))]` and are registered in `apps/agent-gui/src-tauri/src/specta.rs`
+4. **Run `just gen-types`** to regenerate TypeScript bindings (both `commands.ts` and `events.ts`)
 5. **Emit the event** from the appropriate place in `agent-runtime` (e.g., `facade_runtime.rs`)
-6. **Handle the event** in the UI:
+6. **Handle the event** in the UI — TypeScript will error on non-exhaustive `switch` statements if a variant is missing:
    - TUI: update the relevant component in `crates/agent-tui/src/components/`
    - GUI: update `useTraceStore.ts` or the relevant Pinia store/composable
 

@@ -20,7 +20,7 @@
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
 - ✅ Expand test coverage: integration tests for core, store, runtime, and tools crates
-- Auto-generate EventPayload TypeScript types (beyond command bindings)
+- ✅ Auto-generate EventPayload TypeScript types via specta (beyond command bindings)
 
 ## Long term
 
