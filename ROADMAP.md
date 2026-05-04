@@ -10,7 +10,7 @@
 - ✅ Harden CI/CD: parallel jobs, type-sync checks, shared Rust cache
 - ✅ Integrate tauri-specta for auto-generated TypeScript command bindings
 - ✅ Complete the GUI shell with full session management UX (persistent storage, switching, rename, delete, startup recovery)
-- Add richer session state visualization and task graph inspection (TUI session switching now persist across restarts)
+- ✅ Add task graph visualization and inspection in both TUI and GUI (TaskSteps component, density mode, event-driven refresh)
 - Improve packaging outputs and release metadata (updater support)
 
 ## Mid term
@@ -19,7 +19,7 @@
 - Add multi-agent orchestration UX in TUI and GUI
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
-- Expand test coverage: integration tests for core crates, GUI component tests
+- ✅ Expand test coverage: integration tests for core, store, runtime, and tools crates
 - Auto-generate EventPayload TypeScript types (beyond command bindings)
 
 ## Long term

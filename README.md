@@ -81,7 +81,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development with a fully interactive TUI and a functional GUI featuring persistent session management with switching, trace visualization, memory browsing, and permission control. Sessions persist across restarts via SQLite storage. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
+Kairox is in active development with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browsing, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks.
 
 ## Requirements
 

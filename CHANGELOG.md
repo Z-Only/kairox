@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-04
+
+### 🚀 Features
+
+- **core**: add TaskSnapshot, TaskGraphSnapshot, and get_task_graph to AppFacade
+- **core**: add role and dependencies fields to AgentTaskCreated event
+- **runtime**: integrate TaskGraph tracking into agent loop with root and sub-tasks
+- **runtime**: add mark_running, mark_failed, error field, and snapshot to TaskGraph
+- **tui**: add TaskGraph density mode and task rendering utilities
+- **gui**: add get_task_graph Tauri command with specta type generation
+- **gui**: add TaskSteps component and Trace/Tasks tab switcher
+- **gui**: add task graph store and event-driven refresh with TypeScript types
+- **gui**: load task graph on session switch and initial load
+
+### 🐛 Bug Fixes
+
+- **models**: handle tool calls correctly in streaming mode (anthropic + openai_compatible)
+- **runtime**: fix streaming stuck and missing assistant response in tool-call scenarios
+- **gui**: eliminate duplicate task/trace entries after restart
+
+### 🧹 Refactor
+
+- **core**: relocate AgentRole and TaskState to agent-core for facade access
+
+### 🧪 Testing
+
+- **runtime**: add task graph integration tests for root task lifecycle and API
+
 ## [0.9.0] - 2026-05-03
 
 ### 🚀 Features
