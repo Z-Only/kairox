@@ -58,6 +58,19 @@ jobs:
           {
             echo "body<<EOF"
             echo "$BODY"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 📦 Installation"
+            echo ""
+            echo "| Platform | Download |"
+            echo "|----------|----------|"
+            echo "| macOS (Apple Silicon) | \`Kairox-${TAG}-macos-aarch64.dmg\` |"
+            echo "| Linux (x86_64) | \`Kairox-${TAG}-linux-x86_64.AppImage\` or \`.deb\` |"
+            echo "| Windows (x86_64) | \`Kairox-${TAG}-windows-x86_64.msi\` or setup \`.exe\` |"
+            echo "| Terminal (any) | \`Kairox-TUI-${TAG}-<os>-<arch>.tar.gz\` |"
+            echo ""
+            echo "Checksums: see the \`SHA256SUMS.txt\` asset."
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -94,16 +107,23 @@ jobs:
 
       - name: Package TUI (Linux/macOS)
         if: runner.os != 'Windows'
+        env:
+          KAIROX_OS: ${{ runner.os == 'macOS' && 'macos' || 'linux' }}
+          KAIROX_ARCH: ${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}
         run: |
           mkdir -p dist
-          tar -czf "dist/agent-tui-${GITHUB_REF_NAME}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" -C target/release agent-tui
+          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-${KAIROX_OS}-${KAIROX_ARCH}.tar.gz" \
+            -C target/release agent-tui
 
       - name: Package TUI (Windows)
         if: runner.os == 'Windows'
+        env:
+          KAIROX_ARCH: x86_64
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path target/release/agent-tui.exe -DestinationPath "dist/agent-tui-${env:GITHUB_REF_NAME}-${env:RUNNER_OS}-${env:RUNNER_ARCH}.zip" -Force
+          Compress-Archive -Path target/release/agent-tui.exe `
+            -DestinationPath "dist/Kairox-TUI-${env:GITHUB_REF_NAME}-windows-${env:KAIROX_ARCH}.zip" -Force
 
       - name: Upload TUI package to release
         uses: softprops/action-gh-release@v3
@@ -158,13 +178,42 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         with:
           projectPath: apps/agent-gui
           tagName: ${{ github.ref_name }}
           releaseName: 'Kairox ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
-          assetNamePattern: Kairox_${{ github.ref_name }}_[platform]_[arch][ext]
-          args: --verbose
+          assetNamePattern: Kairox_${{ github.ref_name }}_{platform}_{arch}[ext]
+          updaterJsonPreferNsis: true
+
+  checksums:
+    name: Generate SHA256 checksums
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [tui-build, tauri-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.ref_name }}
+          fileName: '*'
+          outDirPath: dist
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz *.zip *.dmg *.msi *.AppImage* *.deb 2>/dev/null \
+            | sort > ../SHA256SUMS.txt
+          echo "--- SHA256SUMS.txt ---"
+          cat ../SHA256SUMS.txt
+
+      - name: Upload checksums to release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: SHA256SUMS.txt
 
   # Smoke test for workflow changes: runs on PRs that modify workflow files
   # to validate that all actions used in release-build.yml can initialize and

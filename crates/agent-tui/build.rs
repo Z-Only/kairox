@@ -1,6 +1,5 @@
 fn main() {
     inject_build_info();
-    tauri_build::build()
 }
 
 fn inject_build_info() {

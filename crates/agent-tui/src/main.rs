@@ -196,6 +196,11 @@ async fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
+    eprintln!(
+        "Kairox TUI {}",
+        agent_core::build_info::BuildInfo::from_env()
+    );
+
     // 2. Check size
     let size = terminal.size()?;
     if size.width < 80 || size.height < 24 {

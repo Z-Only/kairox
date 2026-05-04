@@ -21,9 +21,16 @@ export const commands = {
 	getTaskGraph: (sessionId: string) => typedError<TaskSnapshotResponse[], string>(__TAURI_INVOKE("get_task_graph", { sessionId })),
 	cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
 	getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
+	getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
 };
 
 /* Types */
+export type BuildInfoResponse = {
+	version: string,
+	git_hash: string,
+	build_time: string,
+};
+
 export type MemoryEntryResponse = {
 	id: string,
 	scope: string,

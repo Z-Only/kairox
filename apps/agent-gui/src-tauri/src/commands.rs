@@ -51,6 +51,13 @@ pub struct TaskSnapshotResponse {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct BuildInfoResponse {
+    pub version: String,
+    pub git_hash: String,
+    pub build_time: String,
+}
+
 impl From<MemoryEntry> for MemoryEntryResponse {
     fn from(e: MemoryEntry) -> Self {
         Self {
@@ -525,6 +532,17 @@ pub async fn restore_workspace(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_build_info() -> BuildInfoResponse {
+    let info = agent_core::build_info::BuildInfo::from_env();
+    BuildInfoResponse {
+        version: info.version.to_string(),
+        git_hash: info.git_hash.to_string(),
+        build_time: info.build_time.to_string(),
+    }
 }
 
 /// Inner helper: update current session.
