@@ -111,6 +111,7 @@ pub fn run() {
             crate::commands::get_profile_detail,
             crate::commands::restore_workspace,
             crate::commands::get_task_graph,
+            crate::commands::cancel_session,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

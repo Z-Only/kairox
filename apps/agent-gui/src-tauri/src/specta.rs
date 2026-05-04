@@ -29,6 +29,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_profile_detail,
             restore_workspace,
             get_task_graph,
+            cancel_session,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()

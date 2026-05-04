@@ -223,18 +223,13 @@ pub async fn send_message(
             .await;
 
         if let Err(e) = result {
-            eprintln!("[commands] send_message background task failed: {e}");
-            let error_payload = serde_json::json!({
-                "type": "AgentTaskFailed",
-                "task_id": "",
-                "error": e.to_string()
+            eprintln!("[commands] send_message failed: {e}");
+            let payload = serde_json::json!({
+                "type": "SendMessageError",
+                "error": e.to_string(),
+                "session_id": session_id_str
             });
-            let event = serde_json::json!({
-                "schema_version": 1,
-                "session_id": session_id_str,
-                "payload": error_payload
-            });
-            let _ = app_handle.emit("session-event", &event);
+            let _ = app_handle.emit("session-error", &payload);
         }
     });
 
@@ -426,6 +421,24 @@ pub async fn delete_session(session_id: String, state: State<'_, GuiState>) -> R
     state
         .runtime
         .soft_delete_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn cancel_session(state: State<'_, GuiState>) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current.clone().ok_or("No active session")?
+    };
+    state
+        .runtime
+        .cancel_session(workspace_id, session_id)
         .await
         .map_err(|e| e.to_string())
 }
