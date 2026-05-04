@@ -42,6 +42,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
+ "specta",
  "thiserror 2.0.18",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
@@ -80,6 +81,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "specta",
  "sqlx",
  "thiserror 2.0.18",
  "tiktoken-rs",
@@ -4348,6 +4350,7 @@ version = "2.0.0-rc.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f320c7dd82008b6958f43f6257c95319c407d1c17ade43686e50ea520c28bb26"
 dependencies = [
+ "chrono",
  "paste",
  "rustc_version",
  "specta-macros",
