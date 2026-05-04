@@ -1,22 +1,5 @@
-use agent_core::TaskId;
+use agent_core::{AgentRole, TaskId, TaskState};
 use std::collections::{BTreeMap, BTreeSet};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AgentRole {
-    Planner,
-    Worker,
-    Reviewer,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TaskState {
-    Pending,
-    Running,
-    Blocked,
-    Completed,
-    Failed,
-    Cancelled,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentTask {
@@ -25,6 +8,7 @@ pub struct AgentTask {
     pub role: AgentRole,
     pub state: TaskState,
     pub dependencies: Vec<TaskId>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -46,6 +30,7 @@ impl TaskGraph {
             role,
             state: TaskState::Pending,
             dependencies,
+            error: None,
         };
         self.tasks.insert(id.to_string(), task);
         id
@@ -78,6 +63,35 @@ impl TaskGraph {
             .ok_or_else(|| crate::RuntimeError::UnknownTask(id.to_string()))?;
         task.state = TaskState::Completed;
         Ok(())
+    }
+
+    /// Mark a task as running. No-op if the task is already running or completed.
+    /// Returns an error if the task ID is unknown.
+    pub fn mark_running(&mut self, id: &TaskId) -> crate::Result<()> {
+        let task = self
+            .tasks
+            .get_mut(&id.to_string())
+            .ok_or_else(|| crate::RuntimeError::UnknownTask(id.to_string()))?;
+        if task.state == TaskState::Pending {
+            task.state = TaskState::Running;
+        }
+        Ok(())
+    }
+
+    /// Mark a task as failed with an error message. Returns an error if the task ID is unknown.
+    pub fn mark_failed(&mut self, id: &TaskId, error: String) -> crate::Result<()> {
+        let task = self
+            .tasks
+            .get_mut(&id.to_string())
+            .ok_or_else(|| crate::RuntimeError::UnknownTask(id.to_string()))?;
+        task.state = TaskState::Failed;
+        task.error = Some(error);
+        Ok(())
+    }
+
+    /// Return a snapshot of all tasks in the graph.
+    pub fn snapshot(&self) -> Vec<AgentTask> {
+        self.tasks.values().cloned().collect()
     }
 }
 
@@ -178,5 +192,67 @@ mod tests {
         let mut expected = vec![b, c];
         expected.sort_by_key(|id| id.to_string());
         assert_eq!(ready, expected);
+    }
+
+    #[test]
+    fn mark_running_transitions_pending_to_running() {
+        let mut graph = TaskGraph::default();
+        let id = graph.add_task("task", AgentRole::Worker, vec![]);
+        assert_eq!(
+            graph.tasks.get(&id.to_string()).unwrap().state,
+            TaskState::Pending
+        );
+        graph.mark_running(&id).unwrap();
+        assert_eq!(
+            graph.tasks.get(&id.to_string()).unwrap().state,
+            TaskState::Running
+        );
+    }
+
+    #[test]
+    fn mark_running_is_idempotent() {
+        let mut graph = TaskGraph::default();
+        let id = graph.add_task("task", AgentRole::Worker, vec![]);
+        graph.mark_running(&id).unwrap();
+        graph.mark_running(&id).unwrap();
+        assert_eq!(
+            graph.tasks.get(&id.to_string()).unwrap().state,
+            TaskState::Running
+        );
+    }
+
+    #[test]
+    fn mark_failed_transitions_to_failed_with_error() {
+        let mut graph = TaskGraph::default();
+        let id = graph.add_task("task", AgentRole::Worker, vec![]);
+        graph.mark_running(&id).unwrap();
+        graph.mark_failed(&id, "something broke".into()).unwrap();
+        let task = graph.tasks.get(&id.to_string()).unwrap();
+        assert_eq!(task.state, TaskState::Failed);
+        assert_eq!(task.error, Some("something broke".into()));
+    }
+
+    #[test]
+    fn mark_failed_on_unknown_task_returns_error() {
+        let mut graph = TaskGraph::default();
+        let unknown = TaskId::new();
+        let result = graph.mark_failed(&unknown, "err".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn snapshot_returns_all_tasks() {
+        let mut graph = TaskGraph::default();
+        let a = graph.add_task("A", AgentRole::Planner, vec![]);
+        let b = graph.add_task("B", AgentRole::Worker, vec![a.clone()]);
+        graph.mark_running(&a).unwrap();
+        let snap = graph.snapshot();
+        assert_eq!(snap.len(), 2);
+        let a_snap = snap.iter().find(|t| t.id == a).unwrap();
+        assert_eq!(a_snap.state, TaskState::Running);
+        assert_eq!(a_snap.role, AgentRole::Planner);
+        let b_snap = snap.iter().find(|t| t.id == b).unwrap();
+        assert_eq!(b_snap.state, TaskState::Pending);
+        assert_eq!(b_snap.dependencies, vec![a]);
     }
 }

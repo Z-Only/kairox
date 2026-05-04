@@ -6,6 +6,7 @@ import type {
   DomainEvent
 } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
+import { taskGraphState, clearTaskGraph } from "./taskGraph";
 
 /** Report a send error to the UI when the background task fails. */
 export function reportSendError(message: string) {
@@ -24,6 +25,7 @@ export const sessionState = reactive({
   projection: {
     messages: [],
     task_titles: [],
+    task_graph: { tasks: [] },
     token_stream: "",
     cancelled: false
   } as SessionProjection,
@@ -77,7 +79,11 @@ export function applyEvent(event: DomainEvent) {
       // Task is now running — no projection change needed
       break;
     case "AgentTaskCompleted":
-      // Task finished successfully — no projection change needed
+      // Safety net: when a task completes, ensure streaming is reset.
+      // This catches the edge case where the agent loop ends with a
+      // tool-only response (empty AssistantMessageCompleted) and the
+      // root task completes, but isStreaming wasn't properly cleared.
+      sessionState.isStreaming = false;
       break;
     case "AgentTaskFailed": {
       const typed = p as { type: "AgentTaskFailed"; error: string };
@@ -90,6 +96,7 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     }
+    case "SessionInitialized":
     case "ContextAssembled":
     case "ModelRequestStarted":
     case "ModelToolCallRequested":
@@ -112,10 +119,16 @@ export function applyEvent(event: DomainEvent) {
 
 /**
  * Replace the current projection entirely (used after session switch).
+ * Also populates the task graph from the projection's embedded task_graph.
  */
 export function setProjection(projection: SessionProjection) {
   sessionState.projection = projection;
   sessionState.isStreaming = false;
+  // Populate task graph from the projection data (rebuilt from persistent events)
+  if (projection.task_graph?.tasks) {
+    taskGraphState.tasks = projection.task_graph.tasks;
+    taskGraphState.currentSessionId = sessionState.currentSessionId;
+  }
 }
 
 /**
@@ -125,6 +138,7 @@ export function resetProjection() {
   sessionState.projection = {
     messages: [],
     task_titles: [],
+    task_graph: { tasks: [] },
     token_stream: "",
     cancelled: false
   };
@@ -145,6 +159,7 @@ export async function deleteSession(sessionId: string) {
         sessionState.currentProfile = firstSession.profile;
         resetProjection();
         clearTrace();
+        clearTaskGraph();
         try {
           const projection: SessionProjection = await invoke("switch_session", {
             sessionId: firstSession.id
@@ -167,6 +182,7 @@ export async function deleteSession(sessionId: string) {
         sessionState.currentSessionId = null;
         resetProjection();
         clearTrace();
+        clearTaskGraph();
       }
     }
   } catch (e) {

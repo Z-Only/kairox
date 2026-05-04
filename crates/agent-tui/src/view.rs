@@ -22,6 +22,7 @@ pub fn render_lines(projection: &SessionProjection) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use agent_core::facade::TaskGraphSnapshot;
     use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 
     #[test]
@@ -38,6 +39,7 @@ mod tests {
                 },
             ],
             task_titles: vec!["Session using fake".into()],
+            task_graph: TaskGraphSnapshot::default(),
             token_stream: String::new(),
             cancelled: false,
         };

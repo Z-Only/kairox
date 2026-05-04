@@ -682,6 +682,7 @@ mod tests {
 
     #[test]
     fn render_messages_basic() {
+        use agent_core::facade::TaskGraphSnapshot;
         use ratatui::backend::TestBackend;
         use ratatui::Terminal;
 
@@ -697,6 +698,7 @@ mod tests {
                 },
             ],
             task_titles: vec![],
+            task_graph: TaskGraphSnapshot::default(),
             token_stream: String::new(),
             cancelled: false,
         };
@@ -712,6 +714,7 @@ mod tests {
 
     #[test]
     fn render_messages_with_streaming_and_cancelled() {
+        use agent_core::facade::TaskGraphSnapshot;
         use ratatui::backend::TestBackend;
         use ratatui::Terminal;
 
@@ -721,6 +724,7 @@ mod tests {
                 content: "go".to_string(),
             }],
             task_titles: vec![],
+            task_graph: TaskGraphSnapshot::default(),
             token_stream: "thinking".to_string(),
             cancelled: true,
         };

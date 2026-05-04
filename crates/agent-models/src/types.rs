@@ -7,6 +7,16 @@ use serde::{Deserialize, Serialize};
 pub struct ModelMessage {
     pub role: String,
     pub content: String,
+    /// For assistant messages: tool calls requested by the model in this turn.
+    /// Used by model adapters to generate provider-specific tool_use blocks
+    /// (e.g., Anthropic `tool_use` content blocks, OpenAI `tool_calls` array).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCall>,
+    /// For tool messages: the ID of the tool call this result corresponds to.
+    /// Used by model adapters to map results back to the correct tool call
+    /// (e.g., Anthropic `tool_use_id`, OpenAI `tool_call_id`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +51,8 @@ impl ModelRequest {
             messages: vec![ModelMessage {
                 role: "user".into(),
                 content: content.into(),
+                tool_calls: Vec::new(),
+                tool_call_id: None,
             }],
             system_prompt: None,
             tools: Vec::new(),
@@ -61,6 +73,42 @@ impl ModelRequest {
         self.messages.push(ModelMessage {
             role: role.into(),
             content: content.into(),
+            tool_calls: Vec::new(),
+            tool_call_id: None,
+        });
+        self
+    }
+
+    /// Add an assistant message with tool calls to the conversation.
+    /// Used after the model requests tool calls, so that subsequent model
+    /// requests include the assistant's tool_use blocks for API compatibility.
+    pub fn add_assistant_with_tools(
+        mut self,
+        text: impl Into<String>,
+        tool_calls: Vec<ToolCall>,
+    ) -> Self {
+        self.messages.push(ModelMessage {
+            role: "assistant".into(),
+            content: text.into(),
+            tool_calls,
+            tool_call_id: None,
+        });
+        self
+    }
+
+    /// Add a tool result message to the conversation.
+    /// The `tool_call_id` maps the result back to the specific tool call
+    /// it answers, which is required by Anthropic and OpenAI APIs.
+    pub fn add_tool_result(
+        mut self,
+        tool_call_id: impl Into<String>,
+        content: impl Into<String>,
+    ) -> Self {
+        self.messages.push(ModelMessage {
+            role: "tool".into(),
+            content: content.into(),
+            tool_calls: Vec::new(),
+            tool_call_id: Some(tool_call_id.into()),
         });
         self
     }

@@ -1,13 +1,30 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import TraceEntry from "./TraceEntry.vue";
+import TaskSteps from "./TaskSteps.vue";
 import { traceState } from "../composables/useTraceStore";
+
+const rightPanelTab = ref<"trace" | "tasks">("trace");
 </script>
 
 <template>
   <section class="trace-timeline">
     <header class="trace-header">
-      <h2>Trace</h2>
-      <div class="density-toggles">
+      <div class="tab-group">
+        <button
+          :class="{ active: rightPanelTab === 'trace' }"
+          @click="rightPanelTab = 'trace'"
+        >
+          Trace
+        </button>
+        <button
+          :class="{ active: rightPanelTab === 'tasks' }"
+          @click="rightPanelTab = 'tasks'"
+        >
+          Tasks
+        </button>
+      </div>
+      <div v-if="rightPanelTab === 'trace'" class="density-toggles">
         <button
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
@@ -18,7 +35,7 @@ import { traceState } from "../composables/useTraceStore";
         </button>
       </div>
     </header>
-    <div class="trace-entries">
+    <div v-if="rightPanelTab === 'trace'" class="trace-entries">
       <TraceEntry
         v-for="entry in traceState.entries"
         :key="entry.id"
@@ -29,6 +46,7 @@ import { traceState } from "../composables/useTraceStore";
         No trace events yet
       </p>
     </div>
+    <TaskSteps v-if="rightPanelTab === 'tasks'" />
   </section>
 </template>
 
@@ -46,9 +64,22 @@ import { traceState } from "../composables/useTraceStore";
   padding: 8px 12px;
   border-bottom: 1px solid #d7d7d7;
 }
-.trace-header h2 {
-  margin: 0;
-  font-size: 14px;
+.tab-group {
+  display: flex;
+  gap: 2px;
+}
+.tab-group button {
+  padding: 2px 10px;
+  border: 1px solid #d7d7d7;
+  border-radius: 3px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tab-group button.active {
+  background: #0077cc;
+  color: white;
+  border-color: #0077cc;
 }
 .density-toggles {
   display: flex;

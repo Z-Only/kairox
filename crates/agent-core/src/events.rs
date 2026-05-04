@@ -1,4 +1,5 @@
 use crate::ids::{AgentId, SessionId, TaskId, WorkspaceId};
+use crate::AgentRole;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,9 @@ pub enum EventPayload {
     WorkspaceOpened {
         path: String,
     },
+    SessionInitialized {
+        model_profile: String,
+    },
     UserMessageAdded {
         message_id: String,
         content: String,
@@ -22,6 +26,8 @@ pub enum EventPayload {
     AgentTaskCreated {
         task_id: TaskId,
         title: String,
+        role: AgentRole,
+        dependencies: Vec<TaskId>,
     },
     AgentTaskStarted {
         task_id: TaskId,
@@ -118,6 +124,7 @@ impl EventPayload {
     pub fn event_type(&self) -> &'static str {
         match self {
             Self::WorkspaceOpened { .. } => "WorkspaceOpened",
+            Self::SessionInitialized { .. } => "SessionInitialized",
             Self::UserMessageAdded { .. } => "UserMessageAdded",
             Self::AgentTaskCreated { .. } => "AgentTaskCreated",
             Self::AgentTaskStarted { .. } => "AgentTaskStarted",

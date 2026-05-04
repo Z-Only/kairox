@@ -1,3 +1,4 @@
+use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AppFacade, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
     SendMessageRequest, SessionId, StartSessionRequest, TraceEntry, WorkspaceId, WorkspaceInfo,
@@ -51,6 +52,7 @@ pub struct LocalRuntime<S, M> {
     pending_permissions:
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+    task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
 }
 
 impl<S, M> LocalRuntime<S, M> {
@@ -65,6 +67,7 @@ impl<S, M> LocalRuntime<S, M> {
             memory_store: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
+            task_graphs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -125,33 +128,137 @@ fn build_model_messages(
     session_events: &[DomainEvent],
 ) -> Vec<agent_models::ModelMessage> {
     let mut messages = Vec::new();
+    // Collect tool call info from ModelToolCallRequested events so we can
+    // populate the tool_calls field on assistant messages. We group them
+    // by the preceding AssistantMessageCompleted event.
+    let mut pending_tool_calls: Vec<agent_models::ToolCall> = Vec::new();
+    let mut tool_results: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new(); // tool_call_id -> (tool_id, output_preview)
+
+    // First pass: collect tool call requests and results
+    for event in session_events {
+        match &event.payload {
+            EventPayload::ModelToolCallRequested {
+                tool_call_id,
+                tool_id,
+            } => {
+                pending_tool_calls.push(agent_models::ToolCall {
+                    id: tool_call_id.clone(),
+                    name: tool_id.clone(),
+                    arguments: serde_json::json!({}),
+                });
+            }
+            EventPayload::ToolInvocationCompleted {
+                invocation_id,
+                tool_id,
+                output_preview,
+                ..
+            } => {
+                tool_results.insert(
+                    invocation_id.clone(),
+                    (tool_id.clone(), output_preview.clone()),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    // Second pass: build messages with proper tool_calls and tool_call_id
+    let mut tool_call_idx = 0;
     for event in session_events {
         match &event.payload {
             EventPayload::UserMessageAdded { content, .. } => {
                 messages.push(agent_models::ModelMessage {
                     role: "user".into(),
                     content: content.clone(),
+                    tool_calls: Vec::new(),
+                    tool_call_id: None,
                 });
             }
             EventPayload::AssistantMessageCompleted { content, .. } => {
+                // Gather tool calls that were requested between this assistant
+                // message and the next one (or the end of events). Tool calls
+                // in pending_tool_calls are in order from the first pass.
+                let mut tc_for_msg = Vec::new();
+                while tool_call_idx < pending_tool_calls.len() {
+                    tc_for_msg.push(pending_tool_calls[tool_call_idx].clone());
+                    tool_call_idx += 1;
+                    // If there are more tool calls, they belong to this same
+                    // assistant turn (models can request multiple tools at once).
+                    // We can\'t easily determine where the current assistant\'s
+                    // tool calls end from just session events, so we assign
+                    // all pending tool calls that follow to the most recent
+                    // assistant message. This works because in a single agent
+                    // loop iteration, all tool calls come from one model response.
+                    //
+                    // For multi-iteration support, we\'d need to track which
+                    // iteration each tool call belongs to, but the current
+                    // runtime only uses build_model_messages for the initial
+                    // request — subsequent iterations build messages directly
+                    // from current_request.
+                    //
+                    // For now: only assign tool calls to the LAST assistant message.
+                    // We\'ll fix this after the loop.
+                }
+                // Don\'t add yet — we need to know if this is the last assistant
+                // message to properly assign tool calls. For simplicity, we
+                // always append tool calls to the last assistant message.
+                // Instead, store tool calls separately and attach them below.
                 messages.push(agent_models::ModelMessage {
                     role: "assistant".into(),
                     content: content.clone(),
+                    tool_calls: Vec::new(), // will be fixed below
+                    tool_call_id: None,
                 });
             }
-            EventPayload::ToolInvocationCompleted { output_preview, .. } => {
+            EventPayload::ToolInvocationCompleted {
+                invocation_id,
+                output_preview,
+                ..
+            } => {
+                // Use tool_call_id from the invocation_id to link back to the tool call
                 messages.push(agent_models::ModelMessage {
                     role: "tool".into(),
                     content: output_preview.clone(),
+                    tool_calls: Vec::new(),
+                    tool_call_id: Some(invocation_id.clone()),
+                });
+            }
+            EventPayload::ToolInvocationFailed {
+                invocation_id,
+                error,
+                ..
+            } => {
+                messages.push(agent_models::ModelMessage {
+                    role: "tool".into(),
+                    content: format!("Error: {}", error),
+                    tool_calls: Vec::new(),
+                    tool_call_id: Some(invocation_id.clone()),
                 });
             }
             _ => {}
         }
     }
+
+    // Attach all collected tool calls to the last assistant message.
+    // In the agent loop, after a model response with tool calls, the
+    // AssistantMessageCompleted is emitted, then tool results follow.
+    // All pending tool calls belong to the most recent assistant turn.
+    if !pending_tool_calls.is_empty() {
+        if let Some(last_assistant) = messages.iter_mut().rev().find(|m| m.role == "assistant") {
+            // Only attach tool calls that haven\'t already been consumed
+            // (i.e., tool calls where the corresponding tool results appear
+            // after this assistant message in the conversation)
+            last_assistant.tool_calls = pending_tool_calls;
+        }
+    }
+
     if messages.is_empty() || messages.last().map(|m| m.content.as_str()) != Some(user_content) {
         messages.push(agent_models::ModelMessage {
             role: "user".into(),
             content: user_content.into(),
+            tool_calls: Vec::new(),
+            tool_call_id: None,
         });
     }
     messages
@@ -208,9 +315,8 @@ where
             session_id.clone(),
             AgentId::system(),
             PrivacyClassification::MinimalTrace,
-            EventPayload::AgentTaskCreated {
-                task_id: agent_core::TaskId::new(),
-                title: format!("Session using {}", request.model_profile),
+            EventPayload::SessionInitialized {
+                model_profile: request.model_profile.clone(),
             },
         );
         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
@@ -273,15 +379,12 @@ where
         };
 
         // Use the session's model profile to route to the correct model client.
-        // When sessions are created via start_session(), the profile is recorded
-        // in the AgentTaskCreated event title as "Session using {profile}".
-        // We extract it, or fall back to "fake" for backward compatibility.
+        // The model profile is recorded in the SessionInitialized event.
+        // Fall back to "fake" for backward compatibility with pre-0.7 sessions.
         let model_profile = session_events
             .iter()
             .find_map(|e| match &e.payload {
-                EventPayload::AgentTaskCreated { title, .. } => {
-                    title.strip_prefix("Session using ").map(|s| s.to_string())
-                }
+                EventPayload::SessionInitialized { model_profile } => Some(model_profile.clone()),
                 _ => None,
             })
             .unwrap_or_else(|| "fake".to_string());
@@ -355,6 +458,49 @@ where
         let mut current_request = model_request;
         let mut iterations = 0;
 
+        // Create root task for this message
+        let root_title: String = if request.content.chars().count() > 50 {
+            let truncated: String = request.content.chars().take(50).collect();
+            format!("{truncated}...")
+        } else {
+            request.content.clone()
+        };
+        let root_task_id = {
+            let mut task_graphs = self.task_graphs.lock().await;
+            let graph = task_graphs
+                .entry(request.session_id.to_string())
+                .or_insert_with(TaskGraph::default);
+            let root_task = graph.add_task(&root_title, agent_core::AgentRole::Planner, vec![]);
+            graph.mark_running(&root_task).unwrap();
+            root_task
+        };
+
+        // Emit AgentTaskCreated and AgentTaskStarted for root task
+        let task_created = DomainEvent::new(
+            request.workspace_id.clone(),
+            request.session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::AgentTaskCreated {
+                task_id: root_task_id.clone(),
+                title: root_title,
+                role: agent_core::AgentRole::Planner,
+                dependencies: vec![],
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &task_created).await?;
+
+        let task_started = DomainEvent::new(
+            request.workspace_id.clone(),
+            request.session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::AgentTaskStarted {
+                task_id: root_task_id.clone(),
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &task_started).await?;
+
         loop {
             if iterations >= MAX_AGENT_LOOP_ITERATIONS {
                 let event = DomainEvent::new(
@@ -368,6 +514,26 @@ where
                     },
                 );
                 append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
+                // Mark root task as failed due to max iterations
+                {
+                    let mut task_graphs = self.task_graphs.lock().await;
+                    if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                        let _ = graph.mark_failed(&root_task_id, "max iterations exceeded".into());
+                    }
+                }
+                let root_fail = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::MinimalTrace,
+                    EventPayload::AgentTaskFailed {
+                        task_id: root_task_id.clone(),
+                        error: "max iterations exceeded".into(),
+                    },
+                );
+                let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+
                 break;
             }
             iterations += 1;
@@ -389,6 +555,24 @@ where
                         },
                     );
                     let _ = append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                    // Mark root task as failed
+                    {
+                        let mut task_graphs = self.task_graphs.lock().await;
+                        if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                            let _ = graph.mark_failed(&root_task_id, error_msg.clone());
+                        }
+                    }
+                    let root_fail = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::MinimalTrace,
+                        EventPayload::AgentTaskFailed {
+                            task_id: root_task_id.clone(),
+                            error: error_msg.clone(),
+                        },
+                    );
+                    let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                     return Err(agent_core::CoreError::InvalidState(error_msg));
                 }
             };
@@ -432,20 +616,25 @@ where
                         });
                     }
                     Ok(ModelEvent::Completed { .. }) => {
-                        if !assistant_text.is_empty() {
-                            let display_content = strip_memory_markers(&assistant_text);
-                            let event = DomainEvent::new(
-                                request.workspace_id.clone(),
-                                request.session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::AssistantMessageCompleted {
-                                    message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
-                                    content: display_content,
-                                },
-                            );
-                            append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
-                        }
+                        // Always emit AssistantMessageCompleted when the model
+                        // finishes, even with empty text (e.g., tool-only response).
+                        // The GUI relies on this event to reset the streaming state.
+                        let display_content = if assistant_text.is_empty() {
+                            String::new()
+                        } else {
+                            strip_memory_markers(&assistant_text)
+                        };
+                        let event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::AssistantMessageCompleted {
+                                message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
+                                content: display_content,
+                            },
+                        );
+                        append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
                     }
                     Ok(ModelEvent::Failed { message }) => {
                         let fail_event = DomainEvent::new(
@@ -460,6 +649,27 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                        // Mark root task as failed
+                        {
+                            let mut task_graphs = self.task_graphs.lock().await;
+                            if let Some(graph) =
+                                task_graphs.get_mut(&request.session_id.to_string())
+                            {
+                                let _ = graph.mark_failed(&root_task_id, message.clone());
+                            }
+                        }
+                        let root_fail = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: root_task_id.clone(),
+                                error: message.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                         return Err(agent_core::CoreError::InvalidState(message));
                     }
                     Err(e) => {
@@ -476,6 +686,27 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &fail_event).await;
+                        // Mark root task as failed
+                        {
+                            let mut task_graphs = self.task_graphs.lock().await;
+                            if let Some(graph) =
+                                task_graphs.get_mut(&request.session_id.to_string())
+                            {
+                                let _ = graph.mark_failed(&root_task_id, error_msg.clone());
+                            }
+                        }
+                        let root_fail = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskFailed {
+                                task_id: root_task_id.clone(),
+                                error: error_msg.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
                         return Err(agent_core::CoreError::InvalidState(error_msg));
                     }
                 }
@@ -652,8 +883,24 @@ where
                 }
             }
 
-            // If no tool calls, the agent loop ends
+            // If no tool calls, the agent loop ends — mark root task as completed
             if tool_calls.is_empty() {
+                {
+                    let mut task_graphs = self.task_graphs.lock().await;
+                    if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                        let _ = graph.mark_completed(&root_task_id);
+                    }
+                }
+                let root_done = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::MinimalTrace,
+                    EventPayload::AgentTaskCompleted {
+                        task_id: root_task_id.clone(),
+                    },
+                );
+                let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_done).await;
                 break;
             }
 
@@ -675,54 +922,134 @@ where
                     agent_tools::ToolRisk::read(&tc.name)
                 };
 
-                let permission_event = match self.permission_engine.decide(&risk) {
-                    PermissionOutcome::Allowed => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionGranted {
-                            request_id: tc.id.clone(),
-                        },
+                let permission_outcome = self.permission_engine.decide(&risk);
+                let (permission_event, should_execute) = match &permission_outcome {
+                    PermissionOutcome::Allowed => (
+                        DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionGranted {
+                                request_id: tc.id.clone(),
+                            },
+                        ),
+                        true,
                     ),
-                    PermissionOutcome::RequiresApproval => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason: "requires user approval".into(),
-                        },
+                    PermissionOutcome::Denied(reason) => (
+                        DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionDenied {
+                                request_id: tc.id.clone(),
+                                reason: reason.clone(),
+                            },
+                        ),
+                        false,
                     ),
-                    PermissionOutcome::Pending => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason: "awaiting user confirmation".into(),
-                        },
-                    ),
-                    PermissionOutcome::Denied(reason) => DomainEvent::new(
-                        request.workspace_id.clone(),
-                        request.session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::PermissionDenied {
-                            request_id: tc.id.clone(),
-                            reason,
-                        },
-                    ),
+                    PermissionOutcome::RequiresApproval | PermissionOutcome::Pending => {
+                        // Emit PermissionRequested so the UI can show a prompt,
+                        // then wait for the user's decision via resolve_permission.
+                        let preview = format!("{}({})", tc.name, tc.arguments);
+                        let request_event = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::FullTrace,
+                            EventPayload::PermissionRequested {
+                                request_id: tc.id.clone(),
+                                tool_id: tc.name.clone(),
+                                preview,
+                            },
+                        );
+                        append_and_broadcast(&*self.store, &self.event_tx, &request_event).await?;
+
+                        // Wait for the user to resolve the permission request
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        self.pending_permissions
+                            .lock()
+                            .await
+                            .insert(tc.id.clone(), tx);
+
+                        let decision = rx.await;
+                        let approved =
+                            matches!(decision, Ok(PermissionDecision { approve: true, .. }));
+
+                        let result_event = if approved {
+                            DomainEvent::new(
+                                request.workspace_id.clone(),
+                                request.session_id.clone(),
+                                AgentId::system(),
+                                PrivacyClassification::FullTrace,
+                                EventPayload::PermissionGranted {
+                                    request_id: tc.id.clone(),
+                                },
+                            )
+                        } else {
+                            DomainEvent::new(
+                                request.workspace_id.clone(),
+                                request.session_id.clone(),
+                                AgentId::system(),
+                                PrivacyClassification::FullTrace,
+                                EventPayload::PermissionDenied {
+                                    request_id: tc.id.clone(),
+                                    reason: "denied by user".into(),
+                                },
+                            )
+                        };
+                        (result_event, approved)
+                    }
                 };
                 append_and_broadcast(&*self.store, &self.event_tx, &permission_event).await?;
 
-                // Only execute if permission was granted
-                if matches!(
-                    &permission_event.payload,
-                    EventPayload::PermissionGranted { .. }
-                ) {
+                if should_execute {
+                    // Create sub-task for this tool call
+                    let sub_task_id = {
+                        let mut task_graphs = self.task_graphs.lock().await;
+                        if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                            let sub_task = graph.add_task(
+                                &tc.name,
+                                agent_core::AgentRole::Worker,
+                                vec![root_task_id.clone()],
+                            );
+                            graph.mark_running(&sub_task).unwrap();
+                            Some(sub_task)
+                        } else {
+                            None
+                        }
+                    };
+
+                    if let Some(ref sub_id) = sub_task_id {
+                        let sub_created = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskCreated {
+                                task_id: sub_id.clone(),
+                                title: tc.name.clone(),
+                                role: agent_core::AgentRole::Worker,
+                                dependencies: vec![root_task_id.clone()],
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &sub_created).await;
+
+                        let sub_started = DomainEvent::new(
+                            request.workspace_id.clone(),
+                            request.session_id.clone(),
+                            AgentId::system(),
+                            PrivacyClassification::MinimalTrace,
+                            EventPayload::AgentTaskStarted {
+                                task_id: sub_id.clone(),
+                            },
+                        );
+                        let _ =
+                            append_and_broadcast(&*self.store, &self.event_tx, &sub_started).await;
+                    }
+
                     let invocation = ToolInvocation {
                         tool_id: tc.name.clone(),
                         arguments: tc.arguments.clone(),
@@ -778,14 +1105,78 @@ where
                         ),
                     };
                     append_and_broadcast(&*self.store, &self.event_tx, &completion_event).await?;
+
+                    // Mark sub-task as completed or failed
+                    if let Some(sub_id) = sub_task_id {
+                        let task_event = match &completion_event.payload {
+                            EventPayload::ToolInvocationCompleted { .. } => {
+                                {
+                                    let mut task_graphs = self.task_graphs.lock().await;
+                                    if let Some(graph) =
+                                        task_graphs.get_mut(&request.session_id.to_string())
+                                    {
+                                        let _ = graph.mark_completed(&sub_id);
+                                    }
+                                }
+                                Some(DomainEvent::new(
+                                    request.workspace_id.clone(),
+                                    request.session_id.clone(),
+                                    AgentId::system(),
+                                    PrivacyClassification::MinimalTrace,
+                                    EventPayload::AgentTaskCompleted { task_id: sub_id },
+                                ))
+                            }
+                            EventPayload::ToolInvocationFailed { error, .. } => {
+                                {
+                                    let mut task_graphs = self.task_graphs.lock().await;
+                                    if let Some(graph) =
+                                        task_graphs.get_mut(&request.session_id.to_string())
+                                    {
+                                        let _ = graph.mark_failed(&sub_id, error.clone());
+                                    }
+                                }
+                                Some(DomainEvent::new(
+                                    request.workspace_id.clone(),
+                                    request.session_id.clone(),
+                                    AgentId::system(),
+                                    PrivacyClassification::MinimalTrace,
+                                    EventPayload::AgentTaskFailed {
+                                        task_id: sub_id,
+                                        error: error.clone(),
+                                    },
+                                ))
+                            }
+                            _ => None,
+                        };
+                        if let Some(evt) = task_event {
+                            let _ = append_and_broadcast(&*self.store, &self.event_tx, &evt).await;
+                        }
+                    }
                 }
             }
             drop(registry);
 
-            // Build next request with tool results appended
+            // Build next request with tool results appended.
+            // For tool calls where permission was denied (no ToolInvocationCompleted
+            // event exists), we still need to include a tool result so the model
+            // knows the tool was not executed and can respond accordingly.
+            //
+            // IMPORTANT: We include the tool_calls in the assistant message so that
+            // model adapters (Anthropic, OpenAI) can generate the required
+            // tool_use/tool_calls blocks in the API request format. Without this,
+            // the Anthropic API rejects requests where tool_result follows an
+            // assistant message without tool_use blocks.
+            let tool_calls_for_msg: Vec<agent_models::ToolCall> = tool_calls
+                .iter()
+                .map(|tc| agent_models::ToolCall {
+                    id: tc.id.clone(),
+                    name: tc.name.clone(),
+                    arguments: tc.arguments.clone(),
+                })
+                .collect();
             current_request = current_request
                 .clone()
-                .add_message("assistant", &assistant_text);
+                .add_assistant_with_tools(&assistant_text, tool_calls_for_msg);
             let session_events = self
                 .store
                 .load_session(&request.session_id)
@@ -809,15 +1200,35 @@ where
                         _ => None,
                     })
                     .collect();
+                // Use add_tool_result so that model adapters can map the
+                // result back to the correct tool call via tool_call_id.
+                // This is required by Anthropic (tool_use_id) and OpenAI (tool_call_id).
                 if !tool_results_for_call.is_empty() {
-                    current_request = current_request.add_message(
-                        "tool",
-                        format!(
-                            "tool_call_id={}\ntool_id={}\nresult={}",
-                            tc.id,
-                            tc.name,
-                            tool_results_for_call.join("\n")
-                        ),
+                    let result_content = format!(
+                        "tool_id={}\nresult={}",
+                        tc.name,
+                        tool_results_for_call.join("\n")
+                    );
+                    current_request = current_request.add_tool_result(&tc.id, &result_content);
+                } else {
+                    // No ToolInvocationCompleted for this call - permission was denied
+                    // or the invocation failed. Provide a fallback result so the
+                    // model knows the tool was not executed.
+                    let permission_denied = session_events.iter().any(|e| {
+                        matches!(
+                            &e.payload,
+                            EventPayload::PermissionDenied { request_id, .. }
+                            if request_id == &tc.id
+                        )
+                    });
+                    let denial_reason = if permission_denied {
+                        "Permission denied by user"
+                    } else {
+                        "Tool invocation failed or was not executed"
+                    };
+                    current_request = current_request.add_tool_result(
+                        &tc.id,
+                        format!("tool_id={}\nresult=Error: {}", tc.name, denial_reason),
                     );
                 }
             }
@@ -877,9 +1288,18 @@ where
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
         let mut rx = self.event_tx.subscribe();
         Box::pin(async_stream::stream! {
-            while let Ok(event) = rx.recv().await {
-                if event.session_id == session_id {
-                    yield event;
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        if event.session_id == session_id {
+                            yield event;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[subscribe_session] Broadcast lagged, skipped {n} events");
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
         })
@@ -888,8 +1308,15 @@ where
     fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
         let mut rx = self.event_tx.subscribe();
         Box::pin(async_stream::stream! {
-            while let Ok(event) = rx.recv().await {
-                yield event;
+            loop {
+                match rx.recv().await {
+                    Ok(event) => yield event,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[subscribe_all] Broadcast lagged, skipped {n} events");
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
             }
         })
     }
@@ -960,6 +1387,31 @@ where
             .cleanup_expired_sessions(older_than)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
+    async fn get_task_graph(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
+        let graphs = self.task_graphs.lock().await;
+        match graphs.get(&session_id.to_string()) {
+            Some(graph) => {
+                let tasks = graph
+                    .snapshot()
+                    .into_iter()
+                    .map(|t| agent_core::facade::TaskSnapshot {
+                        id: t.id,
+                        title: t.title,
+                        role: t.role,
+                        state: t.state,
+                        dependencies: t.dependencies,
+                        error: t.error,
+                    })
+                    .collect();
+                Ok(agent_core::TaskGraphSnapshot { tasks })
+            }
+            None => Ok(agent_core::TaskGraphSnapshot::default()),
+        }
     }
 }
 

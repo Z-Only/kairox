@@ -86,6 +86,7 @@ pub enum TraceDensity {
     Expanded,
     /// Show every event in the stream (including heartbeats).
     FullEventStream,
+    TaskGraph,
 }
 
 impl TraceDensity {
@@ -94,7 +95,8 @@ impl TraceDensity {
         match self {
             Self::Summary => Self::Expanded,
             Self::Expanded => Self::FullEventStream,
-            Self::FullEventStream => Self::Summary,
+            Self::FullEventStream => Self::TaskGraph,
+            Self::TaskGraph => Self::Summary,
         }
     }
 }
@@ -490,7 +492,11 @@ mod tests {
     fn trace_density_cycles() {
         assert_eq!(TraceDensity::Summary.next(), TraceDensity::Expanded);
         assert_eq!(TraceDensity::Expanded.next(), TraceDensity::FullEventStream);
-        assert_eq!(TraceDensity::FullEventStream.next(), TraceDensity::Summary);
+        assert_eq!(
+            TraceDensity::FullEventStream.next(),
+            TraceDensity::TaskGraph
+        );
+        assert_eq!(TraceDensity::TaskGraph.next(), TraceDensity::Summary);
     }
 
     #[test]

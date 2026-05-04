@@ -8,14 +8,44 @@ export interface ProjectedMessage {
 export interface SessionProjection {
   messages: ProjectedMessage[];
   task_titles: string[];
+  task_graph: TaskGraphSnapshot;
   token_stream: string;
   cancelled: boolean;
 }
 
+export type AgentRole = "Planner" | "Worker" | "Reviewer";
+export type TaskState =
+  | "Pending"
+  | "Running"
+  | "Blocked"
+  | "Completed"
+  | "Failed"
+  | "Cancelled";
+
+export interface TaskSnapshot {
+  id: string;
+  title: string;
+  role: AgentRole;
+  state: TaskState;
+  dependencies: string[];
+  error: string | null;
+}
+
+export interface TaskGraphSnapshot {
+  tasks: TaskSnapshot[];
+}
+
 export type EventPayload =
   | { type: "WorkspaceOpened"; path: string }
+  | { type: "SessionInitialized"; model_profile: string }
   | { type: "UserMessageAdded"; message_id: string; content: string }
-  | { type: "AgentTaskCreated"; task_id: string; title: string }
+  | {
+      type: "AgentTaskCreated";
+      task_id: string;
+      title: string;
+      role: AgentRole;
+      dependencies: string[];
+    }
   | { type: "AgentTaskStarted"; task_id: string }
   | { type: "AgentTaskCompleted"; task_id: string }
   | { type: "AgentTaskFailed"; task_id: string; error: string }

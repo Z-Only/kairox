@@ -10,6 +10,7 @@ import {
   renameSession
 } from "../stores/session";
 import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
+import { clearTaskGraph } from "../stores/taskGraph";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
 const showNewSession = ref(false);
@@ -36,6 +37,7 @@ async function switchToSession(sessionId: string) {
   try {
     resetProjection();
     clearTrace();
+    clearTaskGraph();
     const projection: SessionProjection = await invoke("switch_session", {
       sessionId
     });

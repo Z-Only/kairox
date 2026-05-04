@@ -385,12 +385,16 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
 
-            EventPayload::AgentTaskCreated { title, .. } => {
+            EventPayload::SessionInitialized { model_profile } => {
                 if let Some(session) = self.current_session_mut() {
                     if session.title.starts_with("Session using ") {
-                        session.title = title.clone();
+                        session.title = format!("Session using {}", model_profile);
                     }
                 }
+                self.state.render_scheduler.mark_dirty();
+            }
+
+            EventPayload::AgentTaskCreated { title, .. } => {
                 self.state.current_session.task_titles.push(title.clone());
                 self.state.render_scheduler.mark_dirty();
             }
@@ -533,13 +537,34 @@ impl App {
 
         // Render trace
         if let Some(trace_area) = trace_area {
-            let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
-            crate::components::trace::render_trace_l1(
-                trace_area,
-                frame,
-                &traces,
-                self.trace.focused(),
-            );
+            match self.trace.density {
+                crate::keybindings::TraceDensity::TaskGraph => {
+                    let tasks = crate::components::trace::extract_task_traces(&self.domain_events);
+                    if tasks.is_empty() {
+                        crate::components::trace::render_task_graph_placeholder(
+                            trace_area,
+                            frame,
+                            self.trace.focused(),
+                        );
+                    } else {
+                        crate::components::trace::render_task_graph(
+                            trace_area,
+                            frame,
+                            &tasks,
+                            self.trace.focused(),
+                        );
+                    }
+                }
+                _ => {
+                    let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
+                    crate::components::trace::render_trace_l1(
+                        trace_area,
+                        frame,
+                        &traces,
+                        self.trace.focused(),
+                    );
+                }
+            }
         }
 
         // Render status bar
