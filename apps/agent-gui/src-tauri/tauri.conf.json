@@ -18,7 +18,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "category": "DeveloperTool",
+    "copyright": "Copyright 2024-2026 Kairox Contributors",
+    "shortDescription": "Local-first AI agent workbench",
+    "longDescription": "Kairox is a local-first AI agent workbench with a shared Rust core, terminal UI, and desktop GUI for managing AI agent sessions, tasks, and memory.",
+    "publisher": "Kairox",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
   },
   "app": {
     "windows": [
