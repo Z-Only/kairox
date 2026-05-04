@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
-import type { DomainEvent } from "../types";
+import type { DomainEvent, TaskState } from "../types";
 import { sessionState, applyEvent } from "../stores/session";
 import { applyTraceEvent } from "./useTraceStore";
 import { taskGraphState } from "../stores/taskGraph";
@@ -28,21 +28,14 @@ export function useTauriEvents() {
         const p = domainEvent.payload;
         switch (p.type) {
           case "AgentTaskCreated": {
-            const typed = p as {
-              type: "AgentTaskCreated";
-              task_id: string;
-              title: string;
-              role: string;
-              dependencies: string[];
-            };
             // Only add if not already present (dedup against projection load)
-            if (!taskGraphState.tasks.some((t) => t.id === typed.task_id)) {
+            if (!taskGraphState.tasks.some((t) => t.id === p.task_id)) {
               taskGraphState.tasks.push({
-                id: typed.task_id,
-                title: typed.title,
-                role: typed.role as "Planner" | "Worker" | "Reviewer",
-                state: "Pending",
-                dependencies: typed.dependencies,
+                id: p.task_id,
+                title: p.title,
+                role: p.role,
+                state: "Pending" as TaskState,
+                dependencies: p.dependencies,
                 error: null
               });
               if (taskGraphState.currentSessionId === sessionId) {
@@ -53,42 +46,26 @@ export function useTauriEvents() {
             break;
           }
           case "AgentTaskStarted": {
-            const typed = p as { type: "AgentTaskStarted"; task_id: string };
-            const task = taskGraphState.tasks.find(
-              (t) => t.id === typed.task_id
-            );
+            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
             if (task) {
-              task.state = "Running";
+              task.state = "Running" as TaskState;
               taskGraphState.tasks = [...taskGraphState.tasks];
             }
             break;
           }
           case "AgentTaskCompleted": {
-            const typed = p as {
-              type: "AgentTaskCompleted";
-              task_id: string;
-            };
-            const task = taskGraphState.tasks.find(
-              (t) => t.id === typed.task_id
-            );
+            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
             if (task) {
-              task.state = "Completed";
+              task.state = "Completed" as TaskState;
               taskGraphState.tasks = [...taskGraphState.tasks];
             }
             break;
           }
           case "AgentTaskFailed": {
-            const typed = p as {
-              type: "AgentTaskFailed";
-              task_id: string;
-              error: string;
-            };
-            const task = taskGraphState.tasks.find(
-              (t) => t.id === typed.task_id
-            );
+            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
             if (task) {
-              task.state = "Failed";
-              task.error = typed.error;
+              task.state = "Failed" as TaskState;
+              task.error = p.error;
               taskGraphState.tasks = [...taskGraphState.tasks];
             }
             break;
