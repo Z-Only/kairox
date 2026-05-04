@@ -16,7 +16,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "agent-config"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "agent-models",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "agent-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "agent-gui-tauri"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-config",
  "agent-core",
@@ -73,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "agent-memory"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "async-trait",
@@ -91,7 +91,7 @@ dependencies = [
 
 [[package]]
 name = "agent-models"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "async-stream",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "agent-runtime"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "agent-memory",
@@ -132,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = "agent-store"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "async-trait",
@@ -146,7 +146,7 @@ dependencies = [
 
 [[package]]
 name = "agent-tools"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-core",
  "async-trait",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "agent-tui"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "agent-config",
  "agent-core",
@@ -1774,9 +1774,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f44da3a8150a6703ed5d34e164b875fd14c2cdab9af1252a9a1020bde2bdc54"
+checksum = "171fefbc92fe4a4de27e0698d6a5b392d6a0e333506bc49133760b3bcf948733"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -2456,7 +2456,7 @@ dependencies = [
  "bitflags 2.11.1",
  "libc",
  "plain",
- "redox_syscall 0.7.4",
+ "redox_syscall 0.7.5",
 ]
 
 [[package]]
@@ -3418,9 +3418,9 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
-version = "0.39.2"
+version = "0.39.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "958f21e8e7ceb5a1aa7fa87fab28e7c75976e0bfe7e23ff069e0a260f894067d"
+checksum = "721da970c312655cde9b4ffe0547f20a8494866a4af5ff51f18b7c633d0c870b"
 dependencies = [
  "memchr",
 ]
@@ -3662,9 +3662,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f450ad9c3b1da563fb6948a8e0fb0fb9269711c9c73d9ea1de5058c79c8d643a"
+checksum = "4666a1a60d8412eab19d94f6d13dcc9cea0a5ef4fdf6a5db306537413c661b1b"
 dependencies = [
  "bitflags 2.11.1",
 ]

@@ -42,17 +42,17 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 
 ### Crate responsibilities
 
-| Crate             | Purpose                                                                                  | Key types                                                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections                   | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState` |
-| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions            | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `TaskGraph`                                                                                         |
-| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                  | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                                                                                        |
-| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs, patch, search, MCP)         | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`                                                                                            |
-| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken             | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                                                                               |
-| **agent-store**   | SQLite-backed event store (append-only) + metadata tables for workspace/session tracking | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, metadata repos                                                                                                     |
-| **agent-config**  | TOML config loading, model profile discovery, API key resolution                         | `ProfileDef`, `load_from_str`, `build_router`                                                                                                                             |
-| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace)                     | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                                                                                      |
-| **agent-gui**     | Tauri 2 + Vue 3 desktop app with persistent session management and task graph inspection | `commands.rs`, `GuiState`, `event_forwarder.rs`, Vue: `session.ts`, `taskGraph.ts`, `useTraceStore.ts`, `TaskSteps.vue`, `ConfirmDialog.vue`                              |
+| Crate             | Purpose                                                                                     | Key types                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections, build info          | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState`, `BuildInfo` |
+| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions               | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `TaskGraph`                                                                                                      |
+| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                     | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                                                                                                     |
+| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs, patch, search, MCP)            | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`                                                                                                         |
+| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken                | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                                                                                            |
+| **agent-store**   | SQLite-backed event store (append-only) + metadata tables for workspace/session tracking    | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, metadata repos                                                                                                                  |
+| **agent-config**  | TOML config loading, model profile discovery, API key resolution                            | `ProfileDef`, `load_from_str`, `build_router`                                                                                                                                          |
+| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace) with build-info banner | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                                                                                                   |
+| **agent-gui**     | Tauri 2 + Vue 3 desktop app with persistent sessions, task graph inspection, build info     | `commands.rs`, `GuiState`, `event_forwarder.rs`, `get_build_info`, Vue: `session.ts`, `taskGraph.ts`, `useTraceStore.ts`, `TaskSteps.vue`, `ConfirmDialog.vue`                         |
 
 ## Coding conventions
 
@@ -254,7 +254,7 @@ Use `scripts/release.sh <version>` to publish a release:
 scripts/release.sh 0.7.0
 ```
 
-The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with git-cliff, commits it, creates the tag, and pushes.
+The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with git-cliff, commits it, creates the tag, and pushes. Supports `--dry-run`, `--skip-checks`, `--skip-build`, and `--prerelease` options.
 
 ### Manual release steps (if not using the script)
 

@@ -15,6 +15,7 @@
 - ✅ Auto-generate EventPayload TypeScript types via specta (beyond command bindings)
 - ✅ GUI core interaction polish — cancel session, error notifications, memory browser, code highlighting, real status bar
 - ✅ Improve packaging outputs and release metadata (updater support)
+- ✅ Expand GUI test coverage to 127 tests across stores, composables, and components
 
 ## Mid term
 
