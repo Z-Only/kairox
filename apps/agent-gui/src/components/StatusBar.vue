@@ -1,5 +1,19 @@
 <script setup lang="ts">
+import { ref, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import { sessionState } from "../stores/session";
+
+const permissionMode = ref("interactive");
+
+onMounted(async () => {
+  try {
+    const mode: string = await invoke("get_permission_mode");
+    // Convert PascalCase to lowercase for display
+    permissionMode.value = mode.toLowerCase();
+  } catch {
+    permissionMode.value = "interactive";
+  }
+});
 </script>
 
 <template>
@@ -18,7 +32,7 @@ import { sessionState } from "../stores/session";
       sessionState.connected ? "connected: yes" : "connected: no"
     }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item">mode: interactive</span>
+    <span class="status-item">mode: {{ permissionMode }}</span>
   </footer>
 </template>
 

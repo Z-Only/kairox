@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useTauriEvents } from "./composables/useTauriEvents";
+import { addNotification } from "./composables/useNotifications";
 import { sessionState, recoverSessions, setProjection } from "./stores/session";
 import type { SessionProjection } from "./types";
 import ChatPanel from "./components/ChatPanel.vue";
@@ -9,10 +11,19 @@ import SessionsSidebar from "./components/SessionsSidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
 import TraceTimeline from "./components/TraceTimeline.vue";
 import PermissionCenter from "./components/PermissionCenter.vue";
+import NotificationToast from "./components/NotificationToast.vue";
 
 useTauriEvents();
 
 onMounted(async () => {
+  // Listen for backend error events
+  await listen<{ type: string; error: string; session_id: string }>(
+    "session-error",
+    (event) => {
+      addNotification("error", event.payload.error);
+    }
+  );
+
   // Try to recover existing workspace and sessions from metadata store
   const recovered = await recoverSessions();
 
@@ -40,6 +51,7 @@ onMounted(async () => {
       }
     } catch (e) {
       console.error("Failed to initialize workspace:", e);
+      addNotification("error", `Failed to initialize workspace: ${e}`);
     }
   }
 });
@@ -55,6 +67,7 @@ onMounted(async () => {
     </aside>
   </main>
   <StatusBar />
+  <NotificationToast />
 </template>
 
 <style scoped>

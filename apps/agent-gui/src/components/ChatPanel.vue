@@ -2,6 +2,7 @@
 import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { sessionState, reportSendError } from "../stores/session";
+import { addNotification } from "../composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 
 const inputText = ref("");
@@ -17,6 +18,16 @@ async function sendMessage() {
   } catch (e) {
     console.error("Failed to send message:", e);
     reportSendError(String(e));
+    addNotification("error", `Failed to send message: ${e}`);
+  }
+}
+
+async function cancelSession() {
+  try {
+    await invoke("cancel_session");
+  } catch (e) {
+    console.error("Failed to cancel session:", e);
+    addNotification("error", `Cancel failed: ${e}`);
   }
 }
 
@@ -90,8 +101,16 @@ watch(
         @keydown="handleKeydown"
       ></textarea>
       <button
+        v-if="sessionState.isStreaming"
+        class="cancel-button"
+        @click="cancelSession"
+      >
+        Cancel
+      </button>
+      <button
+        v-else
         class="send-button"
-        :disabled="!inputText.trim() || sessionState.isStreaming"
+        :disabled="!inputText.trim()"
         @click="sendMessage"
       >
         Send
@@ -190,26 +209,37 @@ watch(
   font-size: 13px;
 }
 .send-button:disabled {
-  background: #a0c4e8;
+  opacity: 0.5;
   cursor: not-allowed;
 }
-.markdown-body :deep(pre) {
-  background: #1e1e2e;
-  color: #cdd6f4;
+.cancel-button {
+  padding: 8px 16px;
+  background: #cc3333;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.cancel-button:hover {
+  background: #b32828;
+}
+.markdown-body :deep(pre.hljs) {
+  margin: 8px 0;
   border-radius: 6px;
-  padding: 12px 16px;
+  padding: 12px;
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.5;
 }
 .markdown-body :deep(code) {
-  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 .markdown-body :deep(:not(pre) > code) {
   background: #f0f0f0;
   padding: 2px 4px;
   border-radius: 3px;
-  font-size: 0.9em;
+  font-size: 12px;
 }
 .markdown-body :deep(ul),
 .markdown-body :deep(ol) {
@@ -219,3 +249,4 @@ watch(
   margin: 6px 0;
 }
 </style>
+CHAPEOF echo "ChatPanel.vue updated"

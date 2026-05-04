@@ -4,6 +4,7 @@ import type { DomainEvent, TaskState } from "../types";
 import { sessionState, applyEvent } from "../stores/session";
 import { applyTraceEvent } from "./useTraceStore";
 import { taskGraphState } from "../stores/taskGraph";
+import { addNotification } from "./useNotifications";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -67,6 +68,9 @@ export function useTauriEvents() {
               task.state = "Failed" as TaskState;
               task.error = p.error;
               taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            if (p.error) {
+              addNotification("error", p.error);
             }
             break;
           }

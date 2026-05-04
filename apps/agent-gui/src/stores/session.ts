@@ -6,6 +6,7 @@ import type {
   DomainEvent
 } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
+import { addNotification } from "../composables/useNotifications";
 import { taskGraphState, clearTaskGraph } from "./taskGraph";
 
 /** Report a send error to the UI when the background task fails. */
@@ -183,6 +184,7 @@ export async function deleteSession(sessionId: string) {
     }
   } catch (e) {
     console.error("Failed to delete session:", e);
+    addNotification("error", `Failed to delete session: ${e}`);
   }
 }
 
@@ -195,6 +197,7 @@ export async function renameSession(sessionId: string, title: string) {
     }
   } catch (e) {
     console.error("Failed to rename session:", e);
+    addNotification("error", `Failed to rename session: ${e}`);
   }
 }
 
@@ -244,6 +247,7 @@ export async function recoverSessions(): Promise<boolean> {
     return true;
   } catch (e) {
     console.error("Failed to recover sessions:", e);
+    addNotification("error", `Failed to recover sessions: ${e}`);
     return false;
   }
 }

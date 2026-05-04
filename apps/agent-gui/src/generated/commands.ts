@@ -13,6 +13,14 @@ export const commands = {
 	resolvePermission: (requestId: string, decision: string, reason: string | null) => typedError<null, string>(__TAURI_INVOKE("resolve_permission", { requestId, decision, reason })),
 	queryMemories: (scope: string | null, keywords: string[] | null, limit: number | null) => typedError<MemoryEntryResponse[], string>(__TAURI_INVOKE("query_memories", { scope, keywords, limit })),
 	deleteMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_memory", { id })),
+	listWorkspaces: () => typedError<WorkspaceInfoResponse[], string>(__TAURI_INVOKE("list_workspaces")),
+	renameSession: (sessionId: string, title: string) => typedError<null, string>(__TAURI_INVOKE("rename_session", { sessionId, title })),
+	deleteSession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("delete_session", { sessionId })),
+	getProfileDetail: (profile: string) => typedError<ProfileDetailResponse, string>(__TAURI_INVOKE("get_profile_detail", { profile })),
+	restoreWorkspace: (workspaceId: string) => typedError<null, string>(__TAURI_INVOKE("restore_workspace", { workspaceId })),
+	getTaskGraph: (sessionId: string) => typedError<TaskSnapshotResponse[], string>(__TAURI_INVOKE("get_task_graph", { sessionId })),
+	cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
+	getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
 };
 
 /* Types */
@@ -22,6 +30,14 @@ export type MemoryEntryResponse = {
 	key: string | null,
 	content: string,
 	accepted: boolean,
+};
+
+export type ProfileDetailResponse = {
+	alias: string,
+	provider: string,
+	model_id: string,
+	local: boolean,
+	has_api_key: boolean,
 };
 
 // Metadata about a profile for UI display.
@@ -37,6 +53,15 @@ export type SessionInfoResponse = {
 	id: string,
 	title: string,
 	profile: string,
+};
+
+export type TaskSnapshotResponse = {
+	id: string,
+	title: string,
+	role: string,
+	state: string,
+	dependencies: string[],
+	error: string | null,
 };
 
 export type WorkspaceInfoResponse = {
