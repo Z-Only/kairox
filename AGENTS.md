@@ -173,6 +173,36 @@ Examples:
 - `refactor(memory): extract keyword scoring into separate module`
 - `chore(deps): bump reqwest to 0.12`
 
+## Branch conventions
+
+For any non-trivial development task (new features, bug fixes, refactors), **always create a feature branch** instead of committing directly to `main`. Use Conventional Commit prefixes as branch names:
+
+| Branch prefix | When to use                                | Example                            |
+| ------------- | ------------------------------------------ | ---------------------------------- |
+| `feat/`       | New features or enhancements               | `feat/gui-interaction-polish`      |
+| `fix/`        | Bug fixes                                  | `fix/streaming-stuck`              |
+| `refactor/`   | Code restructuring without behavior change | `refactor/extract-context-builder` |
+| `test/`       | Adding or improving tests                  | `test/runtime-integration`         |
+| `docs/`       | Documentation changes                      | `docs/api-reference`               |
+| `chore/`      | Tooling, CI, dependencies                  | `chore/bump-deps`                  |
+| `ci/`         | CI/CD workflow changes                     | `ci/parallel-jobs`                 |
+
+**Workflow:**
+
+1. Create a branch: `git checkout -b feat/my-feature main`
+2. Develop and commit with Conventional Commit messages
+3. Push the branch: `git push origin feat/my-feature`
+4. Open a pull request for review
+5. Merge via PR — do not push directly to `main`
+
+**Quick branch creation with just:**
+
+```bash
+just worktree feat/my-feature   # creates isolated worktree with pnpm install
+```
+
+Small fixes (typos, trivial one-liners) may be committed directly to `main`, but anything touching more than one file or requiring review should use a branch.
+
 ## Git worktrees
 
 This project uses git worktrees for isolated branch development. After creating a worktree, always run `pnpm install` to set up husky hooks:

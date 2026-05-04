@@ -13,7 +13,7 @@
 - ✅ Add task graph visualization and inspection in both TUI and GUI (TaskSteps component, density mode, event-driven refresh)
 - ✅ Expand test coverage: integration tests for core, store, runtime, and tools crates
 - ✅ Auto-generate EventPayload TypeScript types via specta (beyond command bindings)
-- GUI core interaction polish — cancel session, error notifications, memory browser, code highlighting, real status bar
+- ✅ GUI core interaction polish — cancel session, error notifications, memory browser, code highlighting, real status bar
 - Improve packaging outputs and release metadata (updater support)
 
 ## Mid term
