@@ -31,12 +31,14 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_task_graph,
             cancel_session,
             get_permission_mode,
+            get_build_info,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
+        .typ::<BuildInfoResponse>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()

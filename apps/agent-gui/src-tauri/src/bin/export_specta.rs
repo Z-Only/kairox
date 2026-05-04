@@ -6,8 +6,8 @@
 
 use agent_config::ProfileInfo;
 use agent_gui_tauri::commands::{
-    MemoryEntryResponse, ProfileDetailResponse, SessionInfoResponse, TaskSnapshotResponse,
-    WorkspaceInfoResponse,
+    BuildInfoResponse, MemoryEntryResponse, ProfileDetailResponse, SessionInfoResponse,
+    TaskSnapshotResponse, WorkspaceInfoResponse,
 };
 use tauri_specta::collect_commands;
 
@@ -40,13 +40,15 @@ fn main() {
             agent_gui_tauri::commands::get_task_graph,
             agent_gui_tauri::commands::cancel_session,
             agent_gui_tauri::commands::get_permission_mode,
+            agent_gui_tauri::commands::get_build_info,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileInfo>()
         .typ::<ProfileDetailResponse>()
-        .typ::<TaskSnapshotResponse>();
+        .typ::<TaskSnapshotResponse>()
+        .typ::<BuildInfoResponse>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)
