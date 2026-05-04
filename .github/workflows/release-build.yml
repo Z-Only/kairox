@@ -94,16 +94,23 @@ jobs:
 
       - name: Package TUI (Linux/macOS)
         if: runner.os != 'Windows'
+        env:
+          KAIROX_OS: ${{ runner.os == 'macOS' && 'macos' || 'linux' }}
+          KAIROX_ARCH: ${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}
         run: |
           mkdir -p dist
-          tar -czf "dist/agent-tui-${GITHUB_REF_NAME}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" -C target/release agent-tui
+          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-${KAIROX_OS}-${KAIROX_ARCH}.tar.gz" \
+            -C target/release agent-tui
 
       - name: Package TUI (Windows)
         if: runner.os == 'Windows'
+        env:
+          KAIROX_ARCH: x86_64
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path target/release/agent-tui.exe -DestinationPath "dist/agent-tui-${env:GITHUB_REF_NAME}-${env:RUNNER_OS}-${env:RUNNER_ARCH}.zip" -Force
+          Compress-Archive -Path target/release/agent-tui.exe `
+            -DestinationPath "dist/Kairox-TUI-${env:GITHUB_REF_NAME}-windows-${env:KAIROX_ARCH}.zip" -Force
 
       - name: Upload TUI package to release
         uses: softprops/action-gh-release@v3
@@ -158,13 +165,15 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         with:
           projectPath: apps/agent-gui
           tagName: ${{ github.ref_name }}
           releaseName: 'Kairox ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
-          assetNamePattern: Kairox_${{ github.ref_name }}_[platform]_[arch][ext]
-          args: --verbose
+          assetNamePattern: Kairox_${{ github.ref_name }}_{platform}_{arch}[ext]
+          updaterJsonPreferNsis: true
 
   # Smoke test for workflow changes: runs on PRs that modify workflow files
   # to validate that all actions used in release-build.yml can initialize and
