@@ -1,4 +1,5 @@
 pub mod account;
+pub mod build_info;
 pub mod error;
 pub mod events;
 pub mod facade;
