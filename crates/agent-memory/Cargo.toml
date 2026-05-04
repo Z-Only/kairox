@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+specta = ["dep:specta"]
+
 [dependencies]
 agent-core = { path = "../agent-core" }
 async-trait = { workspace = true }
@@ -11,6 +14,7 @@ chrono = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+specta = { workspace = true, optional = true, features = ["chrono"] }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tiktoken-rs = "0.11"

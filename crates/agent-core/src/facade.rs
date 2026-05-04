@@ -60,6 +60,7 @@ pub struct SessionMeta {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 /// A snapshot of a single task in the task graph.
 pub struct TaskSnapshot {
     pub id: TaskId,
@@ -71,6 +72,7 @@ pub struct TaskSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 /// A snapshot of the entire task graph for a session.
 pub struct TaskGraphSnapshot {
     pub tasks: Vec<TaskSnapshot>,

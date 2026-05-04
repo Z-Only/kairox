@@ -43,24 +43,21 @@ export function applyEvent(event: DomainEvent) {
   const p = event.payload;
   switch (p.type) {
     case "UserMessageAdded": {
-      const typed = p as { type: "UserMessageAdded"; content: string };
       sessionState.projection.messages.push({
         role: "user",
-        content: typed.content
+        content: p.content
       });
       sessionState.isStreaming = true;
       break;
     }
     case "ModelTokenDelta": {
-      const typed = p as { type: "ModelTokenDelta"; delta: string };
-      sessionState.projection.token_stream += typed.delta;
+      sessionState.projection.token_stream += p.delta;
       break;
     }
     case "AssistantMessageCompleted": {
-      const typed = p as { type: "AssistantMessageCompleted"; content: string };
       sessionState.projection.messages.push({
         role: "assistant",
-        content: typed.content
+        content: p.content
       });
       sessionState.projection.token_stream = "";
       sessionState.isStreaming = false;
@@ -71,8 +68,7 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     case "AgentTaskCreated": {
-      const typed = p as { type: "AgentTaskCreated"; title: string };
-      sessionState.projection.task_titles.push(typed.title);
+      sessionState.projection.task_titles.push(p.title);
       break;
     }
     case "AgentTaskStarted":
@@ -86,11 +82,10 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     case "AgentTaskFailed": {
-      const typed = p as { type: "AgentTaskFailed"; error: string };
       // Show the error as an assistant message and reset streaming state
       sessionState.projection.messages.push({
         role: "assistant",
-        content: `[error] ${typed.error || "Unknown error"}`
+        content: `[error] ${p.error || "Unknown error"}`
       });
       sessionState.projection.token_stream = "";
       sessionState.isStreaming = false;
@@ -112,6 +107,7 @@ export function applyEvent(event: DomainEvent) {
     case "MemoryAccepted":
     case "MemoryRejected":
     case "ReviewerFindingAdded":
+    case "WorkspaceOpened":
       // Trace/permission/memory/patch/review events — handled by useTraceStore
       break;
   }

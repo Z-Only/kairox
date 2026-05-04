@@ -3,9 +3,14 @@
 //! Run `just gen-types` to regenerate the TypeScript bindings.
 
 use crate::commands::*;
+use agent_core::{
+    AgentRole, DomainEvent, EventPayload, PrivacyClassification, TaskGraphSnapshot, TaskSnapshot,
+    TaskState,
+};
+use agent_memory::MemoryScope;
 use tauri_specta::collect_commands;
 
-/// Build the specta collector with all command type information.
+/// Build the specta collector with all command and event type information.
 pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::new()
         .commands(collect_commands![
@@ -30,4 +35,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
+        // Event domain types (also exported by export-events binary)
+        .typ::<EventPayload>()
+        .typ::<DomainEvent>()
+        .typ::<PrivacyClassification>()
+        .typ::<AgentRole>()
+        .typ::<TaskState>()
+        .typ::<TaskSnapshot>()
+        .typ::<TaskGraphSnapshot>()
+        .typ::<MemoryScope>()
 }

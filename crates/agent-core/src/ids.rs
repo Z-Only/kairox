@@ -81,6 +81,39 @@ impl fmt::Display for AgentId {
     }
 }
 
+// --- specta Type implementations for ID newtypes ---
+// These map IDs to TypeScript `string` since they serialize transparently.
+#[cfg(feature = "specta")]
+use specta::datatype::DataType;
+
+#[cfg(feature = "specta")]
+impl specta::Type for WorkspaceId {
+    fn definition(types: &mut specta::Types) -> DataType {
+        <String as specta::Type>::definition(types)
+    }
+}
+
+#[cfg(feature = "specta")]
+impl specta::Type for SessionId {
+    fn definition(types: &mut specta::Types) -> DataType {
+        <String as specta::Type>::definition(types)
+    }
+}
+
+#[cfg(feature = "specta")]
+impl specta::Type for TaskId {
+    fn definition(types: &mut specta::Types) -> DataType {
+        <String as specta::Type>::definition(types)
+    }
+}
+
+#[cfg(feature = "specta")]
+impl specta::Type for AgentId {
+    fn definition(types: &mut specta::Types) -> DataType {
+        <String as specta::Type>::definition(types)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::AgentId;

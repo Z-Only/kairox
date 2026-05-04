@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum PrivacyClassification {
     MinimalTrace,
@@ -11,6 +12,7 @@ pub enum PrivacyClassification {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "PascalCase")]
 pub enum EventPayload {
     WorkspaceOpened {
@@ -153,6 +155,7 @@ impl EventPayload {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DomainEvent {
     pub schema_version: u32,
     pub workspace_id: WorkspaceId,

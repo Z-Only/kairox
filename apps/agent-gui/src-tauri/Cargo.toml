@@ -18,14 +18,18 @@ path = "src/main.rs"
 name = "export-specta"
 path = "src/bin/export_specta.rs"
 
+[[bin]]
+name = "export-events"
+path = "src/bin/export_events.rs"
+
 
 [dependencies]
-agent-core = { path = "../../../crates/agent-core" }
+agent-core = { path = "../../../crates/agent-core", features = ["specta"] }
 agent-models = { path = "../../../crates/agent-models" }
 agent-runtime = { path = "../../../crates/agent-runtime" }
 agent-store = { path = "../../../crates/agent-store" }
 agent-config = { path = "../../../crates/agent-config" }
-agent-memory = { path = "../../../crates/agent-memory" }
+agent-memory = { path = "../../../crates/agent-memory", features = ["specta"] }
 agent-tools = { path = "../../../crates/agent-tools" }
 futures.workspace = true
 serde.workspace = true
