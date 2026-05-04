@@ -4,7 +4,11 @@
 //!
 //! Output: apps/agent-gui/src/generated/commands.ts
 
-use agent_gui_tauri::commands::{MemoryEntryResponse, SessionInfoResponse, WorkspaceInfoResponse};
+use agent_config::ProfileInfo;
+use agent_gui_tauri::commands::{
+    MemoryEntryResponse, ProfileDetailResponse, SessionInfoResponse, TaskSnapshotResponse,
+    WorkspaceInfoResponse,
+};
 use tauri_specta::collect_commands;
 
 fn main() {
@@ -28,10 +32,21 @@ fn main() {
             agent_gui_tauri::commands::resolve_permission,
             agent_gui_tauri::commands::query_memories,
             agent_gui_tauri::commands::delete_memory,
+            agent_gui_tauri::commands::list_workspaces,
+            agent_gui_tauri::commands::rename_session,
+            agent_gui_tauri::commands::delete_session,
+            agent_gui_tauri::commands::get_profile_detail,
+            agent_gui_tauri::commands::restore_workspace,
+            agent_gui_tauri::commands::get_task_graph,
+            agent_gui_tauri::commands::cancel_session,
+            agent_gui_tauri::commands::get_permission_mode,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
-        .typ::<MemoryEntryResponse>();
+        .typ::<MemoryEntryResponse>()
+        .typ::<ProfileInfo>()
+        .typ::<ProfileDetailResponse>()
+        .typ::<TaskSnapshotResponse>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)
