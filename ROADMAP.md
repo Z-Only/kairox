@@ -11,6 +11,9 @@
 - ✅ Integrate tauri-specta for auto-generated TypeScript command bindings
 - ✅ Complete the GUI shell with full session management UX (persistent storage, switching, rename, delete, startup recovery)
 - ✅ Add task graph visualization and inspection in both TUI and GUI (TaskSteps component, density mode, event-driven refresh)
+- ✅ Expand test coverage: integration tests for core, store, runtime, and tools crates
+- ✅ Auto-generate EventPayload TypeScript types via specta (beyond command bindings)
+- GUI core interaction polish — cancel session, error notifications, memory browser, code highlighting, real status bar
 - Improve packaging outputs and release metadata (updater support)
 
 ## Mid term
@@ -19,8 +22,7 @@
 - Add multi-agent orchestration UX in TUI and GUI
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
-- ✅ Expand test coverage: integration tests for core, store, runtime, and tools crates
-- ✅ Auto-generate EventPayload TypeScript types via specta (beyond command bindings)
+- Wire MCP tool execution (client protocol, process lifecycle, config-driven servers)
 
 ## Long term
 
