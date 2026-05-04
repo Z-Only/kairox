@@ -61,8 +61,12 @@ tauri-build:
 # ─── Release ───────────────────────────────────────────────────
 
 # Prepare a release (version required, e.g.: just release 0.8.0)
-release version:
-    scripts/release.sh {{ version }}
+release version *FLAGS:
+    scripts/release.sh {{ version }} {{ FLAGS }}
+
+# Dry-run a release to preview commands without executing
+release-dry version:
+    scripts/release.sh {{ version }} --dry-run
 
 # Generate changelog for a tag (e.g.: just changelog v0.7.0)
 changelog tag:
