@@ -2,9 +2,10 @@
 import { ref } from "vue";
 import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
+import MemoryBrowser from "./MemoryBrowser.vue";
 import { traceState } from "../composables/useTraceStore";
 
-const rightPanelTab = ref<"trace" | "tasks">("trace");
+const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 </script>
 
 <template>
@@ -22,6 +23,12 @@ const rightPanelTab = ref<"trace" | "tasks">("trace");
           @click="rightPanelTab = 'tasks'"
         >
           Tasks
+        </button>
+        <button
+          :class="{ active: rightPanelTab === 'memory' }"
+          @click="rightPanelTab = 'memory'"
+        >
+          Memory
         </button>
       </div>
       <div v-if="rightPanelTab === 'trace'" class="density-toggles">
@@ -47,6 +54,7 @@ const rightPanelTab = ref<"trace" | "tasks">("trace");
       </p>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
+    <MemoryBrowser v-if="rightPanelTab === 'memory'" />
   </section>
 </template>
 
