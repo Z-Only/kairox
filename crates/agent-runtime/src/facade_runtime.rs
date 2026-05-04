@@ -85,6 +85,11 @@ impl<S, M> LocalRuntime<S, M> {
         self.tool_registry.clone()
     }
 
+    /// Get the current permission mode.
+    pub fn permission_mode(&self) -> PermissionMode {
+        *self.permission_engine.mode()
+    }
+
     /// Set the memory store for persistent memory.
     pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
         self.memory_store = Some(store.clone());
@@ -723,7 +728,7 @@ where
                         let mem_key = entry.key.clone();
                         let mem_content = entry.content.clone();
                         if durable_memory_requires_confirmation(&entry.scope) {
-                            match self.permission_engine.mode() {
+                            match *self.permission_engine.mode() {
                                 PermissionMode::Interactive => {
                                     let (tx, rx) = tokio::sync::oneshot::channel();
                                     self.pending_permissions
