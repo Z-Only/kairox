@@ -22,6 +22,15 @@ export const commands = {
 	cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
 	getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
 	getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
+	listMcpServers: () => typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
+	startMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("start_mcp_server", { serverId })),
+	stopMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("stop_mcp_server", { serverId })),
+	refreshMcpTools: (serverId: string) => typedError<McpToolDefResponse[], string>(__TAURI_INVOKE("refresh_mcp_tools", { serverId })),
+	trustMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("trust_mcp_server", { serverId })),
+	revokeMcpTrust: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("revoke_mcp_trust", { serverId })),
+	listMcpResources: (serverId: string) => typedError<McpResourceDefResponse[], string>(__TAURI_INVOKE("list_mcp_resources", { serverId })),
+	listMcpPrompts: (serverId: string) => typedError<McpPromptDefResponse[], string>(__TAURI_INVOKE("list_mcp_prompts", { serverId })),
+	readMcpResource: (serverId: string, uri: string) => typedError<McpContentBlockResponse[], string>(__TAURI_INVOKE("read_mcp_resource", { serverId, uri })),
 };
 
 /* Types */
@@ -29,6 +38,44 @@ export type BuildInfoResponse = {
 	version: string,
 	git_hash: string,
 	build_time: string,
+};
+
+export type McpContentBlockResponse = { type: "text"; text: string } | { type: "image"; data: string; mime_type: string } | { type: "resource"; uri: string; name: string; mime_type: string | null };
+
+export type McpPromptDefResponse = {
+	name: string,
+	description: string | null,
+	argument_count: number,
+};
+
+export type McpResourceDefResponse = {
+	uri: string,
+	name: string,
+	description: string | null,
+	mime_type: string | null,
+};
+
+// The lifecycle status of an MCP server connection.
+export type McpServerStatus = 
+// The server is stopped and not connected.
+"stopped" | 
+// The server is starting up (launching process or connecting).
+"starting" | 
+// The server is running and ready to accept requests.
+"running" | 
+// The server has failed and is no longer running.
+"failed";
+
+export type McpServerStatusResponse = {
+	id: string,
+	status: McpServerStatus,
+	tool_count: number | null,
+};
+
+export type McpToolDefResponse = {
+	name: string,
+	description: string | null,
+	input_schema: string | null,
 };
 
 export type MemoryEntryResponse = {

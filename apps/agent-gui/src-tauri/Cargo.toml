@@ -31,6 +31,7 @@ agent-store = { path = "../../../crates/agent-store" }
 agent-config = { path = "../../../crates/agent-config" }
 agent-memory = { path = "../../../crates/agent-memory", features = ["specta"] }
 agent-tools = { path = "../../../crates/agent-tools" }
+agent-mcp = { path = "../../../crates/agent-mcp", features = ["specta"] }
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true

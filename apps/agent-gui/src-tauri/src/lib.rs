@@ -114,6 +114,16 @@ pub fn run() {
             crate::commands::cancel_session,
             crate::commands::get_permission_mode,
             crate::commands::get_build_info,
+            // MCP commands
+            crate::commands::list_mcp_servers,
+            crate::commands::start_mcp_server,
+            crate::commands::stop_mcp_server,
+            crate::commands::refresh_mcp_tools,
+            crate::commands::trust_mcp_server,
+            crate::commands::revoke_mcp_trust,
+            crate::commands::list_mcp_resources,
+            crate::commands::list_mcp_prompts,
+            crate::commands::read_mcp_resource,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

@@ -7,6 +7,7 @@ use agent_core::{
     AgentRole, DomainEvent, EventPayload, PrivacyClassification, TaskGraphSnapshot, TaskSnapshot,
     TaskState,
 };
+use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
 use tauri_specta::collect_commands;
 
@@ -32,6 +33,16 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             cancel_session,
             get_permission_mode,
             get_build_info,
+            // MCP commands
+            list_mcp_servers,
+            start_mcp_server,
+            stop_mcp_server,
+            refresh_mcp_tools,
+            trust_mcp_server,
+            revoke_mcp_trust,
+            list_mcp_resources,
+            list_mcp_prompts,
+            read_mcp_resource,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
@@ -39,6 +50,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
+        // MCP response types
+        .typ::<McpServerStatusResponse>()
+        .typ::<McpToolDefResponse>()
+        .typ::<McpResourceDefResponse>()
+        .typ::<McpPromptDefResponse>()
+        .typ::<McpContentBlockResponse>()
+        .typ::<McpServerStatus>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()
