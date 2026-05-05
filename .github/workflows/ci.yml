@@ -225,3 +225,36 @@ jobs:
       - name: Build GUI web
         working-directory: apps/agent-gui
         run: pnpm run build
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install repo tooling deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter agent-gui exec playwright install chromium --with-deps
+
+      - name: Run Playwright E2E tests
+        run: pnpm --filter agent-gui run test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/agent-gui/playwright-report/
+          retention-days: 7
