@@ -328,6 +328,32 @@ just gen-types
 - Use `useTauriEvents.ts` for real-time Rust→Vue event streaming
 - Use TypeScript discriminated union narrowing (not `as` casts) when handling `EventPayload` variants
 
+### E2E testing with Playwright
+
+The GUI frontend has comprehensive E2E tests using Playwright that run against the Vite dev server with a browser-side Tauri IPC mock (`apps/agent-gui/e2e/tauri-mock.js`). This mock replaces `@tauri-apps/api` calls so the full Vue frontend can be tested without a real Tauri runtime.
+
+**When to update the mock**: if you add or change any `#[tauri::command]` function signature or its parameter/return types, update `tauri-mock.js` to handle the new command. If you add new event types that the frontend listens to, add the corresponding event emission in the mock.
+
+**Running E2E tests**:
+
+```bash
+just test-e2e              # headless CI mode
+just test-e2e-headed       # headed mode for debugging
+just test-e2e-ui           # Playwright UI mode
+```
+
+**Test structure**: 33 tests across 7 spec files covering chat flow, session lifecycle, permissions/memory prompts, task graph, trace panel, memory browser, and notifications.
+
+### TUI and runtime integration tests
+
+TUI app logic tests (`crates/agent-tui/tests/app_logic.rs`) use `FakeModelClient` + in-memory `SqliteEventStore` to test the `LocalRuntime` facade without a real terminal. Full-stack runtime tests (`crates/agent-runtime/tests/full_stack.rs`) exercise the complete pipeline including tool calling, permission decisions, and persistence.
+
+```bash
+just test-tui              # 7 TUI integration tests
+just test-fullstack         # 12 full-stack runtime tests
+just test-all               # all test layers
+```
+
 ### Common pitfalls
 
 - **Don't add crate-level `version`**: all crates use `version.workspace = true`
@@ -359,6 +385,12 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 | `just tauri-dev`          | Run Tauri desktop app in dev mode                       |
 | `just bump-version X.Y.Z` | Bump version in all config files                        |
 | `just check-types`        | Verify generated TypeScript types are in sync with Rust |
+| `just test-e2e`           | Run GUI frontend E2E tests with Playwright              |
+| `just test-e2e-headed`    | Run E2E tests in headed mode for debugging              |
+| `just test-e2e-ui`        | Run E2E tests with Playwright UI mode                   |
+| `just test-tui`           | Run TUI app logic integration tests                     |
+| `just test-fullstack`     | Run full-stack runtime integration tests                |
+| `just test-all`           | Run all test layers: unit + integration + E2E + TUI     |
 | `just worktree <name>`    | Create a git worktree with pnpm install                 |
 
 ## Common workflow recipes

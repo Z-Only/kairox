@@ -16,6 +16,9 @@
 - ✅ GUI core interaction polish — cancel session, error notifications, memory browser, code highlighting, real status bar
 - ✅ Improve packaging outputs and release metadata (updater support)
 - ✅ Expand GUI test coverage to 127 tests across stores, composables, and components
+- ✅ Add E2E test infrastructure with Playwright for GUI frontend testing
+- ✅ Add TUI app logic integration tests (7 tests via FakeModelClient)
+- ✅ Add full-stack runtime integration tests (12 tests covering workspace, session, messaging, tools, permissions, memory, persistence)
 
 ## Mid term
 

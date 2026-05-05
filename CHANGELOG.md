@@ -4,11 +4,39 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-05-05
+
+### 🐛 Bug Fixes
+
+- **deps**: upgrade glob from 10.4.5 to 13.0.6 to fix command injection (CVE-Dependabot-8) (#41)
+
+### 📚 Documentation
+
+- **config**: overhaul kairox.toml.example with complete field reference and realistic profiles
+
+### 🧪 Testing
+
+- **gui**: add Playwright E2E tests with Tauri IPC mock
+- **runtime**: add full-stack integration tests
+- **tui**: add app logic integration tests
+
+### 📦 Dependencies
+
+- **deps**: format lockfile and CI config
+
+### 🔧 Miscellaneous Tasks
+
+- **gui**: add Playwright E2E test infrastructure
+
 ## [0.12.0] - 2026-05-05
 
 ### 🚀 Features
 
 - packaging and release optimization (#40)
+
+### 🐛 Bug Fixes
+
+- **ci**: fix release-build checksums job and tauri asset naming
 
 ### 🧪 Testing
 
