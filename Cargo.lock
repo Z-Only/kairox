@@ -72,6 +72,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-mcp"
+version = "0.13.0"
+dependencies = [
+ "agent-core",
+ "async-trait",
+ "eventsource-stream",
+ "futures",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "specta",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml 1.1.2+spec-1.1.0",
+ "tracing",
+]
+
+[[package]]
 name = "agent-memory"
 version = "0.13.0"
 dependencies = [
