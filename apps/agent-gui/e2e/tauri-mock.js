@@ -492,6 +492,28 @@ function invoke(cmd, args) {
         build_time: "2026-05-05"
       });
 
+    case "list_mcp_servers":
+      return [
+        { id: "test-server", status: "running", tool_count: 3 },
+        { id: "stopped-server", status: "stopped", tool_count: 0 }
+      ];
+    case "start_mcp_server":
+      return null;
+    case "stop_mcp_server":
+      return null;
+    case "trust_mcp_server":
+      return null;
+    case "revoke_mcp_trust":
+      return null;
+    case "refresh_mcp_tools":
+      return [{ name: "echo", description: "Echo tool", input_schema: null }];
+    case "list_mcp_resources":
+      return [];
+    case "list_mcp_prompts":
+      return [];
+    case "read_mcp_resource":
+      return [];
+
     default:
       console.warn("[tauri-mock] Unknown invoke: " + cmd, args);
       return Promise.resolve(undefined);
