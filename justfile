@@ -107,6 +107,7 @@ check-types:
 gen-types:
     cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
     cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
+    npx prettier --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
 
 # ─── E2E / Integration tests ──────────────────────────────────
