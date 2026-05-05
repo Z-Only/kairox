@@ -1,4 +1,4 @@
-use crate::filesystem::FsReadTool;
+use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
 use crate::patch::PatchApplyTool;
 use crate::registry::{Tool, ToolDefinition, ToolProvider};
 use crate::search::RipgrepSearchTool;
@@ -19,12 +19,16 @@ impl BuiltinProvider {
         let shell = Box::new(ShellExecTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let search = Box::new(RipgrepSearchTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let patch = Box::new(PatchApplyTool::new(workspace_root.clone())) as Box<dyn Tool>;
-        let fs_read = Box::new(FsReadTool::new(workspace_root)) as Box<dyn Tool>;
+        let fs_read = Box::new(FsReadTool::new(workspace_root.clone())) as Box<dyn Tool>;
+        let fs_write = Box::new(FsWriteTool::new(workspace_root.clone())) as Box<dyn Tool>;
+        let fs_list = Box::new(FsListTool::new(workspace_root)) as Box<dyn Tool>;
 
         tools.insert(shell.definition().tool_id.clone(), Arc::from(shell));
         tools.insert(search.definition().tool_id.clone(), Arc::from(search));
         tools.insert(patch.definition().tool_id.clone(), Arc::from(patch));
         tools.insert(fs_read.definition().tool_id.clone(), Arc::from(fs_read));
+        tools.insert(fs_write.definition().tool_id.clone(), Arc::from(fs_write));
+        tools.insert(fs_list.definition().tool_id.clone(), Arc::from(fs_list));
 
         Self { tools }
     }
@@ -78,7 +82,17 @@ mod tests {
             "missing fs.read, got: {:?}",
             tool_ids
         );
-        assert_eq!(tools.len(), 4);
+        assert!(
+            tool_ids.contains(&"fs.write"),
+            "missing fs.write, got: {:?}",
+            tool_ids
+        );
+        assert!(
+            tool_ids.contains(&"fs.list"),
+            "missing fs.list, got: {:?}",
+            tool_ids
+        );
+        assert_eq!(tools.len(), 6);
     }
 
     #[tokio::test]

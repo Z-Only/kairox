@@ -7,7 +7,7 @@ pub mod registry;
 pub mod search;
 pub mod shell;
 
-pub use filesystem::FsReadTool;
+pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use mcp::{map_mcp_tool, McpServerConfig, McpTool};
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
 pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
