@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// A JSON-RPC 2.0 request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcRequest {
-    pub jsonrpc: &'static str,
+    pub jsonrpc: String,
     pub id: serde_json::Value,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -28,7 +28,7 @@ impl JsonRpcRequest {
     /// Create a new JSON-RPC request with a numeric id.
     pub fn new(id: u64, method: impl Into<String>, params: Option<serde_json::Value>) -> Self {
         Self {
-            jsonrpc: "2.0",
+            jsonrpc: "2.0".to_string(),
             id: serde_json::Value::Number(id.into()),
             method: method.into(),
             params,
@@ -42,7 +42,7 @@ impl JsonRpcRequest {
         params: Option<serde_json::Value>,
     ) -> Self {
         Self {
-            jsonrpc: "2.0",
+            jsonrpc: "2.0".to_string(),
             id: serde_json::Value::String(id.into()),
             method: method.into(),
             params,
@@ -53,7 +53,7 @@ impl JsonRpcRequest {
 /// A JSON-RPC 2.0 successful response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcResponse {
-    pub jsonrpc: &'static str,
+    pub jsonrpc: String,
     pub id: serde_json::Value,
     pub result: serde_json::Value,
 }
@@ -70,7 +70,7 @@ pub struct JsonRpcError {
 /// A JSON-RPC 2.0 notification (no id, no response expected).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonRpcNotification {
-    pub jsonrpc: &'static str,
+    pub jsonrpc: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<serde_json::Value>,
