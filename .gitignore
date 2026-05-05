@@ -25,3 +25,4 @@ apps/agent-gui/src/generated/
 playwright-report/
 apps/agent-gui/test-results/
 crates/agent-mcp/tests/fixtures/node_modules/
+test-results/
