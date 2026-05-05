@@ -7,10 +7,10 @@ concurrency:
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     paths:
-      - '.github/workflows/**'
+      - ".github/workflows/**"
 
 permissions:
   contents: write
@@ -183,8 +183,8 @@ jobs:
         with:
           projectPath: apps/agent-gui
           tagName: ${{ github.ref_name }}
-          releaseName: 'Kairox ${{ github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseName: "Kairox ${{ github.ref_name }}"
+          releaseBody: "See the assets to download this version and install."
           assetNamePattern: Kairox_${{ github.ref_name }}_[platform]_[arch][ext]
           updaterJsonPreferNsis: true
 
@@ -198,7 +198,7 @@ jobs:
         uses: robinraju/release-downloader@v1
         with:
           tag: ${{ github.ref_name }}
-          fileName: '*'
+          fileName: "*"
           out-file-path: dist
 
       - name: Generate checksums

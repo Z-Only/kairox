@@ -97,6 +97,11 @@ impl<S, M> LocalRuntime<S, M> {
         self
     }
 
+    /// Get a reference to the memory store (if configured).
+    pub fn memory_store(&self) -> Option<Arc<dyn MemoryStore>> {
+        self.memory_store.clone()
+    }
+
     /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
     pub async fn with_builtin_tools(self, workspace_root: PathBuf) -> Self {
         let provider = BuiltinProvider::with_defaults(workspace_root);
