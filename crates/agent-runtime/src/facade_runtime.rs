@@ -959,7 +959,9 @@ where
                         ),
                         false,
                     ),
-                    PermissionOutcome::RequiresApproval | PermissionOutcome::Pending => {
+                    PermissionOutcome::RequiresApproval
+                    | PermissionOutcome::Pending
+                    | PermissionOutcome::PromptWithTrust => {
                         // Emit PermissionRequested so the UI can show a prompt,
                         // then wait for the user's decision via resolve_permission.
                         let preview = format!("{}({})", tc.name, tc.arguments);

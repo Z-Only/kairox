@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-mcp = { path = "../agent-mcp" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
