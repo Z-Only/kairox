@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub use builder::build_router;
 pub use discovery::find_config;
-pub use loader::{load_from_str, resolve_api_keys, validate};
+pub use loader::{load_from_str, resolve_api_keys, resolve_mcp_env, validate};
 
 // ---------------------------------------------------------------------------
 // Core types
@@ -60,10 +60,93 @@ pub enum ConfigSource {
     Defaults,
 }
 
+/// MCP transport type for server configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum McpTransportType {
+    Stdio,
+    Sse,
+}
+
+fn default_idle_timeout() -> u64 {
+    300
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_max_restart_attempts() -> u32 {
+    3
+}
+
+/// MCP server configuration from TOML.
+/// This is the TOML-facing type; it converts to agent_mcp::McpServerDef.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpServerConfig {
+    pub r#type: McpTransportType,
+
+    // stdio fields
+    #[serde(default)]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub env: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub cwd: Option<String>,
+
+    // sse fields
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub api_key_env: Option<String>,
+
+    // lifecycle options
+    #[serde(default)]
+    pub keep_alive: bool,
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout_secs: u64,
+    #[serde(default = "default_true")]
+    pub auto_restart: bool,
+    #[serde(default = "default_max_restart_attempts")]
+    pub max_restart_attempts: u32,
+}
+
+impl McpServerConfig {
+    /// Convert this TOML-facing config into an `agent_mcp::McpServerDef`.
+    pub fn to_server_def(&self, id: &str) -> agent_mcp::McpServerDef {
+        let transport = match self.r#type {
+            McpTransportType::Stdio => agent_mcp::McpTransportDef::Stdio {
+                command: self.command.clone().unwrap_or_default(),
+                cwd: self.cwd.clone(),
+            },
+            McpTransportType::Sse => agent_mcp::McpTransportDef::Sse {
+                url: self.url.clone().unwrap_or_default(),
+                api_key_env: self.api_key_env.clone(),
+                headers: self.headers.clone().unwrap_or_default(),
+            },
+        };
+        agent_mcp::McpServerDef {
+            name: id.to_string(),
+            transport,
+            args: self.args.clone().unwrap_or_default(),
+            env: self.env.clone().unwrap_or_default(),
+            keep_alive: self.keep_alive,
+            idle_timeout_secs: self.idle_timeout_secs,
+            auto_restart: self.auto_restart,
+            max_restart_attempts: self.max_restart_attempts,
+        }
+    }
+}
+
 /// Fully loaded configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub profiles: Vec<(String, ProfileDef)>,
+    pub mcp_servers: Vec<(String, McpServerConfig)>,
     pub source: ConfigSource,
 }
 
@@ -87,6 +170,7 @@ impl Config {
                 let mut config = load_from_str(&content, &path.display().to_string())?;
                 config.source = source;
                 resolve_api_keys(&mut config);
+                resolve_mcp_env(&mut config);
                 validate(&config)?;
                 Ok(config)
             }
@@ -146,6 +230,7 @@ impl Config {
 
         Config {
             profiles,
+            mcp_servers: Vec::new(),
             source: ConfigSource::Defaults,
         }
     }
@@ -202,6 +287,14 @@ impl Config {
             .find(|(name, _)| name == alias)
             .map(|(_, def)| def)
     }
+
+    /// Convert parsed MCP server configs to agent-mcp McpServerDef instances.
+    pub fn mcp_server_defs(&self) -> Vec<agent_mcp::McpServerDef> {
+        self.mcp_servers
+            .iter()
+            .map(|(id, config)| config.to_server_def(id))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -243,5 +336,11 @@ mod tests {
         let info = config.profile_info();
         assert!(info.iter().any(|p| p.alias == "fake" && p.local));
         assert!(info.iter().any(|p| p.alias == "local-code" && p.local));
+    }
+
+    #[test]
+    fn defaults_has_empty_mcp_servers() {
+        let config = Config::defaults();
+        assert!(config.mcp_servers.is_empty());
     }
 }
