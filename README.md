@@ -66,6 +66,7 @@ graph TD
 - **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, and permission center
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
+- **E2E testing** — 33 Playwright E2E tests for GUI frontend, 7 TUI integration tests, 12 full-stack runtime tests
 
 ## Repository layout
 
