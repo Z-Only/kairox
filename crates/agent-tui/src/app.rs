@@ -351,8 +351,15 @@ impl App {
                 tool_id,
                 preview,
             } => {
-                // Classify risk: use Write for everything for now
-                let risk_level = RiskLevel::Write;
+                // Classify risk: MCP tools get McpTool variant, others use Write
+                let risk_level = if tool_id.starts_with("mcp.") {
+                    // Extract server_id from tool_id format "mcp.{server_id}.{tool_name}"
+                    let parts: Vec<&str> = tool_id.splitn(3, '.').collect();
+                    let server_id = parts.get(1).map(|s| (*s).to_string()).unwrap_or_default();
+                    RiskLevel::McpTool { server_id }
+                } else {
+                    RiskLevel::Write
+                };
                 let req = PermissionRequest {
                     request_id: request_id.clone(),
                     tool_id: tool_id.clone(),
@@ -361,8 +368,10 @@ impl App {
                 };
                 effects.push(CrossPanelEffect::ShowPermissionPrompt(req));
 
-                // For Destructive risks, push PermissionModal focus
-                if risk_level == RiskLevel::Destructive {
+                // For Destructive and MCP risks, push PermissionModal focus
+                if risk_level == RiskLevel::Destructive
+                    || matches!(risk_level, RiskLevel::McpTool { .. })
+                {
                     self.state.focus_manager.push(FocusTarget::PermissionModal);
                     self.sync_component_focus();
                 }
@@ -704,6 +713,7 @@ impl App {
             profile: self.state.model_profile.clone(),
             permission_mode: self.state.permission_mode.as_str().to_string(),
             session_count: self.state.sessions.len(),
+            mcp_server_count: 0,
             hint,
             error: None,
         };

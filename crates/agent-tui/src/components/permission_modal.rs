@@ -34,15 +34,15 @@ impl PermissionModal {
 }
 
 pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &PermissionRequest) {
-    let modal_width = 50.min(area.width.saturating_sub(4));
-    let modal_height = 10.min(area.height.saturating_sub(4));
+    let modal_width = 54.min(area.width.saturating_sub(4));
+    let modal_height = 12.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(modal_width)) / 2;
     let y = (area.height.saturating_sub(modal_height)) / 2;
     let modal_area = Rect::new(x, y, modal_width, modal_height);
 
     frame.render_widget(Clear, modal_area);
 
-    let (title, risk_label, risk_color, warning) = match request.risk_level {
+    let (title, risk_label, risk_color, warning) = match &request.risk_level {
         RiskLevel::Destructive => (
             "⛔ Destructive Operation",
             "Destructive",
@@ -55,6 +55,21 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &Permissi
             Color::Yellow,
             "This will save a memory entry.",
         ),
+        RiskLevel::McpTool { server_id: _ } => (
+            "🔌 MCP Tool",
+            "MCP",
+            Color::Magenta,
+            "",
+            // Use server_id below for the tool label
+        ),
+    };
+
+    // For MCP tools, show [MCP] server/tool in the tool label
+    let tool_label = match &request.risk_level {
+        RiskLevel::McpTool { server_id } => {
+            format!("[MCP] {}/{}", server_id, request.tool_id)
+        }
+        _ => request.tool_id.clone(),
     };
 
     let mut lines = vec![
@@ -65,7 +80,7 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &Permissi
         Line::from(""),
         Line::from(vec![
             Span::styled("Tool: ", Style::default().fg(Color::Gray)),
-            Span::raw(&request.tool_id),
+            Span::raw(&tool_label),
         ]),
         Line::from(vec![
             Span::styled("Command: ", Style::default().fg(Color::Gray)),
@@ -81,11 +96,23 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, request: &Permissi
         lines.push(Line::from(warning));
     }
     lines.push(Line::from(""));
-    lines.push(Line::from(vec![
+
+    // Key hints — add (T) Trust option for MCP tools
+    let mut key_hints = vec![
         Span::styled("[Y] Allow once  ", Style::default().fg(Color::Yellow)),
         Span::styled("[N] Deny  ", Style::default().fg(Color::Gray)),
-        Span::styled("[Esc] Cancel", Style::default().fg(Color::DarkGray)),
-    ]));
+    ];
+    if matches!(request.risk_level, RiskLevel::McpTool { .. }) {
+        key_hints.push(Span::styled(
+            "[T] Trust server  ",
+            Style::default().fg(Color::Magenta),
+        ));
+    }
+    key_hints.push(Span::styled(
+        "[Esc] Cancel",
+        Style::default().fg(Color::DarkGray),
+    ));
+    lines.push(Line::from(key_hints));
 
     let paragraph = Paragraph::new(lines)
         .block(
@@ -130,6 +157,20 @@ impl Component for PermissionModal {
                 effects.push(CrossPanelEffect::DismissPermissionPrompt);
                 self.request = None;
             }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                // Trust the MCP server and approve this request
+                if let RiskLevel::McpTool { server_id } = &req.risk_level {
+                    commands.push(Command::TrustMcpServer {
+                        server_id: server_id.clone(),
+                    });
+                    commands.push(Command::DecidePermission {
+                        request_id: req.request_id.clone(),
+                        approved: true,
+                    });
+                    effects.push(CrossPanelEffect::DismissPermissionPrompt);
+                    self.request = None;
+                }
+            }
             _ => {}
         }
 
@@ -139,7 +180,7 @@ impl Component for PermissionModal {
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
         match effect {
             CrossPanelEffect::ShowPermissionPrompt(req) => {
-                // Show modal for Destructive risks and Write (memory) risks
+                // Show modal for Destructive risks, Write (memory) risks, and MCP tools
                 self.request = Some(req.clone());
             }
             CrossPanelEffect::DismissPermissionPrompt => {
@@ -220,6 +261,20 @@ mod tests {
     }
 
     #[test]
+    fn modal_visible_on_mcp_tool_risk() {
+        let mut modal = PermissionModal::new();
+        modal.handle_effect(&CrossPanelEffect::ShowPermissionPrompt(PermissionRequest {
+            request_id: "req3".into(),
+            tool_id: "echo".into(),
+            tool_preview: "MCP tool invocation".into(),
+            risk_level: RiskLevel::McpTool {
+                server_id: "my-server".into(),
+            },
+        }));
+        assert!(modal.is_visible());
+    }
+
+    #[test]
     fn allow_sends_decide_and_dismisses() {
         let mut modal = PermissionModal::new();
         modal.request = Some(PermissionRequest {
@@ -290,5 +345,53 @@ mod tests {
             }
         ));
         assert!(!modal.is_visible());
+    }
+
+    #[test]
+    fn trust_key_trusts_mcp_server_and_approves() {
+        let mut modal = PermissionModal::new();
+        modal.request = Some(PermissionRequest {
+            request_id: "req1".into(),
+            tool_id: "echo".into(),
+            tool_preview: "MCP tool call".into(),
+            risk_level: RiskLevel::McpTool {
+                server_id: "my-server".into(),
+            },
+        });
+        let key = Event::Key(crossterm::event::KeyEvent::new(
+            KeyCode::Char('t'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        let (effects, commands) = modal.handle_event(&test_ctx(), &key);
+        // Should produce TrustMcpServer + DecidePermission(approved=true)
+        assert_eq!(commands.len(), 2);
+        assert!(matches!(
+            &commands[0],
+            Command::TrustMcpServer { server_id } if server_id == "my-server"
+        ));
+        assert!(matches!(
+            &commands[1],
+            Command::DecidePermission { approved: true, .. }
+        ));
+        assert!(effects.contains(&CrossPanelEffect::DismissPermissionPrompt));
+        assert!(!modal.is_visible());
+    }
+
+    #[test]
+    fn trust_key_ignored_for_non_mcp_risk() {
+        let mut modal = PermissionModal::new();
+        modal.request = Some(PermissionRequest {
+            request_id: "req1".into(),
+            tool_id: "shell.exec".into(),
+            tool_preview: "rm -rf target/".into(),
+            risk_level: RiskLevel::Destructive,
+        });
+        let key = Event::Key(crossterm::event::KeyEvent::new(
+            KeyCode::Char('t'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        let (_, commands) = modal.handle_event(&test_ctx(), &key);
+        assert!(commands.is_empty());
+        assert!(modal.is_visible()); // Modal stays visible
     }
 }
