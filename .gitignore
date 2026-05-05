@@ -1,28 +1,61 @@
-.superpowers/
-/target/
-/node_modules/
-/dist/
-/.DS_Store
+# =============================================================================
+# OS & Editor
+# =============================================================================
+.DS_Store
 **/.DS_Store
-*.db
-*.db-shm
-*.db-wal
-.env
-.env.*
-!.env.example
-apps/agent-gui/src-tauri/target/
-apps/agent-gui/node_modules/
-apps/agent-gui/dist/
-package-lock.json
-.superpowers/
-.worktrees/
-.idea
+.idea/
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
-kairox.toml
-apps/agent-gui/src/generated/
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# Rust / Cargo
+# =============================================================================
+/target/
+apps/agent-gui/src-tauri/target/
+
+# Compiled artifacts
+**/*.rs.bk
+
+# Cargo.lock is committed for binary/application projects
+# (already tracked — do NOT add Cargo.lock here)
+
+# =============================================================================
+# Node.js / Frontend
+# =============================================================================
+node_modules/
+apps/agent-gui/dist/
+package-lock.json                       # we use pnpm
+crates/agent-mcp/tests/fixtures/node_modules/
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+
+# =============================================================================
+# Project-specific generated / local
+# =============================================================================
+kairox.toml                             # local user config (sensitive — may contain API keys)
+apps/agent-gui/src/generated/           # auto-generated TypeScript bindings
+.superpowers/
+.worktrees/
+
+# =============================================================================
+# Database (SQLite)
+# =============================================================================
+*.db
+*.db-shm
+*.db-wal
+
+# =============================================================================
+# Testing artifacts
+# =============================================================================
 playwright-report/
 apps/agent-gui/test-results/
-crates/agent-mcp/tests/fixtures/node_modules/
 test-results/
