@@ -10,6 +10,7 @@ pub struct ToolDefinition {
     pub tool_id: String,
     pub description: String,
     pub required_capability: String,
+    pub parameters: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -196,6 +197,7 @@ mod registry_tests {
                 tool_id: "echo".into(),
                 description: "Echoes input".into(),
                 required_capability: "echo".into(),
+                parameters: serde_json::json!({"type": "object"}),
             }
         }
 
@@ -258,6 +260,7 @@ mod registry_tests {
                     tool_id: "write".into(),
                     description: "Writes data".into(),
                     required_capability: "filesystem.write".into(),
+                    parameters: serde_json::json!({"type": "object"}),
                 }
             }
 
@@ -305,6 +308,7 @@ mod provider_tests {
                 tool_id: self.tool_id.clone(),
                 description: format!("{} tool", self.tool_id),
                 required_capability: self.tool_id.clone(),
+                parameters: serde_json::json!({"type": "object"}),
             }]
         }
 
@@ -337,6 +341,7 @@ mod provider_tests {
                     tool_id: id.clone(),
                     description: format!("{} tool", id),
                     required_capability: id.clone(),
+                    parameters: serde_json::json!({"type": "object"}),
                 })
                 .collect()
         }

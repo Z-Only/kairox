@@ -412,6 +412,28 @@ impl Tool for RipgrepSearchTool {
             description: "Search for patterns in workspace files using ripgrep or fallback engine"
                 .to_string(),
             required_capability: "search.ripgrep".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pattern": {
+                        "type": "string",
+                        "description": "The search pattern (regex supported)"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Relative path to search within (optional, defaults to workspace root)"
+                    },
+                    "file_glob": {
+                        "type": "string",
+                        "description": "Glob pattern to filter files (e.g., *.rs, *.{ts,vue})"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50)"
+                    }
+                },
+                "required": ["pattern"]
+            }),
         }
     }
 

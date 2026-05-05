@@ -419,7 +419,7 @@ where
                 .map(|td| agent_models::ToolDefinition {
                     name: td.tool_id,
                     description: td.description,
-                    parameters: serde_json::json!({"type": "object"}),
+                    parameters: td.parameters,
                 })
                 .collect()
         };

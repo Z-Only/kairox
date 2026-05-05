@@ -176,6 +176,16 @@ impl Tool for PatchApplyTool {
             tool_id: PATCH_TOOL_ID.to_string(),
             description: "Apply a unified diff patch to workspace files".to_string(),
             required_capability: "patch.apply".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "patch": {
+                        "type": "string",
+                        "description": "Unified diff patch text to apply"
+                    }
+                },
+                "required": ["patch"]
+            }),
         }
     }
 
