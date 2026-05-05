@@ -453,7 +453,7 @@ pub async fn cancel_session(state: State<'_, GuiState>) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_permission_mode(state: State<'_, GuiState>) -> Result<String, String> {
-    Ok(format!("{:?}", state.runtime.permission_mode()))
+    Ok(format!("{:?}", state.runtime.permission_mode().await))
 }
 
 #[tauri::command]

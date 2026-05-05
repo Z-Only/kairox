@@ -217,6 +217,11 @@ impl ServerLifecycle {
         &self.def.name
     }
 
+    /// Get the MCP client (if the server is running).
+    pub fn client(&self) -> Option<Arc<McpClient>> {
+        self.client.clone()
+    }
+
     /// Get the discovery cache (if the server is running).
     pub fn discovery(&self) -> Option<&DiscoveryCache> {
         self.discovery.as_ref()

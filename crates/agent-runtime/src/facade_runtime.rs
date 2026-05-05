@@ -1,8 +1,10 @@
 use crate::task_graph::TaskGraph;
+use crate::McpServerManager;
 use agent_core::{
     AgentId, AppFacade, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
     SendMessageRequest, SessionId, StartSessionRequest, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
+use agent_mcp::types::McpServerDef;
 use agent_memory::{
     durable_memory_requires_confirmation, extract_memory_markers, strip_memory_markers,
     ContextAssembler, MemoryEntry, MemoryStore,
@@ -45,7 +47,8 @@ const EVENT_CHANNEL_CAPACITY: usize = 1024;
 pub struct LocalRuntime<S, M> {
     store: Arc<S>,
     model: Arc<M>,
-    permission_engine: PermissionEngine,
+    permission_engine: Arc<Mutex<PermissionEngine>>,
+    mcp_manager: Option<Arc<Mutex<McpServerManager>>>,
     tool_registry: Arc<Mutex<ToolRegistry>>,
     context_assembler: ContextAssembler,
     memory_store: Option<Arc<dyn MemoryStore>>,
@@ -61,18 +64,19 @@ impl<S, M> LocalRuntime<S, M> {
         Self {
             store: Arc::new(store),
             model: Arc::new(model),
-            permission_engine: PermissionEngine::new(PermissionMode::Suggest),
+            permission_engine: Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Suggest))),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
             context_assembler: ContextAssembler::new_standalone(100_000),
             memory_store: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
+            mcp_manager: None,
         }
     }
 
     pub fn with_permission_mode(mut self, mode: PermissionMode) -> Self {
-        self.permission_engine = PermissionEngine::new(mode);
+        self.permission_engine = Arc::new(Mutex::new(PermissionEngine::new(mode)));
         self
     }
 
@@ -86,8 +90,8 @@ impl<S, M> LocalRuntime<S, M> {
     }
 
     /// Get the current permission mode.
-    pub fn permission_mode(&self) -> PermissionMode {
-        *self.permission_engine.mode()
+    pub async fn permission_mode(&self) -> PermissionMode {
+        *self.permission_engine.lock().await.mode()
     }
 
     /// Set the memory store for persistent memory.
@@ -117,6 +121,38 @@ impl<S, M> LocalRuntime<S, M> {
     pub async fn with_provider(self, provider: Box<dyn ToolProvider>) -> Self {
         self.tool_registry.lock().await.add_provider(provider).await;
         self
+    }
+
+    /// Configure MCP servers from parsed config definitions.
+    ///
+    /// Starts any servers marked as `keep_alive` and registers their tools.
+    /// The manager shares the same permission engine and tool registry as
+    /// the runtime, so trust decisions and tool registrations are visible
+    /// to the agent loop.
+    pub async fn with_mcp_servers(mut self, configs: Vec<McpServerDef>) -> Self {
+        if configs.is_empty() {
+            return self;
+        }
+        let mut manager = McpServerManager::from_config(
+            configs,
+            self.tool_registry.clone(),
+            self.permission_engine.clone(),
+            Some(self.event_tx.clone()),
+        );
+        // Start persistent (keep_alive) servers — errors are logged but non-fatal
+        let results = manager.start_persistent_servers().await;
+        for result in &results {
+            if let Err(e) = result {
+                tracing::warn!("MCP server startup warning: {}", e);
+            }
+        }
+        self.mcp_manager = Some(Arc::new(Mutex::new(manager)));
+        self
+    }
+
+    /// Get a reference to the MCP server manager (if configured).
+    pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
+        self.mcp_manager.clone()
     }
 }
 
@@ -733,7 +769,7 @@ where
                         let mem_key = entry.key.clone();
                         let mem_content = entry.content.clone();
                         if durable_memory_requires_confirmation(&entry.scope) {
-                            match *self.permission_engine.mode() {
+                            match *self.permission_engine.lock().await.mode() {
                                 PermissionMode::Interactive => {
                                     let (tx, rx) = tokio::sync::oneshot::channel();
                                     self.pending_permissions
@@ -932,7 +968,7 @@ where
                     agent_tools::ToolRisk::read(&tc.name)
                 };
 
-                let permission_outcome = self.permission_engine.decide(&risk);
+                let permission_outcome = self.permission_engine.lock().await.decide(&risk);
                 let (permission_event, should_execute) = match &permission_outcome {
                     PermissionOutcome::Allowed => (
                         DomainEvent::new(
@@ -1086,7 +1122,7 @@ where
                     append_and_broadcast(&*self.store, &self.event_tx, &start_event).await?;
 
                     let result = registry
-                        .invoke_with_permission(&self.permission_engine, invocation)
+                        .invoke_with_permission(&*self.permission_engine.lock().await, invocation)
                         .await;
 
                     let completion_event = match result {
