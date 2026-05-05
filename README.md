@@ -32,6 +32,7 @@ graph TD
     RUNTIME["agent-runtime"]
     MODELS["agent-models"]
     TOOLS["agent-tools"]
+    MCP["agent-mcp"]
     MEMORY["agent-memory"]
     STORE["agent-store"]
     CONFIG["agent-config"]
@@ -43,6 +44,7 @@ graph TD
     CORE --> RUNTIME
     RUNTIME --> MODELS
     RUNTIME --> TOOLS
+    RUNTIME --> MCP
     RUNTIME --> MEMORY
     RUNTIME --> STORE
     RUNTIME --> CONFIG
@@ -60,13 +62,13 @@ graph TD
 - **Shared Rust core** — domain types, event-sourced runtime, facade trait, typed IDs
 - **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol and keyword retrieval
 - **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing
-- **Tool system** — built-in tools (shell, search, patch, fs) with 5-level permission control
+- **Tool system** — built-in tools (shell, search, patch, fs.read, fs.write, fs.list) with 5-level permission control and MCP (Model Context Protocol) integration
 - **Config discovery** — TOML config with profile management and env-variable API keys
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
 - **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, and permission center
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
-- **E2E testing** — 33 Playwright E2E tests for GUI frontend, 7 TUI integration tests, 12 full-stack runtime tests
+- **E2E testing** — 33+ Playwright E2E tests for GUI frontend (including MCP E2E tests), 7 TUI integration tests, 12 full-stack runtime tests, MCP integration tests
 
 ## Repository layout
 
@@ -74,6 +76,7 @@ graph TD
 - `crates/agent-runtime` — runtime orchestration and task graph
 - `crates/agent-models` — model profile and provider boundaries
 - `crates/agent-tools` — permission and tool abstractions
+- `crates/agent-mcp` — MCP (Model Context Protocol) client, transports, and server lifecycle
 - `crates/agent-memory` — memory and context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store
 - `crates/agent-config` — TOML config loading, model profile discovery, API key resolution
@@ -82,7 +85,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers. The GUI supports session cancellation, error notifications, code syntax highlighting, and a real-time status bar. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. Release packaging includes SHA256 checksums and structured artifact naming. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs 7 parallel jobs with type-sync checks. GUI test coverage has been expanded to 127 tests across stores, composables, and components.
+Kairox is in active development with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers. The GUI supports session cancellation, error notifications, code syntax highlighting, and a real-time status bar. MCP (Model Context Protocol) integration enables connecting to external tool servers via stdio and SSE transports, with config-driven server lifecycle management and trust-based permissions. Built-in filesystem tools now include fs.read, fs.write, and fs.list. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. Release packaging includes SHA256 checksums and structured artifact naming. Real model adapters (OpenAI, Anthropic, Ollama), built-in tools, event-sourced runtime, and memory are in place. CI runs E2E tests alongside parallel jobs with type-sync checks. GUI test coverage has been expanded to 127+ tests across stores, composables, and components, with additional MCP E2E tests.
 
 ## Requirements
 

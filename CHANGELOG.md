@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-05-05
+
+### 🚀 Features
+
+- **tools**: add fs.write and fs.list built-in tools (#45)
+- integrate MCP (Model Context Protocol) tool execution (#46)
+
+### 🐛 Bug Fixes
+
+- move .gitignore inline comments to separate lines and untrack generated files
+- **ci**: prevent dependabot-auto-merge from firing on non-Dependabot PRs (#47)
+
+### 👷 CI
+
+- add E2E test job to CI workflow (#44)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: add test-results/ to .gitignore
+
 ## [0.13.0] - 2026-05-05
 
 ### 🐛 Bug Fixes

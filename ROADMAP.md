@@ -20,6 +20,8 @@
 - ✅ Add TUI app logic integration tests (7 tests via FakeModelClient)
 - ✅ Add full-stack runtime integration tests (12 tests covering workspace, session, messaging, tools, permissions, memory, persistence)
 - ✅ Wire MCP tool execution (client protocol, process lifecycle, config-driven servers)
+- ✅ Add fs.write and fs.list built-in tools for filesystem operations
+- ✅ Add E2E test job to CI workflow for automated frontend testing
 
 ## Mid term
 
