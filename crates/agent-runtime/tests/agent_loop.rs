@@ -61,6 +61,7 @@ impl Tool for EchoTool {
             tool_id: "echo".into(),
             description: "Echoes input".into(),
             required_capability: "echo".into(),
+            parameters: serde_json::json!({"type": "object"}),
         }
     }
 

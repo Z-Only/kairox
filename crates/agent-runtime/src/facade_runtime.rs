@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 const SYSTEM_PROMPT: &str = "\
 You are Kairox, a helpful AI assistant with memory capabilities.\n\n\
@@ -56,6 +57,7 @@ pub struct LocalRuntime<S, M> {
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
+    active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
 }
 
 impl<S, M> LocalRuntime<S, M> {
@@ -71,6 +73,7 @@ impl<S, M> LocalRuntime<S, M> {
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
+            active_cancellation: Arc::new(Mutex::new(None)),
             mcp_manager: None,
         }
     }
@@ -419,7 +422,7 @@ where
                 .map(|td| agent_models::ToolDefinition {
                     name: td.tool_id,
                     description: td.description,
-                    parameters: serde_json::json!({"type": "object"}),
+                    parameters: td.parameters,
                 })
                 .collect()
         };
@@ -500,6 +503,10 @@ where
             tools: tool_defs,
         };
 
+        // Create cancellation token for this send_message call
+        let cancel_token = CancellationToken::new();
+        *self.active_cancellation.lock().await = Some(cancel_token.clone());
+
         // Agent loop: model -> tool call -> permission -> execute -> feed back
         let mut current_request = model_request;
         let mut iterations = 0;
@@ -548,6 +555,29 @@ where
         append_and_broadcast(&*self.store, &self.event_tx, &task_started).await?;
 
         loop {
+            // Check if the session has been cancelled before each iteration
+            if cancel_token.is_cancelled() {
+                {
+                    let mut task_graphs = self.task_graphs.lock().await;
+                    if let Some(graph) = task_graphs.get_mut(&request.session_id.to_string()) {
+                        let _ = graph.mark_failed(&root_task_id, "cancelled by user".into());
+                    }
+                }
+                let root_fail = DomainEvent::new(
+                    request.workspace_id.clone(),
+                    request.session_id.clone(),
+                    AgentId::system(),
+                    PrivacyClassification::MinimalTrace,
+                    EventPayload::AgentTaskFailed {
+                        task_id: root_task_id.clone(),
+                        error: "cancelled by user".into(),
+                    },
+                );
+                let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+                *self.active_cancellation.lock().await = None;
+                break;
+            }
+
             if iterations >= MAX_AGENT_LOOP_ITERATIONS {
                 let event = DomainEvent::new(
                     request.workspace_id.clone(),
@@ -579,6 +609,7 @@ where
                     },
                 );
                 let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+                *self.active_cancellation.lock().await = None;
 
                 break;
             }
@@ -619,6 +650,7 @@ where
                         },
                     );
                     let _ = append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+                    *self.active_cancellation.lock().await = None;
                     return Err(agent_core::CoreError::InvalidState(error_msg));
                 }
             };
@@ -638,6 +670,9 @@ where
                             EventPayload::ModelTokenDelta { delta },
                         );
                         append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+                        if cancel_token.is_cancelled() {
+                            break;
+                        }
                     }
                     Ok(ModelEvent::ToolCallRequested {
                         tool_call_id,
@@ -716,6 +751,7 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+                        *self.active_cancellation.lock().await = None;
                         return Err(agent_core::CoreError::InvalidState(message));
                     }
                     Err(e) => {
@@ -753,6 +789,7 @@ where
                         );
                         let _ =
                             append_and_broadcast(&*self.store, &self.event_tx, &root_fail).await;
+                        *self.active_cancellation.lock().await = None;
                         return Err(agent_core::CoreError::InvalidState(error_msg));
                     }
                 }
@@ -1282,6 +1319,9 @@ where
             }
         }
 
+        // Clean up cancellation token on normal completion
+        *self.active_cancellation.lock().await = None;
+
         Ok(())
     }
 
@@ -1295,6 +1335,11 @@ where
         workspace_id: WorkspaceId,
         session_id: SessionId,
     ) -> agent_core::Result<()> {
+        // Cancel the active agent loop if one is running
+        if let Some(token) = self.active_cancellation.lock().await.take() {
+            token.cancel();
+        }
+
         let event = DomainEvent::new(
             workspace_id,
             session_id,

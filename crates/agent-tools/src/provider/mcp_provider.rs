@@ -28,6 +28,12 @@ impl Tool for McpToolAdapter {
             tool_id: format!("mcp.{}.{}", self.server_id, self.tool_def.name),
             description: self.tool_def.description.clone().unwrap_or_default(),
             required_capability: "mcp.invoke".into(),
+            parameters: self
+                .tool_def
+                .input_schema
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_else(|| serde_json::json!({"type": "object"})),
         }
     }
 

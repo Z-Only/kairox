@@ -145,6 +145,16 @@ impl Tool for ShellExecTool {
             tool_id: SHELL_TOOL_ID.to_string(),
             description: "Execute shell commands within the workspace sandbox".to_string(),
             required_capability: "shell.exec".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The shell command to execute"
+                    }
+                },
+                "required": ["command"]
+            }),
         }
     }
 

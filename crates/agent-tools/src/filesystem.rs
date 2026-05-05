@@ -88,6 +88,16 @@ impl Tool for FsReadTool {
             tool_id: "fs.read".into(),
             description: "Read a UTF-8 file within the workspace".into(),
             required_capability: "filesystem.read".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Relative path to the file within the workspace"
+                    }
+                },
+                "required": ["path"]
+            }),
         }
     }
 
@@ -131,6 +141,24 @@ impl Tool for FsWriteTool {
             description: "Write content to a file within the workspace (atomic, with backup)"
                 .into(),
             required_capability: "filesystem.write".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Relative path to the file within the workspace"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "The content to write to the file"
+                    },
+                    "create_dirs": {
+                        "type": "boolean",
+                        "description": "Whether to create parent directories if they don't exist (default: true)"
+                    }
+                },
+                "required": ["path", "content"]
+            }),
         }
     }
 
@@ -225,6 +253,19 @@ impl Tool for FsListTool {
             tool_id: "fs.list".into(),
             description: "List directory contents within the workspace".into(),
             required_capability: "filesystem.read".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Relative path to the directory within the workspace (default: .)"
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "Whether to list recursively (default: false)"
+                    }
+                }
+            }),
         }
     }
 
