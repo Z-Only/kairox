@@ -70,11 +70,13 @@ watch(
         <span class="message-role">{{
           msg.role === "user" ? "You" : "Agent"
         }}</span>
+        <!-- eslint-disable vue/no-v-html -->
         <span
           v-if="msg.role === 'assistant'"
           class="message-content markdown-body"
           v-html="renderMarkdown(msg.content)"
         ></span>
+        <!-- eslint-enable vue/no-v-html -->
         <span v-else class="message-content">{{ msg.content }}</span>
       </div>
       <div
