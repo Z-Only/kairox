@@ -1,32 +1,96 @@
-# Kairox configuration — copy to kairox.toml and fill in your profiles.
-# Place in project root (./kairox.toml) or user home (~/.kairox/config.toml).
+# ═══════════════════════════════════════════════════════════════════════════
+# Kairox Configuration Example
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Copy this file to `kairox.toml` (project root) or `~/.kairox/config.toml`
+# and fill in your profiles. The `kairox.toml` file is git-ignored.
+#
+# Discovery order:
+#   1. ./kairox.toml          (project-level, takes priority)
+#   2. ~/.kairox/config.toml  (user-level fallback)
+#   3. Built-in defaults      (fake + local-code, plus "fast" if OPENAI_API_KEY is set)
+#
+# Supported providers: openai_compatible, anthropic, ollama, fake
+#
+# Profile fields:
+#   provider        — (required) one of the supported providers above
+#   model_id        — (required) model identifier sent to the API
+#   base_url        — API base URL (required for openai_compatible, optional for others)
+#   api_key         — direct API key string (takes priority over api_key_env)
+#   api_key_env     — environment variable name holding the API key
+#   context_window  — max context tokens (default: 128_000)
+#   output_limit    — max output tokens (default: 16_384)
+#   response        — static response text (only used by the "fake" provider)
+# ═══════════════════════════════════════════════════════════════════════════
 
-# OpenAI-compatible provider (e.g. OpenAI, DeepSeek, Groq)
-[profiles.gpt4o]
-provider = "openai_compatible"
-model_id = "gpt-4o"
-api_key_env = "OPENAI_API_KEY"
+# ---------------------------------------------------------------------------
+# OpenAI-compatible providers (OpenAI, DeepSeek, Groq, etc.)
+# ---------------------------------------------------------------------------
+# NOTE: `base_url` is REQUIRED for openai_compatible profiles.
 
+# OpenAI GPT-4.1 Mini
+[profiles.fast]
+provider        = "openai_compatible"
+model_id        = "gpt-4.1-mini"
+base_url        = "https://api.openai.com/v1"
+api_key_env     = "OPENAI_API_KEY"
+
+# OpenAI GPT-4.1
+[profiles.gpt4]
+provider        = "openai_compatible"
+model_id        = "gpt-4.1"
+base_url        = "https://api.openai.com/v1"
+api_key_env     = "OPENAI_API_KEY"
+context_window  = 1_047_576
+output_limit    = 32_768
+
+# DeepSeek Chat
 [profiles.deepseek]
-provider = "openai_compatible"
-model_id = "deepseek-chat"
-base_url = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
+provider        = "openai_compatible"
+model_id        = "deepseek-chat"
+base_url        = "https://api.deepseek.com/v1"
+api_key_env     = "DEEPSEEK_API_KEY"
 
+# ---------------------------------------------------------------------------
 # Anthropic Claude
+# ---------------------------------------------------------------------------
+# If api_key and api_key_env are both unset, the Anthropic provider will
+# auto-resolve the API key from ~/.claude/settings.json (ANTHROPIC_AUTH_TOKEN).
+# You can override the base_url to point to a gateway/proxy.
+
 [profiles.claude]
-provider = "anthropic"
-model_id = "claude-sonnet-4-20250514"
-api_key_env = "ANTHROPIC_API_KEY"
+provider        = "anthropic"
+model_id        = "claude-sonnet-4-20250514"
+# base_url      = "https://api.anthropic.com"          # default
+# api_key_env   = "ANTHROPIC_API_KEY"                   # optional; auto-fallback to ~/.claude/settings.json
 
+# Anthropic with custom gateway (corporate proxy / API relay)
+[profiles.claude-proxy]
+provider        = "anthropic"
+model_id        = "anthropic/claude-sonnet-4.6"
+base_url        = "https://your-gateway.example.com/api/anthropic"
+api_key_env     = "ANTHROPIC_AUTH_TOKEN"
+
+# ---------------------------------------------------------------------------
 # Local Ollama
-[profiles.local]
-provider = "ollama"
-model_id = "qwen3:8b"
-base_url = "http://localhost:11434"
+# ---------------------------------------------------------------------------
+# No API key needed. Make sure Ollama is running on the configured base_url.
 
-# Fake provider for testing
+[profiles.local]
+provider        = "ollama"
+model_id        = "devstral"
+base_url        = "http://localhost:11434"
+
+[profiles.local-qwen]
+provider        = "ollama"
+model_id        = "qwen3:8b"
+base_url        = "http://localhost:11434"
+
+# ---------------------------------------------------------------------------
+# Fake provider (for testing / offline development)
+# ---------------------------------------------------------------------------
+
 [profiles.fake]
-provider = "fake"
-model_id = "fake-model"
-response = "Hello from the fake provider!"
+provider        = "fake"
+model_id        = "fake-model"
+response        = "Hello from the Kairox fake provider!"
