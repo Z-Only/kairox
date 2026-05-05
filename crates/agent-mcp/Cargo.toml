@@ -25,3 +25,5 @@ eventsource-stream = { workspace = true, optional = true }
 [dev-dependencies]
 tempfile.workspace = true
 toml.workspace = true
+wiremock.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "process", "fs", "test-util"] }
