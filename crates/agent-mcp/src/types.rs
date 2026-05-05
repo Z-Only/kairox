@@ -217,7 +217,8 @@ pub struct McpToolDef {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        with = "json_string_option"
+        with = "json_string_option",
+        alias = "inputSchema"
     )]
     pub input_schema: Option<String>,
 }
@@ -234,7 +235,7 @@ pub struct McpResourceDef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// MIME type of the resource content.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mimeType")]
     pub mime_type: Option<String>,
 }
 
@@ -277,7 +278,7 @@ pub struct McpToolResult {
     /// The content blocks returned by the tool.
     pub content: Vec<McpContentBlock>,
     /// Whether the tool invocation resulted in an error.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "isError")]
     pub is_error: Option<bool>,
 }
 
@@ -289,7 +290,11 @@ pub enum McpContentBlock {
     /// Plain text content.
     Text { text: String },
     /// Image content (base64-encoded).
-    Image { data: String, mime_type: String },
+    Image {
+        data: String,
+        #[serde(rename = "mimeType", alias = "mime_type")]
+        mime_type: String,
+    },
     /// Embedded resource content.
     Resource { resource: McpResourceContent },
 }
@@ -301,7 +306,7 @@ pub struct McpResourceContent {
     /// The resource URI.
     pub uri: String,
     /// MIME type of the resource.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "mimeType")]
     pub mime_type: Option<String>,
     /// The resource text content (for text resources).
     #[serde(default, skip_serializing_if = "Option::is_none")]
