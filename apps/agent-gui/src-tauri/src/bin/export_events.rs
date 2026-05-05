@@ -8,6 +8,7 @@ use agent_core::{
     AgentRole, DomainEvent, EventPayload, PrivacyClassification, TaskGraphSnapshot, TaskSnapshot,
     TaskState,
 };
+use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
 
 fn main() {
@@ -28,7 +29,8 @@ fn main() {
         .typ::<TaskState>()
         .typ::<TaskSnapshot>()
         .typ::<TaskGraphSnapshot>()
-        .typ::<MemoryScope>();
+        .typ::<MemoryScope>()
+        .typ::<McpServerStatus>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)

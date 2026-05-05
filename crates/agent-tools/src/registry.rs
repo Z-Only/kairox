@@ -47,7 +47,7 @@ pub trait Tool: Send + Sync {
 /// Trait for a provider that supplies a collection of tools.
 ///
 /// Implementations include [`BuiltinProvider`](crate::BuiltinProvider) for built-in tools
-/// and [`McpProvider`](crate::McpProvider) for MCP server tools.
+/// and [`McpToolAdapter`](crate::McpToolAdapter) for MCP server tools.
 pub trait ToolProvider: Send + Sync {
     async fn list_tools(&self) -> Vec<ToolDefinition>;
     async fn get_tool(&self, tool_id: &str) -> Option<Box<dyn Tool>>;
@@ -82,6 +82,9 @@ pub fn require_permission(engine: &PermissionEngine, risk: &ToolRisk) -> crate::
         PermissionOutcome::Pending => Err(crate::ToolError::PermissionRequired(
             "awaiting user confirmation".into(),
         )),
+        PermissionOutcome::PromptWithTrust => {
+            Err(crate::ToolError::PermissionRequired(risk.tool_id.clone()))
+        }
     }
 }
 
@@ -171,6 +174,9 @@ impl ToolRegistry {
             PermissionOutcome::Denied(reason) => Err(crate::ToolError::PermissionDenied(reason)),
             PermissionOutcome::Pending => Err(crate::ToolError::PermissionRequired(
                 "awaiting user confirmation".into(),
+            )),
+            PermissionOutcome::PromptWithTrust => Err(crate::ToolError::PermissionRequired(
+                "MCP tool requires trust approval".into(),
             )),
         }
     }

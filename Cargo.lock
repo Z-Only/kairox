@@ -19,9 +19,11 @@ name = "agent-config"
 version = "0.13.0"
 dependencies = [
  "agent-core",
+ "agent-mcp",
  "agent-models",
  "dirs",
  "futures",
+ "regex",
  "serde",
  "serde_json",
  "specta",
@@ -55,6 +57,7 @@ version = "0.13.0"
 dependencies = [
  "agent-config",
  "agent-core",
+ "agent-mcp",
  "agent-memory",
  "agent-models",
  "agent-runtime",
@@ -69,6 +72,26 @@ dependencies = [
  "tauri-build",
  "tauri-specta",
  "tokio",
+]
+
+[[package]]
+name = "agent-mcp"
+version = "0.13.0"
+dependencies = [
+ "agent-core",
+ "async-trait",
+ "eventsource-stream",
+ "futures",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "specta",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml 1.1.2+spec-1.1.0",
+ "tracing",
+ "wiremock",
 ]
 
 [[package]]
@@ -113,6 +136,7 @@ name = "agent-runtime"
 version = "0.13.0"
 dependencies = [
  "agent-core",
+ "agent-mcp",
  "agent-memory",
  "agent-models",
  "agent-store",
@@ -127,6 +151,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
+ "tracing",
  "uuid",
 ]
 
@@ -149,6 +174,7 @@ name = "agent-tools"
 version = "0.13.0"
 dependencies = [
  "agent-core",
+ "agent-mcp",
  "async-trait",
  "regex",
  "serde",

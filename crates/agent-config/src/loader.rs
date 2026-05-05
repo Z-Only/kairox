@@ -1,12 +1,14 @@
 //! TOML parsing, API key resolution, and validation.
 
-use crate::{Config, ConfigError, ProfileDef};
+use crate::{Config, ConfigError, McpServerConfig, McpTransportType, ProfileDef};
 
 /// Intermediate TOML structure for deserialization.
 #[derive(Debug, serde::Deserialize)]
 struct ConfigToml {
     #[serde(default)]
     profiles: toml::value::Table,
+    #[serde(default)]
+    mcp_servers: toml::value::Table,
 }
 
 /// Intermediate profile structure for deserialization.
@@ -58,8 +60,38 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         profiles.push((alias.clone(), profile_def));
     }
 
+    // Parse MCP server definitions
+    let mut mcp_servers = Vec::new();
+    for (id, value) in &config_toml.mcp_servers {
+        let server_config: McpServerConfig =
+            value.clone().try_into().map_err(|e| ConfigError::Parse {
+                path: path_for_errors.to_string(),
+                message: format!("mcp_server '{}': {}", id, e),
+            })?;
+
+        // Validate required fields per transport type
+        match server_config.r#type {
+            McpTransportType::Stdio if server_config.command.is_none() => {
+                return Err(ConfigError::Parse {
+                    path: path_for_errors.to_string(),
+                    message: format!("mcp_server '{}': stdio requires 'command'", id),
+                });
+            }
+            McpTransportType::Sse if server_config.url.is_none() => {
+                return Err(ConfigError::Parse {
+                    path: path_for_errors.to_string(),
+                    message: format!("mcp_server '{}': sse requires 'url'", id),
+                });
+            }
+            _ => {}
+        }
+
+        mcp_servers.push((id.clone(), server_config));
+    }
+
     Ok(Config {
         profiles,
+        mcp_servers,
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
     })
 }
@@ -110,6 +142,40 @@ fn try_read_claude_auth_token() -> Option<String> {
         .get("ANTHROPIC_AUTH_TOKEN")?
         .as_str()
         .map(|s| s.to_string())
+}
+
+/// Resolve environment variables in MCP server configs.
+/// - env fields with empty values are resolved from env vars of the same name
+/// - headers with `${VAR}` patterns are expanded from environment
+pub fn resolve_mcp_env(config: &mut Config) {
+    for (_id, server) in &mut config.mcp_servers {
+        // Resolve empty env values
+        if let Some(ref mut env) = server.env {
+            for (key, value) in env.iter_mut() {
+                if value.is_empty() {
+                    if let Ok(resolved) = std::env::var(key) {
+                        *value = resolved;
+                    }
+                }
+            }
+        }
+
+        // Expand ${VAR} in headers
+        if let Some(ref mut headers) = server.headers {
+            for (_key, value) in headers.iter_mut() {
+                *value = expand_env_vars(value);
+            }
+        }
+    }
+}
+
+/// Expand `${VAR}` patterns in a string from environment variables.
+pub(crate) fn expand_env_vars(input: &str) -> String {
+    let re = regex::Regex::new(r"\$\{([^}]+)\}").unwrap();
+    re.replace_all(input, |caps: &regex::Captures| {
+        std::env::var(&caps[1]).unwrap_or_else(|_| caps[0].to_string())
+    })
+    .to_string()
 }
 
 /// Validate the configuration: check for unknown providers, missing fields, etc.
@@ -272,5 +338,217 @@ api_key_env = "KAIROX_TEST_KEY_VAR"
             ConfigError::Parse { path, .. } => assert_eq!(path, "bad.toml"),
             _ => panic!("expected Parse error"),
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // MCP server parsing tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn parse_stdio_mcp_server() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.filesystem]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+keep_alive = true
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.mcp_servers.len(), 1);
+        let (id, server) = &config.mcp_servers[0];
+        assert_eq!(id, "filesystem");
+        assert_eq!(server.r#type, McpTransportType::Stdio);
+        assert_eq!(server.command, Some("npx".to_string()));
+        assert!(server.keep_alive);
+    }
+
+    #[test]
+    fn parse_sse_mcp_server() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.remote-search]
+type = "sse"
+url = "https://mcp.example.com/search"
+api_key_env = "MCP_SEARCH_KEY"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.mcp_servers.len(), 1);
+        let (id, server) = &config.mcp_servers[0];
+        assert_eq!(id, "remote-search");
+        assert_eq!(server.r#type, McpTransportType::Sse);
+        assert_eq!(
+            server.url,
+            Some("https://mcp.example.com/search".to_string())
+        );
+    }
+
+    #[test]
+    fn reject_stdio_without_command() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.bad]
+type = "stdio"
+"#;
+        let result = load_from_str(toml, "test.toml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_sse_without_url() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.bad]
+type = "sse"
+"#;
+        let result = load_from_str(toml, "test.toml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn mcp_default_values() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.test]
+type = "stdio"
+command = "echo"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        let (_, server) = &config.mcp_servers[0];
+        assert!(!server.keep_alive);
+        assert_eq!(server.idle_timeout_secs, 300);
+        assert!(server.auto_restart);
+        assert_eq!(server.max_restart_attempts, 3);
+    }
+
+    #[test]
+    fn mcp_server_defs_converts_to_agent_mcp_types() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.fs]
+type = "stdio"
+command = "npx"
+args = ["server-fs"]
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        let defs = config.mcp_server_defs();
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "fs");
+        assert!(matches!(
+            defs[0].transport,
+            agent_mcp::McpTransportDef::Stdio { .. }
+        ));
+        assert_eq!(defs[0].args, vec!["server-fs"]);
+    }
+
+    #[test]
+    fn headers_env_expansion() {
+        std::env::set_var("TEST_MCP_TOKEN", "secret123");
+        let input = "Bearer ${TEST_MCP_TOKEN}";
+        let result = expand_env_vars(input);
+        assert_eq!(result, "Bearer secret123");
+        std::env::remove_var("TEST_MCP_TOKEN");
+    }
+
+    #[test]
+    fn headers_env_expansion_missing_var_keeps_placeholder() {
+        // Ensure a missing env var leaves ${VAR} as-is
+        std::env::remove_var("TEST_MCP_MISSING_VAR");
+        let input = "Bearer ${TEST_MCP_MISSING_VAR}";
+        let result = expand_env_vars(input);
+        assert_eq!(result, "Bearer ${TEST_MCP_MISSING_VAR}");
+    }
+
+    #[test]
+    fn empty_env_value_resolves_from_env() {
+        std::env::set_var("TEST_MCP_VAR", "resolved_value");
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.test]
+type = "stdio"
+command = "echo"
+
+[mcp_servers.test.env]
+TEST_MCP_VAR = ""
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_mcp_env(&mut config);
+        let (_, server) = &config.mcp_servers[0];
+        assert_eq!(
+            server.env.as_ref().unwrap().get("TEST_MCP_VAR"),
+            Some(&"resolved_value".to_string())
+        );
+        std::env::remove_var("TEST_MCP_VAR");
+    }
+
+    #[test]
+    fn non_empty_env_value_not_overwritten() {
+        std::env::set_var("TEST_MCP_PRESERVED", "env_value");
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.test]
+type = "stdio"
+command = "echo"
+
+[mcp_servers.test.env]
+TEST_MCP_PRESERVED = "explicit_value"
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_mcp_env(&mut config);
+        let (_, server) = &config.mcp_servers[0];
+        assert_eq!(
+            server.env.as_ref().unwrap().get("TEST_MCP_PRESERVED"),
+            Some(&"explicit_value".to_string())
+        );
+        std::env::remove_var("TEST_MCP_PRESERVED");
+    }
+
+    #[test]
+    fn mcp_headers_with_env_expansion() {
+        std::env::set_var("TEST_MCP_AUTH", "my-token-123");
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.test]
+type = "sse"
+url = "https://mcp.example.com"
+
+[mcp_servers.test.headers]
+Authorization = "Bearer ${TEST_MCP_AUTH}"
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_mcp_env(&mut config);
+        let (_, server) = &config.mcp_servers[0];
+        assert_eq!(
+            server.headers.as_ref().unwrap().get("Authorization"),
+            Some(&"Bearer my-token-123".to_string())
+        );
+        std::env::remove_var("TEST_MCP_AUTH");
     }
 }

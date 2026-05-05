@@ -6,7 +6,9 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-mcp = { path = "../agent-mcp" }
 agent-models = { path = "../agent-models" }
+regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

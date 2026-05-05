@@ -120,6 +120,35 @@ pub enum EventPayload {
     SessionCancelled {
         reason: String,
     },
+    McpServerStarting {
+        server_id: String,
+    },
+    McpServerReady {
+        server_id: String,
+        tool_count: usize,
+    },
+    McpServerStopped {
+        server_id: String,
+    },
+    McpServerFailed {
+        server_id: String,
+        error: String,
+    },
+    McpToolCallStarted {
+        server_id: String,
+        tool_name: String,
+    },
+    McpToolCallCompleted {
+        server_id: String,
+        tool_name: String,
+        duration_ms: u64,
+    },
+    McpTrustGranted {
+        server_id: String,
+    },
+    McpTrustRevoked {
+        server_id: String,
+    },
 }
 
 impl EventPayload {
@@ -150,6 +179,14 @@ impl EventPayload {
             Self::AgentTaskCompleted { .. } => "AgentTaskCompleted",
             Self::AgentTaskFailed { .. } => "AgentTaskFailed",
             Self::SessionCancelled { .. } => "SessionCancelled",
+            Self::McpServerStarting { .. } => "McpServerStarting",
+            Self::McpServerReady { .. } => "McpServerReady",
+            Self::McpServerStopped { .. } => "McpServerStopped",
+            Self::McpServerFailed { .. } => "McpServerFailed",
+            Self::McpToolCallStarted { .. } => "McpToolCallStarted",
+            Self::McpToolCallCompleted { .. } => "McpToolCallCompleted",
+            Self::McpTrustGranted { .. } => "McpTrustGranted",
+            Self::McpTrustRevoked { .. } => "McpTrustRevoked",
         }
     }
 }
@@ -225,4 +262,100 @@ mod tests {
         assert!(json["workspace_id"].as_str().unwrap().starts_with("wrk_"));
         assert!(json["session_id"].as_str().unwrap().starts_with("ses_"));
     }
+}
+
+// MCP event tests
+#[test]
+fn mcp_server_starting_serializes() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpServerStarting {
+            server_id: "test".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpServerStarting");
+    assert_eq!(json["payload"]["server_id"], "test");
+}
+
+#[test]
+fn mcp_server_ready_serializes() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpServerReady {
+            server_id: "fs".into(),
+            tool_count: 5,
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpServerReady");
+    assert_eq!(json["payload"]["tool_count"], 5);
+}
+
+#[test]
+fn mcp_server_failed_serializes() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpServerFailed {
+            server_id: "bad".into(),
+            error: "crashed".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpServerFailed");
+    assert_eq!(json["payload"]["error"], "crashed");
+}
+
+#[test]
+fn mcp_tool_call_completed_serializes() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpToolCallCompleted {
+            server_id: "github".into(),
+            tool_name: "create_issue".into(),
+            duration_ms: 150,
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpToolCallCompleted");
+    assert_eq!(json["payload"]["duration_ms"], 150);
+}
+
+#[test]
+fn mcp_trust_events_serialize() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpTrustGranted {
+            server_id: "fs".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpTrustGranted");
+
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::McpTrustRevoked {
+            server_id: "fs".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["payload"]["type"], "McpTrustRevoked");
 }

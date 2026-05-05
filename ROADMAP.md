@@ -19,6 +19,7 @@
 - ✅ Add E2E test infrastructure with Playwright for GUI frontend testing
 - ✅ Add TUI app logic integration tests (7 tests via FakeModelClient)
 - ✅ Add full-stack runtime integration tests (12 tests covering workspace, session, messaging, tools, permissions, memory, persistence)
+- ✅ Wire MCP tool execution (client protocol, process lifecycle, config-driven servers)
 
 ## Mid term
 
@@ -26,7 +27,6 @@
 - Add multi-agent orchestration UX in TUI and GUI
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
-- Wire MCP tool execution (client protocol, process lifecycle, config-driven servers)
 
 ## Long term
 

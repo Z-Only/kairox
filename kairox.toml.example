@@ -94,3 +94,61 @@ base_url        = "http://localhost:11434"
 provider        = "fake"
 model_id        = "fake-model"
 response        = "Hello from the Kairox fake provider!"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MCP Server Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Configure MCP (Model Context Protocol) servers to extend Kairox with
+# external tools. Servers can be run as child processes (stdio) or connected
+# to remotely (sse).
+#
+# Each server is defined in a [mcp_servers.<id>] section where <id> is a
+# unique name you choose.
+#
+# Common fields:
+#   type              — "stdio" or "sse" (required)
+#   keep_alive        — If true, the server stays running even when idle (default: false)
+#   idle_timeout_secs — Seconds before an idle server is stopped (default: 300)
+#   auto_restart      — If true, automatically restart on failure (default: true)
+#   max_restart_attempts — Max restart attempts before giving up (default: 3)
+#
+# Stdio-specific fields:
+#   command           — The command to execute (required for stdio)
+#   args              — Command-line arguments (array of strings)
+#   env               — Environment variables to set (table of key=value)
+#                        Empty values (""} are resolved from the env var of the same name
+#   cwd               — Working directory for the child process
+#
+# SSE-specific fields:
+#   url               — The URL of the SSE endpoint (required for sse)
+#   headers           — HTTP headers to send (table of key=value)
+#                        ${VAR} patterns are expanded from environment variables
+#   api_key_env       — Environment variable name holding an API key for authentication
+#                        Added as "Authorization: Bearer <key>" header
+
+# Example: Local filesystem MCP server (stdio)
+# [mcp_servers.filesystem]
+# type = "stdio"
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/projects"]
+# keep_alive = true
+
+# Example: GitHub MCP server (stdio)
+# [mcp_servers.github]
+# type = "stdio"
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-github"]
+# env = { GITHUB_PERSONAL_ACCESS_TOKEN = "" }  # empty = read from env var
+
+# Example: Remote MCP server (SSE)
+# [mcp_servers.remote-search]
+# type = "sse"
+# url = "https://mcp.example.com/search"
+# headers = { Authorization = "Bearer ${MCP_API_TOKEN}" }
+# api_key_env = "MCP_SEARCH_API_KEY"
+
+# Example: SSE server with keep-alive
+# [mcp_servers.persistent-remote]
+# type = "sse"
+# url = "http://localhost:8080/mcp"
+# keep_alive = true

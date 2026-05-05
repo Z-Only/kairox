@@ -48,6 +48,10 @@ pub enum FocusTarget {
 pub enum RiskLevel {
     Write,
     Destructive,
+    /// MCP tool invocation — external server tool
+    McpTool {
+        server_id: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +85,7 @@ pub struct StatusInfo {
     pub profile: String,
     pub permission_mode: String,
     pub session_count: usize,
+    pub mcp_server_count: usize,
     pub hint: String,
     pub error: Option<String>,
 }
@@ -99,6 +104,7 @@ pub enum CrossPanelEffect {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum Command {
     SendMessage {
         workspace_id: agent_core::WorkspaceId,
@@ -108,6 +114,10 @@ pub enum Command {
     DecidePermission {
         request_id: String,
         approved: bool,
+    },
+    /// Trust an MCP server so future tool calls from it are auto-approved.
+    TrustMcpServer {
+        server_id: String,
     },
     CancelSession {
         workspace_id: agent_core::WorkspaceId,

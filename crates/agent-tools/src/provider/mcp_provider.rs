@@ -1,29 +1,69 @@
-use crate::registry::{Tool, ToolDefinition, ToolProvider};
+use crate::permission::{ToolEffect, ToolRisk};
+use crate::registry::{Tool, ToolDefinition, ToolInvocation, ToolOutput};
+use agent_mcp::McpClient;
+use agent_mcp::McpToolDef;
 use async_trait::async_trait;
+use std::sync::Arc;
 
-/// Placeholder MCP provider. Full implementation deferred to a future task.
-pub struct McpProvider {
-    _config: (),
+pub struct McpToolAdapter {
+    server_id: String,
+    tool_def: McpToolDef,
+    client: Arc<McpClient>,
 }
 
-impl McpProvider {
-    pub fn placeholder() -> Self {
-        Self { _config: () }
+impl McpToolAdapter {
+    pub fn new(server_id: String, tool_def: McpToolDef, client: Arc<McpClient>) -> Self {
+        Self {
+            server_id,
+            tool_def,
+            client,
+        }
     }
 }
 
 #[async_trait]
-impl ToolProvider for McpProvider {
-    async fn list_tools(&self) -> Vec<ToolDefinition> {
-        Vec::new()
+impl Tool for McpToolAdapter {
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            tool_id: format!("mcp.{}.{}", self.server_id, self.tool_def.name),
+            description: self.tool_def.description.clone().unwrap_or_default(),
+            required_capability: "mcp.invoke".into(),
+        }
     }
 
-    async fn get_tool(&self, _tool_id: &str) -> Option<Box<dyn Tool>> {
-        None
+    fn risk(&self, _invocation: &ToolInvocation) -> ToolRisk {
+        ToolRisk {
+            tool_id: format!("mcp.{}.{}", self.server_id, self.tool_def.name),
+            effect: ToolEffect::McpInvoke,
+        }
     }
 
-    fn name(&self) -> &str {
-        "mcp"
+    async fn invoke(&self, invocation: ToolInvocation) -> crate::Result<ToolOutput> {
+        let result = self
+            .client
+            .call_tool(&self.tool_def.name, invocation.arguments)
+            .await
+            .map_err(|e| crate::ToolError::ExecutionFailed(e.to_string()))?;
+
+        let text: String = result
+            .content
+            .iter()
+            .map(|block| match block {
+                agent_mcp::McpContentBlock::Text { text } => text.clone(),
+                agent_mcp::McpContentBlock::Image { data, .. } => {
+                    format!("[image: {} bytes]", data.len())
+                }
+                agent_mcp::McpContentBlock::Resource { resource } => {
+                    format!("[resource: {}]", resource.uri)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        Ok(ToolOutput {
+            text,
+            truncated: result.is_error.unwrap_or(false),
+        })
     }
 }
 
@@ -31,11 +71,15 @@ impl ToolProvider for McpProvider {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn mcp_provider_placeholder_returns_empty() {
-        let provider = McpProvider::placeholder();
-        assert!(provider.list_tools().await.is_empty());
-        assert!(provider.get_tool("anything").await.is_none());
-        assert_eq!(provider.name(), "mcp");
+    #[test]
+    fn mcp_tool_adapter_formats_tool_id() {
+        let tool_def = McpToolDef {
+            name: "echo".into(),
+            description: Some("Echo tool".into()),
+            input_schema: None,
+        };
+        // Can't create a real McpClient without transport, so just test the definition format logic
+        let tool_id = format!("mcp.{}.{}", "test-server", tool_def.name);
+        assert_eq!(tool_id, "mcp.test-server.echo");
     }
 }

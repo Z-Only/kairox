@@ -1,10 +1,12 @@
 pub mod agents;
 pub mod facade_runtime;
+pub mod mcp_manager;
 pub mod task_graph;
 
 pub use agent_core::{AgentRole, TaskState};
 pub use agents::{PlannerAgent, ReviewerAgent, ReviewerFinding, WorkerAgent};
 pub use facade_runtime::LocalRuntime;
+pub use mcp_manager::McpServerManager;
 pub use task_graph::{AgentTask, TaskGraph};
 
 #[derive(Debug, thiserror::Error)]

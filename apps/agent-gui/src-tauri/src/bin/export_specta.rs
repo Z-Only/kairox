@@ -6,9 +6,11 @@
 
 use agent_config::ProfileInfo;
 use agent_gui_tauri::commands::{
-    BuildInfoResponse, MemoryEntryResponse, ProfileDetailResponse, SessionInfoResponse,
-    TaskSnapshotResponse, WorkspaceInfoResponse,
+    BuildInfoResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
+    McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse, ProfileDetailResponse,
+    SessionInfoResponse, TaskSnapshotResponse, WorkspaceInfoResponse,
 };
+use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
 
 fn main() {
@@ -41,6 +43,16 @@ fn main() {
             agent_gui_tauri::commands::cancel_session,
             agent_gui_tauri::commands::get_permission_mode,
             agent_gui_tauri::commands::get_build_info,
+            // MCP commands
+            agent_gui_tauri::commands::list_mcp_servers,
+            agent_gui_tauri::commands::start_mcp_server,
+            agent_gui_tauri::commands::stop_mcp_server,
+            agent_gui_tauri::commands::refresh_mcp_tools,
+            agent_gui_tauri::commands::trust_mcp_server,
+            agent_gui_tauri::commands::revoke_mcp_trust,
+            agent_gui_tauri::commands::list_mcp_resources,
+            agent_gui_tauri::commands::list_mcp_prompts,
+            agent_gui_tauri::commands::read_mcp_resource,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
@@ -48,7 +60,14 @@ fn main() {
         .typ::<ProfileInfo>()
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
-        .typ::<BuildInfoResponse>();
+        .typ::<BuildInfoResponse>()
+        // MCP response types
+        .typ::<McpServerStatusResponse>()
+        .typ::<McpToolDefResponse>()
+        .typ::<McpResourceDefResponse>()
+        .typ::<McpPromptDefResponse>()
+        .typ::<McpContentBlockResponse>()
+        .typ::<McpServerStatus>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)

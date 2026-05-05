@@ -12,7 +12,8 @@ export default [
       "**/coverage/**",
       "target/**",
       "apps/agent-gui/src-tauri/gen/**",
-      "apps/agent-gui/src/generated/**"
+      "apps/agent-gui/src/generated/**",
+      "crates/agent-mcp/tests/fixtures/**"
     ]
   },
   js.configs.recommended,

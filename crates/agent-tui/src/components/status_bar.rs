@@ -51,7 +51,7 @@ impl StatusInfo {
 // ---------------------------------------------------------------------------
 
 /// Read-only status bar that displays profile, permission mode, session count,
-/// a hint, and optional error text.
+/// MCP server count, a hint, and optional error text.
 pub struct StatusBar {
     focused: bool,
     info: StatusInfo,
@@ -65,6 +65,7 @@ impl StatusBar {
                 profile: String::new(),
                 permission_mode: String::new(),
                 session_count: 0,
+                mcp_server_count: 0,
                 hint: String::new(),
                 error: None,
             },
@@ -116,12 +117,13 @@ impl Component for StatusBar {
 /// Layout (left → right):
 ///
 /// ```text
-/// [ profile ] [ mode ] sessions: N  hint text  error!
+/// [ profile ] [ mode ] sessions: N  [MCP:N↑]  hint text  error!
 /// ```
 ///
 /// - **profile** — cyan background, bold
 /// - **permission mode** — yellow background, bold
 /// - **session count** — default style
+/// - **MCP server count** — magenta, shown only if > 0
 /// - **hint** — dim
 /// - **error** (if present) — red foreground, bold
 pub fn render_status_bar(area: Rect, frame: &mut Frame, info: &StatusInfo) {
@@ -156,6 +158,17 @@ pub fn render_status_bar(area: Rect, frame: &mut Frame, info: &StatusInfo) {
     ));
 
     spans.push(Span::raw("  "));
+
+    // MCP server count (only shown if > 0)
+    if info.mcp_server_count > 0 {
+        spans.push(Span::styled(
+            format!("MCP:{}↑", info.mcp_server_count),
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        ));
+        spans.push(Span::raw("  "));
+    }
 
     // Hint (dim)
     if !info.hint.is_empty() {
@@ -199,6 +212,26 @@ mod tests {
             profile: "fast".to_string(),
             permission_mode: "suggest".to_string(),
             session_count: 3,
+            mcp_server_count: 2,
+            hint: "Alt+Q quit".to_string(),
+            error: None,
+        };
+
+        let mut terminal = test_terminal(80, 1);
+        terminal
+            .draw(|frame| {
+                render_status_bar(frame.area(), frame, &info);
+            })
+            .expect("render should not panic");
+    }
+
+    #[test]
+    fn status_bar_renders_with_mcp_count_zero() {
+        let info = StatusInfo {
+            profile: "fast".to_string(),
+            permission_mode: "suggest".to_string(),
+            session_count: 3,
+            mcp_server_count: 0,
             hint: "Alt+Q quit".to_string(),
             error: None,
         };
@@ -217,6 +250,7 @@ mod tests {
             profile: "local-code".to_string(),
             permission_mode: "agent".to_string(),
             session_count: 1,
+            mcp_server_count: 0,
             hint: "F1 help".to_string(),
             error: Some("connection lost".to_string()),
         };
@@ -247,6 +281,7 @@ mod tests {
             profile: "fast".to_string(),
             permission_mode: "agent".to_string(),
             session_count: 0,
+            mcp_server_count: 0,
             hint: String::new(),
             error: None,
         };
@@ -287,6 +322,7 @@ mod tests {
             profile: "fast".to_string(),
             permission_mode: "readonly".to_string(),
             session_count: 5,
+            mcp_server_count: 3,
             hint: "Ctrl+C quit".to_string(),
             error: Some("oops".to_string()),
         };
@@ -294,6 +330,7 @@ mod tests {
         assert_eq!(bar.info.profile, "fast");
         assert_eq!(bar.info.permission_mode, "readonly");
         assert_eq!(bar.info.session_count, 5);
+        assert_eq!(bar.info.mcp_server_count, 3);
         assert_eq!(bar.info.error, Some("oops".to_string()));
     }
 

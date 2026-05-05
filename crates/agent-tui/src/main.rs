@@ -98,6 +98,29 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::TrustMcpServer { server_id } => {
+                // Trust the MCP server via the runtime's MCP manager
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let manager = mcp_manager.lock().await;
+                    if let Err(e) = manager.trust_server(&server_id).await {
+                        app.state.current_session.messages.push(
+                            agent_core::projection::ProjectedMessage {
+                                role: agent_core::projection::ProjectedRole::Assistant,
+                                content: format!("[MCP trust error: {e}]"),
+                            },
+                        );
+                    } else {
+                        app.state.current_session.messages.push(
+                            agent_core::projection::ProjectedMessage {
+                                role: agent_core::projection::ProjectedRole::Assistant,
+                                content: format!("MCP server '{}' is now trusted", server_id),
+                            },
+                        );
+                    }
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
             Command::CancelSession {
                 workspace_id,
                 session_id,

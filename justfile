@@ -107,6 +107,7 @@ check-types:
 gen-types:
     cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
     cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
+    npx prettier --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
 
 # ─── E2E / Integration tests ──────────────────────────────────
@@ -134,3 +135,11 @@ test-fullstack:
 # Run all test layers: unit + integration + fullstack + TUI
 test-all: test test-tui test-fullstack test-gui
     @echo "✅ All tests passed"
+
+# Run MCP-related unit and integration tests
+test-mcp:
+    cargo test -p agent-mcp --all-targets
+    cargo test -p agent-tools -- mcp
+    cargo test -p agent-config -- mcp
+    cargo test -p agent-runtime --test mcp_integration
+    @echo "✅ MCP tests passed"

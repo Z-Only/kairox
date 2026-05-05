@@ -123,6 +123,18 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install MCP fixture deps
+        run: cd crates/agent-mcp/tests/fixtures && npm install
+
       - name: Run tests
         run: cargo test --workspace --all-targets
 
@@ -200,10 +212,11 @@ jobs:
       - name: Install repo tooling deps
         run: pnpm install --frozen-lockfile
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Regenerate types
-        run: |
-          cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
-          cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
+        run: just gen-types
 
       - name: Check generated types are in sync
         run: git diff --exit-code apps/agent-gui/src/generated/

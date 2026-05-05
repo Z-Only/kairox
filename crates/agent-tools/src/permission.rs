@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermissionMode {
     ReadOnly,
@@ -13,6 +15,7 @@ pub enum PermissionOutcome {
     RequiresApproval,
     Pending,
     Denied(String),
+    PromptWithTrust,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +25,7 @@ pub enum ToolEffect {
     Shell { destructive: bool },
     Network,
     Destructive,
+    McpInvoke,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,15 +67,45 @@ impl ToolRisk {
 #[derive(Debug, Clone)]
 pub struct PermissionEngine {
     mode: PermissionMode,
+    trusted_mcp_servers: HashSet<String>,
 }
 
 impl PermissionEngine {
     pub fn new(mode: PermissionMode) -> Self {
-        Self { mode }
+        Self {
+            mode,
+            trusted_mcp_servers: HashSet::new(),
+        }
     }
 
     pub fn mode(&self) -> &PermissionMode {
         &self.mode
+    }
+
+    pub fn check_mcp_permission(&self, server_id: &str, _tool_id: &str) -> PermissionOutcome {
+        if self.trusted_mcp_servers.contains(server_id) {
+            match self.mode {
+                PermissionMode::ReadOnly => {
+                    PermissionOutcome::Denied("read-only mode blocks MCP tools".into())
+                }
+                PermissionMode::Autonomous => PermissionOutcome::Allowed,
+                _ => PermissionOutcome::RequiresApproval,
+            }
+        } else {
+            PermissionOutcome::PromptWithTrust
+        }
+    }
+
+    pub fn trust_server(&mut self, server_id: String) {
+        self.trusted_mcp_servers.insert(server_id);
+    }
+
+    pub fn revoke_trust(&mut self, server_id: &str) {
+        self.trusted_mcp_servers.remove(server_id);
+    }
+
+    pub fn trusted_servers(&self) -> &HashSet<String> {
+        &self.trusted_mcp_servers
     }
 
     pub fn decide(&self, risk: &ToolRisk) -> PermissionOutcome {
@@ -89,6 +123,9 @@ impl PermissionEngine {
             (PermissionMode::ReadOnly, ToolEffect::Destructive) => {
                 PermissionOutcome::Denied("read-only mode blocks destructive operations".into())
             }
+            (PermissionMode::ReadOnly, ToolEffect::McpInvoke) => {
+                PermissionOutcome::Denied("read-only mode blocks MCP tools".into())
+            }
             (PermissionMode::Suggest, ToolEffect::Read) => PermissionOutcome::Allowed,
             (PermissionMode::Suggest, _) => PermissionOutcome::RequiresApproval,
             (PermissionMode::Agent, ToolEffect::Read) => PermissionOutcome::Allowed,
@@ -103,6 +140,7 @@ impl PermissionEngine {
             (PermissionMode::Interactive, ToolEffect::Shell { .. }) => PermissionOutcome::Pending,
             (PermissionMode::Interactive, ToolEffect::Network) => PermissionOutcome::Pending,
             (PermissionMode::Interactive, ToolEffect::Destructive) => PermissionOutcome::Pending,
+            (PermissionMode::Interactive, ToolEffect::McpInvoke) => PermissionOutcome::Pending,
             (PermissionMode::Autonomous, ToolEffect::Shell { destructive: true }) => {
                 PermissionOutcome::RequiresApproval
             }
@@ -230,5 +268,52 @@ mod tests {
             }),
             PermissionOutcome::Pending
         );
+    }
+
+    #[test]
+    fn mcp_untrusted_server_prompts_with_trust() {
+        let engine = PermissionEngine::new(PermissionMode::Autonomous);
+        let outcome = engine.check_mcp_permission("unknown-server", "some-tool");
+        assert_eq!(outcome, PermissionOutcome::PromptWithTrust);
+    }
+
+    #[test]
+    fn mcp_trusted_server_autonomous_allows() {
+        let mut engine = PermissionEngine::new(PermissionMode::Autonomous);
+        engine.trust_server("my-server".into());
+        let outcome = engine.check_mcp_permission("my-server", "some-tool");
+        assert_eq!(outcome, PermissionOutcome::Allowed);
+    }
+
+    #[test]
+    fn mcp_trusted_server_readonly_denies() {
+        let mut engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        engine.trust_server("my-server".into());
+        let outcome = engine.check_mcp_permission("my-server", "some-tool");
+        assert_eq!(
+            outcome,
+            PermissionOutcome::Denied("read-only mode blocks MCP tools".into())
+        );
+    }
+
+    #[test]
+    fn mcp_trusted_server_suggest_requires_approval() {
+        let mut engine = PermissionEngine::new(PermissionMode::Suggest);
+        engine.trust_server("my-server".into());
+        let outcome = engine.check_mcp_permission("my-server", "some-tool");
+        assert_eq!(outcome, PermissionOutcome::RequiresApproval);
+    }
+
+    #[test]
+    fn trust_and_revoke_roundtrip() {
+        let mut engine = PermissionEngine::new(PermissionMode::Autonomous);
+        engine.trust_server("srv-a".into());
+        engine.trust_server("srv-b".into());
+        assert!(engine.trusted_servers().contains("srv-a"));
+        assert!(engine.trusted_servers().contains("srv-b"));
+
+        engine.revoke_trust("srv-a");
+        assert!(!engine.trusted_servers().contains("srv-a"));
+        assert!(engine.trusted_servers().contains("srv-b"));
     }
 }
