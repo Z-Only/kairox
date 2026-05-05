@@ -28,7 +28,8 @@ apps/agent-gui/src-tauri/target/
 # =============================================================================
 node_modules/
 apps/agent-gui/dist/
-package-lock.json                       # we use pnpm
+# we use pnpm
+package-lock.json
 crates/agent-mcp/tests/fixtures/node_modules/
 
 # =============================================================================
@@ -41,8 +42,10 @@ crates/agent-mcp/tests/fixtures/node_modules/
 # =============================================================================
 # Project-specific generated / local
 # =============================================================================
-kairox.toml                             # local user config (sensitive — may contain API keys)
-apps/agent-gui/src/generated/           # auto-generated TypeScript bindings
+# local user config (sensitive — may contain API keys)
+kairox.toml
+# auto-generated TypeScript bindings
+apps/agent-gui/src/generated/
 .superpowers/
 .worktrees/
 
