@@ -23,5 +23,5 @@ package-lock.json
 kairox.toml
 apps/agent-gui/src/generated/
 playwright-report/
-apps/agent-gui/test-results/crates/agent-mcp/tests/fixtures/node_modules/
+apps/agent-gui/test-results/
 crates/agent-mcp/tests/fixtures/node_modules/

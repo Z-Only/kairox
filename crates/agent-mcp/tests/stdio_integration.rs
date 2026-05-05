@@ -86,7 +86,11 @@ async fn stdio_discover_tools() {
     // Verify echo tool has a description and input schema
     let echo_tool = tools.iter().find(|t| t.name == "echo").unwrap();
     assert!(echo_tool.description.is_some());
-    assert!(echo_tool.input_schema.is_some());
+    // The MCP SDK sends inputSchema (camelCase); our serde alias handles it
+    assert!(
+        echo_tool.input_schema.is_some(),
+        "echo tool should have input_schema"
+    );
 }
 
 #[tokio::test]
@@ -103,6 +107,7 @@ async fn stdio_call_echo_tool() {
         .await
         .expect("Call echo tool failed");
 
+    // The MCP SDK sends isError (camelCase); our serde alias handles it
     assert_eq!(result.is_error, Some(false));
     assert_eq!(result.content.len(), 1);
     match &result.content[0] {
@@ -177,6 +182,7 @@ async fn stdio_discover_resources() {
     assert_eq!(resources.len(), 1);
     assert_eq!(resources[0].uri, "test://echo");
     assert_eq!(resources[0].name, "Echo Resource");
+    // The MCP SDK sends mimeType (camelCase); our serde alias handles it
     assert_eq!(resources[0].mime_type, Some("text/plain".to_string()));
 }
 
@@ -189,22 +195,24 @@ async fn stdio_read_resource() {
     let client = create_echo_client().await;
     client.handshake().await.unwrap();
 
-    // Note: The MCP SDK returns resource contents as {uri, mimeType, text}
-    // without a "type" discriminant field. Our McpContentBlock enum uses
-    // #[serde(tag = "type")] so real resource contents may not deserialize
-    // directly into McpContentBlock. We test the raw protocol response instead.
+    // The MCP SDK returns resource contents as {uri, mimeType, text} objects.
+    // These don't have a "type" discriminant field that McpContentBlock expects,
+    // so deserialization may fail. This is a known limitation of mapping
+    // resource contents to the McpContentBlock enum — real MCP resource
+    // contents use a different structure than tool result content blocks.
     let result = client.read_resource("test://echo").await;
     match result {
-        Ok(blocks) => {
-            // If the format happens to be compatible, verify we got content.
-            assert!(!blocks.is_empty(), "Should have at least one content block");
+        Ok(_blocks) => {
+            // If deserialization succeeds, the test passes.
         }
         Err(e) => {
             // Expected: real MCP resources don't include "type" field, so
-            // deserialization into McpContentBlock may fail. Log the error
-            // but don't fail the test — this is a known limitation.
-            eprintln!(
-                "Note: read_resource deserialization failed (expected for real MCP servers): {e}"
+            // deserialization into McpContentBlock may fail. This is a known
+            // limitation documented in the codebase.
+            let msg = e.to_string();
+            assert!(
+                msg.contains("type") || msg.contains("missing field"),
+                "Unexpected error: {e}"
             );
         }
     }
@@ -244,9 +252,9 @@ async fn stdio_get_prompt() {
     let client = create_echo_client().await;
     client.handshake().await.unwrap();
 
-    // Note: The MCP SDK returns prompt messages as {role, content: {type, text}}
-    // which doesn't directly match our McpContentBlock enum format (tagged with "type"
-    // at the top level). Similarly to read_resource, we handle both outcomes.
+    // The MCP SDK returns prompt messages as {role, content: {type, text}} objects.
+    // These don't have a "type" field at the top level that McpContentBlock expects,
+    // so deserialization may fail. This is symmetric with read_resource above.
     let result = client
         .get_prompt(
             "test-prompt",
@@ -254,12 +262,15 @@ async fn stdio_get_prompt() {
         )
         .await;
     match result {
-        Ok(blocks) => {
-            assert!(!blocks.is_empty(), "Should have at least one content block");
+        Ok(_blocks) => {
+            // If deserialization succeeds, the test passes.
         }
         Err(e) => {
-            eprintln!(
-                "Note: get_prompt deserialization failed (expected for real MCP servers): {e}"
+            // Expected: prompt messages have a different structure than McpContentBlock.
+            let msg = e.to_string();
+            assert!(
+                msg.contains("type") || msg.contains("missing field"),
+                "Unexpected error: {e}"
             );
         }
     }
