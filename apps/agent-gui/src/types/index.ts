@@ -33,7 +33,12 @@ export type {
   MemoryEntryResponse,
   ProfileInfo,
   ProfileDetailResponse,
-  TaskSnapshotResponse
+  TaskSnapshotResponse,
+  McpServerStatusResponse,
+  McpToolDefResponse,
+  McpResourceDefResponse,
+  McpPromptDefResponse,
+  McpContentBlockResponse
 } from "../generated/commands";
 
 // ===== Session metadata (matches Rust SessionMeta but used independently) =====

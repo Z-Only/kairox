@@ -1,10 +1,33 @@
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { trustServer, mcpState } from "../stores/mcp";
 import type { TraceEntryData } from "../types/trace";
 
 const props = defineProps<{ entry: TraceEntryData }>();
 
 const isMemory = props.entry.kind === "memory";
+
+/** Detect MCP tools by their "mcp.{server_id}.{tool_name}" format. */
+const isMcpTool = computed(() => props.entry.toolId?.startsWith("mcp."));
+
+/** Extract the server ID from an MCP tool ID like "mcp.github.list_repos". */
+const mcpServerId = computed(() => {
+  if (!isMcpTool.value) return null;
+  const parts = props.entry.toolId!.split(".");
+  // "mcp.{server_id}.{tool_name}" — server_id may contain dots, but
+  // conventionally the second segment is the server ID.
+  return parts.length >= 3 ? parts[1] : null;
+});
+
+/** Whether this MCP server is already trusted. */
+const isServerTrusted = computed(() => {
+  if (!mcpServerId.value) return false;
+  return mcpState.trustedServerIds.includes(mcpServerId.value);
+});
+
+/** Checkbox state for "Trust this server". */
+const trustChecked = ref(false);
 
 async function allow() {
   try {
@@ -12,6 +35,9 @@ async function allow() {
       requestId: props.entry.id,
       decision: "grant"
     });
+    if (isMcpTool.value && trustChecked.value && mcpServerId.value) {
+      await trustServer(mcpServerId.value);
+    }
   } catch (e) {
     console.error("Failed to grant permission:", e);
   }
@@ -45,6 +71,19 @@ async function deny() {
       </div>
       <div class="permission-meta">
         {{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}
+      </div>
+      <!-- MCP-specific UI -->
+      <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
+        <div class="mcp-server-label">
+          MCP Server: <strong>{{ mcpServerId }}</strong>
+          <span v-if="isServerTrusted" class="mcp-trusted-badge"
+            >✅ Trusted</span
+          >
+        </div>
+        <label v-if="!isServerTrusted" class="mcp-trust-check">
+          <input v-model="trustChecked" type="checkbox" />
+          Trust this server for future requests
+        </label>
       </div>
     </div>
     <div class="permission-actions">
@@ -119,5 +158,34 @@ async function deny() {
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+}
+.mcp-permission-info {
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: #f0f4ff;
+  border-radius: 4px;
+  border: 1px solid #c8d6f0;
+}
+.mcp-server-label {
+  font-size: 11px;
+  color: #444;
+}
+.mcp-trusted-badge {
+  margin-left: 6px;
+  color: #22a06b;
+  font-size: 11px;
+}
+.mcp-trust-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+}
+.mcp-trust-check input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }
 </style>

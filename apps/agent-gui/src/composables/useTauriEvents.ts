@@ -5,6 +5,7 @@ import { sessionState, applyEvent } from "../stores/session";
 import { applyTraceEvent } from "./useTraceStore";
 import { taskGraphState } from "../stores/taskGraph";
 import { addNotification } from "./useNotifications";
+import { handleMcpEvent } from "../stores/mcp";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -75,6 +76,21 @@ export function useTauriEvents() {
             break;
           }
         }
+      }
+
+      // MCP events are not session-scoped — handle them regardless of session.
+      const payload = domainEvent.payload;
+      switch (payload.type) {
+        case "McpServerStarting":
+        case "McpServerReady":
+        case "McpServerStopped":
+        case "McpServerFailed":
+        case "McpToolCallStarted":
+        case "McpToolCallCompleted":
+        case "McpTrustGranted":
+        case "McpTrustRevoked":
+          handleMcpEvent(payload);
+          break;
       }
     });
     sessionState.connected = true;

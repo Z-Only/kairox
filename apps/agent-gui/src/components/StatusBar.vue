@@ -2,8 +2,12 @@
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { sessionState } from "../stores/session";
+import { fetchServers } from "../stores/mcp";
+import McpStatusIndicator from "./McpStatusIndicator.vue";
+import McpServerManager from "./McpServerManager.vue";
 
 const permissionMode = ref("interactive");
+const showMcpManager = ref(false);
 
 onMounted(async () => {
   try {
@@ -12,6 +16,12 @@ onMounted(async () => {
     permissionMode.value = mode.toLowerCase();
   } catch {
     permissionMode.value = "interactive";
+  }
+  // Fetch MCP server status on mount
+  try {
+    await fetchServers();
+  } catch {
+    // Non-critical — status indicator will just show empty state
   }
 });
 </script>
@@ -33,6 +43,11 @@ onMounted(async () => {
     }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">mode: {{ permissionMode }}</span>
+    <span class="status-divider">│</span>
+    <span class="status-item mcp-status-wrapper">
+      <McpStatusIndicator @click="showMcpManager = !showMcpManager" />
+      <McpServerManager v-if="showMcpManager" @close="showMcpManager = false" />
+    </span>
   </footer>
 </template>
 
@@ -49,5 +64,8 @@ onMounted(async () => {
 }
 .status-divider {
   color: #ccc;
+}
+.mcp-status-wrapper {
+  position: relative;
 }
 </style>
