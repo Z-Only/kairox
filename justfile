@@ -134,3 +134,11 @@ test-fullstack:
 # Run all test layers: unit + integration + fullstack + TUI
 test-all: test test-tui test-fullstack test-gui
     @echo "✅ All tests passed"
+
+# Run MCP-related unit and integration tests
+test-mcp:
+    cargo test -p agent-mcp --all-targets
+    cargo test -p agent-tools -- mcp
+    cargo test -p agent-config -- mcp
+    cargo test -p agent-runtime --test mcp_integration
+    @echo "✅ MCP tests passed"
