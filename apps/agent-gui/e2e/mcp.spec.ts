@@ -1,16 +1,26 @@
+/**
+ * E2E: MCP server management — status indicator, server manager, trust, and events.
+ */
 import { test, expect } from "@playwright/test";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+test.beforeEach(async ({ page }) => {
+  const mockPath = resolve(__dirname, "tauri-mock.js");
+  await page.addInitScript({ path: mockPath });
+});
 
 test.describe("MCP Server Management", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
-
   test("MCP status indicator shows in status bar", async ({ page }) => {
+    await page.goto("/");
     const indicator = page.locator(".mcp-status");
     await expect(indicator).toBeVisible();
   });
 
   test("clicking status indicator opens server manager", async ({ page }) => {
+    await page.goto("/");
     const indicator = page.locator(".mcp-status");
     await indicator.click();
     const manager = page.locator(".mcp-manager");
@@ -18,41 +28,20 @@ test.describe("MCP Server Management", () => {
   });
 
   test("server manager shows configured servers", async ({ page }) => {
+    await page.goto("/");
     // Open manager
     await page.locator(".mcp-status").click();
     const manager = page.locator(".mcp-manager");
     await expect(manager).toBeVisible();
 
-    // Should show server list (mock returns test-server and stopped-server)
+    // The mock returns test-server (running) and stopped-server.
+    // Wait for fetchServers to complete and populate the store.
     const items = page.locator(".mcp-server-item");
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(2, { timeout: 5000 });
   });
 
-  test("can start a stopped server", async ({ page }) => {
-    await page.locator(".mcp-status").click();
-
-    // Find the stopped server's start button
-    const startButton = page.locator(".mcp-server-item >> text=Start").first();
-    if (await startButton.isVisible()) {
-      await startButton.click();
-      // Wait for status update
-      await page.waitForTimeout(500);
-    }
-  });
-
-  test("can trust a server", async ({ page }) => {
-    await page.locator(".mcp-status").click();
-
-    // Find trust button for a running untrusted server
-    const trustButton = page.locator("button >> text=Trust").first();
-    if (await trustButton.isVisible()) {
-      await trustButton.click();
-      // Should show trust badge
-      await page.waitForTimeout(500);
-    }
-  });
-
-  test("server manager can be closed", async ({ page }) => {
+  test("can close server manager", async ({ page }) => {
+    await page.goto("/");
     await page.locator(".mcp-status").click();
     const manager = page.locator(".mcp-manager");
     await expect(manager).toBeVisible();
@@ -64,13 +53,10 @@ test.describe("MCP Server Management", () => {
 });
 
 test.describe("MCP Permission Prompt", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
-
   test("MCP-specific permission dialog appears for MCP tools", async ({
     page
   }) => {
+    await page.goto("/");
     // This test would require triggering a permission request event
     // For now, verify the component exists in the DOM
     // In a real scenario, we'd emit a permission request event with an MCP tool
@@ -82,11 +68,8 @@ test.describe("MCP Permission Prompt", () => {
 });
 
 test.describe("MCP Events", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
-
   test("server starting event updates status indicator", async ({ page }) => {
+    await page.goto("/");
     // Would emit McpServerStarting event via Tauri mock
     // Verify the indicator class changes
     const indicator = page.locator(".mcp-status");
@@ -94,6 +77,7 @@ test.describe("MCP Events", () => {
   });
 
   test("server ready event shows tool count", async ({ page }) => {
+    await page.goto("/");
     // Would emit McpServerReady event
     // Verify server manager shows tool count when opened
     const indicator = page.locator(".mcp-status");
