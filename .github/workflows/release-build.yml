@@ -185,7 +185,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Kairox ${{ github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
-          assetNamePattern: Kairox_${{ github.ref_name }}_{platform}_{arch}[ext]
+          assetNamePattern: Kairox_${{ github.ref_name }}_[platform]_[arch][ext]
           updaterJsonPreferNsis: true
 
   checksums:
@@ -199,12 +199,12 @@ jobs:
         with:
           tag: ${{ github.ref_name }}
           fileName: '*'
-          outDirPath: dist
+          out-file-path: dist
 
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum *.tar.gz *.zip *.dmg *.msi *.AppImage* *.deb 2>/dev/null \
+          sha256sum *.tar.gz *.zip *.dmg *.msi *.AppImage* *.deb *.rpm 2>/dev/null \
             | sort > ../SHA256SUMS.txt
           echo "--- SHA256SUMS.txt ---"
           cat ../SHA256SUMS.txt
