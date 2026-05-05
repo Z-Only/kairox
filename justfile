@@ -108,3 +108,29 @@ gen-types:
     cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
     cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
+
+# ─── E2E / Integration tests ──────────────────────────────────
+
+# Run GUI frontend E2E tests with Playwright (requires dev server)
+test-e2e:
+    pnpm --filter agent-gui run test:e2e
+
+# Run GUI frontend E2E tests with Playwright (headed mode for debugging)
+test-e2e-headed:
+    pnpm --filter agent-gui run test:e2e:headed
+
+# Run GUI frontend E2E tests with Playwright (UI mode)
+test-e2e-ui:
+    pnpm --filter agent-gui run test:e2e:ui
+
+# Run TUI app logic integration tests (no terminal required)
+test-tui:
+    cargo test -p agent-tui --test app_logic
+
+# Run full-stack runtime integration tests
+test-fullstack:
+    cargo test -p agent-runtime --test full_stack
+
+# Run all test layers: unit + integration + fullstack + TUI
+test-all: test test-tui test-fullstack test-gui
+    @echo "✅ All tests passed"

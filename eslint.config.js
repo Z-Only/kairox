@@ -49,5 +49,16 @@ export default [
       "@typescript-eslint/no-require-imports": "off"
     }
   },
+  // E2E test files: relax rules for Playwright specs and browser-side mock
+  {
+    files: ["apps/agent-gui/e2e/**/*.{ts,js}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "no-redeclare": "off",
+      "no-useless-assignment": "off"
+    }
+  },
   eslintConfigPrettier
 ];
