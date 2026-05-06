@@ -68,6 +68,23 @@ pub enum RuntimeKind {
     Other,
 }
 
+impl RuntimeKind {
+    /// Stable lower-case identifier for this runtime kind. Suitable for
+    /// surfacing to GUIs and logs without relying on `Debug` formatting
+    /// (which is not part of the public API contract).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Node => "node",
+            Self::Python => "python",
+            Self::Uvx => "uvx",
+            Self::Docker => "docker",
+            Self::Bun => "bun",
+            Self::Deno => "deno",
+            Self::Other => "other",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EnvVarSpec {

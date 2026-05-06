@@ -544,7 +544,7 @@ where
                     &self.event_tx,
                     EventPayload::CatalogRuntimeMissing {
                         catalog_id: inner_req.catalog_id.clone(),
-                        missing: missing.iter().map(|r| format!("{:?}", r.kind)).collect(),
+                        missing: missing.iter().map(|r| r.kind.as_str().into()).collect(),
                     },
                 );
             }
@@ -553,10 +553,18 @@ where
                     let def = build_server_def(&entry, &inner_req);
                     let mut mgr = manager.lock().await;
                     if !mgr.is_registered(server_id) {
-                        let _ = mgr.register_dynamic(def);
+                        if let Err(e) = mgr.register_dynamic(def) {
+                            tracing::warn!(
+                                "marketplace install: register_dynamic({server_id}) failed: {e}"
+                            );
+                        }
                     }
                     if *started {
-                        let _ = mgr.ensure_server(server_id).await;
+                        if let Err(e) = mgr.ensure_server(server_id).await {
+                            tracing::warn!(
+                                "marketplace install: ensure_server({server_id}) failed: {e}"
+                            );
+                        }
                     }
                 }
                 emit_marketplace_event(
@@ -582,7 +590,11 @@ where
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
         if let Some(manager) = &self.mcp_manager {
-            let _ = manager.lock().await.unregister_dynamic(&server_id).await;
+            if let Err(e) = manager.lock().await.unregister_dynamic(&server_id).await {
+                tracing::warn!(
+                    "marketplace uninstall: unregister_dynamic({server_id}) failed: {e}"
+                );
+            }
         }
         emit_marketplace_event(
             &self.event_tx,
@@ -711,7 +723,7 @@ fn map_outcome_to_core(outcome: InstallOutcomeView) -> CoreInstallOutcomeView {
             started: None,
             missing_runtimes: missing
                 .into_iter()
-                .map(|r| format!("{:?}", r.kind).to_lowercase())
+                .map(|r| r.kind.as_str().into())
                 .collect(),
             missing_env_keys: Vec::new(),
         },
