@@ -172,5 +172,23 @@ pub trait CatalogProvider: Send + Sync {
 pub mod aggregate;
 pub mod builtin; // added in Task 3 // added in Task 4
 
+#[cfg(feature = "remote-catalog")]
+pub mod remote;
+
 pub use aggregate::AggregateCatalogProvider;
 pub use builtin::BuiltinCatalogProvider;
+
+/// Sink for domain events emitted by catalog infrastructure.
+///
+/// Implemented by the runtime layer over its broadcast channel. Defined
+/// here (rather than in `agent-runtime`) so that `agent-mcp` can emit
+/// observability events without taking a reverse dependency on
+/// `agent-runtime`.
+#[async_trait]
+pub trait DomainEventSink: Send + Sync {
+    /// A configured catalog source failed to respond. `error` is a short,
+    /// human-readable description suitable for UI surfacing.
+    async fn emit_source_failed(&self, source_id: &str, error: &str);
+    /// A new catalog source has been added at runtime.
+    async fn emit_source_added(&self, source_id: &str);
+}
