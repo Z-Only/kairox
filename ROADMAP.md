@@ -29,12 +29,18 @@
 - ✅ Refresh brand assets and visual identity (#52)
 - ✅ Standardize worktree convention documentation (#53)
 - ✅ Suppress CI warnings for v-html ESLint rule and Node.js 20 deprecation (#49)
+- ✅ Add aggregation `ci-success` job for branch protection compatibility
+- ✅ Add tests for DAG executor, AgentStrategy, and GUI components (#58)
+- ✅ Implement Tauri 2 auto-update with GitHub Release endpoint (#57)
+- ✅ MCP marketplace Phase 1 — built-in catalog, installer, GUI (#59)
+- ✅ MCP marketplace Phase 2 — remote catalog sources with multi-source aggregation (#60)
 
 ## Mid term
 
 - Support more model providers and profile policies
 - ✅ Add multi-agent orchestration UX in TUI and GUI
-- Expand MCP ecosystem coverage (more transports, richer discovery, server marketplace UX)
+- ✅ MCP server marketplace UX (Phase 1 + 2 shipped in v0.16.0)
+- Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
 - Continue runtime modularization (Phase 2+ extraction beyond `facade_runtime` split)
