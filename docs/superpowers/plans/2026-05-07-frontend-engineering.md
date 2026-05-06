@@ -3025,6 +3025,37 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 > - **(low) Add an import-only smoke test for `test-utils/mount.ts` and verify its dependency paths resolve.** The helper was created in Task 3 (commit `ca15a29`, file `apps/agent-gui/src/test-utils/mount.ts`, 31 LOC) but is currently zero-referenced (`grep -rn "mountWithPlugins\|from.*test-utils/mount" apps/agent-gui/` returns no call sites). The helper imports `@/locales/en.json` (exists, created in Task 2) and `@/router/routes` (exists, but at the start of this Task 5 it still exports the `placeholderComponent`-based routes from Task 2 — the MANDATORY follow-up that appears **earlier in this plan, immediately above this Task 5 heading** converts those routes to real `() => import("@/views/*View.vue")` lazy imports). Two concrete actions:
 >   1. After you have applied the MANDATORY router rewrite (the `⚠️ MANDATORY for Task 5` block immediately preceding this Task 5 section), create a one-test smoke spec at `apps/agent-gui/src/test-utils/mount.test.ts` that does `import { mountWithPlugins } from "./mount"` and asserts `typeof mountWithPlugins === "function"`. This guarantees both `@/locales/en.json` and `@/router/routes` resolve at test time before any real consumer (Task 6+) tries to use it. The spec must use the same vitest patterns as the rest of this repo (`describe` + `it` + `expect` from `vitest/globals`).
 >   2. Add a JSDoc comment block to `mountWithPlugins` documenting: (a) when to use it (component tests that need router-link / `<RouterView>` / `$t` resolution), (b) what it costs (creates a fresh memory-history router and English-only i18n on every mount — overkill for tests that don't need them), (c) recommended alternative for store-only tests (use `setActivePinia(createPinia())` + plain `mount(Component)` from `@vue/test-utils` directly).
+>
+> **📋 Carry-over from Task 4 code-quality re-review (commit `95db18b`) — bundle this with Task 5 since `useTauriEvents.ts` will likely be imported into the new `AppLayout.vue` (the layout is the natural mount point for the global session-event subscription) and any change to its error-surfacing behavior is best reviewed alongside its first layout-level consumer:**
+>
+> - **(IMPORTANT) Surface `listen()` rejection in `useTauriEvents.ts` instead of silently dropping it.** Currently `apps/agent-gui/src/composables/useTauriEvents.ts:80-82` reads:
+>
+>   ```ts
+>   void unlistenPromise.then(() => {
+>     session.setConnected(true);
+>   });
+>   ```
+>
+>   This chain has NO `.catch()`. If `listen()` rejects (Tauri channel down, IPC severed, missing permissions, etc.) the promise becomes an **unhandled rejection** — the runtime emits a console-only warning, and the user sees only the "disconnected" status indicator with no explanation. The cleanup chain at line 75-78 correctly uses `.catch(() => {})` (silent on dispose is right because the component is already unmounting and cannot show a toast), but the setup chain must NOT be silent.
+>
+>   **Required fix:**
+>
+>   ```ts
+>   void unlistenPromise
+>     .then(() => session.setConnected(true))
+>     .catch((err) => {
+>       ui.pushNotification(
+>         "error",
+>         `Failed to subscribe to session events: ${err}`
+>       );
+>     });
+>   ```
+>
+>   The `ui` store handle is already bound at the top of `useTauriEvents()` (it's used by the existing `AgentTaskFailed → ui.pushNotification(...)` branch on line 64), so no new imports are needed.
+>
+>   **Test addition:** Since `useTauriEvents.ts` doesn't currently have a dedicated test file, add a minimal one at `apps/agent-gui/src/composables/useTauriEvents.test.ts` with one test case: mock `@tauri-apps/api/event`'s `listen` to return `Promise.reject(new Error("channel closed"))`, mount a tiny dummy component that calls `useTauriEvents()`, await a microtask flush, then assert `useUiStore().notifications` contains an entry with `level: "error"` and message starting with `"Failed to subscribe to session events"`. This locks in the fix and prevents future regressions. **Do NOT** add tests for the happy path here — those are covered indirectly by the existing 27 test files.
+>
+>   **Out-of-scope explicitly:** the parallel NIT the reviewer mentioned (unifying setup-chain + cleanup-chain into a single promise chain) is purely cosmetic; defer to a future refactor commit on this same branch only if you happen to be touching this file again.
 
 **Files:**
 
