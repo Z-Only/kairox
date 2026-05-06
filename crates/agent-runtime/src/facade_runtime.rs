@@ -6,10 +6,7 @@ use agent_core::{
     SendMessageRequest, SessionId, StartSessionRequest, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
 use agent_mcp::types::McpServerDef;
-use agent_memory::{
-    durable_memory_requires_confirmation, extract_memory_markers, strip_memory_markers,
-    ContextAssembler, MemoryEntry, MemoryStore,
-};
+use agent_memory::{strip_memory_markers, ContextAssembler, MemoryStore};
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
 use agent_store::EventStore;
 use agent_tools::{
@@ -382,59 +379,11 @@ where
         // Retrieve relevant memories from the MemoryStore and inject them
         // into the system prompt so the model can use prior context.
         let mut system_prompt = SYSTEM_PROMPT.to_string();
-        if let Some(ref mem_store) = self.memory_store {
-            let keywords = agent_memory::extract_keywords(&request.content);
-
-            // First try keyword-based retrieval; if no matches found,
-            // fall back to returning all accepted user/workspace memories.
-            // This ensures cross-session context is always available even
-            // when the query keywords don't directly match memory content
-            // (common with Chinese text where extract_keywords is limited).
-            let mut memories = mem_store
-                .query(agent_memory::MemoryQuery {
-                    scope: None,
-                    keywords: keywords.clone(),
-                    limit: 20,
-                    session_id: None,
-                    workspace_id: None,
-                })
+        if let Some(section) =
+            crate::memory_handler::retrieve_memory_section(&self.memory_store, &request.content)
                 .await
-                .unwrap_or_default();
-
-            if memories.is_empty() {
-                memories = mem_store
-                    .query(agent_memory::MemoryQuery {
-                        scope: None,
-                        keywords: Vec::new(),
-                        limit: 20,
-                        session_id: None,
-                        workspace_id: None,
-                    })
-                    .await
-                    .unwrap_or_default();
-            }
-            if !memories.is_empty() {
-                let memory_section = memories
-                    .iter()
-                    .filter(|m| m.accepted)
-                    .map(|m| {
-                        let scope_label = match m.scope {
-                            agent_memory::MemoryScope::User => "user",
-                            agent_memory::MemoryScope::Workspace => "workspace",
-                            agent_memory::MemoryScope::Session => "session",
-                        };
-                        match &m.key {
-                            Some(k) => format!("- [{scope_label}] {k}: {}", m.content),
-                            None => format!("- [{scope_label}] {}", m.content),
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if !memory_section.is_empty() {
-                    system_prompt.push_str("\n\n## Relevant Memories\nThe following memories were previously saved and may be relevant to the user's request. Use this context naturally in your response.\n\n");
-                    system_prompt.push_str(&memory_section);
-                }
-            }
+        {
+            system_prompt.push_str(&section);
         }
 
         let model_request = ModelRequest {
@@ -737,175 +686,17 @@ where
             }
 
             // Process memory markers from assistant response
-            if !assistant_text.is_empty() {
-                if let Some(ref mem_store) = self.memory_store {
-                    let markers = extract_memory_markers(&assistant_text);
-                    for marker in markers {
-                        let entry = MemoryEntry::from_marker(marker, None, None, false);
-                        let mem_id = entry.id.clone();
-                        let mem_scope = entry.scope.clone();
-                        let mem_key = entry.key.clone();
-                        let mem_content = entry.content.clone();
-                        if durable_memory_requires_confirmation(&entry.scope) {
-                            match *self.permission_engine.lock().await.mode() {
-                                PermissionMode::Interactive => {
-                                    let (tx, rx) = tokio::sync::oneshot::channel();
-                                    self.pending_permissions
-                                        .lock()
-                                        .await
-                                        .insert(mem_id.clone(), tx);
-                                    let perm_event = DomainEvent::new(
-                                        request.workspace_id.clone(),
-                                        request.session_id.clone(),
-                                        AgentId::system(),
-                                        PrivacyClassification::FullTrace,
-                                        EventPayload::MemoryProposed {
-                                            memory_id: mem_id.clone(),
-                                            scope: format!("{:?}", entry.scope).to_lowercase(),
-                                            key: mem_key.clone(),
-                                            content: mem_content.clone(),
-                                        },
-                                    );
-                                    let _ = append_and_broadcast(
-                                        &*self.store,
-                                        &self.event_tx,
-                                        &perm_event,
-                                    )
-                                    .await;
-                                    match rx.await {
-                                        Ok(PermissionDecision { approve: true, .. }) => {
-                                            let mut accepted = entry.clone();
-                                            accepted.accepted = true;
-                                            let _ = mem_store.store(accepted).await;
-                                            let accept_event = DomainEvent::new(
-                                                request.workspace_id.clone(),
-                                                request.session_id.clone(),
-                                                AgentId::system(),
-                                                PrivacyClassification::FullTrace,
-                                                EventPayload::MemoryAccepted {
-                                                    memory_id: mem_id,
-                                                    scope: format!("{:?}", mem_scope)
-                                                        .to_lowercase(),
-                                                    key: mem_key,
-                                                    content: mem_content,
-                                                },
-                                            );
-                                            let _ = append_and_broadcast(
-                                                &*self.store,
-                                                &self.event_tx,
-                                                &accept_event,
-                                            )
-                                            .await;
-                                        }
-                                        Ok(PermissionDecision {
-                                            approve: false,
-                                            reason,
-                                            ..
-                                        }) => {
-                                            let reject_event = DomainEvent::new(
-                                                request.workspace_id.clone(),
-                                                request.session_id.clone(),
-                                                AgentId::system(),
-                                                PrivacyClassification::FullTrace,
-                                                EventPayload::MemoryRejected {
-                                                    memory_id: mem_id,
-                                                    reason: reason
-                                                        .unwrap_or_else(|| "denied".into()),
-                                                },
-                                            );
-                                            let _ = append_and_broadcast(
-                                                &*self.store,
-                                                &self.event_tx,
-                                                &reject_event,
-                                            )
-                                            .await;
-                                        }
-                                        Err(_) => {
-                                            let reject_event = DomainEvent::new(
-                                                request.workspace_id.clone(),
-                                                request.session_id.clone(),
-                                                AgentId::system(),
-                                                PrivacyClassification::FullTrace,
-                                                EventPayload::MemoryRejected {
-                                                    memory_id: mem_id,
-                                                    reason: "cancelled".into(),
-                                                },
-                                            );
-                                            let _ = append_and_broadcast(
-                                                &*self.store,
-                                                &self.event_tx,
-                                                &reject_event,
-                                            )
-                                            .await;
-                                        }
-                                    }
-                                }
-                                PermissionMode::Suggest | PermissionMode::ReadOnly => {
-                                    let reject_event = DomainEvent::new(
-                                        request.workspace_id.clone(),
-                                        request.session_id.clone(),
-                                        AgentId::system(),
-                                        PrivacyClassification::FullTrace,
-                                        EventPayload::MemoryRejected {
-                                            memory_id: mem_id,
-                                            reason: "Auto-denied in Suggest mode".into(),
-                                        },
-                                    );
-                                    let _ = append_and_broadcast(
-                                        &*self.store,
-                                        &self.event_tx,
-                                        &reject_event,
-                                    )
-                                    .await;
-                                }
-                                PermissionMode::Agent | PermissionMode::Autonomous => {
-                                    let mut accepted = entry.clone();
-                                    accepted.accepted = true;
-                                    let _ = mem_store.store(accepted).await;
-                                    let accept_event = DomainEvent::new(
-                                        request.workspace_id.clone(),
-                                        request.session_id.clone(),
-                                        AgentId::system(),
-                                        PrivacyClassification::FullTrace,
-                                        EventPayload::MemoryAccepted {
-                                            memory_id: mem_id,
-                                            scope: format!("{:?}", mem_scope).to_lowercase(),
-                                            key: mem_key,
-                                            content: mem_content,
-                                        },
-                                    );
-                                    let _ = append_and_broadcast(
-                                        &*self.store,
-                                        &self.event_tx,
-                                        &accept_event,
-                                    )
-                                    .await;
-                                }
-                            }
-                        } else {
-                            // Session scope: auto-accept
-                            let mut accepted = entry.clone();
-                            accepted.accepted = true;
-                            let _ = mem_store.store(accepted).await;
-                            let accept_event = DomainEvent::new(
-                                request.workspace_id.clone(),
-                                request.session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::MemoryAccepted {
-                                    memory_id: mem_id,
-                                    scope: format!("{:?}", mem_scope).to_lowercase(),
-                                    key: mem_key,
-                                    content: mem_content,
-                                },
-                            );
-                            let _ =
-                                append_and_broadcast(&*self.store, &self.event_tx, &accept_event)
-                                    .await;
-                        }
-                    }
-                }
-            }
+            crate::memory_handler::store_memory_markers(
+                &*self.store,
+                &self.event_tx,
+                &self.permission_engine,
+                &self.pending_permissions,
+                &self.memory_store,
+                &request.workspace_id,
+                &request.session_id,
+                &assistant_text,
+            )
+            .await;
 
             // If no tool calls, the agent loop ends — mark root task as completed
             if tool_calls.is_empty() {
