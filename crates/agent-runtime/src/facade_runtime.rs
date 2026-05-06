@@ -1,8 +1,9 @@
+use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::{
-    AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId, StartSessionRequest,
-    TraceEntry, WorkspaceId, WorkspaceInfo,
+    AgentStatusInfo, AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
+    StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
 use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
@@ -18,7 +19,20 @@ use tokio_util::sync::CancellationToken;
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
 
-pub struct LocalRuntime<S, M> {
+/// Execution mode determines how the agent processes requests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionMode {
+    /// Default: current single-step agent loop behavior.
+    SingleStep,
+    /// DAG-driven: Planner decomposes, Workers execute in parallel, Reviewer evaluates.
+    DagExecution,
+}
+
+pub struct LocalRuntime<S, M>
+where
+    S: EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
     store: Arc<S>,
     model: Arc<M>,
     permission_engine: Arc<Mutex<PermissionEngine>>,
@@ -31,9 +45,15 @@ pub struct LocalRuntime<S, M> {
     event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
+    dag_executor: Option<Arc<DagExecutor<S, M>>>,
+    dag_config: DagConfig,
 }
 
-impl<S, M> LocalRuntime<S, M> {
+impl<S, M> LocalRuntime<S, M>
+where
+    S: EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
     pub fn new(store: S, model: M) -> Self {
         let (event_tx, _) = tokio::sync::broadcast::channel(EVENT_CHANNEL_CAPACITY);
         Self {
@@ -48,6 +68,8 @@ impl<S, M> LocalRuntime<S, M> {
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
             active_cancellation: Arc::new(Mutex::new(None)),
             mcp_manager: None,
+            dag_executor: None,
+            dag_config: DagConfig::default(),
         }
     }
 
@@ -100,11 +122,6 @@ impl<S, M> LocalRuntime<S, M> {
     }
 
     /// Configure MCP servers from parsed config definitions.
-    ///
-    /// Starts any servers marked as `keep_alive` and registers their tools.
-    /// The manager shares the same permission engine and tool registry as
-    /// the runtime, so trust decisions and tool registrations are visible
-    /// to the agent loop.
     pub async fn with_mcp_servers(mut self, configs: Vec<McpServerDef>) -> Self {
         if configs.is_empty() {
             return self;
@@ -115,7 +132,6 @@ impl<S, M> LocalRuntime<S, M> {
             self.permission_engine.clone(),
             Some(self.event_tx.clone()),
         );
-        // Start persistent (keep_alive) servers — errors are logged but non-fatal
         let results = manager.start_persistent_servers().await;
         for result in &results {
             if let Err(e) = result {
@@ -130,10 +146,55 @@ impl<S, M> LocalRuntime<S, M> {
     pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
         self.mcp_manager.clone()
     }
+
+    /// Enable DAG execution mode with the default configuration.
+    pub fn with_dag_execution(mut self) -> Self {
+        self.dag_config = DagConfig::default();
+        self.dag_executor = Some(Arc::new(DagExecutor::new(
+            self.store.clone(),
+            self.model.clone(),
+            self.event_tx.clone(),
+            self.tool_registry.clone(),
+            self.permission_engine.clone(),
+            self.pending_permissions.clone(),
+            self.memory_store.clone(),
+            self.dag_config.clone(),
+        )));
+        self
+    }
+
+    /// Enable DAG execution mode with a custom configuration.
+    pub fn with_dag_config(mut self, config: DagConfig) -> Self {
+        self.dag_config = config.clone();
+        self.dag_executor = Some(Arc::new(DagExecutor::new(
+            self.store.clone(),
+            self.model.clone(),
+            self.event_tx.clone(),
+            self.tool_registry.clone(),
+            self.permission_engine.clone(),
+            self.pending_permissions.clone(),
+            self.memory_store.clone(),
+            config,
+        )));
+        self
+    }
+
+    /// Determine the execution mode for a given request.
+    fn execution_mode(&self, request: &SendMessageRequest) -> ExecutionMode {
+        if request.content.starts_with("/plan ") && self.dag_executor.is_some() {
+            ExecutionMode::DagExecution
+        } else {
+            ExecutionMode::SingleStep
+        }
+    }
 }
 
 /// Resolve a pending permission request (used by GUI Interactive mode).
-impl<S, M> LocalRuntime<S, M> {
+impl<S, M> LocalRuntime<S, M>
+where
+    S: EventStore + 'static,
+    M: agent_models::ModelClient + 'static,
+{
     pub async fn resolve_permission(
         &self,
         request_id: &str,
@@ -164,19 +225,37 @@ where
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
-        crate::agent_loop::run_agent_loop(
-            &self.store,
-            &self.model,
-            &self.event_tx,
-            &self.tool_registry,
-            &self.permission_engine,
-            &self.pending_permissions,
-            &self.memory_store,
-            &self.task_graphs,
-            &self.active_cancellation,
-            &request,
-        )
-        .await
+        match self.execution_mode(&request) {
+            ExecutionMode::DagExecution => {
+                let executor = self.dag_executor.as_ref().ok_or_else(|| {
+                    agent_core::CoreError::InvalidState("DAG executor not available".into())
+                })?;
+                let result = executor.execute(&request, &self.task_graphs).await?;
+                tracing::info!(
+                    "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
+                    result.total_tasks,
+                    result.completed,
+                    result.failed,
+                    result.skipped,
+                );
+                Ok(())
+            }
+            ExecutionMode::SingleStep => {
+                crate::agent_loop::run_agent_loop(
+                    &self.store,
+                    &self.model,
+                    &self.event_tx,
+                    &self.tool_registry,
+                    &self.permission_engine,
+                    &self.pending_permissions,
+                    &self.memory_store,
+                    &self.task_graphs,
+                    &self.active_cancellation,
+                    &request,
+                )
+                .await
+            }
+        }
     }
 
     async fn decide_permission(&self, decision: PermissionDecision) -> agent_core::Result<()> {
@@ -253,6 +332,80 @@ where
         session_id: SessionId,
     ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
         crate::session::get_task_graph(&self.task_graphs, session_id).await
+    }
+
+    async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        if let Some(executor) = &self.dag_executor {
+            let mut graphs = self.task_graphs.lock().await;
+            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "No task graph found for session {}",
+                    session_id
+                ))
+            })?;
+            executor
+                .retry_task(&workspace_id, &session_id, graph, &task_id)
+                .await
+        } else {
+            Err(agent_core::CoreError::InvalidState(
+                "DAG executor not available".into(),
+            ))
+        }
+    }
+
+    async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        if let Some(executor) = &self.dag_executor {
+            let mut graphs = self.task_graphs.lock().await;
+            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "No task graph found for session {}",
+                    session_id
+                ))
+            })?;
+            executor
+                .cancel_task(&workspace_id, &session_id, graph, &task_id)
+                .await
+        } else {
+            Err(agent_core::CoreError::InvalidState(
+                "DAG executor not available".into(),
+            ))
+        }
+    }
+
+    async fn get_agent_status(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<Vec<AgentStatusInfo>> {
+        let graphs = self.task_graphs.lock().await;
+        match graphs.get(&session_id.to_string()) {
+            Some(graph) => {
+                if let Some(executor) = &self.dag_executor {
+                    let statuses = executor.get_agent_status(graph);
+                    Ok(statuses
+                        .into_iter()
+                        .map(|s| AgentStatusInfo {
+                            agent_id: s.agent_id,
+                            role: s.role,
+                            task_id: s.task_id,
+                            status: s.status,
+                        })
+                        .collect())
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            None => Ok(Vec::new()),
+        }
     }
 }
 
@@ -383,5 +536,50 @@ mod tests {
             .await
             .unwrap();
         assert!(sessions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn default_execution_mode_is_single_step() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let request = SendMessageRequest {
+            workspace_id: WorkspaceId::new(),
+            session_id: SessionId::new(),
+            content: "hello".into(),
+        };
+        assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
+    }
+
+    #[tokio::test]
+    async fn plan_prefix_triggers_dag_mode() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_dag_execution();
+
+        let request = SendMessageRequest {
+            workspace_id: WorkspaceId::new(),
+            session_id: SessionId::new(),
+            content: "/plan implement feature X".into(),
+        };
+        assert_eq!(
+            runtime.execution_mode(&request),
+            ExecutionMode::DagExecution
+        );
+    }
+
+    #[tokio::test]
+    async fn no_plan_prefix_uses_single_step_even_with_dag() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_dag_execution();
+
+        let request = SendMessageRequest {
+            workspace_id: WorkspaceId::new(),
+            session_id: SessionId::new(),
+            content: "just a question".into(),
+        };
+        assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
     }
 }

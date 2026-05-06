@@ -69,6 +69,10 @@ pub struct TaskSnapshot {
     pub state: crate::TaskState,
     pub dependencies: Vec<TaskId>,
     pub error: Option<String>,
+    pub retry_count: usize,
+    pub max_retries: usize,
+    pub assigned_agent_id: Option<String>,
+    pub failure_reason: Option<crate::TaskFailureReason>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -76,6 +80,16 @@ pub struct TaskSnapshot {
 /// A snapshot of the entire task graph for a session.
 pub struct TaskGraphSnapshot {
     pub tasks: Vec<TaskSnapshot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+/// Status information about a running or completed agent.
+pub struct AgentStatusInfo {
+    pub agent_id: String,
+    pub role: crate::AgentRole,
+    pub task_id: Option<TaskId>,
+    pub status: String,
 }
 
 #[async_trait]
@@ -129,6 +143,22 @@ pub trait AppFacade: Send + Sync {
     ) -> crate::Result<usize>;
     /// Get the current task graph snapshot for a session.
     async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot>;
+    /// Retry a failed or blocked task, resetting it to pending and unblocking dependents.
+    async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> crate::Result<()>;
+    /// Cancel a specific task in the session's task graph.
+    async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> crate::Result<()>;
+    /// Get the status of all agents associated with a session's task graph.
+    async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>>;
 }
 
 #[cfg(test)]
@@ -229,6 +259,34 @@ mod tests {
         async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot> {
             let _ = session_id;
             Ok(TaskGraphSnapshot::default())
+        }
+
+        async fn retry_task(
+            &self,
+            workspace_id: WorkspaceId,
+            session_id: SessionId,
+            task_id: TaskId,
+        ) -> crate::Result<()> {
+            let _ = (workspace_id, session_id, task_id);
+            Ok(())
+        }
+
+        async fn cancel_task(
+            &self,
+            workspace_id: WorkspaceId,
+            session_id: SessionId,
+            task_id: TaskId,
+        ) -> crate::Result<()> {
+            let _ = (workspace_id, session_id, task_id);
+            Ok(())
+        }
+
+        async fn get_agent_status(
+            &self,
+            session_id: SessionId,
+        ) -> crate::Result<Vec<AgentStatusInfo>> {
+            let _ = session_id;
+            Ok(Vec::new())
         }
     }
 

@@ -117,6 +117,27 @@ pub enum EventPayload {
         task_id: TaskId,
         error: String,
     },
+    TaskDecomposed {
+        parent_task_id: TaskId,
+        sub_task_ids: Vec<TaskId>,
+    },
+    TaskBlocked {
+        task_id: TaskId,
+        blocking_task_id: TaskId,
+        reason: String,
+    },
+    AgentSpawned {
+        agent_id: String,
+        role: String,
+        task_id: TaskId,
+    },
+    AgentIdle {
+        agent_id: String,
+    },
+    TaskRetried {
+        task_id: TaskId,
+        attempt: usize,
+    },
     SessionCancelled {
         reason: String,
     },
@@ -178,6 +199,11 @@ impl EventPayload {
             Self::AssistantMessageCompleted { .. } => "AssistantMessageCompleted",
             Self::AgentTaskCompleted { .. } => "AgentTaskCompleted",
             Self::AgentTaskFailed { .. } => "AgentTaskFailed",
+            Self::TaskDecomposed { .. } => "TaskDecomposed",
+            Self::TaskBlocked { .. } => "TaskBlocked",
+            Self::AgentSpawned { .. } => "AgentSpawned",
+            Self::AgentIdle { .. } => "AgentIdle",
+            Self::TaskRetried { .. } => "TaskRetried",
             Self::SessionCancelled { .. } => "SessionCancelled",
             Self::McpServerStarting { .. } => "McpServerStarting",
             Self::McpServerReady { .. } => "McpServerReady",

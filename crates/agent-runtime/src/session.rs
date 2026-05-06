@@ -273,6 +273,10 @@ pub async fn get_task_graph(
                     state: t.state,
                     dependencies: t.dependencies,
                     error: t.error,
+                    retry_count: t.retry_count,
+                    max_retries: t.max_retries,
+                    assigned_agent_id: t.assigned_agent_id.as_ref().map(|id| id.to_string()),
+                    failure_reason: t.failure_reason.clone(),
                 })
                 .collect();
             Ok(TaskGraphSnapshot { tasks })
