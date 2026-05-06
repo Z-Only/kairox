@@ -3433,9 +3433,23 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Commit message:** `feat(gui): integrate naive-ui with provider stack and theme overrides`
 **Why sixth:** wires NaiveUI's `NConfigProvider` + 4 service providers and maps existing CSS variables (`--accent`, `--border`, `--surface-alt`) to NaiveUI's theme tokens. **No SFC migration yet** — that's Task 7. After this commit, NaiveUI is available to call but no existing component uses it.
 
+**MANDATORY pre-work (carried over from Task 5 code-quality review — collect them BEFORE the NaiveUI work in Step 1; same commit):**
+
+- **Pre-work A — `WorkbenchView.vue` syncing guard (Task 5 IMPORTANT #1):**
+  Add a `const syncing = ref(false)` to `apps/agent-gui/src/views/WorkbenchView.vue`. Set it to `true` at the top of `syncRouteToSession`, reset in a `finally` block. The reverse watcher (`watch(() => session.currentSessionId, …)` that calls `router.replace`) must early-return when `syncing.value` is `true`. This closes the race where a not-found `router.replace({ name: "workbench" })` is immediately undone by the `currentSessionId` watcher writing the stale id back into the URL. Existing `WorkbenchView` tests must still pass; add at minimum one new vitest case asserting that, after a `switchSession` rejection, the URL ends up at `/workbench` (no sessionId param) and stays there for at least one tick.
+
+- **Pre-work B — `SettingsView.vue` single-write to ui store (Task 5 IMPORTANT #2):**
+  In `apps/agent-gui/src/views/SettingsView.vue` change both `<select>` elements from `v-model="locale" @change="ui.setLocale(...)"` (and the matching `colorMode` select) to `:value="locale" @change="(e) => ui.setLocale(...)"` so that the store action is the only write path. Do NOT keep `v-model` — the destructured `locale` / `colorMode` refs from `storeToRefs(ui)` must not be mutated directly from the template. Update `SettingsView.test.ts` (or add it if not present in Task 5) so it asserts that selecting an option calls `ui.setLocale` / `ui.setTheme` exactly once with the selected value, and that the destructured refs do NOT change unless the action runs.
+
+Both pre-work items must land in the same `feat(gui): integrate naive-ui …` commit as the rest of Task 6. Do not amend Task 5; do not introduce a separate commit.
+
 **Files:**
 
 - Create: `apps/agent-gui/src/styles/naive-theme.ts`
+- Modify: `apps/agent-gui/src/views/WorkbenchView.vue` (Pre-work A: syncing guard)
+- Modify: `apps/agent-gui/src/views/SettingsView.vue` (Pre-work B: drop v-model, single-write via action)
+- Modify (or create if absent): `apps/agent-gui/src/views/SettingsView.test.ts` (Pre-work B regression test)
+- Modify (or extend the existing test): `apps/agent-gui/src/views/WorkbenchView.test.ts` (Pre-work A regression test)
 - Modify: `apps/agent-gui/src/layouts/AppLayout.vue` (wrap with provider stack)
 - Modify: `apps/agent-gui/src/composables/useNotifications.ts` (delegate to NaiveUI's `useMessage` for toast UI; keep store as the source of truth)
 

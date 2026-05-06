@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed } from "vue";
+import { onMounted, ref, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useSessionStore } from "@/stores/session";
@@ -20,14 +20,24 @@ const routeSessionId = computed(() => {
   return Array.isArray(v) ? v[0] : v;
 });
 
+// Guard against the URL ↔ store ping-pong: when `syncRouteToSession` triggers
+// a `router.replace({ name: "workbench" })` for a not-found id, the reverse
+// watcher below would otherwise observe the still-stale `currentSessionId`
+// and immediately rewrite the URL back to the bad id, undoing the redirect.
+const syncing = ref(false);
+
 async function syncRouteToSession(id: string | undefined) {
   if (!id) return;
   if (id === currentSessionId.value) return;
+  syncing.value = true;
   try {
     await session.switchSession(id);
-  } catch {
+  } catch (err) {
+    console.error("[WorkbenchView] switchSession failed:", err);
     ui.pushNotification("error", `Session not found: ${id}`);
     await router.replace({ name: "workbench" });
+  } finally {
+    syncing.value = false;
   }
 }
 
@@ -41,6 +51,7 @@ watch(routeSessionId, (next) => {
 
 // Reflect store changes back into URL.
 watch(currentSessionId, (next) => {
+  if (syncing.value) return;
   if (next && next !== routeSessionId.value) {
     void router.replace({ name: "workbench", params: { sessionId: next } });
   }
