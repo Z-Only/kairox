@@ -215,6 +215,91 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: SHA256SUMS.txt
 
+  publish-updater-json:
+    name: Publish updater latest.json
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [tui-build, tauri-build, checksums]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.ref_name }}
+          fileName: "*"
+          out-file-path: dist
+
+      - name: Generate latest.json for Tauri updater
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Collect signature files into a map by platform key
+          declare -A SIG_MAP
+
+          for sig in dist/*.sig; do
+            [ -f "$sig" ] || continue
+            base=$(basename "$sig" .sig)
+            sig_content=$(cat "$sig")
+
+            # Match platform+arch from the filename.
+            # Tauri artifacts follow pattern: Kairox_${TAG}_[platform]_[arch][ext].sig
+            # e.g. Kairox_v0.16.0_macos_aarch64.dmg.sig
+            if echo "$base" | grep -q "_macos_"; then
+              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
+              [ -z "$arch" ] && arch="aarch64"
+              platform_key="darwin-${arch}"
+            elif echo "$base" | grep -q "_linux_"; then
+              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
+              [ -z "$arch" ] && arch="x86_64"
+              platform_key="linux-${arch}"
+            elif echo "$base" | grep -q "_windows_"; then
+              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
+              [ -z "$arch" ] && arch="x86_64"
+              platform_key="windows-${arch}"
+            else
+              continue
+            fi
+
+            SIG_MAP["${platform_key}"]="${sig_content}"
+
+            # Find the corresponding asset URL
+            asset_ext="${base##*.}"
+            asset_name="${base%.sig}"
+            # GitHub release download URL pattern
+            asset_url="https://github.com/Z-Only/kairox/releases/download/${TAG}/${asset_name}"
+            URL_MAP["${platform_key}"]="${asset_url}"
+          done
+
+          # Build the JSON
+          echo "{" > dist/latest.json
+          echo "  \"version\": \"${TAG#v}\"," >> dist/latest.json
+          echo "  \"notes\": \"See https://github.com/Z-Only/kairox/releases/tag/${TAG}\"," >> dist/latest.json
+          echo "  \"pub_date\": \"${PUB_DATE}\"," >> dist/latest.json
+          echo "  \"platforms\": {" >> dist/latest.json
+
+          first=true
+          for key in "${!SIG_MAP[@]}"; do
+            [ "$first" = true ] || echo "," >> dist/latest.json
+            first=false
+            echo "    \"${key}\": {" >> dist/latest.json
+            echo "      \"signature\": \"${SIG_MAP[$key]}\"," >> dist/latest.json
+            echo "      \"url\": \"${URL_MAP[$key]}\"" >> dist/latest.json
+            echo -n "    }" >> dist/latest.json
+          done
+
+          echo "" >> dist/latest.json
+          echo "  }" >> dist/latest.json
+          echo "}" >> dist/latest.json
+
+          echo "--- latest.json ---"
+          cat dist/latest.json
+
+      - name: Upload latest.json to release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dist/latest.json
+
   # Smoke test for workflow changes: runs on PRs that modify workflow files
   # to validate that all actions used in release-build.yml can initialize and
   # the core build toolchain works, without actually publishing a release.

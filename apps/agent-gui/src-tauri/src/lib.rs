@@ -22,6 +22,7 @@ pub fn run() {
     let _specta_builder = specta::create_specta();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
