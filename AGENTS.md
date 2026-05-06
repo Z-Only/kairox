@@ -42,18 +42,18 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 
 ### Crate responsibilities
 
-| Crate             | Purpose                                                                                             | Key types                                                                                                                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections, build info                  | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState`, `BuildInfo` |
-| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions                       | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`                                                                      |
-| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                             | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                                                                                                     |
-| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs.read, fs.write, fs.list, patch, search) | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`, `McpToolAdapter`                                                                                       |
-| **agent-mcp**     | MCP (Model Context Protocol) client, transports, server lifecycle, discovery cache                  | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `McpError`                                                                        |
-| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken                        | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                                                                                            |
-| **agent-store**   | SQLite-backed event store (append-only) + metadata tables for workspace/session tracking            | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, metadata repos                                                                                                                  |
-| **agent-config**  | TOML config loading, model profile discovery, API key resolution                                    | `ProfileDef`, `load_from_str`, `build_router`                                                                                                                                          |
-| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace) with build-info banner         | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                                                                                                   |
-| **agent-gui**     | Tauri 2 + Vue 3 desktop app with persistent sessions, task graph inspection, build info             | `commands.rs`, `GuiState`, `event_forwarder.rs`, `get_build_info`, Vue: `session.ts`, `taskGraph.ts`, `useTraceStore.ts`, `TaskSteps.vue`, `ConfirmDialog.vue`                         |
+| Crate             | Purpose                                                                                             | Key types                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections, build info                  | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState`, `BuildInfo`                                                                                                                                                                                                                                                     |
+| **agent-runtime** | Orchestrates the agent loop, sessions, multi-agent strategies, MCP server lifecycle, permissions    | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`, `McpServerManager`, `ExecutionMode`                                                                                                                                                                                                                                                                                     |
+| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                             | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                                                                                                                                                                                                                                                                                                                                                         |
+| **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs.read, fs.write, fs.list, patch, search) | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`, `McpToolAdapter`                                                                                                                                                                                                                                                                                                                                           |
+| **agent-mcp**     | MCP (Model Context Protocol) client, transports, server lifecycle, discovery cache                  | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `McpError`                                                                                                                                                                                                                                                                                                                            |
+| **agent-memory**  | Durable/user/workspace/session-scoped memory, context assembly with tiktoken                        | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `MemoryScope`                                                                                                                                                                                                                                                                                                                                                |
+| **agent-store**   | SQLite-backed event store (append-only) + metadata tables for workspace/session tracking            | `EventStore` trait, `SqliteEventStore`, `SessionMeta`, metadata repos                                                                                                                                                                                                                                                                                                                                                                      |
+| **agent-config**  | TOML config loading, model profile discovery, API key resolution                                    | `ProfileDef`, `load_from_str`, `build_router`                                                                                                                                                                                                                                                                                                                                                                                              |
+| **agent-tui**     | Interactive terminal UI (ratatui three-panel: sessions, chat, trace) with build-info banner         | `App`, `ChatPanel`, `SessionsPanel`, `TracePanel`, `PermissionModal`                                                                                                                                                                                                                                                                                                                                                                       |
+| **agent-gui**     | Tauri 2 + Vue 3 desktop app with persistent sessions, task graph, MCP & memory UI, build info       | `commands.rs`, `GuiState`, `event_forwarder.rs`, `specta.rs`, Vue stores: `session.ts`, `taskGraph.ts`, `agents.ts`, `mcp.ts`, `memory.ts`; components: `ChatPanel.vue`, `TaskSteps.vue`, `TaskNode.vue`, `TraceTimeline.vue`, `PermissionPrompt.vue`, `PermissionCenter.vue`, `MemoryBrowser.vue`, `McpServerManager.vue`, `McpStatusIndicator.vue`, `SessionsSidebar.vue`, `StatusBar.vue`, `NotificationToast.vue`, `ConfirmDialog.vue` |
 
 ## Coding conventions
 
@@ -114,33 +114,40 @@ kairox/
 ├── package.json            # pnpm tooling root (format, lint, prepare)
 ├── pnpm-lock.yaml
 ├── cliff.toml              # git-cliff changelog config
-├── commitlint.config.cjs   # Conventional Commits enforcement
+├── commitlint.config.js    # Conventional Commits enforcement
 ├── scripts/
 │   ├── release.sh          # Automated release script
 │   └── prepare.cjs         # Husky hook setup (worktree-aware)
 ├── crates/
-│   ├── agent-core/         # Domain types, facade, events, IDs
-│   ├── agent-runtime/      # LocalRuntime, agents, DAG executor, task graph
-│   ├── agent-models/       # ModelClient trait + adapters
-│   ├── agent-tools/        # Tool registry, permission engine
-│   ├── agent-mcp/          # MCP client, transports, server lifecycle
-│   ├── agent-memory/       # Memory store, context assembler
+│   ├── agent-core/         # Domain types, events, facade, IDs, build info, projections
+│   ├── agent-runtime/      # LocalRuntime + focused modules: agent_loop, agents,
+│   │                       #   dag_executor, event_emitter, facade_runtime,
+│   │                       #   mcp_manager, memory_handler, permission, session, task_graph
+│   ├── agent-models/       # ModelClient trait + OpenAI / Anthropic / Ollama / Fake adapters
+│   ├── agent-tools/        # Tool registry, permission engine, built-in tools
+│   │                       #   (shell, fs.read, fs.write, fs.list, patch, search), MCP adapter
+│   ├── agent-mcp/          # MCP client, transports (stdio, sse), lifecycle, discovery cache
+│   ├── agent-memory/       # Memory store, marker/extractor, context assembler (tiktoken)
 │   ├── agent-store/        # SQLite event store + metadata tables
-│   ├── agent-config/       # Config loading, profile discovery
+│   ├── agent-config/       # Config loading, profile discovery, MCP server config
 │   └── agent-tui/          # ratatui TUI app
 ├── apps/
 │   └── agent-gui/          # Tauri 2 + Vue 3 desktop app
 │       ├── src/            # Vue frontend
-│       │   ├── components/ # ChatPanel, TraceTimeline, TaskSteps, PermissionPrompt, SessionsSidebar, ConfirmDialog
-│       │   ├── stores/     # Pinia stores (session.ts with persistent SessionMeta, taskGraph.ts)
-│       │   ├── composables/# useTauriEvents (session-filtered), useTraceStore
+│       │   ├── components/ # ChatPanel, TraceTimeline, TaskSteps, TaskNode,
+│       │   │               #   PermissionPrompt, PermissionCenter, MemoryBrowser,
+│       │   │               #   McpServerManager, McpStatusIndicator, SessionsSidebar,
+│       │   │               #   StatusBar, NotificationToast, ConfirmDialog, TraceEntry
+│       │   ├── stores/     # Pinia stores: session, taskGraph, agents, mcp, memory
+│       │   ├── composables/# useTauriEvents (session-filtered), useTraceStore, useNotifications
 │       │   ├── types/      # TypeScript type definitions (re-exports from generated/)
 │       │   │   └── events-helpers.ts  # ExtractPayload, EventPayloadHandlers, matchPayload
 │       │   └── generated/  # Auto-generated TypeScript bindings (commands.ts, events.ts)
 │       ├── src-tauri/      # Rust Tauri backend
-│       │   ├── src/        # commands.rs, app_state.rs, event_forwarder.rs, lib.rs
+│       │   ├── src/        # commands.rs, app_state.rs, event_forwarder.rs, specta.rs, lib.rs
 │       │   ├── Cargo.toml  # version.workspace = true
 │       │   └── tauri.conf.json
+│       ├── e2e/            # Playwright E2E specs + tauri-mock.js IPC mock
 │       ├── package.json
 │       └── vite.config.ts
 ├── docs/
@@ -352,17 +359,20 @@ just test-e2e-headed       # headed mode for debugging
 just test-e2e-ui           # Playwright UI mode
 ```
 
-**Test structure**: 33+ tests across 8 spec files covering chat flow, session lifecycle, permissions/memory prompts, task graph, trace panel, memory browser, notifications, and MCP interactions.
+**Test structure**: 10 spec files under `apps/agent-gui/e2e/` covering chat flow (`chat-flow.spec.ts`), session lifecycle (`session-lifecycle.spec.ts`), permissions & memory prompts (`permission-memory.spec.ts`), task graph & interaction (`task-graph.spec.ts`, `task-graph-interaction.spec.ts`), trace panel (`trace-panel.spec.ts`), memory browser (`memory-browser.spec.ts`), notifications (`notifications.spec.ts`), MCP server interactions (`mcp.spec.ts`), and multi-agent flow (`multi-agent-flow.spec.ts`).
 
 ### TUI and runtime integration tests
 
 TUI app logic tests (`crates/agent-tui/tests/app_logic.rs`) use `FakeModelClient` + in-memory `SqliteEventStore` to test the `LocalRuntime` facade without a real terminal. Full-stack runtime tests (`crates/agent-runtime/tests/full_stack.rs`) exercise the complete pipeline including tool calling, permission decisions, and persistence.
 
 ```bash
-just test-tui              # 7 TUI integration tests
-just test-fullstack         # 12 full-stack runtime tests
-just test-all               # all test layers
+just test-tui              # TUI app logic integration tests (currently 7 in app_logic.rs)
+just test-fullstack        # full-stack runtime tests (currently 13 in full_stack.rs)
+just test-mcp              # MCP integration tests across mcp/tools/config/runtime
+just test-all              # all test layers: unit + integration + fullstack + GUI Vitest
 ```
+
+> Additional integration tests live alongside `full_stack.rs` in `crates/agent-runtime/tests/`: `agent_loop.rs`, `session_lifecycle.rs`, `task_graph_integration.rs`, `memory_protocol.rs`, `mcp_integration.rs`, `refactor_baseline.rs`, `fake_session.rs`. They are all picked up by `cargo test --workspace`.
 
 ### Common pitfalls
 
@@ -412,7 +422,7 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 2. **Add the match arm** in `EventPayload::event_type()` (same file)
 3. **If adding types in agent-core or agent-memory**, ensure they have `#[cfg_attr(feature = "specta", derive(specta::Type))]` and are registered in `apps/agent-gui/src-tauri/src/specta.rs`
 4. **Run `just gen-types`** to regenerate TypeScript bindings (both `commands.ts` and `events.ts`)
-5. **Emit the event** from the appropriate place in `agent-runtime` (e.g., `facade_runtime.rs`)
+5. **Emit the event** from the appropriate place in `agent-runtime` (e.g., `facade_runtime.rs`, `event_emitter.rs`, `dag_executor.rs`, or `mcp_manager.rs`)
 6. **Handle the event** in the UI — TypeScript will error on non-exhaustive `switch` statements if a variant is missing:
    - TUI: update the relevant component in `crates/agent-tui/src/components/`
    - GUI: update `useTraceStore.ts` or the relevant Pinia store/composable
@@ -423,8 +433,8 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 2. **Register the tool** in `crates/agent-tools/src/registry.rs` via `BuiltinProvider`
 3. **Define risk level** in `crates/agent-tools/src/permission.rs` using `ToolRisk`
 4. **Add tests** in `crates/agent-tools/src/my_tool.rs` under `#[cfg(test)]`
-5. **Wire into runtime** in `crates/agent-runtime/src/facade_runtime.rs` — register the tool in the `ToolRegistry`
-6. **Update permission UI** if the tool has a new `ToolEffect` variant (TUI: `permission_modal.rs`, GUI: `PermissionPrompt.vue`)
+5. **Wire into runtime** in `crates/agent-runtime/src/facade_runtime.rs` (and `permission.rs` if it introduces new effects) — register the tool in the `ToolRegistry`
+6. **Update permission UI** if the tool has a new `ToolEffect` variant (TUI: `permission_modal.rs`, GUI: `PermissionPrompt.vue` / `PermissionCenter.vue`)
 
 ### Adding a new model provider
 
@@ -438,9 +448,9 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 ### Adding a new MCP server integration
 
 1. **Define server config** in `crates/agent-config/src/` — add fields to parse `[mcp_servers.XXX]` from `kairox.toml`
-2. **Add transport** if needed in `crates/agent-mcp/src/transport.rs` — implement the `Transport` trait
-3. **Test the server** by adding a fixture or integration test in `crates/agent-mcp/tests/`
-4. **Wire into runtime** via `McpServerManager` in `crates/agent-runtime/src/facade_runtime.rs`
+2. **Add transport** if needed under `crates/agent-mcp/src/transport/` (existing modules: `stdio.rs`, `sse.rs`) — implement the `Transport` trait
+3. **Test the server** by adding a fixture or integration test in `crates/agent-mcp/tests/` or `crates/agent-runtime/tests/mcp_integration.rs`
+4. **Wire into runtime** via `McpServerManager` in `crates/agent-runtime/src/mcp_manager.rs`
 5. **Update permission UI** — TUI: `permission_modal.rs`, GUI: add MCP trust handling in `PermissionPrompt.vue`
 6. **Add E2E test** in `apps/agent-gui/e2e/` — update `tauri-mock.js` with new MCP commands
 7. **Update config example** in `kairox.toml.example` with the new server configuration

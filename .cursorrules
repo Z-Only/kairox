@@ -21,14 +21,15 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 
 ## Crate structure & dependency direction
 - agent-core ← agent-runtime ← agent-tui / agent-gui
-- agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config
-- agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config
+- agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp
+- agent-tools → agent-mcp (re-exports `McpServerDef`, `McpTransportDef`; provides `McpToolAdapter`)
+- agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config, agent-mcp
 - Never create reverse dependencies. New domain types/events go in agent-core first.
 
 ## Key patterns
 - Workspace version: all crates use `version.workspace = true` — never set version in individual crate Cargo.toml
 - Error handling: each crate has `XxxError` enum via `thiserror::Error` and `type Result<T>`
-- Trait boundaries: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool` — use `Arc<dyn Trait>` or generics
+- Trait boundaries: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool`, `Transport`, `AgentStrategy` — use `Arc<dyn Trait>` or generics
 - Async: Tokio + `async_trait`
 - Testing: `FakeModelClient` for runtime, in-memory SQLite for stores
 - Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `event_forwarder.rs` + `useTauriEvents.ts` (filters by session)
@@ -41,7 +42,7 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Types: `apps/agent-gui/src/types/`
 
 ## Commit format
-Conventional Commits with scopes: core, runtime, models, tools, memory, store, config, tui, gui, deps, ci
+Conventional Commits with scopes: core, runtime, models, tools, memory, store, config, mcp, tui, gui, deps, ci
 
 ## Version bump files (must stay in sync)
 1. Cargo.toml (workspace.package.version)
@@ -57,3 +58,5 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 - Forgetting to update both Rust and TypeScript types when changing events
 - Forgetting to register new Tauri commands in both `generate_handler!` (invocation) and `collect_commands!` (specta type-gen)
 - Skipping `pnpm install` after creating a git worktree
+- Editing `apps/agent-gui/src/generated/{commands,events}.ts` by hand — these are auto-generated, run `just gen-types`
+- Forgetting to update `apps/agent-gui/e2e/tauri-mock.js` when adding new `#[tauri::command]` or events
