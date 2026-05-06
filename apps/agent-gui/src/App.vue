@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTauriEvents } from "./composables/useTauriEvents";
+import { useUpdater } from "./composables/useUpdater";
 import { addNotification } from "./composables/useNotifications";
 import { sessionState, recoverSessions, setProjection } from "./stores/session";
 import type { SessionProjection } from "./types";
@@ -14,6 +15,7 @@ import PermissionCenter from "./components/PermissionCenter.vue";
 import NotificationToast from "./components/NotificationToast.vue";
 
 useTauriEvents();
+useUpdater();
 
 onMounted(async () => {
   // Listen for backend error events
