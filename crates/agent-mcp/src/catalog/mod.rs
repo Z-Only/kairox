@@ -154,3 +154,6 @@ pub trait CatalogProvider: Send + Sync {
 
 pub mod aggregate;
 pub mod builtin; // added in Task 3 // added in Task 4
+
+pub use aggregate::AggregateCatalogProvider;
+pub use builtin::BuiltinCatalogProvider;

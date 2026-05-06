@@ -8,6 +8,96 @@ use crate::{DomainEvent, SessionId, TaskId, WorkspaceId};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+// ---------------------------------------------------------------------------
+// Marketplace DTOs (mirror types)
+// ---------------------------------------------------------------------------
+//
+// agent-core does not depend on agent-mcp (would create a dependency cycle).
+// We define mirror DTOs here using only primitive/serde-friendly types and
+// have `agent-runtime` translate between these and the canonical
+// `agent_mcp::catalog` / `agent_mcp::installer` types.
+//
+// `install_spec_json`, `requirements_json`, and `default_env_json` carry
+// their richer payloads as JSON-encoded strings so that callers (the GUI)
+// receive enough information without having to re-derive cycle-creating
+// types in `agent-core`.
+
+/// A query against the catalog. All fields are optional; an empty query
+/// returns every entry.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct CatalogQuery {
+    pub keyword: Option<String>,
+    pub category: Option<String>,
+    /// Minimum trust level (lower-case: "unverified" | "community" | "verified").
+    pub trust_min: Option<String>,
+    /// Filter by source id (e.g. "builtin").
+    pub source: Option<String>,
+    pub limit: Option<usize>,
+}
+
+/// A single MCP server entry returned by the catalog.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ServerEntry {
+    pub id: String,
+    pub source: String,
+    pub display_name: String,
+    pub summary: String,
+    pub description: String,
+    pub categories: Vec<String>,
+    pub tags: Vec<String>,
+    pub author: Option<String>,
+    pub homepage: Option<String>,
+    pub version: Option<String>,
+    /// Lower-case trust level: "unverified" | "community" | "verified".
+    pub trust: String,
+    pub icon: Option<String>,
+    /// JSON-encoded `agent_mcp::catalog::InstallSpec`.
+    pub install_spec_json: String,
+    /// JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
+    pub requirements_json: String,
+    /// JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
+    pub default_env_json: String,
+}
+
+/// A user-initiated install request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstallRequest {
+    pub catalog_id: String,
+    pub source: String,
+    pub server_id_override: Option<String>,
+    pub env_overrides: BTreeMap<String, String>,
+    pub trust_grant: bool,
+    pub auto_start: bool,
+}
+
+/// Outcome of an install attempt. The `kind` field is a discriminator:
+/// `"installed" | "runtime_missing" | "already_installed" | "invalid_env"`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstallOutcomeView {
+    pub kind: String,
+    pub server_id: Option<String>,
+    pub started: Option<bool>,
+    pub missing_runtimes: Vec<String>,
+    pub missing_env_keys: Vec<String>,
+}
+
+/// An entry currently installed in the runtime (marketplace + hand-edited).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstalledEntry {
+    pub server_id: String,
+    pub catalog_id: Option<String>,
+    pub source: Option<String>,
+    pub display_name: String,
+    pub installed_at: String,
+    pub running: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
@@ -159,6 +249,58 @@ pub trait AppFacade: Send + Sync {
     ) -> crate::Result<()>;
     /// Get the status of all agents associated with a session's task graph.
     async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>>;
+
+    // -----------------------------------------------------------------------
+    // Marketplace catalog (Phase 1: built-in catalog only).
+    // -----------------------------------------------------------------------
+
+    /// List catalog entries, optionally filtered by `query`.
+    async fn list_catalog(&self, query: CatalogQuery) -> crate::Result<Vec<ServerEntry>> {
+        let _ = query;
+        Ok(Vec::new())
+    }
+
+    /// Get a single catalog entry by id (and optional source filter).
+    async fn get_catalog_entry(
+        &self,
+        id: String,
+        source: Option<String>,
+    ) -> crate::Result<Option<ServerEntry>> {
+        let _ = (id, source);
+        Ok(None)
+    }
+
+    /// Refresh catalog data from all (or one named) source.
+    async fn refresh_catalog(&self, source: Option<String>) -> crate::Result<()> {
+        let _ = source;
+        Ok(())
+    }
+
+    /// Install a catalog entry, returning a structured outcome.
+    async fn install_catalog_entry(
+        &self,
+        request: InstallRequest,
+    ) -> crate::Result<InstallOutcomeView> {
+        let _ = request;
+        Ok(InstallOutcomeView {
+            kind: "runtime_missing".into(),
+            server_id: None,
+            started: None,
+            missing_runtimes: Vec::new(),
+            missing_env_keys: Vec::new(),
+        })
+    }
+
+    /// Uninstall a previously installed entry.
+    async fn uninstall_catalog_entry(&self, server_id: String) -> crate::Result<()> {
+        let _ = server_id;
+        Ok(())
+    }
+
+    /// List entries currently installed (marketplace + hand-edited).
+    async fn list_installed_entries(&self) -> crate::Result<Vec<InstalledEntry>> {
+        Ok(Vec::new())
+    }
 }
 
 #[cfg(test)]

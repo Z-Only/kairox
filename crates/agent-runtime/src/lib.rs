@@ -9,6 +9,8 @@ pub mod permission;
 pub mod session;
 pub mod task_graph;
 
+pub mod test_support;
+
 pub use agent_core::{
     AgentRole, BackoffStrategy, FailurePolicy, RetryConfig, TaskFailureReason, TaskState,
 };
@@ -38,6 +40,8 @@ pub enum RuntimeError {
     TaskNotFound(String),
     #[error("task cannot be retried: {0}")]
     TaskCannotRetry(String),
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;

@@ -307,6 +307,14 @@ impl McpServerManager {
         self.servers.contains_key(server_id)
     }
 
+    /// Returns `Some(true)` if the server is registered and currently running,
+    /// `Some(false)` if registered but not running, or `None` if unknown.
+    pub fn is_running(&self, server_id: &str) -> Option<bool> {
+        self.servers
+            .get(server_id)
+            .map(|lc| matches!(lc.status(), McpServerStatus::Running))
+    }
+
     /// Register a server definition at runtime (used by the marketplace installer).
     ///
     /// Returns `Err` if a server with the same id is already registered.
