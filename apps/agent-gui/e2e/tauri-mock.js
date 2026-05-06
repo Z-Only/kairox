@@ -104,7 +104,22 @@ const state = {
     }
   ],
   installedCatalog: [],
-  catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true }
+  catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true },
+  // Phase 2: catalog sources (builtin always present)
+  catalogSources: [
+    {
+      id: "builtin",
+      display_name: "Built-in",
+      kind: "builtin",
+      url: "",
+      api_key_env: null,
+      priority: 0,
+      default_trust: "verified",
+      enabled: true,
+      cache_ttl_seconds: null,
+      last_error: null
+    }
+  ]
 };
 
 /* ---- Helpers ---- */
@@ -755,6 +770,66 @@ function invoke(cmd, args) {
         task.state = "Cancelled";
       }
       return Promise.resolve(undefined);
+    }
+
+    /* ─── Phase 2: catalog source commands ───────────────────── */
+
+    case "list_catalog_sources": {
+      return state.catalogSources.slice();
+    }
+
+    case "add_catalog_source": {
+      var addReq = args.request;
+      if (
+        state.catalogSources.find(function (s) {
+          return s.id === addReq.id;
+        })
+      ) {
+        return Promise.reject(new Error("source already exists: " + addReq.id));
+      }
+      state.catalogSources.push({
+        id: addReq.id,
+        display_name: addReq.display_name,
+        kind: addReq.kind,
+        url: addReq.url,
+        api_key_env: addReq.api_key_env || null,
+        priority: addReq.priority != null ? addReq.priority : 100,
+        default_trust: addReq.default_trust || "community",
+        enabled: addReq.enabled != null ? addReq.enabled : true,
+        cache_ttl_seconds: addReq.cache_ttl_seconds || null,
+        last_error: null
+      });
+      var addSession = state.currentSessionId;
+      if (addSession) {
+        var addEvent = makeEvent(addSession, {
+          type: "CatalogSourceAdded",
+          source: addReq.id,
+          kind: addReq.kind
+        });
+        getTrace(addSession).push(addEvent);
+        emitEvent("session-event", addEvent);
+      }
+      return null;
+    }
+
+    case "remove_catalog_source": {
+      var removeId = args.id;
+      if (removeId === "builtin") return null;
+      state.catalogSources = state.catalogSources.filter(function (s) {
+        return s.id !== removeId;
+      });
+      return null;
+    }
+
+    case "set_catalog_source_enabled": {
+      var setId = args.id;
+      var setEnabled = args.enabled;
+      state.catalogSources = state.catalogSources.map(function (s) {
+        return s.id === setId
+          ? Object.assign({}, s, { enabled: setEnabled })
+          : s;
+      });
+      return null;
     }
 
     default:
