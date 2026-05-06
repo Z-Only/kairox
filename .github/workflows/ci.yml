@@ -273,3 +273,23 @@ jobs:
       - name: Build GUI web
         working-directory: apps/agent-gui
         run: pnpm run build
+
+  ci-success:
+    name: CI
+    if: ${{ always() }}
+    needs:
+      [
+        format,
+        lint-rust,
+        lint-web,
+        test,
+        test-e2e,
+        type-sync,
+        build-tui,
+        build-gui
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI status
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
