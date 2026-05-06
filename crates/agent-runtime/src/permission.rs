@@ -24,6 +24,7 @@ pub struct ToolPermissionResult {
 /// - Allowed: returns PermissionGranted event
 /// - Denied: returns PermissionDenied event
 /// - Interactive: emits PermissionRequested, waits for user decision
+#[allow(clippy::too_many_arguments)]
 pub async fn check_tool_permission<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
