@@ -132,7 +132,7 @@ Replace the full contents of `docs/assets/banner.svg` with:
   <g aria-label="Kairox title">
     <text x="84" y="286" fill="#F8FAFC" font-size="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="760">Kairox</text>
     <text x="88" y="340" fill="#A7F3D0" font-size="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="520">Local-first AI agent workbench</text>
-    <text x="88" y="394" fill="#CBD5E1" font-size="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Shared Rust core · event-sourced runtime · TUI · Tauri + Vue GUI</text>
+    <text x="88" y="394" fill="#CBD5E1" font-size="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core · TUI · Tauri GUI · MCP tools</text>
   </g>
 
   <g aria-label="Workbench preview">
