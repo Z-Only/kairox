@@ -2,6 +2,7 @@ pub mod agents;
 pub mod event_emitter;
 pub mod facade_runtime;
 pub mod mcp_manager;
+pub mod session;
 pub mod task_graph;
 
 pub use agent_core::{AgentRole, TaskState};

@@ -11,7 +11,7 @@ use agent_memory::{
     ContextAssembler, MemoryEntry, MemoryStore,
 };
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
-use agent_store::{EventStore, SessionRow};
+use agent_store::EventStore;
 use agent_tools::{
     BuiltinProvider, PermissionEngine, PermissionMode, PermissionOutcome, ToolInvocation,
     ToolProvider, ToolRegistry,
@@ -322,60 +322,17 @@ where
     M: ModelClient + 'static,
 {
     async fn open_workspace(&self, path: String) -> agent_core::Result<WorkspaceInfo> {
-        let workspace_id = WorkspaceId::new();
-        let session_id = SessionId::new();
-        let event = DomainEvent::new(
-            workspace_id.clone(),
-            session_id,
-            AgentId::system(),
-            PrivacyClassification::MinimalTrace,
-            EventPayload::WorkspaceOpened { path: path.clone() },
-        );
-        append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
-
-        // Persist workspace metadata for session recovery
-        if let Err(e) = self
-            .store
-            .upsert_workspace(&workspace_id.to_string(), &path)
-            .await
-        {
-            eprintln!("[runtime] Failed to persist workspace metadata: {e}");
-        }
-
-        Ok(WorkspaceInfo { workspace_id, path })
+        crate::session::open_workspace(&*self.store, &self.event_tx, path).await
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
-        let session_id = SessionId::new();
-        let event = DomainEvent::new(
-            request.workspace_id.clone(),
-            session_id.clone(),
-            AgentId::system(),
-            PrivacyClassification::MinimalTrace,
-            EventPayload::SessionInitialized {
-                model_profile: request.model_profile.clone(),
-            },
-        );
-        append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
-
-        // Persist session metadata for session recovery
-        let now = chrono::Utc::now().to_rfc3339();
-        let session_row = SessionRow {
-            session_id: session_id.to_string(),
-            workspace_id: request.workspace_id.to_string(),
-            title: format!("Session using {}", request.model_profile),
-            model_profile: request.model_profile.clone(),
-            model_id: None,
-            provider: None,
-            deleted_at: None,
-            created_at: now.clone(),
-            updated_at: now,
-        };
-        if let Err(e) = self.store.upsert_session(&session_row).await {
-            eprintln!("[runtime] Failed to persist session metadata: {e}");
-        }
-
-        Ok(session_id)
+        crate::session::start_session(
+            &*self.store,
+            &self.event_tx,
+            request.workspace_id,
+            request.model_profile,
+        )
+        .await
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
@@ -1323,123 +1280,44 @@ where
         workspace_id: WorkspaceId,
         session_id: SessionId,
     ) -> agent_core::Result<()> {
-        // Cancel the active agent loop if one is running
-        if let Some(token) = self.active_cancellation.lock().await.take() {
-            token.cancel();
-        }
-
-        let event = DomainEvent::new(
+        crate::session::cancel_session(
+            &*self.store,
+            &self.event_tx,
+            &self.active_cancellation,
             workspace_id,
             session_id,
-            AgentId::system(),
-            PrivacyClassification::MinimalTrace,
-            EventPayload::SessionCancelled {
-                reason: "user requested cancellation".into(),
-            },
-        );
-        append_and_broadcast(&*self.store, &self.event_tx, &event).await
+        )
+        .await
     }
 
     async fn get_session_projection(
         &self,
         session_id: SessionId,
     ) -> agent_core::Result<agent_core::projection::SessionProjection> {
-        let events = self
-            .store
-            .load_session(&session_id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        Ok(agent_core::projection::SessionProjection::from_events(
-            &events,
-        ))
+        crate::session::get_session_projection(&*self.store, session_id).await
     }
 
     async fn get_trace(&self, session_id: SessionId) -> agent_core::Result<Vec<TraceEntry>> {
-        let events = self
-            .store
-            .load_session(&session_id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        Ok(events
-            .into_iter()
-            .map(|event| TraceEntry { event })
-            .collect())
+        crate::session::get_trace(&*self.store, session_id).await
     }
 
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
-        let mut rx = self.event_tx.subscribe();
-        Box::pin(async_stream::stream! {
-            loop {
-                match rx.recv().await {
-                    Ok(event) => {
-                        if event.session_id == session_id {
-                            yield event;
-                        }
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        eprintln!("[subscribe_session] Broadcast lagged, skipped {n} events");
-                        continue;
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
-            }
-        })
+        crate::session::subscribe_session(&self.event_tx, session_id)
     }
 
     fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
-        let mut rx = self.event_tx.subscribe();
-        Box::pin(async_stream::stream! {
-            loop {
-                match rx.recv().await {
-                    Ok(event) => yield event,
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        eprintln!("[subscribe_all] Broadcast lagged, skipped {n} events");
-                        continue;
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
-            }
-        })
+        crate::session::subscribe_all(&self.event_tx)
     }
 
     async fn list_workspaces(&self) -> agent_core::Result<Vec<WorkspaceInfo>> {
-        let rows = self
-            .store
-            .list_workspaces()
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        Ok(rows
-            .into_iter()
-            .map(|r| WorkspaceInfo {
-                workspace_id: WorkspaceId::from_string(r.workspace_id),
-                path: r.path,
-            })
-            .collect())
+        crate::session::list_workspaces(&*self.store).await
     }
 
     async fn list_sessions(
         &self,
         workspace_id: &WorkspaceId,
     ) -> agent_core::Result<Vec<agent_core::SessionMeta>> {
-        let rows = self
-            .store
-            .list_active_sessions(&workspace_id.to_string())
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        Ok(rows
-            .into_iter()
-            .map(|r| agent_core::SessionMeta {
-                session_id: SessionId::from_string(r.session_id),
-                workspace_id: WorkspaceId::from_string(r.workspace_id),
-                title: r.title,
-                model_profile: r.model_profile,
-                model_id: r.model_id,
-                provider: r.provider,
-                deleted_at: r.deleted_at,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
-            })
-            .collect())
+        crate::session::list_sessions(&*self.store, workspace_id).await
     }
 
     async fn rename_session(
@@ -1447,52 +1325,25 @@ where
         session_id: &SessionId,
         title: String,
     ) -> agent_core::Result<()> {
-        self.store
-            .rename_session(&session_id.to_string(), &title)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+        crate::session::rename_session(&*self.store, session_id, title).await
     }
 
     async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
-        self.store
-            .soft_delete_session(&session_id.to_string())
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+        crate::session::soft_delete_session(&*self.store, session_id).await
     }
 
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,
     ) -> agent_core::Result<usize> {
-        self.store
-            .cleanup_expired_sessions(older_than)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+        crate::session::cleanup_expired_sessions(&*self.store, older_than).await
     }
 
     async fn get_task_graph(
         &self,
         session_id: SessionId,
     ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
-        let graphs = self.task_graphs.lock().await;
-        match graphs.get(&session_id.to_string()) {
-            Some(graph) => {
-                let tasks = graph
-                    .snapshot()
-                    .into_iter()
-                    .map(|t| agent_core::facade::TaskSnapshot {
-                        id: t.id,
-                        title: t.title,
-                        role: t.role,
-                        state: t.state,
-                        dependencies: t.dependencies,
-                        error: t.error,
-                    })
-                    .collect();
-                Ok(agent_core::TaskGraphSnapshot { tasks })
-            }
-            None => Ok(agent_core::TaskGraphSnapshot::default()),
-        }
+        crate::session::get_task_graph(&self.task_graphs, session_id).await
     }
 }
 
