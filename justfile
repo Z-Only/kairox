@@ -89,9 +89,12 @@ bump-version version:
 
 # Create a git worktree for isolated branch development
 worktree name:
-    git worktree add ../kairox-{{ name }} -b {{ name }} main
-    cd ../kairox-{{ name }} && pnpm install
-    @echo "✅ Worktree created at ../kairox-{{ name }}"
+    @safe_name="$(printf '%s' '{{ name }}' | sed 's#[^A-Za-z0-9._-]#-#g')" ; \
+        mkdir -p .worktrees ; \
+        git check-ignore -q .worktrees || { echo "❌ .worktrees/ must be ignored before creating worktrees"; exit 1; } ; \
+        git worktree add ".worktrees/$safe_name" -b "{{ name }}" main ; \
+        cd ".worktrees/$safe_name" && pnpm install ; \
+        echo "✅ Worktree created at .worktrees/$safe_name for branch {{ name }}"
 
 # ─── Type sync check ──────────────────────────────────────────
 
