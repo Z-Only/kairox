@@ -229,46 +229,104 @@ jobs:
           out-file-path: dist
 
       - name: Generate latest.json for Tauri updater
+        shell: bash
         run: |
+          set -euo pipefail
+
           TAG="${GITHUB_REF_NAME}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Collect signature files into a map by platform key
+          # Collect signature files and download URLs into maps keyed by
+          # the Tauri updater platform identifier
+          # (`darwin-aarch64`, `darwin-x86_64`, `linux-x86_64`,
+          # `linux-aarch64`, `windows-x86_64`, ...).
+          #
+          # IMPORTANT: both associative arrays MUST be declared with
+          # `declare -A` before any subscripted assignment, otherwise
+          # `URL_MAP["key"]=...` becomes an indexed-array access with a
+          # non-numeric subscript and aborts the step under `set -e`.
           declare -A SIG_MAP
+          declare -A URL_MAP
+
+          # Tauri's actual artifact naming uses different arch tokens per
+          # platform (e.g. `_linux_amd64.AppImage`, `_windows_x64.msi`,
+          # `_darwin_aarch64.dmg`). The previous regex `aarch64|x86_64`
+          # didn't match `amd64` / `x64`, and combined with `set -e` the
+          # failed `grep` in `arch=$(... | grep ...)` aborted the whole
+          # step before the `[ -z "$arch" ]` fallback could run.
+          # We now extract any known arch token, allow `grep` to fail
+          # gracefully via `|| true`, then normalize to the Tauri updater
+          # convention.
+          normalize_arch() {
+            case "$1" in
+              aarch64|arm64) echo "aarch64" ;;
+              x86_64|amd64|x64) echo "x86_64" ;;
+              i686|x86) echo "i686" ;;
+              *) echo "" ;;
+            esac
+          }
 
           for sig in dist/*.sig; do
             [ -f "$sig" ] || continue
             base=$(basename "$sig" .sig)
             sig_content=$(cat "$sig")
 
-            # Match platform+arch from the filename.
-            # Tauri artifacts follow pattern: Kairox_${TAG}_[platform]_[arch][ext].sig
-            # e.g. Kairox_v0.16.0_macos_aarch64.dmg.sig
-            if echo "$base" | grep -q "_macos_"; then
-              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
-              [ -z "$arch" ] && arch="aarch64"
-              platform_key="darwin-${arch}"
+            # Match platform from the filename.
+            # Tauri artifacts follow pattern:
+            # Kairox_${TAG}_[platform]_[arch][ext].sig
+            # e.g. Kairox_v0.16.0_darwin_aarch64.dmg.sig
+            #      Kairox_v0.16.0_linux_amd64.AppImage.sig
+            #      Kairox_v0.16.0_windows_x64.msi.sig
+            if echo "$base" | grep -q "_darwin_\|_macos_"; then
+              platform_prefix="darwin"
+              default_arch="aarch64"
             elif echo "$base" | grep -q "_linux_"; then
-              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
-              [ -z "$arch" ] && arch="x86_64"
-              platform_key="linux-${arch}"
+              platform_prefix="linux"
+              default_arch="x86_64"
             elif echo "$base" | grep -q "_windows_"; then
-              arch=$(echo "$base" | grep -oP 'aarch64|x86_64')
-              [ -z "$arch" ] && arch="x86_64"
-              platform_key="windows-${arch}"
+              platform_prefix="windows"
+              default_arch="x86_64"
             else
+              continue
+            fi
+
+            # Skip RPM signatures: there is no AppImage-equivalent Tauri
+            # updater target for `.rpm`, and on x86_64 it would collide
+            # with the `.AppImage` entry under the same `linux-x86_64`
+            # key, overwriting whichever runs last.
+            case "$base" in
+              *.rpm) continue ;;
+            esac
+
+            # Extract arch token; tolerate non-match under `set -e`.
+            raw_arch=$(echo "$base" | grep -oE 'aarch64|arm64|x86_64|amd64|x64|i686|x86' || true)
+            arch=$(normalize_arch "$raw_arch")
+            [ -z "$arch" ] && arch="$default_arch"
+
+            platform_key="${platform_prefix}-${arch}"
+
+            # If multiple bundle types share the same platform key
+            # (e.g. `.AppImage` and `.deb` both map to `linux-x86_64`),
+            # prefer the first one we see and skip duplicates so the
+            # updater manifest stays deterministic.
+            if [ -n "${SIG_MAP[$platform_key]:-}" ]; then
+              echo "skip duplicate platform key '${platform_key}' for ${base}" >&2
               continue
             fi
 
             SIG_MAP["${platform_key}"]="${sig_content}"
 
-            # Find the corresponding asset URL
-            asset_ext="${base##*.}"
             asset_name="${base%.sig}"
             # GitHub release download URL pattern
             asset_url="https://github.com/Z-Only/kairox/releases/download/${TAG}/${asset_name}"
             URL_MAP["${platform_key}"]="${asset_url}"
           done
+
+          if [ "${#SIG_MAP[@]}" -eq 0 ]; then
+            echo "::error::No .sig files found in dist/, cannot build latest.json" >&2
+            ls -la dist/ >&2 || true
+            exit 1
+          fi
 
           # Build the JSON
           echo "{" > dist/latest.json
