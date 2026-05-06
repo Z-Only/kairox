@@ -56,6 +56,10 @@ impl SessionProjection {
                     state: TaskState::Pending,
                     dependencies: dependencies.clone(),
                     error: None,
+                    retry_count: 0,
+                    max_retries: 0,
+                    assigned_agent_id: None,
+                    failure_reason: None,
                 });
             }
             EventPayload::AgentTaskStarted { task_id } => {
@@ -78,7 +82,65 @@ impl SessionProjection {
             EventPayload::SessionInitialized { .. } => {
                 // Session metadata event — no projection state change needed
             }
-            _ => {}
+            EventPayload::TaskDecomposed { .. } => {
+                // Planner decomposed a task into sub-tasks — handled via individual
+                // AgentTaskCreated/AgentTaskStarted events emitted for each sub-task.
+            }
+            EventPayload::TaskBlocked {
+                task_id,
+                blocking_task_id: _,
+                reason,
+            } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Blocked;
+                    t.error = Some(reason.clone());
+                }
+            }
+            EventPayload::AgentSpawned {
+                agent_id,
+                role: _,
+                task_id,
+            } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.assigned_agent_id = Some(agent_id.clone());
+                }
+            }
+            EventPayload::AgentIdle { .. } => {
+                // Agent finished work — no projection state change needed
+            }
+            EventPayload::TaskRetried { task_id, attempt } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Pending;
+                    t.retry_count = *attempt;
+                    t.error = None;
+                    t.failure_reason = None;
+                }
+            }
+            // Events not relevant to session projection
+            EventPayload::WorkspaceOpened { .. }
+            | EventPayload::ContextAssembled { .. }
+            | EventPayload::ModelRequestStarted { .. }
+            | EventPayload::ModelToolCallRequested { .. }
+            | EventPayload::PermissionRequested { .. }
+            | EventPayload::PermissionGranted { .. }
+            | EventPayload::PermissionDenied { .. }
+            | EventPayload::ToolInvocationStarted { .. }
+            | EventPayload::ToolInvocationCompleted { .. }
+            | EventPayload::ToolInvocationFailed { .. }
+            | EventPayload::FilePatchProposed { .. }
+            | EventPayload::FilePatchApplied { .. }
+            | EventPayload::MemoryProposed { .. }
+            | EventPayload::MemoryAccepted { .. }
+            | EventPayload::MemoryRejected { .. }
+            | EventPayload::ReviewerFindingAdded { .. }
+            | EventPayload::McpServerStarting { .. }
+            | EventPayload::McpServerReady { .. }
+            | EventPayload::McpServerStopped { .. }
+            | EventPayload::McpServerFailed { .. }
+            | EventPayload::McpToolCallStarted { .. }
+            | EventPayload::McpToolCallCompleted { .. }
+            | EventPayload::McpTrustGranted { .. }
+            | EventPayload::McpTrustRevoked { .. } => {}
         }
     }
 
