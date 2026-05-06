@@ -168,8 +168,6 @@ jobs:
       - name: Upload Playwright report
         uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           name: playwright-report
           path: apps/agent-gui/playwright-report/
