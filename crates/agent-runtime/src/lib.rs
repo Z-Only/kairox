@@ -4,6 +4,7 @@ pub(crate) mod catalog_sink;
 pub mod dag_executor;
 pub mod event_emitter;
 pub mod facade_runtime;
+pub(crate) mod marketplace_toml;
 pub mod mcp_manager;
 pub mod memory_handler;
 pub mod permission;
