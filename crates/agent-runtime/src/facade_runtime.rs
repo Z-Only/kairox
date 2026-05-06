@@ -13,8 +13,7 @@ use agent_memory::{
 use agent_models::{ModelClient, ModelEvent, ModelRequest, ToolCall};
 use agent_store::EventStore;
 use agent_tools::{
-    BuiltinProvider, PermissionEngine, PermissionMode, PermissionOutcome, ToolInvocation,
-    ToolProvider, ToolRegistry,
+    BuiltinProvider, PermissionEngine, PermissionMode, ToolInvocation, ToolProvider, ToolRegistry,
 };
 use async_trait::async_trait;
 use futures::stream::BoxStream;
@@ -308,10 +307,7 @@ impl<S, M> LocalRuntime<S, M> {
         request_id: &str,
         decision: PermissionDecision,
     ) -> agent_core::Result<()> {
-        if let Some(tx) = self.pending_permissions.lock().await.remove(request_id) {
-            let _ = tx.send(decision);
-        }
-        Ok(())
+        crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
     }
 }
 
@@ -950,88 +946,22 @@ where
                     agent_tools::ToolRisk::read(&tc.name)
                 };
 
-                let permission_outcome = self.permission_engine.lock().await.decide(&risk);
-                let (permission_event, should_execute) = match &permission_outcome {
-                    PermissionOutcome::Allowed => (
-                        DomainEvent::new(
-                            request.workspace_id.clone(),
-                            request.session_id.clone(),
-                            AgentId::system(),
-                            PrivacyClassification::FullTrace,
-                            EventPayload::PermissionGranted {
-                                request_id: tc.id.clone(),
-                            },
-                        ),
-                        true,
-                    ),
-                    PermissionOutcome::Denied(reason) => (
-                        DomainEvent::new(
-                            request.workspace_id.clone(),
-                            request.session_id.clone(),
-                            AgentId::system(),
-                            PrivacyClassification::FullTrace,
-                            EventPayload::PermissionDenied {
-                                request_id: tc.id.clone(),
-                                reason: reason.clone(),
-                            },
-                        ),
-                        false,
-                    ),
-                    PermissionOutcome::RequiresApproval
-                    | PermissionOutcome::Pending
-                    | PermissionOutcome::PromptWithTrust => {
-                        // Emit PermissionRequested so the UI can show a prompt,
-                        // then wait for the user's decision via resolve_permission.
-                        let preview = format!("{}({})", tc.name, tc.arguments);
-                        let request_event = DomainEvent::new(
-                            request.workspace_id.clone(),
-                            request.session_id.clone(),
-                            AgentId::system(),
-                            PrivacyClassification::FullTrace,
-                            EventPayload::PermissionRequested {
-                                request_id: tc.id.clone(),
-                                tool_id: tc.name.clone(),
-                                preview,
-                            },
-                        );
-                        append_and_broadcast(&*self.store, &self.event_tx, &request_event).await?;
-
-                        // Wait for the user to resolve the permission request
-                        let (tx, rx) = tokio::sync::oneshot::channel();
-                        self.pending_permissions
-                            .lock()
-                            .await
-                            .insert(tc.id.clone(), tx);
-
-                        let decision = rx.await;
-                        let approved =
-                            matches!(decision, Ok(PermissionDecision { approve: true, .. }));
-
-                        let result_event = if approved {
-                            DomainEvent::new(
-                                request.workspace_id.clone(),
-                                request.session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::PermissionGranted {
-                                    request_id: tc.id.clone(),
-                                },
-                            )
-                        } else {
-                            DomainEvent::new(
-                                request.workspace_id.clone(),
-                                request.session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::PermissionDenied {
-                                    request_id: tc.id.clone(),
-                                    reason: "denied by user".into(),
-                                },
-                            )
-                        };
-                        (result_event, approved)
-                    }
-                };
+                let preview = format!("{}({})", tc.name, tc.arguments);
+                let perm_result = crate::permission::check_tool_permission(
+                    &*self.store,
+                    &self.event_tx,
+                    &self.permission_engine,
+                    &self.pending_permissions,
+                    &request.workspace_id,
+                    &request.session_id,
+                    &tc.id,
+                    &tc.name,
+                    &preview,
+                    &risk,
+                )
+                .await?;
+                let permission_event = perm_result.event;
+                let should_execute = perm_result.should_execute;
                 append_and_broadcast(&*self.store, &self.event_tx, &permission_event).await?;
 
                 if should_execute {
