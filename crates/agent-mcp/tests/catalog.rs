@@ -1,9 +1,11 @@
+use agent_mcp::catalog::aggregate::AggregateCatalogProvider;
 use agent_mcp::catalog::builtin::BuiltinCatalogProvider;
 use agent_mcp::catalog::{
     CatalogProvider, CatalogQuery, EnvVarSpec, InstallSpec, RuntimeKind, RuntimeRequirement,
     ServerEntry, TrustLevel,
 };
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 #[test]
 fn server_entry_round_trips_through_json() {
@@ -129,4 +131,37 @@ async fn builtin_provider_get_returns_none_for_unknown() {
     let p = BuiltinCatalogProvider::new().unwrap();
     assert!(p.get("does-not-exist").await.unwrap().is_none());
     assert!(p.get("filesystem").await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn aggregate_dedupes_by_source_and_id_and_orders_by_trust() {
+    let p1: Arc<dyn CatalogProvider> = Arc::new(BuiltinCatalogProvider::new().unwrap());
+    let p2: Arc<dyn CatalogProvider> = Arc::new(BuiltinCatalogProvider::new().unwrap());
+    // Two providers with the same source+id should not produce duplicates.
+    let agg = AggregateCatalogProvider::new(vec![p1, p2]);
+    let items = agg.list(&CatalogQuery::default()).await.unwrap();
+    let mut ids = items
+        .iter()
+        .map(|e| (e.source.clone(), e.id.clone()))
+        .collect::<Vec<_>>();
+    ids.sort();
+    let dedup_len = {
+        let mut copy = ids.clone();
+        copy.dedup();
+        copy.len()
+    };
+    assert_eq!(dedup_len, ids.len(), "no duplicates expected");
+    // Ordering: trust desc, then display_name asc.
+    let trusts: Vec<_> = items.iter().map(|e| e.trust).collect();
+    let mut sorted = trusts.clone();
+    sorted.sort_by(|a, b| b.cmp(a));
+    assert_eq!(trusts, sorted);
+}
+
+#[tokio::test]
+async fn aggregate_get_returns_first_match() {
+    let p: Arc<dyn CatalogProvider> = Arc::new(BuiltinCatalogProvider::new().unwrap());
+    let agg = AggregateCatalogProvider::new(vec![p]);
+    assert!(agg.get("filesystem").await.unwrap().is_some());
+    assert!(agg.get("nope").await.unwrap().is_none());
 }
