@@ -20,7 +20,7 @@
 | agent-models  | LLM adapters (OpenAI, Anthropic, Ollama) | `ModelClient`                      |
 | agent-tools   | Tool registry & permissions              | `ToolRegistry`, `PermissionEngine` |
 | agent-config  | TOML config, profile discovery           | `ProfileDef`                       |
-| agent-runtime | Orchestrates agent loop                  | `LocalRuntime<S,M>`                |
+| agent-runtime | Orchestrates agent loop, DAG execution   | `LocalRuntime<S,M>`, `DagExecutor` |
 | agent-tui     | Terminal UI (ratatui)                    | `App`                              |
 | agent-gui     | Desktop app (Tauri + Vue), sessions      | `commands.rs` → Pinia stores       |
 

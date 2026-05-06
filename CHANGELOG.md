@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-05-06
+
+### 🚀 Features
+
+- **tools,runtime**: add JSON Schema parameters to tools and CancellationToken for streaming cancellation (#48)
+- **runtime**: implement Phase 2 DAG execution + AgentStrategy (#51)
+- **gui**: add agent attribution, N-level task tree, and DAG event handling (#54)
+
+### 🐛 Bug Fixes
+
+- **ci**: suppress CI warnings for v-html ESLint rule and Node.js 20 deprecation (#49)
+
+### 📚 Documentation
+
+- standardize worktree convention (#53)
+
+### 🧹 Refactor
+
+- **runtime**: extract facade_runtime into focused modules (Phase 1) (#50)
+
+### 🎨 Styling
+
+- refresh brand assets (#52)
+
 ## [0.14.0] - 2026-05-05
 
 ### 🚀 Features
