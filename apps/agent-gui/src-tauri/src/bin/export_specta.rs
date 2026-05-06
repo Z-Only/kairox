@@ -6,9 +6,11 @@
 
 use agent_config::ProfileInfo;
 use agent_gui_tauri::commands::{
-    BuildInfoResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
+    AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
+    CatalogSourceViewResponse, InstallOutcomeResponse, InstallRequestPayload,
+    InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
     McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse, ProfileDetailResponse,
-    SessionInfoResponse, TaskSnapshotResponse, WorkspaceInfoResponse,
+    ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -53,6 +55,18 @@ fn main() {
             agent_gui_tauri::commands::list_mcp_resources,
             agent_gui_tauri::commands::list_mcp_prompts,
             agent_gui_tauri::commands::read_mcp_resource,
+            // Marketplace commands
+            agent_gui_tauri::commands::list_catalog,
+            agent_gui_tauri::commands::get_catalog_entry,
+            agent_gui_tauri::commands::refresh_catalog,
+            agent_gui_tauri::commands::install_catalog_entry,
+            agent_gui_tauri::commands::uninstall_catalog_entry,
+            agent_gui_tauri::commands::list_installed_entries,
+            // Phase 2: catalog source commands
+            agent_gui_tauri::commands::list_catalog_sources,
+            agent_gui_tauri::commands::add_catalog_source,
+            agent_gui_tauri::commands::remove_catalog_source,
+            agent_gui_tauri::commands::set_catalog_source_enabled,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
@@ -67,7 +81,16 @@ fn main() {
         .typ::<McpResourceDefResponse>()
         .typ::<McpPromptDefResponse>()
         .typ::<McpContentBlockResponse>()
-        .typ::<McpServerStatus>();
+        .typ::<McpServerStatus>()
+        // Marketplace request/response types
+        .typ::<CatalogQueryRequest>()
+        .typ::<ServerEntryResponse>()
+        .typ::<InstallRequestPayload>()
+        .typ::<InstallOutcomeResponse>()
+        .typ::<InstalledEntryResponse>()
+        // Phase 2: catalog source types
+        .typ::<CatalogSourceViewResponse>()
+        .typ::<AddCatalogSourceRequestPayload>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)
