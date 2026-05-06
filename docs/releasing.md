@@ -65,11 +65,12 @@ git push origin vX.Y.Z -f
 
 ## GitHub Actions behavior
 
-- **CI** runs on pushes to `main` and on pull requests (7 parallel jobs: format, clippy, lint-web, test, type-sync, build-tui, build-gui)
-- **Release Build** runs on `v*` tags
+- **CI** (`ci.yml`) runs on pushes to `main` and on pull requests, in parallel jobs: format check, clippy, web lint (eslint + stylelint), cargo test, type-sync (specta), TUI build, GUI web build, and Playwright E2E test job
+- **Release Build** (`release-build.yml`) runs on `v*` tags
 - Release Build uses git-cliff to generate categorized release notes from conventional commits
 - Release Build creates or updates the GitHub Release entry with git-cliff generated notes
-- Release Build uploads TUI packages and Tauri desktop bundles as release assets
+- Release Build uploads TUI binaries (with SHA256 checksums) and Tauri desktop bundles for macOS, Linux, and Windows as release assets
+- **Dependabot Auto Merge** automatically merges passing Dependabot PRs for npm, Cargo, and GitHub Actions dependency updates
 
 ## git-cliff configuration
 
@@ -84,6 +85,7 @@ The changelog format is defined in `cliff.toml` at the repo root. Commits are gr
 | Testing       | `test`          |
 | Refactor      | `refactor`      |
 | Styling       | `style`         |
+| CI            | `ci`            |
 | Dependencies  | `chore(deps)`   |
 | Miscellaneous | `chore` (other) |
 
