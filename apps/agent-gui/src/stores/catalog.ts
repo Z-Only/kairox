@@ -48,10 +48,6 @@ export const catalogState = reactive<CatalogState>(initial());
 /** Reset all catalog state. Used in tests. */
 export function resetCatalogState(): void {
   Object.assign(catalogState, initial());
-  // re-assign nested reactive objects so reactivity is preserved
-  catalogState.installState = {};
-  catalogState.entries = [];
-  catalogState.installed = [];
 }
 
 const TRUST_ORDER: Record<TrustLevel, number> = {
@@ -121,35 +117,57 @@ export async function getCatalogEntry(
   id: string,
   source?: string | null
 ): Promise<ServerEntryResponse | null> {
-  return await invoke<ServerEntryResponse | null>("get_catalog_entry", {
-    id,
-    source: source ?? null
-  });
+  try {
+    return await invoke<ServerEntryResponse | null>("get_catalog_entry", {
+      id,
+      source: source ?? null
+    });
+  } catch (e) {
+    console.error("Failed to get catalog entry:", e);
+    addNotification("error", `Failed to load catalog entry ${id}: ${e}`);
+    return null;
+  }
 }
 
 export async function installEntry(
   request: InstallRequestPayload
-): Promise<InstallOutcomeResponse> {
-  const outcome = await invoke<InstallOutcomeResponse>(
-    "install_catalog_entry",
-    { request }
-  );
-  catalogState.installState[request.catalog_id] = outcome;
-  if (outcome.kind === "installed") {
-    await fetchInstalled();
+): Promise<InstallOutcomeResponse | null> {
+  try {
+    const outcome = await invoke<InstallOutcomeResponse>(
+      "install_catalog_entry",
+      { request }
+    );
+    catalogState.installState[request.catalog_id] = outcome;
+    if (outcome.kind === "installed") {
+      await fetchInstalled();
+    }
+    return outcome;
+  } catch (e) {
+    console.error("Failed to install catalog entry:", e);
+    addNotification("error", `Failed to install ${request.catalog_id}: ${e}`);
+    return null;
   }
-  return outcome;
 }
 
 export async function uninstallEntry(serverId: string): Promise<void> {
-  await invoke("uninstall_catalog_entry", { serverId });
-  delete catalogState.installState[serverId];
-  await fetchInstalled();
+  try {
+    await invoke("uninstall_catalog_entry", { serverId });
+    delete catalogState.installState[serverId];
+    await fetchInstalled();
+  } catch (e) {
+    console.error("Failed to uninstall catalog entry:", e);
+    addNotification("error", `Failed to uninstall ${serverId}: ${e}`);
+  }
 }
 
 export async function refreshCatalogSource(
   source: string | null = null
 ): Promise<void> {
-  await invoke("refresh_catalog", { source });
-  await fetchCatalog();
+  try {
+    await invoke("refresh_catalog", { source });
+    await fetchCatalog();
+  } catch (e) {
+    console.error("Failed to refresh catalog source:", e);
+    addNotification("error", `Failed to refresh catalog: ${e}`);
+  }
 }
