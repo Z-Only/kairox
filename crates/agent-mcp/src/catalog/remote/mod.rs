@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub mod http_cache;
 pub mod http_client;
 pub mod kairox_json;
+pub mod smithery;
 
 /// Which adapter implementation should back a remote catalog source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
