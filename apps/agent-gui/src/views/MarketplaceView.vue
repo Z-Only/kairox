@@ -5,6 +5,7 @@ import { NCard, NTabs, NTabPane, NButton, NTag, NIcon } from "naive-ui";
 import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "@/components/marketplace/CatalogList.vue";
 import InstalledList from "@/components/marketplace/InstalledList.vue";
+import InstallProgress from "@/components/marketplace/InstallProgress.vue";
 import CatalogSourcesSettings from "@/components/CatalogSourcesSettings.vue";
 
 const catalog = useCatalogStore();
@@ -59,7 +60,7 @@ onMounted(() => {
             :type="catalog.isSourceSelected(chip.id) ? 'primary' : 'default'"
             size="small"
             round
-            class="chip"
+            :class="['chip', { active: catalog.isSourceSelected(chip.id) }]"
             @click="catalog.toggleSource(chip.id)"
           >
             {{ chip.display_name }}
@@ -112,6 +113,16 @@ onMounted(() => {
         <InstalledList />
       </NTabPane>
     </NTabs>
+
+    <!-- InstallProgress is hosted at view level (instead of inside
+         CatalogDetail's NDrawer) so dismissing the drawer mid-install does
+         not unmount the in-flight progress modal. The store owns the
+         currentInstallEntryId flag triggered from CatalogDetail.onInstall. -->
+    <InstallProgress
+      v-if="catalog.currentInstallEntryId"
+      :catalog-id="catalog.currentInstallEntryId"
+      @close="catalog.dismissInstallProgress()"
+    />
   </NCard>
 </template>
 

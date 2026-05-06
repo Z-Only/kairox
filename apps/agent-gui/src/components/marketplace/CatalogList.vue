@@ -34,10 +34,11 @@ onMounted(async () => {
 <template>
   <div class="catalog-list">
     <div class="filters">
-      <!-- The original test suite drives filters via [data-test="catalog-search"]
-           and [data-test="catalog-trust"]; data-test attributes are passed
-           down into the underlying <input>/<select> via NaiveUI's
-           input-props/select-props for parity. -->
+      <!-- Filter inputs expose data-test hooks for the existing test suite.
+           NInput passes data-test through to its underlying <input> via
+           input-props; NSelect attaches data-test to its root element so
+           component tests can locate it with findComponent({name:'NSelect'})
+           or selectors targeting [data-test="catalog-trust"]. -->
       <NInput
         v-model:value="catalog.filters.keyword"
         placeholder="Search servers…"
@@ -53,20 +54,8 @@ onMounted(async () => {
         class="filter-trust"
         :consistent-menu-width="false"
         placeholder="All trust levels"
-      >
-        <!-- A hidden <select data-test="catalog-trust"> is preserved purely
-             for the existing component test, which currently uses a raw
-             selector rather than driving NSelect through findComponent. -->
-      </NSelect>
-      <select
-        v-model="catalog.filters.trustMin"
         data-test="catalog-trust"
-        hidden
-      >
-        <option :value="null">All trust levels</option>
-        <option value="verified">Verified+</option>
-        <option value="community">Community+</option>
-      </select>
+      />
       <NButton
         size="small"
         data-test="catalog-refresh"

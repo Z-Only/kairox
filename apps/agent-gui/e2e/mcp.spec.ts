@@ -46,8 +46,10 @@ test.describe("MCP Server Management", () => {
     const manager = page.locator(".mcp-manager");
     await expect(manager).toBeVisible();
 
-    const closeButton = page.locator(".mcp-manager-header button");
-    await closeButton.click();
+    // The manager moved to NCard's `header-extra` slot; the close button is
+    // an NButton with class `.mcp-close-btn` (no longer the legacy
+    // `.mcp-manager-header button` selector).
+    await page.locator(".mcp-close-btn").click();
     await expect(manager).not.toBeVisible();
   });
 });

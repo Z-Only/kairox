@@ -43,6 +43,10 @@ export const useCatalogStore = defineStore("catalog", () => {
   const sources = ref<CatalogSourceViewResponse[]>([]);
   const sourceFailures = ref<Record<string, string>>({});
   const selectedSources = ref<string[] | null>(null);
+  // Catalog id whose install-progress modal is currently visible. Hoisted out
+  // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
+  // the progress modal survives drawer dismissal mid-install. `null` = hidden.
+  const currentInstallEntryId = ref<string | null>(null);
 
   // ── helpers ──────────────────────────────────────────────────────
   function reset(): void {
@@ -56,6 +60,15 @@ export const useCatalogStore = defineStore("catalog", () => {
     sources.value = [];
     sourceFailures.value = {};
     selectedSources.value = null;
+    currentInstallEntryId.value = null;
+  }
+
+  function requestInstallProgress(entryId: string): void {
+    currentInstallEntryId.value = entryId;
+  }
+
+  function dismissInstallProgress(): void {
+    currentInstallEntryId.value = null;
   }
 
   // ── computeds ────────────────────────────────────────────────────
@@ -267,6 +280,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     sources,
     sourceFailures,
     selectedSources,
+    currentInstallEntryId,
     // computeds
     filteredEntries,
     hasEntries,
@@ -278,6 +292,8 @@ export const useCatalogStore = defineStore("catalog", () => {
     isSourceSelected,
     toggleSource,
     handleSourceFailed,
+    requestInstallProgress,
+    dismissInstallProgress,
     // actions
     fetchCatalog,
     fetchInstalled,

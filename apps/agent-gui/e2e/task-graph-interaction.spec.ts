@@ -12,26 +12,31 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
+// Selector notes after Task 7 NaiveUI migration: the TraceTimeline tab strip
+// renders NButtons inside `.tab-group`, so `.tab-group button` still selects
+// the Trace/Tasks/Memory toggles. TaskNode preserves all class hooks
+// (`.task-node`, `.task-status`, `.task-role`, `.btn-retry`).
+
 test("task steps panel shows empty state initially", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   await expect(page.locator(".task-steps")).toContainText("No tasks yet");
 });
 
 test("task appears when AgentTaskCreated event fires", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Simulate task creation
   await page.evaluate(() => {
@@ -49,12 +54,12 @@ test("task appears when AgentTaskCreated event fires", async ({ page }) => {
 
 test("task transitions through states", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create a task
   const taskId = await page.evaluate(() => {
@@ -91,12 +96,12 @@ test("task transitions through states", async ({ page }) => {
 
 test("task shows error when it fails", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create and fail a task
   const taskId = await page.evaluate(() => {
@@ -120,12 +125,12 @@ test("task shows error when it fails", async ({ page }) => {
 
 test("N-level task tree shows parent-child relationships", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create a parent task and two child tasks with dependencies
   await page.evaluate(() => {
@@ -146,12 +151,12 @@ test("N-level task tree shows parent-child relationships", async ({ page }) => {
 
 test("blocked task shows blocked state", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create tasks and block one
   await page.evaluate(() => {
@@ -174,12 +179,12 @@ test("blocked task shows blocked state", async ({ page }) => {
 
 test("agent badge shows on task with assigned agent", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create task and spawn an agent for it
   await page.evaluate(() => {

@@ -32,6 +32,13 @@ test.describe("Marketplace", () => {
     await page.getByTestId("catalog-install").click();
     await expect(page.getByTestId("install-progress")).toBeVisible();
     await page.getByTestId("install-close").click();
+    // After Task 8's NIT-1 lift, InstallProgress is hosted on
+    // MarketplaceView (not inside CatalogDetail's NDrawer), so closing the
+    // modal leaves the drawer's `.n-drawer-mask` overlay intercepting clicks
+    // until the drawer itself is dismissed. Press Escape to close the drawer
+    // before clicking the tab header.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".n-drawer-mask")).toHaveCount(0);
     await page.getByTestId("tab-installed").click();
     await expect(page.getByTestId("uninstall-filesystem")).toBeEnabled();
   });
@@ -52,6 +59,11 @@ test.describe("Marketplace", () => {
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await page.getByTestId("install-close").click();
+    // Drawer mask lingers after closing the install-progress modal because
+    // InstallProgress is now hosted at view-level (Task 8 NIT-1 lift). Press
+    // Escape to dismiss the drawer before driving the Installed tab.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".n-drawer-mask")).toHaveCount(0);
     await page.getByTestId("tab-installed").click();
     await page.getByTestId("uninstall-filesystem").click();
     await expect(page.getByTestId("uninstall-filesystem")).toHaveCount(0);

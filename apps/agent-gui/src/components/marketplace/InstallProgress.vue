@@ -47,6 +47,24 @@ const alertType = computed<"info" | "success" | "warning" | "error">(() => {
       return "warning";
   }
 });
+
+// Modal title tracks the outcome.kind so users see the result state in the
+// header rather than a static "Installing…". `inFlight` (no outcome yet)
+// keeps the original copy; success-shaped kinds collapse to one label and
+// failure-shaped kinds to another.
+const modalTitle = computed<string>(() => {
+  if (!outcome.value) return "Installing…";
+  switch (outcome.value.kind) {
+    case "installed":
+    case "already_installed":
+      return "Install complete.";
+    case "runtime_missing":
+    case "invalid_env":
+      return "Install failed";
+    default:
+      return "Installing…";
+  }
+});
 </script>
 
 <template>
@@ -61,7 +79,7 @@ const alertType = computed<"info" | "success" | "warning" | "error">(() => {
     :bordered="true"
     size="small"
     style="width: min(480px, 90vw)"
-    title="Installing…"
+    :title="modalTitle"
     @close="emit('close')"
   >
     <div data-test="install-progress" class="install-progress">

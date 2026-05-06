@@ -14,16 +14,19 @@ test.beforeEach(async ({ page }) => {
 
 test("notification container is not visible when no notifications", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
-  // The notification-container is conditionally rendered (v-if), so it should not exist
-  await expect(page.locator(".notification-container")).toBeHidden();
+  // The legacy `.notification-container` was replaced by NaiveUI's portal-
+  // mounted `.n-message-container` (mounted by NotificationToast.vue under
+  // <NMessageProvider>). When no notifications are pending, NaiveUI does
+  // not render any individual `.n-message` children inside the container.
+  await expect(page.locator(".n-message")).toHaveCount(0);
 });
 
 test("notification toast appears when error is triggered", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -46,10 +49,10 @@ test("notification toast appears when error is triggered", async ({ page }) => {
   });
 
   // More reliable: test that the notification toast renders when populated
-  // by triggering a known error flow
-  // For now, verify the structural component exists
-  const toastEl = await page.locator(".notification-container").count();
-  // If 0, the v-if is false (no notifications). That's expected initially.
+  // by triggering a known error flow. With no actual notifications pushed
+  // through the store, NaiveUI's portal renders no `.n-message` children.
+  const toastEl = await page.locator(".n-message").count();
+  // If 0, the message provider has nothing to render. That's expected initially.
   expect(toastEl).toBe(0);
 });
 

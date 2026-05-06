@@ -22,7 +22,6 @@ import {
   parseDefaultEnv
 } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
-import InstallProgress from "./InstallProgress.vue";
 
 const catalog = useCatalogStore();
 const props = defineProps<{ entry: ServerEntryResponse }>();
@@ -36,7 +35,6 @@ const overrides = ref<Record<string, string>>({});
 // PermissionCenter. Default to false and let the user opt in explicitly.
 const trustGrant = ref(false);
 const autoStart = ref(true);
-const showProgress = ref(false);
 
 // Re-initialise local form state whenever the selected entry changes.
 // Using `watch(..., immediate: true)` instead of `onMounted` so that switching
@@ -52,7 +50,6 @@ watch(
     overrides.value = next;
     trustGrant.value = false;
     autoStart.value = true;
-    showProgress.value = false;
   },
   { immediate: true }
 );
@@ -66,7 +63,9 @@ async function onInstall() {
     trust_grant: trustGrant.value,
     auto_start: autoStart.value
   };
-  showProgress.value = true;
+  // InstallProgress lives on MarketplaceView so closing this drawer (which
+  // unmounts CatalogDetail) does not unmount the in-flight progress modal.
+  catalog.requestInstallProgress(props.entry.id);
   await catalog.installEntry(req);
 }
 
@@ -175,12 +174,6 @@ function onShowUpdate(next: boolean) {
         </NSpace>
       </template>
     </NDrawerContent>
-
-    <InstallProgress
-      v-if="showProgress"
-      :catalog-id="entry.id"
-      @close="showProgress = false"
-    />
   </NDrawer>
 </template>
 
