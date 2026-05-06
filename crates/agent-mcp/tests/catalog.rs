@@ -56,3 +56,35 @@ fn catalog_query_default_is_open() {
     assert!(q.source.is_none());
     assert!(q.limit.is_none());
 }
+
+#[test]
+fn builtin_catalog_json_parses() {
+    const JSON: &str = include_str!("../src/catalog/data/builtin-catalog.json");
+
+    #[derive(serde::Deserialize)]
+    struct Doc {
+        schema_version: String,
+        entries: Vec<agent_mcp::catalog::ServerEntry>,
+    }
+    let doc: Doc = serde_json::from_str(JSON).expect("builtin catalog must be valid JSON");
+    assert_eq!(doc.schema_version, "1");
+    assert_eq!(doc.entries.len(), 24, "expected 24 curated entries");
+
+    let mut seen = std::collections::HashSet::new();
+    for entry in &doc.entries {
+        assert!(seen.insert(entry.id.clone()), "duplicate id: {}", entry.id);
+        assert_eq!(entry.source, "builtin");
+        assert!(!entry.display_name.is_empty());
+        assert!(!entry.summary.is_empty());
+        assert!(
+            !entry.description.is_empty(),
+            "entry {} has empty description",
+            entry.id
+        );
+        assert!(
+            entry.summary.chars().count() <= 200,
+            "summary too long for {}",
+            entry.id
+        );
+    }
+}
