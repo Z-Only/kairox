@@ -186,7 +186,7 @@ just gui-dev      # run the GUI dev server
 just bump-version X.Y.Z  # bump version in all config files
 just check-types  # verify Rust ↔ TypeScript EventPayload sync
 just gen-types    # regenerate Tauri command TypeScript bindings
-just worktree <name>    # create isolated git worktree
+just worktree <branch>  # create .worktrees/<sanitized-branch> and run pnpm install
 ```
 
 Or the underlying pnpm/cargo commands:
@@ -214,6 +214,8 @@ See the [latest release](https://github.com/Z-Only/kairox/releases/latest) for d
 2. Keep commits in Conventional Commit format
 3. Run local checks before pushing
 4. Open a pull request using the provided template
+
+For isolated development, use `just worktree feat/my-feature`. Worktrees are created under the ignored `.worktrees/` directory using a path-safe branch name, for example `.worktrees/feat-my-feature`.
 
 ## Automation
 

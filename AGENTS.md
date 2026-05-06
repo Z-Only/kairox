@@ -202,22 +202,28 @@ For any non-trivial development task (new features, bug fixes, refactors), **alw
 **Quick branch creation with just:**
 
 ```bash
-just worktree feat/my-feature   # creates isolated worktree with pnpm install
+just worktree feat/my-feature   # creates .worktrees/feat-my-feature and runs pnpm install
 ```
 
 Small fixes (typos, trivial one-liners) may be committed directly to `main`, but anything touching more than one file or requiring review should use a branch.
 
 ## Git worktrees
 
-This project uses git worktrees for isolated branch development. After creating a worktree, always run `pnpm install` to set up husky hooks:
+This project uses git worktrees for isolated branch development. Worktrees live under the project-local, ignored `.worktrees/` directory. Keep the git branch name in Conventional Commit form (`feat/my-feature`, `fix/streaming-stuck`, etc.) and use a sanitized directory name where path separators are replaced with `-`:
 
 ```bash
-git worktree add ../kairox-<branch> -b <branch> main
-cd ../kairox-<branch>
+branch=feat/my-feature
+worktree=.worktrees/feat-my-feature
+
+git check-ignore -q .worktrees
+git worktree add "$worktree" -b "$branch" main
+cd "$worktree"
 pnpm install   # triggers prepare.cjs which links husky hooks
 ```
 
-The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.husky` to the worktree's `.husky` directory so that pre-commit and commit-msg hooks fire correctly.
+Prefer `just worktree <branch>` for new worktrees. The recipe creates `.worktrees/<sanitized-branch-name>`, starts the branch from `main`, and runs `pnpm install`.
+
+The `.worktrees/` directory must remain ignored so nested worktree contents are never committed. The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.husky` to the worktree's `.husky` directory so that pre-commit and commit-msg hooks fire correctly.
 
 ## Local verification
 
