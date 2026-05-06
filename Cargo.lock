@@ -138,6 +138,7 @@ dependencies = [
 name = "agent-runtime"
 version = "0.15.0"
 dependencies = [
+ "agent-config",
  "agent-core",
  "agent-mcp",
  "agent-memory",
@@ -156,8 +157,11 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "toml 1.1.2+spec-1.1.0",
+ "toml_edit 0.22.27",
  "tracing",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
