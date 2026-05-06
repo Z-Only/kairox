@@ -5,7 +5,9 @@ import type {
   InstalledEntryResponse,
   InstallOutcomeResponse,
   InstallRequestPayload,
-  CatalogQueryRequest
+  CatalogQueryRequest,
+  CatalogSourceViewResponse,
+  AddCatalogSourceRequestPayload
 } from "../generated/commands";
 import { addNotification } from "../composables/useNotifications";
 
@@ -27,6 +29,9 @@ export interface CatalogState {
   error: string | null;
   tab: CatalogTab;
   filters: CatalogFilters;
+  // Phase 2: catalog sources
+  sources: CatalogSourceViewResponse[];
+  sourceFailures: Record<string, string>;
 }
 
 const initial = (): CatalogState => ({
@@ -40,7 +45,9 @@ const initial = (): CatalogState => ({
     keyword: "",
     category: null,
     trustMin: null
-  }
+  },
+  sources: [],
+  sourceFailures: {}
 });
 
 export const catalogState = reactive<CatalogState>(initial());
@@ -170,4 +177,60 @@ export async function refreshCatalogSource(
     console.error("Failed to refresh catalog source:", e);
     addNotification("error", `Failed to refresh catalog: ${e}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: catalog source CRUD + failure tracking
+// ---------------------------------------------------------------------------
+
+export async function fetchSources(): Promise<void> {
+  try {
+    catalogState.sources = await invoke<CatalogSourceViewResponse[]>(
+      "list_catalog_sources"
+    );
+  } catch (e) {
+    catalogState.error = String(e);
+    addNotification("error", `Failed to load catalog sources: ${e}`);
+  }
+}
+
+export async function addSource(
+  request: AddCatalogSourceRequestPayload
+): Promise<void> {
+  try {
+    await invoke("add_catalog_source", { request });
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to add catalog source:", e);
+    addNotification("error", `Failed to add source ${request.id}: ${e}`);
+  }
+}
+
+export async function removeSource(id: string): Promise<void> {
+  try {
+    await invoke("remove_catalog_source", { id });
+    delete catalogState.sourceFailures[id];
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to remove catalog source:", e);
+    addNotification("error", `Failed to remove source ${id}: ${e}`);
+  }
+}
+
+export async function setSourceEnabled(
+  id: string,
+  enabled: boolean
+): Promise<void> {
+  try {
+    await invoke("set_catalog_source_enabled", { id, enabled });
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to toggle catalog source:", e);
+    addNotification("error", `Failed to toggle source ${id}: ${e}`);
+  }
+}
+
+/** Record a CatalogSourceFailed event payload onto sourceFailures[source]. */
+export function handleSourceFailed(source: string, error: string): void {
+  catalogState.sourceFailures[source] = error;
 }
