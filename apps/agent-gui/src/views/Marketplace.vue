@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
   catalogState,
   fetchSources,
@@ -8,8 +8,10 @@ import {
 } from "../stores/catalog";
 import CatalogList from "../components/marketplace/CatalogList.vue";
 import InstalledList from "../components/marketplace/InstalledList.vue";
+import CatalogSourcesSettings from "../components/CatalogSourcesSettings.vue";
 
 const installedCount = computed(() => catalogState.installed.length);
+const settingsOpen = ref(false);
 
 function setTab(tab: "browse" | "installed") {
   catalogState.tab = tab;
@@ -67,6 +69,22 @@ onMounted(() => {
           >⚠</span
         >
       </button>
+      <button
+        type="button"
+        class="settings-icon"
+        data-test="catalog-source-settings"
+        aria-label="Catalog source settings"
+        @click="settingsOpen = !settingsOpen"
+      >
+        ⚙
+      </button>
+    </div>
+    <div
+      v-if="settingsOpen && catalogState.tab === 'browse'"
+      class="settings-drawer"
+      data-test="catalog-source-settings-drawer"
+    >
+      <CatalogSourcesSettings />
     </div>
     <CatalogList v-if="catalogState.tab === 'browse'" />
     <InstalledList v-else />
@@ -122,5 +140,20 @@ onMounted(() => {
 .warn {
   margin-left: 4px;
   color: #c00;
+}
+.settings-icon {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1em;
+}
+.settings-drawer {
+  padding: 12px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  background: var(--surface, #fafafa);
 }
 </style>

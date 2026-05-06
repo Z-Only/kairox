@@ -105,21 +105,10 @@ const state = {
   ],
   installedCatalog: [],
   catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true },
-  // Phase 2: catalog sources (builtin always present)
-  catalogSources: [
-    {
-      id: "builtin",
-      display_name: "Built-in",
-      kind: "builtin",
-      url: "",
-      api_key_env: null,
-      priority: 0,
-      default_trust: "verified",
-      enabled: true,
-      cache_ttl_seconds: null,
-      last_error: null
-    }
-  ]
+  // Phase 2: catalog sources — only user-configured remote sources are listed here.
+  // The builtin source is implicit (the GUI's source chip bar always renders a
+  // "Built-in" chip in addition to whatever list_catalog_sources returns).
+  catalogSources: []
 };
 
 /* ---- Helpers ---- */

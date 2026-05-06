@@ -72,3 +72,62 @@ test.describe("Marketplace", () => {
     await expect(page.getByTestId("uninstall-filesystem")).toHaveCount(0);
   });
 });
+
+test.describe("Marketplace — Phase 2 remote catalog sources", () => {
+  test("user can add and remove a remote catalog source", async ({ page }) => {
+    // Open the source-settings drawer.
+    await page.getByTestId("catalog-source-settings").click();
+    await expect(
+      page.getByTestId("catalog-source-settings-drawer")
+    ).toBeVisible();
+    await expect(page.getByText("No remote catalog sources")).toBeVisible();
+
+    // Add a new source.
+    await page.getByTestId("add-source-toggle").click();
+    await page.getByTestId("src-id").fill("smithery");
+    await page.getByTestId("src-name").fill("Smithery");
+    await page.getByTestId("src-url").fill("https://registry.smithery.ai");
+    await page.getByTestId("src-save").click();
+
+    // The new chip appears in the marketplace toolbar.
+    await expect(page.getByTestId("source-chip-smithery")).toBeVisible();
+
+    // Remove it via the drawer.
+    await page.getByTestId("src-remove-smithery").click();
+    await expect(page.getByTestId("source-chip-smithery")).toHaveCount(0);
+  });
+
+  test("toggling source chip filters card grid", async ({ page }) => {
+    // Add a remote source so we have a non-builtin chip to deselect.
+    await page.getByTestId("catalog-source-settings").click();
+    await page.getByTestId("add-source-toggle").click();
+    await page.getByTestId("src-id").fill("smithery");
+    await page.getByTestId("src-name").fill("Smithery");
+    await page.getByTestId("src-url").fill("https://registry.smithery.ai");
+    await page.getByTestId("src-save").click();
+
+    // Builtin chip exists and is active by default.
+    const builtin = page.getByTestId("source-chip-builtin");
+    await expect(builtin).toBeVisible();
+    await expect(builtin).toHaveClass(/active/);
+
+    // Deselect builtin → builtin entries should disappear.
+    await builtin.click();
+    await expect(builtin).not.toHaveClass(/active/);
+    await expect(
+      page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })
+    ).toHaveCount(0);
+  });
+
+  test("validates URL when adding a source", async ({ page }) => {
+    await page.getByTestId("catalog-source-settings").click();
+    await page.getByTestId("add-source-toggle").click();
+    await page.getByTestId("src-id").fill("bad");
+    await page.getByTestId("src-name").fill("Bad");
+    await page.getByTestId("src-url").fill("not-a-url");
+    await page.getByTestId("src-save").click();
+    await expect(page.getByText(/url must start with http/i)).toBeVisible();
+    // The chip should NOT have been created.
+    await expect(page.getByTestId("source-chip-bad")).toHaveCount(0);
+  });
+});
