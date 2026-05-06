@@ -1,4 +1,4 @@
-name: CodeQL
+name: "CodeQL Advanced"
 
 on:
   push:
@@ -8,55 +8,47 @@ on:
   schedule:
     - cron: "0 8 * * 1"
 
-permissions:
-  actions: read
-  contents: read
-  security-events: write
-
 env:
   # Keep file coverage information on PR analyses (opt out of April 2026 change)
   CODEQL_ACTION_FILE_COVERAGE_ON_PRS: true
 
 jobs:
-  analyze-actions:
-    name: Analyze (actions)
+  analyze:
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: rust
+            build-mode: none
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v5
-        with:
-          languages: actions
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v5
-        with:
-          category: "/language:actions"
-
-  analyze-rust:
-    name: Analyze (rust)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
-    steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Setup Rust
+        if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
+        if: matrix.language == 'rust'
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
       - name: Install Linux system deps for Tauri crates
+        if: matrix.language == 'rust'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -68,14 +60,12 @@ jobs:
             patchelf
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v5
+        uses: github/codeql-action/init@v6
         with:
-          languages: rust
-
-      - name: Build
-        run: cargo build --workspace
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v5
+        uses: github/codeql-action/analyze@v6
         with:
-          category: "/language:rust"
+          category: "/language:${{matrix.language}}"
