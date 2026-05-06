@@ -9,6 +9,7 @@ use crate::catalog::{CatalogError, TrustLevel};
 use serde::{Deserialize, Serialize};
 
 pub mod http_cache;
+pub mod http_client;
 
 /// Which adapter implementation should back a remote catalog source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
