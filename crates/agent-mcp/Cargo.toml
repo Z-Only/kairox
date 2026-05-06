@@ -8,6 +8,7 @@ license.workspace = true
 default = ["sse"]
 sse = ["reqwest", "eventsource-stream"]
 specta = ["dep:specta"]
+remote-catalog = ["reqwest"]
 
 [dependencies]
 agent-core = { path = "../agent-core" }

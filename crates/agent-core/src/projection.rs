@@ -145,7 +145,9 @@ impl SessionProjection {
             | EventPayload::CatalogEntryInstalling { .. }
             | EventPayload::CatalogEntryInstalled { .. }
             | EventPayload::CatalogEntryUninstalled { .. }
-            | EventPayload::CatalogRuntimeMissing { .. } => {}
+            | EventPayload::CatalogRuntimeMissing { .. }
+            | EventPayload::CatalogSourceAdded { .. }
+            | EventPayload::CatalogSourceFailed { .. } => {}
         }
     }
 

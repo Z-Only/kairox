@@ -50,6 +50,11 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             install_catalog_entry,
             uninstall_catalog_entry,
             list_installed_entries,
+            // Phase 2: catalog source commands
+            list_catalog_sources,
+            add_catalog_source,
+            remove_catalog_source,
+            set_catalog_source_enabled,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
@@ -70,6 +75,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<InstallRequestPayload>()
         .typ::<InstallOutcomeResponse>()
         .typ::<InstalledEntryResponse>()
+        // Phase 2: catalog source types
+        .typ::<CatalogSourceViewResponse>()
+        .typ::<AddCatalogSourceRequestPayload>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()

@@ -2,8 +2,8 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::{
-    AgentId, AgentStatusInfo, AppFacade, CatalogQuery as CoreCatalogQuery, DomainEvent,
-    EventPayload, InstallOutcomeView as CoreInstallOutcomeView,
+    AddCatalogSourceRequest, AgentId, AgentStatusInfo, AppFacade, CatalogQuery as CoreCatalogQuery,
+    CatalogSourceView, DomainEvent, EventPayload, InstallOutcomeView as CoreInstallOutcomeView,
     InstallRequest as CoreInstallRequest, InstalledEntry as CoreInstalledEntry, PermissionDecision,
     PrivacyClassification, SendMessageRequest, ServerEntry as CoreServerEntry, SessionId,
     StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
@@ -12,6 +12,12 @@ use agent_mcp::catalog::{
     AggregateCatalogProvider, BuiltinCatalogProvider, CatalogProvider, CatalogQuery,
     InstallRequest as McpInstallRequest, InstallSpec, ServerEntry, TrustLevel,
 };
+use agent_mcp::{
+    build_remote_catalog_provider, HttpResponseCache, RemoteSourceConfig, RemoteSourceKind,
+    SharedHttpClient,
+};
+
+use crate::catalog_sink::CatalogEventSink;
 use agent_mcp::installer::{InstallOutcomeView, Installer, OsRuntimeProbe};
 use agent_mcp::types::{McpServerDef, McpTransportDef};
 use agent_memory::{ContextAssembler, MemoryStore};
@@ -61,6 +67,16 @@ where
     /// Installer for marketplace entries. `None` when the marketplace has not
     /// been wired via [`Self::with_marketplace`].
     installer: Option<Arc<Installer>>,
+    /// Phase 2: directory containing `mcp_servers.toml` (used for atomic
+    /// catalog source mutations + reloads). `None` when no marketplace has
+    /// been wired.
+    marketplace_dir: Option<PathBuf>,
+    /// Phase 2: concrete handle to the aggregate provider for `reload`
+    /// after toml mutations. `None` when no marketplace has been wired.
+    aggregate_handle: Option<Arc<AggregateCatalogProvider>>,
+    /// Phase 2: shared HTTP client + cache for remote catalog providers.
+    catalog_http: Option<SharedHttpClient>,
+    catalog_cache: Option<Arc<HttpResponseCache>>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -86,6 +102,10 @@ where
             dag_config: DagConfig::default(),
             catalog: None,
             installer: None,
+            marketplace_dir: None,
+            aggregate_handle: None,
+            catalog_http: None,
+            catalog_cache: None,
         }
     }
 
@@ -94,19 +114,38 @@ where
     ///
     /// Without this, the catalog-related [`AppFacade`] methods return errors
     /// (or empty results) because they have nowhere to read from or write to.
-    pub fn with_marketplace(mut self, config_dir: PathBuf) -> crate::Result<Self> {
-        let builtin = Arc::new(
-            BuiltinCatalogProvider::new()
-                .map_err(|e| crate::RuntimeError::Other(format!("builtin catalog: {e}")))?,
-        );
-        let aggregate: Arc<dyn CatalogProvider> =
-            Arc::new(AggregateCatalogProvider::new(vec![builtin]));
-        self.catalog = Some(aggregate);
+    pub fn with_marketplace(self, config_dir: PathBuf) -> crate::Result<Self> {
+        self.with_marketplace_loaded(config_dir, &[])
+    }
+
+    /// Phase 2: like [`with_marketplace`] but also registers user-configured
+    /// remote catalog sources. The runtime stores the marketplace directory
+    /// for future atomic toml mutations + reloads.
+    pub fn with_marketplace_loaded(
+        mut self,
+        config_dir: PathBuf,
+        sources: &[agent_config::CatalogSourceConfig],
+    ) -> crate::Result<Self> {
+        let cache_dir = config_dir.join("catalog-cache");
+        let event_tx = self.event_tx.clone();
+        let aggregate = build_catalog_provider(sources, cache_dir.clone(), event_tx)
+            .map_err(|e| crate::RuntimeError::Other(format!("catalog provider: {e}")))?;
+        let aggregate_arc = Arc::new(aggregate);
+        let dyn_arc: Arc<dyn CatalogProvider> = aggregate_arc.clone();
+        self.aggregate_handle = Some(aggregate_arc);
+        self.catalog = Some(dyn_arc);
+
         let toml_path = config_dir.join("mcp_servers.toml");
         self.installer = Some(Arc::new(Installer::new(
             toml_path,
             Arc::new(OsRuntimeProbe),
         )));
+        self.catalog_http = Some(
+            SharedHttpClient::new()
+                .map_err(|e| crate::RuntimeError::Other(format!("http client: {e}")))?,
+        );
+        self.catalog_cache = Some(Arc::new(HttpResponseCache::new(cache_dir)));
+        self.marketplace_dir = Some(config_dir);
         Ok(self)
     }
 
@@ -238,6 +277,59 @@ where
         decision: PermissionDecision,
     ) -> agent_core::Result<()> {
         crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
+    }
+
+    /// Phase 2: rebuild the aggregate's remote provider list from
+    /// `<marketplace_dir>/mcp_servers.toml`, calling
+    /// [`AggregateCatalogProvider::reload`]. The builtin provider is
+    /// always re-added at priority 0.
+    async fn rebuild_aggregate_from_disk(&self) -> agent_core::Result<()> {
+        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let aggregate = self.aggregate_handle.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let http = self.catalog_http.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let cache = self.catalog_cache.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+
+        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
+        let sources = mt
+            .read_sources()
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+
+        let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();
+        let builtin =
+            Arc::new(BuiltinCatalogProvider::new().map_err(|e| {
+                agent_core::CoreError::InvalidState(format!("builtin catalog: {e}"))
+            })?);
+        providers.push((0, builtin));
+        for s in sources.iter().filter(|s| s.enabled) {
+            let cfg = RemoteSourceConfig {
+                id: s.id.clone(),
+                display_name: s.display_name.clone(),
+                kind: match s.kind {
+                    agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
+                    agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+                },
+                url: s.url.clone(),
+                api_key_env: s.api_key_env.clone(),
+                priority: s.priority,
+                default_trust: parse_trust_str(&s.default_trust),
+                enabled: true,
+                cache_ttl_seconds: s.cache_ttl_seconds,
+            };
+            providers.push((
+                s.priority,
+                build_remote_catalog_provider(cfg, http.clone(), cache.clone()),
+            ));
+        }
+        aggregate.reload(providers);
+        Ok(())
     }
 }
 
@@ -641,6 +733,134 @@ where
         }
         Ok(out)
     }
+
+    // -----------------------------------------------------------------------
+    // Phase 2: catalog source mutations
+    // -----------------------------------------------------------------------
+
+    async fn list_catalog_sources(&self) -> agent_core::Result<Vec<CatalogSourceView>> {
+        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
+        let sources = mt
+            .read_sources()
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+
+        // Always prepend the implicit builtin source.
+        let mut out = Vec::with_capacity(sources.len() + 1);
+        out.push(agent_core::CatalogSourceView {
+            id: "builtin".into(),
+            display_name: "Built-in".into(),
+            kind: "builtin".into(),
+            url: String::new(),
+            api_key_env: None,
+            priority: 0,
+            default_trust: "verified".into(),
+            enabled: true,
+            cache_ttl_seconds: None,
+            last_error: None,
+        });
+        for s in sources {
+            out.push(catalog_source_to_view(s));
+        }
+        Ok(out)
+    }
+
+    async fn add_catalog_source(&self, request: AddCatalogSourceRequest) -> agent_core::Result<()> {
+        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let cfg = request_to_source_config(request)?;
+        let id = cfg.id.clone();
+        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
+        mt.add_source(cfg)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        self.rebuild_aggregate_from_disk().await?;
+        emit_marketplace_event(
+            &self.event_tx,
+            EventPayload::CatalogSourceAdded { source: id },
+        );
+        Ok(())
+    }
+
+    async fn remove_catalog_source(&self, id: String) -> agent_core::Result<()> {
+        if id == "builtin" {
+            return Ok(());
+        }
+        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
+        mt.remove_source(&id)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        self.rebuild_aggregate_from_disk().await
+    }
+
+    async fn set_catalog_source_enabled(
+        &self,
+        id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        if id == "builtin" {
+            return Ok(());
+        }
+        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
+        mt.set_enabled(&id, enabled)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        self.rebuild_aggregate_from_disk().await
+    }
+}
+
+fn catalog_source_to_view(s: agent_config::CatalogSourceConfig) -> CatalogSourceView {
+    CatalogSourceView {
+        id: s.id,
+        display_name: s.display_name,
+        kind: match s.kind {
+            agent_config::CatalogSourceKind::KairoxJson => "kairox_json".into(),
+            agent_config::CatalogSourceKind::Smithery => "smithery".into(),
+        },
+        url: s.url,
+        api_key_env: s.api_key_env,
+        priority: s.priority,
+        default_trust: s.default_trust,
+        enabled: s.enabled,
+        cache_ttl_seconds: s.cache_ttl_seconds,
+        last_error: None,
+    }
+}
+
+fn request_to_source_config(
+    r: AddCatalogSourceRequest,
+) -> agent_core::Result<agent_config::CatalogSourceConfig> {
+    let kind = match r.kind.as_str() {
+        "kairox_json" => agent_config::CatalogSourceKind::KairoxJson,
+        "smithery" => agent_config::CatalogSourceKind::Smithery,
+        other => {
+            return Err(agent_core::CoreError::InvalidState(format!(
+                "unsupported catalog source kind: {other}"
+            )));
+        }
+    };
+    if !r.url.starts_with("http://") && !r.url.starts_with("https://") {
+        return Err(agent_core::CoreError::InvalidState(
+            "url must start with http:// or https://".into(),
+        ));
+    }
+    Ok(agent_config::CatalogSourceConfig {
+        id: r.id,
+        display_name: r.display_name,
+        kind,
+        url: r.url,
+        api_key_env: r.api_key_env,
+        priority: r.priority.unwrap_or(100),
+        default_trust: r.default_trust.unwrap_or_else(|| "community".into()),
+        enabled: r.enabled.unwrap_or(true),
+        cache_ttl_seconds: r.cache_ttl_seconds,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -812,6 +1032,59 @@ fn emit_marketplace_event(tx: &tokio::sync::broadcast::Sender<DomainEvent>, payl
         payload,
     );
     let _ = tx.send(event);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: catalog provider construction
+// ---------------------------------------------------------------------------
+
+fn parse_trust_str(s: &str) -> TrustLevel {
+    match s {
+        "verified" => TrustLevel::Verified,
+        "unverified" => TrustLevel::Unverified,
+        _ => TrustLevel::Community,
+    }
+}
+
+/// Build the aggregate catalog provider: builtin (priority 0) plus every
+/// enabled remote source. Wires a [`CatalogEventSink`] for failure
+/// observability.
+fn build_catalog_provider(
+    sources: &[agent_config::CatalogSourceConfig],
+    cache_dir: PathBuf,
+    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+) -> anyhow::Result<AggregateCatalogProvider> {
+    let http = SharedHttpClient::new()?;
+    let cache = Arc::new(HttpResponseCache::new(cache_dir));
+
+    let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();
+    let builtin = Arc::new(BuiltinCatalogProvider::new()?);
+    providers.push((0, builtin));
+
+    for s in sources.iter().filter(|s| s.enabled) {
+        let cfg = RemoteSourceConfig {
+            id: s.id.clone(),
+            display_name: s.display_name.clone(),
+            kind: match s.kind {
+                agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
+                agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+            },
+            url: s.url.clone(),
+            api_key_env: s.api_key_env.clone(),
+            priority: s.priority,
+            default_trust: parse_trust_str(&s.default_trust),
+            enabled: true,
+            cache_ttl_seconds: s.cache_ttl_seconds,
+        };
+        let provider = build_remote_catalog_provider(cfg, http.clone(), cache.clone());
+        providers.push((s.priority, provider));
+    }
+
+    let sink: Arc<dyn agent_mcp::DomainEventSink> = CatalogEventSink::new(event_tx);
+    Ok(AggregateCatalogProvider::new_with_priority(
+        providers,
+        Some(sink),
+    ))
 }
 
 #[cfg(test)]

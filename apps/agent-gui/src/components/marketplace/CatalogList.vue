@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue";
 import {
   catalogState,
-  filteredEntries,
+  visibleEntries,
   fetchCatalog,
   refreshCatalogSource
 } from "../../stores/catalog";
@@ -42,7 +42,7 @@ onMounted(async () => {
     </p>
     <div v-else class="grid">
       <CatalogCard
-        v-for="entry in filteredEntries"
+        v-for="entry in visibleEntries"
         :key="entry.id"
         :entry="entry"
         @click="selected = entry"

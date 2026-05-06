@@ -658,3 +658,259 @@ args = []
         assert_eq!(cfg.mcp_servers[0].0, "foo");
     }
 }
+
+// ===========================================================================
+// Phase 2: catalog source parsing
+// ===========================================================================
+
+/// Adapter kind for a remote catalog source. Mirrors
+/// `agent_mcp::RemoteSourceKind` but lives here so `agent-config` does not
+/// need to depend on `agent-mcp` (cycle).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CatalogSourceKind {
+    KairoxJson,
+    Smithery,
+}
+
+/// A user-configured remote catalog source, parsed from `[[catalog_sources]]`
+/// in the marketplace TOML. Mirrors `agent_mcp::RemoteSourceConfig`; the
+/// runtime layer translates between the two.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogSourceConfig {
+    pub id: String,
+    pub display_name: String,
+    pub kind: CatalogSourceKind,
+    pub url: String,
+    pub api_key_env: Option<String>,
+    pub priority: u32,
+    pub default_trust: String,
+    pub enabled: bool,
+    pub cache_ttl_seconds: Option<u64>,
+}
+
+/// Result bundle returned by [`load_with_marketplace_loaded`].
+#[derive(Debug, Clone)]
+pub struct LoadedConfig {
+    pub config: Config,
+    pub catalog_sources: Vec<CatalogSourceConfig>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct MarketplaceTomlInner {
+    #[serde(default)]
+    #[allow(dead_code)]
+    mcp_servers: toml::value::Table,
+    #[serde(default)]
+    catalog_sources: Vec<RawCatalogSource>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct RawCatalogSource {
+    id: String,
+    display_name: String,
+    kind: String,
+    url: String,
+    #[serde(default)]
+    api_key_env: Option<String>,
+    #[serde(default = "default_priority")]
+    priority: u32,
+    #[serde(default = "default_trust_str")]
+    default_trust: String,
+    #[serde(default = "default_true")]
+    enabled: bool,
+    #[serde(default)]
+    cache_ttl_seconds: Option<u64>,
+}
+
+fn default_priority() -> u32 {
+    100
+}
+fn default_trust_str() -> String {
+    "community".into()
+}
+fn default_true() -> bool {
+    true
+}
+
+fn raw_to_source(raw: RawCatalogSource) -> Result<CatalogSourceConfig, ConfigError> {
+    let kind = match raw.kind.as_str() {
+        "kairox_json" => CatalogSourceKind::KairoxJson,
+        "smithery" => CatalogSourceKind::Smithery,
+        other => {
+            return Err(ConfigError::Parse {
+                path: "marketplace".into(),
+                message: format!("catalog_sources[{}]: unsupported kind '{other}'", raw.id),
+            });
+        }
+    };
+    if !raw.url.starts_with("http://") && !raw.url.starts_with("https://") {
+        return Err(ConfigError::Parse {
+            path: "marketplace".into(),
+            message: format!(
+                "catalog_sources[{}]: url must start with http:// or https://",
+                raw.id
+            ),
+        });
+    }
+    Ok(CatalogSourceConfig {
+        id: raw.id,
+        display_name: raw.display_name,
+        kind,
+        url: raw.url,
+        api_key_env: raw.api_key_env,
+        priority: raw.priority,
+        default_trust: raw.default_trust,
+        enabled: raw.enabled,
+        cache_ttl_seconds: raw.cache_ttl_seconds,
+    })
+}
+
+/// Parse only the `[[catalog_sources]]` array from a marketplace TOML
+/// string. Returns an empty `Vec` if the section is missing.
+pub fn parse_catalog_sources(
+    marketplace_content: &str,
+) -> Result<Vec<CatalogSourceConfig>, ConfigError> {
+    let inner: MarketplaceTomlInner =
+        toml::from_str(marketplace_content).map_err(|e| ConfigError::Parse {
+            path: "marketplace".into(),
+            message: e.to_string(),
+        })?;
+    inner
+        .catalog_sources
+        .into_iter()
+        .map(raw_to_source)
+        .collect()
+}
+
+/// Load main config + optional marketplace TOML, surfacing both MCP server
+/// overlays (via [`load_with_marketplace_overlay`]) and Phase 2 catalog
+/// sources.
+pub fn load_with_marketplace_loaded(
+    main_content: &str,
+    marketplace_content: Option<&str>,
+    main_path: &str,
+    marketplace_path: &str,
+) -> Result<LoadedConfig, ConfigError> {
+    let config = load_with_marketplace_overlay(
+        main_content,
+        marketplace_content,
+        main_path,
+        marketplace_path,
+    )?;
+    let catalog_sources = match marketplace_content {
+        Some(m) => parse_catalog_sources(m)?,
+        None => vec![],
+    };
+    Ok(LoadedConfig {
+        config,
+        catalog_sources,
+    })
+}
+
+#[cfg(test)]
+mod catalog_sources_tests {
+    use super::*;
+
+    #[test]
+    fn parses_catalog_sources_with_defaults() {
+        let market = r#"
+[[catalog_sources]]
+id           = "smithery"
+display_name = "Smithery"
+kind         = "smithery"
+url          = "https://registry.smithery.ai"
+"#;
+        let loaded = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap();
+        assert_eq!(loaded.catalog_sources.len(), 1);
+        let s = &loaded.catalog_sources[0];
+        assert_eq!(s.id, "smithery");
+        assert_eq!(s.priority, 100);
+        assert!(s.enabled);
+        assert_eq!(s.default_trust, "community");
+    }
+
+    #[test]
+    fn parses_multiple_sources_with_full_fields() {
+        let market = r#"
+[[catalog_sources]]
+id            = "internal"
+display_name  = "Internal"
+kind          = "kairox_json"
+url           = "https://mcp.example.com/c.json"
+api_key_env   = "INTERNAL_KEY"
+priority      = 10
+default_trust = "verified"
+enabled       = true
+cache_ttl_seconds = 600
+
+[[catalog_sources]]
+id           = "smithery"
+display_name = "Smithery"
+kind         = "smithery"
+url          = "https://registry.smithery.ai"
+priority     = 50
+enabled      = false
+"#;
+        let loaded = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap();
+        assert_eq!(loaded.catalog_sources.len(), 2);
+        let internal = loaded
+            .catalog_sources
+            .iter()
+            .find(|s| s.id == "internal")
+            .unwrap();
+        assert_eq!(internal.priority, 10);
+        assert_eq!(internal.api_key_env.as_deref(), Some("INTERNAL_KEY"));
+        assert_eq!(internal.cache_ttl_seconds, Some(600));
+        let smithery = loaded
+            .catalog_sources
+            .iter()
+            .find(|s| s.id == "smithery")
+            .unwrap();
+        assert!(!smithery.enabled);
+    }
+
+    #[test]
+    fn rejects_unknown_kind() {
+        let market = r#"
+[[catalog_sources]]
+id           = "x"
+display_name = "X"
+kind         = "wat"
+url          = "https://x"
+"#;
+        let err = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap_err();
+        assert!(format!("{err:?}").to_lowercase().contains("kind"));
+    }
+
+    #[test]
+    fn rejects_invalid_url_scheme() {
+        let market = r#"
+[[catalog_sources]]
+id           = "x"
+display_name = "X"
+kind         = "smithery"
+url          = "ftp://x"
+"#;
+        let err = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap_err();
+        assert!(format!("{err:?}").to_lowercase().contains("url"));
+    }
+
+    #[test]
+    fn missing_marketplace_yields_empty_sources() {
+        let loaded = load_with_marketplace_loaded("", None, "k.toml", "m.toml").unwrap();
+        assert!(loaded.catalog_sources.is_empty());
+    }
+
+    #[test]
+    fn marketplace_with_only_mcp_servers_yields_empty_sources() {
+        let market = r#"
+[mcp_servers.foo]
+type      = "stdio"
+command   = "echo"
+args      = []
+"#;
+        let loaded = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap();
+        assert_eq!(loaded.config.mcp_servers.len(), 1);
+        assert!(loaded.catalog_sources.is_empty());
+    }
+}

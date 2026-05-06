@@ -14,9 +14,10 @@ pub use account::{AccountService, AccountState, LocalNoAccountService};
 pub use error::CoreError;
 pub use events::{DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
-    AgentStatusInfo, AppFacade, CatalogQuery, InstallOutcomeView, InstallRequest, InstalledEntry,
-    PermissionDecision, SendMessageRequest, ServerEntry, SessionMeta, StartSessionRequest,
-    TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
+    AddCatalogSourceRequest, AgentStatusInfo, AppFacade, CatalogQuery, CatalogSourceView,
+    InstallOutcomeView, InstallRequest, InstalledEntry, PermissionDecision, SendMessageRequest,
+    ServerEntry, SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry,
+    WorkspaceInfo,
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

@@ -5,7 +5,9 @@ import type {
   InstalledEntryResponse,
   InstallOutcomeResponse,
   InstallRequestPayload,
-  CatalogQueryRequest
+  CatalogQueryRequest,
+  CatalogSourceViewResponse,
+  AddCatalogSourceRequestPayload
 } from "../generated/commands";
 import { addNotification } from "../composables/useNotifications";
 
@@ -27,6 +29,11 @@ export interface CatalogState {
   error: string | null;
   tab: CatalogTab;
   filters: CatalogFilters;
+  // Phase 2: catalog sources
+  sources: CatalogSourceViewResponse[];
+  sourceFailures: Record<string, string>;
+  /** Source ids currently selected via chip filter. null = all selected. */
+  selectedSources: string[] | null;
 }
 
 const initial = (): CatalogState => ({
@@ -40,7 +47,10 @@ const initial = (): CatalogState => ({
     keyword: "",
     category: null,
     trustMin: null
-  }
+  },
+  sources: [],
+  sourceFailures: {},
+  selectedSources: null
 });
 
 export const catalogState = reactive<CatalogState>(initial());
@@ -171,3 +181,93 @@ export async function refreshCatalogSource(
     addNotification("error", `Failed to refresh catalog: ${e}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2: catalog source CRUD + failure tracking
+// ---------------------------------------------------------------------------
+
+export async function fetchSources(): Promise<void> {
+  try {
+    catalogState.sources = await invoke<CatalogSourceViewResponse[]>(
+      "list_catalog_sources"
+    );
+  } catch (e) {
+    catalogState.error = String(e);
+    addNotification("error", `Failed to load catalog sources: ${e}`);
+  }
+}
+
+export async function addSource(
+  request: AddCatalogSourceRequestPayload
+): Promise<void> {
+  try {
+    await invoke("add_catalog_source", { request });
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to add catalog source:", e);
+    addNotification("error", `Failed to add source ${request.id}: ${e}`);
+  }
+}
+
+export async function removeSource(id: string): Promise<void> {
+  try {
+    await invoke("remove_catalog_source", { id });
+    delete catalogState.sourceFailures[id];
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to remove catalog source:", e);
+    addNotification("error", `Failed to remove source ${id}: ${e}`);
+  }
+}
+
+export async function setSourceEnabled(
+  id: string,
+  enabled: boolean
+): Promise<void> {
+  try {
+    await invoke("set_catalog_source_enabled", { id, enabled });
+    await fetchSources();
+  } catch (e) {
+    console.error("Failed to toggle catalog source:", e);
+    addNotification("error", `Failed to toggle source ${id}: ${e}`);
+  }
+}
+
+/** Record a CatalogSourceFailed event payload onto sourceFailures[source]. */
+export function handleSourceFailed(source: string, error: string): void {
+  catalogState.sourceFailures[source] = error;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: source chip filter
+// ---------------------------------------------------------------------------
+
+/** All available source ids (builtin + remote). */
+export const allSourceIds = computed<string[]>(() => [
+  "builtin",
+  ...catalogState.sources.map((s) => s.id)
+]);
+
+/** Returns true when the given source id is currently active (or all are). */
+export function isSourceSelected(id: string): boolean {
+  if (catalogState.selectedSources === null) return true;
+  return catalogState.selectedSources.includes(id);
+}
+
+/** Toggle a source on/off in the chip filter. */
+export function toggleSource(id: string): void {
+  // Materialise the "all selected" sentinel into an explicit array on first toggle.
+  const current = catalogState.selectedSources ?? allSourceIds.value.slice();
+  const next = current.includes(id)
+    ? current.filter((x) => x !== id)
+    : [...current, id];
+  catalogState.selectedSources = next;
+}
+
+/**
+ * Entries filtered by both client-side filters AND chip selection.
+ * Use this in marketplace components instead of `filteredEntries`.
+ */
+export const visibleEntries = computed<ServerEntryResponse[]>(() =>
+  filteredEntries.value.filter((e) => isSourceSelected(e.source))
+);

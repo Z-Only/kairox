@@ -1075,3 +1075,139 @@ mod marketplace_command_tests {
         assert!(q.keyword.is_none() && q.category.is_none() && q.trust_min.is_none());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2: catalog source commands + types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CatalogSourceViewResponse {
+    pub id: String,
+    pub display_name: String,
+    pub kind: String,
+    pub url: String,
+    pub api_key_env: Option<String>,
+    pub priority: u32,
+    pub default_trust: String,
+    pub enabled: bool,
+    pub cache_ttl_seconds: Option<u64>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct AddCatalogSourceRequestPayload {
+    pub id: String,
+    pub display_name: String,
+    pub kind: String,
+    pub url: String,
+    pub api_key_env: Option<String>,
+    pub priority: Option<u32>,
+    pub default_trust: Option<String>,
+    pub enabled: Option<bool>,
+    pub cache_ttl_seconds: Option<u64>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_catalog_sources(
+    state: State<'_, GuiState>,
+) -> Result<Vec<CatalogSourceViewResponse>, String> {
+    let v = state
+        .runtime
+        .list_catalog_sources()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(v.into_iter().map(into_source_view_response).collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn add_catalog_source(
+    state: State<'_, GuiState>,
+    request: AddCatalogSourceRequestPayload,
+) -> Result<(), String> {
+    state
+        .runtime
+        .add_catalog_source(into_core_add_catalog_source_request(request))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_catalog_source(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    state
+        .runtime
+        .remove_catalog_source(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_catalog_source_enabled(
+    state: State<'_, GuiState>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .set_catalog_source_enabled(id, enabled)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+fn into_source_view_response(s: agent_core::CatalogSourceView) -> CatalogSourceViewResponse {
+    CatalogSourceViewResponse {
+        id: s.id,
+        display_name: s.display_name,
+        kind: s.kind,
+        url: s.url,
+        api_key_env: s.api_key_env,
+        priority: s.priority,
+        default_trust: s.default_trust,
+        enabled: s.enabled,
+        cache_ttl_seconds: s.cache_ttl_seconds,
+        last_error: s.last_error,
+    }
+}
+
+fn into_core_add_catalog_source_request(
+    p: AddCatalogSourceRequestPayload,
+) -> agent_core::AddCatalogSourceRequest {
+    agent_core::AddCatalogSourceRequest {
+        id: p.id,
+        display_name: p.display_name,
+        kind: p.kind,
+        url: p.url,
+        api_key_env: p.api_key_env,
+        priority: p.priority,
+        default_trust: p.default_trust,
+        enabled: p.enabled,
+        cache_ttl_seconds: p.cache_ttl_seconds,
+    }
+}
+
+#[cfg(test)]
+mod catalog_sources_command_tests {
+    use super::*;
+
+    #[test]
+    fn source_view_response_serializes_kind_and_last_error() {
+        let r = CatalogSourceViewResponse {
+            id: "smithery".into(),
+            display_name: "Smithery".into(),
+            kind: "smithery".into(),
+            url: "https://x".into(),
+            api_key_env: None,
+            priority: 50,
+            default_trust: "community".into(),
+            enabled: true,
+            cache_ttl_seconds: None,
+            last_error: Some("timeout".into()),
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains("\"kind\":\"smithery\""));
+        assert!(json.contains("\"last_error\":\"timeout\""));
+    }
+}

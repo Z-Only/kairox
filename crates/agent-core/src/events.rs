@@ -190,6 +190,13 @@ pub enum EventPayload {
         catalog_id: String,
         missing: Vec<String>,
     },
+    CatalogSourceAdded {
+        source: String,
+    },
+    CatalogSourceFailed {
+        source: String,
+        error: String,
+    },
 }
 
 impl EventPayload {
@@ -238,6 +245,8 @@ impl EventPayload {
             Self::CatalogEntryInstalled { .. } => "CatalogEntryInstalled",
             Self::CatalogEntryUninstalled { .. } => "CatalogEntryUninstalled",
             Self::CatalogRuntimeMissing { .. } => "CatalogRuntimeMissing",
+            Self::CatalogSourceAdded { .. } => "CatalogSourceAdded",
+            Self::CatalogSourceFailed { .. } => "CatalogSourceFailed",
         }
     }
 }
@@ -409,4 +418,52 @@ fn mcp_trust_events_serialize() {
     );
     let json = serde_json::to_value(&event).unwrap();
     assert_eq!(json["payload"]["type"], "McpTrustRevoked");
+}
+
+#[test]
+fn catalog_source_added_event_round_trips() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::CatalogSourceAdded {
+            source: "smithery".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["event_type"], "CatalogSourceAdded");
+    assert_eq!(json["payload"]["type"], "CatalogSourceAdded");
+    assert_eq!(json["payload"]["source"], "smithery");
+
+    let s = serde_json::to_string(&event.payload).unwrap();
+    let back: EventPayload = serde_json::from_str(&s).unwrap();
+    assert!(
+        matches!(back, EventPayload::CatalogSourceAdded { ref source } if source == "smithery")
+    );
+}
+
+#[test]
+fn catalog_source_failed_event_round_trips() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        EventPayload::CatalogSourceFailed {
+            source: "smithery".into(),
+            error: "timeout".into(),
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["event_type"], "CatalogSourceFailed");
+    assert_eq!(json["payload"]["type"], "CatalogSourceFailed");
+    assert_eq!(json["payload"]["error"], "timeout");
+
+    let s = serde_json::to_string(&event.payload).unwrap();
+    let back: EventPayload = serde_json::from_str(&s).unwrap();
+    assert!(
+        matches!(back, EventPayload::CatalogSourceFailed { ref source, ref error }
+        if source == "smithery" && error == "timeout")
+    );
 }

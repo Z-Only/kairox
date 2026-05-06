@@ -7,6 +7,7 @@ import { taskGraphState } from "../stores/taskGraph";
 import { addNotification } from "./useNotifications";
 import { handleMcpEvent } from "../stores/mcp";
 import { applyAgentEvent } from "../stores/agents";
+import { fetchSources, handleSourceFailed } from "../stores/catalog";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -122,6 +123,13 @@ export function useTauriEvents() {
         case "McpTrustGranted":
         case "McpTrustRevoked":
           handleMcpEvent(payload);
+          break;
+        // Phase 2: catalog source lifecycle events are global, not session-scoped.
+        case "CatalogSourceAdded":
+          void fetchSources();
+          break;
+        case "CatalogSourceFailed":
+          handleSourceFailed(payload.source, payload.error);
           break;
       }
     });

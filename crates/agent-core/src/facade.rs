@@ -99,6 +99,47 @@ pub struct InstalledEntry {
     pub running: bool,
 }
 
+/// A configured remote catalog source (Phase 2). Mirror DTO of
+/// `agent_mcp::RemoteSourceConfig` plus the implicit builtin source.
+/// Lives in `agent-core` because the GUI needs to render it without
+/// depending on `agent-mcp`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct CatalogSourceView {
+    pub id: String,
+    pub display_name: String,
+    /// Lower-case kind discriminator: "builtin" | "kairox_json" | "smithery".
+    pub kind: String,
+    /// Empty for the builtin source.
+    pub url: String,
+    pub api_key_env: Option<String>,
+    pub priority: u32,
+    /// Lower-case trust level cap: "unverified" | "community" | "verified".
+    pub default_trust: String,
+    pub enabled: bool,
+    pub cache_ttl_seconds: Option<u64>,
+    /// Last error observed when querying this source, if any.
+    pub last_error: Option<String>,
+}
+
+/// Request body for `add_catalog_source`. Mirrors
+/// `agent_mcp::RemoteSourceConfig` field-for-field; the runtime fills in
+/// defaults for omitted optional fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct AddCatalogSourceRequest {
+    pub id: String,
+    pub display_name: String,
+    /// "kairox_json" | "smithery"
+    pub kind: String,
+    pub url: String,
+    pub api_key_env: Option<String>,
+    pub priority: Option<u32>,
+    pub default_trust: Option<String>,
+    pub enabled: Option<bool>,
+    pub cache_ttl_seconds: Option<u64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
 pub struct WorkspaceInfo {
@@ -300,6 +341,47 @@ pub trait AppFacade: Send + Sync {
     /// List entries currently installed (marketplace + hand-edited).
     async fn list_installed_entries(&self) -> crate::Result<Vec<InstalledEntry>> {
         Ok(Vec::new())
+    }
+
+    // -----------------------------------------------------------------------
+    // Marketplace catalog sources (Phase 2: remote sources).
+    // -----------------------------------------------------------------------
+
+    /// List all configured catalog sources, including the implicit builtin
+    /// source. Always includes `last_error` if the most recent fetch failed.
+    async fn list_catalog_sources(&self) -> crate::Result<Vec<CatalogSourceView>> {
+        Ok(vec![CatalogSourceView {
+            id: "builtin".into(),
+            display_name: "Built-in".into(),
+            kind: "builtin".into(),
+            url: String::new(),
+            api_key_env: None,
+            priority: 0,
+            default_trust: "verified".into(),
+            enabled: true,
+            cache_ttl_seconds: None,
+            last_error: None,
+        }])
+    }
+
+    /// Add a new remote catalog source. Persists to the marketplace TOML
+    /// and registers the provider with the runtime.
+    async fn add_catalog_source(&self, request: AddCatalogSourceRequest) -> crate::Result<()> {
+        let _ = request;
+        Ok(())
+    }
+
+    /// Remove a remote catalog source by id. Removing the builtin source
+    /// is a no-op (it cannot be removed).
+    async fn remove_catalog_source(&self, id: String) -> crate::Result<()> {
+        let _ = id;
+        Ok(())
+    }
+
+    /// Enable or disable a catalog source without removing it.
+    async fn set_catalog_source_enabled(&self, id: String, enabled: bool) -> crate::Result<()> {
+        let _ = (id, enabled);
+        Ok(())
     }
 }
 

@@ -21,7 +21,12 @@ import {
   installEntry,
   uninstallEntry,
   refreshCatalogSource,
-  resetCatalogState
+  resetCatalogState,
+  fetchSources,
+  addSource,
+  removeSource,
+  setSourceEnabled,
+  handleSourceFailed
 } from "./catalog";
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -160,5 +165,86 @@ describe("catalog store", () => {
     await fetchInstalled();
     expect(catalogState.installed.length).toBe(1);
     expect(catalogState.installed[0].server_id).toBe("filesystem");
+  });
+});
+
+const sampleSource = {
+  id: "smithery",
+  display_name: "Smithery",
+  kind: "smithery",
+  url: "https://registry.smithery.ai",
+  api_key_env: null,
+  priority: 50,
+  default_trust: "community",
+  enabled: true,
+  cache_ttl_seconds: null,
+  last_error: null
+};
+
+describe("catalog store — Phase 2 sources", () => {
+  beforeEach(() => {
+    resetCatalogState();
+    vi.clearAllMocks();
+  });
+
+  it("fetchSources loads sources via list_catalog_sources", async () => {
+    mockedInvoke.mockResolvedValueOnce([sampleSource] as never);
+    await fetchSources();
+    expect(mockedInvoke).toHaveBeenCalledWith("list_catalog_sources");
+    expect(catalogState.sources).toHaveLength(1);
+    expect(catalogState.sources[0].id).toBe("smithery");
+  });
+
+  it("addSource calls add_catalog_source then re-fetches", async () => {
+    mockedInvoke
+      .mockResolvedValueOnce(undefined as never)
+      .mockResolvedValueOnce([sampleSource] as never);
+    await addSource({
+      id: "smithery",
+      display_name: "Smithery",
+      kind: "smithery",
+      url: "https://registry.smithery.ai",
+      api_key_env: null,
+      priority: 50,
+      default_trust: "community",
+      enabled: true,
+      cache_ttl_seconds: null
+    });
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "add_catalog_source", {
+      request: expect.objectContaining({ id: "smithery" })
+    });
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "list_catalog_sources");
+    expect(catalogState.sources).toHaveLength(1);
+  });
+
+  it("removeSource calls remove_catalog_source then re-fetches", async () => {
+    catalogState.sources = [sampleSource];
+    mockedInvoke
+      .mockResolvedValueOnce(undefined as never)
+      .mockResolvedValueOnce([] as never);
+    await removeSource("smithery");
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "remove_catalog_source", {
+      id: "smithery"
+    });
+    expect(catalogState.sources).toHaveLength(0);
+  });
+
+  it("setSourceEnabled toggles a source and re-fetches", async () => {
+    catalogState.sources = [sampleSource];
+    mockedInvoke
+      .mockResolvedValueOnce(undefined as never)
+      .mockResolvedValueOnce([{ ...sampleSource, enabled: false }] as never);
+    await setSourceEnabled("smithery", false);
+    expect(mockedInvoke).toHaveBeenNthCalledWith(
+      1,
+      "set_catalog_source_enabled",
+      { id: "smithery", enabled: false }
+    );
+    expect(catalogState.sources[0].enabled).toBe(false);
+  });
+
+  it("handleSourceFailed records sourceFailures keyed by source id", () => {
+    handleSourceFailed("smithery", "timeout");
+    expect(catalogState.sourceFailures.smithery).toBe("timeout");
   });
 });

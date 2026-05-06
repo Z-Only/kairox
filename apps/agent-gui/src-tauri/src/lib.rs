@@ -132,6 +132,11 @@ pub fn run() {
             crate::commands::install_catalog_entry,
             crate::commands::uninstall_catalog_entry,
             crate::commands::list_installed_entries,
+            // Phase 2: catalog source commands
+            crate::commands::list_catalog_sources,
+            crate::commands::add_catalog_source,
+            crate::commands::remove_catalog_source,
+            crate::commands::set_catalog_source_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

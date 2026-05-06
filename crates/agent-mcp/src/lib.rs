@@ -17,6 +17,20 @@ pub use client::McpClient;
 pub use discovery::DiscoveryCache;
 pub use lifecycle::ServerLifecycle;
 
+// Catalog: trait + DomainEventSink (always available).
+pub use catalog::{
+    AggregateCatalogProvider, BuiltinCatalogProvider, CatalogError, CatalogProvider, CatalogQuery,
+    CatalogResult, DomainEventSink, EnvVarSpec, InstallSpec, RuntimeKind, RuntimeRequirement,
+    ServerEntry, TrustLevel,
+};
+
+// Remote catalog: gated behind the `remote-catalog` feature.
+#[cfg(feature = "remote-catalog")]
+pub use catalog::remote::{
+    build_provider as build_remote_catalog_provider, HttpResponseCache, KairoxJsonProvider,
+    RemoteError, RemoteSourceConfig, RemoteSourceKind, SharedHttpClient, SmitheryProvider,
+};
+
 /// Errors that can occur during MCP client operations.
 #[derive(Debug, thiserror::Error)]
 pub enum McpError {
