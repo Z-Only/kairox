@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-05-06
+
+### 🚀 Features
+
+- **gui,ci**: implement Tauri 2 auto-update with GitHub Release endpoint (#57)
+- MCP marketplace Phase 1 — built-in catalog, installer, GUI (#59)
+- MCP Marketplace Phase 2 — remote catalog sources with multi-source aggregation (#60)
+
+### 📚 Documentation
+
+- **mcp**: add MCP marketplace design spec
+- **mcp**: add MCP marketplace Phase 1 implementation plan
+- **mcp**: add Phase 2 marketplace sub-spec and implementation plan
+
+### 🧪 Testing
+
+- **runtime,gui**: add DAG executor, AgentStrategy, and GUI component tests; fix CI warnings (#58)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: add aggregation job ci-success for branch protection compatibility
+
 ## [0.15.0] - 2026-05-06
 
 ### 🚀 Features
@@ -19,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 📚 Documentation
 
 - standardize worktree convention (#53)
+- refresh project documentation for v0.15.0 (#56)
 
 ### 🧹 Refactor
 
