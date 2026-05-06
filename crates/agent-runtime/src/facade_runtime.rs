@@ -1,3 +1,4 @@
+use crate::event_emitter::append_and_broadcast;
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::{
@@ -157,19 +158,6 @@ impl<S, M> LocalRuntime<S, M> {
     pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
         self.mcp_manager.clone()
     }
-}
-
-async fn append_and_broadcast<S: EventStore>(
-    store: &S,
-    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
-    event: &DomainEvent,
-) -> agent_core::Result<()> {
-    store
-        .append(event)
-        .await
-        .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-    let _ = event_tx.send(event.clone());
-    Ok(())
 }
 
 fn build_model_messages(
