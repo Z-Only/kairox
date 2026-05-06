@@ -7,6 +7,10 @@ defineEmits<{ close: [] }>();
 
 const outcome = computed(() => catalogState.installState[props.catalogId]);
 
+// Backend installer order: runtime probe → env validate → toml write → start.
+// "Detect runtime" only ticks when we either succeeded fully or failed *after*
+// runtime probe (i.e. invalid_env / already_installed / installed). It does
+// NOT tick on runtime_missing — that's the explicit failure path.
 const runtimeOk = computed(
   () => !!outcome.value && outcome.value.kind !== "runtime_missing"
 );
@@ -15,6 +19,8 @@ const writeOk = computed(
     outcome.value?.kind === "installed" ||
     outcome.value?.kind === "already_installed"
 );
+// `outcome.started` mirrors the install request's auto_start flag rather than
+// confirmed liveness. UI shows it as "Start server requested" when ticked.
 const startOk = computed(
   () => outcome.value?.kind === "installed" && outcome.value.started === true
 );

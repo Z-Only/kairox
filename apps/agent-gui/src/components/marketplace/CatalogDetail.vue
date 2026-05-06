@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import type {
   ServerEntryResponse,
   InstallRequestPayload
@@ -18,15 +18,31 @@ const emit = defineEmits<{ close: [] }>();
 const requirements = computed(() => parseRequirements(props.entry));
 const envSpec = computed(() => parseDefaultEnv(props.entry));
 const overrides = ref<Record<string, string>>({});
-const trustGrant = ref(props.entry.trust === "verified");
+// Trust grant must be opt-in: catalog "verified" means the *distribution
+// channel* is trusted, not that runtime tool calls should bypass the
+// PermissionCenter. Default to false and let the user opt in explicitly.
+const trustGrant = ref(false);
 const autoStart = ref(true);
 const showProgress = ref(false);
 
-onMounted(() => {
-  for (const spec of envSpec.value) {
-    overrides.value[spec.key] = spec.default ?? "";
-  }
-});
+// Re-initialise local form state whenever the selected entry changes.
+// Using `watch(..., immediate: true)` instead of `onMounted` so that switching
+// entries without unmounting the drawer (e.g. future keep-alive use) still
+// resets overrides + checkboxes cleanly.
+watch(
+  () => props.entry.id,
+  () => {
+    const next: Record<string, string> = {};
+    for (const spec of envSpec.value) {
+      next[spec.key] = spec.default ?? "";
+    }
+    overrides.value = next;
+    trustGrant.value = false;
+    autoStart.value = true;
+    showProgress.value = false;
+  },
+  { immediate: true }
+);
 
 async function onInstall() {
   const req: InstallRequestPayload = {
@@ -84,8 +100,13 @@ async function onInstall() {
 
     <section class="options">
       <label>
-        <input v-model="trustGrant" type="checkbox" /> Trust this server
+        <input v-model="trustGrant" type="checkbox" />
+        Trust this server (skip per-tool permission prompts)
       </label>
+      <p v-if="entry.trust === 'verified'" class="hint-verified">
+        This entry comes from a verified source. You can grant runtime trust to
+        skip permission prompts, but it remains opt-in.
+      </p>
       <label>
         <input v-model="autoStart" type="checkbox" /> Start after install
       </label>
@@ -128,6 +149,12 @@ async function onInstall() {
 }
 .options {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 6px;
+}
+.hint-verified {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted, #555);
 }
 </style>
