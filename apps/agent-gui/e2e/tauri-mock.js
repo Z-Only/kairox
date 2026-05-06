@@ -603,13 +603,23 @@ function invoke(cmd, args) {
         );
       }
       var reqs = JSON.parse(entry.requirements_json);
-      var missing = reqs
+      var baseMissing = reqs
         .filter(function (r) {
           return !state.catalogRuntimePresent[r.kind];
         })
         .map(function (r) {
           return r.kind;
         });
+      // Test hook: e2e specs may set window.__MARKETPLACE_FORCE_MISSING__
+      // to a string[] of runtime kinds to force a runtime_missing outcome.
+      var forced =
+        (typeof window !== "undefined" &&
+          window.__MARKETPLACE_FORCE_MISSING__) ||
+        null;
+      var missing =
+        forced && Array.isArray(forced) && forced.length > 0
+          ? forced
+          : baseMissing;
       var sessionId = state.currentSessionId;
       if (missing.length > 0) {
         if (sessionId) {
