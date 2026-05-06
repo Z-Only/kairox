@@ -27,6 +27,7 @@ const state = {
   traces: new Map(),
   memories: [],
   permissionRequests: new Map(),
+  agents: new Map(),
   /** Tauri v2 event system: eventName → Map<eventId, handler> */
   eventListeners: new Map(),
   profiles: [
@@ -514,6 +515,40 @@ function invoke(cmd, args) {
     case "read_mcp_resource":
       return [];
 
+    case "retry_task": {
+      var taskId = args.taskId || args.task_id;
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return Promise.reject(new Error("No active session"));
+      var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
+        return t.id === taskId;
+      });
+      if (task) {
+        task.state = "Running";
+        task.retry_count = (task.retry_count || 0) + 1;
+      }
+      var event = makeEvent(sessionId, {
+        type: "TaskRetried",
+        task_id: taskId,
+        attempt: task ? task.retry_count : 1
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+      return Promise.resolve(undefined);
+    }
+
+    case "cancel_task": {
+      var taskId = args.taskId || args.task_id;
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return Promise.reject(new Error("No active session"));
+      var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
+        return t.id === taskId;
+      });
+      if (task) {
+        task.state = "Cancelled";
+      }
+      return Promise.resolve(undefined);
+    }
+
     default:
       console.warn("[tauri-mock] Unknown invoke: " + cmd, args);
       return Promise.resolve(undefined);
@@ -593,6 +628,72 @@ function installMock() {
       emitEvent("session-event", event);
       return taskId;
     },
+    simulateAgentSpawned: function (agentId, role, taskId) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      state.agents.set(agentId, {
+        id: agentId,
+        role: role,
+        taskId: taskId || null,
+        status: "running",
+        startedAt: Date.now(),
+        completedAt: null
+      });
+      var event = makeEvent(sessionId, {
+        type: "AgentSpawned",
+        agent_id: agentId,
+        role: role,
+        task_id: taskId || ""
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+    },
+    simulateAgentIdle: function (agentId) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      var agent = state.agents.get(agentId);
+      if (agent) {
+        agent.status = "idle";
+        agent.completedAt = Date.now();
+      }
+      var event = makeEvent(sessionId, {
+        type: "AgentIdle",
+        agent_id: agentId
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+    },
+    simulateTaskDecomposed: function (parentId, subTaskIds) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      var event = makeEvent(sessionId, {
+        type: "TaskDecomposed",
+        parent_task_id: parentId,
+        sub_task_ids: subTaskIds
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+    },
+    simulateTaskBlocked: function (taskId, blockingTaskId, reason) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return;
+      var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
+        return t.id === taskId;
+      });
+      if (task) {
+        task.state = "Blocked";
+        task.error = reason || "Dependency failed";
+      }
+      var event = makeEvent(sessionId, {
+        type: "TaskBlocked",
+        task_id: taskId,
+        blocking_task_id: blockingTaskId,
+        reason: reason || "Dependency failed"
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+    },
+
     simulateTaskTransition: function (taskId, eventType, error) {
       var sessionId = state.currentSessionId;
       if (!sessionId) return;
@@ -612,6 +713,7 @@ function installMock() {
       state.traces.clear();
       state.memories = [];
       state.permissionRequests.clear();
+      state.agents.clear();
       state.callbacks.clear();
       state.eventListeners.clear();
       idCounter = 0;

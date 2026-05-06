@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { trustServer, mcpState } from "../stores/mcp";
+import { agentLabel } from "../stores/agents";
 import type { TraceEntryData } from "../types/trace";
 
 const props = defineProps<{ entry: TraceEntryData }>();
@@ -28,6 +29,21 @@ const isServerTrusted = computed(() => {
 
 /** Checkbox state for "Trust this server". */
 const trustChecked = ref(false);
+
+/** The source agent label if available from the entry's rawEvent. */
+const sourceAgentLabel = computed(() => {
+  if (!props.entry.rawEvent) return null;
+  try {
+    const event = JSON.parse(props.entry.rawEvent);
+    const agentId = event?.source_agent_id;
+    if (agentId && agentId !== "agent_system") {
+      return agentLabel(agentId);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null;
+});
 
 async function allow() {
   try {
@@ -61,6 +77,9 @@ async function deny() {
     <div class="permission-body">
       <p class="permission-title">
         {{ isMemory ? "Memory Proposed" : "Permission Required" }}
+        <span v-if="sourceAgentLabel" class="permission-agent-badge">
+          {{ sourceAgentLabel }}
+        </span>
       </p>
       <p class="permission-description">{{ entry.title }}</p>
       <div v-if="entry.scope" class="permission-meta">
@@ -124,6 +143,18 @@ async function deny() {
   margin: 0;
   font-weight: 600;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.permission-agent-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  background: #0077cc;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 16px;
 }
 .permission-description {
   margin: 4px 0 0;

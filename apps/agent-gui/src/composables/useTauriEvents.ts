@@ -6,6 +6,7 @@ import { applyTraceEvent } from "./useTraceStore";
 import { taskGraphState } from "../stores/taskGraph";
 import { addNotification } from "./useNotifications";
 import { handleMcpEvent } from "../stores/mcp";
+import { applyAgentEvent } from "../stores/agents";
 
 export function useTauriEvents() {
   let unlisten: (() => void) | null = null;
@@ -38,7 +39,11 @@ export function useTauriEvents() {
                 role: p.role,
                 state: "Pending" as TaskState,
                 dependencies: p.dependencies,
-                error: null
+                error: null,
+                retry_count: 0,
+                max_retries: 3,
+                assigned_agent_id: null,
+                failure_reason: null
               });
               if (taskGraphState.currentSessionId === sessionId) {
                 // Trigger reactivity
@@ -75,7 +80,34 @@ export function useTauriEvents() {
             }
             break;
           }
+          case "TaskBlocked": {
+            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
+            if (task) {
+              task.state = "Blocked" as TaskState;
+              task.error = p.reason || "Dependency failed";
+              taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            break;
+          }
+          case "TaskDecomposed": {
+            // Task decomposition is informational — the sub-tasks
+            // are created via separate AgentTaskCreated events
+            break;
+          }
+          case "TaskRetried": {
+            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
+            if (task) {
+              task.state = "Running" as TaskState;
+              task.retry_count = p.attempt;
+              task.error = null;
+              taskGraphState.tasks = [...taskGraphState.tasks];
+            }
+            break;
+          }
         }
+
+        // Route agent lifecycle events to the agents store
+        applyAgentEvent(domainEvent.payload);
       }
 
       // MCP events are not session-scoped — handle them regardless of session.

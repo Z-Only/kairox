@@ -2,11 +2,45 @@
 import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { sessionState, reportSendError } from "../stores/session";
+import { agentLabel } from "../stores/agents";
 import { addNotification } from "../composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
+import type { ProjectedRole } from "../types";
 
 const inputText = ref("");
 const messageList = ref<HTMLElement | null>(null);
+
+/** Map role to display label. */
+const roleDisplay: Record<ProjectedRole, string> = {
+  user: "You",
+  assistant: "Agent",
+  planner: "Planner",
+  worker: "Worker",
+  reviewer: "Reviewer",
+  system: "System"
+};
+
+/** Map role to CSS class suffix. */
+const roleClass: Record<ProjectedRole, string> = {
+  user: "user",
+  assistant: "assistant",
+  planner: "planner",
+  worker: "worker",
+  reviewer: "reviewer",
+  system: "system"
+};
+
+/** Get the display label for a message, including agent attribution if available. */
+function messageLabel(
+  msg: (typeof sessionState.projection.messages)[0]
+): string {
+  const base = roleDisplay[msg.role] || "Agent";
+  if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
+    const label = agentLabel(msg.sourceAgentId);
+    if (label) return `${base} (${label})`;
+  }
+  return base;
+}
 
 async function sendMessage() {
   const content = inputText.value.trim();
@@ -62,17 +96,23 @@ watch(
       <div
         v-for="(msg, i) in sessionState.projection.messages"
         :key="i"
-        :class="[
-          'message',
-          msg.role === 'user' ? 'message-user' : 'message-assistant'
-        ]"
+        :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
       >
-        <span class="message-role">{{
-          msg.role === "user" ? "You" : "Agent"
-        }}</span>
+        <span
+          :class="[
+            'message-role',
+            `role-badge-${roleClass[msg.role] || 'assistant'}`
+          ]"
+          >{{ messageLabel(msg) }}</span
+        >
         <!-- eslint-disable vue/no-v-html -->
         <span
-          v-if="msg.role === 'assistant'"
+          v-if="
+            msg.role === 'assistant' ||
+            msg.role === 'planner' ||
+            msg.role === 'worker' ||
+            msg.role === 'reviewer'
+          "
           class="message-content markdown-body"
           v-html="renderMarkdown(msg.content)"
         ></span>
@@ -163,6 +203,36 @@ watch(
   color: #22a06b;
   font-weight: 600;
 }
+.message-planner .message-role {
+  color: #0077cc;
+  font-weight: 600;
+}
+.message-worker .message-role {
+  color: #22a06b;
+  font-weight: 600;
+}
+.message-reviewer .message-role {
+  color: #7c3aed;
+  font-weight: 600;
+}
+.message-system .message-role {
+  color: #888;
+  font-weight: 600;
+  font-style: italic;
+}
+.message-system .message-content {
+  color: #888;
+  font-style: italic;
+}
+.role-badge-planner {
+  background: none;
+}
+.role-badge-worker {
+  background: none;
+}
+.role-badge-reviewer {
+  background: none;
+}
 .message-role {
   margin-right: 6px;
 }
@@ -251,4 +321,3 @@ watch(
   margin: 6px 0;
 }
 </style>
-CHAPEOF echo "ChatPanel.vue updated"

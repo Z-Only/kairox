@@ -5,9 +5,11 @@ import type {
   SessionInfoResponse,
   DomainEvent
 } from "../types";
+import { agentRoleToProjectedRole } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
 import { addNotification } from "../composables/useNotifications";
 import { taskGraphState, clearTaskGraph } from "./taskGraph";
+import { agentState, clearAgents } from "./agents";
 
 /** Report a send error to the UI when the background task fails. */
 export function reportSendError(message: string) {
@@ -18,6 +20,13 @@ export function reportSendError(message: string) {
   sessionState.projection.token_stream = "";
   sessionState.isStreaming = false;
 }
+
+/**
+ * Per-task token streams for multi-agent DAG execution.
+ * Maps taskId → accumulated token text. The global token_stream
+ * still exists as a fallback for non-DAG (single-step) mode.
+ */
+export const streamsByTask = reactive(new Map<string, string>());
 
 export const sessionState = reactive({
   sessions: [] as SessionInfoResponse[],
@@ -39,9 +48,12 @@ export const sessionState = reactive({
 /**
  * Apply a DomainEvent to the local session projection.
  * Mirrors the Rust SessionProjection::apply() method.
+ * Extended for Phase 3: agent attribution, per-task streams, and DAG events.
  */
 export function applyEvent(event: DomainEvent) {
   const p = event.payload;
+  const sourceAgentId = event.source_agent_id;
+
   switch (p.type) {
     case "UserMessageAdded": {
       sessionState.projection.messages.push({
@@ -56,10 +68,19 @@ export function applyEvent(event: DomainEvent) {
       break;
     }
     case "AssistantMessageCompleted": {
-      sessionState.projection.messages.push({
+      const msg: (typeof sessionState.projection.messages)[0] = {
         role: "assistant",
         content: p.content
-      });
+      };
+      // Attribute to agent if source is known
+      if (sourceAgentId && sourceAgentId !== "agent_system") {
+        msg.sourceAgentId = sourceAgentId;
+        const agent = agentState.agents.get(sourceAgentId);
+        if (agent) {
+          msg.role = agentRoleToProjectedRole(agent.role);
+        }
+      }
+      sessionState.projection.messages.push(msg);
       sessionState.projection.token_stream = "";
       sessionState.isStreaming = false;
       break;
@@ -75,15 +96,12 @@ export function applyEvent(event: DomainEvent) {
     case "AgentTaskStarted":
       // Task is now running — no projection change needed
       break;
-    case "AgentTaskCompleted":
+    case "AgentTaskCompleted": {
       // Safety net: when a task completes, ensure streaming is reset.
-      // This catches the edge case where the agent loop ends with a
-      // tool-only response (empty AssistantMessageCompleted) and the
-      // root task completes, but isStreaming wasn't properly cleared.
       sessionState.isStreaming = false;
       break;
+    }
     case "AgentTaskFailed": {
-      // Show the error as an assistant message and reset streaming state
       sessionState.projection.messages.push({
         role: "assistant",
         content: `[error] ${p.error || "Unknown error"}`
@@ -92,6 +110,31 @@ export function applyEvent(event: DomainEvent) {
       sessionState.isStreaming = false;
       break;
     }
+    case "TaskDecomposed": {
+      sessionState.projection.messages.push({
+        role: "system",
+        content: `Task decomposed into ${p.sub_task_ids.length} sub-tasks`
+      });
+      break;
+    }
+    case "TaskBlocked": {
+      sessionState.projection.messages.push({
+        role: "system",
+        content: `Task blocked: ${p.reason || "dependency failed"}`
+      });
+      break;
+    }
+    case "TaskRetried": {
+      sessionState.projection.messages.push({
+        role: "system",
+        content: `Task retry attempt ${p.attempt}`
+      });
+      break;
+    }
+    case "AgentSpawned":
+    case "AgentIdle":
+      // Agent lifecycle events — handled by agents.ts store
+      break;
     case "SessionInitialized":
     case "ContextAssembled":
     case "ModelRequestStarted":
@@ -140,6 +183,8 @@ export function resetProjection() {
     cancelled: false
   };
   sessionState.isStreaming = false;
+  streamsByTask.clear();
+  clearAgents();
 }
 
 export async function deleteSession(sessionId: string) {

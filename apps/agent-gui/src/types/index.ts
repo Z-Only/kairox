@@ -11,11 +11,27 @@ export type {
 } from "../generated/events";
 
 // ===== UI projection types (not generated from Rust) =====
-export type ProjectedRole = "user" | "assistant";
+
+/**
+ * Extended role types for message attribution.
+ * Phase 1 had only "user" | "assistant".
+ * Phase 3 adds planner/worker/reviewer for multi-agent DAG execution.
+ */
+export type ProjectedRole =
+  | "user"
+  | "assistant"
+  | "planner"
+  | "worker"
+  | "reviewer"
+  | "system";
 
 export interface ProjectedMessage {
   role: ProjectedRole;
   content: string;
+  /** The agent that produced this message, when applicable. */
+  sourceAgentId?: string;
+  /** The task this message is associated with, when applicable. */
+  taskId?: string;
 }
 
 export interface SessionProjection {
@@ -52,4 +68,19 @@ export interface SessionMeta {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Map an AgentRole from the generated types to a ProjectedRole.
+ * Used when attributing messages to specific agents.
+ */
+export function agentRoleToProjectedRole(
+  role: AgentRole
+): "planner" | "worker" | "reviewer" {
+  const map: Record<AgentRole, "planner" | "worker" | "reviewer"> = {
+    Planner: "planner",
+    Worker: "worker",
+    Reviewer: "reviewer"
+  };
+  return map[role] || "worker";
 }
