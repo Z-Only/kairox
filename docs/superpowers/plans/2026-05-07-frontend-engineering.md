@@ -2968,6 +2968,36 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
 > **Note for Task 5:** the `switchSession` action is already added to the session store in **Task 3 Step 8** (verified above). Task 5 may freely call `session.switchSession(id)` without redefining it.
 
+> **⚠️ MANDATORY for Task 5 (carried over from Task 2 spec-review follow-up):** Task 2 shipped `apps/agent-gui/src/router/routes.ts` with a `placeholderComponent(name)` factory in place of the spec's `() => import("@/views/*View.vue")` lazy imports, because rolldown (Vite 8 default bundler) statically resolves dynamic import paths and hard-fails when target SFCs are missing. Task 5 creates those SFCs, so **Task 5 MUST** apply this exact rewrite to `apps/agent-gui/src/router/routes.ts`:
+>
+> 1. Open `apps/agent-gui/src/router/routes.ts` with `read_file` to confirm the current shape (verified at Task 2 commit `aacbeeb`: 32 lines total). Then delete lines 3–11 inclusive — these 9 lines contain BOTH regions of the placeholder helper. The exact lines to remove are:
+>
+>    ```ts
+>    // TODO(Task 5): swap these placeholder components for real lazy imports of
+>    // `@/views/WorkbenchView.vue`, `@/views/MarketplaceView.vue`, and
+>    // `@/views/SettingsView.vue` once those SFCs exist. Vite's build cannot
+>    // statically resolve dynamic imports to non-existent modules, so we ship
+>    // runtime stubs in Task 2 to keep the build green.
+>    const placeholderComponent = (name: string) => () =>
+>      Promise.resolve({
+>        default: { name, template: `<div>view-placeholder:${name}</div>` }
+>      });
+>    ```
+>
+>    If Prettier has reformatted the file since Task 2 (line numbers may have shifted by ±1), match by content rather than line number: remove the entire 5-line `// TODO(Task 5): ...` comment block AND the entire 4-line `const placeholderComponent = ...` declaration that immediately follows it (ending with `});`).
+>
+> 2. Keep the `import type { RouteRecordRaw } from "vue-router";` line at the top of the file unchanged — it is still required by the `RouteRecordRaw[]` type annotation on the `routes` constant.
+> 3. Replace each route's `component` field as follows (verbatim, all three must be applied — no `(etc.)` shortcuts):
+>    - `component: placeholderComponent("WorkbenchView")` → `component: () => import("@/views/WorkbenchView.vue")`
+>    - `component: placeholderComponent("MarketplaceView")` → `component: () => import("@/views/MarketplaceView.vue")`
+>    - `component: placeholderComponent("SettingsView")` → `component: () => import("@/views/SettingsView.vue")`
+> 4. The rest of the `routes` array (paths, names, `props: true` on workbench, root redirect, `:pathMatch(.*)*` wildcard, route ordering) MUST remain byte-for-byte identical to the spec block in this plan at **Task 2 Step 3 (plan L230–L249)**. Do not add, remove, or reorder routes.
+> 5. After the rewrite:
+>    - Run `pnpm --filter agent-gui run build` and confirm rolldown can now statically resolve all three imports (no `UNLOADABLE_DEPENDENCY` errors); the build output should now show three additional lazy-loaded chunks (one per view).
+>    - Run `pnpm --filter agent-gui run test`. The test count MUST NOT regress relative to the previous task's verification step. Determine the floor by inspecting the previous task's implementer report (the most recent task before Task 5 — i.e. Task 4) for its final `pnpm --filter agent-gui run test` output, and using that exact reported count as the floor. Do not hard-code a number; always derive the floor from the prior task's actual measured count, because earlier tasks (Task 3 in particular) modify many existing `*.test.ts` files and may add or remove individual test cases as part of the Pinia migration. Task 5 itself adds no new unit tests (it only adds `data-test` attributes consumed by Playwright in Task 8), so the new count should equal the prior task's count exactly. If the count is lower, treat it as a regression and stop.
+>
+> Failing to do this means GUI navigation will forever render `<div>view-placeholder:WorkbenchView</div>` instead of the real views, and code-splitting (one chunk per view) will not work.
+
 ## Task 5: Add SettingsView + AppLayout + WorkbenchView/MarketplaceView wrappers (commit 5)
 
 **Branch:** `feat/frontend-engineering`
@@ -4067,6 +4097,10 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Branch:** `feat/frontend-engineering`
 **Commit message:** `feat(gui): add unplugin-auto-import and unplugin-vue-components`
 **Why ninth (not earlier):** auto-imports change the surface area of every file. Doing it last keeps earlier commits' diffs explicit (every import visible), and lets us delete redundant `import` statements as a single batched cleanup.
+
+> **Optional follow-up from Task 2 code-quality review (non-blocking, do at your discretion while editing `vite.config.ts`):**
+>
+> - In `apps/agent-gui/vite.config.ts`, change `server: { port: 1420, host: "0.0.0.0" }` to `server: { port: 1420, host: "127.0.0.1", strictPort: true }`. Tauri only loads from localhost; binding to `0.0.0.0` exposes the dev server (and HMR socket) to the LAN, which is unintended for a desktop-only project. Anyone needing LAN debugging can override with `vite --host` on the CLI. `strictPort: true` makes port collisions fail loudly instead of silently shifting, which matches Tauri's expectation of a fixed port.
 
 **Files:**
 
