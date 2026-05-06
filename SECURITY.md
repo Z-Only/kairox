@@ -2,12 +2,13 @@
 
 ## Supported versions
 
-| Version | Supported |
-| ------- | --------- |
-| 0.7.x   | Yes       |
-| 0.6.x   | Yes       |
-| 0.5.x   | No        |
-| < 0.5.0 | No        |
+Kairox is in active pre-1.0 development. Only the latest minor release line receives security fixes.
+
+| Version  | Supported |
+| -------- | --------- |
+| 0.15.x   | Yes       |
+| 0.14.x   | No        |
+| < 0.14.0 | No        |
 
 ## Reporting a vulnerability
 

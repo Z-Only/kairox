@@ -16,11 +16,16 @@ Run `just check` and verify all jobs pass. Check applicable items:
 
 - [ ] `just fmt-check` — format check
 - [ ] `just lint` — clippy + eslint + stylelint
-- [ ] `just test` — cargo test
-- [ ] `just test-gui` — vitest
-- [ ] `just check-types` — Rust ↔ TypeScript EventPayload sync
-- [ ] `just gen-types` — run if any `#[tauri::command]` signature changed
-- [ ] `just tauri-build` — verify GUI builds
+- [ ] `just test` — cargo test (workspace, all targets)
+- [ ] `just test-gui` — Vue / Vitest
+- [ ] `just test-tui` — TUI app logic integration tests (if TUI changed)
+- [ ] `just test-fullstack` — full-stack runtime integration tests (if runtime changed)
+- [ ] `just test-mcp` — MCP integration tests (if MCP changed)
+- [ ] `just test-e2e` — Playwright E2E (if GUI/IPC changed)
+- [ ] `just gen-types` — regenerate `apps/agent-gui/src/generated/{commands,events}.ts` if any `#[tauri::command]` or `EventPayload` / domain type changed
+- [ ] `just check-types` — assert generated TypeScript bindings are in sync
+- [ ] Updated `apps/agent-gui/e2e/tauri-mock.js` if new IPC commands or events were added
+- [ ] `just tauri-build` — verify Tauri desktop bundle builds
 
 ## Screenshots / recordings
 

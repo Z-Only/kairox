@@ -27,22 +27,29 @@ This runs format check, lint, and tests — equivalent to CI.
 
 Individual commands:
 
-| Task            | Command                                               |
-| --------------- | ----------------------------------------------------- |
-| Format check    | `just fmt-check` or `pnpm run format:check`           |
-| Lint            | `just lint` or `pnpm run lint`                        |
-| Rust tests      | `just test` or `cargo test --workspace --all-targets` |
-| GUI tests       | `just test-gui`                                       |
-| Type sync check | `just check-types`                                    |
-| Build GUI web   | `just gui-build`                                      |
-| Build Tauri app | `just tauri-build`                                    |
+| Task                 | Command                                                          |
+| -------------------- | ---------------------------------------------------------------- |
+| Format check         | `just fmt-check` or `pnpm run format:check`                      |
+| Lint                 | `just lint` or `pnpm run lint`                                   |
+| Rust tests           | `just test` or `cargo test --workspace --all-targets`            |
+| GUI unit tests       | `just test-gui`                                                  |
+| TUI integration      | `just test-tui`                                                  |
+| Full-stack tests     | `just test-fullstack`                                            |
+| MCP tests            | `just test-mcp`                                                  |
+| GUI E2E (Playwright) | `just test-e2e` (or `just test-e2e-headed` / `just test-e2e-ui`) |
+| All test layers      | `just test-all`                                                  |
+| Type sync check      | `just check-types`                                               |
+| Regenerate types     | `just gen-types`                                                 |
+| Build GUI web        | `just gui-build`                                                 |
+| Build Tauri app      | `just tauri-build`                                               |
 
 ## Commit messages
 
-This repository uses Conventional Commits. Examples:
+This repository uses Conventional Commits. Allowed scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `tui`, `gui`, `deps`, `ci`. Examples:
 
 - `feat(runtime): add scheduler retry policy`
 - `fix(gui): handle empty trace state`
+- `feat(mcp): add SSE transport support`
 - `docs(readme): clarify local setup`
 
 ## Pull requests
@@ -58,9 +65,16 @@ This repository uses Conventional Commits. Examples:
 - Frontend/docs: `prettier`, `eslint`, `stylelint`
 - Hooks: `husky`, `lint-staged`, `commitlint`
 
-## Adding new event types
+## Adding new event types or Tauri commands
 
-When adding a new `EventPayload` variant in Rust, also update the TypeScript type in `apps/agent-gui/src/types/index.ts`. Run `just check-types` to verify both sides are in sync.
+TypeScript bindings under `apps/agent-gui/src/generated/` are **auto-generated** by [tauri-specta](https://github.com/specta-rs/tauri-specta) — never edit them by hand. After changing any `EventPayload` variant, domain type used in events, or `#[tauri::command]` signature:
+
+1. Run `just gen-types` to regenerate `commands.ts` and `events.ts`
+2. Run `just check-types` to verify the generated bindings are in sync (this is also enforced by the CI `type-sync` job)
+3. If you added a new IPC command or event the frontend listens to, also update `apps/agent-gui/e2e/tauri-mock.js` so Playwright E2E tests keep passing
+4. Make sure new `#[tauri::command]` functions are registered in **both** `generate_handler!` (in `lib.rs`) and `collect_commands!` (in `src/specta.rs`) — missing either one causes runtime or type-gen failures
+
+For full architecture context and per-feature recipes, see [AGENTS.md](./AGENTS.md).
 
 ## Dependency updates
 
