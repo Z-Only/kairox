@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
+import { createRouter, createMemoryHistory } from "vue-router";
 import SessionsSidebar from "./SessionsSidebar.vue";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -17,6 +18,38 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 
+// A stub router that mirrors the production route names but uses inert
+// component shims so we don't pull WorkbenchView (and its dependencies)
+// into store-only sidebar tests. Sidebar tests only need the router
+// plugin present so `useRoute()` / `useRouter()` resolve.
+function makeStubRouter() {
+  const stub = { template: "<div />" };
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: "/", redirect: { name: "workbench" } },
+      {
+        path: "/workbench/:sessionId?",
+        name: "workbench",
+        component: stub,
+        props: true
+      },
+      { path: "/marketplace", name: "marketplace", component: stub },
+      { path: "/settings", name: "settings", component: stub }
+    ]
+  });
+}
+
+async function mountSidebar() {
+  const router = makeStubRouter();
+  await router.push({ name: "workbench" });
+  await router.isReady();
+  const wrapper = mount(SessionsSidebar, {
+    global: { plugins: [router] }
+  });
+  return { wrapper, router };
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   const session = useSessionStore();
@@ -28,40 +61,34 @@ beforeEach(() => {
 });
 
 describe("SessionsSidebar", () => {
-  it("renders session titles", () => {
+  it("renders session titles", async () => {
     const session = useSessionStore();
     session.sessions = [
       { id: "s1", title: "Chat about Rust", profile: "fast" } as never,
       { id: "s2", title: "Debug session", profile: "slow" } as never
     ];
-    const wrapper = mount(SessionsSidebar);
+    const { wrapper } = await mountSidebar();
     expect(wrapper.text()).toContain("Chat about Rust");
     expect(wrapper.text()).toContain("Debug session");
   });
 
-  it("shows empty hint when no sessions", () => {
-    const wrapper = mount(SessionsSidebar);
+  it("shows empty hint when no sessions", async () => {
+    const { wrapper } = await mountSidebar();
     expect(wrapper.text()).toContain("No sessions yet");
   });
 
-  it("invokes switch_session on session click", async () => {
+  it("navigates to the workbench route with the session id on click", async () => {
     const session = useSessionStore();
     session.sessions = [
       { id: "s1", title: "Session 1", profile: "fast" } as never
     ];
-    mockedInvoke.mockResolvedValueOnce({
-      messages: [],
-      task_titles: [],
-      task_graph: { tasks: [] },
-      token_stream: "",
-      cancelled: false
-    });
-    mockedInvoke.mockResolvedValueOnce([]);
-    const wrapper = mount(SessionsSidebar);
+    const { wrapper, router } = await mountSidebar();
     await wrapper.find(".session-item").trigger("click");
-    expect(mockedInvoke).toHaveBeenCalledWith("switch_session", {
-      sessionId: "s1"
-    });
+    // Flush the async click handler so router.push resolves.
+    await new Promise((r) => setTimeout(r, 0));
+    await router.isReady();
+    expect(router.currentRoute.value.name).toBe("workbench");
+    expect(router.currentRoute.value.params.sessionId).toBe("s1");
   });
 
   it("opens new session dialog on + New click", async () => {
@@ -74,7 +101,7 @@ describe("SessionsSidebar", () => {
         has_api_key: true
       }
     ]);
-    const wrapper = mount(SessionsSidebar);
+    const { wrapper } = await mountSidebar();
     await wrapper.find(".new-session-btn").trigger("click");
     expect(wrapper.text()).toContain("New Session");
   });

@@ -8,7 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { useCatalogStore } from "@/stores/catalog";
-import Marketplace from "../../views/Marketplace.vue";
+import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";

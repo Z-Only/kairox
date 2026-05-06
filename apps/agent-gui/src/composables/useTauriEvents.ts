@@ -77,7 +77,12 @@ export function useTauriEvents() {
     session.setConnected(false);
   });
 
-  void unlistenPromise.then(() => {
-    session.setConnected(true);
-  });
+  void unlistenPromise
+    .then(() => session.setConnected(true))
+    .catch((err) => {
+      ui.pushNotification(
+        "error",
+        `Failed to subscribe to session events: ${err}`
+      );
+    });
 }

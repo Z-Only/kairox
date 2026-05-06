@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
+import { computed, ref, nextTick } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionProjection, ProfileDetail } from "../types";
+import type { ProfileDetail } from "../types";
 import { useSessionStore } from "@/stores/session";
-import { useTaskGraphStore } from "@/stores/taskGraph";
-import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
+import { clearTrace } from "../composables/useTraceStore";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
 const session = useSessionStore();
-const taskGraph = useTaskGraphStore();
+const route = useRoute();
+const router = useRouter();
+
+// The active session is derived from the URL (`/workbench/:sessionId?`),
+// so navigation through the sidebar drives the router and the router
+// drives the store via WorkbenchView's watcher.
+const activeSessionId = computed<string | null>(() => {
+  const v = route.params.sessionId;
+  const id = Array.isArray(v) ? v[0] : v;
+  return id ?? session.currentSessionId;
+});
 
 const showNewSession = ref(false);
 const showDeleteDialog = ref(false);
@@ -31,33 +41,11 @@ async function refreshSessions() {
 
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
+  if (sessionId === activeSessionId.value) return;
   try {
-    session.resetProjection();
-    clearTrace();
-    taskGraph.clearTaskGraph();
-    const projection: SessionProjection = await invoke("switch_session", {
-      sessionId
-    });
-    session.setProjection(projection);
-    session.currentSessionId = sessionId;
-    const target = session.sessions.find((s) => s.id === sessionId);
-    if (target) {
-      session.currentProfile = target.profile;
-    }
-    try {
-      const traceStrings: string[] = await invoke("get_trace", { sessionId });
-      for (const jsonStr of traceStrings) {
-        try {
-          applyTraceEvent(JSON.parse(jsonStr));
-        } catch {
-          // Skip malformed trace entries
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load trace for session:", e);
-    }
+    await router.push({ name: "workbench", params: { sessionId } });
   } catch (e) {
-    console.error("Failed to switch session:", e);
+    console.error("Failed to navigate to session:", e);
   }
 }
 
@@ -69,12 +57,12 @@ async function createSession() {
       profile: string;
     }>("start_session", { profile: selectedProfile.value });
     await refreshSessions();
-    session.currentSessionId = result.id;
     session.currentProfile = result.profile;
     session.resetProjection();
     clearTrace();
     showNewSession.value = false;
     profileDropdownOpen.value = false;
+    await router.push({ name: "workbench", params: { sessionId: result.id } });
   } catch (e) {
     console.error("Failed to start session:", e);
   }
@@ -175,10 +163,7 @@ function keyIcon(hasApiKey: boolean): string {
       <li
         v-for="item in session.sessions"
         :key="item.id"
-        :class="[
-          'session-item',
-          { active: item.id === session.currentSessionId }
-        ]"
+        :class="['session-item', { active: item.id === activeSessionId }]"
         @click="switchToSession(item.id)"
       >
         <span class="session-indicator">●</span>

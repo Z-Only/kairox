@@ -1,0 +1,74 @@
+<script setup lang="ts">
+import { onMounted, watch, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
+import { useSessionStore } from "@/stores/session";
+import { useUiStore } from "@/stores/ui";
+import SessionsSidebar from "@/components/SessionsSidebar.vue";
+import ChatPanel from "@/components/ChatPanel.vue";
+import TraceTimeline from "@/components/TraceTimeline.vue";
+import PermissionCenter from "@/components/PermissionCenter.vue";
+
+const route = useRoute();
+const router = useRouter();
+const session = useSessionStore();
+const ui = useUiStore();
+const { currentSessionId } = storeToRefs(session);
+
+const routeSessionId = computed(() => {
+  const v = route.params.sessionId;
+  return Array.isArray(v) ? v[0] : v;
+});
+
+async function syncRouteToSession(id: string | undefined) {
+  if (!id) return;
+  if (id === currentSessionId.value) return;
+  try {
+    await session.switchSession(id);
+  } catch {
+    ui.pushNotification("error", `Session not found: ${id}`);
+    await router.replace({ name: "workbench" });
+  }
+}
+
+onMounted(() => {
+  void syncRouteToSession(routeSessionId.value);
+});
+
+watch(routeSessionId, (next) => {
+  void syncRouteToSession(next);
+});
+
+// Reflect store changes back into URL.
+watch(currentSessionId, (next) => {
+  if (next && next !== routeSessionId.value) {
+    void router.replace({ name: "workbench", params: { sessionId: next } });
+  }
+});
+</script>
+
+<template>
+  <main class="workbench" data-test="view-workbench">
+    <SessionsSidebar />
+    <ChatPanel />
+    <aside class="right-sidebar">
+      <TraceTimeline />
+      <PermissionCenter />
+    </aside>
+  </main>
+</template>
+
+<style scoped>
+.workbench {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  flex: 1;
+  overflow: hidden;
+}
+.right-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #d7d7d7;
+  overflow: hidden;
+}
+</style>

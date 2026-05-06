@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useCatalogStore } from "@/stores/catalog";
-import CatalogList from "../components/marketplace/CatalogList.vue";
-import InstalledList from "../components/marketplace/InstalledList.vue";
-import CatalogSourcesSettings from "../components/CatalogSourcesSettings.vue";
+import CatalogList from "@/components/marketplace/CatalogList.vue";
+import InstalledList from "@/components/marketplace/InstalledList.vue";
+import CatalogSourcesSettings from "@/components/CatalogSourcesSettings.vue";
 
 const catalog = useCatalogStore();
 const installedCount = computed(() => catalog.installed.length);
