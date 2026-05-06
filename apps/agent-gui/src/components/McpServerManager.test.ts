@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import McpServerManager from "./McpServerManager.vue";
 
@@ -6,21 +7,14 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import { mcpState } from "../stores/mcp";
+import { useMcpStore } from "@/stores/mcp";
 
 beforeEach(() => {
-  mcpState.servers = [];
-  mcpState.trustedServerIds = [];
-  mcpState.loading = false;
+  setActivePinia(createPinia());
   vi.clearAllMocks();
 });
 
@@ -31,7 +25,8 @@ describe("McpServerManager", () => {
   });
 
   it("renders server list with names and statuses", () => {
-    mcpState.servers = [
+    const mcp = useMcpStore();
+    mcp.servers = [
       { id: "github", status: "running", tool_count: 5 },
       { id: "slack", status: "stopped", tool_count: null }
     ];
@@ -43,20 +38,23 @@ describe("McpServerManager", () => {
   });
 
   it("shows trust badge for trusted servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
-    mcpState.trustedServerIds = ["github"];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    mcp.trustedServerIds = ["github"];
     const wrapper = mount(McpServerManager);
     expect(wrapper.text()).toContain("✅ Trusted");
   });
 
   it("shows untrusted warning for running but untrusted servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
     const wrapper = mount(McpServerManager);
     expect(wrapper.text()).toContain("⚠️ Not trusted");
   });
 
   it("shows Start button for stopped servers", () => {
-    mcpState.servers = [{ id: "slack", status: "stopped", tool_count: null }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "slack", status: "stopped", tool_count: null }];
     const wrapper = mount(McpServerManager);
     const buttons = wrapper.findAll(".mcp-server-actions button");
     const buttonTexts = buttons.map((b) => b.text());
@@ -64,7 +62,8 @@ describe("McpServerManager", () => {
   });
 
   it("shows Stop button for running servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
     const wrapper = mount(McpServerManager);
     const buttons = wrapper.findAll(".mcp-server-actions button");
     const buttonTexts = buttons.map((b) => b.text());
@@ -72,7 +71,8 @@ describe("McpServerManager", () => {
   });
 
   it("shows Restart button for failed servers", () => {
-    mcpState.servers = [{ id: "broken", status: "failed", tool_count: null }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "broken", status: "failed", tool_count: null }];
     const wrapper = mount(McpServerManager);
     const buttons = wrapper.findAll(".mcp-server-actions button");
     const buttonTexts = buttons.map((b) => b.text());
@@ -80,7 +80,8 @@ describe("McpServerManager", () => {
   });
 
   it("shows Trust button for untrusted running servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
     const wrapper = mount(McpServerManager);
     const buttons = wrapper.findAll(".mcp-server-actions button");
     const buttonTexts = buttons.map((b) => b.text());
@@ -88,8 +89,9 @@ describe("McpServerManager", () => {
   });
 
   it("shows Revoke button for trusted servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
-    mcpState.trustedServerIds = ["github"];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    mcp.trustedServerIds = ["github"];
     const wrapper = mount(McpServerManager);
     const buttons = wrapper.findAll(".mcp-server-actions button");
     const buttonTexts = buttons.map((b) => b.text());
@@ -97,13 +99,15 @@ describe("McpServerManager", () => {
   });
 
   it("shows tool count for running servers", () => {
-    mcpState.servers = [{ id: "github", status: "running", tool_count: 5 }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "github", status: "running", tool_count: 5 }];
     const wrapper = mount(McpServerManager);
     expect(wrapper.text()).toContain("5 tools");
   });
 
   it("shows error message for failed servers", () => {
-    mcpState.servers = [
+    const mcp = useMcpStore();
+    mcp.servers = [
       {
         id: "broken",
         status: "failed",
@@ -122,9 +126,10 @@ describe("McpServerManager", () => {
   });
 
   it("invokes start_mcp_server on Start click", async () => {
+    const mcp = useMcpStore();
     mockedInvoke.mockResolvedValueOnce(undefined); // start_mcp_server
     mockedInvoke.mockResolvedValueOnce([]); // list_mcp_servers (fetchServers)
-    mcpState.servers = [{ id: "slack", status: "stopped", tool_count: null }];
+    mcp.servers = [{ id: "slack", status: "stopped", tool_count: null }];
     const wrapper = mount(McpServerManager);
     await wrapper.findAll(".mcp-server-actions button")[0].trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("start_mcp_server", {

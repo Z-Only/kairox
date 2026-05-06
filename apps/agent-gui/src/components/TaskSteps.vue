@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { taskGraphState, buildTaskTree } from "../stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
 import TaskNode from "./TaskNode.vue";
 
-const tree = computed(() => buildTaskTree(taskGraphState.tasks));
+const taskGraph = useTaskGraphStore();
+const tree = computed(() => taskGraph.buildTaskTree(taskGraph.tasks));
 
 /** Track expanded state per task ID. */
 const expanded = ref<Set<string>>(new Set());

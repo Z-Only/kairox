@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import McpStatusIndicator from "./McpStatusIndicator.vue";
 
@@ -6,18 +7,11 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
-import { mcpState } from "../stores/mcp";
+import { useMcpStore } from "@/stores/mcp";
 
 beforeEach(() => {
-  mcpState.servers = [];
-  mcpState.trustedServerIds = [];
-  mcpState.loading = false;
+  setActivePinia(createPinia());
 });
 
 describe("McpStatusIndicator", () => {
@@ -28,14 +22,16 @@ describe("McpStatusIndicator", () => {
   });
 
   it("shows stopped state when servers exist but none running", () => {
-    mcpState.servers = [{ id: "s1", status: "stopped", tool_count: null }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "s1", status: "stopped", tool_count: null }];
     const wrapper = mount(McpStatusIndicator);
     expect(wrapper.text()).toContain("0 MCP");
     expect(wrapper.find(".mcp-status").classes()).toContain("mcp-stopped");
   });
 
   it("shows running state with green dot", () => {
-    mcpState.servers = [
+    const mcp = useMcpStore();
+    mcp.servers = [
       { id: "s1", status: "running", tool_count: 3 },
       { id: "s2", status: "stopped", tool_count: null }
     ];
@@ -46,14 +42,16 @@ describe("McpStatusIndicator", () => {
   });
 
   it("shows failed state with red dot", () => {
-    mcpState.servers = [{ id: "s1", status: "failed", tool_count: null }];
+    const mcp = useMcpStore();
+    mcp.servers = [{ id: "s1", status: "failed", tool_count: null }];
     const wrapper = mount(McpStatusIndicator);
     expect(wrapper.find(".mcp-status").classes()).toContain("mcp-failed");
     expect(wrapper.text()).toContain("🔴");
   });
 
   it("prioritizes failed over running", () => {
-    mcpState.servers = [
+    const mcp = useMcpStore();
+    mcp.servers = [
       { id: "s1", status: "running", tool_count: 3 },
       { id: "s2", status: "failed", tool_count: null }
     ];

@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { catalogState, fetchSources, isSourceSelected, toggleSource } from "../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "../components/marketplace/CatalogList.vue";
 import InstalledList from "../components/marketplace/InstalledList.vue";
 import CatalogSourcesSettings from "../components/CatalogSourcesSettings.vue";
 
-const installedCount = computed(() => catalogState.installed.length);
+const catalog = useCatalogStore();
+const installedCount = computed(() => catalog.installed.length);
 const settingsOpen = ref(false);
 
 function setTab(tab: "browse" | "installed") {
-  catalogState.tab = tab;
+  catalog.tab = tab;
 }
 
 const sourceChips = computed(() => [
   { id: "builtin", display_name: "Built-in" },
-  ...catalogState.sources.map((s) => ({
+  ...catalog.sources.map((s) => ({
     id: s.id,
     display_name: s.display_name
   }))
 ]);
 
 onMounted(() => {
-  void fetchSources();
+  void catalog.fetchSources();
 });
 </script>
 
@@ -32,34 +33,34 @@ onMounted(() => {
       <nav class="tabs">
         <button
           data-test="tab-browse"
-          :class="{ active: catalogState.tab === 'browse' }"
+          :class="{ active: catalog.tab === 'browse' }"
           @click="setTab('browse')"
         >
           Browse
         </button>
         <button
           data-test="tab-installed"
-          :class="{ active: catalogState.tab === 'installed' }"
+          :class="{ active: catalog.tab === 'installed' }"
           @click="setTab('installed')"
         >
           Installed ({{ installedCount }})
         </button>
       </nav>
     </header>
-    <div v-if="catalogState.tab === 'browse'" class="source-filter">
+    <div v-if="catalog.tab === 'browse'" class="source-filter">
       <button
         v-for="chip in sourceChips"
         :key="chip.id"
         :data-test="`source-chip-${chip.id}`"
-        :class="{ chip: true, active: isSourceSelected(chip.id) }"
+        :class="{ chip: true, active: catalog.isSourceSelected(chip.id) }"
         type="button"
-        @click="toggleSource(chip.id)"
+        @click="catalog.toggleSource(chip.id)"
       >
         {{ chip.display_name }}
         <span
-          v-if="catalogState.sourceFailures[chip.id]"
+          v-if="catalog.sourceFailures[chip.id]"
           :data-test="`src-warn-${chip.id}`"
-          :title="catalogState.sourceFailures[chip.id]"
+          :title="catalog.sourceFailures[chip.id]"
           class="warn"
           >⚠</span
         >
@@ -75,13 +76,13 @@ onMounted(() => {
       </button>
     </div>
     <div
-      v-if="settingsOpen && catalogState.tab === 'browse'"
+      v-if="settingsOpen && catalog.tab === 'browse'"
       class="settings-drawer"
       data-test="catalog-source-settings-drawer"
     >
       <CatalogSourcesSettings />
     </div>
-    <CatalogList v-if="catalogState.tab === 'browse'" />
+    <CatalogList v-if="catalog.tab === 'browse'" />
     <InstalledList v-else />
   </section>
 </template>

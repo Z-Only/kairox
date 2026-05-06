@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { catalogState } from "../../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 
+const catalog = useCatalogStore();
 const props = defineProps<{ catalogId: string }>();
 defineEmits<{ close: [] }>();
 
-const outcome = computed(() => catalogState.installState[props.catalogId]);
+const outcome = computed(() => catalog.installState[props.catalogId]);
 
 // Backend installer order: runtime probe → env validate → toml write → start.
 // "Detect runtime" only ticks when we either succeeded fully or failed *after*

@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { taskGraphState, setTaskGraph, clearTaskGraph, buildTaskTree } from "./taskGraph";
-import { agentState, clearAgents } from "./agents";
-import type { TaskSnapshot } from "../types";
+import { setActivePinia, createPinia } from "pinia";
+import { useTaskGraphStore } from "@/stores/taskGraph";
+import { useAgentsStore } from "@/stores/agents";
+import type { TaskSnapshot } from "@/types";
 
-function makeTask(overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">): TaskSnapshot {
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
+
+function makeTask(
+  overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">
+): TaskSnapshot {
   return {
     title: `Task ${overrides.id}`,
     role: "Planner" as const,
@@ -19,17 +26,15 @@ function makeTask(overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">): 
 }
 
 describe("buildTaskTree", () => {
-  beforeEach(() => {
-    clearAgents();
-  });
-
   it("returns empty array for empty list", () => {
-    expect(buildTaskTree([])).toEqual([]);
+    const taskGraph = useTaskGraphStore();
+    expect(taskGraph.buildTaskTree([])).toEqual([]);
   });
 
   it("returns single root for a single node", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
-    const tree = buildTaskTree([a]);
+    const tree = taskGraph.buildTaskTree([a]);
     expect(tree).toHaveLength(1);
     expect(tree[0].task.id).toBe("A");
     expect(tree[0].children).toEqual([]);
@@ -37,10 +42,11 @@ describe("buildTaskTree", () => {
   });
 
   it("builds a linear chain A→B→C", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
     const b = makeTask({ id: "B", dependencies: ["A"] });
     const c = makeTask({ id: "C", dependencies: ["B"] });
-    const tree = buildTaskTree([a, b, c]);
+    const tree = taskGraph.buildTaskTree([a, b, c]);
 
     expect(tree).toHaveLength(1);
     const root = tree[0];
@@ -57,10 +63,11 @@ describe("buildTaskTree", () => {
   });
 
   it("builds parallel children — root A has B and C", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
     const b = makeTask({ id: "B", dependencies: ["A"] });
     const c = makeTask({ id: "C", dependencies: ["A"] });
-    const tree = buildTaskTree([a, b, c]);
+    const tree = taskGraph.buildTaskTree([a, b, c]);
 
     expect(tree).toHaveLength(1);
     const root = tree[0];
@@ -70,20 +77,22 @@ describe("buildTaskTree", () => {
   });
 
   it("handles multiple independent roots", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
     const d = makeTask({ id: "D" });
-    const tree = buildTaskTree([a, d]);
+    const tree = taskGraph.buildTaskTree([a, d]);
 
     expect(tree).toHaveLength(2);
     expect(tree.map((n) => n.task.id).sort()).toEqual(["A", "D"]);
   });
 
   it("handles N-level tree (3 levels deep)", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
     const b = makeTask({ id: "B", dependencies: ["A"] });
     const c = makeTask({ id: "C", dependencies: ["B"] });
     const d = makeTask({ id: "D", dependencies: ["C"] });
-    const tree = buildTaskTree([a, b, c, d]);
+    const tree = taskGraph.buildTaskTree([a, b, c, d]);
 
     expect(tree).toHaveLength(1);
     expect(tree[0].task.id).toBe("A");
@@ -93,16 +102,16 @@ describe("buildTaskTree", () => {
   });
 
   it("handles diamond DAG (A→B, A→C, B→D, C→D)", () => {
+    const taskGraph = useTaskGraphStore();
     const a = makeTask({ id: "A" });
     const b = makeTask({ id: "B", dependencies: ["A"] });
     const c = makeTask({ id: "C", dependencies: ["A"] });
     const d = makeTask({ id: "D", dependencies: ["B", "C"] });
-    const tree = buildTaskTree([a, b, c, d]);
+    const tree = taskGraph.buildTaskTree([a, b, c, d]);
 
-    // D depends on B and C; it becomes a child of C (last dependency by list order)
     expect(tree).toHaveLength(1);
     expect(tree[0].task.id).toBe("A");
-    expect(tree[0].children).toHaveLength(2); // B and C
+    expect(tree[0].children).toHaveLength(2);
     const cNode = tree[0].children.find((n) => n.task.id === "C");
     expect(cNode).toBeDefined();
     expect(cNode!.children).toHaveLength(1);
@@ -110,8 +119,9 @@ describe("buildTaskTree", () => {
   });
 
   it("treats dangling dependency as root (no crash)", () => {
+    const taskGraph = useTaskGraphStore();
     const b = makeTask({ id: "B", dependencies: ["missing_parent"] });
-    const tree = buildTaskTree([b]);
+    const tree = taskGraph.buildTaskTree([b]);
 
     expect(tree).toHaveLength(1);
     expect(tree[0].task.id).toBe("B");
@@ -119,7 +129,9 @@ describe("buildTaskTree", () => {
   });
 
   it("populates agentLabel from assigned_agent_id when agent is in store", () => {
-    agentState.agents.set("agent_w1", {
+    const taskGraph = useTaskGraphStore();
+    const agents = useAgentsStore();
+    agents.agents.set("agent_w1", {
       id: "agent_w1",
       role: "Worker",
       taskId: "T1",
@@ -129,30 +141,28 @@ describe("buildTaskTree", () => {
     });
 
     const t1 = makeTask({ id: "T1", assigned_agent_id: "agent_w1" });
-    const tree = buildTaskTree([t1]);
+    const tree = taskGraph.buildTaskTree([t1]);
     expect(tree[0].agentLabel).toBe("W");
   });
 });
 
 describe("taskGraph store state management", () => {
-  beforeEach(() => {
-    clearTaskGraph();
-  });
-
   it("setTaskGraph sets tasks and sessionId", () => {
+    const taskGraph = useTaskGraphStore();
     const tasks = [makeTask({ id: "T1" }), makeTask({ id: "T2" })];
-    setTaskGraph(tasks, "session-1");
+    taskGraph.setTaskGraph(tasks, "session-1");
 
-    expect(taskGraphState.tasks).toEqual(tasks);
-    expect(taskGraphState.currentSessionId).toBe("session-1");
+    expect(taskGraph.tasks).toEqual(tasks);
+    expect(taskGraph.currentSessionId).toBe("session-1");
   });
 
   it("clearTaskGraph clears tasks and sessionId", () => {
+    const taskGraph = useTaskGraphStore();
     const tasks = [makeTask({ id: "T1" })];
-    setTaskGraph(tasks, "session-1");
-    clearTaskGraph();
+    taskGraph.setTaskGraph(tasks, "session-1");
+    taskGraph.clearTaskGraph();
 
-    expect(taskGraphState.tasks).toEqual([]);
-    expect(taskGraphState.currentSessionId).toBeNull();
+    expect(taskGraph.tasks).toEqual([]);
+    expect(taskGraph.currentSessionId).toBeNull();
   });
 });

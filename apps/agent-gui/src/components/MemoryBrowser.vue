@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { onMounted, watch, ref } from "vue";
-import { memoryState, loadMemories, deleteMemoryItem, setMemoryFilter } from "../stores/memory";
-import { sessionState } from "../stores/session";
+import { storeToRefs } from "pinia";
+import { useMemoryStore } from "@/stores/memory";
+import { useSessionStore } from "@/stores/session";
 import ConfirmDialog from "./ConfirmDialog.vue";
+
+const memory = useMemoryStore();
+const { memories, loading, filter, searchQuery } = storeToRefs(memory);
+const session = useSessionStore();
 
 const deleteTargetId = ref("");
 const deleteTargetContent = ref("");
 const showDeleteDialog = ref(false);
 
 onMounted(() => {
-  loadMemories();
+  memory.loadMemories();
 });
 
 // Reload memories when switching sessions
 watch(
-  () => sessionState.currentSessionId,
+  () => session.currentSessionId,
   () => {
-    loadMemories();
+    memory.loadMemories();
   }
 );
 
@@ -27,7 +32,7 @@ function promptDelete(id: string, content: string) {
 }
 
 async function confirmDelete() {
-  await deleteMemoryItem(deleteTargetId.value);
+  await memory.deleteMemoryItem(deleteTargetId.value);
   showDeleteDialog.value = false;
 }
 
@@ -37,7 +42,7 @@ function cancelDelete() {
 
 const scopeFilters: Array<{
   label: string;
-  value: typeof memoryState.filter;
+  value: typeof filter.value;
 }> = [
   { label: "All", value: "all" },
   { label: "Session", value: "session" },
@@ -59,7 +64,7 @@ const scopeColor: Record<string, string> = {
 
 function handleSearchKeydown(e: KeyboardEvent) {
   if (e.key === "Enter") {
-    loadMemories();
+    memory.loadMemories();
   }
 }
 </script>
@@ -68,7 +73,13 @@ function handleSearchKeydown(e: KeyboardEvent) {
   <div class="memory-browser">
     <header class="memory-header">
       <h2>Memories</h2>
-      <button class="refresh-btn" title="Refresh" @click="loadMemories">↻</button>
+      <button
+        class="refresh-btn"
+        title="Refresh"
+        @click="memory.loadMemories()"
+      >
+        ↻
+      </button>
     </header>
 
     <div class="memory-controls">
@@ -76,26 +87,31 @@ function handleSearchKeydown(e: KeyboardEvent) {
         <button
           v-for="f in scopeFilters"
           :key="f.value"
-          :class="['scope-btn', { active: memoryState.filter === f.value }]"
-          @click="setMemoryFilter(f.value)"
+          :class="['scope-btn', { active: filter === f.value }]"
+          @click="memory.setMemoryFilter(f.value)"
         >
           {{ f.label }}
         </button>
       </div>
       <input
-        v-model="memoryState.searchQuery"
+        v-model="searchQuery"
         class="search-input"
         placeholder="Search memories..."
         @keydown="handleSearchKeydown"
       />
     </div>
 
-    <div v-if="memoryState.loading" class="memory-empty">Loading...</div>
-    <div v-else-if="memoryState.memories.length === 0" class="memory-empty">No memories</div>
+    <div v-if="loading" class="memory-empty">Loading...</div>
+    <div v-else-if="memories.length === 0" class="memory-empty">
+      No memories
+    </div>
     <ul v-else class="memory-list">
-      <li v-for="mem in memoryState.memories" :key="mem.id" class="memory-item">
+      <li v-for="mem in memories" :key="mem.id" class="memory-item">
         <div class="memory-meta">
-          <span class="memory-scope" :style="{ color: scopeColor[mem.scope] || '#666' }">
+          <span
+            class="memory-scope"
+            :style="{ color: scopeColor[mem.scope] || '#666' }"
+          >
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
           </span>
           <span v-if="mem.key" class="memory-key">{{ mem.key }}</span>

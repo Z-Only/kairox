@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
-import { catalogState, fetchInstalled, uninstallEntry } from "../../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 
-onMounted(() => fetchInstalled());
+const catalog = useCatalogStore();
+
+onMounted(() => catalog.fetchInstalled());
 
 async function onUninstall(serverId: string) {
-  await uninstallEntry(serverId);
+  await catalog.uninstallEntry(serverId);
 }
 </script>
 
@@ -21,7 +23,7 @@ async function onUninstall(serverId: string) {
       </tr>
     </thead>
     <tbody>
-      <tr v-for="row in catalogState.installed" :key="row.server_id">
+      <tr v-for="row in catalog.installed" :key="row.server_id">
         <td>{{ row.display_name }}</td>
         <td>{{ row.source ?? "(manual)" }}</td>
         <td>
@@ -32,7 +34,11 @@ async function onUninstall(serverId: string) {
         <td>
           <button
             :disabled="!row.source"
-            :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
+            :title="
+              row.source
+                ? ''
+                : 'Hand-edited entries are not removable from here'
+            "
             :data-test="`uninstall-${row.server_id}`"
             @click="onUninstall(row.server_id)"
           >

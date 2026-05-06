@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { sessionState, applyEvent, setProjection, resetProjection, streamsByTask } from "./session";
-import type { DomainEvent, AgentRole, EventPayload } from "../types";
-import { agentState, clearAgents } from "./agents";
+import { setActivePinia, createPinia } from "pinia";
+import { useSessionStore } from "@/stores/session";
+import { useAgentsStore } from "@/stores/agents";
+import type { DomainEvent, AgentRole, EventPayload } from "@/types";
 
 beforeEach(() => {
-  sessionState.sessions = [];
-  sessionState.currentSessionId = null;
-  sessionState.isStreaming = false;
-  sessionState.connected = false;
-  resetProjection();
-  clearAgents();
+  setActivePinia(createPinia());
 });
 
-function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): DomainEvent {
+function makeEvent(
+  payload: EventPayload,
+  sourceAgentId = "agent_system"
+): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -27,45 +26,47 @@ function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): Domai
 
 describe("applyEvent", () => {
   it("projects UserMessageAdded", () => {
-    applyEvent(
+    const session = useSessionStore();
+    session.applyEvent(
       makeEvent({
         type: "UserMessageAdded",
         message_id: "m1",
         content: "hello"
       })
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("user");
-    expect(sessionState.projection.messages[0].content).toBe("hello");
-    expect(sessionState.isStreaming).toBe(true);
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("user");
+    expect(session.projection.messages[0].content).toBe("hello");
+    expect(session.isStreaming).toBe(true);
   });
 
   it("accumulates ModelTokenDelta into token_stream", () => {
-    applyEvent(makeEvent({ type: "ModelTokenDelta", delta: "hel" }));
-    applyEvent(makeEvent({ type: "ModelTokenDelta", delta: "lo" }));
-
-    expect(sessionState.projection.token_stream).toBe("hello");
+    const session = useSessionStore();
+    session.applyEvent(makeEvent({ type: "ModelTokenDelta", delta: "hel" }));
+    session.applyEvent(makeEvent({ type: "ModelTokenDelta", delta: "lo" }));
+    expect(session.projection.token_stream).toBe("hello");
   });
 
   it("finalizes on AssistantMessageCompleted", () => {
-    applyEvent(
+    const session = useSessionStore();
+    session.applyEvent(
       makeEvent({
         type: "AssistantMessageCompleted",
         message_id: "m2",
         content: "hi there"
       })
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("assistant");
-    expect(sessionState.projection.messages[0].content).toBe("hi there");
-    expect(sessionState.projection.token_stream).toBe("");
-    expect(sessionState.isStreaming).toBe(false);
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("assistant");
+    expect(session.projection.messages[0].content).toBe("hi there");
+    expect(session.projection.token_stream).toBe("");
+    expect(session.isStreaming).toBe(false);
   });
 
   it("attributes AssistantMessageCompleted to agent when source_agent_id is known", () => {
-    agentState.agents.set("agent_w1", {
+    const session = useSessionStore();
+    const agents = useAgentsStore();
+    agents.agents.set("agent_w1", {
       id: "agent_w1",
       role: "Worker" as AgentRole,
       taskId: "t1",
@@ -73,8 +74,7 @@ describe("applyEvent", () => {
       startedAt: Date.now(),
       completedAt: null
     });
-
-    applyEvent(
+    session.applyEvent(
       makeEvent(
         {
           type: "AssistantMessageCompleted",
@@ -84,35 +84,37 @@ describe("applyEvent", () => {
         "agent_w1"
       )
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("worker");
-    expect(sessionState.projection.messages[0].sourceAgentId).toBe("agent_w1");
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("worker");
+    expect(session.projection.messages[0].sourceAgentId).toBe("agent_w1");
   });
 
   it("marks cancelled on SessionCancelled", () => {
-    applyEvent(makeEvent({ type: "SessionCancelled", reason: "user stopped" }));
-
-    expect(sessionState.projection.cancelled).toBe(true);
-    expect(sessionState.isStreaming).toBe(false);
+    const session = useSessionStore();
+    session.applyEvent(
+      makeEvent({ type: "SessionCancelled", reason: "user stopped" })
+    );
+    expect(session.projection.cancelled).toBe(true);
+    expect(session.isStreaming).toBe(false);
   });
 
   it("handles TaskDecomposed event", () => {
-    applyEvent(
+    const session = useSessionStore();
+    session.applyEvent(
       makeEvent({
         type: "TaskDecomposed",
         parent_task_id: "parent",
         sub_task_ids: ["sub1", "sub2", "sub3"]
       })
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("system");
-    expect(sessionState.projection.messages[0].content).toContain("3 sub-tasks");
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("system");
+    expect(session.projection.messages[0].content).toContain("3 sub-tasks");
   });
 
   it("handles TaskBlocked event", () => {
-    applyEvent(
+    const session = useSessionStore();
+    session.applyEvent(
       makeEvent({
         type: "TaskBlocked",
         task_id: "t1",
@@ -120,28 +122,24 @@ describe("applyEvent", () => {
         reason: "dependency failed"
       })
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("system");
-    expect(sessionState.projection.messages[0].content).toContain("blocked");
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("system");
+    expect(session.projection.messages[0].content).toContain("blocked");
   });
 
   it("handles TaskRetried event", () => {
-    applyEvent(
-      makeEvent({
-        type: "TaskRetried",
-        task_id: "t1",
-        attempt: 2
-      })
+    const session = useSessionStore();
+    session.applyEvent(
+      makeEvent({ type: "TaskRetried", task_id: "t1", attempt: 2 })
     );
-
-    expect(sessionState.projection.messages).toHaveLength(1);
-    expect(sessionState.projection.messages[0].role).toBe("system");
-    expect(sessionState.projection.messages[0].content).toContain("attempt 2");
+    expect(session.projection.messages).toHaveLength(1);
+    expect(session.projection.messages[0].role).toBe("system");
+    expect(session.projection.messages[0].content).toContain("attempt 2");
   });
 
   it("ignores AgentSpawned and AgentIdle events gracefully", () => {
-    applyEvent(
+    const session = useSessionStore();
+    session.applyEvent(
       makeEvent({
         type: "AgentSpawned",
         agent_id: "a1",
@@ -149,22 +147,21 @@ describe("applyEvent", () => {
         task_id: "t1"
       })
     );
-    applyEvent(makeEvent({ type: "AgentIdle", agent_id: "a1" }));
-
-    // These should not create messages (handled by agents store)
-    expect(sessionState.projection.messages).toHaveLength(0);
+    session.applyEvent(makeEvent({ type: "AgentIdle", agent_id: "a1" }));
+    expect(session.projection.messages).toHaveLength(0);
   });
 
   it("ignores unknown event types gracefully", () => {
-    applyEvent(makeEvent({ type: "FutureEvent" }));
-
-    expect(sessionState.projection.messages).toHaveLength(0);
+    const session = useSessionStore();
+    session.applyEvent(makeEvent({ type: "FutureEvent" } as never));
+    expect(session.projection.messages).toHaveLength(0);
   });
 });
 
 describe("setProjection", () => {
   it("replaces the current projection", () => {
-    setProjection({
+    const session = useSessionStore();
+    session.setProjection({
       messages: [
         { role: "user", content: "existing" },
         { role: "assistant", content: "reply" }
@@ -174,22 +171,22 @@ describe("setProjection", () => {
       cancelled: false,
       task_graph: { tasks: [] }
     });
-
-    expect(sessionState.projection.messages).toHaveLength(2);
-    expect(sessionState.isStreaming).toBe(false);
+    expect(session.projection.messages).toHaveLength(2);
+    expect(session.isStreaming).toBe(false);
   });
 });
 
 describe("resetProjection", () => {
   it("clears all projection state and agent state", () => {
-    applyEvent(makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" }));
-
-    resetProjection();
-
-    expect(sessionState.projection.messages).toHaveLength(0);
-    expect(sessionState.projection.token_stream).toBe("");
-    expect(sessionState.projection.cancelled).toBe(false);
-    expect(sessionState.isStreaming).toBe(false);
-    expect(streamsByTask.size).toBe(0);
+    const session = useSessionStore();
+    session.applyEvent(
+      makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" })
+    );
+    session.resetProjection();
+    expect(session.projection.messages).toHaveLength(0);
+    expect(session.projection.token_stream).toBe("");
+    expect(session.projection.cancelled).toBe(false);
+    expect(session.isStreaming).toBe(false);
+    expect(session.streamsByTask.size).toBe(0);
   });
 });

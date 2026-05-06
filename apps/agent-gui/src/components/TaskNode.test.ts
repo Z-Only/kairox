@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import TaskNode from "./TaskNode.vue";
-import type { TaskTreeNode } from "../stores/taskGraph";
+import type { TaskTreeNode } from "@/stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
 import type { TaskSnapshot } from "../types";
 
 // Use vi.hoisted so these are available inside the hoisted vi.mock factories
@@ -14,18 +16,6 @@ const { mockRetryTask, mockCancelTask } = vi.hoisted(() => ({
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
-}));
-
-// Mock taskGraph store — TaskNode imports retryTask and cancelTask
-vi.mock("../stores/taskGraph", () => ({
-  retryTask: mockRetryTask,
-  cancelTask: mockCancelTask
-}));
-
-// Mock agents store (agentLabel is used by buildTaskTree, but TaskNode imports it transitively)
-vi.mock("../stores/agents", () => ({
-  agentState: { agents: new Map() },
-  agentLabel: vi.fn(() => "?")
 }));
 
 function makeNode(
@@ -52,7 +42,12 @@ function makeNode(
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   vi.clearAllMocks();
+  // Replace store actions with hoisted spies so we can assert invocations.
+  const taskGraph = useTaskGraphStore();
+  taskGraph.retryTask = mockRetryTask;
+  taskGraph.cancelTask = mockCancelTask;
 });
 
 describe("TaskNode", () => {

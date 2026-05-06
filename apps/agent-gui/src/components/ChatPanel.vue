@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { sessionState, reportSendError } from "../stores/session";
-import { agentLabel } from "../stores/agents";
-import { addNotification } from "../composables/useNotifications";
+import { useSessionStore } from "@/stores/session";
+import { useAgentsStore } from "@/stores/agents";
+import { useUiStore } from "@/stores/ui";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProjectedRole } from "../types";
 
+const session = useSessionStore();
+const agents = useAgentsStore();
+const ui = useUiStore();
 const inputText = ref("");
 const messageList = ref<HTMLElement | null>(null);
 
@@ -31,10 +34,10 @@ const roleClass: Record<ProjectedRole, string> = {
 };
 
 /** Get the display label for a message, including agent attribution if available. */
-function messageLabel(msg: (typeof sessionState.projection.messages)[0]): string {
+function messageLabel(msg: (typeof session.projection.messages)[0]): string {
   const base = roleDisplay[msg.role] || "Agent";
   if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
-    const label = agentLabel(msg.sourceAgentId);
+    const label = agents.agentLabel(msg.sourceAgentId);
     if (label) return `${base} (${label})`;
   }
   return base;
@@ -42,15 +45,15 @@ function messageLabel(msg: (typeof sessionState.projection.messages)[0]): string
 
 async function sendMessage() {
   const content = inputText.value.trim();
-  if (!content || sessionState.isStreaming) return;
+  if (!content || session.isStreaming) return;
 
   inputText.value = "";
   try {
     await invoke("send_message", { content });
   } catch (e) {
     console.error("Failed to send message:", e);
-    reportSendError(String(e));
-    addNotification("error", `Failed to send message: ${e}`);
+    session.reportSendError(String(e));
+    ui.pushNotification("error", `Failed to send message: ${e}`);
   }
 }
 
@@ -59,7 +62,7 @@ async function cancelSession() {
     await invoke("cancel_session");
   } catch (e) {
     console.error("Failed to cancel session:", e);
-    addNotification("error", `Cancel failed: ${e}`);
+    ui.pushNotification("error", `Cancel failed: ${e}`);
   }
 }
 
@@ -71,7 +74,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 watch(
-  () => [sessionState.projection.messages.length, sessionState.projection.token_stream],
+  () => [session.projection.messages.length, session.projection.token_stream],
   async () => {
     await nextTick();
     if (messageList.value) {
@@ -85,17 +88,21 @@ watch(
   <section class="chat-panel">
     <header class="chat-header">
       <h2>Chat</h2>
-      <span class="profile-badge">{{ sessionState.currentProfile }}</span>
+      <span class="profile-badge">{{ session.currentProfile }}</span>
     </header>
     <div ref="messageList" class="message-list">
       <div
-        v-for="(msg, i) in sessionState.projection.messages"
+        v-for="(msg, i) in session.projection.messages"
         :key="i"
         :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
       >
-        <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
-          messageLabel(msg)
-        }}</span>
+        <span
+          :class="[
+            'message-role',
+            `role-badge-${roleClass[msg.role] || 'assistant'}`
+          ]"
+          >{{ messageLabel(msg) }}</span
+        >
         <!-- eslint-disable vue/no-v-html -->
         <span
           v-if="
@@ -110,27 +117,42 @@ watch(
         <!-- eslint-enable vue/no-v-html -->
         <span v-else class="message-content">{{ msg.content }}</span>
       </div>
-      <div v-if="sessionState.projection.token_stream" class="message message-assistant streaming">
+      <div
+        v-if="session.projection.token_stream"
+        class="message message-assistant streaming"
+      >
         <span class="message-role">Agent</span>
         <span class="message-content"
-          >{{ sessionState.projection.token_stream }}<span class="cursor">▌</span></span
+          >{{ session.projection.token_stream
+          }}<span class="cursor">▌</span></span
         >
       </div>
-      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">[cancelled]</div>
+      <div v-if="session.projection.cancelled" class="cancelled-marker">
+        [cancelled]
+      </div>
     </div>
     <div class="input-area">
       <textarea
         v-model="inputText"
-        :disabled="sessionState.isStreaming"
+        :disabled="session.isStreaming"
         class="message-input"
         placeholder="Type your message..."
         rows="1"
         @keydown="handleKeydown"
       ></textarea>
-      <button v-if="sessionState.isStreaming" class="cancel-button" @click="cancelSession">
+      <button
+        v-if="session.isStreaming"
+        class="cancel-button"
+        @click="cancelSession"
+      >
         Cancel
       </button>
-      <button v-else class="send-button" :disabled="!inputText.trim()" @click="sendMessage">
+      <button
+        v-else
+        class="send-button"
+        :disabled="!inputText.trim()"
+        @click="sendMessage"
+      >
         Send
       </button>
     </div>

@@ -1,18 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue([])
 }));
 
-vi.mock("../../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-
 import { invoke } from "@tauri-apps/api/core";
-import { resetCatalogState, catalogState } from "../../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 import Marketplace from "../../views/Marketplace.vue";
 import CatalogCard from "./CatalogCard.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
@@ -39,7 +34,7 @@ const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
 
 describe("Marketplace.vue", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
   });
 
@@ -59,11 +54,10 @@ describe("Marketplace.vue", () => {
 });
 
 import { flushPromises } from "@vue/test-utils";
-import { handleSourceFailed } from "../../stores/catalog";
 
 describe("Marketplace.vue — Phase 2 source chips", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
   });
 
@@ -111,7 +105,7 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
       ] as never);
     const wrapper = mount(Marketplace);
     await flushPromises();
-    handleSourceFailed("smithery", "timeout");
+    useCatalogStore().handleSourceFailed("smithery", "timeout");
     await wrapper.vm.$nextTick();
     expect(wrapper.find('[data-test="src-warn-smithery"]').exists()).toBe(true);
   });
@@ -191,12 +185,13 @@ describe("RuntimeMissingHint.vue", () => {
 
 describe("InstalledList.vue", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
   });
 
   it("renders rows for each installed entry", async () => {
-    catalogState.installed = [
+    const catalog = useCatalogStore();
+    catalog.installed = [
       {
         server_id: "filesystem",
         catalog_id: "filesystem",
@@ -214,7 +209,8 @@ describe("InstalledList.vue", () => {
   });
 
   it("disables Uninstall for hand-edited (no source) entries", async () => {
-    catalogState.installed = [
+    const catalog = useCatalogStore();
+    catalog.installed = [
       {
         server_id: "manual-server",
         catalog_id: null,

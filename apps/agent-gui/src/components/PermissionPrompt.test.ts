@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import PermissionPrompt from "./PermissionPrompt.vue";
 import type { TraceEntryData } from "../types/trace";
@@ -7,21 +8,13 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-vi.mock("../stores/mcp", () => ({
-  mcpState: { servers: [], trustedServerIds: [], loading: false },
-  trustServer: vi.fn(() => Promise.resolve())
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import { mcpState, trustServer } from "../stores/mcp";
-const mockedTrustServer = vi.mocked(trustServer);
+import { useMcpStore } from "@/stores/mcp";
+
+const mockedTrustServer = vi.fn(() => Promise.resolve());
 
 const permissionEntry: TraceEntryData = {
   id: "perm_1",
@@ -56,8 +49,12 @@ const mcpEntry: TraceEntryData = {
 };
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   vi.clearAllMocks();
-  mcpState.trustedServerIds = [];
+  // Replace store action with spy so we can assert invocation.
+  const mcp = useMcpStore();
+  mcp.trustServer = mockedTrustServer;
+  mcp.trustedServerIds = [];
 });
 
 describe("PermissionPrompt", () => {
@@ -130,7 +127,8 @@ describe("PermissionPrompt MCP trust UI", () => {
   });
 
   it("shows trusted badge when server is already trusted", () => {
-    mcpState.trustedServerIds = ["github"];
+    const mcp = useMcpStore();
+    mcp.trustedServerIds = ["github"];
     const wrapper = mount(PermissionPrompt, {
       props: { entry: mcpEntry }
     });

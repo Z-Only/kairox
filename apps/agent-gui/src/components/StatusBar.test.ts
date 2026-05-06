@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import StatusBar from "./StatusBar.vue";
 
@@ -6,14 +7,14 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  vi.clearAllMocks();
+});
 
 describe("StatusBar", () => {
   it("calls get_permission_mode on mount", () => {

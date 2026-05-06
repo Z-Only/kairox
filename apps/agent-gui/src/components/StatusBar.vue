@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { sessionState } from "../stores/session";
-import { fetchServers } from "../stores/mcp";
+import { useSessionStore } from "@/stores/session";
+import { useMcpStore } from "@/stores/mcp";
 import McpStatusIndicator from "./McpStatusIndicator.vue";
 import McpServerManager from "./McpServerManager.vue";
 
+const session = useSessionStore();
+const mcp = useMcpStore();
 const permissionMode = ref("interactive");
 const showMcpManager = ref(false);
 
@@ -19,7 +21,7 @@ onMounted(async () => {
   }
   // Fetch MCP server status on mount
   try {
-    await fetchServers();
+    await mcp.fetchServers();
   } catch {
     // Non-critical — status indicator will just show empty state
   }
@@ -28,16 +30,16 @@ onMounted(async () => {
 
 <template>
   <footer class="status-bar">
-    <span class="status-item">profile: {{ sessionState.currentProfile }}</span>
+    <span class="status-item">profile: {{ session.currentProfile }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item">sessions: {{ sessionState.sessions.length }}</span>
+    <span class="status-item">sessions: {{ session.sessions.length }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">{{
-      sessionState.isStreaming ? "streaming: yes" : "streaming: no"
+      session.isStreaming ? "streaming: yes" : "streaming: no"
     }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">{{
-      sessionState.connected ? "connected: yes" : "connected: no"
+      session.connected ? "connected: yes" : "connected: no"
     }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">mode: {{ permissionMode }}</span>

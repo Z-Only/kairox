@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { notifications, dismissNotification } from "../composables/useNotifications";
+import { storeToRefs } from "pinia";
+import { useUiStore } from "@/stores/ui";
+
+const ui = useUiStore();
+const { notifications } = storeToRefs(ui);
 </script>
 
 <template>
@@ -7,13 +11,20 @@ import { notifications, dismissNotification } from "../composables/useNotificati
     <div
       v-for="notif in notifications.slice(-3)"
       :key="notif.id"
-      :class="['notification', `notification--${notif.type}`]"
+      :class="['notification', `notification--${notif.level}`]"
     >
       <span class="notification-icon">
-        {{ notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ" }}
+        {{
+          notif.level === "error" ? "✕" : notif.level === "warning" ? "⚠" : "ℹ"
+        }}
       </span>
       <span class="notification-message">{{ notif.message }}</span>
-      <button class="notification-dismiss" @click="dismissNotification(notif.id)">✕</button>
+      <button
+        class="notification-dismiss"
+        @click="ui.dismissNotification(notif.id)"
+      >
+        ✕
+      </button>
     </div>
   </div>
 </template>

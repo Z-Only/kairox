@@ -1,14 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import {
-  catalogState,
-  fetchSources,
-  addSource,
-  removeSource,
-  setSourceEnabled
-} from "../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
 
+const catalog = useCatalogStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
 
@@ -24,11 +19,11 @@ const draft = ref<AddCatalogSourceRequestPayload>({
   cache_ttl_seconds: null
 });
 
-const sources = computed(() => catalogState.sources);
-const failures = computed(() => catalogState.sourceFailures);
+const sources = computed(() => catalog.sources);
+const failures = computed(() => catalog.sourceFailures);
 
 onMounted(() => {
-  void fetchSources();
+  void catalog.fetchSources();
 });
 
 function isValidUrl(u: string): boolean {
@@ -59,18 +54,18 @@ async function save(): Promise<void> {
     formError.value = "URL must start with http:// or https://";
     return;
   }
-  await addSource({ ...draft.value });
+  await catalog.addSource({ ...draft.value });
   showAddForm.value = false;
   resetDraft();
 }
 
 async function onRemove(id: string): Promise<void> {
   if (id === "builtin") return;
-  await removeSource(id);
+  await catalog.removeSource(id);
 }
 
 async function onToggle(id: string, enabled: boolean): Promise<void> {
-  await setSourceEnabled(id, enabled);
+  await catalog.setSourceEnabled(id, enabled);
 }
 </script>
 

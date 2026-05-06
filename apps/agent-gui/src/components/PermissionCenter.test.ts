@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import PermissionCenter from "./PermissionCenter.vue";
 import type { TraceEntryData } from "../types/trace";
@@ -22,18 +23,9 @@ vi.mock("../composables/useTraceStore", () => ({
   }
 }));
 
-// Mock stores used by PermissionPrompt child component
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-vi.mock("../stores/mcp", () => ({
-  mcpState: { servers: [], trustedServerIds: [], loading: false },
-  trustServer: vi.fn(() => Promise.resolve())
-}));
-
-function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
+function makeEntry(
+  overrides: Partial<TraceEntryData> & { id: string }
+): TraceEntryData {
   return {
     kind: "permission",
     status: "pending",
@@ -46,6 +38,7 @@ function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEn
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   vi.clearAllMocks();
   mockEntries.length = 0;
 });

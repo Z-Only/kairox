@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
 
@@ -10,33 +11,26 @@ vi.mock("../composables/useTraceStore", () => ({
   applyTraceEvent: vi.fn(),
   clearTrace: vi.fn()
 }));
-vi.mock("../stores/taskGraph", () => ({
-  taskGraphState: { tasks: [], currentSessionId: null, loading: false },
-  clearTaskGraph: vi.fn(),
-  setTaskGraph: vi.fn()
-}));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import { sessionState, resetProjection } from "../stores/session";
+import { useSessionStore } from "@/stores/session";
 
 beforeEach(() => {
-  sessionState.sessions = [];
-  sessionState.currentSessionId = null;
-  sessionState.currentProfile = "fast";
-  resetProjection();
+  setActivePinia(createPinia());
+  const session = useSessionStore();
+  session.sessions = [];
+  session.currentSessionId = null;
+  session.currentProfile = "fast";
+  session.resetProjection();
   vi.clearAllMocks();
 });
 
 describe("SessionsSidebar", () => {
   it("renders session titles", () => {
-    sessionState.sessions = [
+    const session = useSessionStore();
+    session.sessions = [
       { id: "s1", title: "Chat about Rust", profile: "fast" } as never,
       { id: "s2", title: "Debug session", profile: "slow" } as never
     ];
@@ -51,7 +45,10 @@ describe("SessionsSidebar", () => {
   });
 
   it("invokes switch_session on session click", async () => {
-    sessionState.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
+    const session = useSessionStore();
+    session.sessions = [
+      { id: "s1", title: "Session 1", profile: "fast" } as never
+    ];
     mockedInvoke.mockResolvedValueOnce({
       messages: [],
       task_titles: [],

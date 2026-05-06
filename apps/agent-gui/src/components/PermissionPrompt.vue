@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { trustServer, mcpState } from "../stores/mcp";
-import { agentLabel } from "../stores/agents";
+import { useMcpStore } from "@/stores/mcp";
+import { useAgentsStore } from "@/stores/agents";
 import type { TraceEntryData } from "../types/trace";
 
 const props = defineProps<{ entry: TraceEntryData }>();
+const mcp = useMcpStore();
+const agents = useAgentsStore();
 
 const isMemory = props.entry.kind === "memory";
 
@@ -24,7 +26,7 @@ const mcpServerId = computed(() => {
 /** Whether this MCP server is already trusted. */
 const isServerTrusted = computed(() => {
   if (!mcpServerId.value) return false;
-  return mcpState.trustedServerIds.includes(mcpServerId.value);
+  return mcp.trustedServerIds.includes(mcpServerId.value);
 });
 
 /** Checkbox state for "Trust this server". */
@@ -37,7 +39,7 @@ const sourceAgentLabel = computed(() => {
     const event = JSON.parse(props.entry.rawEvent);
     const agentId = event?.source_agent_id;
     if (agentId && agentId !== "agent_system") {
-      return agentLabel(agentId);
+      return agents.agentLabel(agentId);
     }
   } catch {
     // Ignore parse errors
@@ -52,7 +54,7 @@ async function allow() {
       decision: "grant"
     });
     if (isMcpTool.value && trustChecked.value && mcpServerId.value) {
-      await trustServer(mcpServerId.value);
+      await mcp.trustServer(mcpServerId.value);
     }
   } catch (e) {
     console.error("Failed to grant permission:", e);

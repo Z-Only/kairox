@@ -1,13 +1,7 @@
 <script setup lang="ts">
-import {
-  mcpState,
-  startServer,
-  stopServer,
-  trustServer,
-  revokeTrust,
-  refreshTools
-} from "../stores/mcp";
+import { useMcpStore } from "@/stores/mcp";
 
+const mcp = useMcpStore();
 const emit = defineEmits<{ close: [] }>();
 
 function statusLabel(status: string): string {
@@ -31,43 +25,82 @@ function statusLabel(status: string): string {
       <button class="mcp-close-btn" @click="emit('close')">✕</button>
     </div>
     <div class="mcp-manager-list">
-      <div v-for="server in mcpState.servers" :key="server.id" class="mcp-server-item">
+      <div
+        v-for="server in mcp.servers"
+        :key="server.id"
+        class="mcp-server-item"
+      >
         <div class="mcp-server-info">
           <span class="mcp-server-name">{{ server.id }}</span>
-          <span class="mcp-server-status">{{ statusLabel(server.status) }}</span>
-          <span v-if="mcpState.trustedServerIds.includes(server.id)" class="mcp-trusted"
+          <span class="mcp-server-status">{{
+            statusLabel(server.status)
+          }}</span>
+          <span
+            v-if="mcp.trustedServerIds.includes(server.id)"
+            class="mcp-trusted"
             >✅ Trusted</span
           >
-          <span v-else-if="server.status === 'running'" class="mcp-untrusted">⚠️ Not trusted</span>
+          <span v-else-if="server.status === 'running'" class="mcp-untrusted"
+            >⚠️ Not trusted</span
+          >
         </div>
-        <div v-if="server.status === 'failed' && server.error" class="mcp-server-error">
+        <div
+          v-if="server.status === 'failed' && server.error"
+          class="mcp-server-error"
+        >
           {{ server.error }}
         </div>
         <div class="mcp-server-actions">
-          <button v-if="server.status === 'stopped'" @click="startServer(server.id)">Start</button>
-          <button v-if="server.status === 'running'" @click="stopServer(server.id)">Stop</button>
-          <button v-if="server.status === 'failed'" @click="startServer(server.id)">Restart</button>
           <button
-            v-if="server.status === 'running' && !mcpState.trustedServerIds.includes(server.id)"
-            @click="trustServer(server.id)"
+            v-if="server.status === 'stopped'"
+            @click="mcp.startServer(server.id)"
+          >
+            Start
+          </button>
+          <button
+            v-if="server.status === 'running'"
+            @click="mcp.stopServer(server.id)"
+          >
+            Stop
+          </button>
+          <button
+            v-if="server.status === 'failed'"
+            @click="mcp.startServer(server.id)"
+          >
+            Restart
+          </button>
+          <button
+            v-if="
+              server.status === 'running' &&
+              !mcp.trustedServerIds.includes(server.id)
+            "
+            @click="mcp.trustServer(server.id)"
           >
             Trust
           </button>
           <button
-            v-if="mcpState.trustedServerIds.includes(server.id)"
-            @click="revokeTrust(server.id)"
+            v-if="mcp.trustedServerIds.includes(server.id)"
+            @click="mcp.revokeTrust(server.id)"
           >
             Revoke
           </button>
-          <button v-if="server.status === 'running'" @click="refreshTools(server.id)">
+          <button
+            v-if="server.status === 'running'"
+            @click="mcp.refreshTools(server.id)"
+          >
             Refresh
           </button>
         </div>
-        <div v-if="server.status === 'running' && server.tool_count" class="mcp-server-meta">
+        <div
+          v-if="server.status === 'running' && server.tool_count"
+          class="mcp-server-meta"
+        >
           {{ server.tool_count }} tools
         </div>
       </div>
-      <p v-if="mcpState.servers.length === 0" class="mcp-empty">No MCP servers configured</p>
+      <p v-if="mcp.servers.length === 0" class="mcp-empty">
+        No MCP servers configured
+      </p>
     </div>
   </div>
 </template>

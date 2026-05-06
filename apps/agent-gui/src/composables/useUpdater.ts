@@ -1,7 +1,7 @@
 import { ref, onMounted } from "vue";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { addNotification } from "./useNotifications";
+import { useUiStore } from "@/stores/ui";
 
 interface UpdateInfo {
   version: string;
@@ -21,6 +21,7 @@ export const downloadingUpdate = ref(false);
 export async function checkForUpdate(): Promise<void> {
   if (checkingForUpdate.value) return;
 
+  const ui = useUiStore();
   checkingForUpdate.value = true;
   try {
     const update = await check();
@@ -30,7 +31,10 @@ export async function checkForUpdate(): Promise<void> {
         version: update.version,
         body: update.body ?? undefined
       };
-      addNotification("info", `Kairox ${update.version} is available. Click to update.`);
+      ui.pushNotification(
+        "info",
+        `Kairox ${update.version} is available. Click to update.`
+      );
     }
   } catch (e) {
     // Silently ignore update check failures (offline, etc.)
@@ -46,18 +50,21 @@ export async function checkForUpdate(): Promise<void> {
 export async function downloadAndInstallUpdate(): Promise<void> {
   if (downloadingUpdate.value) return;
 
+  const ui = useUiStore();
   downloadingUpdate.value = true;
   try {
     const update = await check();
     if (!update) {
-      addNotification("info", "No update available.");
+      ui.pushNotification("info", "No update available.");
       return;
     }
 
     await update.downloadAndInstall((event) => {
       switch (event.event) {
         case "Started":
-          console.debug(`Download started: ${event.data.contentLength ?? 0} bytes`);
+          console.debug(
+            `Download started: ${event.data.contentLength ?? 0} bytes`
+          );
           break;
         case "Progress":
           break;
@@ -67,11 +74,11 @@ export async function downloadAndInstallUpdate(): Promise<void> {
       }
     });
 
-    addNotification("info", "Update installed. Relaunching...");
+    ui.pushNotification("info", "Update installed. Relaunching...");
     await relaunch();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    addNotification("error", `Update failed: ${msg}`);
+    ui.pushNotification("error", `Update failed: ${msg}`);
     console.error("Update download/install failed:", e);
   } finally {
     downloadingUpdate.value = false;

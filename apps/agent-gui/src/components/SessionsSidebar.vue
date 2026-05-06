@@ -2,16 +2,13 @@
 import { ref, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { SessionProjection, ProfileDetail } from "../types";
-import {
-  sessionState,
-  setProjection,
-  resetProjection,
-  deleteSession,
-  renameSession
-} from "../stores/session";
+import { useSessionStore } from "@/stores/session";
+import { useTaskGraphStore } from "@/stores/taskGraph";
 import { applyTraceEvent, clearTrace } from "../composables/useTraceStore";
-import { clearTaskGraph } from "../stores/taskGraph";
 import ConfirmDialog from "./ConfirmDialog.vue";
+
+const session = useSessionStore();
+const taskGraph = useTaskGraphStore();
 
 const showNewSession = ref(false);
 const showDeleteDialog = ref(false);
@@ -26,7 +23,7 @@ const renameInput = ref<HTMLInputElement | null>(null);
 
 async function refreshSessions() {
   try {
-    sessionState.sessions = await invoke("list_sessions");
+    session.sessions = await invoke("list_sessions");
   } catch (e) {
     console.error("Failed to list sessions:", e);
   }
@@ -35,17 +32,17 @@ async function refreshSessions() {
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
   try {
-    resetProjection();
+    session.resetProjection();
     clearTrace();
-    clearTaskGraph();
+    taskGraph.clearTaskGraph();
     const projection: SessionProjection = await invoke("switch_session", {
       sessionId
     });
-    setProjection(projection);
-    sessionState.currentSessionId = sessionId;
-    const session = sessionState.sessions.find((s) => s.id === sessionId);
-    if (session) {
-      sessionState.currentProfile = session.profile;
+    session.setProjection(projection);
+    session.currentSessionId = sessionId;
+    const target = session.sessions.find((s) => s.id === sessionId);
+    if (target) {
+      session.currentProfile = target.profile;
     }
     try {
       const traceStrings: string[] = await invoke("get_trace", { sessionId });
@@ -72,9 +69,9 @@ async function createSession() {
       profile: string;
     }>("start_session", { profile: selectedProfile.value });
     await refreshSessions();
-    sessionState.currentSessionId = result.id;
-    sessionState.currentProfile = result.profile;
-    resetProjection();
+    session.currentSessionId = result.id;
+    session.currentProfile = result.profile;
+    session.resetProjection();
     clearTrace();
     showNewSession.value = false;
     profileDropdownOpen.value = false;
@@ -85,7 +82,9 @@ async function createSession() {
 
 async function loadProfiles() {
   try {
-    availableProfiles.value = (await invoke("get_profile_info")) as ProfileDetail[];
+    availableProfiles.value = (await invoke(
+      "get_profile_info"
+    )) as ProfileDetail[];
     if (availableProfiles.value.length > 0) {
       selectedProfile.value = availableProfiles.value[0].alias;
     }
@@ -126,7 +125,10 @@ function startRename(sessionId: string, currentTitle: string) {
 
 async function confirmRename() {
   if (editingSessionId.value && editingTitle.value.trim()) {
-    await renameSession(editingSessionId.value, editingTitle.value.trim());
+    await session.renameSession(
+      editingSessionId.value,
+      editingTitle.value.trim()
+    );
   }
   editingSessionId.value = null;
 }
@@ -142,7 +144,7 @@ function promptDelete(sessionId: string, title: string) {
 }
 
 async function confirmDelete() {
-  await deleteSession(deleteTargetId.value);
+  await session.deleteSession(deleteTargetId.value);
   showDeleteDialog.value = false;
 }
 
@@ -164,20 +166,25 @@ function keyIcon(hasApiKey: boolean): string {
   <aside class="sessions-sidebar">
     <header class="sidebar-header">
       <h2>Sessions</h2>
-      <button class="new-session-btn" @click="openNewSessionDialog">+ New</button>
+      <button class="new-session-btn" @click="openNewSessionDialog">
+        + New
+      </button>
     </header>
 
-    <ul v-if="sessionState.sessions.length > 0" class="session-list">
+    <ul v-if="session.sessions.length > 0" class="session-list">
       <li
-        v-for="session in sessionState.sessions"
-        :key="session.id"
-        :class="['session-item', { active: session.id === sessionState.currentSessionId }]"
-        @click="switchToSession(session.id)"
+        v-for="item in session.sessions"
+        :key="item.id"
+        :class="[
+          'session-item',
+          { active: item.id === session.currentSessionId }
+        ]"
+        @click="switchToSession(item.id)"
       >
         <span class="session-indicator">●</span>
 
         <!-- Inline rename mode -->
-        <template v-if="editingSessionId === session.id">
+        <template v-if="editingSessionId === item.id">
           <input
             ref="renameInput"
             v-model="editingTitle"
@@ -191,19 +198,19 @@ function keyIcon(hasApiKey: boolean): string {
 
         <!-- Normal display mode -->
         <template v-else>
-          <span class="session-title">{{ session.title }}</span>
+          <span class="session-title">{{ item.title }}</span>
           <span class="session-actions">
             <button
               class="action-btn"
               title="Rename"
-              @click.stop="startRename(session.id, session.title)"
+              @click.stop="startRename(item.id, item.title)"
             >
               ✏️
             </button>
             <button
               class="action-btn action-delete"
               title="Delete"
-              @click.stop="promptDelete(session.id, session.title)"
+              @click.stop="promptDelete(item.id, item.title)"
             >
               🗑️
             </button>
@@ -219,7 +226,10 @@ function keyIcon(hasApiKey: boolean): string {
       <label>
         Profile:
         <div class="profile-dropdown">
-          <button class="profile-trigger" @click="profileDropdownOpen = !profileDropdownOpen">
+          <button
+            class="profile-trigger"
+            @click="profileDropdownOpen = !profileDropdownOpen"
+          >
             {{ selectedProfile }}
             <span class="caret">▼</span>
           </button>
@@ -227,12 +237,18 @@ function keyIcon(hasApiKey: boolean): string {
             <div
               v-for="p in availableProfiles"
               :key="p.alias"
-              :class="['profile-option', { selected: p.alias === selectedProfile }]"
+              :class="[
+                'profile-option',
+                { selected: p.alias === selectedProfile }
+              ]"
               @click="selectProfile(p.alias)"
             >
               <div class="profile-info">
                 <span class="profile-alias">{{ p.alias }}</span>
-                <span class="profile-detail" :title="`${p.provider} · ${p.model_id}`">
+                <span
+                  class="profile-detail"
+                  :title="`${p.provider} · ${p.model_id}`"
+                >
                   {{ p.provider }} · {{ p.model_id }}
                 </span>
               </div>

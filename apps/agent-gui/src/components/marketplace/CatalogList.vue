@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import {
-  catalogState,
-  visibleEntries,
-  fetchCatalog,
-  refreshCatalogSource
-} from "../../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
 import type { ServerEntryResponse } from "../../generated/commands";
 
+const catalog = useCatalogStore();
 const selected = ref<ServerEntryResponse | null>(null);
 
 onMounted(async () => {
-  if (catalogState.entries.length === 0) {
-    await fetchCatalog();
+  if (catalog.entries.length === 0) {
+    await catalog.fetchCatalog();
   }
 });
 </script>
@@ -23,24 +19,29 @@ onMounted(async () => {
   <div class="catalog-list">
     <div class="filters">
       <input
-        v-model="catalogState.filters.keyword"
+        v-model="catalog.filters.keyword"
         placeholder="Search servers…"
         data-test="catalog-search"
       />
-      <select v-model="catalogState.filters.trustMin" data-test="catalog-trust">
+      <select v-model="catalog.filters.trustMin" data-test="catalog-trust">
         <option :value="null">All trust levels</option>
         <option value="verified">Verified+</option>
         <option value="community">Community+</option>
       </select>
-      <button data-test="catalog-refresh" @click="refreshCatalogSource(null)">Refresh</button>
+      <button
+        data-test="catalog-refresh"
+        @click="catalog.refreshCatalogSource(null)"
+      >
+        Refresh
+      </button>
     </div>
-    <p v-if="catalogState.loading">Loading…</p>
-    <p v-else-if="catalogState.error" class="error">
-      {{ catalogState.error }}
+    <p v-if="catalog.loading">Loading…</p>
+    <p v-else-if="catalog.error" class="error">
+      {{ catalog.error }}
     </p>
     <div v-else class="grid">
       <CatalogCard
-        v-for="entry in visibleEntries"
+        v-for="entry in catalog.visibleEntries"
         :key="entry.id"
         :entry="entry"
         @click="selected = entry"

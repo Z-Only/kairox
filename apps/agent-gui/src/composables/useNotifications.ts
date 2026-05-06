@@ -1,24 +1,32 @@
-import { reactive } from "vue";
+import { storeToRefs } from "pinia";
+import { useUiStore, type NotificationLevel } from "@/stores/ui";
 
-export interface Notification {
+export type Notification = {
   id: string;
-  type: "error" | "warning" | "info";
+  type: NotificationLevel;
   message: string;
   timestamp: number;
+};
+
+export function useNotifications() {
+  const ui = useUiStore();
+  const { notifications } = storeToRefs(ui);
+  return {
+    notifications,
+    addNotification: (type: NotificationLevel, message: string) =>
+      ui.pushNotification(type, message),
+    dismissNotification: (id: string) => ui.dismissNotification(id)
+  };
 }
 
-export const notifications = reactive<Notification[]>([]);
-
-let nextId = 0;
-
-export function addNotification(type: Notification["type"], message: string): void {
-  const id = `notif-${nextId++}`;
-  notifications.push({ id, type, message, timestamp: Date.now() });
-  // Auto-dismiss after 8 seconds
-  setTimeout(() => dismissNotification(id), 8000);
+// Back-compat top-level fn used by other modules (App.vue, session store, etc.)
+export function addNotification(
+  type: NotificationLevel,
+  message: string
+): void {
+  useUiStore().pushNotification(type, message);
 }
 
 export function dismissNotification(id: string): void {
-  const idx = notifications.findIndex((n) => n.id === id);
-  if (idx !== -1) notifications.splice(idx, 1);
+  useUiStore().dismissNotification(id);
 }

@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { failedServers, runningCount, hasServers } from "../stores/mcp";
+import { useMcpStore } from "@/stores/mcp";
 
+const mcp = useMcpStore();
 const emit = defineEmits<{ click: [] }>();
 
 const indicatorClass = computed(() => {
-  if (failedServers.value.length > 0) return "mcp-failed";
-  if (runningCount.value > 0) return "mcp-running";
-  if (hasServers.value) return "mcp-stopped";
+  if (mcp.failedServers.length > 0) return "mcp-failed";
+  if (mcp.runningCount > 0) return "mcp-running";
+  if (mcp.hasServers) return "mcp-stopped";
   return "mcp-none";
 });
 
 const label = computed(() => {
-  if (!hasServers.value) return "MCP";
-  return `${runningCount.value} MCP`;
+  if (!mcp.hasServers) return "MCP";
+  return `${mcp.runningCount} MCP`;
 });
 
 const dot = computed(() => {
-  if (failedServers.value.length > 0) return "🔴";
-  if (runningCount.value > 0) return "🟢";
+  if (mcp.failedServers.length > 0) return "🔴";
+  if (mcp.runningCount > 0) return "🟢";
   return "⚪";
 });
 </script>

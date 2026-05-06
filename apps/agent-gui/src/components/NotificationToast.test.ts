@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import NotificationToast from "./NotificationToast.vue";
-import { notifications } from "../composables/useNotifications";
+import { useUiStore } from "@/stores/ui";
 
 beforeEach(() => {
-  notifications.splice(0, notifications.length);
+  setActivePinia(createPinia());
 });
 
 describe("NotificationToast", () => {
@@ -14,23 +15,21 @@ describe("NotificationToast", () => {
   });
 
   it("renders up to 3 notifications", () => {
-    notifications.push(
-      { id: "1", type: "error", message: "Error 1", timestamp: Date.now() },
-      { id: "2", type: "warning", message: "Warning 2", timestamp: Date.now() },
-      { id: "3", type: "info", message: "Info 3", timestamp: Date.now() },
-      { id: "4", type: "error", message: "Error 4", timestamp: Date.now() }
-    );
+    const ui = useUiStore();
+    ui.pushNotification("error", "Error 1");
+    ui.pushNotification("warning", "Warning 2");
+    ui.pushNotification("info", "Info 3");
+    ui.pushNotification("error", "Error 4");
     const wrapper = mount(NotificationToast);
     const items = wrapper.findAll(".notification");
     expect(items).toHaveLength(3);
   });
 
-  it("applies CSS class based on notification type", () => {
-    notifications.push(
-      { id: "1", type: "error", message: "Oops", timestamp: Date.now() },
-      { id: "2", type: "warning", message: "Careful", timestamp: Date.now() },
-      { id: "3", type: "info", message: "FYI", timestamp: Date.now() }
-    );
+  it("applies CSS class based on notification level", () => {
+    const ui = useUiStore();
+    ui.pushNotification("error", "Oops");
+    ui.pushNotification("warning", "Careful");
+    ui.pushNotification("info", "FYI");
     const wrapper = mount(NotificationToast);
     const items = wrapper.findAll(".notification");
     expect(items[0].classes()).toContain("notification--error");
@@ -38,24 +37,19 @@ describe("NotificationToast", () => {
     expect(items[2].classes()).toContain("notification--info");
   });
 
-  it("calls dismissNotification when dismiss button is clicked", () => {
-    notifications.push({
-      id: "1",
-      type: "error",
-      message: "Dismiss me",
-      timestamp: Date.now()
-    });
+  it("calls dismissNotification when dismiss button is clicked", async () => {
+    const ui = useUiStore();
+    ui.pushNotification("error", "Dismiss me");
     const wrapper = mount(NotificationToast);
-    wrapper.find(".notification-dismiss").trigger("click");
-    expect(notifications).toHaveLength(0);
+    await wrapper.find(".notification-dismiss").trigger("click");
+    expect(ui.notifications).toHaveLength(0);
   });
 
-  it("shows correct icon for each type", () => {
-    notifications.push(
-      { id: "1", type: "error", message: "E", timestamp: Date.now() },
-      { id: "2", type: "warning", message: "W", timestamp: Date.now() },
-      { id: "3", type: "info", message: "I", timestamp: Date.now() }
-    );
+  it("shows correct icon for each level", () => {
+    const ui = useUiStore();
+    ui.pushNotification("error", "E");
+    ui.pushNotification("warning", "W");
+    ui.pushNotification("info", "I");
     const wrapper = mount(NotificationToast);
     const icons = wrapper.findAll(".notification-icon");
     expect(icons[0].text()).toBe("✕");

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { TaskTreeNode } from "../stores/taskGraph";
-import { retryTask, cancelTask } from "../stores/taskGraph";
+import type { TaskTreeNode } from "@/stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
+
+const taskGraph = useTaskGraphStore();
 
 const props = defineProps<{
   node: TaskTreeNode;
@@ -67,11 +69,11 @@ function childSummary(): string {
 }
 
 function handleRetry() {
-  retryTask(props.node.task.id);
+  taskGraph.retryTask(props.node.task.id);
 }
 
 function handleCancel() {
-  cancelTask(props.node.task.id);
+  taskGraph.cancelTask(props.node.task.id);
 }
 
 function handleToggle() {

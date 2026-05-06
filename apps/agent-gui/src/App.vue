@@ -4,9 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTauriEvents } from "./composables/useTauriEvents";
 import { useUpdater } from "./composables/useUpdater";
-import { addNotification } from "./composables/useNotifications";
-import { sessionState, recoverSessions, setProjection } from "./stores/session";
-import type { SessionProjection } from "./types";
+import { useSessionStore } from "@/stores/session";
+import { useUiStore } from "@/stores/ui";
 import ChatPanel from "./components/ChatPanel.vue";
 import SessionsSidebar from "./components/SessionsSidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
@@ -18,44 +17,43 @@ import Marketplace from "./views/Marketplace.vue";
 type View = "workbench" | "marketplace";
 const view = ref<View>("workbench");
 
+const session = useSessionStore();
+const ui = useUiStore();
+
 useTauriEvents();
 useUpdater();
 
 onMounted(async () => {
   // Listen for backend error events
-  await listen<{ type: string; error: string; session_id: string }>("session-error", (event) => {
-    addNotification("error", event.payload.error);
-  });
+  await listen<{ type: string; error: string; session_id: string }>(
+    "session-error",
+    (event) => {
+      ui.pushNotification("error", event.payload.error);
+    }
+  );
 
   // Try to recover existing workspace and sessions from metadata store
-  const recovered = await recoverSessions();
+  const recovered = await session.recoverSessions();
+  if (recovered) return;
 
-  if (!recovered) {
-    // First-run: initialize a new workspace
-    try {
-      const workspaceInfo: { workspace_id: string; path: string } =
-        await invoke("initialize_workspace");
-      sessionState.initialized = true;
-      sessionState.workspaceId = workspaceInfo.workspace_id;
-      sessionState.sessions = await invoke("list_sessions");
-      if (sessionState.sessions.length > 0) {
-        const firstSession = sessionState.sessions[0];
-        sessionState.currentSessionId = firstSession.id;
-        sessionState.currentProfile = firstSession.profile;
-        // Load projection (including task graph) for the initial session
-        try {
-          const projection = await invoke("switch_session", {
-            sessionId: firstSession.id
-          });
-          setProjection(projection as SessionProjection);
-        } catch {
-          // Non-critical: initial session may have minimal data
-        }
+  // First-run: initialize a new workspace
+  try {
+    const workspaceInfo: { workspace_id: string; path: string } = await invoke(
+      "initialize_workspace"
+    );
+    session.initialized = true;
+    session.workspaceId = workspaceInfo.workspace_id;
+    session.sessions = await invoke("list_sessions");
+    if (session.sessions.length > 0) {
+      try {
+        await session.switchSession(session.sessions[0].id);
+      } catch {
+        // Initial session may have minimal data — non-critical.
       }
-    } catch (e) {
-      console.error("Failed to initialize workspace:", e);
-      addNotification("error", `Failed to initialize workspace: ${e}`);
     }
+  } catch (e) {
+    console.error("Failed to initialize workspace:", e);
+    ui.pushNotification("error", `Failed to initialize workspace: ${e}`);
   }
 });
 </script>

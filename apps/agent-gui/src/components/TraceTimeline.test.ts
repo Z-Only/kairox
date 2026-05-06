@@ -1,55 +1,29 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
-import { clearTaskGraph } from "../stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-vi.mock("../stores/session", () => ({
-  sessionState: {
-    sessions: [],
-    currentSessionId: null,
-    workspaceId: null,
-    currentProfile: "fast",
-    isStreaming: false,
-    connected: false,
-    initialized: false,
-    projection: {
-      messages: [],
-      task_titles: [],
-      task_graph: { tasks: [] },
-      token_stream: "",
-      cancelled: false
-    }
-  },
-  applyEvent: vi.fn(),
-  setProjection: vi.fn(),
-  resetProjection: vi.fn(),
-  reportSendError: vi.fn()
-}));
-vi.mock("../stores/memory", () => ({
-  memoryState: {
-    memories: [],
-    loading: false,
-    filter: "all" as const,
-    searchQuery: ""
-  },
-  loadMemories: vi.fn(),
-  deleteMemoryItem: vi.fn(),
-  setMemoryFilter: vi.fn()
-}));
+
+import { invoke } from "@tauri-apps/api/core";
+const mockedInvoke = vi.mocked(invoke);
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   clearTrace();
-  clearTaskGraph();
+  useTaskGraphStore().clearTaskGraph();
+  // MemoryBrowser (rendered when the Memory tab is activated) calls
+  // `invoke('query_memories', ...)` on mount and assigns the result to
+  // `memories.value`. Without a default resolved value, vitest mocks
+  // return `undefined`, which makes `memories.length` throw inside the
+  // template render. Supply a stable empty-array default so any invoke
+  // call this test file does not override stays well-typed.
+  mockedInvoke.mockResolvedValue([]);
 });
 
 describe("TraceTimeline", () => {

@@ -1,13 +1,6 @@
 import { onMounted } from "vue";
-import {
-  catalogState,
-  filteredEntries,
-  fetchCatalog,
-  fetchInstalled,
-  installEntry,
-  uninstallEntry,
-  refreshCatalogSource
-} from "../stores/catalog";
+import { storeToRefs } from "pinia";
+import { useCatalogStore } from "@/stores/catalog";
 import type { ServerEntryResponse } from "../generated/commands";
 
 export interface RuntimeRequirementParsed {
@@ -44,19 +37,22 @@ export function parseDefaultEnv(entry: ServerEntryResponse): EnvVarSpecParsed[] 
 }
 
 export function useMarketplace() {
+  const catalog = useCatalogStore();
+  const { filteredEntries } = storeToRefs(catalog);
+
   onMounted(async () => {
-    if (catalogState.entries.length === 0) await fetchCatalog();
-    if (catalogState.installed.length === 0) await fetchInstalled();
+    if (catalog.entries.length === 0) await catalog.fetchCatalog();
+    if (catalog.installed.length === 0) await catalog.fetchInstalled();
   });
 
   return {
-    state: catalogState,
+    state: catalog,
     filteredEntries,
-    fetchCatalog,
-    fetchInstalled,
-    installEntry,
-    uninstallEntry,
-    refreshCatalogSource,
+    fetchCatalog: catalog.fetchCatalog,
+    fetchInstalled: catalog.fetchInstalled,
+    installEntry: catalog.installEntry,
+    uninstallEntry: catalog.uninstallEntry,
+    refreshCatalogSource: catalog.refreshCatalogSource,
     parseRequirements,
     parseDefaultEnv
   };

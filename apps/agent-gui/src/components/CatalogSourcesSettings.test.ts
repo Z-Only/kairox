@@ -1,14 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount, flushPromises } from "@vue/test-utils";
 import CatalogSourcesSettings from "./CatalogSourcesSettings.vue";
-import { resetCatalogState } from "../stores/catalog";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
@@ -28,7 +23,7 @@ const sampleSource = {
 
 describe("CatalogSourcesSettings.vue", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
   });
 
