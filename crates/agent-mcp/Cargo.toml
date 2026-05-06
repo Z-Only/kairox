@@ -21,6 +21,7 @@ tracing.workspace = true
 specta = { workspace = true, optional = true, features = ["chrono"] }
 reqwest = { workspace = true, optional = true }
 eventsource-stream = { workspace = true, optional = true }
+which.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

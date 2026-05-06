@@ -3,8 +3,10 @@
 //! Provides types, transports, and lifecycle management for connecting to
 //! MCP servers from within the Kairox agent workbench.
 
+pub mod catalog;
 pub mod client;
 pub mod discovery;
+pub mod installer;
 pub mod lifecycle;
 pub mod transport;
 pub mod types;
@@ -38,6 +40,10 @@ pub enum McpError {
     ServerCrash(String),
     #[error("max restart attempts exceeded for {0}")]
     MaxRestartsExceeded(String),
+    #[error("catalog error: {0}")]
+    Catalog(String),
+    #[error("installer error: {0}")]
+    Installer(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -46,3 +52,9 @@ pub enum McpError {
 
 /// Result type for MCP operations.
 pub type Result<T> = std::result::Result<T, McpError>;
+
+impl From<crate::catalog::CatalogError> for McpError {
+    fn from(e: crate::catalog::CatalogError) -> Self {
+        McpError::Catalog(e.to_string())
+    }
+}
