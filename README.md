@@ -61,12 +61,14 @@ graph TD
 - **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol and keyword retrieval
 - **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing
 - **Tool system** — built-in tools (shell, search, patch, fs.read, fs.write, fs.list) with 5-level permission control and MCP (Model Context Protocol) integration
+- **MCP marketplace** — built-in catalog plus remote sources with multi-source aggregation, one-click install, and runtime-missing hints (Phase 1 + 2)
 - **Config discovery** — TOML config with profile management and env-variable API keys
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
-- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, and permission center
+- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, and MCP marketplace UI
+- **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
-- **Quality gates** — parallel CI, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
-- **E2E testing** — 10 Playwright E2E spec files for the GUI frontend (chat flow, sessions, permissions/memory, task graph, trace, memory browser, notifications, MCP, multi-agent), 7 TUI app-logic integration tests, 13 full-stack runtime tests, plus dedicated MCP integration tests
+- **Quality gates** — parallel CI with aggregation `ci-success` job, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
+- **E2E testing** — 10 Playwright E2E spec files for the GUI frontend (chat flow, sessions, permissions/memory, task graph, trace, memory browser, notifications, MCP, multi-agent), 7 TUI app-logic integration tests, 13 full-stack runtime tests, plus dedicated MCP integration tests and DAG executor / AgentStrategy / GUI component coverage
 
 ## Repository layout
 
@@ -74,7 +76,7 @@ graph TD
 - `crates/agent-runtime` — runtime orchestration, agent loop, DAG executor, multi-agent strategies, MCP server manager
 - `crates/agent-models` — model client trait + OpenAI / Anthropic / Ollama / Fake adapters
 - `crates/agent-tools` — tool registry, permission engine, built-in tools (shell, fs.read/write/list, patch, search), MCP tool adapter
-- `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache
+- `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources)
 - `crates/agent-memory` — memory store, marker protocol, context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store + metadata tables
 - `crates/agent-config` — TOML config loading, model profile discovery, MCP server config, API key resolution
@@ -83,7 +85,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development (current release `v0.15.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The GUI supports session cancellation, error notifications, code syntax highlighting, a real-time status bar, agent attribution, and N-level task tree visualization. Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer), and the runtime has been refactored into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability. MCP (Model Context Protocol) integration connects to external tool servers via stdio and SSE transports, with config-driven server lifecycle management and trust-based permissions. Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell`, `patch`, and ripgrep-backed `search`. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. Release packaging includes SHA256 checksums and structured artifact naming. CI runs E2E tests alongside parallel jobs with type-sync checks via `tauri-specta`. GUI test coverage has been expanded to 127+ tests across stores, composables, and components, with additional MCP E2E tests.
+Kairox is in active development (current release `v0.16.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The GUI supports session cancellation, error notifications, code syntax highlighting, a real-time status bar, agent attribution, and N-level task tree visualization. Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer), and the runtime has been refactored into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability. MCP (Model Context Protocol) integration connects to external tool servers via stdio and SSE transports, with config-driven server lifecycle management, trust-based permissions, and an in-app marketplace combining a built-in catalog with remote catalog sources for one-click install. Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell`, `patch`, and ripgrep-backed `search`. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. The desktop app ships with Tauri 2 auto-update wired to GitHub Releases. Release packaging includes SHA256 checksums and structured artifact naming. CI runs E2E tests alongside parallel jobs with type-sync checks via `tauri-specta` and an aggregation `ci-success` job for branch protection compatibility. GUI test coverage has been expanded to 127+ tests across stores, composables, and components, with additional MCP E2E tests and dedicated DAG executor / AgentStrategy / GUI component test suites.
 
 ## Requirements
 
