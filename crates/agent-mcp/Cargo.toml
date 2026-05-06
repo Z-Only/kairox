@@ -21,9 +21,11 @@ tracing.workspace = true
 specta = { workspace = true, optional = true, features = ["chrono"] }
 reqwest = { workspace = true, optional = true }
 eventsource-stream = { workspace = true, optional = true }
+which.workspace = true
+toml_edit.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 toml.workspace = true
 wiremock.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "process", "fs", "test-util"] }

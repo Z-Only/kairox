@@ -302,6 +302,46 @@ impl McpServerManager {
         self.servers.get(server_id).map(|lc| lc.def())
     }
 
+    /// Returns true if a server with this id is currently registered (in any state).
+    pub fn is_registered(&self, server_id: &str) -> bool {
+        self.servers.contains_key(server_id)
+    }
+
+    /// Returns `Some(true)` if the server is registered and currently running,
+    /// `Some(false)` if registered but not running, or `None` if unknown.
+    pub fn is_running(&self, server_id: &str) -> Option<bool> {
+        self.servers
+            .get(server_id)
+            .map(|lc| matches!(lc.status(), McpServerStatus::Running))
+    }
+
+    /// Register a server definition at runtime (used by the marketplace installer).
+    ///
+    /// Returns `Err` if a server with the same id is already registered.
+    /// The caller is responsible for invoking [`Self::ensure_server`] to start it.
+    pub fn register_dynamic(&mut self, def: McpServerDef) -> Result<(), McpError> {
+        if self.servers.contains_key(&def.name) {
+            return Err(McpError::Protocol(format!(
+                "server '{}' is already registered",
+                def.name
+            )));
+        }
+        let name = def.name.clone();
+        self.servers.insert(name, ServerLifecycle::new(def));
+        Ok(())
+    }
+
+    /// Remove a dynamically registered server. Stops it first if running.
+    pub async fn unregister_dynamic(&mut self, server_id: &str) -> Result<(), McpError> {
+        if let Some(lifecycle) = self.servers.get_mut(server_id) {
+            if matches!(lifecycle.status(), McpServerStatus::Running) {
+                let _ = lifecycle.shutdown().await;
+            }
+        }
+        self.servers.remove(server_id);
+        Ok(())
+    }
+
     /// Emit a domain event via the broadcast channel (best-effort).
     fn emit_event(&self, payload: EventPayload) {
         if let Some(tx) = &self.event_tx {
@@ -431,5 +471,39 @@ mod tests {
     fn server_def_unknown_returns_none() {
         let manager = make_manager(vec![]);
         assert!(manager.server_def("unknown").is_none());
+    }
+
+    #[tokio::test]
+    async fn register_dynamic_adds_server() {
+        let mut m = make_manager(vec![]);
+        assert!(!m.is_registered("alpha"));
+        m.register_dynamic(make_test_def("alpha", false))
+            .expect("register");
+        assert!(m.is_registered("alpha"));
+        assert_eq!(m.server_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn register_dynamic_rejects_duplicate() {
+        let mut m = make_manager(vec![]);
+        m.register_dynamic(make_test_def("alpha", false)).unwrap();
+        let err = m
+            .register_dynamic(make_test_def("alpha", false))
+            .unwrap_err();
+        assert!(matches!(err, McpError::Protocol(msg) if msg.contains("already registered")));
+    }
+
+    #[tokio::test]
+    async fn unregister_dynamic_removes_server() {
+        let mut m = make_manager(vec![make_test_def("alpha", false)]);
+        assert!(m.is_registered("alpha"));
+        m.unregister_dynamic("alpha").await.unwrap();
+        assert!(!m.is_registered("alpha"));
+    }
+
+    #[tokio::test]
+    async fn unregister_dynamic_unknown_is_noop() {
+        let mut m = make_manager(vec![]);
+        m.unregister_dynamic("does-not-exist").await.unwrap();
     }
 }

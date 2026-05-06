@@ -140,7 +140,12 @@ impl SessionProjection {
             | EventPayload::McpToolCallStarted { .. }
             | EventPayload::McpToolCallCompleted { .. }
             | EventPayload::McpTrustGranted { .. }
-            | EventPayload::McpTrustRevoked { .. } => {}
+            | EventPayload::McpTrustRevoked { .. }
+            | EventPayload::CatalogRefreshed { .. }
+            | EventPayload::CatalogEntryInstalling { .. }
+            | EventPayload::CatalogEntryInstalled { .. }
+            | EventPayload::CatalogEntryUninstalled { .. }
+            | EventPayload::CatalogRuntimeMissing { .. } => {}
         }
     }
 

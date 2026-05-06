@@ -170,6 +170,26 @@ pub enum EventPayload {
     McpTrustRevoked {
         server_id: String,
     },
+    CatalogRefreshed {
+        source: String,
+        entry_count: usize,
+    },
+    CatalogEntryInstalling {
+        catalog_id: String,
+        source: String,
+    },
+    CatalogEntryInstalled {
+        catalog_id: String,
+        source: String,
+        server_id: String,
+    },
+    CatalogEntryUninstalled {
+        server_id: String,
+    },
+    CatalogRuntimeMissing {
+        catalog_id: String,
+        missing: Vec<String>,
+    },
 }
 
 impl EventPayload {
@@ -213,6 +233,11 @@ impl EventPayload {
             Self::McpToolCallCompleted { .. } => "McpToolCallCompleted",
             Self::McpTrustGranted { .. } => "McpTrustGranted",
             Self::McpTrustRevoked { .. } => "McpTrustRevoked",
+            Self::CatalogRefreshed { .. } => "CatalogRefreshed",
+            Self::CatalogEntryInstalling { .. } => "CatalogEntryInstalling",
+            Self::CatalogEntryInstalled { .. } => "CatalogEntryInstalled",
+            Self::CatalogEntryUninstalled { .. } => "CatalogEntryUninstalled",
+            Self::CatalogRuntimeMissing { .. } => "CatalogRuntimeMissing",
         }
     }
 }

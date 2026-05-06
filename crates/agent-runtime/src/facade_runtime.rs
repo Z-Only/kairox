@@ -2,10 +2,18 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::{
-    AgentStatusInfo, AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
+    AgentId, AgentStatusInfo, AppFacade, CatalogQuery as CoreCatalogQuery, DomainEvent,
+    EventPayload, InstallOutcomeView as CoreInstallOutcomeView,
+    InstallRequest as CoreInstallRequest, InstalledEntry as CoreInstalledEntry, PermissionDecision,
+    PrivacyClassification, SendMessageRequest, ServerEntry as CoreServerEntry, SessionId,
     StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
-use agent_mcp::types::McpServerDef;
+use agent_mcp::catalog::{
+    AggregateCatalogProvider, BuiltinCatalogProvider, CatalogProvider, CatalogQuery,
+    InstallRequest as McpInstallRequest, InstallSpec, ServerEntry, TrustLevel,
+};
+use agent_mcp::installer::{InstallOutcomeView, Installer, OsRuntimeProbe};
+use agent_mcp::types::{McpServerDef, McpTransportDef};
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::EventStore;
 use agent_tools::{BuiltinProvider, PermissionEngine, PermissionMode, ToolProvider, ToolRegistry};
@@ -47,6 +55,12 @@ where
     active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
     dag_config: DagConfig,
+    /// Catalog provider (built-in + future remote sources). `None` when the
+    /// marketplace has not been wired via [`Self::with_marketplace`].
+    catalog: Option<Arc<dyn CatalogProvider>>,
+    /// Installer for marketplace entries. `None` when the marketplace has not
+    /// been wired via [`Self::with_marketplace`].
+    installer: Option<Arc<Installer>>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -70,7 +84,30 @@ where
             mcp_manager: None,
             dag_executor: None,
             dag_config: DagConfig::default(),
+            catalog: None,
+            installer: None,
         }
+    }
+
+    /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
+    /// targeting `<config_dir>/mcp_servers.toml`.
+    ///
+    /// Without this, the catalog-related [`AppFacade`] methods return errors
+    /// (or empty results) because they have nowhere to read from or write to.
+    pub fn with_marketplace(mut self, config_dir: PathBuf) -> crate::Result<Self> {
+        let builtin = Arc::new(
+            BuiltinCatalogProvider::new()
+                .map_err(|e| crate::RuntimeError::Other(format!("builtin catalog: {e}")))?,
+        );
+        let aggregate: Arc<dyn CatalogProvider> =
+            Arc::new(AggregateCatalogProvider::new(vec![builtin]));
+        self.catalog = Some(aggregate);
+        let toml_path = config_dir.join("mcp_servers.toml");
+        self.installer = Some(Arc::new(Installer::new(
+            toml_path,
+            Arc::new(OsRuntimeProbe),
+        )));
+        Ok(self)
     }
 
     pub fn with_permission_mode(mut self, mode: PermissionMode) -> Self {
@@ -407,6 +444,374 @@ where
             None => Ok(Vec::new()),
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Marketplace catalog
+    // -----------------------------------------------------------------------
+
+    async fn list_catalog(
+        &self,
+        query: CoreCatalogQuery,
+    ) -> agent_core::Result<Vec<CoreServerEntry>> {
+        let catalog = self.catalog.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let inner_query = map_query(query);
+        let entries = catalog
+            .list(&inner_query)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog list: {e}")))?;
+        Ok(entries.into_iter().map(map_entry_to_core).collect())
+    }
+
+    async fn get_catalog_entry(
+        &self,
+        id: String,
+        _source: Option<String>,
+    ) -> agent_core::Result<Option<CoreServerEntry>> {
+        let catalog = self.catalog.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let entry = catalog
+            .get(&id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog get: {e}")))?;
+        Ok(entry.map(map_entry_to_core))
+    }
+
+    async fn refresh_catalog(&self, _source: Option<String>) -> agent_core::Result<()> {
+        let catalog = self.catalog.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        catalog
+            .refresh()
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog refresh: {e}")))?;
+        let entry_count = catalog
+            .list(&CatalogQuery::default())
+            .await
+            .map(|v| v.len())
+            .unwrap_or(0);
+        emit_marketplace_event(
+            &self.event_tx,
+            EventPayload::CatalogRefreshed {
+                source: "aggregate".into(),
+                entry_count,
+            },
+        );
+        Ok(())
+    }
+
+    async fn install_catalog_entry(
+        &self,
+        request: CoreInstallRequest,
+    ) -> agent_core::Result<CoreInstallOutcomeView> {
+        let catalog = self.catalog.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let installer = self.installer.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+
+        let inner_req = map_install_request(request);
+        let entry = catalog
+            .get(&inner_req.catalog_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog: {e}")))?
+            .ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "entry not found: {}",
+                    inner_req.catalog_id
+                ))
+            })?;
+
+        emit_marketplace_event(
+            &self.event_tx,
+            EventPayload::CatalogEntryInstalling {
+                catalog_id: inner_req.catalog_id.clone(),
+                source: inner_req.source.clone(),
+            },
+        );
+
+        let outcome = installer
+            .install(&entry, &inner_req)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
+
+        match &outcome {
+            InstallOutcomeView::RuntimeMissing { missing } => {
+                emit_marketplace_event(
+                    &self.event_tx,
+                    EventPayload::CatalogRuntimeMissing {
+                        catalog_id: inner_req.catalog_id.clone(),
+                        missing: missing.iter().map(|r| r.kind.as_str().into()).collect(),
+                    },
+                );
+            }
+            InstallOutcomeView::Installed { server_id, started } => {
+                if let Some(manager) = &self.mcp_manager {
+                    let def = build_server_def(&entry, &inner_req);
+                    let mut mgr = manager.lock().await;
+                    if !mgr.is_registered(server_id) {
+                        if let Err(e) = mgr.register_dynamic(def) {
+                            tracing::warn!(
+                                "marketplace install: register_dynamic({server_id}) failed: {e}"
+                            );
+                        }
+                    }
+                    if *started {
+                        if let Err(e) = mgr.ensure_server(server_id).await {
+                            tracing::warn!(
+                                "marketplace install: ensure_server({server_id}) failed: {e}"
+                            );
+                        }
+                    }
+                }
+                emit_marketplace_event(
+                    &self.event_tx,
+                    EventPayload::CatalogEntryInstalled {
+                        catalog_id: inner_req.catalog_id.clone(),
+                        source: inner_req.source.clone(),
+                        server_id: server_id.clone(),
+                    },
+                );
+            }
+            _ => {}
+        }
+        Ok(map_outcome_to_core(outcome))
+    }
+
+    async fn uninstall_catalog_entry(&self, server_id: String) -> agent_core::Result<()> {
+        let installer = self.installer.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        installer
+            .uninstall(&server_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
+        if let Some(manager) = &self.mcp_manager {
+            if let Err(e) = manager.lock().await.unregister_dynamic(&server_id).await {
+                tracing::warn!(
+                    "marketplace uninstall: unregister_dynamic({server_id}) failed: {e}"
+                );
+            }
+        }
+        emit_marketplace_event(
+            &self.event_tx,
+            EventPayload::CatalogEntryUninstalled {
+                server_id: server_id.clone(),
+            },
+        );
+        Ok(())
+    }
+
+    async fn list_installed_entries(&self) -> agent_core::Result<Vec<CoreInstalledEntry>> {
+        let installer = self.installer.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("marketplace not configured".into())
+        })?;
+        let ids = installer
+            .list_installed_ids()
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
+
+        // Best-effort: enrich each id with catalog metadata + running status.
+        let mut out = Vec::with_capacity(ids.len());
+        for id in ids {
+            let entry = if let Some(c) = &self.catalog {
+                c.get(&id).await.ok().flatten()
+            } else {
+                None
+            };
+            let running = if let Some(manager) = &self.mcp_manager {
+                manager.lock().await.is_running(&id).unwrap_or(false)
+            } else {
+                false
+            };
+            let display_name = entry
+                .as_ref()
+                .map(|e| e.display_name.clone())
+                .unwrap_or_else(|| id.clone());
+            out.push(CoreInstalledEntry {
+                server_id: id,
+                catalog_id: entry.as_ref().map(|e| e.id.clone()),
+                source: entry.as_ref().map(|e| e.source.clone()),
+                display_name,
+                installed_at: chrono::Utc::now().to_rfc3339(),
+                running,
+            });
+        }
+        Ok(out)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Marketplace mapping helpers (agent-core mirror DTOs <-> agent-mcp canonical)
+// ---------------------------------------------------------------------------
+
+fn map_query(q: CoreCatalogQuery) -> CatalogQuery {
+    CatalogQuery {
+        keyword: q.keyword,
+        category: q.category,
+        trust_min: q.trust_min.as_deref().and_then(parse_trust),
+        source: q.source,
+        limit: q.limit,
+    }
+}
+
+fn parse_trust(s: &str) -> Option<TrustLevel> {
+    match s {
+        "unverified" => Some(TrustLevel::Unverified),
+        "community" => Some(TrustLevel::Community),
+        "verified" => Some(TrustLevel::Verified),
+        _ => None,
+    }
+}
+
+fn trust_to_str(t: TrustLevel) -> &'static str {
+    match t {
+        TrustLevel::Unverified => "unverified",
+        TrustLevel::Community => "community",
+        TrustLevel::Verified => "verified",
+    }
+}
+
+fn map_entry_to_core(e: ServerEntry) -> CoreServerEntry {
+    let install_spec_json = serde_json::to_string(&e.install).unwrap_or_else(|_| "{}".into());
+    let requirements_json = serde_json::to_string(&e.requirements).unwrap_or_else(|_| "[]".into());
+    let default_env_json = serde_json::to_string(&e.default_env).unwrap_or_else(|_| "[]".into());
+    CoreServerEntry {
+        id: e.id,
+        source: e.source,
+        display_name: e.display_name,
+        summary: e.summary,
+        description: e.description,
+        categories: e.categories,
+        tags: e.tags,
+        author: e.author,
+        homepage: e.homepage,
+        version: e.version,
+        trust: trust_to_str(e.trust).into(),
+        icon: e.icon,
+        install_spec_json,
+        requirements_json,
+        default_env_json,
+    }
+}
+
+fn map_install_request(r: CoreInstallRequest) -> McpInstallRequest {
+    McpInstallRequest {
+        catalog_id: r.catalog_id,
+        source: r.source,
+        server_id_override: r.server_id_override,
+        env_overrides: r.env_overrides,
+        trust_grant: r.trust_grant,
+        auto_start: r.auto_start,
+    }
+}
+
+fn map_outcome_to_core(outcome: InstallOutcomeView) -> CoreInstallOutcomeView {
+    match outcome {
+        InstallOutcomeView::Installed { server_id, started } => CoreInstallOutcomeView {
+            kind: "installed".into(),
+            server_id: Some(server_id),
+            started: Some(started),
+            missing_runtimes: Vec::new(),
+            missing_env_keys: Vec::new(),
+        },
+        InstallOutcomeView::RuntimeMissing { missing } => CoreInstallOutcomeView {
+            kind: "runtime_missing".into(),
+            server_id: None,
+            started: None,
+            missing_runtimes: missing
+                .into_iter()
+                .map(|r| r.kind.as_str().into())
+                .collect(),
+            missing_env_keys: Vec::new(),
+        },
+        InstallOutcomeView::AlreadyInstalled { server_id } => CoreInstallOutcomeView {
+            kind: "already_installed".into(),
+            server_id: Some(server_id),
+            started: None,
+            missing_runtimes: Vec::new(),
+            missing_env_keys: Vec::new(),
+        },
+        InstallOutcomeView::InvalidEnv { missing_keys } => CoreInstallOutcomeView {
+            kind: "invalid_env".into(),
+            server_id: None,
+            started: None,
+            missing_runtimes: Vec::new(),
+            missing_env_keys: missing_keys,
+        },
+    }
+}
+
+fn build_server_def(entry: &ServerEntry, req: &McpInstallRequest) -> McpServerDef {
+    let server_id = req
+        .server_id_override
+        .clone()
+        .unwrap_or_else(|| entry.id.clone());
+
+    // Resolve env: defaults overridden by request.
+    let mut env: std::collections::HashMap<String, String> = entry
+        .default_env
+        .iter()
+        .filter_map(|spec| spec.default.clone().map(|v| (spec.key.clone(), v)))
+        .collect();
+    for (k, v) in &req.env_overrides {
+        env.insert(k.clone(), v.clone());
+    }
+
+    let (transport, args) = match &entry.install {
+        InstallSpec::Stdio {
+            command,
+            args,
+            env: spec_env,
+            cwd,
+        } => {
+            for (k, v) in spec_env {
+                env.entry(k.clone()).or_insert_with(|| v.clone());
+            }
+            (
+                McpTransportDef::Stdio {
+                    command: command.clone(),
+                    cwd: cwd.clone(),
+                },
+                args.clone(),
+            )
+        }
+        InstallSpec::Sse { url, headers } => (
+            McpTransportDef::Sse {
+                url: url.clone(),
+                api_key_env: None,
+                headers: headers
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
+            },
+            Vec::new(),
+        ),
+    };
+
+    McpServerDef {
+        name: server_id,
+        transport,
+        args,
+        env,
+        keep_alive: false,
+        idle_timeout_secs: 300,
+        auto_restart: true,
+        max_restart_attempts: 3,
+    }
+}
+
+fn emit_marketplace_event(tx: &tokio::sync::broadcast::Sender<DomainEvent>, payload: EventPayload) {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        payload,
+    );
+    let _ = tx.send(event);
 }
 
 #[cfg(test)]

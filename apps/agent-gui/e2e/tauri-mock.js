@@ -55,7 +55,56 @@ const state = {
   ],
   /** Callback registry for transformCallback */
   callbacks: new Map(),
-  nextCallbackId: 1
+  nextCallbackId: 1,
+  /** Marketplace fixtures (Phase 1 builtin catalog) */
+  catalog: [
+    {
+      id: "filesystem",
+      source: "builtin",
+      display_name: "Filesystem",
+      summary:
+        "Read, write, and search files inside an allow-listed directory.",
+      description:
+        "Provides safe filesystem access scoped to a workspace path.",
+      categories: ["filesystem", "dev-tools"],
+      tags: ["files", "fs"],
+      author: "MCP",
+      homepage: "https://github.com/modelcontextprotocol/servers",
+      version: "0.6.0",
+      trust: "verified",
+      icon: "📁",
+      install_spec_json: JSON.stringify({
+        transport: "stdio",
+        command: "npx",
+        args: [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "${WORKSPACE_PATH}"
+        ],
+        env: {},
+        cwd: null
+      }),
+      requirements_json: JSON.stringify([
+        {
+          kind: "node",
+          min_version: ">=18.0.0",
+          install_hint: "https://nodejs.org"
+        }
+      ]),
+      default_env_json: JSON.stringify([
+        {
+          key: "WORKSPACE_PATH",
+          label: "Workspace path",
+          description: "Directory the server can read",
+          required: true,
+          secret: false,
+          default: "/tmp"
+        }
+      ])
+    }
+  ],
+  installedCatalog: [],
+  catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true }
 };
 
 /* ---- Helpers ---- */
@@ -514,6 +563,165 @@ function invoke(cmd, args) {
       return [];
     case "read_mcp_resource":
       return [];
+
+    /* ─── Marketplace commands ───────────────────────────────── */
+
+    case "list_catalog": {
+      return state.catalog;
+    }
+
+    case "get_catalog_entry": {
+      var ce = state.catalog.find(function (e) {
+        return e.id === args.id;
+      });
+      return ce || null;
+    }
+
+    case "refresh_catalog": {
+      var refreshSource = args.source || "aggregate";
+      var refreshSession = state.currentSessionId;
+      if (refreshSession) {
+        var refreshEvent = makeEvent(refreshSession, {
+          type: "CatalogRefreshed",
+          source: refreshSource,
+          entry_count: state.catalog.length
+        });
+        getTrace(refreshSession).push(refreshEvent);
+        emitEvent("session-event", refreshEvent);
+      }
+      return null;
+    }
+
+    case "install_catalog_entry": {
+      var req = args.request;
+      var entry = state.catalog.find(function (e) {
+        return e.id === req.catalog_id;
+      });
+      if (!entry) {
+        return Promise.reject(
+          new Error("catalog entry not found: " + req.catalog_id)
+        );
+      }
+      var reqs = JSON.parse(entry.requirements_json);
+      var baseMissing = reqs
+        .filter(function (r) {
+          return !state.catalogRuntimePresent[r.kind];
+        })
+        .map(function (r) {
+          return r.kind;
+        });
+      // Test hook: e2e specs may set window.__MARKETPLACE_FORCE_MISSING__
+      // to a string[] of runtime kinds to force a runtime_missing outcome.
+      var forced =
+        (typeof window !== "undefined" &&
+          window.__MARKETPLACE_FORCE_MISSING__) ||
+        null;
+      var missing =
+        forced && Array.isArray(forced) && forced.length > 0
+          ? forced
+          : baseMissing;
+      var sessionId = state.currentSessionId;
+      if (missing.length > 0) {
+        if (sessionId) {
+          var missingEvent = makeEvent(sessionId, {
+            type: "CatalogRuntimeMissing",
+            catalog_id: req.catalog_id,
+            missing: missing
+          });
+          getTrace(sessionId).push(missingEvent);
+          emitEvent("session-event", missingEvent);
+        }
+        return {
+          kind: "runtime_missing",
+          server_id: null,
+          started: null,
+          missing_runtimes: missing,
+          missing_env_keys: []
+        };
+      }
+      var defaults = JSON.parse(entry.default_env_json);
+      var missingEnv = defaults
+        .filter(function (d) {
+          return d.required && !req.env_overrides[d.key] && !d.default;
+        })
+        .map(function (d) {
+          return d.key;
+        });
+      if (missingEnv.length > 0) {
+        return {
+          kind: "invalid_env",
+          server_id: null,
+          started: null,
+          missing_runtimes: [],
+          missing_env_keys: missingEnv
+        };
+      }
+      if (
+        state.installedCatalog.find(function (e) {
+          return e.server_id === req.catalog_id;
+        })
+      ) {
+        return {
+          kind: "already_installed",
+          server_id: req.catalog_id,
+          started: null,
+          missing_runtimes: [],
+          missing_env_keys: []
+        };
+      }
+      state.installedCatalog.push({
+        server_id: req.catalog_id,
+        catalog_id: req.catalog_id,
+        source: req.source,
+        display_name: entry.display_name,
+        installed_at: new Date().toISOString(),
+        running: !!req.auto_start
+      });
+      if (sessionId) {
+        var installingEvent = makeEvent(sessionId, {
+          type: "CatalogEntryInstalling",
+          catalog_id: req.catalog_id,
+          source: req.source
+        });
+        getTrace(sessionId).push(installingEvent);
+        emitEvent("session-event", installingEvent);
+        var installedEvent = makeEvent(sessionId, {
+          type: "CatalogEntryInstalled",
+          catalog_id: req.catalog_id,
+          source: req.source,
+          server_id: req.catalog_id
+        });
+        getTrace(sessionId).push(installedEvent);
+        emitEvent("session-event", installedEvent);
+      }
+      return {
+        kind: "installed",
+        server_id: req.catalog_id,
+        started: !!req.auto_start,
+        missing_runtimes: [],
+        missing_env_keys: []
+      };
+    }
+
+    case "uninstall_catalog_entry": {
+      var uninstSession = state.currentSessionId;
+      state.installedCatalog = state.installedCatalog.filter(function (e) {
+        return e.server_id !== args.serverId;
+      });
+      if (uninstSession) {
+        var uninstEvent = makeEvent(uninstSession, {
+          type: "CatalogEntryUninstalled",
+          server_id: args.serverId
+        });
+        getTrace(uninstSession).push(uninstEvent);
+        emitEvent("session-event", uninstEvent);
+      }
+      return null;
+    }
+
+    case "list_installed_entries": {
+      return state.installedCatalog;
+    }
 
     case "retry_task": {
       var taskId = args.taskId || args.task_id;

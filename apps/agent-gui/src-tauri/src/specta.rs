@@ -43,6 +43,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_mcp_resources,
             list_mcp_prompts,
             read_mcp_resource,
+            // Marketplace commands
+            list_catalog,
+            get_catalog_entry,
+            refresh_catalog,
+            install_catalog_entry,
+            uninstall_catalog_entry,
+            list_installed_entries,
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
@@ -57,6 +64,12 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<McpPromptDefResponse>()
         .typ::<McpContentBlockResponse>()
         .typ::<McpServerStatus>()
+        // Marketplace request/response types
+        .typ::<CatalogQueryRequest>()
+        .typ::<ServerEntryResponse>()
+        .typ::<InstallRequestPayload>()
+        .typ::<InstallOutcomeResponse>()
+        .typ::<InstalledEntryResponse>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()

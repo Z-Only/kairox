@@ -125,6 +125,13 @@ pub fn run() {
             crate::commands::list_mcp_resources,
             crate::commands::list_mcp_prompts,
             crate::commands::read_mcp_resource,
+            // Marketplace commands
+            crate::commands::list_catalog,
+            crate::commands::get_catalog_entry,
+            crate::commands::refresh_catalog,
+            crate::commands::install_catalog_entry,
+            crate::commands::uninstall_catalog_entry,
+            crate::commands::list_installed_entries,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

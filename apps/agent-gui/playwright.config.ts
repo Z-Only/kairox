@@ -24,7 +24,10 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:1420",
     trace: "on-first-retry",
-    screenshot: "only-on-failure"
+    screenshot: "only-on-failure",
+    // Project convention is `data-test` for component test hooks (matches the
+    // attribute used in stores/mcp.ts, marketplace components, etc.).
+    testIdAttribute: "data-test"
   },
 
   projects: [

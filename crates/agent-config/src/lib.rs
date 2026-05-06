@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 
 pub use builder::build_router;
 pub use discovery::find_config;
-pub use loader::{load_from_str, resolve_api_keys, resolve_mcp_env, validate};
+pub use loader::{
+    load_from_str, load_with_marketplace_overlay, resolve_api_keys, resolve_mcp_env, validate,
+};
 
 // ---------------------------------------------------------------------------
 // Core types

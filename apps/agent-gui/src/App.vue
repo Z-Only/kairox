@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTauriEvents } from "./composables/useTauriEvents";
@@ -13,6 +13,10 @@ import StatusBar from "./components/StatusBar.vue";
 import TraceTimeline from "./components/TraceTimeline.vue";
 import PermissionCenter from "./components/PermissionCenter.vue";
 import NotificationToast from "./components/NotificationToast.vue";
+import Marketplace from "./views/Marketplace.vue";
+
+type View = "workbench" | "marketplace";
+const view = ref<View>("workbench");
 
 useTauriEvents();
 useUpdater();
@@ -60,7 +64,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="workbench">
+  <nav class="app-nav">
+    <button
+      :class="{ active: view === 'workbench' }"
+      data-test="nav-workbench"
+      @click="view = 'workbench'"
+    >
+      Workbench
+    </button>
+    <button
+      :class="{ active: view === 'marketplace' }"
+      data-test="nav-marketplace"
+      @click="view = 'marketplace'"
+    >
+      Marketplace
+    </button>
+  </nav>
+  <main v-if="view === 'workbench'" class="workbench">
     <SessionsSidebar />
     <ChatPanel />
     <aside class="right-sidebar">
@@ -68,11 +88,30 @@ onMounted(async () => {
       <PermissionCenter />
     </aside>
   </main>
+  <Marketplace v-else />
   <StatusBar />
   <NotificationToast />
 </template>
 
 <style scoped>
+.app-nav {
+  display: flex;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #d7d7d7;
+  background: var(--surface-alt, #f7f7f7);
+}
+.app-nav button {
+  padding: 4px 10px;
+  border: 1px solid var(--border, #ccc);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+.app-nav button.active {
+  background: var(--accent, #345);
+  color: #fff;
+}
 .workbench {
   display: grid;
   grid-template-columns: 220px 1fr 280px;
