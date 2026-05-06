@@ -30,6 +30,26 @@ describe("ui store", () => {
       const ids = ui.notifications.map((n) => n.id);
       expect(new Set(ids).size).toBe(2);
     });
+
+    it("dismissNotification replaces the array reference (immutability contract)", () => {
+      // NotificationToast.vue's watcher iterates `notifications` with
+      // for-of while synchronously dismissing each entry. If
+      // dismissNotification mutated the array in place (splice), the
+      // iterator would skip the next element and silently drop
+      // notifications. This test locks the contract by asserting that
+      // dismissNotification produces a brand-new array reference rather
+      // than mutating the original in place — see the INVARIANT comment
+      // in stores/ui.ts.
+      const ui = useUiStore();
+      ui.pushNotification("info", "a");
+      ui.pushNotification("info", "b");
+      const originalRef = ui.notifications;
+      const targetId = ui.notifications[0].id;
+      ui.dismissNotification(targetId);
+      expect(ui.notifications).not.toBe(originalRef);
+      expect(ui.notifications.length).toBe(1);
+      expect(ui.notifications[0].id).not.toBe(targetId);
+    });
   });
 
   describe("theme", () => {

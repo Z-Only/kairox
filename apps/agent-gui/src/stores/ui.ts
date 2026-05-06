@@ -84,6 +84,16 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   function dismissNotification(id: string) {
+    // INVARIANT: this MUST replace `notifications.value` with a fresh array
+    // (filter), never mutate the existing array in place (no `splice`, no
+    // `pop`). NotificationToast.vue's deep watcher iterates `notifications`
+    // with `for (const n of items)` and synchronously calls
+    // `ui.dismissNotification(n.id)` on every iteration. An in-place
+    // `splice(idx, 1)` would shift the remaining elements down and the
+    // for-of iterator would skip the next entry, silently dropping
+    // notifications. Reassigning to a filtered copy keeps the iterator's
+    // snapshot stable and is covered by the immutability regression test in
+    // ui.test.ts.
     notifications.value = notifications.value.filter((n) => n.id !== id);
   }
 

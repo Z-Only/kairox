@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { NCard, NTabs, NTabPane, NButton, NTag, NIcon } from "naive-ui";
 import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "@/components/marketplace/CatalogList.vue";
 import InstalledList from "@/components/marketplace/InstalledList.vue";
 import CatalogSourcesSettings from "@/components/CatalogSourcesSettings.vue";
 
 const catalog = useCatalogStore();
+const { t } = useI18n();
 const installedCount = computed(() => catalog.installed.length);
 const settingsOpen = ref(false);
 
-function setTab(tab: "browse" | "installed") {
-  catalog.tab = tab;
-}
-
+// NTabs drives `catalog.tab` directly via v-model so behaviour is identical
+// to the previous custom buttons, but each NTabPane keeps the
+// data-test="tab-browse" / "tab-installed" hook attached to its tab header
+// for the existing Marketplace.test.ts assertions.
 const sourceChips = computed(() => [
-  { id: "builtin", display_name: "Built-in" },
+  { id: "builtin", display_name: t("marketplace.builtinSource") },
   ...catalog.sources.map((s) => ({
     id: s.id,
     display_name: s.display_name
@@ -27,129 +30,117 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="marketplace">
+  <NCard
+    class="marketplace"
+    :bordered="false"
+    content-style="padding: 16px; display: flex; flex-direction: column; gap: 16px;"
+  >
     <header class="marketplace__header">
-      <h1>Marketplace</h1>
-      <nav class="tabs">
-        <button
-          data-test="tab-browse"
-          :class="{ active: catalog.tab === 'browse' }"
-          @click="setTab('browse')"
-        >
-          Browse
-        </button>
-        <button
-          data-test="tab-installed"
-          :class="{ active: catalog.tab === 'installed' }"
-          @click="setTab('installed')"
-        >
-          Installed ({{ installedCount }})
-        </button>
-      </nav>
+      <h1>{{ t("marketplace.title") }}</h1>
     </header>
-    <div v-if="catalog.tab === 'browse'" class="source-filter">
-      <button
-        v-for="chip in sourceChips"
-        :key="chip.id"
-        :data-test="`source-chip-${chip.id}`"
-        :class="{ chip: true, active: catalog.isSourceSelected(chip.id) }"
-        type="button"
-        @click="catalog.toggleSource(chip.id)"
-      >
-        {{ chip.display_name }}
-        <span
-          v-if="catalog.sourceFailures[chip.id]"
-          :data-test="`src-warn-${chip.id}`"
-          :title="catalog.sourceFailures[chip.id]"
-          class="warn"
-          >⚠</span
-        >
-      </button>
-      <button
-        type="button"
-        class="settings-icon"
-        data-test="catalog-source-settings"
-        aria-label="Catalog source settings"
-        @click="settingsOpen = !settingsOpen"
-      >
-        ⚙
-      </button>
-    </div>
-    <div
-      v-if="settingsOpen && catalog.tab === 'browse'"
-      class="settings-drawer"
-      data-test="catalog-source-settings-drawer"
+
+    <NTabs
+      v-model:value="catalog.tab"
+      type="line"
+      animated
+      size="medium"
+      class="marketplace-tabs"
     >
-      <CatalogSourcesSettings />
-    </div>
-    <CatalogList v-if="catalog.tab === 'browse'" />
-    <InstalledList v-else />
-  </section>
+      <NTabPane name="browse">
+        <template #tab>
+          <span data-test="tab-browse">{{ t("marketplace.tabBrowse") }}</span>
+        </template>
+
+        <div class="source-filter">
+          <NButton
+            v-for="chip in sourceChips"
+            :key="chip.id"
+            :data-test="`source-chip-${chip.id}`"
+            :type="catalog.isSourceSelected(chip.id) ? 'primary' : 'default'"
+            size="small"
+            round
+            class="chip"
+            @click="catalog.toggleSource(chip.id)"
+          >
+            {{ chip.display_name }}
+            <NTag
+              v-if="catalog.sourceFailures[chip.id]"
+              size="small"
+              type="error"
+              :bordered="false"
+              :data-test="`src-warn-${chip.id}`"
+              :title="catalog.sourceFailures[chip.id]"
+              class="warn"
+            >
+              ⚠
+            </NTag>
+          </NButton>
+          <NButton
+            quaternary
+            circle
+            size="small"
+            class="settings-icon"
+            data-test="catalog-source-settings"
+            :aria-label="t('marketplace.sourceSettingsAria')"
+            @click="settingsOpen = !settingsOpen"
+          >
+            <NIcon>
+              <span aria-hidden="true">⚙</span>
+            </NIcon>
+          </NButton>
+        </div>
+
+        <NCard
+          v-if="settingsOpen"
+          size="small"
+          :bordered="true"
+          class="settings-drawer"
+          data-test="catalog-source-settings-drawer"
+        >
+          <CatalogSourcesSettings />
+        </NCard>
+
+        <CatalogList />
+      </NTabPane>
+
+      <NTabPane name="installed">
+        <template #tab>
+          <span data-test="tab-installed">
+            {{ t("marketplace.tabInstalled", { count: installedCount }) }}
+          </span>
+        </template>
+        <InstalledList />
+      </NTabPane>
+    </NTabs>
+  </NCard>
 </template>
 
 <style scoped>
 .marketplace {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  height: 100%;
   overflow-y: auto;
 }
-.marketplace__header {
-  display: flex;
-  align-items: baseline;
-  gap: 24px;
-}
-.tabs {
-  display: flex;
-  gap: 8px;
-}
-.tabs button {
-  padding: 6px 12px;
-  border: 1px solid var(--border, #ccc);
-  background: transparent;
-  cursor: pointer;
-}
-.tabs button.active {
-  background: var(--accent, #345);
-  color: #fff;
+.marketplace__header h1 {
+  margin: 0;
+  font-size: 20px;
 }
 .source-filter {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  margin-bottom: 12px;
 }
 .chip {
-  padding: 4px 10px;
-  border: 1px solid var(--border, #ccc);
-  border-radius: 12px;
-  background: transparent;
-  cursor: pointer;
   font-size: 0.85em;
-}
-.chip.active {
-  background: var(--accent, #345);
-  color: #fff;
-  border-color: var(--accent, #345);
 }
 .warn {
   margin-left: 4px;
-  color: #c00;
 }
 .settings-icon {
   margin-left: auto;
-  padding: 4px 8px;
-  border: 1px solid var(--border, #ccc);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 1em;
 }
 .settings-drawer {
-  padding: 12px;
-  border: 1px solid var(--border, #ddd);
-  border-radius: 6px;
-  background: var(--surface, #fafafa);
+  margin-bottom: 12px;
 }
 </style>

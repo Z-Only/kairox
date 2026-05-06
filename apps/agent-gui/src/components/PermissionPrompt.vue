@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { NAlert, NButton, NCard, NSpace, NTag, NText } from "naive-ui";
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NCheckbox,
+  NSpace,
+  NTag,
+  NText
+} from "naive-ui";
 import { useMcpStore } from "@/stores/mcp";
 import { useAgentsStore } from "@/stores/agents";
 import type { TraceEntryData } from "../types/trace";
@@ -140,16 +148,22 @@ async function deny() {
                 ✅ Trusted
               </NTag>
             </div>
-            <!-- A native <input type="checkbox"> is preserved here on
-                 purpose so the existing test
-                 (`.mcp-trust-check input[type='checkbox']`) keeps working
-                 after the NaiveUI migration. NCheckbox renders its own
-                 (non-input) DOM tree, which would force every consumer
-                 test to reach into NaiveUI internals. -->
-            <label v-if="!isServerTrusted" class="mcp-trust-check">
-              <input v-model="trustChecked" type="checkbox" />
-              Trust this server for future requests
-            </label>
+            <!-- NCheckbox replaces the previous native <input type="checkbox">
+                 so the control follows the surrounding NaiveUI dark-theme
+                 palette. The .mcp-trust-check wrapper class is preserved so
+                 layout selectors keep working; tests drive the control via
+                 [data-test="trust-server-checkbox"] +
+                 findComponent({ name: "Checkbox" }) instead of reaching for
+                 a raw <input>. -->
+            <div v-if="!isServerTrusted" class="mcp-trust-check">
+              <NCheckbox
+                v-model:checked="trustChecked"
+                size="small"
+                data-test="trust-server-checkbox"
+              >
+                Trust this server for future requests
+              </NCheckbox>
+            </div>
           </div>
         </div>
         <NSpace :size="6" :wrap="false" class="permission-actions">

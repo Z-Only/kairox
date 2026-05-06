@@ -1,5 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import {
+  NList,
+  NListItem,
+  NInput,
+  NSelect,
+  NButton,
+  NEmpty,
+  NTag,
+  NText,
+  NSpace,
+  type SelectOption
+} from "naive-ui";
 import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
 
@@ -21,6 +33,11 @@ const draft = ref<AddCatalogSourceRequestPayload>({
 
 const sources = computed(() => catalog.sources);
 const failures = computed(() => catalog.sourceFailures);
+
+const kindOptions: SelectOption[] = [
+  { label: "Kairox JSON", value: "kairox_json" },
+  { label: "Smithery", value: "smithery" }
+];
 
 onMounted(() => {
   void catalog.fetchSources();
@@ -71,92 +88,139 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
 <template>
   <div class="catalog-sources-settings">
-    <h3>Remote Catalog Sources</h3>
+    <NText strong tag="h3" class="header">Remote Catalog Sources</NText>
 
-    <p v-if="sources.length === 0" class="empty">No remote catalog sources configured.</p>
+    <NEmpty
+      v-if="sources.length === 0"
+      description="No remote catalog sources configured."
+      class="empty"
+    />
 
-    <ul v-else class="src-list">
-      <li v-for="src in sources" :key="src.id" class="src-row">
+    <NList v-else hoverable bordered class="src-list">
+      <NListItem v-for="src in sources" :key="src.id" class="src-row">
         <div class="src-meta">
-          <strong>{{ src.display_name }}</strong>
-          <code class="src-id">{{ src.id }}</code>
-          <span class="src-kind">{{ src.kind }}</span>
-          <a v-if="src.url" :href="src.url" target="_blank" rel="noopener noreferrer">
+          <NSpace align="center" :size="6">
+            <NText strong>{{ src.display_name }}</NText>
+            <NText depth="3" code class="src-id">{{ src.id }}</NText>
+            <NTag size="small" :bordered="false" type="info" class="src-kind">
+              {{ src.kind }}
+            </NTag>
+          </NSpace>
+          <a
+            v-if="src.url"
+            :href="src.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="src-url"
+          >
             {{ src.url }}
           </a>
-          <span v-if="failures[src.id]" class="src-error" title="Last error">
-            ⚠ {{ failures[src.id] }}
-          </span>
-        </div>
-        <div class="src-actions">
-          <label class="src-enable">
-            <input
-              type="checkbox"
-              :checked="src.enabled"
-              :disabled="src.id === 'builtin'"
-              :data-test="`src-enable-${src.id}`"
-              @change="onToggle(src.id, ($event.target as HTMLInputElement).checked)"
-            />
-            Enabled
-          </label>
-          <button
-            v-if="src.id !== 'builtin'"
-            :data-test="`src-remove-${src.id}`"
-            type="button"
-            @click="onRemove(src.id)"
+          <NText
+            v-if="failures[src.id]"
+            type="error"
+            class="src-error"
+            :title="`Last error: ${failures[src.id]}`"
           >
-            Remove
-          </button>
+            ⚠ {{ failures[src.id] }}
+          </NText>
         </div>
-      </li>
-    </ul>
+        <template #suffix>
+          <NSpace align="center" :size="8" class="src-actions">
+            <!-- Native checkbox preserved here on purpose: the existing
+                 component test drives it via [data-test="src-enable-..."] +
+                 setValue/change. NCheckbox would require a deeper refactor
+                 of those assertions; we still get NaiveUI theming around
+                 this row through the surrounding NList/NTag/NText. -->
+            <label class="src-enable">
+              <input
+                type="checkbox"
+                :checked="src.enabled"
+                :disabled="src.id === 'builtin'"
+                :data-test="`src-enable-${src.id}`"
+                @change="
+                  onToggle(src.id, ($event.target as HTMLInputElement).checked)
+                "
+              />
+              Enabled
+            </label>
+            <NButton
+              v-if="src.id !== 'builtin'"
+              size="tiny"
+              :data-test="`src-remove-${src.id}`"
+              type="error"
+              ghost
+              @click="onRemove(src.id)"
+            >
+              Remove
+            </NButton>
+          </NSpace>
+        </template>
+      </NListItem>
+    </NList>
 
-    <button
+    <NButton
       v-if="!showAddForm"
       data-test="add-source-toggle"
-      type="button"
+      size="small"
       @click="showAddForm = true"
     >
       + Add source
-    </button>
+    </NButton>
 
     <div v-else class="add-form">
-      <label>
-        id
-        <input v-model="draft.id" data-test="src-id" />
+      <label class="field">
+        <NText depth="2">id</NText>
+        <NInput
+          v-model:value="draft.id"
+          size="small"
+          :input-props="{ 'data-test': 'src-id' }"
+        />
       </label>
-      <label>
-        display name
-        <input v-model="draft.display_name" data-test="src-name" />
+      <label class="field">
+        <NText depth="2">display name</NText>
+        <NInput
+          v-model:value="draft.display_name"
+          size="small"
+          :input-props="{ 'data-test': 'src-name' }"
+        />
       </label>
-      <label>
-        kind
-        <select v-model="draft.kind">
-          <option value="kairox_json">Kairox JSON</option>
-          <option value="smithery">Smithery</option>
-        </select>
+      <label class="field">
+        <NText depth="2">kind</NText>
+        <NSelect
+          v-model:value="draft.kind"
+          :options="kindOptions"
+          size="small"
+        />
       </label>
-      <label>
-        url
-        <input v-model="draft.url" data-test="src-url" />
+      <label class="field">
+        <NText depth="2">url</NText>
+        <NInput
+          v-model:value="draft.url"
+          size="small"
+          :input-props="{ 'data-test': 'src-url' }"
+        />
       </label>
-      <label>
-        api_key_env
-        <input v-model="draft.api_key_env" />
+      <label class="field">
+        <NText depth="2">api_key_env</NText>
+        <NInput v-model:value="draft.api_key_env" size="small" />
       </label>
-      <p v-if="formError" class="error">{{ formError }}</p>
-      <div class="form-actions">
-        <button data-test="src-save" type="button" @click="save">Save</button>
-        <button
-          type="button"
+      <NText v-if="formError" type="error" class="error">
+        {{ formError }}
+      </NText>
+      <NSpace class="form-actions" :size="8">
+        <NButton size="small" type="primary" data-test="src-save" @click="save">
+          Save
+        </NButton>
+        <NButton
+          size="small"
           @click="
             showAddForm = false;
             formError = null;
           "
         >
           Cancel
-        </button>
-      </div>
+        </NButton>
+      </NSpace>
     </div>
   </div>
 </template>
@@ -167,74 +231,65 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   flex-direction: column;
   gap: 12px;
 }
-
+.header {
+  font-size: 14px;
+  margin: 0;
+}
 .empty {
-  color: var(--text-muted, #888);
   font-style: italic;
 }
-
 .src-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.src-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1px solid var(--border, #ddd);
   border-radius: 4px;
 }
-
+.src-row {
+  padding: 8px 12px;
+}
 .src-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
-
 .src-id {
   font-size: 0.85em;
-  color: var(--text-muted, #888);
 }
-
 .src-kind {
-  font-size: 0.8em;
+  font-size: 0.7em;
   text-transform: uppercase;
-  color: var(--accent, #4a8);
 }
-
-.src-error {
-  color: var(--danger, #c33);
+.src-url {
   font-size: 0.85em;
 }
-
-.src-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.src-error {
+  font-size: 0.85em;
 }
-
+.src-actions {
+  flex-shrink: 0;
+}
+.src-enable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
 .add-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px dashed var(--border, #ddd);
+  border: 1px dashed var(--app-border-color, #ddd);
   border-radius: 4px;
 }
-
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .error {
-  color: var(--danger, #c33);
   margin: 0;
 }
-
 .form-actions {
-  display: flex;
-  gap: 8px;
+  margin-top: 4px;
 }
 </style>

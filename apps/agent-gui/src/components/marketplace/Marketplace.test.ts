@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
+import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue([])
@@ -12,6 +13,17 @@ import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
+
+// MarketplaceView now calls `useI18n()` (Task 5 NIT #9 follow-up done in
+// Task 7c) so mounting it through plain `mount()` would fail with
+// "Need to install with `app.use` function". `mountWithPlugins` wires the
+// shared i18n + Pinia + router stack the same way every other view test
+// does. NaiveUI providers are not required because MarketplaceView itself
+// does not call any service hook (`useMessage`, `useDialog`, etc.).
+function mountMarketplace() {
+  return mountWithPlugins(Marketplace, { initialRoute: "/marketplace" })
+    .wrapper;
+}
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
   id: "filesystem",
@@ -39,16 +51,16 @@ describe("Marketplace.vue", () => {
   });
 
   it("renders Browse and Installed tabs", async () => {
-    const wrapper = mount(Marketplace);
+    const wrapper = mountMarketplace();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("Browse");
     expect(wrapper.text()).toContain("Installed");
   });
 
   it("switches to Installed tab on click", async () => {
-    const wrapper = mount(Marketplace);
+    const wrapper = mountMarketplace();
     await wrapper.find("[data-test='tab-installed']").trigger("click");
-    await wrapper.vm.$nextTick();
+    await flushPromises();
     expect(wrapper.find("[data-test='installed-list']").exists()).toBe(true);
   });
 });
@@ -78,7 +90,7 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
           last_error: null
         }
       ] as never); // list_catalog_sources
-    const wrapper = mount(Marketplace);
+    const wrapper = mountMarketplace();
     await flushPromises();
     const chips = wrapper.findAll('[data-test^="source-chip-"]');
     expect(chips.length).toBe(2);
@@ -103,7 +115,7 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
           last_error: null
         }
       ] as never);
-    const wrapper = mount(Marketplace);
+    const wrapper = mountMarketplace();
     await flushPromises();
     useCatalogStore().handleSourceFailed("smithery", "timeout");
     await wrapper.vm.$nextTick();
@@ -130,7 +142,7 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
           last_error: null
         }
       ] as never);
-    const wrapper = mount(Marketplace);
+    const wrapper = mountMarketplace();
     await flushPromises();
     expect(wrapper.text()).toContain("A-entry");
     expect(wrapper.text()).toContain("B-entry");

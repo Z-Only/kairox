@@ -83,5 +83,12 @@
     "roleAgent": "Agent",
     "sendFailed": "Failed to send message: {error}",
     "cancelFailed": "Cancel failed: {error}"
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "tabBrowse": "Browse",
+    "tabInstalled": "Installed ({count})",
+    "sourceSettingsAria": "Catalog source settings",
+    "builtinSource": "Built-in"
   }
 }

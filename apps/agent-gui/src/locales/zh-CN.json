@@ -83,5 +83,12 @@
     "roleAgent": "智能体",
     "sendFailed": "发送消息失败：{error}",
     "cancelFailed": "取消失败：{error}"
+  },
+  "marketplace": {
+    "title": "应用市场",
+    "tabBrowse": "浏览",
+    "tabInstalled": "已安装（{count}）",
+    "sourceSettingsAria": "目录源设置",
+    "builtinSource": "内置"
   }
 }
