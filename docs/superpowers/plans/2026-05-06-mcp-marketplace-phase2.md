@@ -3430,19 +3430,21 @@ it("renders a chip per configured source plus a built-in chip", async () => {
 });
 
 it("shows ⚠ badge on chip when CatalogSourceFailed observed", async () => {
-  (invoke as any).mockResolvedValueOnce([]).mockResolvedValueOnce([
-    {
-      id: "smithery",
-      display_name: "Smithery",
-      kind: "smithery",
-      url: "https://x",
-      api_key_env: null,
-      priority: 50,
-      default_trust: "community",
-      enabled: true,
-      cache_ttl_seconds: null
-    }
-  ]);
+  (invoke as any)
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([
+      {
+        id: "smithery",
+        display_name: "Smithery",
+        kind: "smithery",
+        url: "https://x",
+        api_key_env: null,
+        priority: 50,
+        default_trust: "community",
+        enabled: true,
+        cache_ttl_seconds: null
+      }
+    ]);
   const wrapper = mount(Marketplace);
   await flushPromises();
   const store = useCatalogStore();
