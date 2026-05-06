@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTauriEvents } from "./composables/useTauriEvents";
 import { useUpdater } from "./composables/useUpdater";
@@ -36,25 +35,8 @@ onMounted(async () => {
   const recovered = await session.recoverSessions();
   if (recovered) return;
 
-  // First-run: initialize a new workspace
-  try {
-    const workspaceInfo: { workspace_id: string; path: string } = await invoke(
-      "initialize_workspace"
-    );
-    session.initialized = true;
-    session.workspaceId = workspaceInfo.workspace_id;
-    session.sessions = await invoke("list_sessions");
-    if (session.sessions.length > 0) {
-      try {
-        await session.switchSession(session.sessions[0].id);
-      } catch {
-        // Initial session may have minimal data — non-critical.
-      }
-    }
-  } catch (e) {
-    console.error("Failed to initialize workspace:", e);
-    ui.pushNotification("error", `Failed to initialize workspace: ${e}`);
-  }
+  // First-run: initialize a new workspace via the session store action.
+  await session.initializeWorkspace();
 });
 </script>
 

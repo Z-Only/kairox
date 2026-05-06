@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import { createUiStoreMock } from "@/test-utils/uiMock";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn()
@@ -7,10 +8,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 const pushNotificationSpy = vi.fn();
 vi.mock("@/stores/ui", () => ({
-  useUiStore: () => ({
-    pushNotification: pushNotificationSpy,
-    dismissNotification: vi.fn()
-  })
+  useUiStore: () => createUiStoreMock({ pushNotification: pushNotificationSpy })
 }));
 
 import { invoke } from "@tauri-apps/api/core";

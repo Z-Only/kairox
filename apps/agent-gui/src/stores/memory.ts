@@ -18,6 +18,7 @@ export const useMemoryStore = defineStore("memory", () => {
   const searchQuery = ref("");
 
   async function loadMemories(): Promise<void> {
+    const ui = useUiStore();
     loading.value = true;
     try {
       const scope = filter.value === "all" ? null : filter.value;
@@ -31,19 +32,20 @@ export const useMemoryStore = defineStore("memory", () => {
       });
     } catch (e) {
       console.error("Failed to load memories:", e);
-      useUiStore().pushNotification("error", `Failed to load memories: ${e}`);
+      ui.pushNotification("error", `Failed to load memories: ${e}`);
     } finally {
       loading.value = false;
     }
   }
 
   async function deleteMemoryItem(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("delete_memory", { id });
       memories.value = memories.value.filter((m) => m.id !== id);
     } catch (e) {
       console.error("Failed to delete memory:", e);
-      useUiStore().pushNotification("error", `Failed to delete memory: ${e}`);
+      ui.pushNotification("error", `Failed to delete memory: ${e}`);
     }
   }
 

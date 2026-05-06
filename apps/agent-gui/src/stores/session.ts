@@ -151,9 +151,10 @@ export const useSessionStore = defineStore("session", () => {
     projection.value = next;
     isStreaming.value = false;
     if (next.task_graph?.tasks) {
-      const taskGraph = useTaskGraphStore();
-      taskGraph.tasks = next.task_graph.tasks;
-      taskGraph.currentSessionId = currentSessionId.value;
+      useTaskGraphStore().setTaskGraph(
+        next.task_graph.tasks,
+        currentSessionId.value
+      );
     }
   }
 
@@ -224,7 +225,47 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  /**
+   * First-run workspace initialization: create a workspace via the Tauri
+   * backend, persist its id, and seed the session list. Called by App.vue
+   * when `recoverSessions()` returns false.
+   *
+   * Idempotent — safe to call on HMR re-mounts.
+   */
+  async function initializeWorkspace(): Promise<void> {
+    if (initialized.value) return;
+    const ui = useUiStore();
+    try {
+      const workspaceInfo: { workspace_id: string; path: string } =
+        await invoke("initialize_workspace");
+      const sessionList = await invoke<SessionInfoResponse[]>("list_sessions");
+      workspaceId.value = workspaceInfo.workspace_id;
+      sessions.value = sessionList;
+      initialized.value = true;
+      if (sessions.value.length > 0) {
+        try {
+          await switchSession(sessions.value[0].id);
+        } catch {
+          // Initial session may have minimal data — non-critical.
+        }
+      }
+    } catch (e) {
+      console.error("Failed to initialize workspace:", e);
+      ui.pushNotification("error", `Failed to initialize workspace: ${e}`);
+    }
+  }
+
+  /**
+   * Set the Tauri event-listener connection state.
+   * Used by useTauriEvents.ts so writes go through the store boundary
+   * instead of mutating session.connected from outside the store.
+   */
+  function setConnected(value: boolean): void {
+    connected.value = value;
+  }
+
   async function recoverSessions(): Promise<boolean> {
+    const ui = useUiStore();
     try {
       const workspaces: { workspace_id: string; path: string }[] =
         await invoke("list_workspaces");
@@ -242,10 +283,7 @@ export const useSessionStore = defineStore("session", () => {
       return true;
     } catch (e) {
       console.error("Failed to recover sessions:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to recover sessions: ${e}`
-      );
+      ui.pushNotification("error", `Failed to recover sessions: ${e}`);
       return false;
     }
   }
@@ -269,6 +307,8 @@ export const useSessionStore = defineStore("session", () => {
     switchSession,
     deleteSession,
     renameSession,
-    recoverSessions
+    initializeWorkspace,
+    recoverSessions,
+    setConnected
   };
 });

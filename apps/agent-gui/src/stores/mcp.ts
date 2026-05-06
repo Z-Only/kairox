@@ -40,6 +40,7 @@ export const useMcpStore = defineStore("mcp", () => {
   }
 
   async function fetchServers(): Promise<void> {
+    const ui = useUiStore();
     loading.value = true;
     try {
       const result =
@@ -47,39 +48,36 @@ export const useMcpStore = defineStore("mcp", () => {
       servers.value = result.map((s) => ({ ...s, error: undefined }));
     } catch (e) {
       console.error("Failed to fetch MCP servers:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to fetch MCP servers: ${e}`
-      );
+      ui.pushNotification("error", `Failed to fetch MCP servers: ${e}`);
     } finally {
       loading.value = false;
     }
   }
 
   async function startServer(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("start_mcp_server", { serverId: id });
       await fetchServers();
     } catch (e) {
       console.error("Failed to start MCP server:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to start MCP server: ${e}`
-      );
+      ui.pushNotification("error", `Failed to start MCP server: ${e}`);
     }
   }
 
   async function stopServer(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("stop_mcp_server", { serverId: id });
       await fetchServers();
     } catch (e) {
       console.error("Failed to stop MCP server:", e);
-      useUiStore().pushNotification("error", `Failed to stop MCP server: ${e}`);
+      ui.pushNotification("error", `Failed to stop MCP server: ${e}`);
     }
   }
 
   async function trustServer(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("trust_mcp_server", { serverId: id });
       if (!trustedServerIds.value.includes(id)) {
@@ -87,14 +85,12 @@ export const useMcpStore = defineStore("mcp", () => {
       }
     } catch (e) {
       console.error("Failed to trust MCP server:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to trust MCP server: ${e}`
-      );
+      ui.pushNotification("error", `Failed to trust MCP server: ${e}`);
     }
   }
 
   async function revokeTrust(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("revoke_mcp_trust", { serverId: id });
       trustedServerIds.value = trustedServerIds.value.filter(
@@ -102,23 +98,18 @@ export const useMcpStore = defineStore("mcp", () => {
       );
     } catch (e) {
       console.error("Failed to revoke MCP trust:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to revoke MCP trust: ${e}`
-      );
+      ui.pushNotification("error", `Failed to revoke MCP trust: ${e}`);
     }
   }
 
   async function refreshTools(id: string): Promise<void> {
+    const ui = useUiStore();
     try {
       await invoke("refresh_mcp_tools", { serverId: id });
       await fetchServers();
     } catch (e) {
       console.error("Failed to refresh MCP tools:", e);
-      useUiStore().pushNotification(
-        "error",
-        `Failed to refresh MCP tools: ${e}`
-      );
+      ui.pushNotification("error", `Failed to refresh MCP tools: ${e}`);
     }
   }
 

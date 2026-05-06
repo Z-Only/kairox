@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { TaskSnapshot } from "@/types";
+import type { EventPayload, TaskSnapshot, TaskState } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
 
 /**
@@ -88,6 +88,78 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
   }
 
   /**
+   * Apply an event payload to the local task graph state.
+   * Mirrors the Rust SessionProjection::apply() task-graph mutations so the
+   * Tasks panel updates immediately without an async invoke. Mirrors the
+   * existing `agents.applyAgentEvent` / `mcp.handleMcpEvent` pattern: every
+   * per-event mutation lives inside the owning store, not in the composable
+   * that routes events.
+   */
+  function applyTaskEvent(payload: EventPayload): void {
+    switch (payload.type) {
+      case "AgentTaskCreated": {
+        if (!tasks.value.some((t) => t.id === payload.task_id)) {
+          tasks.value.push({
+            id: payload.task_id,
+            title: payload.title,
+            role: payload.role,
+            state: "Pending" as TaskState,
+            dependencies: payload.dependencies,
+            error: null,
+            retry_count: 0,
+            max_retries: 3,
+            assigned_agent_id: null,
+            failure_reason: null
+          });
+        }
+        break;
+      }
+      case "AgentTaskStarted": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Running" as TaskState;
+        }
+        break;
+      }
+      case "AgentTaskCompleted": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Completed" as TaskState;
+        }
+        break;
+      }
+      case "AgentTaskFailed": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Failed" as TaskState;
+          task.error = payload.error;
+        }
+        break;
+      }
+      case "TaskBlocked": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Blocked" as TaskState;
+          task.error = payload.reason || "Dependency failed";
+        }
+        break;
+      }
+      case "TaskDecomposed":
+        // Informational — sub-tasks arrive via separate AgentTaskCreated events.
+        break;
+      case "TaskRetried": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Running" as TaskState;
+          task.retry_count = payload.attempt;
+          task.error = null;
+        }
+        break;
+      }
+    }
+  }
+
+  /**
    * Retry a failed task via the Tauri backend.
    */
   async function retryTask(taskId: string): Promise<void> {
@@ -119,6 +191,7 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
     loading,
     setTaskGraph,
     clearTaskGraph,
+    applyTaskEvent,
     buildTaskTree,
     retryTask,
     cancelTask
