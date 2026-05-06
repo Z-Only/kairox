@@ -1,3 +1,5 @@
+pub mod dag_executor;
+
 pub mod agent_loop;
 pub mod agents;
 pub mod event_emitter;
