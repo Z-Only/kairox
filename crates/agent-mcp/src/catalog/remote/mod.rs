@@ -13,6 +13,74 @@ pub mod http_client;
 pub mod kairox_json;
 pub mod smithery;
 
+pub use http_cache::HttpResponseCache;
+pub use http_client::SharedHttpClient;
+pub use kairox_json::KairoxJsonProvider;
+pub use smithery::SmitheryProvider;
+
+use crate::catalog::CatalogProvider;
+use std::sync::Arc;
+
+/// Constructs the right [`CatalogProvider`] implementation based on
+/// `cfg.kind`. Shared HTTP client + cache are passed in by the caller so
+/// that concurrent providers can share them.
+pub fn build_provider(
+    cfg: RemoteSourceConfig,
+    http: SharedHttpClient,
+    cache: Arc<HttpResponseCache>,
+) -> Arc<dyn CatalogProvider> {
+    match cfg.kind {
+        RemoteSourceKind::KairoxJson => Arc::new(KairoxJsonProvider::new(cfg, http, cache)),
+        RemoteSourceKind::Smithery => Arc::new(SmitheryProvider::new(cfg, http, cache)),
+    }
+}
+
+#[cfg(test)]
+mod build_tests {
+    use super::*;
+    use crate::catalog::TrustLevel;
+
+    #[test]
+    fn build_provider_returns_kairox_or_smithery_per_kind() {
+        let http = SharedHttpClient::new().unwrap();
+        let cache = Arc::new(HttpResponseCache::new(
+            std::env::temp_dir().join("kairox-test-cache"),
+        ));
+        let kj = build_provider(
+            RemoteSourceConfig {
+                id: "k".into(),
+                display_name: "k".into(),
+                kind: RemoteSourceKind::KairoxJson,
+                url: "https://x/c.json".into(),
+                api_key_env: None,
+                priority: 100,
+                default_trust: TrustLevel::Community,
+                enabled: true,
+                cache_ttl_seconds: None,
+            },
+            http.clone(),
+            cache.clone(),
+        );
+        assert_eq!(kj.source_id(), "k");
+        let sm = build_provider(
+            RemoteSourceConfig {
+                id: "s".into(),
+                display_name: "s".into(),
+                kind: RemoteSourceKind::Smithery,
+                url: "https://reg".into(),
+                api_key_env: None,
+                priority: 100,
+                default_trust: TrustLevel::Community,
+                enabled: true,
+                cache_ttl_seconds: None,
+            },
+            http,
+            cache,
+        );
+        assert_eq!(sm.source_id(), "s");
+    }
+}
+
 /// Which adapter implementation should back a remote catalog source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
