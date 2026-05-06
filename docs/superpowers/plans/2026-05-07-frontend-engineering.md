@@ -12,6 +12,14 @@
 
 **Linked decisions (from brainstorming):** All 14 + 6 SFCs migrate to NaiveUI; setup-store Pinia; nested hash routes; common-copy i18n with en + zh-CN; auto-import allowlist `vue, vue-router, pinia, @vueuse/core, vue-i18n, naive-ui (selected hooks)`.
 
+**Commit message constraints (verified against repo `commitlint.config.js` which extends `@commitlint/config-conventional`):**
+
+- **header-max-length: 100 characters** (the entire first line `<type>(<scope>): <subject>` must be ≤100 chars)
+- **type-enum:** `build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test`
+- **scope-enum (allowed):** `core, runtime, models, tools, memory, store, config, tui, gui, deps, mcp, ci`
+- **subject-case:** lower-case
+- All commit messages in this plan have been pre-verified ≤100 chars. If you hit a `commitlint` failure, do NOT use `--no-verify`; report back NEEDS_CONTEXT instead.
+
 ---
 
 ## Pre-flight (do this once, not a numbered task)
@@ -50,7 +58,14 @@
 ## Task 1: Add 7 dependencies (commit 1)
 
 **Branch:** `feat/frontend-engineering`
-**Commit message:** `chore(deps): add pinia, vue-router, vue-i18n, naive-ui, @vueuse/core, unplugin-auto-import, unplugin-vue-components`
+**Commit message header (≤100 chars, verified 64):** `chore(deps): add frontend foundation deps for naive-ui migration`
+**Commit message body (provide via `-m` second arg):**
+
+```
+- runtime: pinia, vue-router, vue-i18n, naive-ui, @vueuse/core
+- dev: @pinia/testing, unplugin-auto-import, unplugin-vue-components
+```
+
 **Why first:** every later task depends on these being present in `node_modules` and `pnpm-lock.yaml`. Add them all in one commit so reviewers see the dep delta in one place.
 
 **Files:**
@@ -125,10 +140,13 @@
 
   ```bash
   git add apps/agent-gui/package.json pnpm-lock.yaml
-  git commit -m "chore(deps): add pinia, vue-router, vue-i18n, naive-ui, @vueuse/core, unplugin-auto-import, unplugin-vue-components"
+  git commit \
+    -m "chore(deps): add frontend foundation deps for naive-ui migration" \
+    -m "- runtime: pinia, vue-router, vue-i18n, naive-ui, @vueuse/core" \
+    -m "- dev: @pinia/testing, unplugin-auto-import, unplugin-vue-components"
   ```
 
-  Expected: husky pre-commit fires `prettier --write` on `package.json`, commit succeeds. `git log --oneline -1` shows the new commit.
+  Expected: husky pre-commit fires `prettier --write` on `package.json`, commit-msg hook accepts (header is 64 chars, well under the 100-char limit), commit succeeds. `git log --oneline -1 | cat` shows the new commit.
 
 ---
 
@@ -4317,7 +4335,14 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 ## Task 10: Update AGENTS.md to reflect the new stack (commit 10)
 
 **Branch:** `feat/frontend-engineering`
-**Commit message:** `docs: update AGENTS.md GUI section for pinia, vue-router, vue-i18n, naive-ui, vueuse, unplugin`
+**Commit message header (≤100 chars, verified 56):** `docs(gui): update AGENTS.md for frontend foundation deps`
+**Commit message body:**
+
+```
+Reflect pinia, vue-router, vue-i18n, naive-ui, @vueuse/core,
+and the unplugin auto-imports introduced in this branch.
+```
+
 **Why last:** documentation always reflects shipped state, not aspirational state. We update only after every implementation commit lands.
 
 **Files:**
