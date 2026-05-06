@@ -1,0 +1,52 @@
+{
+  "common": {
+    "send": "发送",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "save": "保存",
+    "edit": "编辑",
+    "retry": "重试",
+    "close": "关闭",
+    "copy": "复制",
+    "loading": "加载中…",
+    "empty": "暂无内容",
+    "error": "错误",
+    "ok": "好",
+    "yes": "是",
+    "no": "否",
+    "search": "搜索",
+    "refresh": "刷新"
+  },
+  "nav": {
+    "workbench": "工作台",
+    "marketplace": "应用市场",
+    "settings": "设置"
+  },
+  "settings": {
+    "title": "设置",
+    "locale": "语言",
+    "localeEn": "English",
+    "localeZh": "中文（简体）",
+    "theme": "主题",
+    "themeAuto": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "build": "构建信息",
+    "buildVersion": "版本",
+    "buildCommit": "提交",
+    "buildBuiltAt": "构建时间"
+  },
+  "notifications": {
+    "sessionError": "会话错误",
+    "copySuccess": "已复制到剪贴板",
+    "copyFailed": "复制失败",
+    "sessionNotFound": "会话不存在，已跳转"
+  },
+  "status": {
+    "ready": "就绪",
+    "streaming": "传输中",
+    "connecting": "连接中",
+    "error": "错误"
+  }
+}

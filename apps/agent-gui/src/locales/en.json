@@ -1,0 +1,52 @@
+{
+  "common": {
+    "send": "Send",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "save": "Save",
+    "edit": "Edit",
+    "retry": "Retry",
+    "close": "Close",
+    "copy": "Copy",
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Error",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "refresh": "Refresh"
+  },
+  "nav": {
+    "workbench": "Workbench",
+    "marketplace": "Marketplace",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "locale": "Language",
+    "localeEn": "English",
+    "localeZh": "中文（简体）",
+    "theme": "Theme",
+    "themeAuto": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "build": "Build",
+    "buildVersion": "Version",
+    "buildCommit": "Commit",
+    "buildBuiltAt": "Built at"
+  },
+  "notifications": {
+    "sessionError": "Session error",
+    "copySuccess": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "sessionNotFound": "Session not found, redirected"
+  },
+  "status": {
+    "ready": "Ready",
+    "streaming": "Streaming",
+    "connecting": "Connecting",
+    "error": "Error"
+  }
+}
