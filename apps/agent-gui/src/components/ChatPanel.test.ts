@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
-import { defineComponent, h } from "vue";
-import {
-  NConfigProvider,
-  NMessageProvider,
-  NDialogProvider,
-  NLoadingBarProvider,
-  NNotificationProvider
-} from "naive-ui";
+import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// jsdom does not implement `Element.prototype.scrollTo`. NaiveUI's
+// `<NScrollbar>` calls it inside its own `scrollTo()` method when the
+// message-list watcher fires (see ChatPanel.vue), which would surface as a
+// noisy unhandled rejection during these tests even though no assertion
+// depends on the scroll behaviour. Stub it once for the whole file.
+if (typeof Element !== "undefined" && !Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = (() => {}) as Element["scrollTo"];
+}
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -22,100 +23,99 @@ const mockedInvoke = vi.mocked(invoke);
 import { useSessionStore } from "@/stores/session";
 
 // ChatPanel calls `useNotifications()` → `useMessage()` at setup; that hook
-// throws unless wrapped under <NMessageProvider>. The composable's try/catch
-// downgrades the failure to a console.error, but in tests we want a clean
-// log, so we mount via this provider harness.
-const ProviderHarness = defineComponent({
-  name: "ProviderHarness",
-  components: { ChatPanel },
-  setup() {
-    return () =>
-      h(NConfigProvider, null, {
-        default: () =>
-          h(NLoadingBarProvider, null, {
-            default: () =>
-              h(NMessageProvider, null, {
-                default: () =>
-                  h(NDialogProvider, null, {
-                    default: () =>
-                      h(NNotificationProvider, null, {
-                        default: () => h(ChatPanel)
-                      })
-                  })
-              })
-          })
-      });
-  }
-});
-
-function mountChatPanel() {
-  return mount(ProviderHarness);
-}
-
-beforeEach(() => {
-  setActivePinia(createPinia());
+// throws unless wrapped under <NMessageProvider>. We mount via the shared
+// `mountWithPlugins` helper with `withNaiveProviders: true` (added in Task 7a)
+// so the provider stack matches the runtime `AppLayout.vue` tree without
+// hand-rolling 5 layers per test file.
+/**
+ * `mountWithPlugins` activates a fresh Pinia internally, so the per-test
+ * pattern is:
+ *   1. mount the component (which sets the active Pinia)
+ *   2. then read / mutate the session store via `useSessionStore()`
+ * The `prepareSession` callback runs after mount and before assertions so
+ * the Pinia instance the component sees is the same one the test mutates.
+ */
+function mountChatPanel(
+  prepareSession?: (session: ReturnType<typeof useSessionStore>) => void
+) {
+  const { wrapper } = mountWithPlugins(ChatPanel, {
+    withNaiveProviders: true,
+    initialRoute: "/workbench"
+  });
   const session = useSessionStore();
   session.resetProjection();
   session.currentSessionId = "ses_1";
   session.currentProfile = "fast";
   session.isStreaming = false;
+  prepareSession?.(session);
+  return wrapper;
+}
+
+beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("ChatPanel", () => {
-  it("renders user messages from projection", () => {
-    const session = useSessionStore();
-    session.projection.messages = [{ role: "user", content: "Hello" }];
-    const wrapper = mountChatPanel();
+  it("renders user messages from projection", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.projection.messages = [{ role: "user", content: "Hello" }];
+    });
+    await flushPromises();
     expect(wrapper.text()).toContain("Hello");
     expect(wrapper.text()).toContain("You");
   });
 
-  it("renders assistant messages", () => {
-    const session = useSessionStore();
-    session.projection.messages = [{ role: "assistant", content: "Hi there!" }];
-    const wrapper = mountChatPanel();
+  it("renders assistant messages", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.projection.messages = [{ role: "assistant", content: "Hi there!" }];
+    });
+    await flushPromises();
     expect(wrapper.text()).toContain("Hi there!");
     expect(wrapper.text()).toContain("Agent");
   });
 
-  it("shows streaming text with cursor when isStreaming", () => {
-    const session = useSessionStore();
-    session.projection.token_stream = "Loading...";
-    session.isStreaming = true;
-    const wrapper = mountChatPanel();
+  it("shows streaming text with cursor when isStreaming", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.projection.token_stream = "Loading...";
+      s.isStreaming = true;
+    });
+    await flushPromises();
     expect(wrapper.text()).toContain("Loading...");
     expect(wrapper.find(".cursor").exists()).toBe(true);
   });
 
-  it("shows cancelled marker", () => {
-    const session = useSessionStore();
-    session.projection.cancelled = true;
-    const wrapper = mountChatPanel();
+  it("shows cancelled marker", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.projection.cancelled = true;
+    });
+    await flushPromises();
     expect(wrapper.text()).toContain("[cancelled]");
     expect(wrapper.find('[data-test="cancelled-marker"]').exists()).toBe(true);
   });
 
-  it("shows Cancel button during streaming", () => {
-    const session = useSessionStore();
-    session.isStreaming = true;
-    const wrapper = mountChatPanel();
+  it("shows Cancel button during streaming", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.isStreaming = true;
+    });
+    await flushPromises();
     expect(wrapper.find('[data-test="cancel-button"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="send-button"]').exists()).toBe(false);
   });
 
-  it("shows Send button when not streaming", () => {
-    const session = useSessionStore();
-    session.isStreaming = false;
-    const wrapper = mountChatPanel();
+  it("shows Send button when not streaming", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.isStreaming = false;
+    });
+    await flushPromises();
     expect(wrapper.find('[data-test="send-button"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="cancel-button"]').exists()).toBe(false);
   });
 
-  it("disables the textarea when isStreaming", () => {
-    const session = useSessionStore();
-    session.isStreaming = true;
-    const wrapper = mountChatPanel();
+  it("disables the textarea when isStreaming", async () => {
+    const wrapper = mountChatPanel((s) => {
+      s.isStreaming = true;
+    });
+    await flushPromises();
     // NInput renders a real <textarea> beneath; assert via the native element
     // because that's what the user actually interacts with.
     const textarea = wrapper.find('[data-test="message-input"] textarea');
@@ -125,9 +125,10 @@ describe("ChatPanel", () => {
 
   it("invokes cancel_session on Cancel click", async () => {
     mockedInvoke.mockResolvedValueOnce(undefined);
-    const session = useSessionStore();
-    session.isStreaming = true;
-    const wrapper = mountChatPanel();
+    const wrapper = mountChatPanel((s) => {
+      s.isStreaming = true;
+    });
+    await flushPromises();
     await wrapper.find('[data-test="cancel-button"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("cancel_session");
   });

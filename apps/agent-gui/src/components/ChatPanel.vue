@@ -10,27 +10,36 @@ import {
   NAlert,
   type ScrollbarInst
 } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
 import { useAgentsStore } from "@/stores/agents";
 import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProjectedRole } from "../types";
 
+const { t } = useI18n();
 const session = useSessionStore();
 const agents = useAgentsStore();
 const { notify } = useNotifications();
 const inputText = ref("");
 const scrollbar = ref<ScrollbarInst | null>(null);
 
-/** Map role to display label. */
-const roleDisplay: Record<ProjectedRole, string> = {
-  user: "You",
-  assistant: "Agent",
+/**
+ * Map role to display label. Uses the locale's translations for the two
+ * user-facing roles (`user` → "You", `assistant` → "Agent"); the more
+ * specific Planner/Worker/Reviewer/System labels are intentionally kept in
+ * English because they refer to the agent-system role taxonomy and appear
+ * verbatim in trace events / system logs (see Task 7b carry-over #6 — only
+ * the user-facing greeting strings are translated here).
+ */
+const roleDisplay = computed<Record<ProjectedRole, string>>(() => ({
+  user: t("chat.roleYou"),
+  assistant: t("chat.roleAgent"),
   planner: "Planner",
   worker: "Worker",
   reviewer: "Reviewer",
   system: "System"
-};
+}));
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -44,7 +53,7 @@ const roleClass: Record<ProjectedRole, string> = {
 
 /** Get the display label for a message, including agent attribution if available. */
 function messageLabel(msg: (typeof session.projection.messages)[0]): string {
-  const base = roleDisplay[msg.role] || "Agent";
+  const base = roleDisplay.value[msg.role] || t("chat.roleAgent");
   if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
     const label = agents.agentLabel(msg.sourceAgentId);
     if (label) return `${base} (${label})`;
@@ -66,7 +75,7 @@ async function sendMessage() {
   } catch (e) {
     console.error("Failed to send message:", e);
     session.reportSendError(String(e));
-    notify("error", `Failed to send message: ${e}`);
+    notify("error", t("chat.sendFailed", { error: String(e) }));
   }
 }
 
@@ -75,7 +84,7 @@ async function cancelSession() {
     await invoke("cancel_session");
   } catch (e) {
     console.error("Failed to cancel session:", e);
-    notify("error", `Cancel failed: ${e}`);
+    notify("error", t("chat.cancelFailed", { error: String(e) }));
   }
 }
 
@@ -101,7 +110,7 @@ watch(
 <template>
   <section class="chat-panel" data-test="chat-panel">
     <header class="chat-header">
-      <h2>Chat</h2>
+      <h2>{{ t("chat.header") }}</h2>
       <NTag size="small" :bordered="false" data-test="chat-profile-badge">
         {{ session.currentProfile }}
       </NTag>
@@ -139,7 +148,7 @@ watch(
           v-if="session.projection.token_stream"
           class="message message-assistant streaming"
         >
-          <span class="message-role">Agent</span>
+          <span class="message-role">{{ t("chat.roleAgent") }}</span>
           <span class="message-content"
             >{{ session.projection.token_stream
             }}<span class="cursor">▌</span></span
@@ -152,7 +161,7 @@ watch(
           class="cancelled-marker"
           data-test="cancelled-marker"
         >
-          [cancelled]
+          {{ t("chat.cancelled") }}
         </NAlert>
       </div>
     </NScrollbar>
@@ -166,7 +175,7 @@ watch(
           data-test="message-input"
           :disabled="session.isStreaming"
           :autosize="{ minRows: 1, maxRows: 6 }"
-          placeholder="Type your message..."
+          :placeholder="t('chat.placeholder')"
           @keydown="handleKeydown"
         />
         <NButton
@@ -175,7 +184,7 @@ watch(
           data-test="cancel-button"
           @click="cancelSession"
         >
-          Cancel
+          {{ t("common.cancel") }}
         </NButton>
         <NButton
           v-else
@@ -184,7 +193,7 @@ watch(
           :disabled="sendDisabled"
           @click="sendMessage"
         >
-          Send
+          {{ t("common.send") }}
         </NButton>
       </NSpace>
     </div>

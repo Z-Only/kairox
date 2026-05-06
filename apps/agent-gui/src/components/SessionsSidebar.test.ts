@@ -1,18 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { setActivePinia, createPinia } from "pinia";
-import { mount, flushPromises } from "@vue/test-utils";
-import { defineComponent, h } from "vue";
-import { createRouter, createMemoryHistory, type Router } from "vue-router";
-import { createI18n } from "vue-i18n";
-import {
-  NConfigProvider,
-  NMessageProvider,
-  NDialogProvider,
-  NLoadingBarProvider,
-  NNotificationProvider
-} from "naive-ui";
+import { flushPromises } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
-import en from "@/locales/en.json";
+import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -28,86 +17,38 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 
-// A stub router that mirrors the production route names but uses inert
-// component shims so we don't pull WorkbenchView (and its dependencies)
-// into store-only sidebar tests. Sidebar tests only need the router
-// plugin present so `useRoute()` / `useRouter()` resolve.
-function makeStubRouter(): Router {
-  const stub = { template: "<div />" };
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: "/", redirect: { name: "workbench" } },
-      {
-        path: "/workbench/:sessionId?",
-        name: "workbench",
-        component: stub,
-        props: true
-      },
-      { path: "/marketplace", name: "marketplace", component: stub },
-      { path: "/settings", name: "settings", component: stub }
-    ]
-  });
-}
-
-function makeI18n() {
-  return createI18n({ legacy: false, locale: "en", messages: { en } });
-}
-
-// Wrap the sidebar in NaiveUI's provider stack so `useDialog()` resolves and
-// the migrated `<NScrollbar>` / `<NButton>` / `<NEmpty>` components have
-// access to theme + service contexts (mirrors `AppLayout.vue`).
-const SidebarHarness = defineComponent({
-  name: "SidebarHarness",
-  components: { SessionsSidebar },
-  setup() {
-    return () =>
-      h(NConfigProvider, null, {
-        default: () =>
-          h(NLoadingBarProvider, null, {
-            default: () =>
-              h(NMessageProvider, null, {
-                default: () =>
-                  h(NDialogProvider, null, {
-                    default: () =>
-                      h(NNotificationProvider, null, {
-                        default: () => h(SessionsSidebar)
-                      })
-                  })
-              })
-          })
-      });
-  }
-});
-
+// `mountWithPlugins({ withNaiveProviders: true, initialRoute })` (added in
+// Task 7a) wires Pinia + i18n + the production router and wraps the
+// component in the same NaiveUI provider stack as `AppLayout.vue` so
+// `useDialog()` and the migrated NaiveUI components resolve cleanly. The
+// Sidebar exercises that helper as one of its intended consumers.
 async function mountSidebar() {
-  const router = makeStubRouter();
-  await router.push({ name: "workbench" });
-  await router.isReady();
-  const wrapper = mount(SidebarHarness, {
-    global: { plugins: [router, makeI18n()] }
+  const { wrapper, router } = mountWithPlugins(SessionsSidebar, {
+    withNaiveProviders: true,
+    initialRoute: "/workbench"
   });
+  await router.isReady();
   return { wrapper, router };
 }
 
 beforeEach(() => {
-  setActivePinia(createPinia());
-  const session = useSessionStore();
-  session.sessions = [];
-  session.currentSessionId = null;
-  session.currentProfile = "fast";
-  session.resetProjection();
+  // `mountWithPlugins` activates a fresh Pinia internally; we just reset
+  // mocks here so per-test invoke / store state stays isolated.
   vi.clearAllMocks();
 });
 
 describe("SessionsSidebar", () => {
   it("renders session titles", async () => {
+    // mountSidebar() activates a fresh Pinia internally; we mutate the
+    // session store *after* mount and then re-render so the active Pinia
+    // instance the component sees is the same one we modify.
+    const { wrapper } = await mountSidebar();
     const session = useSessionStore();
     session.sessions = [
       { id: "s1", title: "Chat about Rust", profile: "fast" } as never,
       { id: "s2", title: "Debug session", profile: "slow" } as never
     ];
-    const { wrapper } = await mountSidebar();
+    await flushPromises();
     expect(wrapper.text()).toContain("Chat about Rust");
     expect(wrapper.text()).toContain("Debug session");
   });
@@ -119,11 +60,12 @@ describe("SessionsSidebar", () => {
   });
 
   it("navigates to the workbench route with the session id on click", async () => {
+    const { wrapper, router } = await mountSidebar();
     const session = useSessionStore();
     session.sessions = [
       { id: "s1", title: "Session 1", profile: "fast" } as never
     ];
-    const { wrapper, router } = await mountSidebar();
+    await flushPromises();
     // Use the data-test selector so the assertion does not depend on the
     // ordering or class names of NaiveUI internals.
     await wrapper.find('[data-test="session-item"]').trigger("click");

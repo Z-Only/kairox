@@ -4,6 +4,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
+    "deleteConfirm": "Delete \"{name}\"? This action cannot be undone.",
     "save": "Save",
     "edit": "Edit",
     "retry": "Retry",
@@ -17,6 +18,16 @@
     "no": "No",
     "search": "Search",
     "refresh": "Refresh"
+  },
+  "memory": {
+    "header": "Memories",
+    "scopeAll": "All",
+    "scopeSession": "Session",
+    "scopeUser": "User",
+    "scopeWorkspace": "Workspace",
+    "searchPlaceholder": "Search memories...",
+    "emptyHint": "No memories",
+    "deleteConfirm": "Delete this memory?"
   },
   "nav": {
     "workbench": "Workbench",
@@ -40,19 +51,37 @@
   "notifications": {
     "sessionError": "Session error",
     "copySuccess": "Copied to clipboard",
-    "copyFailed": "Copy failed",
-    "sessionNotFound": "Session not found, redirected"
+    "copyFailed": "Copy failed"
   },
   "status": {
     "ready": "Ready",
     "streaming": "Streaming",
     "connecting": "Connecting",
-    "error": "Error"
+    "error": "Error",
+    "activeProfile": "Active profile"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"
   },
   "sessions": {
-    "deleteConfirm": "Delete session \"{title}\"? Its conversation history will be permanently removed after 7 days."
+    "deleteConfirm": "Delete session \"{title}\"? Its conversation history will be permanently removed after 7 days.",
+    "newButton": "+ New",
+    "createButton": "Create",
+    "cancelButton": "Cancel",
+    "renameTitle": "Rename",
+    "deleteTitle": "Delete",
+    "emptyHint": "No sessions yet",
+    "newDialogTitle": "New Session",
+    "profileLabel": "Profile:",
+    "header": "Sessions"
+  },
+  "chat": {
+    "header": "Chat",
+    "placeholder": "Type your message...",
+    "cancelled": "[cancelled]",
+    "roleYou": "You",
+    "roleAgent": "Agent",
+    "sendFailed": "Failed to send message: {error}",
+    "cancelFailed": "Cancel failed: {error}"
   }
 }

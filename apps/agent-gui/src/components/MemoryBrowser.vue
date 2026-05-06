@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { onMounted, watch, ref } from "vue";
+import { onMounted, watch, computed, h } from "vue";
 import { storeToRefs } from "pinia";
+import {
+  NButton,
+  NEmpty,
+  NInput,
+  NSelect,
+  NSpace,
+  NSpin,
+  NTag,
+  NText,
+  useDialog,
+  type SelectOption
+} from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useMemoryStore } from "@/stores/memory";
 import { useSessionStore } from "@/stores/session";
-import ConfirmDialog from "./ConfirmDialog.vue";
+
+const { t } = useI18n();
+const dialog = useDialog();
 
 const memory = useMemoryStore();
 const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 const session = useSessionStore();
-
-const deleteTargetId = ref("");
-const deleteTargetContent = ref("");
-const showDeleteDialog = ref(false);
 
 onMounted(() => {
   memory.loadMemories();
@@ -25,30 +36,12 @@ watch(
   }
 );
 
-function promptDelete(id: string, content: string) {
-  deleteTargetId.value = id;
-  deleteTargetContent.value = content;
-  showDeleteDialog.value = true;
-}
-
-async function confirmDelete() {
-  await memory.deleteMemoryItem(deleteTargetId.value);
-  showDeleteDialog.value = false;
-}
-
-function cancelDelete() {
-  showDeleteDialog.value = false;
-}
-
-const scopeFilters: Array<{
-  label: string;
-  value: typeof filter.value;
-}> = [
-  { label: "All", value: "all" },
-  { label: "Session", value: "session" },
-  { label: "User", value: "user" },
-  { label: "Workspace", value: "workspace" }
-];
+const scopeOptions = computed<SelectOption[]>(() => [
+  { label: t("memory.scopeAll"), value: "all" },
+  { label: t("memory.scopeSession"), value: "session" },
+  { label: t("memory.scopeUser"), value: "user" },
+  { label: t("memory.scopeWorkspace"), value: "workspace" }
+]);
 
 const scopeIcon: Record<string, string> = {
   session: "📋",
@@ -56,89 +49,140 @@ const scopeIcon: Record<string, string> = {
   workspace: "🗂️"
 };
 
-const scopeColor: Record<string, string> = {
-  session: "#6b7280",
-  user: "#0077cc",
-  workspace: "#22a06b"
-};
+const scopeTagType: Record<string, "default" | "info" | "success" | "warning"> =
+  {
+    session: "default",
+    user: "info",
+    workspace: "success"
+  };
 
 function handleSearchKeydown(e: KeyboardEvent) {
   if (e.key === "Enter") {
     memory.loadMemories();
   }
 }
+
+function handleFilterChange(value: typeof filter.value) {
+  memory.setMemoryFilter(value);
+}
+
+// Promote the destructive confirmation to NaiveUI's `useDialog`. The view
+// no longer owns visibility state — `dialog.warning` portals into
+// `<NDialogProvider>` (mounted in `AppLayout.vue`), and the positive
+// click delegates to `memory.deleteMemoryItem`. ConfirmDialog.vue is
+// removed in this same commit since MemoryBrowser was its last consumer.
+function promptDelete(id: string, content: string) {
+  const preview = content.length > 60 ? `${content.slice(0, 60)}…` : content;
+  dialog.warning({
+    title: t("common.confirm"),
+    // Render the preview on its own line so long content does not push
+    // the dialog buttons off-screen.
+    content: () =>
+      h("div", null, [
+        h("p", null, t("memory.deleteConfirm")),
+        h(
+          "p",
+          { style: "margin-top: 8px; color: var(--n-text-color-3);" },
+          `“${preview}”`
+        )
+      ]),
+    positiveText: t("common.delete"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: () => {
+      void memory.deleteMemoryItem(id);
+    }
+  });
+}
 </script>
 
 <template>
   <div class="memory-browser">
     <header class="memory-header">
-      <h2>Memories</h2>
-      <button
+      <h2>{{ t("memory.header") }}</h2>
+      <NButton
+        size="tiny"
+        quaternary
+        :title="t('common.refresh')"
         class="refresh-btn"
-        title="Refresh"
         @click="memory.loadMemories()"
       >
         ↻
-      </button>
+      </NButton>
     </header>
 
     <div class="memory-controls">
-      <div class="scope-filters">
-        <button
-          v-for="f in scopeFilters"
-          :key="f.value"
-          :class="['scope-btn', { active: filter === f.value }]"
-          @click="memory.setMemoryFilter(f.value)"
-        >
-          {{ f.label }}
-        </button>
-      </div>
-      <input
-        v-model="searchQuery"
+      <NSpace :size="6" align="center" class="scope-row">
+        <NSelect
+          :value="filter"
+          :options="scopeOptions"
+          size="small"
+          class="scope-select"
+          data-test="memory-scope-select"
+          @update:value="handleFilterChange"
+        />
+      </NSpace>
+      <NInput
+        v-model:value="searchQuery"
+        size="small"
+        :placeholder="t('memory.searchPlaceholder')"
         class="search-input"
-        placeholder="Search memories..."
         @keydown="handleSearchKeydown"
       />
     </div>
 
-    <div v-if="loading" class="memory-empty">Loading...</div>
-    <div v-else-if="memories.length === 0" class="memory-empty">
-      No memories
-    </div>
+    <NSpin v-if="loading" class="memory-empty" :show="true">
+      <span>{{ t("common.loading") }}</span>
+    </NSpin>
+    <NEmpty
+      v-else-if="memories.length === 0"
+      size="small"
+      class="memory-empty"
+      :description="t('memory.emptyHint')"
+    />
     <ul v-else class="memory-list">
       <li v-for="mem in memories" :key="mem.id" class="memory-item">
         <div class="memory-meta">
-          <span
+          <NTag
+            size="small"
+            :type="scopeTagType[mem.scope] ?? 'default'"
+            :bordered="false"
             class="memory-scope"
-            :style="{ color: scopeColor[mem.scope] || '#666' }"
           >
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
-          </span>
-          <span v-if="mem.key" class="memory-key">{{ mem.key }}</span>
-          <span v-if="!mem.accepted" class="memory-pending">pending</span>
+          </NTag>
+          <NTag
+            v-if="mem.key"
+            size="small"
+            :bordered="false"
+            class="memory-key"
+          >
+            {{ mem.key }}
+          </NTag>
+          <NTag
+            v-if="!mem.accepted"
+            size="small"
+            type="warning"
+            :bordered="false"
+            class="memory-pending"
+          >
+            pending
+          </NTag>
         </div>
-        <div class="memory-content">{{ mem.content }}</div>
+        <NText class="memory-content">{{ mem.content }}</NText>
         <div class="memory-actions">
-          <button
+          <NButton
+            quaternary
+            circle
+            size="tiny"
+            :title="t('common.delete')"
             class="memory-delete-btn"
-            title="Delete"
             @click="promptDelete(mem.id, mem.content)"
           >
             🗑️
-          </button>
+          </NButton>
         </div>
       </li>
     </ul>
-
-    <ConfirmDialog
-      v-if="showDeleteDialog"
-      title="Delete Memory?"
-      :message="`Delete this memory: '${deleteTargetContent.slice(0, 60)}${deleteTargetContent.length > 60 ? '…' : ''}'?`"
-      confirm-label="Delete"
-      :confirm-danger="true"
-      @confirm="confirmDelete"
-      @cancel="cancelDelete"
-    />
   </div>
 </template>
 
@@ -154,59 +198,33 @@ function handleSearchKeydown(e: KeyboardEvent) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #d7d7d7;
+  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
 }
 .memory-header h2 {
   margin: 0;
   font-size: 14px;
 }
 .refresh-btn {
-  background: none;
-  border: 1px solid #d7d7d7;
-  border-radius: 4px;
-  cursor: pointer;
   font-size: 14px;
-  padding: 2px 6px;
-}
-.refresh-btn:hover {
-  background: #f0f0f0;
 }
 .memory-controls {
   padding: 8px 12px;
-  border-bottom: 1px solid #eee;
-}
-.scope-filters {
+  border-bottom: 1px solid var(--app-border-color, #eee);
   display: flex;
-  gap: 4px;
-  margin-bottom: 6px;
+  flex-direction: column;
+  gap: 6px;
 }
-.scope-btn {
-  padding: 2px 8px;
-  border: 1px solid #d7d7d7;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-  font-size: 11px;
+.scope-row {
+  width: 100%;
 }
-.scope-btn.active {
-  background: #0077cc;
-  color: white;
-  border-color: #0077cc;
+.scope-select {
+  min-width: 140px;
 }
 .search-input {
   width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #d7d7d7;
-  border-radius: 4px;
-  font-size: 12px;
-}
-.search-input:focus {
-  outline: none;
-  border-color: #0077cc;
 }
 .memory-empty {
   padding: 16px;
-  color: #999;
   font-size: 12px;
   text-align: center;
 }
@@ -219,39 +237,25 @@ function handleSearchKeydown(e: KeyboardEvent) {
 }
 .memory-item {
   padding: 8px 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--app-border-color, #eee);
   position: relative;
 }
 .memory-item:hover {
-  background: #f8f8f8;
+  background: var(--app-hover-color, #f8f8f8);
 }
 .memory-meta {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 .memory-scope {
-  font-size: 11px;
   font-weight: 600;
 }
-.memory-key {
-  font-size: 11px;
-  color: #666;
-  background: #f0f0f0;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-.memory-pending {
-  font-size: 10px;
-  color: #b45309;
-  background: #fffbeb;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
 .memory-content {
+  display: block;
   font-size: 12px;
-  color: #333;
   line-height: 1.4;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -266,16 +270,5 @@ function handleSearchKeydown(e: KeyboardEvent) {
 }
 .memory-item:hover .memory-actions {
   display: block;
-}
-.memory-delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px;
-}
-.memory-delete-btn:hover {
-  background: rgba(204, 51, 51, 0.1);
-  border-radius: 3px;
 }
 </style>

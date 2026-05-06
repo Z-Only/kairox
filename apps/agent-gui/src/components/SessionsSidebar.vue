@@ -95,6 +95,18 @@ function startRename(sessionId: string, currentTitle: string) {
   });
 }
 
+// Functional ref for the rename `<input>` inside `v-for`. Vue 3 treats a
+// string `ref="renameInput"` inside `v-for` as an array (one entry per
+// iteration); the previous code happened to work because
+// `editingSessionId === item.id` ensures only one `<input>` is rendered at
+// any time, but it was a latent foot-gun. The functional ref pins the
+// variable to the single editing row explicitly.
+function bindRenameInput(el: Element | null, itemId: string) {
+  if (editingSessionId.value === itemId) {
+    renameInput.value = (el as HTMLInputElement) ?? null;
+  }
+}
+
 async function confirmRename() {
   if (editingSessionId.value && editingTitle.value.trim()) {
     await session.renameSession(
@@ -138,7 +150,7 @@ function keyIcon(hasApiKey: boolean): string {
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar">
     <header class="sidebar-header">
-      <h2>Sessions</h2>
+      <h2>{{ t("sessions.header") }}</h2>
       <NButton
         size="tiny"
         type="primary"
@@ -146,11 +158,12 @@ function keyIcon(hasApiKey: boolean): string {
         data-test="new-session-btn"
         @click="openNewSessionDialog"
       >
-        + New
+        {{ t("sessions.newButton") }}
       </NButton>
     </header>
 
     <NScrollbar v-if="session.sessions.length > 0" class="session-scroll">
+      <!-- Kept hand-rolled because hover-only .session-actions cannot be expressed via NListItem #suffix slot. -->
       <ul class="session-list">
         <li
           v-for="item in session.sessions"
@@ -164,7 +177,7 @@ function keyIcon(hasApiKey: boolean): string {
           <!-- Inline rename mode -->
           <template v-if="editingSessionId === item.id">
             <input
-              ref="renameInput"
+              :ref="(el) => bindRenameInput(el as Element | null, item.id)"
               v-model="editingTitle"
               class="rename-input"
               @keydown.enter="confirmRename"
@@ -182,7 +195,7 @@ function keyIcon(hasApiKey: boolean): string {
                 quaternary
                 size="tiny"
                 class="action-btn"
-                title="Rename"
+                :title="t('sessions.renameTitle')"
                 @click.stop="startRename(item.id, item.title)"
               >
                 ✏️
@@ -192,7 +205,7 @@ function keyIcon(hasApiKey: boolean): string {
                 size="tiny"
                 type="error"
                 class="action-btn action-delete"
-                title="Delete"
+                :title="t('sessions.deleteTitle')"
                 data-test="session-delete-btn"
                 @click.stop="promptDelete(item.id, item.title)"
               >
@@ -207,16 +220,16 @@ function keyIcon(hasApiKey: boolean): string {
       v-else
       size="small"
       class="empty-hint"
-      :description="'No sessions yet'"
+      :description="t('sessions.emptyHint')"
       data-test="sessions-empty"
     />
 
     <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
          scope for Task 7 spec §5.5 mapping). -->
     <dialog v-if="showNewSession" class="new-session-dialog" open>
-      <h3>New Session</h3>
+      <h3>{{ t("sessions.newDialogTitle") }}</h3>
       <label>
-        Profile:
+        {{ t("sessions.profileLabel") }}
         <div class="profile-dropdown">
           <button
             class="profile-trigger"
@@ -251,7 +264,7 @@ function keyIcon(hasApiKey: boolean): string {
       </label>
       <div class="dialog-actions">
         <button data-test="create-session-btn" @click="createSession">
-          Create
+          {{ t("sessions.createButton") }}
         </button>
         <button
           @click="
@@ -259,7 +272,7 @@ function keyIcon(hasApiKey: boolean): string {
             profileDropdownOpen = false;
           "
         >
-          Cancel
+          {{ t("sessions.cancelButton") }}
         </button>
       </div>
     </dialog>

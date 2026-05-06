@@ -2,11 +2,13 @@
 import { ref, onMounted, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { NSpace, NTag, NText, NTooltip } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
 import { useMcpStore } from "@/stores/mcp";
 import McpStatusIndicator from "./McpStatusIndicator.vue";
 import McpServerManager from "./McpServerManager.vue";
 
+const { t } = useI18n();
 const session = useSessionStore();
 const mcp = useMcpStore();
 const permissionMode = ref("interactive");
@@ -45,7 +47,7 @@ onMounted(async () => {
             profile: {{ session.currentProfile }}
           </NTag>
         </template>
-        Active profile
+        {{ t("status.activeProfile") }}
       </NTooltip>
 
       <NText depth="3" class="status-item" data-test="status-sessions">

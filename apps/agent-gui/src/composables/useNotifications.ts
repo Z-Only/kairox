@@ -33,16 +33,32 @@ export function useNotifications() {
   // `useMessage()` here only validates that the provider is present; the
   // failure mode is reported once at composable construction time rather
   // than at first `notify()` call.
+  //
+  // We additionally remember the provider state so subsequent `notify()`
+  // calls can keep a console trace alive for `error`-level events even
+  // after the visual layer has fallen back to store-only mode (otherwise
+  // the construction-time `console.error` is the only diagnostic for the
+  // entire lifetime of the host component).
+  let providerAvailable = true;
   try {
     useMessage();
   } catch {
+    providerAvailable = false;
     console.error(
       "[useNotifications] useMessage() is unavailable — useNotifications must be called inside the AppLayout subtree (below <NMessageProvider>). Falling back to store-only notifications."
     );
   }
 
   function notify(level: NotificationLevel, content: string) {
+    // Persistent log first; this is the source of truth and the visual
+    // layer (the `<NotificationToast />` adapter) consumes the same store.
     ui.pushNotification(level, content);
+    // In degraded mode the adapter never paints — leave a per-event
+    // console trace for `error`-level events so failures still surface to
+    // developers tailing the dev console / Tauri logs.
+    if (!providerAvailable && level === "error") {
+      console.error("[useNotifications] (degraded) error:", content);
+    }
   }
 
   return { notify };

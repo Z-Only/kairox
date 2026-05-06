@@ -60,9 +60,47 @@ describe("useNotifications", () => {
     expect(ui.notifications[0].level).toBe("error");
     expect(ui.notifications[0].message).toBe("boom");
 
-    // The provider-missing diagnostic is reported exactly once at
-    // composable construction time.
-    expect(errorSpy).toHaveBeenCalledTimes(1);
+    // The provider-missing diagnostic is reported once at composable
+    // construction time, plus once per `notify("error", ...)` call (the
+    // 7b carry-over #2 degraded-mode trace) — so two console.error calls
+    // total here. Exhaustive degraded-mode behaviour is verified in the
+    // dedicated "in degraded mode, error-level notify() leaves an
+    // additional console trace per event" test below.
+    expect(errorSpy).toHaveBeenCalledTimes(2);
     expect(String(errorSpy.mock.calls[0][0])).toContain("useNotifications");
+  });
+
+  it("in degraded mode, error-level notify() leaves an additional console trace per event", () => {
+    // Carry-over from 7a code-quality review (item #2): when the provider
+    // is unavailable, individual `error`-level notifications must still
+    // surface to developers via console.error so failures are not silent
+    // after the construction-time diagnostic. Non-error levels stay
+    // store-only (they're not actionable enough to warrant log noise).
+    useMessageMock.mockImplementation(() => {
+      throw new Error("useMessage must be called inside an <NMessageProvider>");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { notify } = useNotifications();
+    const ui = useUiStore();
+
+    // First console.error: construction-time provider-missing diagnostic.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    notify("error", "boom");
+
+    // Second console.error: per-event degraded trace from notify("error").
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(String(errorSpy.mock.calls[1][0])).toContain("(degraded)");
+    expect(String(errorSpy.mock.calls[1][1])).toBe("boom");
+    // Store still receives the entry — persistent log is the source of truth.
+    expect(ui.notifications).toHaveLength(1);
+    expect(ui.notifications[0].level).toBe("error");
+
+    notify("info", "fyi");
+    // info-level does not add a per-event console trace; only the store
+    // receives the entry. The error spy stays at 2.
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(ui.notifications).toHaveLength(2);
   });
 });

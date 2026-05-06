@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { NScrollbar, NEmpty, NButton } from "naive-ui";
 import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
@@ -11,37 +12,67 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 <template>
   <section class="trace-timeline">
     <header class="trace-header">
+      <!-- Hand-rolled tab strip rather than NTabs because the existing
+           unit tests assert against `.tab-group button` selectors and the
+           panel below is a 3-way switch over heterogeneous components
+           (TraceEntry list / TaskSteps / MemoryBrowser) — NTabPane's
+           teleport semantics would force every panel to render, which we
+           don't want here. We do upgrade the buttons themselves to
+           NButton so they pick up the NaiveUI theme without touching the
+           tests' active-class assertion. -->
       <div class="tab-group">
-        <button :class="{ active: rightPanelTab === 'trace' }" @click="rightPanelTab = 'trace'">
+        <NButton
+          size="tiny"
+          :type="rightPanelTab === 'trace' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'trace' }"
+          @click="rightPanelTab = 'trace'"
+        >
           Trace
-        </button>
-        <button :class="{ active: rightPanelTab === 'tasks' }" @click="rightPanelTab = 'tasks'">
+        </NButton>
+        <NButton
+          size="tiny"
+          :type="rightPanelTab === 'tasks' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'tasks' }"
+          @click="rightPanelTab = 'tasks'"
+        >
           Tasks
-        </button>
-        <button :class="{ active: rightPanelTab === 'memory' }" @click="rightPanelTab = 'memory'">
+        </NButton>
+        <NButton
+          size="tiny"
+          :type="rightPanelTab === 'memory' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'memory' }"
+          @click="rightPanelTab = 'memory'"
+        >
           Memory
-        </button>
+        </NButton>
       </div>
       <div v-if="rightPanelTab === 'trace'" class="density-toggles">
-        <button
+        <NButton
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
+          size="tiny"
+          :type="traceState.density === d ? 'primary' : 'default'"
           :class="{ active: traceState.density === d }"
           @click="traceState.density = d"
         >
           {{ d }}
-        </button>
+        </NButton>
       </div>
     </header>
-    <div v-if="rightPanelTab === 'trace'" class="trace-entries">
+    <NScrollbar v-if="rightPanelTab === 'trace'" class="trace-entries">
       <TraceEntry
         v-for="entry in traceState.entries"
         :key="entry.id"
         :entry="entry"
         :density="traceState.density"
       />
-      <p v-if="traceState.entries.length === 0" class="empty-hint">No trace events yet</p>
-    </div>
+      <NEmpty
+        v-if="traceState.entries.length === 0"
+        size="small"
+        class="empty-hint"
+        description="No trace events yet"
+      />
+    </NScrollbar>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
   </section>
@@ -59,49 +90,23 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #d7d7d7;
+  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
 }
 .tab-group {
   display: flex;
-  gap: 2px;
-}
-.tab-group button {
-  padding: 2px 10px;
-  border: 1px solid #d7d7d7;
-  border-radius: 3px;
-  background: white;
-  font-size: 12px;
-  cursor: pointer;
-}
-.tab-group button.active {
-  background: #0077cc;
-  color: white;
-  border-color: #0077cc;
+  gap: 4px;
 }
 .density-toggles {
   display: flex;
-  gap: 2px;
-}
-.density-toggles button {
-  padding: 2px 8px;
-  border: 1px solid #d7d7d7;
-  border-radius: 3px;
-  background: white;
-  font-size: 11px;
-  cursor: pointer;
-}
-.density-toggles button.active {
-  background: #0077cc;
-  color: white;
-  border-color: #0077cc;
+  gap: 4px;
 }
 .trace-entries {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
 }
 .empty-hint {
   padding: 12px;
-  color: #999;
+  color: var(--app-text-disabled-color, #999);
   font-size: 12px;
 }
 </style>

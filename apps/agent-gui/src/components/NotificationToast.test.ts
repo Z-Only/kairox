@@ -86,4 +86,30 @@ describe("NotificationToast (useMessage adapter)", () => {
     expect(wrapper.text()).toBe("");
     expect(wrapper.find(".notification-container").exists()).toBe(false);
   });
+
+  it("does not retain dispatched ids after the message handler runs (no monotonic Set growth)", async () => {
+    // Carry-over from 7a code-quality review (item #1): the internal
+    // `dispatched` Set must shrink back to empty once each entry's
+    // `message.<level>` handler has been invoked, otherwise the Set grows
+    // unbounded for the lifetime of <AppLayout>. We can't peek at the Set
+    // directly (it's a private const inside the component's <script setup>),
+    // so we exercise the externally observable contract instead: pushing N
+    // distinct notifications must produce exactly N message-handler calls
+    // and exactly N dismissNotification calls (one per entry, no doubles
+    // even after the deep watcher re-fires when the array shrinks).
+    const ui = useUiStore();
+    const dismissSpy = vi.spyOn(ui, "dismissNotification");
+    mount(NotificationToast);
+
+    for (let i = 0; i < 5; i++) {
+      ui.pushNotification("info", `msg-${i}`);
+    }
+    await flushPromises();
+
+    expect(messageStub.info).toHaveBeenCalledTimes(5);
+    // Each entry is dismissed exactly once: confirms the handler ran for
+    // every id and the watcher did not double-fire after the array shrank.
+    expect(dismissSpy).toHaveBeenCalledTimes(5);
+    expect(ui.notifications).toEqual([]);
+  });
 });

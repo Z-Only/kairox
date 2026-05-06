@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NTag, NText, NEllipsis } from "naive-ui";
 import type { TraceEntryData } from "../types/trace";
 import { traceState } from "../composables/useTraceStore";
 
@@ -29,19 +30,55 @@ const kindIcon: Record<string, string> = {
 </script>
 
 <template>
-  <div :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]">
+  <div
+    :class="[
+      'trace-entry',
+      `trace-entry--${entry.status}`,
+      `trace-entry--${entry.kind}`
+    ]"
+  >
     <!-- All entries show as a trace row; pending permission/memory
-         interactions are handled exclusively by PermissionCenter -->
+         interactions are handled exclusively by PermissionCenter. The
+         row's bespoke class names are preserved because the unit tests
+         (TraceEntry.test.ts) assert against `.entry-row`, `.entry-status`,
+         `.entry-detail`, and `.entry-duration` — switching to NaiveUI
+         primitives inside the row keeps those selectors stable. -->
     <div class="entry-row" @click="toggle">
       <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
       <span class="entry-status">{{ statusIcon[entry.status] }}</span>
-      <span class="entry-tool">{{ entry.toolId || entry.title }}</span>
-      <span v-if="entry.scope" class="entry-scope">{{ entry.scope }}</span>
-      <span v-if="entry.durationMs != null" class="entry-duration">
-        {{ (entry.durationMs / 1000).toFixed(1) }}s
+      <span class="entry-tool">
+        <NEllipsis :tooltip="false">
+          {{ entry.toolId || entry.title }}
+        </NEllipsis>
       </span>
-      <span v-if="entry.status === 'running'" class="entry-running">running...</span>
-      <span v-if="entry.status === 'pending'" class="entry-pending">pending</span>
+      <NTag
+        v-if="entry.scope"
+        size="tiny"
+        :bordered="false"
+        type="info"
+        class="entry-scope"
+      >
+        {{ entry.scope }}
+      </NTag>
+      <NText v-if="entry.durationMs != null" depth="3" class="entry-duration">
+        {{ (entry.durationMs / 1000).toFixed(1) }}s
+      </NText>
+      <NText
+        v-if="entry.status === 'running'"
+        type="info"
+        class="entry-running"
+      >
+        running...
+      </NText>
+      <NTag
+        v-if="entry.status === 'pending'"
+        size="tiny"
+        :bordered="false"
+        type="warning"
+        class="entry-pending"
+      >
+        pending
+      </NTag>
     </div>
     <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
       <div v-if="entry.input" class="entry-section">
@@ -56,12 +93,18 @@ const kindIcon: Record<string, string> = {
         <span class="entry-label">Reason:</span>
         <span>{{ entry.reason }}</span>
       </div>
-      <div v-if="entry.content && entry.kind === 'memory'" class="entry-section">
+      <div
+        v-if="entry.content && entry.kind === 'memory'"
+        class="entry-section"
+      >
         <span class="entry-label">Content:</span>
         <pre class="entry-code">{{ entry.content }}</pre>
       </div>
     </div>
-    <div v-if="density === 'L3' && entry.expanded && entry.rawEvent" class="entry-raw">
+    <div
+      v-if="density === 'L3' && entry.expanded && entry.rawEvent"
+      class="entry-raw"
+    >
       <pre class="entry-code">{{ entry.rawEvent }}</pre>
     </div>
   </div>

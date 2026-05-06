@@ -35,11 +35,26 @@ function dispatch(notif: NotificationItem) {
     default:
       message.info(notif.message);
   }
+  // Drop the dispatched id from the Set after the message handler has been
+  // invoked. See the JSDoc on `dispatched` below for the leak rationale.
+  dispatched.delete(notif.id);
   ui.dismissNotification(notif.id);
 }
 
-// Snapshot ids that have already been dispatched so we ignore the delete
-// half of the watcher cycle (when `dismissNotification` mutates the array).
+/**
+ * Tracks ids that are mid-dispatch within the current watcher tick so that
+ * the second half of the same tick — when `ui.dismissNotification` shrinks
+ * `notifications.value` and the deep watcher re-fires — does not see the
+ * still-present entry as "new" and forward it twice.
+ *
+ * Notification ids come from `crypto.randomUUID()` (see `ui.pushNotification`)
+ * so they never repeat across the lifetime of the app. Without the
+ * `dispatched.delete(id)` call inside `dispatch()`, this Set would grow
+ * monotonically for the entire lifetime of `<AppLayout>` (i.e. forever) —
+ * a slow but real leak in long-running sessions. We delete the id after the
+ * handler returns instead of keeping a permanent history because the only
+ * job of this Set is intra-tick deduplication.
+ */
 const dispatched = new Set<string>();
 
 watch(
