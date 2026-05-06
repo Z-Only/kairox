@@ -45,7 +45,7 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 | Crate             | Purpose                                                                                             | Key types                                                                                                                                                                              |
 | ----------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections, build info                  | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState`, `BuildInfo` |
-| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions                       | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `TaskGraph`                                                                                                      |
+| **agent-runtime** | Orchestrates the agent loop, manages sessions, wires tools/memory/permissions                       | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`                                                                      |
 | **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake)                             | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`                                                                                                                     |
 | **agent-tools**   | Tool registry, permission engine, built-in tools (shell, fs.read, fs.write, fs.list, patch, search) | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`, `McpToolAdapter`                                                                                       |
 | **agent-mcp**     | MCP (Model Context Protocol) client, transports, server lifecycle, discovery cache                  | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `McpError`                                                                        |
@@ -120,7 +120,7 @@ kairox/
 │   └── prepare.cjs         # Husky hook setup (worktree-aware)
 ├── crates/
 │   ├── agent-core/         # Domain types, facade, events, IDs
-│   ├── agent-runtime/      # LocalRuntime, agents, task graph
+│   ├── agent-runtime/      # LocalRuntime, agents, DAG executor, task graph
 │   ├── agent-models/       # ModelClient trait + adapters
 │   ├── agent-tools/        # Tool registry, permission engine
 │   ├── agent-mcp/          # MCP client, transports, server lifecycle

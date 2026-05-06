@@ -22,11 +22,18 @@
 - ✅ Wire MCP tool execution (client protocol, process lifecycle, config-driven servers)
 - ✅ Add fs.write and fs.list built-in tools for filesystem operations
 - ✅ Add E2E test job to CI workflow for automated frontend testing
+- ✅ Implement Phase 2 DAG execution with AgentStrategy for multi-agent orchestration (#51)
+- ✅ Add JSON Schema parameters to tools and CancellationToken for streaming cancellation (#48)
+- ✅ Refactor facade_runtime into focused modules (Phase 1) for maintainability (#50)
+- ✅ Add agent attribution, N-level task tree visualization, and DAG event handling in GUI (#54)
+- ✅ Refresh brand assets and visual identity (#52)
+- ✅ Standardize worktree convention documentation (#53)
+- ✅ Suppress CI warnings for v-html ESLint rule and Node.js 20 deprecation (#49)
 
 ## Mid term
 
 - Support more model providers and profile policies
-- Add multi-agent orchestration UX in TUI and GUI
+- ✅ Add multi-agent orchestration UX in TUI and GUI
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools
 
