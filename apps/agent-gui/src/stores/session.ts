@@ -190,6 +190,31 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  /**
+   * Start a new session via the Tauri backend and reset projection state so
+   * the workbench is clean before the caller navigates to the new session.
+   *
+   * Owns the post-create side-effects (`currentProfile = result.profile`,
+   * `resetProjection()`, global `clearTrace()`) so the view layer only has
+   * to call `router.push({ name: 'workbench', params: { sessionId } })`
+   * with the returned id and never touches projection / trace state
+   * directly. Throws on backend failure so the view can surface it.
+   */
+  async function createSession(
+    profile: string
+  ): Promise<{ id: string; title: string; profile: string }> {
+    const result = await invoke<{ id: string; title: string; profile: string }>(
+      "start_session",
+      { profile }
+    );
+    sessions.value = await invoke<SessionInfoResponse[]>("list_sessions");
+    currentProfile.value = result.profile;
+    resetProjection();
+    clearTrace();
+    useTaskGraphStore().clearTaskGraph();
+    return result;
+  }
+
   async function deleteSession(sessionId: string) {
     const ui = useUiStore();
     try {
@@ -305,6 +330,7 @@ export const useSessionStore = defineStore("session", () => {
     setProjection,
     resetProjection,
     switchSession,
+    createSession,
     deleteSession,
     renameSession,
     initializeWorkspace,

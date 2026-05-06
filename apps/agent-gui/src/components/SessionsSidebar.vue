@@ -2,10 +2,13 @@
 import { computed, ref, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
+import { useDialog, NScrollbar, NButton, NEmpty } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import type { ProfileDetail } from "../types";
 import { useSessionStore } from "@/stores/session";
-import { clearTrace } from "../composables/useTraceStore";
-import ConfirmDialog from "./ConfirmDialog.vue";
+
+const { t } = useI18n();
+const dialog = useDialog();
 
 const session = useSessionStore();
 const route = useRoute();
@@ -21,23 +24,12 @@ const activeSessionId = computed<string | null>(() => {
 });
 
 const showNewSession = ref(false);
-const showDeleteDialog = ref(false);
-const deleteTargetId = ref("");
-const deleteTargetTitle = ref("");
 const selectedProfile = ref("fast");
 const availableProfiles = ref<ProfileDetail[]>([]);
 const editingSessionId = ref<string | null>(null);
 const editingTitle = ref("");
 const profileDropdownOpen = ref(false);
 const renameInput = ref<HTMLInputElement | null>(null);
-
-async function refreshSessions() {
-  try {
-    session.sessions = await invoke("list_sessions");
-  } catch (e) {
-    console.error("Failed to list sessions:", e);
-  }
-}
 
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
@@ -51,15 +43,7 @@ async function switchToSession(sessionId: string) {
 
 async function createSession() {
   try {
-    const result = await invoke<{
-      id: string;
-      title: string;
-      profile: string;
-    }>("start_session", { profile: selectedProfile.value });
-    await refreshSessions();
-    session.currentProfile = result.profile;
-    session.resetProjection();
-    clearTrace();
+    const result = await session.createSession(selectedProfile.value);
     showNewSession.value = false;
     profileDropdownOpen.value = false;
     await router.push({ name: "workbench", params: { sessionId: result.id } });
@@ -126,18 +110,19 @@ function cancelRename() {
 }
 
 function promptDelete(sessionId: string, title: string) {
-  deleteTargetId.value = sessionId;
-  deleteTargetTitle.value = title;
-  showDeleteDialog.value = true;
-}
-
-async function confirmDelete() {
-  await session.deleteSession(deleteTargetId.value);
-  showDeleteDialog.value = false;
-}
-
-function cancelDelete() {
-  showDeleteDialog.value = false;
+  // The destructive confirmation is portal-rendered by NaiveUI under
+  // `<NDialogProvider>` (mounted in `AppLayout.vue`). The view layer no
+  // longer owns visibility state — the dialog hook does, and a positive
+  // click delegates to the existing `session.deleteSession` action.
+  dialog.warning({
+    title: t("common.confirm"),
+    content: t("sessions.deleteConfirm", { title }),
+    positiveText: t("common.delete"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: () => {
+      void session.deleteSession(sessionId);
+    }
+  });
 }
 
 function selectProfile(alias: string) {
@@ -151,61 +136,83 @@ function keyIcon(hasApiKey: boolean): string {
 </script>
 
 <template>
-  <aside class="sessions-sidebar">
+  <aside class="sessions-sidebar" data-test="sessions-sidebar">
     <header class="sidebar-header">
       <h2>Sessions</h2>
-      <button class="new-session-btn" @click="openNewSessionDialog">
+      <NButton
+        size="tiny"
+        type="primary"
+        class="new-session-btn"
+        data-test="new-session-btn"
+        @click="openNewSessionDialog"
+      >
         + New
-      </button>
+      </NButton>
     </header>
 
-    <ul v-if="session.sessions.length > 0" class="session-list">
-      <li
-        v-for="item in session.sessions"
-        :key="item.id"
-        :class="['session-item', { active: item.id === activeSessionId }]"
-        @click="switchToSession(item.id)"
-      >
-        <span class="session-indicator">●</span>
+    <NScrollbar v-if="session.sessions.length > 0" class="session-scroll">
+      <ul class="session-list">
+        <li
+          v-for="item in session.sessions"
+          :key="item.id"
+          :class="['session-item', { active: item.id === activeSessionId }]"
+          data-test="session-item"
+          @click="switchToSession(item.id)"
+        >
+          <span class="session-indicator">●</span>
 
-        <!-- Inline rename mode -->
-        <template v-if="editingSessionId === item.id">
-          <input
-            ref="renameInput"
-            v-model="editingTitle"
-            class="rename-input"
-            @keydown.enter="confirmRename"
-            @keydown.escape="cancelRename"
-            @blur="confirmRename"
-            @click.stop
-          />
-        </template>
+          <!-- Inline rename mode -->
+          <template v-if="editingSessionId === item.id">
+            <input
+              ref="renameInput"
+              v-model="editingTitle"
+              class="rename-input"
+              @keydown.enter="confirmRename"
+              @keydown.escape="cancelRename"
+              @blur="confirmRename"
+              @click.stop
+            />
+          </template>
 
-        <!-- Normal display mode -->
-        <template v-else>
-          <span class="session-title">{{ item.title }}</span>
-          <span class="session-actions">
-            <button
-              class="action-btn"
-              title="Rename"
-              @click.stop="startRename(item.id, item.title)"
-            >
-              ✏️
-            </button>
-            <button
-              class="action-btn action-delete"
-              title="Delete"
-              @click.stop="promptDelete(item.id, item.title)"
-            >
-              🗑️
-            </button>
-          </span>
-        </template>
-      </li>
-    </ul>
-    <p v-else class="empty-hint">No sessions yet</p>
+          <!-- Normal display mode -->
+          <template v-else>
+            <span class="session-title">{{ item.title }}</span>
+            <span class="session-actions">
+              <NButton
+                quaternary
+                size="tiny"
+                class="action-btn"
+                title="Rename"
+                @click.stop="startRename(item.id, item.title)"
+              >
+                ✏️
+              </NButton>
+              <NButton
+                quaternary
+                size="tiny"
+                type="error"
+                class="action-btn action-delete"
+                title="Delete"
+                data-test="session-delete-btn"
+                @click.stop="promptDelete(item.id, item.title)"
+              >
+                🗑️
+              </NButton>
+            </span>
+          </template>
+        </li>
+      </ul>
+    </NScrollbar>
+    <NEmpty
+      v-else
+      size="small"
+      class="empty-hint"
+      :description="'No sessions yet'"
+      data-test="sessions-empty"
+    />
 
-    <!-- New Session Dialog -->
+    <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
+         scope for Task 7 spec §5.5 mapping). -->
     <dialog v-if="showNewSession" class="new-session-dialog" open>
       <h3>New Session</h3>
       <label>
@@ -243,7 +250,9 @@ function keyIcon(hasApiKey: boolean): string {
         </div>
       </label>
       <div class="dialog-actions">
-        <button @click="createSession">Create</button>
+        <button data-test="create-session-btn" @click="createSession">
+          Create
+        </button>
         <button
           @click="
             showNewSession = false;
@@ -254,17 +263,6 @@ function keyIcon(hasApiKey: boolean): string {
         </button>
       </div>
     </dialog>
-
-    <!-- Delete Confirmation Dialog -->
-    <ConfirmDialog
-      v-if="showDeleteDialog"
-      :title="`Delete '${deleteTargetTitle}'?`"
-      message="This session's conversation history will be permanently removed after 7 days."
-      confirm-label="Delete"
-      :confirm-danger="true"
-      @confirm="confirmDelete"
-      @cancel="cancelDelete"
-    />
   </aside>
 </template>
 

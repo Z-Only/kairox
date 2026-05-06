@@ -2,6 +2,7 @@
 import { onMounted, ref, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
+import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
 import { useUiStore } from "@/stores/ui";
 import SessionsSidebar from "@/components/SessionsSidebar.vue";
@@ -13,6 +14,7 @@ const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const ui = useUiStore();
+const { t } = useI18n();
 const { currentSessionId } = storeToRefs(session);
 
 const routeSessionId = computed(() => {
@@ -34,7 +36,7 @@ async function syncRouteToSession(id: string | undefined) {
     await session.switchSession(id);
   } catch (err) {
     console.error("[WorkbenchView] switchSession failed:", err);
-    ui.pushNotification("error", `Session not found: ${id}`);
+    ui.pushNotification("error", t("workbench.sessionNotFound", { id }));
     await router.replace({ name: "workbench" });
   } finally {
     syncing.value = false;

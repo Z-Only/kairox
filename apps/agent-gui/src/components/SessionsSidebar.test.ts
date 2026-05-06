@@ -1,8 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
-import { createRouter, createMemoryHistory } from "vue-router";
+import { mount, flushPromises } from "@vue/test-utils";
+import { defineComponent, h } from "vue";
+import { createRouter, createMemoryHistory, type Router } from "vue-router";
+import { createI18n } from "vue-i18n";
+import {
+  NConfigProvider,
+  NMessageProvider,
+  NDialogProvider,
+  NLoadingBarProvider,
+  NNotificationProvider
+} from "naive-ui";
 import SessionsSidebar from "./SessionsSidebar.vue";
+import en from "@/locales/en.json";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -22,7 +32,7 @@ import { useSessionStore } from "@/stores/session";
 // component shims so we don't pull WorkbenchView (and its dependencies)
 // into store-only sidebar tests. Sidebar tests only need the router
 // plugin present so `useRoute()` / `useRouter()` resolve.
-function makeStubRouter() {
+function makeStubRouter(): Router {
   const stub = { template: "<div />" };
   return createRouter({
     history: createMemoryHistory(),
@@ -40,12 +50,42 @@ function makeStubRouter() {
   });
 }
 
+function makeI18n() {
+  return createI18n({ legacy: false, locale: "en", messages: { en } });
+}
+
+// Wrap the sidebar in NaiveUI's provider stack so `useDialog()` resolves and
+// the migrated `<NScrollbar>` / `<NButton>` / `<NEmpty>` components have
+// access to theme + service contexts (mirrors `AppLayout.vue`).
+const SidebarHarness = defineComponent({
+  name: "SidebarHarness",
+  components: { SessionsSidebar },
+  setup() {
+    return () =>
+      h(NConfigProvider, null, {
+        default: () =>
+          h(NLoadingBarProvider, null, {
+            default: () =>
+              h(NMessageProvider, null, {
+                default: () =>
+                  h(NDialogProvider, null, {
+                    default: () =>
+                      h(NNotificationProvider, null, {
+                        default: () => h(SessionsSidebar)
+                      })
+                  })
+              })
+          })
+      });
+  }
+});
+
 async function mountSidebar() {
   const router = makeStubRouter();
   await router.push({ name: "workbench" });
   await router.isReady();
-  const wrapper = mount(SessionsSidebar, {
-    global: { plugins: [router] }
+  const wrapper = mount(SidebarHarness, {
+    global: { plugins: [router, makeI18n()] }
   });
   return { wrapper, router };
 }
@@ -74,6 +114,7 @@ describe("SessionsSidebar", () => {
 
   it("shows empty hint when no sessions", async () => {
     const { wrapper } = await mountSidebar();
+    // NEmpty renders the description text we passed in.
     expect(wrapper.text()).toContain("No sessions yet");
   });
 
@@ -83,9 +124,13 @@ describe("SessionsSidebar", () => {
       { id: "s1", title: "Session 1", profile: "fast" } as never
     ];
     const { wrapper, router } = await mountSidebar();
-    await wrapper.find(".session-item").trigger("click");
-    // Flush the async click handler so router.push resolves.
-    await new Promise((r) => setTimeout(r, 0));
+    // Use the data-test selector so the assertion does not depend on the
+    // ordering or class names of NaiveUI internals.
+    await wrapper.find('[data-test="session-item"]').trigger("click");
+    // Replace the brittle `setTimeout(0)` flush with `flushPromises()` so
+    // the test stays correct under `vi.useFakeTimers()` — see Task 5
+    // IMPORTANT #4 follow-up.
+    await flushPromises();
     await router.isReady();
     expect(router.currentRoute.value.name).toBe("workbench");
     expect(router.currentRoute.value.params.sessionId).toBe("s1");
@@ -102,7 +147,8 @@ describe("SessionsSidebar", () => {
       }
     ]);
     const { wrapper } = await mountSidebar();
-    await wrapper.find(".new-session-btn").trigger("click");
+    await wrapper.find('[data-test="new-session-btn"]').trigger("click");
+    await flushPromises();
     expect(wrapper.text()).toContain("New Session");
   });
 });

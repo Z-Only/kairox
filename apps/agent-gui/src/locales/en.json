@@ -48,5 +48,11 @@
     "streaming": "Streaming",
     "connecting": "Connecting",
     "error": "Error"
+  },
+  "workbench": {
+    "sessionNotFound": "Session not found: {id}"
+  },
+  "sessions": {
+    "deleteConfirm": "Delete session \"{title}\"? Its conversation history will be permanently removed after 7 days."
   }
 }

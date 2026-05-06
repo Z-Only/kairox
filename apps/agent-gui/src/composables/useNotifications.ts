@@ -3,34 +3,46 @@ import { useUiStore, type NotificationLevel } from "@/stores/ui";
 
 /**
  * Bridges the ui store (source of truth for in-app notifications) with
- * NaiveUI's transient `useMessage()` toasts. Must be called from inside a
- * component that lives below `<NMessageProvider>` (i.e. anywhere under
- * `AppLayout.vue`).
+ * NaiveUI's transient `useMessage()` toasts.
  *
- * The ui store keeps the persistent notification log (`notifications` ref +
- * `pushNotification` action) so existing consumers — including tests that
- * spy on `pushNotification` — keep working unchanged. The transient toast is
- * a presentation layer on top.
+ * **Single visual path.** `notify()` writes to the `ui.notifications` store
+ * exactly once. The `<NotificationToast />` adapter mounted under
+ * `<NMessageProvider>` watches that same store and forwards each new entry
+ * to `useMessage()` for rendering. Therefore: **do NOT also call
+ * `message.*` directly elsewhere** — every transient toast must flow
+ * through `useNotifications.notify()` so the store stays the single source
+ * of truth and no event renders twice.
+ *
+ * **Where to call.** Must be called from inside a component that lives
+ * below `<NMessageProvider>` (i.e. anywhere under `AppLayout.vue`). When
+ * called from outside that subtree (a store, a router guard, or a
+ * top-level service) `useMessage()` would normally throw and crash the
+ * host component; the try/catch below downgrades that to a one-line
+ * `console.error` and returns a `notify()` that only writes to the store
+ * (the `<NotificationToast />` adapter under the provider will still pick
+ * the entry up if mounted later).
  */
 export function useNotifications() {
   const ui = useUiStore();
-  const message = useMessage();
+
+  // `useMessage()` throws when called outside an `<NMessageProvider>`
+  // subtree. We swallow that synchronously so misuse from a store or a
+  // top-level module degrades gracefully instead of crashing the caller.
+  // The return value is intentionally unused here — the adapter under
+  // `<NMessageProvider>` is what actually paints the toast. Calling
+  // `useMessage()` here only validates that the provider is present; the
+  // failure mode is reported once at composable construction time rather
+  // than at first `notify()` call.
+  try {
+    useMessage();
+  } catch {
+    console.error(
+      "[useNotifications] useMessage() is unavailable — useNotifications must be called inside the AppLayout subtree (below <NMessageProvider>). Falling back to store-only notifications."
+    );
+  }
 
   function notify(level: NotificationLevel, content: string) {
     ui.pushNotification(level, content);
-    switch (level) {
-      case "success":
-        message.success(content);
-        break;
-      case "warning":
-        message.warning(content);
-        break;
-      case "error":
-        message.error(content);
-        break;
-      default:
-        message.info(content);
-    }
   }
 
   return { notify };

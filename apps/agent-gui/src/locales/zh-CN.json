@@ -48,5 +48,11 @@
     "streaming": "传输中",
     "connecting": "连接中",
     "error": "错误"
+  },
+  "workbench": {
+    "sessionNotFound": "未找到会话：{id}"
+  },
+  "sessions": {
+    "deleteConfirm": "删除会话「{title}」？该会话的对话记录将在 7 天后被永久移除。"
   }
 }

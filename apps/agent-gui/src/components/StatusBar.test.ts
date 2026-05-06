@@ -40,4 +40,15 @@ describe("StatusBar", () => {
     const wrapper = mount(StatusBar);
     expect(wrapper.findComponent({ name: "McpStatusIndicator" }).exists()).toBe(true);
   });
+
+  it("renders profile, sessions count, streaming and connected status as text", () => {
+    mockedInvoke.mockResolvedValueOnce("Interactive");
+    mockedInvoke.mockResolvedValueOnce([]);
+    const wrapper = mount(StatusBar);
+    const text = wrapper.text();
+    expect(text).toContain("profile:");
+    expect(text).toContain("sessions:");
+    expect(text).toContain("streaming: no");
+    expect(text).toContain("connected: no");
+  });
 });

@@ -104,6 +104,52 @@ describe("deleteSession", () => {
   });
 });
 
+describe("createSession", () => {
+  it("calls start_session, refreshes the session list, resets the projection, and clears the trace", async () => {
+    const session = useSessionStore();
+    // Pre-existing local state that the new action must reset so the
+    // workbench starts clean for the newly-created session. The view layer
+    // must NOT have to do these mutations itself (Task 5 NIT #10).
+    session.projection.messages = [{ role: "user", content: "stale" }];
+    session.projection.token_stream = "stale tokens";
+    session.isStreaming = true;
+    session.streamsByTask.set("t-old", "partial");
+    session.currentProfile = "old";
+
+    mockedInvoke
+      .mockResolvedValueOnce({ id: "s-new", title: "New", profile: "fast" }) // start_session
+      .mockResolvedValueOnce([makeSession("s-new", "New", "fast")] as never[]); // list_sessions
+
+    const result = await session.createSession("fast");
+
+    expect(result).toEqual({ id: "s-new", title: "New", profile: "fast" });
+    expect(session.sessions).toHaveLength(1);
+    expect(session.sessions[0].id).toBe("s-new");
+    expect(session.currentProfile).toBe("fast");
+    // Side effects that used to live in the view (per Task 5 NIT #10) now
+    // belong to the action.
+    expect(session.projection.messages).toEqual([]);
+    expect(session.projection.token_stream).toBe("");
+    expect(session.isStreaming).toBe(false);
+    expect(session.streamsByTask.size).toBe(0);
+
+    // start_session was invoked with the requested profile alias.
+    const startCall = mockedInvoke.mock.calls.find(
+      ([cmd]) => cmd === "start_session"
+    );
+    expect(startCall).toBeDefined();
+    expect(startCall?.[1]).toEqual({ profile: "fast" });
+  });
+
+  it("propagates start_session failures to the caller (the view surfaces them)", async () => {
+    const session = useSessionStore();
+    mockedInvoke.mockRejectedValueOnce(new Error("backend offline"));
+    await expect(session.createSession("fast")).rejects.toThrow(
+      "backend offline"
+    );
+  });
+});
+
 describe("renameSession", () => {
   it("updates local title on success", async () => {
     const session = useSessionStore();

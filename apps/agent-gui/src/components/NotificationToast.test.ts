@@ -1,59 +1,89 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
+
+// `useMessage()` is the only NaiveUI surface this component touches. We mock
+// it with vi.fn-backed level handlers so the test can assert (a) each pushed
+// notification is forwarded exactly once, (b) the store entry is dismissed
+// afterwards so the visual lifecycle is owned by NaiveUI.
+const messageStub = {
+  info: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn()
+};
+
+vi.mock("naive-ui", () => ({
+  useMessage: () => messageStub
+}));
+
 import NotificationToast from "./NotificationToast.vue";
 import { useUiStore } from "@/stores/ui";
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  messageStub.info.mockReset();
+  messageStub.success.mockReset();
+  messageStub.warning.mockReset();
+  messageStub.error.mockReset();
 });
 
-describe("NotificationToast", () => {
-  it("does not render container when no notifications", () => {
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("NotificationToast (useMessage adapter)", () => {
+  it("forwards a pushed info notification to NaiveUI message.info() and clears the store entry", async () => {
+    const ui = useUiStore();
+    mount(NotificationToast);
+
+    ui.pushNotification("info", "hello");
+    await flushPromises();
+
+    expect(messageStub.info).toHaveBeenCalledTimes(1);
+    expect(messageStub.info).toHaveBeenCalledWith("hello");
+    expect(ui.notifications).toEqual([]);
+  });
+
+  it("dispatches each level to its corresponding message.<level>() handler", async () => {
+    const ui = useUiStore();
+    mount(NotificationToast);
+
+    ui.pushNotification("success", "ok");
+    ui.pushNotification("warning", "careful");
+    ui.pushNotification("error", "boom");
+    await flushPromises();
+
+    expect(messageStub.success).toHaveBeenCalledWith("ok");
+    expect(messageStub.warning).toHaveBeenCalledWith("careful");
+    // error level uses an extended duration so callers that catch a failure
+    // get more time to read it; assert via the first positional arg.
+    expect(messageStub.error).toHaveBeenCalledTimes(1);
+    expect(messageStub.error.mock.calls[0][0]).toBe("boom");
+    expect(ui.notifications).toEqual([]);
+  });
+
+  it("does not double-dispatch when the watcher fires again after dismiss", async () => {
+    const ui = useUiStore();
+    mount(NotificationToast);
+
+    ui.pushNotification("info", "once");
+    await flushPromises();
+    // Push another after the first is drained — must dispatch independently.
+    ui.pushNotification("info", "twice");
+    await flushPromises();
+
+    expect(messageStub.info).toHaveBeenCalledTimes(2);
+    expect(messageStub.info).toHaveBeenNthCalledWith(1, "once");
+    expect(messageStub.info).toHaveBeenNthCalledWith(2, "twice");
+    expect(ui.notifications).toEqual([]);
+  });
+
+  it("renders no markup of its own (visual layer is owned by NMessageProvider)", () => {
     const wrapper = mount(NotificationToast);
+    // Comment-only template — wrapper.text() should be empty and there
+    // should be no host elements at all.
+    expect(wrapper.text()).toBe("");
     expect(wrapper.find(".notification-container").exists()).toBe(false);
-  });
-
-  it("renders up to 3 notifications", () => {
-    const ui = useUiStore();
-    ui.pushNotification("error", "Error 1");
-    ui.pushNotification("warning", "Warning 2");
-    ui.pushNotification("info", "Info 3");
-    ui.pushNotification("error", "Error 4");
-    const wrapper = mount(NotificationToast);
-    const items = wrapper.findAll(".notification");
-    expect(items).toHaveLength(3);
-  });
-
-  it("applies CSS class based on notification level", () => {
-    const ui = useUiStore();
-    ui.pushNotification("error", "Oops");
-    ui.pushNotification("warning", "Careful");
-    ui.pushNotification("info", "FYI");
-    const wrapper = mount(NotificationToast);
-    const items = wrapper.findAll(".notification");
-    expect(items[0].classes()).toContain("notification--error");
-    expect(items[1].classes()).toContain("notification--warning");
-    expect(items[2].classes()).toContain("notification--info");
-  });
-
-  it("calls dismissNotification when dismiss button is clicked", async () => {
-    const ui = useUiStore();
-    ui.pushNotification("error", "Dismiss me");
-    const wrapper = mount(NotificationToast);
-    await wrapper.find(".notification-dismiss").trigger("click");
-    expect(ui.notifications).toHaveLength(0);
-  });
-
-  it("shows correct icon for each level", () => {
-    const ui = useUiStore();
-    ui.pushNotification("error", "E");
-    ui.pushNotification("warning", "W");
-    ui.pushNotification("info", "I");
-    const wrapper = mount(NotificationToast);
-    const icons = wrapper.findAll(".notification-icon");
-    expect(icons[0].text()).toBe("✕");
-    expect(icons[1].text()).toBe("⚠");
-    expect(icons[2].text()).toBe("ℹ");
   });
 });
