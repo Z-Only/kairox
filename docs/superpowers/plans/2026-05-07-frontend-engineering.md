@@ -4117,6 +4117,14 @@ These three items must land in the same `refactor(gui): migrate components to na
 **Commit message:** `test(gui): update playwright e2e selectors and tauri-mock for new layout`
 **Why eighth:** after Task 5 (router) + Task 7 (NaiveUI), e2e specs may break because (a) URL paths now use hash routes, (b) old selectors (`button.primary`, `.session-row`) reference vanished classes, (c) `useTauriEvents` listeners changed lifecycle. We update specs + mock together to keep `just test-e2e` green.
 
+> **7c carry-over (must be addressed in this commit, before or alongside the e2e selector sweep):**
+>
+> 1. **[7c IMPORTANT-2 — `CatalogList.vue` hidden `<select data-test="catalog-trust">` is dead code]** The 7c review confirmed no current Vitest spec references `catalog-trust`; verify whether any Playwright e2e fixture uses it. If yes, migrate the fixture to drive `NSelect` via `findComponent({ name: "Select" })` or NSelect's `select-props` and then **delete** the hidden `<select>` from `CatalogList.vue`. If no, just delete the hidden `<select>` (and its `v-model="catalog.filters.trustMin"` binding) — it currently double-binds the same store filter and creates an a11y/maintenance hazard. Rationale: it was kept in 7c only as a defensive bridge; this is the right commit to close it because the e2e sweep is the only place it could matter.
+> 2. **[7c NIT-1 — `<InstallProgress>` lifetime coupled to `<NDrawer>`]** In `apps/agent-gui/src/components/marketplace/CatalogDetail.vue`, `<InstallProgress>` is currently nested inside the `<NDrawer>` subtree, so closing the drawer mid-install unmounts the install-progress modal. Move `<InstallProgress>` up one level — render it from `MarketplaceView.vue` (or `CatalogList.vue`) so it survives drawer close. Update any spec/e2e that asserted on its DOM location at the same time.
+> 3. **[7c NIT-2 — `InstallProgress` NModal `title` does not track outcome]** In `apps/agent-gui/src/components/marketplace/InstallProgress.vue`, replace the static `title="Installing…"` with a `computed` driven by `outcome.kind` (e.g. `"Installing…"` / `"Install complete."` / `"Install failed"`). This is a 5-line change but materially fixes the visual mismatch the 7c review flagged. If the e2e specs assert on the title text, update those assertions in the same commit.
+>
+> All three items are non-blocking for cb8944f's merge but must land before this commit (Task 8) is closed; they are scoped to the e2e/selector surface area Task 8 already touches, so bundling them avoids a separate commit just for ~10 LOC of cleanup.
+
 **Files:**
 
 - Modify: every spec under `apps/agent-gui/e2e/*.spec.ts` (10 files)
@@ -4243,6 +4251,22 @@ These three items must land in the same `refactor(gui): migrate components to na
 > **Optional follow-up from Task 2 code-quality review (non-blocking, do at your discretion while editing `vite.config.ts`):**
 >
 > - In `apps/agent-gui/vite.config.ts`, change `server: { port: 1420, host: "0.0.0.0" }` to `server: { port: 1420, host: "127.0.0.1", strictPort: true }`. Tauri only loads from localhost; binding to `0.0.0.0` exposes the dev server (and HMR socket) to the LAN, which is unintended for a desktop-only project. Anyone needing LAN debugging can override with `vite --host` on the CLI. `strictPort: true` makes port collisions fail loudly instead of silently shifting, which matches Tauri's expectation of a fixed port.
+
+> **7c carry-over (clean-up sweep — fold into this Task 9 commit, the natural home for cross-cutting test infra + i18n cleanup):**
+>
+> 1. **[7c IMPORTANT-1 — `mountWithPlugins` lacks NaiveUI provider option]** `apps/agent-gui/src/components/marketplace/Marketplace.test.ts` mounts `MarketplaceView` (which renders `NTabs`/`NCard`/`NButton`) without an `NConfigProvider` ancestor. Today this passes by NaiveUI's silent fallback to default theme, but a future `useMessage()` call on this view will crash the spec, and the topology is asymmetric vs other view-level specs. Add a `wrapInNConfigProvider?: boolean` (or rename existing `withNaiveProviders` to consistently include `NConfigProvider`) option to `apps/agent-gui/src/test-utils/mount.ts`'s `mountWithPlugins`, default it to `true` for any spec mounting a view-level component, and update `Marketplace.test.ts` (and any other spec the audit reveals) to use it.
+> 2. **[7c IMPORTANT-3 — `CatalogSourcesSettings.vue` `.src-enable` native checkbox]** Migrate the remaining native `<input type="checkbox" :data-test="src-enable-${src.id}">` to `<NCheckbox>` with `data-test` forwarded — same pattern as the 7c IMPORTANT-1 PermissionPrompt fix. The 7c review verified `CatalogSourcesSettings.test.ts` does **not** assert on the checkbox toggle behaviour today, so no test rewrite is required (only confirm `pnpm test` stays green). This eliminates the last "native checkbox island" in the mcp/marketplace surface and removes the dark-theme visual break.
+> 3. **[7c NIT-5/6/7 + Task 7c-NIT-3/4/5/6 i18n sweep]** Convert remaining hardcoded English strings in the mcp + marketplace surface to `t()` calls under existing namespaces (or new `mcp.*` / `marketplace.*` keys), in en.json + zh-CN.json:
+>    - `McpServerManager.vue` `statusLabel(status)` returns (`🟢 Running` / `🟡 Starting` / `🔴 Failed` / `⚪ Stopped`) — split emoji from text and i18n the text
+>    - `CatalogSourcesSettings.vue` `formError` strings (`"id and display_name are required"`, `"URL must start with http:// or https://"`)
+>    - `NEmpty` `description` strings: `CatalogList` (`"No catalog entries match the current filters"`), `InstalledList` (`"No installed servers yet"`), `CatalogSourcesSettings` (`"No remote catalog sources configured."`)
+>    - Original 7c-deferred NIT 3/4/5/6: sessions.newButton bakes `"+ "` prefix into the i18n key (split presentation from value); `StatusBar` body text still hardcoded; `PermissionPrompt` business terms (Allow/Deny/Accept/Reject etc.); `TraceTimeline` tab labels + multi-SFC empty-state strings.
+> 4. **[7c NIT-4 — `MarketplaceView` `<h1>` style consistency]** Change `<h1>{{ t("marketplace.title") }}</h1>` to `<NText tag="h1" :depth="1">…</NText>` (or equivalent), to match `CatalogSourcesSettings`'s `<NText strong tag="h3">`. Trivial visual unification, ~1 line.
+> 5. **[7c NIT-3 — PermissionPrompt `.mcp-trust-check` dead `cursor: pointer`]** After 7c migrated the inner control to `<NCheckbox>`, the wrapper `.mcp-trust-check { cursor: pointer; }` is dead style (clicking the wrapper no longer toggles the checkbox). Remove the `cursor: pointer` declaration from the `.mcp-trust-check` block.
+> 6. **[7c NIT-7 — MemoryBrowser.test comment phrasing]** In `MemoryBrowser.test.ts`, refine the comment that currently reads roughly "the SFC renders multiple internal Select subcomponents" to be precise about which `findComponent({ name: "Select" })` call targets which scope filter. Cosmetic.
+> 7. **[7c NIT-8 — MemoryBrowser.test optional spy enhancement]** In `MemoryBrowser.test.ts`, add `expect(setMemoryFilterSpy).toHaveBeenCalledWith(scope)` after the `update:value` emit to lock the contract between the SFC and the store action, not just rely on the side-effect of `selectedScope.value`.
+>
+> Items 1+2 are IMPORTANT (they close real risks the 7c review surfaced); items 3-7 are NIT and may be split off if the auto-import diff already exceeds the LOC split threshold — in that case, list each deferred item explicitly in the commit message body.
 
 **Files:**
 
