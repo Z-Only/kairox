@@ -1,5 +1,7 @@
+use agent_mcp::catalog::builtin::BuiltinCatalogProvider;
 use agent_mcp::catalog::{
-    CatalogQuery, EnvVarSpec, InstallSpec, RuntimeKind, RuntimeRequirement, ServerEntry, TrustLevel,
+    CatalogProvider, CatalogQuery, EnvVarSpec, InstallSpec, RuntimeKind, RuntimeRequirement,
+    ServerEntry, TrustLevel,
 };
 use std::collections::BTreeMap;
 
@@ -87,4 +89,44 @@ fn builtin_catalog_json_parses() {
             entry.id
         );
     }
+}
+
+#[tokio::test]
+async fn builtin_provider_lists_all_when_query_empty() {
+    let p = BuiltinCatalogProvider::new().expect("builtin loads");
+    let items = p.list(&CatalogQuery::default()).await.unwrap();
+    assert_eq!(items.len(), 24);
+    assert_eq!(p.source_id(), "builtin");
+}
+
+#[tokio::test]
+async fn builtin_provider_filters_by_keyword_and_trust() {
+    let p = BuiltinCatalogProvider::new().unwrap();
+    let only_verified = p
+        .list(&CatalogQuery {
+            trust_min: Some(TrustLevel::Verified),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(!only_verified.is_empty());
+    assert!(only_verified
+        .iter()
+        .all(|e| e.trust == TrustLevel::Verified));
+
+    let by_kw = p
+        .list(&CatalogQuery {
+            keyword: Some("file".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(by_kw.iter().any(|e| e.id == "filesystem"));
+}
+
+#[tokio::test]
+async fn builtin_provider_get_returns_none_for_unknown() {
+    let p = BuiltinCatalogProvider::new().unwrap();
+    assert!(p.get("does-not-exist").await.unwrap().is_none());
+    assert!(p.get("filesystem").await.unwrap().is_some());
 }
