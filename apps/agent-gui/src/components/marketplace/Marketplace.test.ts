@@ -58,6 +58,95 @@ describe("Marketplace.vue", () => {
   });
 });
 
+import { flushPromises } from "@vue/test-utils";
+import { handleSourceFailed } from "../../stores/catalog";
+
+describe("Marketplace.vue — Phase 2 source chips", () => {
+  beforeEach(() => {
+    resetCatalogState();
+    vi.clearAllMocks();
+  });
+
+  it("renders a chip per configured source plus a builtin chip", async () => {
+    vi.mocked(invoke)
+      .mockResolvedValueOnce([] as never) // list_catalog
+      .mockResolvedValueOnce([
+        {
+          id: "smithery",
+          display_name: "Smithery",
+          kind: "smithery",
+          url: "https://x",
+          api_key_env: null,
+          priority: 50,
+          default_trust: "community",
+          enabled: true,
+          cache_ttl_seconds: null,
+          last_error: null
+        }
+      ] as never); // list_catalog_sources
+    const wrapper = mount(Marketplace);
+    await flushPromises();
+    const chips = wrapper.findAll('[data-test^="source-chip-"]');
+    expect(chips.length).toBe(2);
+    expect(wrapper.text()).toContain("Built-in");
+    expect(wrapper.text()).toContain("Smithery");
+  });
+
+  it("shows ⚠ badge when CatalogSourceFailed observed", async () => {
+    vi.mocked(invoke)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([
+        {
+          id: "smithery",
+          display_name: "Smithery",
+          kind: "smithery",
+          url: "https://x",
+          api_key_env: null,
+          priority: 50,
+          default_trust: "community",
+          enabled: true,
+          cache_ttl_seconds: null,
+          last_error: null
+        }
+      ] as never);
+    const wrapper = mount(Marketplace);
+    await flushPromises();
+    handleSourceFailed("smithery", "timeout");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="src-warn-smithery"]').exists()).toBe(true);
+  });
+
+  it("deselecting a chip filters its entries out of CatalogList", async () => {
+    vi.mocked(invoke)
+      .mockResolvedValueOnce([
+        fixtureEntry({ id: "a", source: "builtin", display_name: "A-entry" }),
+        fixtureEntry({ id: "b", source: "smithery", display_name: "B-entry" })
+      ] as never)
+      .mockResolvedValueOnce([
+        {
+          id: "smithery",
+          display_name: "Smithery",
+          kind: "smithery",
+          url: "https://x",
+          api_key_env: null,
+          priority: 50,
+          default_trust: "community",
+          enabled: true,
+          cache_ttl_seconds: null,
+          last_error: null
+        }
+      ] as never);
+    const wrapper = mount(Marketplace);
+    await flushPromises();
+    expect(wrapper.text()).toContain("A-entry");
+    expect(wrapper.text()).toContain("B-entry");
+    await wrapper.find('[data-test="source-chip-builtin"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("A-entry");
+    expect(wrapper.text()).toContain("B-entry");
+  });
+});
+
 describe("CatalogCard.vue", () => {
   it("renders display_name, summary, trust, and tags", () => {
     const wrapper = mount(CatalogCard, {

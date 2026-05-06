@@ -32,6 +32,8 @@ export interface CatalogState {
   // Phase 2: catalog sources
   sources: CatalogSourceViewResponse[];
   sourceFailures: Record<string, string>;
+  /** Source ids currently selected via chip filter. null = all selected. */
+  selectedSources: string[] | null;
 }
 
 const initial = (): CatalogState => ({
@@ -47,7 +49,8 @@ const initial = (): CatalogState => ({
     trustMin: null
   },
   sources: [],
-  sourceFailures: {}
+  sourceFailures: {},
+  selectedSources: null
 });
 
 export const catalogState = reactive<CatalogState>(initial());
@@ -234,3 +237,37 @@ export async function setSourceEnabled(
 export function handleSourceFailed(source: string, error: string): void {
   catalogState.sourceFailures[source] = error;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2: source chip filter
+// ---------------------------------------------------------------------------
+
+/** All available source ids (builtin + remote). */
+export const allSourceIds = computed<string[]>(() => [
+  "builtin",
+  ...catalogState.sources.map((s) => s.id)
+]);
+
+/** Returns true when the given source id is currently active (or all are). */
+export function isSourceSelected(id: string): boolean {
+  if (catalogState.selectedSources === null) return true;
+  return catalogState.selectedSources.includes(id);
+}
+
+/** Toggle a source on/off in the chip filter. */
+export function toggleSource(id: string): void {
+  // Materialise the "all selected" sentinel into an explicit array on first toggle.
+  const current = catalogState.selectedSources ?? allSourceIds.value.slice();
+  const next = current.includes(id)
+    ? current.filter((x) => x !== id)
+    : [...current, id];
+  catalogState.selectedSources = next;
+}
+
+/**
+ * Entries filtered by both client-side filters AND chip selection.
+ * Use this in marketplace components instead of `filteredEntries`.
+ */
+export const visibleEntries = computed<ServerEntryResponse[]>(() =>
+  filteredEntries.value.filter((e) => isSourceSelected(e.source))
+);
