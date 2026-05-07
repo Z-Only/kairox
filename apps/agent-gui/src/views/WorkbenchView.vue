@@ -83,7 +83,7 @@ watch(currentSessionId, (next) => {
   border-left: 1px solid var(--app-border-color);
   overflow: hidden;
 }
-.status-bar {
+:deep(.status-bar) {
   grid-column: 1 / -1;
 }
 </style>

@@ -59,6 +59,7 @@ const themeVars = useThemeVars();
               <RouterView />
               <NotificationToast />
             </div>
+            <NGlobalStyle />
           </NNotificationProvider>
         </NDialogProvider>
       </NMessageProvider>

@@ -20,6 +20,7 @@ const sourceChips = computed(() => [
 
 onMounted(() => {
   void catalog.fetchSources();
+  void catalog.fetchCatalog();
 });
 </script>
 

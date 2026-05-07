@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
 import { NSelect, NTabs, NTabPane } from "naive-ui";
+import MarketplacePane from "@/components/MarketplacePane.vue";
 
 // Hoisted to module scope + `as const` so the option arrays are not rebuilt
 // per-render and their literal types are preserved through the template.
@@ -53,7 +54,7 @@ const { locale, colorMode } = storeToRefs(ui);
       </NTabPane>
 
       <NTabPane name="marketplace" :tab="t('nav.marketplace')">
-        <RouterView />
+        <MarketplacePane />
       </NTabPane>
     </NTabs>
   </section>

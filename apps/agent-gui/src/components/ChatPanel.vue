@@ -134,20 +134,21 @@ watch(
             >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
           >
         </div>
-        <NAlert
+        <NTag
           v-if="session.projection.cancelled"
           type="warning"
-          :show-icon="false"
+          size="small"
+          :bordered="false"
           class="cancelled-marker"
           data-test="cancelled-marker"
         >
           {{ t("chat.cancelled") }}
-        </NAlert>
+        </NTag>
       </div>
     </NScrollbar>
 
     <div class="input-area">
-      <NSpace :wrap="false" align="end" :size="8" :style="{ width: '100%' }">
+      <div class="input-row">
         <NInput
           v-model:value="inputText"
           type="textarea"
@@ -175,7 +176,7 @@ watch(
         >
           {{ t("common.send") }}
         </NButton>
-      </NSpace>
+      </div>
     </div>
   </section>
 </template>
@@ -262,8 +263,14 @@ watch(
   padding: 8px 16px;
   border-top: 1px solid var(--app-border-color, #d7d7d7);
 }
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
 .message-input {
   flex: 1;
+  min-width: 0;
 }
 .markdown-body :deep(pre.hljs) {
   margin: 8px 0;
