@@ -1,1 +1,14 @@
-{}
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "apps/agent-gui/src-tauri/gen/**",
+    "apps/agent-gui/src/generated/**",
+    "dist/**",
+    "coverage/**",
+    "target/**",
+    "node_modules/**",
+    "playwright-report/**",
+    "test-results/**",
+    "crates/agent-mcp/tests/fixtures/**"
+  ]
+}

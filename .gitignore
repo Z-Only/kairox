@@ -49,7 +49,8 @@ apps/agent-gui/src/generated/
 # unplugin-auto-import / unplugin-vue-components generated artifacts
 apps/agent-gui/src/auto-imports.d.ts
 apps/agent-gui/src/components.d.ts
-apps/agent-gui/.eslintrc-auto-import.json
+# Tauri auto-generated code
+apps/agent-gui/src-tauri/gen
 .superpowers/
 .worktrees/
 

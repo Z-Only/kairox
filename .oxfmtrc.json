@@ -1,5 +1,6 @@
 {
   "$schema": "https://oxc.rs/docs/guide/config/node-api.html",
+  "ignorePatterns": ["apps/agent-gui/src-tauri/gen/**", "*.cjs", "Cargo.lock"],
   "semi": true,
   "singleQuote": false,
   "trailingComma": "none"

@@ -76,11 +76,11 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 - **i18n**: vue-i18n v9 (composition API mode). Locale messages under `apps/agent-gui/src/locales/{en,zh-CN}.json`. Only common copy (`common.*`, `nav.*`, `settings.*`, `notifications.*`, `status.*`) is translated; per-feature strings stay inline.
 - **UI library**: NaiveUI. Provider stack lives in `apps/agent-gui/src/layouts/AppLayout.vue` (`NConfigProvider` → `NLoadingBarProvider` → `NMessageProvider` → `NDialogProvider` → `NNotificationProvider`). Theme overrides in `apps/agent-gui/src/styles/naive-theme.ts` mirror existing CSS variables.
 - **Composable utilities**: `@vueuse/core` (whitelisted via auto-import: `useDark`, `useColorMode`, `useStorage`, `useEventListener`, `tryOnScopeDispose`, `useDebounceFn`, `useThrottleFn`, `useIntervalFn`, `useTimeoutFn`, `useClipboard`, `useFocus`).
-- **Auto-imports**: `unplugin-auto-import` + `unplugin-vue-components` are configured in `vite.config.ts` (mirrored in `vitest.config.ts`). The whitelist covers `vue`, `vue-router`, `pinia`, `vue-i18n`, and selected `@vueuse/core` hooks. NaiveUI components are auto-registered in templates; `useMessage`/`useDialog`/`useNotification`/`useLoadingBar` are functions and must still be imported explicitly. Auto-import only transforms `.vue` files (we keep `dirs: []`); plain `.ts` modules — stores, composables, the router, `locales/index.ts`, `main.ts`, test-utils — still import their `vue`/`pinia`/`vue-i18n`/`@vueuse/core` symbols explicitly. Generated artifacts (`src/auto-imports.d.ts`, `src/components.d.ts`, `.eslintrc-auto-import.json`) are gitignored — Vite regenerates them on dev/build.
+- **Auto-imports**: `unplugin-auto-import` + `unplugin-vue-components` are configured in `vite.config.ts` (mirrored in `vitest.config.ts`). The whitelist covers `vue`, `vue-router`, `pinia`, `vue-i18n`, and selected `@vueuse/core` hooks. NaiveUI components are auto-registered in templates; `useMessage`/`useDialog`/`useNotification`/`useLoadingBar` are functions and must still be imported explicitly. Auto-import only transforms `.vue` files (we keep `dirs: []`); plain `.ts` modules — stores, composables, the router, `locales/index.ts`, `main.ts`, test-utils — still import their `vue`/`pinia`/`vue-i18n`/`@vueuse/core` symbols explicitly. Generated artifacts (`src/auto-imports.d.ts`, `src/components.d.ts`) are gitignored — Vite regenerates them on dev/build.
 - **Path alias**: `@/*` resolves to `apps/agent-gui/src/*` (configured in `vite.config.ts` and `tsconfig.json`).
 - **Types**: Centralized in `apps/agent-gui/src/types/`. Mirror Rust event types for Tauri IPC.
 - **Testing**: Vitest with `vitest/globals` + `@vue/test-utils`. Test helper `src/test-utils/mount.ts` exposes `mountWithPlugins()` that injects pinia, i18n, and a memory-history router. Use `@pinia/testing`'s `createTestingPinia()` when you want spy-able actions.
-- **Style**: Prettier + ESLint + Stylelint. See lint-staged config for auto-fix rules.
+- **Style**: oxfmt (formatting) + oxlint (linting) + Stylelint (CSS). See lint-staged config for auto-fix rules.
 
 ### Tauri IPC pattern
 
@@ -264,9 +264,9 @@ cargo test --workspace --all-targets
 Pre-commit hooks (husky + lint-staged) automatically run on staged files:
 
 - `*.rs` → `cargo fmt --all`
-- `*.{json,md}` → `prettier --write`
-- `apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}` → `prettier --write` + `eslint --fix`
-- `apps/agent-gui/src/**/*.{vue,css,scss,sass,less}` → `prettier --write` + `stylelint --fix`
+- `*.{json,md}` → `oxfmt --write`
+- `apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}` → `oxfmt --write` + `oxlint --fix`
+- `apps/agent-gui/src/**/*.{vue,css,scss,sass,less}` → `oxfmt --write` + `stylelint --fix`
 
 ## Version bumping
 
@@ -409,7 +409,7 @@ just test-all              # all test layers: unit + integration + fullstack + G
 - **Don't import what's auto-imported in `.vue` files**: `vue`, `vue-router`, `pinia`, `vue-i18n`, and the whitelisted `@vueuse/core` hooks listed in `vite.config.ts` are globals inside SFCs. Re-importing them in a `.vue` file creates a "duplicate import" warning at lint time. The exception is when shadowing or aliasing — use explicit imports then.
 - **Plain `.ts` modules still need explicit imports**: auto-import only transforms `.vue` files (we keep `dirs: []`). Stores, composables, the router, `locales/index.ts`, `main.ts`, and test-utils MUST keep explicit `import { defineStore } from "pinia"` / `import { ref, computed } from "vue"` / `import { createI18n } from "vue-i18n"` etc. Otherwise the browser hits `Uncaught ReferenceError: createI18n is not defined` at module load and the app never mounts.
 - **Don't import NaiveUI components for templates**: `<NButton>`, `<NCard>`, etc. are auto-resolved by `NaiveUiResolver`. NaiveUI **functions** like `useMessage()`, `useDialog()`, `useNotification()`, `useLoadingBar()` are NOT components and DO need explicit imports.
-- **Don't commit `apps/agent-gui/src/auto-imports.d.ts`, `apps/agent-gui/src/components.d.ts`, or `apps/agent-gui/.eslintrc-auto-import.json`** — they are regenerated on every Vite dev/build and are listed in `.gitignore`.
+- **Don't commit `apps/agent-gui/src/auto-imports.d.ts` or `apps/agent-gui/src/components.d.ts`** — they are regenerated on every Vite dev/build and are listed in `.gitignore`.
 - **Don't reach for `useMessage()` outside a component wrapped by `<NMessageProvider>`** — it returns null and crashes at use. The provider tree lives in `AppLayout.vue`. For tests, mount via `mountWithPlugins({ withNaiveProviders: true })` so the component sees the same provider stack.
 - **Don't navigate via `view = ref('workbench')` patterns**: vue-router is the source of truth. Use `router.push({ name: 'workbench', params: { sessionId } })` and read state via `useRoute()`.
 
@@ -425,7 +425,7 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 | ------------------------- | ------------------------------------------------------- |
 | `just check`              | Full CI gate: format check + lint + test                |
 | `just fmt-check`          | Check formatting (Rust + web)                           |
-| `just lint`               | Run clippy + eslint + stylelint                         |
+| `just lint`               | Run clippy + oxlint + stylelint                         |
 | `just test`               | Run all Rust tests                                      |
 | `just test-gui`           | Run GUI (Vitest) tests                                  |
 | `just fmt`                | Auto-format all code                                    |
