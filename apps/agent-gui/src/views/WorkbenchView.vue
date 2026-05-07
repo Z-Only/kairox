@@ -75,6 +75,7 @@ watch(currentSessionId, (next) => {
   grid-template-columns: 220px 1fr 280px;
   grid-template-rows: 1fr auto;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 .right-sidebar {

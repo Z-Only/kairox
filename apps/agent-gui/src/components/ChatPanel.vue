@@ -157,6 +157,7 @@ watch(
           :disabled="session.isStreaming"
           :autosize="{ minRows: 1, maxRows: 6 }"
           :placeholder="t('chat.placeholder')"
+          :style="{ width: '100%' }"
           @keydown="handleKeydown"
         />
         <NButton

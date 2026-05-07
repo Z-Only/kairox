@@ -10,13 +10,15 @@ const { t } = useI18n();
 const installedCount = computed(() => catalog.installed.length);
 const settingsOpen = ref(false);
 
-const sourceChips = computed(() => [
-  { id: "builtin", display_name: t("marketplace.builtinSource") },
-  ...catalog.sources.map((s) => ({
-    id: s.id,
-    display_name: s.display_name
-  }))
-]);
+const sourceChips = computed(() => {
+  const remoteSources = catalog.sources
+    .filter((s) => s.id !== "builtin")
+    .map((s) => ({
+      id: s.id,
+      display_name: s.display_name
+    }));
+  return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
+});
 
 onMounted(() => {
   void catalog.fetchSources();
