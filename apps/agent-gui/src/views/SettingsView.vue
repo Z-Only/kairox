@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
+import { NSelect, NTabs, NTabPane } from "naive-ui";
 
 // Hoisted to module scope + `as const` so the option arrays are not rebuilt
 // per-render and their literal types are preserved through the template.
@@ -19,10 +20,6 @@ const locales = [
 
 const { t } = useI18n();
 const ui = useUiStore();
-// Read-only refs that drive the `<select>` displayed value. Writes go through
-// the `setLocale` / `setTheme` actions in `@change` so the store action is the
-// single write path (we do NOT use `v-model` here, which would mutate the
-// destructured ref directly and bypass the action).
 const { locale, colorMode } = storeToRefs(ui);
 </script>
 
@@ -30,40 +27,42 @@ const { locale, colorMode } = storeToRefs(ui);
   <section class="settings" data-test="view-settings">
     <h2>{{ t("settings.title") }}</h2>
 
-    <div class="settings__row">
-      <label for="settings-locale">{{ t("settings.locale") }}</label>
-      <select
-        id="settings-locale"
-        :value="locale"
-        data-test="settings-locale"
-        @change="ui.setLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
-      >
-        <option v-for="opt in locales" :key="opt.value" :value="opt.value">
-          {{ t(opt.labelKey) }}
-        </option>
-      </select>
-    </div>
+    <NTabs type="line" animated>
+      <NTabPane name="general" :tab="t('settings.general')">
+        <div class="settings__row">
+          <label for="settings-locale">{{ t("settings.locale") }}</label>
+          <NSelect
+            id="settings-locale"
+            :value="locale"
+            :options="locales.map((opt) => ({ label: t(opt.labelKey), value: opt.value }))"
+            data-test="settings-locale"
+            @update:value="ui.setLocale"
+          />
+        </div>
 
-    <div class="settings__row">
-      <label for="settings-theme">{{ t("settings.theme") }}</label>
-      <select
-        id="settings-theme"
-        :value="colorMode"
-        data-test="settings-theme"
-        @change="ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)"
-      >
-        <option v-for="opt in themes" :key="opt.value" :value="opt.value">
-          {{ t(opt.labelKey) }}
-        </option>
-      </select>
-    </div>
+        <div class="settings__row">
+          <label for="settings-theme">{{ t("settings.theme") }}</label>
+          <NSelect
+            id="settings-theme"
+            :value="colorMode"
+            :options="themes.map((opt) => ({ label: t(opt.labelKey), value: opt.value }))"
+            data-test="settings-theme"
+            @update:value="ui.setTheme"
+          />
+        </div>
+      </NTabPane>
+
+      <NTabPane name="marketplace" :tab="t('nav.marketplace')">
+        <RouterView />
+      </NTabPane>
+    </NTabs>
   </section>
 </template>
 
 <style scoped>
 .settings {
   padding: 16px;
-  max-width: 480px;
+  max-width: 640px;
 }
 .settings__row {
   display: flex;
