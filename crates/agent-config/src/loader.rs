@@ -942,20 +942,8 @@ pub fn default_catalog_sources() -> Vec<CatalogSourceConfig> {
         CatalogSourceConfig {
             id: "smithery".into(),
             display_name: "Smithery Registry".into(),
-            kind: CatalogSourceKind::KairoxJson,
-            url: "https://smithery.ai/api/catalog.json".into(),
-            api_key_env: None,
-            priority: 100,
-            default_trust: "community".into(),
-            enabled: false,
-            cache_ttl_seconds: None,
-        },
-        CatalogSourceConfig {
-            id: "mcp-servers".into(),
-            display_name: "Model Context Protocol Servers".into(),
-            kind: CatalogSourceKind::KairoxJson,
-            url: "https://raw.githubusercontent.com/modelcontextprotocol/servers/main/catalog.json"
-                .into(),
+            kind: CatalogSourceKind::Smithery,
+            url: "https://registry.smithery.ai".into(),
             api_key_env: None,
             priority: 100,
             default_trust: "community".into(),
@@ -989,13 +977,12 @@ mod default_catalog_sources_tests {
     use super::*;
 
     #[test]
-    fn defaults_ship_three_disabled_remote_sources() {
+    fn defaults_ship_disabled_remote_sources() {
         let defaults = default_catalog_sources();
         let ids: Vec<&str> = defaults.iter().map(|s| s.id.as_str()).collect();
         assert!(ids.contains(&"kairox-official"));
         assert!(ids.contains(&"smithery"));
-        assert!(ids.contains(&"mcp-servers"));
-        assert_eq!(defaults.len(), 3);
+        assert_eq!(defaults.len(), 2);
         assert!(
             defaults.iter().all(|s| !s.enabled),
             "defaults must ship disabled so GUI does not auto-fetch on cold start",
@@ -1006,16 +993,19 @@ mod default_catalog_sources_tests {
                 .all(|s| s.url.starts_with("https://") || s.url.starts_with("http://")),
             "default urls must be well-formed http(s)",
         );
+        // Smithery must use the Smithery kind, not KairoxJson.
+        let smithery = defaults.iter().find(|s| s.id == "smithery").unwrap();
+        assert_eq!(smithery.kind, CatalogSourceKind::Smithery);
+        assert_eq!(smithery.url, "https://registry.smithery.ai");
     }
 
     #[test]
-    fn merge_with_defaults_seeds_all_three_when_user_empty() {
+    fn merge_with_defaults_seeds_all_when_user_empty() {
         let merged = merge_with_defaults(Vec::new());
         let ids: Vec<&str> = merged.iter().map(|s| s.id.as_str()).collect();
         assert!(ids.contains(&"kairox-official"));
         assert!(ids.contains(&"smithery"));
-        assert!(ids.contains(&"mcp-servers"));
-        assert_eq!(merged.len(), 3);
+        assert_eq!(merged.len(), 2);
     }
 
     #[test]
@@ -1038,10 +1028,9 @@ mod default_catalog_sources_tests {
         assert_eq!(smithery[0].display_name, "My Smithery Mirror");
         assert!(smithery[0].enabled);
         assert_eq!(smithery[0].priority, 10);
-        // The other two defaults remain.
+        // The other default remains.
         assert!(merged.iter().any(|s| s.id == "kairox-official"));
-        assert!(merged.iter().any(|s| s.id == "mcp-servers"));
-        assert_eq!(merged.len(), 3);
+        assert_eq!(merged.len(), 2);
     }
 
     #[test]
@@ -1059,11 +1048,10 @@ mod default_catalog_sources_tests {
         }];
         let merged = merge_with_defaults(user);
         assert_eq!(merged[0].id, "custom-first");
-        // Remaining 3 are the defaults, in the order returned by
+        // Remaining are the defaults, in the order returned by
         // default_catalog_sources().
-        assert_eq!(merged.len(), 4);
+        assert_eq!(merged.len(), 3);
         assert_eq!(merged[1].id, "kairox-official");
         assert_eq!(merged[2].id, "smithery");
-        assert_eq!(merged[3].id, "mcp-servers");
     }
 }

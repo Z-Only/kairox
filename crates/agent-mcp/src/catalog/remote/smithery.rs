@@ -3,6 +3,12 @@
 //! Adapts the Smithery Registry API (`/servers` endpoint) to our internal
 //! [`ServerEntry`] schema. Mapping is performed by the pure function
 //! [`map_smithery_to_entry`] so it can be unit-tested without any HTTP.
+//!
+//! The list API (`GET /servers?page=N&pageSize=M`) returns a paginated
+//! response with lightweight server metadata (no `connection` / `tags` /
+//! `version` fields). Full details including `connections` are available
+//! via the detail API (`GET /servers/{qualifiedName}`), which is used at
+//! install time rather than during catalog browsing.
 
 use crate::catalog::remote::http_cache::{CachedResponse, HttpResponseCache};
 use crate::catalog::remote::http_client::{GetOpts, SharedHttpClient};
@@ -19,12 +25,33 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_TTL_SECONDS: u64 = 900;
 
+/// Maximum number of servers to fetch from the paginated list API.
+/// Smithery hosts 5 000+ entries; we cap at 200 (top by popularity) to
+/// keep memory and startup latency reasonable.
+const MAX_SERVERS_TO_FETCH: usize = 200;
+
+/// Page size used when fetching the server list.
+const PAGE_SIZE: usize = 100;
+
 #[derive(Debug, Deserialize)]
 struct SmitheryListResponse {
     #[serde(default)]
     servers: Vec<SmitheryServer>,
+    #[serde(default)]
+    pagination: Option<SmitheryPagination>,
 }
 
+#[derive(Debug, Deserialize)]
+struct SmitheryPagination {
+    #[serde(default, rename = "totalPages")]
+    total_pages: u32,
+}
+
+/// Represents a server entry from the Smithery list API.
+///
+/// The list endpoint returns lightweight metadata; `connection`, `tags`,
+/// `version`, `configSchema`, and `requirements` are only available from
+/// the detail endpoint and are therefore `Option` / `Default` here.
 #[derive(Debug, Deserialize)]
 pub(super) struct SmitheryServer {
     #[serde(rename = "qualifiedName")]
@@ -43,11 +70,16 @@ pub(super) struct SmitheryServer {
     pub verified: bool,
     #[serde(default)]
     pub version: Option<String>,
-    pub connection: SmitheryConnection,
+    /// Present in the detail API; absent from the list API.
+    #[serde(default)]
+    pub connection: Option<SmitheryConnection>,
     #[serde(default, rename = "configSchema")]
     pub config_schema: Option<serde_json::Value>,
     #[serde(default)]
     pub requirements: Option<SmitheryRequirements>,
+    /// Whether this server is remotely hosted on Smithery's infrastructure.
+    #[serde(default)]
+    pub remote: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -185,19 +217,43 @@ pub(super) fn map_smithery_to_entry(
         first_sentence(&description, 200)
     };
     let install = match &raw.connection {
-        SmitheryConnection::Stdio { command, args, env } => InstallSpec::Stdio {
+        Some(SmitheryConnection::Stdio { command, args, env }) => InstallSpec::Stdio {
             command: command.clone(),
             args: args.clone(),
             env: env.clone(),
             cwd: None,
         },
-        SmitheryConnection::Http {
+        Some(SmitheryConnection::Http {
             connection_url,
             headers,
-        } => InstallSpec::Sse {
+        }) => InstallSpec::Sse {
             url: connection_url.clone(),
             headers: headers.clone(),
         },
+        None => {
+            // List API omits connection info.  For remotely-hosted servers
+            // Smithery exposes an SSE endpoint derived from the qualified
+            // name.  Non-remote servers will need the detail API at install
+            // time, but we still need a placeholder here so the catalog
+            // card can render.
+            if raw.remote {
+                let slug = raw.qualified_name.replace('/', "--");
+                InstallSpec::Sse {
+                    url: format!("https://{slug}.smithery.ai/sse"),
+                    headers: BTreeMap::new(),
+                }
+            } else {
+                // Non-remote server without connection info — use a
+                // placeholder that the installer will resolve via the
+                // detail API.
+                InstallSpec::Stdio {
+                    command: raw.qualified_name.clone(),
+                    args: vec![],
+                    env: BTreeMap::new(),
+                    cwd: None,
+                }
+            }
+        }
     };
     let claimed_trust = if raw.verified {
         TrustLevel::Verified
@@ -259,41 +315,63 @@ impl SmitheryProvider {
     }
 
     async fn fetch(&self) -> Result<Vec<ServerEntry>, RemoteError> {
-        let url = format!("{}/servers", self.cfg.url.trim_end_matches('/'));
-        let resp = self
-            .http
-            .get_json(
-                &url,
-                GetOpts {
-                    api_key_env: self.cfg.api_key_env.as_deref(),
-                    if_none_match: None,
-                },
-            )
-            .await?;
-        if !(200..300).contains(&resp.status) {
-            return Err(RemoteError::Http(format!("status {}", resp.status)));
-        }
-        let parsed: SmitheryListResponse = serde_json::from_slice(&resp.body)
-            .map_err(|e| RemoteError::Decode(format!("smithery: {e}")))?;
+        let base = format!("{}/servers", self.cfg.url.trim_end_matches('/'));
         let ceiling = self.cfg.default_trust;
-        let mut entries = Vec::with_capacity(parsed.servers.len());
-        for srv in &parsed.servers {
-            match map_smithery_to_entry(&self.cfg.id, srv, ceiling) {
-                Ok(e) => entries.push(e),
-                Err(e) => tracing::warn!(qn=%srv.qualified_name, error=%e, "skipping entry"),
+        let mut all_entries: Vec<ServerEntry> = Vec::new();
+        let mut page: u32 = 1;
+
+        loop {
+            let url = format!("{base}?page={page}&pageSize={PAGE_SIZE}");
+            let resp = self
+                .http
+                .get_json(
+                    &url,
+                    GetOpts {
+                        api_key_env: self.cfg.api_key_env.as_deref(),
+                        if_none_match: None,
+                    },
+                )
+                .await?;
+            if !(200..300).contains(&resp.status) {
+                return Err(RemoteError::Http(format!("status {}", resp.status)));
             }
+            let parsed: SmitheryListResponse = serde_json::from_slice(&resp.body)
+                .map_err(|e| RemoteError::Decode(format!("smithery page {page}: {e}")))?;
+
+            for srv in &parsed.servers {
+                match map_smithery_to_entry(&self.cfg.id, srv, ceiling) {
+                    Ok(e) => all_entries.push(e),
+                    Err(e) => {
+                        tracing::warn!(qn=%srv.qualified_name, error=%e, "skipping entry")
+                    }
+                }
+            }
+
+            let has_more = parsed
+                .pagination
+                .as_ref()
+                .map(|p| page < p.total_pages)
+                .unwrap_or(false);
+
+            if !has_more || all_entries.len() >= MAX_SERVERS_TO_FETCH {
+                break;
+            }
+            page += 1;
         }
+
+        all_entries.truncate(MAX_SERVERS_TO_FETCH);
+
         let cached = CachedResponse {
             fetched_at_unix: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map(|d| d.as_secs())
                 .unwrap_or(0),
-            etag: resp.etag,
+            etag: None,
             last_modified: None,
-            entries: entries.clone(),
+            entries: all_entries.clone(),
         };
         self.cache.put(&self.cfg.id, cached).await?;
-        Ok(entries)
+        Ok(all_entries)
     }
 
     async fn entries(&self) -> CatalogResult<Vec<ServerEntry>> {
@@ -372,15 +450,16 @@ mod tests {
             tags: vec!["dev".into()],
             verified: true,
             version: Some("0.1.0".into()),
-            connection: SmitheryConnection::Stdio {
+            connection: Some(SmitheryConnection::Stdio {
                 command: "npx".into(),
                 args: vec!["-y".into(), "@org/server".into()],
                 env: BTreeMap::new(),
-            },
+            }),
             config_schema: None,
             requirements: Some(SmitheryRequirements {
                 runtimes: vec!["node".into()],
             }),
+            remote: false,
         }
     }
 
@@ -405,14 +484,44 @@ mod tests {
     #[test]
     fn maps_http_server() {
         let mut raw = raw_stdio();
-        raw.connection = SmitheryConnection::Http {
+        raw.connection = Some(SmitheryConnection::Http {
             connection_url: "https://api.example.com/mcp".into(),
             headers: BTreeMap::new(),
-        };
+        });
         let entry = map_smithery_to_entry("smithery", &raw, TrustLevel::Verified).unwrap();
         match entry.install {
             InstallSpec::Sse { url, .. } => assert_eq!(url, "https://api.example.com/mcp"),
             _ => panic!("expected sse"),
+        }
+    }
+
+    #[test]
+    fn remote_server_without_connection_gets_smithery_sse_url() {
+        let mut raw = raw_stdio();
+        raw.connection = None;
+        raw.remote = true;
+        raw.qualified_name = "upstash/context7-mcp".into();
+        let entry = map_smithery_to_entry("smithery", &raw, TrustLevel::Verified).unwrap();
+        match entry.install {
+            InstallSpec::Sse { url, .. } => {
+                assert_eq!(url, "https://upstash--context7-mcp.smithery.ai/sse");
+            }
+            _ => panic!("expected sse for remote server without connection"),
+        }
+    }
+
+    #[test]
+    fn non_remote_server_without_connection_gets_placeholder_stdio() {
+        let mut raw = raw_stdio();
+        raw.connection = None;
+        raw.remote = false;
+        raw.qualified_name = "some/local-tool".into();
+        let entry = map_smithery_to_entry("smithery", &raw, TrustLevel::Verified).unwrap();
+        match &entry.install {
+            InstallSpec::Stdio { command, .. } => {
+                assert_eq!(command, "some/local-tool");
+            }
+            _ => panic!("expected stdio placeholder for non-remote server"),
         }
     }
 
@@ -489,10 +598,9 @@ mod tests {
     async fn end_to_end_list_fetches_and_maps() {
         let server = MockServer::start().await;
         let body = r#"{"servers":[{
-            "qualifiedName":"@a/b","displayName":"Ab","description":"Hi.","tags":[],
-            "verified":true,
-            "connection":{"type":"stdio","command":"echo","args":[],"env":{}}
-        }]}"#;
+            "qualifiedName":"@a/b","displayName":"Ab","description":"Hi.",
+            "verified":true,"remote":false
+        }],"pagination":{"currentPage":1,"pageSize":100,"totalPages":1,"totalCount":1}}"#;
         Mock::given(method("GET"))
             .and(path("/servers"))
             .respond_with(ResponseTemplate::new(200).set_body_string(body))
