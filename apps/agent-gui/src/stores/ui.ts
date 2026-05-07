@@ -79,6 +79,8 @@ export const useUiStore = defineStore("ui", () => {
       message,
       timestamp: Date.now()
     });
+    // Bridge to toast system so every notification also produces a visual toast.
+    addToast(message, level);
   }
 
   function dismissNotification(id: string) {
