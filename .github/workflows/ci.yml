@@ -90,8 +90,8 @@ jobs:
       - name: Install repo tooling deps
         run: pnpm install --frozen-lockfile
 
-      - name: Run ESLint
-        run: pnpm run lint:eslint
+      - name: Run Oxlint
+        run: npx oxlint
 
       - name: Run Stylelint
         run: pnpm run lint:style
