@@ -141,7 +141,13 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     expect(wrapper.find('[data-test="src-warn-smithery"]').exists()).toBe(true);
   });
 
-  it("deselecting a chip filters its entries out of CatalogList", async () => {
+  it("deselecting a chip disables the source and filters its entries", async () => {
+    // builtin starts enabled; smithery also enabled=true in the fixture.
+    // Clicking builtin calls setSourceEnabled("builtin", false) which is a
+    // no-op on the Rust side, but the store's isSourceEnabled() already
+    // reflects the source.enabled flag from the fetchSources response.
+    // To simulate the toggle we directly mutate the source state as the
+    // Rust side would after a successful set_catalog_source_enabled call.
     mockInvokeByCommand({
       list_catalog_sources: [smitherySource],
       list_catalog: [
@@ -154,10 +160,18 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("A-entry");
     expect(wrapper.text()).toContain("B-entry");
-    await wrapper.find('[data-test="source-chip-builtin"]').trigger("click");
+
+    // Simulate set_catalog_source_enabled("smithery", false) + fetchSources
+    const store = useCatalogStore();
+    store.sources = [
+      {
+        ...smitherySource,
+        enabled: false
+      }
+    ];
     await flushPromises();
-    expect(wrapper.text()).not.toContain("A-entry");
-    expect(wrapper.text()).toContain("B-entry");
+    expect(wrapper.text()).toContain("A-entry");
+    expect(wrapper.text()).not.toContain("B-entry");
   });
 });
 

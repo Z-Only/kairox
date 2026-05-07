@@ -45,7 +45,6 @@ export const useCatalogStore = defineStore("catalog", () => {
   });
   const sources = ref<CatalogSourceViewResponse[]>([]);
   const sourceFailures = ref<Record<string, string>>({});
-  const selectedSources = ref<string[] | null>(null);
   // Catalog id whose install-progress modal is currently visible. Hoisted out
   // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
   // the progress modal survives drawer dismissal mid-install. `null` = hidden.
@@ -62,7 +61,6 @@ export const useCatalogStore = defineStore("catalog", () => {
     filters.value = { keyword: "", category: null, trustMin: null };
     sources.value = [];
     sourceFailures.value = {};
-    selectedSources.value = null;
     currentInstallEntryId.value = null;
   }
 
@@ -109,19 +107,21 @@ export const useCatalogStore = defineStore("catalog", () => {
     return ids;
   });
 
-  function isSourceSelected(id: string): boolean {
-    if (selectedSources.value === null) return true;
-    return selectedSources.value.includes(id);
+  function isSourceEnabled(id: string): boolean {
+    const src = sources.value.find((s) => s.id === id);
+    return src != null ? src.enabled : id === "builtin";
   }
 
-  function toggleSource(id: string): void {
-    const current = selectedSources.value ?? allSourceIds.value.slice();
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    selectedSources.value = next;
+  async function toggleSource(id: string): Promise<void> {
+    const currentlyEnabled = isSourceEnabled(id);
+    await setSourceEnabled(id, !currentlyEnabled);
+    if (!currentlyEnabled && id !== "builtin") {
+      await refreshCatalogSource(id);
+    }
   }
 
   const visibleEntries = computed<ServerEntryResponse[]>(() =>
-    filteredEntries.value.filter((e) => isSourceSelected(e.source))
+    filteredEntries.value.filter((e) => isSourceEnabled(e.source))
   );
 
   // ── actions ──────────────────────────────────────────────────────
@@ -268,7 +268,6 @@ export const useCatalogStore = defineStore("catalog", () => {
     filters,
     sources,
     sourceFailures,
-    selectedSources,
     currentInstallEntryId,
     // computeds
     filteredEntries,
@@ -278,7 +277,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     visibleEntries,
     // helpers
     reset,
-    isSourceSelected,
+    isSourceEnabled,
     toggleSource,
     handleSourceFailed,
     requestInstallProgress,

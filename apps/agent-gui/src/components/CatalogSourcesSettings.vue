@@ -76,6 +76,9 @@ async function onRemove(id: string): Promise<void> {
 
 async function onToggle(id: string, enabled: boolean): Promise<void> {
   await catalog.setSourceEnabled(id, enabled);
+  if (enabled && id !== "builtin") {
+    await catalog.refreshCatalogSource(id);
+  }
 }
 </script>
 
@@ -204,7 +207,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 }
 .empty-state {
   font-style: italic;
-  color: var(--app-text-color-3, #999);
+  color: var(--app-text-color-3);
   text-align: center;
   padding: 24px 0;
 }
@@ -212,7 +215,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--app-border-color, #e0e0e0);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
 }
 .src-row {
@@ -220,13 +223,13 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
+  border-bottom: 1px solid var(--app-border-color);
 }
 .src-row:last-child {
   border-bottom: none;
 }
 .src-row:hover {
-  background: var(--app-hover-color, rgba(0, 0, 0, 0.03));
+  background: var(--app-hover-color);
 }
 .src-meta {
   display: flex;
@@ -241,6 +244,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 }
 .src-id {
   font-size: 0.85em;
+  color: var(--app-text-color-2);
 }
 .tag {
   display: inline-block;
@@ -250,20 +254,26 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   line-height: 1.8;
 }
 .tag-info {
-  background: var(--app-info-color-suppl, #e8f4fd);
-  color: var(--app-info-color, #2080f0);
+  background: var(--app-code-bg);
+  color: var(--app-info-color);
 }
 .src-kind {
   text-transform: uppercase;
 }
 .src-url {
   font-size: 0.85em;
+  color: var(--app-text-color-3);
+  text-decoration: none;
+}
+.src-url:hover {
+  color: var(--app-primary-color);
+  text-decoration: underline;
 }
 .src-error {
   font-size: 0.85em;
 }
 .text-error {
-  color: var(--app-error-color, #d03050);
+  color: var(--app-error-color);
 }
 .src-actions {
   display: flex;
@@ -277,24 +287,25 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   gap: 4px;
   font-size: 0.85em;
   cursor: pointer;
+  color: var(--app-text-color);
 }
 .btn {
   padding: 4px 12px;
-  border: 1px solid var(--app-border-color, #e0e0e0);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  background: var(--app-bg-color, #fff);
+  background: var(--app-card-color);
   cursor: pointer;
   font-size: 0.85em;
-  color: var(--app-text-color, inherit);
+  color: var(--app-text-color);
 }
 .btn-primary {
-  background: var(--app-primary-color, #18a058);
+  background: var(--app-primary-color);
   color: #fff;
-  border-color: var(--app-primary-color, #18a058);
+  border-color: var(--app-primary-color);
 }
 .btn-error-ghost {
-  color: var(--app-error-color, #d03050);
-  border-color: var(--app-error-color, #d03050);
+  color: var(--app-error-color);
+  border-color: var(--app-error-color);
   background: transparent;
 }
 .add-form {
@@ -302,7 +313,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px dashed var(--app-border-color, #ddd);
+  border: 1px dashed var(--app-border-color);
   border-radius: 4px;
 }
 .field {
@@ -311,16 +322,16 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   gap: 2px;
 }
 .field-label {
-  color: var(--app-text-color-2, #666);
+  color: var(--app-text-color-2);
   font-size: 0.85em;
 }
 .input {
   padding: 4px 8px;
-  border: 1px solid var(--app-border-color, #e0e0e0);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
   font-size: 0.85em;
-  background: var(--app-bg-color, #fff);
-  color: var(--app-text-color, inherit);
+  background: var(--app-body-color);
+  color: var(--app-text-color);
 }
 .error {
   margin: 0;

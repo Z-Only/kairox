@@ -58,7 +58,7 @@ onMounted(() => {
             v-for="chip in sourceChips"
             :key="chip.id"
             :data-test="`source-chip-${chip.id}`"
-            :class="['btn', 'chip', { active: catalog.isSourceSelected(chip.id) }]"
+            :class="['btn', 'chip', { active: catalog.isSourceEnabled(chip.id) }]"
             @click="catalog.toggleSource(chip.id)"
           >
             {{ chip.display_name }}
@@ -142,11 +142,11 @@ onMounted(() => {
 }
 .btn {
   padding: 4px 12px;
-  border: 1px solid var(--app-border-color, #e0e0e0);
+  border: 1px solid var(--app-border-color);
   border-radius: 14px;
-  background: var(--app-bg-color, #fff);
+  background: var(--app-card-color);
   cursor: pointer;
-  color: var(--app-text-color, inherit);
+  color: var(--app-text-color);
 }
 .btn.active {
   background: var(--app-primary-color, #18a058);
