@@ -22,6 +22,11 @@ const themeOverrides = computed(() => (isDark.value ? darkThemeOverrides : light
 // mode automatically. NaiveUI's internal `--n-*` variables are
 // component-scoped and not part of the public API — never reference them.
 const themeVars = useThemeVars();
+
+// Sync html[data-theme] for CSS selectors that depend on dark/light mode.
+watchEffect(() => {
+  document.documentElement.setAttribute("data-theme", isDark.value ? "dark" : "light");
+});
 </script>
 
 <template>
@@ -34,6 +39,7 @@ const themeVars = useThemeVars();
               class="app-shell"
               data-test="app-shell"
               :style="{
+                '--app-bg': themeVars.bodyColor,
                 '--app-body-color': themeVars.bodyColor,
                 '--app-card-color': themeVars.cardColor,
                 '--app-border-color': themeVars.borderColor,
@@ -44,9 +50,6 @@ const themeVars = useThemeVars();
               <nav class="app-nav" data-test="app-nav">
                 <RouterLink :to="{ name: 'workbench' }" data-test="nav-workbench">
                   {{ t("nav.workbench") }}
-                </RouterLink>
-                <RouterLink :to="{ name: 'marketplace' }" data-test="nav-marketplace">
-                  {{ t("nav.marketplace") }}
                 </RouterLink>
                 <RouterLink :to="{ name: 'settings' }" data-test="nav-settings">
                   {{ t("nav.settings") }}

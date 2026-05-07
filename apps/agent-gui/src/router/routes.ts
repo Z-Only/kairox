@@ -6,15 +6,19 @@ export const routes: RouteRecordRaw[] = [
     component: () => import("@/views/WorkbenchView.vue"),
     props: true
   },
-  {
-    path: "/marketplace",
-    name: "marketplace",
-    component: () => import("@/views/MarketplaceView.vue")
-  },
+  // Legacy redirect for old /marketplace URL
+  { path: "/marketplace", redirect: { name: "settings-marketplace" } },
   {
     path: "/settings",
     name: "settings",
-    component: () => import("@/views/SettingsView.vue")
+    component: () => import("@/views/SettingsView.vue"),
+    children: [
+      {
+        path: "marketplace",
+        name: "settings-marketplace",
+        component: () => import("@/views/MarketplaceView.vue")
+      }
+    ]
   },
   { path: "/:pathMatch(.*)*", redirect: { name: "workbench" } }
 ];
