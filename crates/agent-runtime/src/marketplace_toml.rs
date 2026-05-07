@@ -80,15 +80,28 @@ impl MarketplaceToml {
         })
     }
 
-    /// Toggle the `enabled` field. Errors if the source is not present.
+    /// Toggle the `enabled` field. If the id is not yet present on disk
+    /// but matches one of the shipped defaults
+    /// (see [`agent_config::default_catalog_sources`]), the default is
+    /// seeded into the file with the requested `enabled` value. This lets
+    /// the GUI flip a built-in default to enabled without first having to
+    /// "add" it. Errors only if the id is unknown to both the file and
+    /// the defaults.
     pub fn set_enabled(&self, id: &str, enabled: bool) -> Result<()> {
         self.mutate(|sources| {
-            let s = sources
-                .iter_mut()
+            if let Some(existing) = sources.iter_mut().find(|s| s.id == id) {
+                existing.enabled = enabled;
+                return Ok(());
+            }
+            if let Some(mut seeded) = agent_config::default_catalog_sources()
+                .into_iter()
                 .find(|s| s.id == id)
-                .ok_or_else(|| MarketplaceTomlError::NotFound(id.to_string()))?;
-            s.enabled = enabled;
-            Ok(())
+            {
+                seeded.enabled = enabled;
+                sources.push(seeded);
+                return Ok(());
+            }
+            Err(MarketplaceTomlError::NotFound(id.to_string()))
         })
     }
 

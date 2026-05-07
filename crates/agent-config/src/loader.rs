@@ -914,3 +914,156 @@ args      = []
         assert!(loaded.catalog_sources.is_empty());
     }
 }
+
+// ===========================================================================
+// Phase 2.1: built-in default remote catalog sources
+// ===========================================================================
+
+/// Default remote catalog sources shipped with Kairox so that the GUI
+/// marketplace tab has visible subscriptions out of the box.
+///
+/// All defaults are `enabled = false`; users opt in by enabling them via
+/// the GUI settings page (or by adding overriding entries to
+/// `mcp_servers.toml`). User-defined sources with the same id replace the
+/// matching default — see [`merge_with_defaults`].
+pub fn default_catalog_sources() -> Vec<CatalogSourceConfig> {
+    vec![
+        CatalogSourceConfig {
+            id: "kairox-official".into(),
+            display_name: "Kairox Official Catalog".into(),
+            kind: CatalogSourceKind::KairoxJson,
+            url: "https://catalog.kairox.dev/v1/catalog.json".into(),
+            api_key_env: None,
+            priority: 100,
+            default_trust: "community".into(),
+            enabled: false,
+            cache_ttl_seconds: None,
+        },
+        CatalogSourceConfig {
+            id: "smithery".into(),
+            display_name: "Smithery Registry".into(),
+            kind: CatalogSourceKind::KairoxJson,
+            url: "https://smithery.ai/api/catalog.json".into(),
+            api_key_env: None,
+            priority: 100,
+            default_trust: "community".into(),
+            enabled: false,
+            cache_ttl_seconds: None,
+        },
+        CatalogSourceConfig {
+            id: "mcp-servers".into(),
+            display_name: "Model Context Protocol Servers".into(),
+            kind: CatalogSourceKind::KairoxJson,
+            url: "https://raw.githubusercontent.com/modelcontextprotocol/servers/main/catalog.json"
+                .into(),
+            api_key_env: None,
+            priority: 100,
+            default_trust: "community".into(),
+            enabled: false,
+            cache_ttl_seconds: None,
+        },
+    ]
+}
+
+/// Merge user-configured catalog sources with the built-in defaults.
+///
+/// Strategy: union by `id`. Any default whose `id` already appears in
+/// `user_sources` is dropped (user overrides win), and remaining defaults
+/// are appended after the user-provided entries. This preserves the
+/// user's listing order while ensuring the predefined subscriptions are
+/// always visible in the GUI even when no user config is present.
+pub fn merge_with_defaults(user_sources: Vec<CatalogSourceConfig>) -> Vec<CatalogSourceConfig> {
+    let user_ids: std::collections::HashSet<String> =
+        user_sources.iter().map(|s| s.id.clone()).collect();
+    let mut merged = user_sources;
+    for default in default_catalog_sources() {
+        if !user_ids.contains(&default.id) {
+            merged.push(default);
+        }
+    }
+    merged
+}
+
+#[cfg(test)]
+mod default_catalog_sources_tests {
+    use super::*;
+
+    #[test]
+    fn defaults_ship_three_disabled_remote_sources() {
+        let defaults = default_catalog_sources();
+        let ids: Vec<&str> = defaults.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&"kairox-official"));
+        assert!(ids.contains(&"smithery"));
+        assert!(ids.contains(&"mcp-servers"));
+        assert_eq!(defaults.len(), 3);
+        assert!(
+            defaults.iter().all(|s| !s.enabled),
+            "defaults must ship disabled so GUI does not auto-fetch on cold start",
+        );
+        assert!(
+            defaults
+                .iter()
+                .all(|s| s.url.starts_with("https://") || s.url.starts_with("http://")),
+            "default urls must be well-formed http(s)",
+        );
+    }
+
+    #[test]
+    fn merge_with_defaults_seeds_all_three_when_user_empty() {
+        let merged = merge_with_defaults(Vec::new());
+        let ids: Vec<&str> = merged.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&"kairox-official"));
+        assert!(ids.contains(&"smithery"));
+        assert!(ids.contains(&"mcp-servers"));
+        assert_eq!(merged.len(), 3);
+    }
+
+    #[test]
+    fn merge_with_defaults_user_overrides_default_by_id() {
+        let user = vec![CatalogSourceConfig {
+            id: "smithery".into(),
+            display_name: "My Smithery Mirror".into(),
+            kind: CatalogSourceKind::Smithery,
+            url: "https://my-mirror.example/catalog.json".into(),
+            api_key_env: Some("MY_KEY".into()),
+            priority: 10,
+            default_trust: "verified".into(),
+            enabled: true,
+            cache_ttl_seconds: Some(120),
+        }];
+        let merged = merge_with_defaults(user);
+        // Same id appears exactly once, with user's values intact.
+        let smithery: Vec<_> = merged.iter().filter(|s| s.id == "smithery").collect();
+        assert_eq!(smithery.len(), 1);
+        assert_eq!(smithery[0].display_name, "My Smithery Mirror");
+        assert!(smithery[0].enabled);
+        assert_eq!(smithery[0].priority, 10);
+        // The other two defaults remain.
+        assert!(merged.iter().any(|s| s.id == "kairox-official"));
+        assert!(merged.iter().any(|s| s.id == "mcp-servers"));
+        assert_eq!(merged.len(), 3);
+    }
+
+    #[test]
+    fn merge_with_defaults_preserves_user_ordering_then_appends_defaults() {
+        let user = vec![CatalogSourceConfig {
+            id: "custom-first".into(),
+            display_name: "Custom".into(),
+            kind: CatalogSourceKind::KairoxJson,
+            url: "https://custom.example/c.json".into(),
+            api_key_env: None,
+            priority: 5,
+            default_trust: "community".into(),
+            enabled: true,
+            cache_ttl_seconds: None,
+        }];
+        let merged = merge_with_defaults(user);
+        assert_eq!(merged[0].id, "custom-first");
+        // Remaining 3 are the defaults, in the order returned by
+        // default_catalog_sources().
+        assert_eq!(merged.len(), 4);
+        assert_eq!(merged[1].id, "kairox-official");
+        assert_eq!(merged[2].id, "smithery");
+        assert_eq!(merged[3].id, "mcp-servers");
+    }
+}

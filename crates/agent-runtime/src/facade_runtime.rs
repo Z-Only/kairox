@@ -298,9 +298,15 @@ where
         })?;
 
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
-        let sources = mt
+        let user_sources = mt
             .read_sources()
             .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        // Merge in the shipped defaults so that a user who toggled a
+        // default to enabled (without ever adding a custom override) still
+        // gets a real remote provider built. Defaults whose enabled flag
+        // remains false are filtered out below — the merge is purely a
+        // "make the candidate set complete" step, not auto-fetching.
+        let sources = agent_config::merge_with_defaults(user_sources);
 
         let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();
         let builtin =
@@ -772,17 +778,24 @@ where
         // [mcp_marketplace] section in kairox.toml).
         let builtin_view = builtin_source_view();
 
-        let Some(marketplace_dir) = self.marketplace_dir.as_ref() else {
-            return Ok(vec![builtin_view]);
+        // Even before any marketplace dir is wired, surface the shipped
+        // default remote sources so the GUI marketplace tab has visible
+        // subscriptions out of the box. All defaults are enabled=false,
+        // so this is purely informational until the user opts in.
+        let user_sources = match self.marketplace_dir.as_ref() {
+            Some(dir) => {
+                let mt = crate::marketplace_toml::MarketplaceToml::new(dir);
+                mt.read_sources().map_err(|e| {
+                    agent_core::CoreError::InvalidState(format!("marketplace toml: {e}"))
+                })?
+            }
+            None => Vec::new(),
         };
-        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
-        let sources = mt
-            .read_sources()
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        let merged = agent_config::merge_with_defaults(user_sources);
 
-        let mut out = Vec::with_capacity(sources.len() + 1);
+        let mut out = Vec::with_capacity(merged.len() + 1);
         out.push(builtin_view);
-        for s in sources {
+        for s in merged {
             out.push(catalog_source_to_view(s));
         }
         Ok(out)
