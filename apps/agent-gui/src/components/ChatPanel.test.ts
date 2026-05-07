@@ -109,8 +109,9 @@ describe("ChatPanel", () => {
     });
     await flushPromises();
     // Assert via the native <textarea> element because that's what the
-    // user actually interacts with.
-    const textarea = wrapper.find('[data-test="message-input"] textarea');
+    // user actually interacts with. The data-test attribute lives on the
+    // <textarea> itself (not a wrapper), so we select it directly.
+    const textarea = wrapper.find('textarea[data-test="message-input"]');
     expect(textarea.exists()).toBe(true);
     expect(textarea.attributes("disabled")).toBeDefined();
   });

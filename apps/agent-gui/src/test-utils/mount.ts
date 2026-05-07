@@ -4,7 +4,7 @@
 // imported explicitly.
 import { mount as baseMount, type ComponentMountingOptions } from "@vue/test-utils";
 import type { Component } from "vue";
-import { createPinia, setActivePinia } from "pinia";
+import { createPinia, setActivePinia, getActivePinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import { createRouter, createMemoryHistory, type Router } from "vue-router";
 import en from "@/locales/en.json";
@@ -99,10 +99,12 @@ export function mountWithPlugins<T extends Component>(
   });
   const router = createRouter({ history: createMemoryHistory(), routes });
 
-  // Only register the freshly-created pinia plugin; in `reusePinia`
-  // mode the caller's already-active pinia is picked up via
-  // `getActivePinia()` inside `setup()` — no plugin needed.
-  const plugins = pinia ? [pinia, i18n, router] : [i18n, router];
+  // Always register pinia as a plugin so the Vue Test Utils app instance
+  // makes it available to components. In `reusePinia` mode we re-use the
+  // caller's already-active pinia (preserving pre-mount store mutations);
+  // otherwise we use the freshly-created one.
+  const piniaPlugin = pinia ?? getActivePinia()!;
+  const plugins = [piniaPlugin, i18n, router];
   const wrapper = baseMount(comp as T, {
     ...mountOpts,
     global: {

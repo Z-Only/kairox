@@ -155,16 +155,12 @@ describe("PermissionPrompt MCP trust UI", () => {
     const wrapper = mount(PermissionPrompt, {
       props: { entry: mcpEntry }
     });
-    // Drive the NCheckbox via its component instance (mirrors the 7b
-    // MemoryBrowser pattern) instead of reaching for a raw <input>.
-    // The data-test selector hits the NCheckbox host element; we then
-    // resolve the underlying component to emit its v-model event.
-    const checkbox = wrapper
-      .find('[data-test="trust-server-checkbox"]')
-      .findComponent({ name: "Checkbox" });
+    // The NCheckbox has been replaced with a native <input type="checkbox">.
+    // Drive it via setValue which triggers the "change" event on the
+    // underlying input element.
+    const checkbox = wrapper.find<HTMLInputElement>('input[data-test="trust-server-checkbox"]');
     expect(checkbox.exists()).toBe(true);
-    checkbox.vm.$emit("update:checked", true);
-    await wrapper.vm.$nextTick();
+    await checkbox.setValue(true);
     await wrapper.find(".btn-allow").trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_mcp_1",

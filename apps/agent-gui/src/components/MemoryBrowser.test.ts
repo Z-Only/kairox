@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import MemoryBrowser from "./MemoryBrowser.vue";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { confirmDialogKey } from "@/composables/useConfirm";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -16,8 +17,19 @@ import { useSessionStore } from "@/stores/session";
 
 // MemoryBrowser uses `useI18n()`. `mountWithPlugins` wires the i18n +
 // Pinia + router plugin stack so hooks resolve cleanly inside vitest.
+// We use the extended `MountWithPluginsOptions` shape so that the
+// `global.provide` for `confirmDialogKey` is forwarded correctly inside
+// `mount` and the return type is `{ wrapper, router }`.
 function mountBrowser() {
-  return mountWithPlugins(MemoryBrowser, {});
+  return mountWithPlugins(MemoryBrowser, {
+    mount: {
+      global: {
+        provide: {
+          [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+        }
+      }
+    }
+  });
 }
 
 beforeEach(() => {
@@ -74,31 +86,19 @@ describe("MemoryBrowser", () => {
     expect(wrapper.text()).toContain("user");
   });
 
-  it("changes active scope filter via select component", async () => {
+  it("changes active scope filter via select element", async () => {
     const { wrapper } = mountBrowser();
     await flushPromises();
-    // Look the component up via the stable `data-test` hook on its
-    // root DOM node. Going through the DOM hook gets us the outer
-    // wrapper component whose `update:value` event the template
-    // binds to `handleFilterChange`.
     const memory = useMemoryStore();
-    const selectRoot = wrapper.find('[data-test="memory-scope-select"]');
-    expect(selectRoot.exists()).toBe(true);
-    const select = selectRoot.findComponent({ name: "Select" });
-    expect(select.exists()).toBe(true);
+    const selectEl = wrapper.find('[data-test="memory-scope-select"]');
+    expect(selectEl.exists()).toBe(true);
 
     // Spy on the store action — the SFC's `handleFilterChange` should
     // call `setMemoryFilter(scope)` for every scope the user selects.
-    // Asserting the spy (not just the resulting `memory.filter`
-    // side-effect) locks in the contract between the SFC and the store
-    // action; otherwise a future refactor that mutates `memory.filter`
-    // directly would still pass without going through the action.
-    // (Task 9 carry-over from Task 7c NIT-8.)
     const setFilterSpy = vi.spyOn(memory, "setMemoryFilter");
 
     for (const scope of ["session", "user", "workspace", "all"] as const) {
-      select.vm.$emit("update:value", scope);
-      await flushPromises();
+      await selectEl.setValue(scope);
       expect(setFilterSpy).toHaveBeenCalledWith(scope);
       expect(memory.filter).toBe(scope);
     }

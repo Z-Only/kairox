@@ -18,8 +18,12 @@ import InstalledList from "./InstalledList.vue";
 // would fail with "Need to install with `app.use` function".
 // `mountWithPlugins` wires the shared i18n + Pinia + router stack the same
 // way every other view test does.
+// `reusePinia: true` keeps the Pinia instance created in `beforeEach` so
+// that `useCatalogStore()` calls in the test body and inside the component
+// reference the same store instance.
 function mountMarketplace() {
   return mountWithPlugins(Marketplace, {
+    reusePinia: true,
     initialRoute: "/marketplace"
   }).wrapper;
 }
@@ -84,23 +88,38 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     vi.clearAllMocks();
   });
 
+  // Helper: mock invoke by command name rather than call order.
+  // MarketplacePane uses `v-show` (not `v-if`) so InstalledList and
+  // CatalogList both mount eagerly, each calling invoke in onMounted.
+  // Using `mockResolvedValueOnce` is fragile because the consumption
+  // order depends on Vue's component tree walk. This helper routes
+  // responses by the first positional argument (the Tauri command name).
+  function mockInvokeByCommand(responses: Record<string, unknown>) {
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd in responses) return Promise.resolve(responses[cmd]);
+      return Promise.resolve([]);
+    });
+  }
+
+  const smitherySource = {
+    id: "smithery",
+    display_name: "Smithery",
+    kind: "smithery",
+    url: "https://x",
+    api_key_env: null,
+    priority: 50,
+    default_trust: "community",
+    enabled: true,
+    cache_ttl_seconds: null,
+    last_error: null
+  };
+
   it("renders a chip per configured source plus a builtin chip", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([] as never) // list_catalog
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never); // list_catalog_sources
+    mockInvokeByCommand({
+      list_catalog_sources: [smitherySource],
+      list_catalog: [],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
     const chips = wrapper.findAll('[data-test^="source-chip-"]');
@@ -110,22 +129,11 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
   });
 
   it("shows ⚠ badge when CatalogSourceFailed observed", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([] as never)
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never);
+    mockInvokeByCommand({
+      list_catalog_sources: [smitherySource],
+      list_catalog: [],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
     useCatalogStore().handleSourceFailed("smithery", "timeout");
@@ -134,25 +142,14 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
   });
 
   it("deselecting a chip filters its entries out of CatalogList", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([
+    mockInvokeByCommand({
+      list_catalog_sources: [smitherySource],
+      list_catalog: [
         fixtureEntry({ id: "a", source: "builtin", display_name: "A-entry" }),
         fixtureEntry({ id: "b", source: "smithery", display_name: "B-entry" })
-      ] as never)
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never);
+      ],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
     expect(wrapper.text()).toContain("A-entry");

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { confirmDialogKey } from "@/composables/useConfirm";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -21,7 +22,14 @@ import { useSessionStore } from "@/stores/session";
 // router so the Sidebar's dependencies resolve cleanly.
 async function mountSidebar() {
   const { wrapper, router } = mountWithPlugins(SessionsSidebar, {
-    initialRoute: "/workbench"
+    initialRoute: "/workbench",
+    mount: {
+      global: {
+        provide: {
+          [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+        }
+      }
+    }
   });
   await router.isReady();
   return { wrapper, router };
