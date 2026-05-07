@@ -87,7 +87,7 @@ export const useUiStore = defineStore("ui", () => {
     notifications.value = notifications.value.filter((n) => n.id !== id);
   }
 
-  // ── Toasts (visual notifications, replaces NaiveUI useMessage) ──
+  // ── Toasts (visual notifications) ──
   const toasts = ref<ToastItem[]>([]);
   let toastCounter = 0;
 

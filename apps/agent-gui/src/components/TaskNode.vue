@@ -33,7 +33,7 @@ const roleLabel: Record<string, string> = {
 
 // Inline RGB values are asserted by `TaskNode.test.ts` (jsdom converts hex
 // `#RRGGBB` styles to `rgb(r, g, b)` form). Keep the color literals here so
-// migrating to NaiveUI does not silently change the asserted bytes.
+// future refactors do not silently change the asserted bytes.
 const roleColor: Record<string, string> = {
   Planner: "#0077cc",
   Worker: "#22a06b",

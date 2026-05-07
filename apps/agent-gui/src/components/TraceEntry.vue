@@ -34,7 +34,7 @@ const kindIcon: Record<string, string> = {
          interactions are handled exclusively by PermissionCenter. The
          row's bespoke class names are preserved because the unit tests
          (TraceEntry.test.ts) assert against `.entry-row`, `.entry-status`,
-         `.entry-detail`, and `.entry-duration` — switching to NaiveUI
+         `.entry-detail`, and `.entry-duration` — using CSS-class-based
          primitives inside the row keeps those selectors stable. -->
     <div class="entry-row" @click="toggle">
       <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>

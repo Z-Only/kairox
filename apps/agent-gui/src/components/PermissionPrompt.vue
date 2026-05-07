@@ -83,9 +83,9 @@ async function deny() {
 </script>
 
 <template>
-  <!-- NaiveUI NAlert hosts the whole prompt; .permission-prompt /
-       .memory-prompt wrappers are kept as hook classes so existing
-       tests and any consumer styling can still target them. -->
+  <!-- .permission-prompt / .memory-prompt wrappers are kept as hook
+       classes so existing tests and any consumer styling can still
+       target them. -->
   <div
     :class="['permission-prompt', 'alert', `alert-${alertType}`, isMemory ? 'memory-prompt' : '']"
   >
@@ -109,8 +109,7 @@ async function deny() {
           <div class="permission-meta">{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}</div>
           <!-- MCP-specific UI. The wrapper classes (.mcp-permission-info,
                .mcp-trust-check, .mcp-trusted-badge) are kept verbatim so
-               permission-prompt tests can still query them after the
-               NaiveUI migration. -->
+               permission-prompt tests can still query them. -->
           <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
             <div class="mcp-server-label">
               MCP Server: <strong>{{ mcpServerId }}</strong>
@@ -118,10 +117,8 @@ async function deny() {
                 ✅ Trusted
               </span>
             </div>
-            <!-- NCheckbox replaces the previous native <input type="checkbox">
-                 so the control follows the surrounding NaiveUI dark-theme
-                 palette. The .mcp-trust-check wrapper class is preserved so
-                 layout selectors keep working; tests drive the control via
+            <!-- The .mcp-trust-check wrapper class is preserved so layout
+                 selectors keep working; tests drive the control via
                  [data-test="trust-server-checkbox"] +
                  findComponent({ name: "Checkbox" }) instead of reaching for
                  a raw <input>. -->

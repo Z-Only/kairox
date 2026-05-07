@@ -5,7 +5,6 @@ import SettingsView from "./SettingsView.vue";
 
 function mountSettings() {
   const { wrapper } = mountWithPlugins(SettingsView, {
-    withNaiveProviders: true,
     mount: {
       global: {
         stubs: {
@@ -23,7 +22,7 @@ beforeEach(() => {
 });
 
 describe("SettingsView (Pre-work B regression)", () => {
-  it("renders the locale NSelect with the store value and routes writes through ui.setLocale", async () => {
+  it("renders the locale select with the store value and routes writes through ui.setLocale", async () => {
     const { wrapper, ui } = mountSettings();
 
     const localeSelect = wrapper.find('[data-test="settings-locale"]');
@@ -37,7 +36,7 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(ui.locale).toBe("zh-CN");
   });
 
-  it("renders the theme NSelect with the store value and routes writes through ui.setTheme", async () => {
+  it("renders the theme select with the store value and routes writes through ui.setTheme", async () => {
     const { wrapper, ui } = mountSettings();
 
     const themeSelect = wrapper.find('[data-test="settings-theme"]');
@@ -52,9 +51,7 @@ describe("SettingsView (Pre-work B regression)", () => {
 
   it("renders tabs with General and Marketplace panes", () => {
     const { wrapper } = mountSettings();
-    // NaiveUI components may not expose their internal component name in
-    // test environments. Instead, verify the rendered output contains the
-    // expected tab labels (General and Marketplace).
+    // Verify the rendered output contains the expected tab labels.
     const html = wrapper.html();
     expect(html).toContain("General");
     expect(html).toContain("Marketplace");

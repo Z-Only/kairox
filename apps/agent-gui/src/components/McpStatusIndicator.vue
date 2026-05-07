@@ -33,8 +33,8 @@ const textColorVar = computed(() => {
 <template>
   <!-- Outer span + .mcp-status / .mcp-failed|running|stopped|none class
        hooks are preserved verbatim so the existing test suite (which
-       asserts on these classes) keeps passing after the NaiveUI move.
-       NText handles theme-aware colouring of the label. -->
+       asserts on these classes) keeps passing.
+       Theme-aware colouring of the label is handled via CSS variables. -->
   <span
     class="mcp-status"
     :class="indicatorClass"

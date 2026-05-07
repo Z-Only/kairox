@@ -15,11 +15,11 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
       <!-- Hand-rolled tab strip rather than NTabs because the existing
            unit tests assert against `.tab-group button` selectors and the
            panel below is a 3-way switch over heterogeneous components
-           (TraceEntry list / TaskSteps / MemoryBrowser) — NTabPane's
-           teleport semantics would force every panel to render, which we
-           don't want here. We do upgrade the buttons themselves to
-           NButton so they pick up the NaiveUI theme without touching the
-           tests' active-class assertion. -->
+           (TraceEntry list / TaskSteps / MemoryBrowser) — a tab-pane
+           teleport approach would force every panel to render, which we
+           don't want here. The buttons use shared CSS utility classes
+           for consistent theming without touching the tests' active-class
+           assertion. -->
       <div class="tab-group">
         <button
           class="btn btn-sm"
