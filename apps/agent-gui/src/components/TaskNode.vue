@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import type { TaskTreeNode } from "../stores/taskGraph";
-import { retryTask, cancelTask } from "../stores/taskGraph";
+import type { TaskTreeNode } from "@/stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
+
+const taskGraph = useTaskGraphStore();
 
 const props = defineProps<{
   node: TaskTreeNode;
@@ -30,6 +31,9 @@ const roleLabel: Record<string, string> = {
   Reviewer: "R"
 };
 
+// Inline RGB values are asserted by `TaskNode.test.ts` (jsdom converts hex
+// `#RRGGBB` styles to `rgb(r, g, b)` form). Keep the color literals here so
+// migrating to NaiveUI does not silently change the asserted bytes.
 const roleColor: Record<string, string> = {
   Planner: "#0077cc",
   Worker: "#22a06b",
@@ -67,11 +71,11 @@ function childSummary(): string {
 }
 
 function handleRetry() {
-  retryTask(props.node.task.id);
+  taskGraph.retryTask(props.node.task.id);
 }
 
 function handleCancel() {
-  cancelTask(props.node.task.id);
+  taskGraph.cancelTask(props.node.task.id);
 }
 
 function handleToggle() {
@@ -83,7 +87,10 @@ function handleToggle() {
 
 <template>
   <div class="task-node-wrapper">
-    <div
+    <!-- NCard hosts each row; the .task-node hook class is preserved so
+         existing tests (and any consumer styling) keep matching. The card
+         is borderless because TaskSteps already provides the surface. -->
+    <NCard
       :class="[
         'task-node',
         `task-state-${node.task.state.toLowerCase()}`,
@@ -92,34 +99,79 @@ function handleToggle() {
           'task-interactive': hasChildren || isFailed || isBlocked
         }
       ]"
+      :bordered="false"
+      size="small"
       @click="handleToggle"
     >
-      <span v-if="hasChildren" class="task-expand">
-        {{ isExpanded ? "▾" : "▸" }}
-      </span>
-      <span v-else :style="{ paddingLeft: depth > 0 ? '0' : '12px' }" class="task-expand"> </span>
-      <span v-if="depth > 0" class="task-indent"> {{ "│ ".repeat(depth - 1) }}├─ </span>
-      <span class="task-status">{{ statusIcon[node.task.state] || "•" }}</span>
-      <span class="task-role" :style="{ backgroundColor: badgeColor }">
-        {{ agentBadge }}
-      </span>
-      <span class="task-title">{{ node.task.title }}</span>
-      <span v-if="retryLabel()" class="task-retry">{{ retryLabel() }}</span>
-      <span v-if="hasChildren && !isExpanded" class="task-summary">
-        {{ childSummary() }}
-      </span>
-      <span v-if="node.task.state === 'Running'" class="task-running"> running... </span>
-      <span v-if="isFailed" class="task-actions">
-        <button title="Retry task" class="btn-retry" @click.stop="handleRetry">↻</button>
-        <button title="Cancel task" class="btn-cancel" @click.stop="handleCancel">✕</button>
-      </span>
-      <span v-if="isBlocked" class="task-actions">
-        <button title="Cancel blocked task" class="btn-cancel" @click.stop="handleCancel">✕</button>
-      </span>
-    </div>
+      <NSpace align="center" :size="4" :wrap="false" class="task-row">
+        <span v-if="hasChildren" class="task-expand">
+          {{ isExpanded ? "▾" : "▸" }}
+        </span>
+        <span v-else :style="{ paddingLeft: depth > 0 ? '0' : '12px' }" class="task-expand"> </span>
+        <span v-if="depth > 0" class="task-indent"> {{ "│ ".repeat(depth - 1) }}├─ </span>
+        <span class="task-status">
+          {{ statusIcon[node.task.state] || "•" }}
+        </span>
+        <!-- Inline `background-color` is preserved instead of using NTag's
+             `color` prop because the test asserts the inline `style`
+             attribute literal directly. -->
+        <span class="task-role" :style="{ backgroundColor: badgeColor }">
+          {{ agentBadge }}
+        </span>
+        <NText class="task-title">{{ node.task.title }}</NText>
+        <NTag v-if="retryLabel()" size="small" type="warning" :bordered="false" class="task-retry">
+          {{ retryLabel() }}
+        </NTag>
+        <NText v-if="hasChildren && !isExpanded" depth="3" class="task-summary">
+          {{ childSummary() }}
+        </NText>
+        <NText v-if="node.task.state === 'Running'" type="info" class="task-running">
+          running...
+        </NText>
+        <NSpace v-if="isFailed" :size="2" :wrap="false" class="task-actions">
+          <!-- NButton renders an inner <button>; the .btn-retry / .btn-cancel
+               wrapper classes preserve the existing test selectors. -->
+          <NButton
+            quaternary
+            circle
+            size="tiny"
+            title="Retry task"
+            class="btn-retry"
+            @click.stop="handleRetry"
+          >
+            ↻
+          </NButton>
+          <NButton
+            quaternary
+            circle
+            size="tiny"
+            title="Cancel task"
+            class="btn-cancel"
+            @click.stop="handleCancel"
+          >
+            ✕
+          </NButton>
+        </NSpace>
+        <NSpace v-if="isBlocked" :size="2" :wrap="false" class="task-actions">
+          <NButton
+            quaternary
+            circle
+            size="tiny"
+            title="Cancel blocked task"
+            class="btn-cancel"
+            @click.stop="handleCancel"
+          >
+            ✕
+          </NButton>
+        </NSpace>
+      </NSpace>
+    </NCard>
     <div v-if="node.task.error" class="task-error" :style="{ paddingLeft: `${depth * 16 + 8}px` }">
-      <span class="task-error-text">{{ node.task.error }}</span>
+      <NText type="error" class="task-error-text">
+        {{ node.task.error }}
+      </NText>
     </div>
+    <NDivider v-if="depth === 0 && isExpanded && hasChildren" class="task-divider" />
     <div v-if="isExpanded && hasChildren" class="task-children">
       <TaskNode
         v-for="child in node.children"
@@ -138,28 +190,30 @@ function handleToggle() {
   /* Container for node + children */
 }
 .task-node {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
   font-size: 12px;
   cursor: default;
-  min-height: 28px;
+}
+.task-node :deep(.n-card__content) {
+  padding: 4px 8px;
 }
 .task-interactive {
   cursor: pointer;
 }
 .task-interactive:hover {
-  background: #f0f4f8;
+  background: var(--app-hover-color, #f0f4f8);
+}
+.task-row {
+  min-height: 20px;
+  width: 100%;
 }
 .task-expand {
   width: 12px;
   font-size: 10px;
-  color: #777;
+  color: var(--app-text-color-3, #777);
   flex-shrink: 0;
 }
 .task-indent {
-  color: #ccc;
+  color: var(--app-divider-color, #ccc);
   font-size: 11px;
   flex-shrink: 0;
   white-space: pre;
@@ -187,47 +241,19 @@ function handleToggle() {
 }
 .task-retry {
   font-size: 10px;
-  color: #b45309;
   flex-shrink: 0;
 }
 .task-summary {
   font-size: 10px;
-  color: #777;
   flex-shrink: 0;
 }
 .task-running {
   font-size: 10px;
-  color: #0077cc;
   flex-shrink: 0;
 }
 .task-actions {
-  display: flex;
-  gap: 2px;
   flex-shrink: 0;
   margin-left: 4px;
-}
-.btn-retry,
-.btn-cancel {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0 4px;
-  border-radius: 3px;
-  line-height: 16px;
-}
-.btn-retry {
-  color: #0077cc;
-}
-.btn-retry:hover {
-  background: #e0f0ff;
-}
-.btn-cancel {
-  color: #999;
-}
-.btn-cancel:hover {
-  color: #cc3333;
-  background: #fff0f0;
 }
 .task-error {
   display: flex;
@@ -235,8 +261,7 @@ function handleToggle() {
 }
 .task-error-text {
   font-size: 11px;
-  color: #cc3333;
-  background: #fff5f5;
+  background: var(--app-error-bg, #fff5f5);
   border-radius: 3px;
   padding: 2px 6px;
   max-width: 100%;
@@ -244,14 +269,17 @@ function handleToggle() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.task-divider {
+  margin: 4px 0;
+}
 .task-state-failed .task-title {
-  color: #cc3333;
+  color: var(--app-error-color, #cc3333);
 }
 .task-state-blocked .task-title {
-  color: #b45309;
+  color: var(--app-warning-color, #b45309);
 }
 .task-state-skipped .task-title {
-  color: #888;
+  color: var(--app-text-color-3, #888);
 }
 .task-children {
   /* N-level nesting via recursive TaskNode */

@@ -1,33 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
+import { createUiStoreMock } from "@/test-utils/uiMock";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn()
 }));
 
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
+const pushNotificationSpy = vi.fn();
+vi.mock("@/stores/ui", () => ({
+  useUiStore: () => createUiStoreMock({ pushNotification: pushNotificationSpy })
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-const mockedInvoke = vi.mocked(invoke);
+import { useCatalogStore } from "@/stores/catalog";
 
-import {
-  catalogState,
-  filteredEntries,
-  fetchCatalog,
-  fetchInstalled,
-  installEntry,
-  uninstallEntry,
-  refreshCatalogSource,
-  resetCatalogState,
-  fetchSources,
-  addSource,
-  removeSource,
-  setSourceEnabled,
-  handleSourceFailed
-} from "./catalog";
+const mockedInvoke = vi.mocked(invoke);
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
   id: "filesystem",
@@ -50,21 +37,24 @@ const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
 
 describe("catalog store", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
+    pushNotificationSpy.mockClear();
   });
 
   it("loads entries via list_catalog", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke.mockResolvedValueOnce([fixtureEntry()] as never);
-    await fetchCatalog();
+    await catalog.fetchCatalog();
     expect(mockedInvoke).toHaveBeenCalledWith("list_catalog", {
       query: expect.any(Object)
     });
-    expect(catalogState.entries.length).toBe(1);
-    expect(catalogState.entries[0].id).toBe("filesystem");
+    expect(catalog.entries.length).toBe(1);
+    expect(catalog.entries[0].id).toBe("filesystem");
   });
 
   it("install dispatches install_catalog_entry and stores outcome", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke
       .mockResolvedValueOnce({
         kind: "installed",
@@ -75,7 +65,7 @@ describe("catalog store", () => {
       } as never)
       .mockResolvedValueOnce([] as never); // refreshInstalled
 
-    const outcome = await installEntry({
+    const outcome = await catalog.installEntry({
       catalog_id: "filesystem",
       source: "builtin",
       server_id_override: null,
@@ -84,8 +74,8 @@ describe("catalog store", () => {
       auto_start: true
     });
 
-    expect(outcome.kind).toBe("installed");
-    expect(catalogState.installState["filesystem"]).toEqual({
+    expect(outcome?.kind).toBe("installed");
+    expect(catalog.installState["filesystem"]).toEqual({
       kind: "installed",
       server_id: "filesystem",
       started: true,
@@ -95,7 +85,8 @@ describe("catalog store", () => {
   });
 
   it("filters by keyword + trust client-side", () => {
-    catalogState.entries = [
+    const catalog = useCatalogStore();
+    catalog.entries = [
       fixtureEntry({
         id: "a",
         display_name: "Alpha",
@@ -111,13 +102,14 @@ describe("catalog store", () => {
         trust: "community"
       })
     ];
-    catalogState.filters.keyword = "alpha";
-    catalogState.filters.trustMin = "verified";
-    expect(filteredEntries.value.map((e) => e.id)).toEqual(["a"]);
+    catalog.filters.keyword = "alpha";
+    catalog.filters.trustMin = "verified";
+    expect(catalog.filteredEntries.map((e) => e.id)).toEqual(["a"]);
   });
 
   it("uninstall removes from installState and refreshes installed", async () => {
-    catalogState.installState["filesystem"] = {
+    const catalog = useCatalogStore();
+    catalog.installState["filesystem"] = {
       kind: "installed",
       server_id: "filesystem",
       started: true,
@@ -128,20 +120,21 @@ describe("catalog store", () => {
       .mockResolvedValueOnce(undefined as never) // uninstall_catalog_entry
       .mockResolvedValueOnce([] as never); // list_installed_entries
 
-    await uninstallEntry("filesystem");
+    await catalog.uninstallEntry("filesystem");
 
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "uninstall_catalog_entry", {
       serverId: "filesystem"
     });
-    expect(catalogState.installState["filesystem"]).toBeUndefined();
+    expect(catalog.installState["filesystem"]).toBeUndefined();
   });
 
   it("refreshCatalogSource calls refresh_catalog then re-fetches", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke
       .mockResolvedValueOnce(undefined as never) // refresh_catalog
       .mockResolvedValueOnce([] as never); // list_catalog
 
-    await refreshCatalogSource("builtin");
+    await catalog.refreshCatalogSource("builtin");
 
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "refresh_catalog", {
       source: "builtin"
@@ -152,6 +145,7 @@ describe("catalog store", () => {
   });
 
   it("fetchInstalled populates installed list", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke.mockResolvedValueOnce([
       {
         server_id: "filesystem",
@@ -162,9 +156,9 @@ describe("catalog store", () => {
         running: true
       }
     ] as never);
-    await fetchInstalled();
-    expect(catalogState.installed.length).toBe(1);
-    expect(catalogState.installed[0].server_id).toBe("filesystem");
+    await catalog.fetchInstalled();
+    expect(catalog.installed.length).toBe(1);
+    expect(catalog.installed[0].server_id).toBe("filesystem");
   });
 });
 
@@ -183,23 +177,26 @@ const sampleSource = {
 
 describe("catalog store — Phase 2 sources", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
+    pushNotificationSpy.mockClear();
   });
 
   it("fetchSources loads sources via list_catalog_sources", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke.mockResolvedValueOnce([sampleSource] as never);
-    await fetchSources();
+    await catalog.fetchSources();
     expect(mockedInvoke).toHaveBeenCalledWith("list_catalog_sources");
-    expect(catalogState.sources).toHaveLength(1);
-    expect(catalogState.sources[0].id).toBe("smithery");
+    expect(catalog.sources).toHaveLength(1);
+    expect(catalog.sources[0].id).toBe("smithery");
   });
 
   it("addSource calls add_catalog_source then re-fetches", async () => {
+    const catalog = useCatalogStore();
     mockedInvoke
       .mockResolvedValueOnce(undefined as never)
       .mockResolvedValueOnce([sampleSource] as never);
-    await addSource({
+    await catalog.addSource({
       id: "smithery",
       display_name: "Smithery",
       kind: "smithery",
@@ -214,34 +211,37 @@ describe("catalog store — Phase 2 sources", () => {
       request: expect.objectContaining({ id: "smithery" })
     });
     expect(mockedInvoke).toHaveBeenNthCalledWith(2, "list_catalog_sources");
-    expect(catalogState.sources).toHaveLength(1);
+    expect(catalog.sources).toHaveLength(1);
   });
 
   it("removeSource calls remove_catalog_source then re-fetches", async () => {
-    catalogState.sources = [sampleSource];
+    const catalog = useCatalogStore();
+    catalog.sources = [sampleSource];
     mockedInvoke.mockResolvedValueOnce(undefined as never).mockResolvedValueOnce([] as never);
-    await removeSource("smithery");
+    await catalog.removeSource("smithery");
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "remove_catalog_source", {
       id: "smithery"
     });
-    expect(catalogState.sources).toHaveLength(0);
+    expect(catalog.sources).toHaveLength(0);
   });
 
   it("setSourceEnabled toggles a source and re-fetches", async () => {
-    catalogState.sources = [sampleSource];
+    const catalog = useCatalogStore();
+    catalog.sources = [sampleSource];
     mockedInvoke
       .mockResolvedValueOnce(undefined as never)
       .mockResolvedValueOnce([{ ...sampleSource, enabled: false }] as never);
-    await setSourceEnabled("smithery", false);
+    await catalog.setSourceEnabled("smithery", false);
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_catalog_source_enabled", {
       id: "smithery",
       enabled: false
     });
-    expect(catalogState.sources[0].enabled).toBe(false);
+    expect(catalog.sources[0].enabled).toBe(false);
   });
 
   it("handleSourceFailed records sourceFailures keyed by source id", () => {
-    handleSourceFailed("smithery", "timeout");
-    expect(catalogState.sourceFailures.smithery).toBe("timeout");
+    const catalog = useCatalogStore();
+    catalog.handleSourceFailed("smithery", "timeout");
+    expect(catalog.sourceFailures.smithery).toBe("timeout");
   });
 });

@@ -1,0 +1,145 @@
+{
+  "common": {
+    "send": "发送",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "deleteConfirm": "删除「{name}」？此操作无法撤销。",
+    "save": "保存",
+    "edit": "编辑",
+    "retry": "重试",
+    "close": "关闭",
+    "copy": "复制",
+    "loading": "加载中…",
+    "empty": "暂无内容",
+    "error": "错误",
+    "ok": "好",
+    "yes": "是",
+    "no": "否",
+    "search": "搜索",
+    "refresh": "刷新"
+  },
+  "memory": {
+    "header": "记忆",
+    "scopeAll": "全部",
+    "scopeSession": "会话",
+    "scopeUser": "用户",
+    "scopeWorkspace": "工作区",
+    "searchPlaceholder": "搜索记忆…",
+    "emptyHint": "暂无记忆",
+    "deleteConfirm": "删除这条记忆？"
+  },
+  "nav": {
+    "workbench": "工作台",
+    "marketplace": "应用市场",
+    "settings": "设置"
+  },
+  "settings": {
+    "title": "设置",
+    "locale": "语言",
+    "localeEn": "English",
+    "localeZh": "中文（简体）",
+    "theme": "主题",
+    "themeAuto": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "build": "构建信息",
+    "buildVersion": "版本",
+    "buildCommit": "提交",
+    "buildBuiltAt": "构建时间"
+  },
+  "notifications": {
+    "sessionError": "会话错误",
+    "copySuccess": "已复制到剪贴板",
+    "copyFailed": "复制失败"
+  },
+  "status": {
+    "ready": "就绪",
+    "streaming": "传输中",
+    "connecting": "连接中",
+    "error": "错误",
+    "activeProfile": "当前 Profile"
+  },
+  "workbench": {
+    "sessionNotFound": "未找到会话：{id}"
+  },
+  "sessions": {
+    "deleteConfirm": "删除会话「{title}」？该会话的对话记录将在 7 天后被永久移除。",
+    "newButton": "新建",
+    "newButtonPrefix": "+ ",
+    "createButton": "创建",
+    "cancelButton": "取消",
+    "renameTitle": "重命名",
+    "deleteTitle": "删除",
+    "emptyHint": "暂无会话",
+    "newDialogTitle": "新建会话",
+    "profileLabel": "Profile：",
+    "header": "会话"
+  },
+  "chat": {
+    "header": "对话",
+    "placeholder": "请输入消息…",
+    "cancelled": "[已取消]",
+    "roleYou": "你",
+    "roleAgent": "智能体",
+    "sendFailed": "发送消息失败：{error}",
+    "cancelFailed": "取消失败：{error}"
+  },
+  "marketplace": {
+    "title": "应用市场",
+    "tabBrowse": "浏览",
+    "tabInstalled": "已安装（{count}）",
+    "sourceSettingsAria": "目录源设置",
+    "builtinSource": "内置",
+    "catalogEmpty": "没有符合当前筛选条件的目录条目",
+    "installedEmpty": "暂无已安装的服务",
+    "sourcesEmpty": "尚未配置远程目录源。",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id 和 display_name 必填",
+      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
+    },
+    "install": {
+      "titleInstalling": "安装中…",
+      "titleComplete": "安装完成。",
+      "titleFailed": "安装失败",
+      "alertInstalled": "安装完成。",
+      "alertAlreadyInstalled": "已安装。",
+      "alertMissingRuntimes": "缺少运行时：{runtimes}",
+      "alertMissingEnv": "需要的环境变量：{keys}",
+      "alertUnexpected": "安装以未预期的状态结束。",
+      "stepDetectRuntime": "检测运行时",
+      "stepWriteConfig": "写入配置",
+      "stepStartServer": "启动服务",
+      "anotherInProgress": "另一项安装正在进行中。"
+    }
+  },
+  "mcp": {
+    "statusRunning": "运行中",
+    "statusStarting": "启动中",
+    "statusFailed": "失败",
+    "statusStopped": "已停止"
+  },
+  "trace": {
+    "tabTrace": "追踪",
+    "tabTasks": "任务",
+    "tabMemory": "记忆",
+    "emptyTrace": "暂无追踪事件"
+  },
+  "permission": {
+    "allow": "允许",
+    "deny": "拒绝",
+    "accept": "接受",
+    "reject": "拒绝",
+    "titlePermissionRequired": "需要权限",
+    "titleMemoryProposed": "提议保存记忆"
+  },
+  "statusBar": {
+    "profile": "profile: {profile}",
+    "sessions": "会话数: {count}",
+    "streamingYes": "传输中: 是",
+    "streamingNo": "传输中: 否",
+    "connectedYes": "已连接: 是",
+    "connectedNo": "已连接: 否",
+    "mode": "模式: {mode}"
+  }
+}

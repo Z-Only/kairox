@@ -1,14 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mount, flushPromises } from "@vue/test-utils";
+import { setActivePinia, createPinia } from "pinia";
+import { flushPromises } from "@vue/test-utils";
 import CatalogSourcesSettings from "./CatalogSourcesSettings.vue";
-import { resetCatalogState } from "../stores/catalog";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// `CatalogSourcesSettings.vue` calls `useI18n()`, which requires a Vue plugin
+// install — bare `mount()` throws "Need to install with `app.use` function".
+// `mountWithPlugins` installs i18n + router; `reusePinia: true` is critical
+// because each test's `beforeEach` already calls `setActivePinia(createPinia())`,
+// and we don't want `mountWithPlugins` to wipe those store mutations.
+//
+// Passing the extended-options shape returns `{ wrapper, router }`; we
+// unwrap `.wrapper` so call-sites stay drop-in compatible with the prior
+// `mount(...)` usage.
+const mount = (comp: typeof CatalogSourcesSettings) =>
+  mountWithPlugins(comp, { reusePinia: true }).wrapper;
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
@@ -28,7 +36,7 @@ const sampleSource = {
 
 describe("CatalogSourcesSettings.vue", () => {
   beforeEach(() => {
-    resetCatalogState();
+    setActivePinia(createPinia());
     vi.clearAllMocks();
   });
 

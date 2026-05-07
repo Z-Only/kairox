@@ -12,14 +12,23 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
+// Selector notes after Task 7 NaiveUI migration:
+//   - The right-sidebar tab strip in TraceTimeline.vue still uses NButton
+//     with `:class="{ active }"` forwarded to the root, so `.tab-group button`
+//     keeps locating the Trace/Tasks/Memory toggles.
+//   - MemoryBrowser preserves `.memory-browser`, `.memory-header`,
+//     `.memory-empty`, `.memory-item`, `.refresh-btn` class hooks.
+//   - The empty-state copy ("No memories…") comes from the i18n
+//     `memory.emptyHint` key passed as the NEmpty `description`.
+
 test("memory browser tab is accessible from trace timeline", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Click the Memory tab
-  await page.locator(".tab-group >> button", { hasText: "Memory" }).click();
+  await page.locator(".tab-group button", { hasText: "Memory" }).click();
 
   // Memory browser should now be visible
   await expect(page.locator(".memory-browser")).toBeVisible();
@@ -28,21 +37,22 @@ test("memory browser tab is accessible from trace timeline", async ({ page }) =>
 
 test("memory browser shows empty state when no memories", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to memory tab
-  await page.locator(".tab-group >> button", { hasText: "Memory" }).click();
+  await page.locator(".tab-group button", { hasText: "Memory" }).click();
   await expect(page.locator(".memory-browser")).toBeVisible();
 
-  // Should show empty state
+  // Should show empty state. NEmpty renders the copy via its `description`
+  // prop, so the literal "No memories" still appears inside `.memory-empty`.
   await expect(page.locator(".memory-empty")).toContainText("No memories");
 });
 
 test("memory browser displays memories from mock state", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -75,10 +85,12 @@ test("memory browser displays memories from mock state", async ({ page }) => {
   });
 
   // Navigate to memory tab and trigger refresh
-  await page.locator(".tab-group >> button", { hasText: "Memory" }).click();
+  await page.locator(".tab-group button", { hasText: "Memory" }).click();
   await expect(page.locator(".memory-browser")).toBeVisible();
 
-  // Click refresh button to reload memories from mock
+  // Click refresh button to reload memories from mock. NButton forwards
+  // the `.refresh-btn` class to its root <button>, so the legacy selector
+  // still resolves to a clickable element.
   await page.locator(".refresh-btn").click();
 
   // Should show the 3 memories
@@ -87,7 +99,7 @@ test("memory browser displays memories from mock state", async ({ page }) => {
 
 test("query_memories mock returns correct data", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -132,7 +144,7 @@ test("query_memories mock returns correct data", async ({ page }) => {
 
 test("delete_memory removes the memory from mock state", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 

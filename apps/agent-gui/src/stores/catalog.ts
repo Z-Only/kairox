@@ -1,4 +1,8 @@
-import { reactive, computed } from "vue";
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Pinia stores are plain `.ts` modules and
+// must import `defineStore`, `ref`, and `computed` explicitly.
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   ServerEntryResponse,
@@ -8,11 +12,10 @@ import type {
   CatalogQueryRequest,
   CatalogSourceViewResponse,
   AddCatalogSourceRequestPayload
-} from "../generated/commands";
-import { addNotification } from "../composables/useNotifications";
+} from "@/generated/commands";
+import { useUiStore } from "@/stores/ui";
 
 export type CatalogTab = "browse" | "installed";
-
 export type TrustLevel = "unverified" | "community" | "verified";
 
 export interface CatalogFilters {
@@ -21,229 +24,269 @@ export interface CatalogFilters {
   trustMin: TrustLevel | null;
 }
 
-export interface CatalogState {
-  entries: ServerEntryResponse[];
-  installed: InstalledEntryResponse[];
-  installState: Record<string, InstallOutcomeResponse>;
-  loading: boolean;
-  error: string | null;
-  tab: CatalogTab;
-  filters: CatalogFilters;
-  // Phase 2: catalog sources
-  sources: CatalogSourceViewResponse[];
-  sourceFailures: Record<string, string>;
-  /** Source ids currently selected via chip filter. null = all selected. */
-  selectedSources: string[] | null;
-}
-
-const initial = (): CatalogState => ({
-  entries: [],
-  installed: [],
-  installState: {},
-  loading: false,
-  error: null,
-  tab: "browse",
-  filters: {
-    keyword: "",
-    category: null,
-    trustMin: null
-  },
-  sources: [],
-  sourceFailures: {},
-  selectedSources: null
-});
-
-export const catalogState = reactive<CatalogState>(initial());
-
-/** Reset all catalog state. Used in tests. */
-export function resetCatalogState(): void {
-  Object.assign(catalogState, initial());
-}
-
 const TRUST_ORDER: Record<TrustLevel, number> = {
   unverified: 0,
   community: 1,
   verified: 2
 };
 
-export const filteredEntries = computed<ServerEntryResponse[]>(() => {
-  const kw = catalogState.filters.keyword.trim().toLowerCase();
-  const minOrder = catalogState.filters.trustMin ? TRUST_ORDER[catalogState.filters.trustMin] : -1;
-  return catalogState.entries.filter((e) => {
-    if (kw) {
-      const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
-      if (!hay.includes(kw)) return false;
-    }
-    if (catalogState.filters.category && !e.categories.includes(catalogState.filters.category)) {
-      return false;
-    }
-    if (catalogState.filters.trustMin) {
-      const t = TRUST_ORDER[e.trust as TrustLevel] ?? 0;
-      if (t < minOrder) return false;
-    }
-    return true;
+export const useCatalogStore = defineStore("catalog", () => {
+  // ── state ────────────────────────────────────────────────────────
+  const entries = ref<ServerEntryResponse[]>([]);
+  const installed = ref<InstalledEntryResponse[]>([]);
+  const installState = ref<Record<string, InstallOutcomeResponse>>({});
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+  const tab = ref<CatalogTab>("browse");
+  const filters = ref<CatalogFilters>({
+    keyword: "",
+    category: null,
+    trustMin: null
   });
-});
+  const sources = ref<CatalogSourceViewResponse[]>([]);
+  const sourceFailures = ref<Record<string, string>>({});
+  const selectedSources = ref<string[] | null>(null);
+  // Catalog id whose install-progress modal is currently visible. Hoisted out
+  // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
+  // the progress modal survives drawer dismissal mid-install. `null` = hidden.
+  const currentInstallEntryId = ref<string | null>(null);
 
-export const hasEntries = computed(() => catalogState.entries.length > 0);
+  // ── helpers ──────────────────────────────────────────────────────
+  function reset(): void {
+    entries.value = [];
+    installed.value = [];
+    installState.value = {};
+    loading.value = false;
+    error.value = null;
+    tab.value = "browse";
+    filters.value = { keyword: "", category: null, trustMin: null };
+    sources.value = [];
+    sourceFailures.value = {};
+    selectedSources.value = null;
+    currentInstallEntryId.value = null;
+  }
 
-export const installedCount = computed(() => catalogState.installed.length);
+  function requestInstallProgress(entryId: string): void {
+    // Clear any stale outcome from a previous install of the same entry
+    // BEFORE flipping the visible-modal flag — otherwise InstallProgress
+    // briefly renders the previous result alert (`inFlight = !outcome` is
+    // false for one frame) before the new outcome lands.
+    delete installState.value[entryId];
+    currentInstallEntryId.value = entryId;
+  }
 
-export async function fetchCatalog(query: CatalogQueryRequest = {}): Promise<void> {
-  catalogState.loading = true;
-  catalogState.error = null;
-  try {
-    catalogState.entries = await invoke<ServerEntryResponse[]>("list_catalog", {
-      query
+  function dismissInstallProgress(): void {
+    currentInstallEntryId.value = null;
+  }
+
+  // ── computeds ────────────────────────────────────────────────────
+  const filteredEntries = computed<ServerEntryResponse[]>(() => {
+    const kw = filters.value.keyword.trim().toLowerCase();
+    const minOrder = filters.value.trustMin ? TRUST_ORDER[filters.value.trustMin] : -1;
+    return entries.value.filter((e) => {
+      if (kw) {
+        const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (filters.value.category && !e.categories.includes(filters.value.category)) {
+        return false;
+      }
+      if (filters.value.trustMin) {
+        const t = TRUST_ORDER[e.trust as TrustLevel] ?? 0;
+        if (t < minOrder) return false;
+      }
+      return true;
     });
-  } catch (e) {
-    catalogState.error = String(e);
-    addNotification("error", `Failed to load catalog: ${e}`);
-  } finally {
-    catalogState.loading = false;
-  }
-}
+  });
 
-export async function fetchInstalled(): Promise<void> {
-  try {
-    catalogState.installed = await invoke<InstalledEntryResponse[]>("list_installed_entries");
-  } catch (e) {
-    catalogState.error = String(e);
-    addNotification("error", `Failed to load installed entries: ${e}`);
-  }
-}
+  const hasEntries = computed(() => entries.value.length > 0);
+  const installedCount = computed(() => installed.value.length);
+  const allSourceIds = computed<string[]>(() => ["builtin", ...sources.value.map((s) => s.id)]);
 
-export async function getCatalogEntry(
-  id: string,
-  source?: string | null
-): Promise<ServerEntryResponse | null> {
-  try {
-    return await invoke<ServerEntryResponse | null>("get_catalog_entry", {
-      id,
-      source: source ?? null
-    });
-  } catch (e) {
-    console.error("Failed to get catalog entry:", e);
-    addNotification("error", `Failed to load catalog entry ${id}: ${e}`);
-    return null;
+  function isSourceSelected(id: string): boolean {
+    if (selectedSources.value === null) return true;
+    return selectedSources.value.includes(id);
   }
-}
 
-export async function installEntry(
-  request: InstallRequestPayload
-): Promise<InstallOutcomeResponse | null> {
-  try {
-    const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request });
-    catalogState.installState[request.catalog_id] = outcome;
-    if (outcome.kind === "installed") {
-      await fetchInstalled();
+  function toggleSource(id: string): void {
+    const current = selectedSources.value ?? allSourceIds.value.slice();
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+    selectedSources.value = next;
+  }
+
+  const visibleEntries = computed<ServerEntryResponse[]>(() =>
+    filteredEntries.value.filter((e) => isSourceSelected(e.source))
+  );
+
+  // ── actions ──────────────────────────────────────────────────────
+  async function fetchCatalog(query: CatalogQueryRequest = {}): Promise<void> {
+    const ui = useUiStore();
+    loading.value = true;
+    error.value = null;
+    try {
+      entries.value = await invoke<ServerEntryResponse[]>("list_catalog", {
+        query
+      });
+    } catch (e) {
+      error.value = String(e);
+      ui.pushNotification("error", `Failed to load catalog: ${e}`);
+    } finally {
+      loading.value = false;
     }
-    return outcome;
-  } catch (e) {
-    console.error("Failed to install catalog entry:", e);
-    addNotification("error", `Failed to install ${request.catalog_id}: ${e}`);
-    return null;
   }
-}
 
-export async function uninstallEntry(serverId: string): Promise<void> {
-  try {
-    await invoke("uninstall_catalog_entry", { serverId });
-    delete catalogState.installState[serverId];
-    await fetchInstalled();
-  } catch (e) {
-    console.error("Failed to uninstall catalog entry:", e);
-    addNotification("error", `Failed to uninstall ${serverId}: ${e}`);
+  async function fetchInstalled(): Promise<void> {
+    const ui = useUiStore();
+    try {
+      installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+    } catch (e) {
+      error.value = String(e);
+      ui.pushNotification("error", `Failed to load installed entries: ${e}`);
+    }
   }
-}
 
-export async function refreshCatalogSource(source: string | null = null): Promise<void> {
-  try {
-    await invoke("refresh_catalog", { source });
-    await fetchCatalog();
-  } catch (e) {
-    console.error("Failed to refresh catalog source:", e);
-    addNotification("error", `Failed to refresh catalog: ${e}`);
+  async function getCatalogEntry(
+    id: string,
+    source?: string | null
+  ): Promise<ServerEntryResponse | null> {
+    const ui = useUiStore();
+    try {
+      return await invoke<ServerEntryResponse | null>("get_catalog_entry", {
+        id,
+        source: source ?? null
+      });
+    } catch (e) {
+      console.error("Failed to get catalog entry:", e);
+      ui.pushNotification("error", `Failed to load catalog entry ${id}: ${e}`);
+      return null;
+    }
   }
-}
 
-// ---------------------------------------------------------------------------
-// Phase 2: catalog source CRUD + failure tracking
-// ---------------------------------------------------------------------------
-
-export async function fetchSources(): Promise<void> {
-  try {
-    catalogState.sources = await invoke<CatalogSourceViewResponse[]>("list_catalog_sources");
-  } catch (e) {
-    catalogState.error = String(e);
-    addNotification("error", `Failed to load catalog sources: ${e}`);
+  async function installEntry(
+    request: InstallRequestPayload
+  ): Promise<InstallOutcomeResponse | null> {
+    const ui = useUiStore();
+    try {
+      const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request });
+      installState.value[request.catalog_id] = outcome;
+      if (outcome.kind === "installed") {
+        await fetchInstalled();
+      }
+      return outcome;
+    } catch (e) {
+      console.error("Failed to install catalog entry:", e);
+      ui.pushNotification("error", `Failed to install ${request.catalog_id}: ${e}`);
+      return null;
+    }
   }
-}
 
-export async function addSource(request: AddCatalogSourceRequestPayload): Promise<void> {
-  try {
-    await invoke("add_catalog_source", { request });
-    await fetchSources();
-  } catch (e) {
-    console.error("Failed to add catalog source:", e);
-    addNotification("error", `Failed to add source ${request.id}: ${e}`);
+  async function uninstallEntry(serverId: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("uninstall_catalog_entry", { serverId });
+      delete installState.value[serverId];
+      await fetchInstalled();
+    } catch (e) {
+      console.error("Failed to uninstall catalog entry:", e);
+      ui.pushNotification("error", `Failed to uninstall ${serverId}: ${e}`);
+    }
   }
-}
 
-export async function removeSource(id: string): Promise<void> {
-  try {
-    await invoke("remove_catalog_source", { id });
-    delete catalogState.sourceFailures[id];
-    await fetchSources();
-  } catch (e) {
-    console.error("Failed to remove catalog source:", e);
-    addNotification("error", `Failed to remove source ${id}: ${e}`);
+  async function refreshCatalogSource(source: string | null = null): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("refresh_catalog", { source });
+      await fetchCatalog();
+    } catch (e) {
+      console.error("Failed to refresh catalog source:", e);
+      ui.pushNotification("error", `Failed to refresh catalog: ${e}`);
+    }
   }
-}
 
-export async function setSourceEnabled(id: string, enabled: boolean): Promise<void> {
-  try {
-    await invoke("set_catalog_source_enabled", { id, enabled });
-    await fetchSources();
-  } catch (e) {
-    console.error("Failed to toggle catalog source:", e);
-    addNotification("error", `Failed to toggle source ${id}: ${e}`);
+  async function fetchSources(): Promise<void> {
+    const ui = useUiStore();
+    try {
+      sources.value = await invoke<CatalogSourceViewResponse[]>("list_catalog_sources");
+    } catch (e) {
+      error.value = String(e);
+      ui.pushNotification("error", `Failed to load catalog sources: ${e}`);
+    }
   }
-}
 
-/** Record a CatalogSourceFailed event payload onto sourceFailures[source]. */
-export function handleSourceFailed(source: string, error: string): void {
-  catalogState.sourceFailures[source] = error;
-}
+  async function addSource(request: AddCatalogSourceRequestPayload): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("add_catalog_source", { request });
+      await fetchSources();
+    } catch (e) {
+      console.error("Failed to add catalog source:", e);
+      ui.pushNotification("error", `Failed to add source ${request.id}: ${e}`);
+    }
+  }
 
-// ---------------------------------------------------------------------------
-// Phase 2: source chip filter
-// ---------------------------------------------------------------------------
+  async function removeSource(id: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("remove_catalog_source", { id });
+      delete sourceFailures.value[id];
+      await fetchSources();
+    } catch (e) {
+      console.error("Failed to remove catalog source:", e);
+      ui.pushNotification("error", `Failed to remove source ${id}: ${e}`);
+    }
+  }
 
-/** All available source ids (builtin + remote). */
-export const allSourceIds = computed<string[]>(() => [
-  "builtin",
-  ...catalogState.sources.map((s) => s.id)
-]);
+  async function setSourceEnabled(id: string, enabled: boolean): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("set_catalog_source_enabled", { id, enabled });
+      await fetchSources();
+    } catch (e) {
+      console.error("Failed to toggle catalog source:", e);
+      ui.pushNotification("error", `Failed to toggle source ${id}: ${e}`);
+    }
+  }
 
-/** Returns true when the given source id is currently active (or all are). */
-export function isSourceSelected(id: string): boolean {
-  if (catalogState.selectedSources === null) return true;
-  return catalogState.selectedSources.includes(id);
-}
+  function handleSourceFailed(source: string, errorMsg: string): void {
+    sourceFailures.value[source] = errorMsg;
+  }
 
-/** Toggle a source on/off in the chip filter. */
-export function toggleSource(id: string): void {
-  // Materialise the "all selected" sentinel into an explicit array on first toggle.
-  const current = catalogState.selectedSources ?? allSourceIds.value.slice();
-  const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-  catalogState.selectedSources = next;
-}
-
-/**
- * Entries filtered by both client-side filters AND chip selection.
- * Use this in marketplace components instead of `filteredEntries`.
- */
-export const visibleEntries = computed<ServerEntryResponse[]>(() =>
-  filteredEntries.value.filter((e) => isSourceSelected(e.source))
-);
+  return {
+    // state
+    entries,
+    installed,
+    installState,
+    loading,
+    error,
+    tab,
+    filters,
+    sources,
+    sourceFailures,
+    selectedSources,
+    currentInstallEntryId,
+    // computeds
+    filteredEntries,
+    hasEntries,
+    installedCount,
+    allSourceIds,
+    visibleEntries,
+    // helpers
+    reset,
+    isSourceSelected,
+    toggleSource,
+    handleSourceFailed,
+    requestInstallProgress,
+    dismissInstallProgress,
+    // actions
+    fetchCatalog,
+    fetchInstalled,
+    getCatalogEntry,
+    installEntry,
+    uninstallEntry,
+    refreshCatalogSource,
+    fetchSources,
+    addSource,
+    removeSource,
+    setSourceEnabled
+  };
+});

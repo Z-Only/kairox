@@ -1,27 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { setActivePinia, createPinia } from "pinia";
 import PermissionPrompt from "./PermissionPrompt.vue";
 import type { TraceEntryData } from "../types/trace";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// `PermissionPrompt.vue` calls `useI18n()`; bare `mount()` throws
+// "Need to install with `app.use` function". `mountWithPlugins` installs
+// i18n + router; `reusePinia: true` keeps the `beforeEach` pinia (and the
+// `mcp.trustServer = mockedTrustServer` / `mcp.trustedServerIds` mutations
+// each test sets up before mounting).
+//
+// Note: passing the extended-options shape (`{ mount, reusePinia }`) makes
+// `mountWithPlugins` return `{ wrapper, router }` rather than a bare
+// wrapper, so we unwrap `.wrapper` here to keep the call-site API
+// identical to the previous `mount(...)` usage.
+const mount = (comp: typeof PermissionPrompt, options: { props: { entry: TraceEntryData } }) =>
+  mountWithPlugins(comp, { mount: options, reusePinia: true }).wrapper;
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-vi.mock("../stores/mcp", () => ({
-  mcpState: { servers: [], trustedServerIds: [], loading: false },
-  trustServer: vi.fn(() => Promise.resolve())
-}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import { mcpState, trustServer } from "../stores/mcp";
-const mockedTrustServer = vi.mocked(trustServer);
+import { useMcpStore } from "@/stores/mcp";
+
+const mockedTrustServer = vi.fn(() => Promise.resolve());
 
 const permissionEntry: TraceEntryData = {
   id: "perm_1",
@@ -56,8 +62,12 @@ const mcpEntry: TraceEntryData = {
 };
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   vi.clearAllMocks();
-  mcpState.trustedServerIds = [];
+  // Replace store action with spy so we can assert invocation.
+  const mcp = useMcpStore();
+  mcp.trustServer = mockedTrustServer;
+  mcp.trustedServerIds = [];
 });
 
 describe("PermissionPrompt", () => {
@@ -130,7 +140,8 @@ describe("PermissionPrompt MCP trust UI", () => {
   });
 
   it("shows trusted badge when server is already trusted", () => {
-    mcpState.trustedServerIds = ["github"];
+    const mcp = useMcpStore();
+    mcp.trustedServerIds = ["github"];
     const wrapper = mount(PermissionPrompt, {
       props: { entry: mcpEntry }
     });
@@ -144,9 +155,16 @@ describe("PermissionPrompt MCP trust UI", () => {
     const wrapper = mount(PermissionPrompt, {
       props: { entry: mcpEntry }
     });
-    // Check the trust checkbox
-    const checkbox = wrapper.find(".mcp-trust-check input[type='checkbox']");
-    await checkbox.setValue(true);
+    // Drive the NCheckbox via its component instance (mirrors the 7b
+    // MemoryBrowser pattern) instead of reaching for a raw <input>.
+    // The data-test selector hits the NCheckbox host element; we then
+    // resolve the underlying component to emit its v-model event.
+    const checkbox = wrapper
+      .find('[data-test="trust-server-checkbox"]')
+      .findComponent({ name: "Checkbox" });
+    expect(checkbox.exists()).toBe(true);
+    checkbox.vm.$emit("update:checked", true);
+    await wrapper.vm.$nextTick();
     await wrapper.find(".btn-allow").trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_mcp_1",

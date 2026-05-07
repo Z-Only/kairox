@@ -46,6 +46,10 @@ crates/agent-mcp/tests/fixtures/node_modules/
 kairox.toml
 # auto-generated TypeScript bindings
 apps/agent-gui/src/generated/
+# unplugin-auto-import / unplugin-vue-components generated artifacts
+apps/agent-gui/src/auto-imports.d.ts
+apps/agent-gui/src/components.d.ts
+apps/agent-gui/.eslintrc-auto-import.json
 .superpowers/
 .worktrees/
 

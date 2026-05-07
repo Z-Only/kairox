@@ -1,89 +1,76 @@
 <script setup lang="ts">
-import { notifications, dismissNotification } from "../composables/useNotifications";
+import { useMessage } from "naive-ui";
+import { useUiStore, type NotificationItem } from "@/stores/ui";
+
+/**
+ * NotificationToast — slim adapter over NaiveUI's `useMessage()`.
+ *
+ * The `ui` Pinia store remains the single source of truth for in-app
+ * notifications (`pushNotification` / `dismissNotification`). This component
+ * lives below `<NMessageProvider>` (mounted by `AppLayout.vue`) and forwards
+ * each newly-pushed entry to the NaiveUI message API, then immediately
+ * removes it from the store so the visual lifecycle is owned 100% by
+ * NaiveUI. This eliminates the dual-render that would otherwise occur once
+ * `useNotifications.notify()` writes to both the store and `useMessage()`.
+ *
+ * The component renders no markup of its own — it is a logic-only adapter.
+ */
+const ui = useUiStore();
+const message = useMessage();
+const { notifications } = storeToRefs(ui);
+
+function dispatch(notif: NotificationItem) {
+  switch (notif.level) {
+    case "success":
+      message.success(notif.message);
+      break;
+    case "warning":
+      message.warning(notif.message);
+      break;
+    case "error":
+      message.error(notif.message, { duration: 8000 });
+      break;
+    default:
+      message.info(notif.message);
+  }
+  // Drop the dispatched id from the Set after the message handler has been
+  // invoked. See the JSDoc on `dispatched` below for the leak rationale.
+  dispatched.delete(notif.id);
+  ui.dismissNotification(notif.id);
+}
+
+/**
+ * Tracks ids that are mid-dispatch within the current watcher tick so that
+ * the second half of the same tick — when `ui.dismissNotification` shrinks
+ * `notifications.value` and the deep watcher re-fires — does not see the
+ * still-present entry as "new" and forward it twice.
+ *
+ * Notification ids come from `crypto.randomUUID()` (see `ui.pushNotification`)
+ * so they never repeat across the lifetime of the app. Without the
+ * `dispatched.delete(id)` call inside `dispatch()`, this Set would grow
+ * monotonically for the entire lifetime of `<AppLayout>` (i.e. forever) —
+ * a slow but real leak in long-running sessions. We delete the id after the
+ * handler returns instead of keeping a permanent history because the only
+ * job of this Set is intra-tick deduplication.
+ */
+const dispatched = new Set<string>();
+
+watch(
+  notifications,
+  (items) => {
+    for (const n of items) {
+      if (dispatched.has(n.id)) continue;
+      dispatched.add(n.id);
+      dispatch(n);
+    }
+  },
+  { deep: true, immediate: true }
+);
 </script>
 
 <template>
-  <div v-if="notifications.length > 0" class="notification-container">
-    <div
-      v-for="notif in notifications.slice(-3)"
-      :key="notif.id"
-      :class="['notification', `notification--${notif.type}`]"
-    >
-      <span class="notification-icon">
-        {{ notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ" }}
-      </span>
-      <span class="notification-message">{{ notif.message }}</span>
-      <button class="notification-dismiss" @click="dismissNotification(notif.id)">✕</button>
-    </div>
-  </div>
+  <!-- Visual rendering is handled by <NMessageProvider> via useMessage();
+       this hidden element exists only to satisfy the
+       `vue/valid-template-root` rule and emits no styling. -->
+  <span class="notification-toast-adapter" aria-hidden="true" hidden />
 </template>
-
-<style scoped>
-.notification-container {
-  position: fixed;
-  bottom: 32px;
-  right: 16px;
-  z-index: 300;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 380px;
-}
-.notification {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  line-height: 1.4;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: slide-in 0.2s ease-out;
-}
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-.notification--error {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
-}
-.notification--warning {
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  color: #92400e;
-}
-.notification--info {
-  background: #eff6ff;
-  border: 1px solid #93c5fd;
-  color: #1e40af;
-}
-.notification-icon {
-  flex-shrink: 0;
-  font-weight: 600;
-}
-.notification-message {
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-.notification-dismiss {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  color: inherit;
-  opacity: 0.6;
-}
-.notification-dismiss:hover {
-  opacity: 1;
-}
-</style>

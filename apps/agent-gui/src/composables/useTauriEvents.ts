@@ -1,143 +1,81 @@
-import { onMounted, onUnmounted } from "vue";
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). This composable is plain `.ts`, so the
+// `@vueuse/core` lifecycle helper must be imported explicitly.
+import { tryOnScopeDispose } from "@vueuse/core";
 import { listen } from "@tauri-apps/api/event";
-import type { DomainEvent, TaskState } from "../types";
-import { sessionState, applyEvent } from "../stores/session";
-import { applyTraceEvent } from "./useTraceStore";
-import { taskGraphState } from "../stores/taskGraph";
-import { addNotification } from "./useNotifications";
-import { handleMcpEvent } from "../stores/mcp";
-import { applyAgentEvent } from "../stores/agents";
-import { fetchSources, handleSourceFailed } from "../stores/catalog";
+import type { DomainEvent } from "@/types";
+import { useSessionStore } from "@/stores/session";
+import { applyTraceEvent } from "@/composables/useTraceStore";
+import { useTaskGraphStore } from "@/stores/taskGraph";
+import { useUiStore } from "@/stores/ui";
+import { useMcpStore } from "@/stores/mcp";
+import { useAgentsStore } from "@/stores/agents";
+import { useCatalogStore } from "@/stores/catalog";
 
 export function useTauriEvents() {
-  let unlisten: (() => void) | null = null;
+  const session = useSessionStore();
+  const taskGraph = useTaskGraphStore();
+  const ui = useUiStore();
+  const mcp = useMcpStore();
+  const agents = useAgentsStore();
+  const catalog = useCatalogStore();
 
-  onMounted(async () => {
-    unlisten = await listen<DomainEvent>("session-event", (tauriEvent) => {
-      // Only process events for the current session.
-      // DomainEvent has session_id at the top level.
-      const domainEvent = tauriEvent.payload;
-      const sessionId: string | undefined = domainEvent.session_id;
-      if (
-        sessionId &&
-        sessionState.currentSessionId &&
-        sessionId === sessionState.currentSessionId
-      ) {
-        applyEvent(domainEvent);
-        applyTraceEvent(domainEvent);
+  // Capture the unlisten promise synchronously so tryOnScopeDispose
+  // can register cleanup before any await boundary — calling it after
+  // await would lose the effect scope and silently no-op.
+  const unlistenPromise = listen<DomainEvent>("session-event", (tauriEvent) => {
+    // Only process session-scoped events for the current session.
+    const domainEvent = tauriEvent.payload;
+    const sessionId: string | undefined = domainEvent.session_id;
+    if (sessionId && session.currentSessionId && sessionId === session.currentSessionId) {
+      session.applyEvent(domainEvent);
+      applyTraceEvent(domainEvent);
 
-        // Update task graph state from real-time events.
-        // This mirrors the Rust SessionProjection::apply() logic
-        // so the Tasks panel updates immediately without an async invoke.
-        const p = domainEvent.payload;
-        switch (p.type) {
-          case "AgentTaskCreated": {
-            // Only add if not already present (dedup against projection load)
-            if (!taskGraphState.tasks.some((t) => t.id === p.task_id)) {
-              taskGraphState.tasks.push({
-                id: p.task_id,
-                title: p.title,
-                role: p.role,
-                state: "Pending" as TaskState,
-                dependencies: p.dependencies,
-                error: null,
-                retry_count: 0,
-                max_retries: 3,
-                assigned_agent_id: null,
-                failure_reason: null
-              });
-              if (taskGraphState.currentSessionId === sessionId) {
-                // Trigger reactivity
-                taskGraphState.tasks = [...taskGraphState.tasks];
-              }
-            }
-            break;
-          }
-          case "AgentTaskStarted": {
-            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
-            if (task) {
-              task.state = "Running" as TaskState;
-              taskGraphState.tasks = [...taskGraphState.tasks];
-            }
-            break;
-          }
-          case "AgentTaskCompleted": {
-            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
-            if (task) {
-              task.state = "Completed" as TaskState;
-              taskGraphState.tasks = [...taskGraphState.tasks];
-            }
-            break;
-          }
-          case "AgentTaskFailed": {
-            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
-            if (task) {
-              task.state = "Failed" as TaskState;
-              task.error = p.error;
-              taskGraphState.tasks = [...taskGraphState.tasks];
-            }
-            if (p.error) {
-              addNotification("error", p.error);
-            }
-            break;
-          }
-          case "TaskBlocked": {
-            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
-            if (task) {
-              task.state = "Blocked" as TaskState;
-              task.error = p.reason || "Dependency failed";
-              taskGraphState.tasks = [...taskGraphState.tasks];
-            }
-            break;
-          }
-          case "TaskDecomposed": {
-            // Task decomposition is informational — the sub-tasks
-            // are created via separate AgentTaskCreated events
-            break;
-          }
-          case "TaskRetried": {
-            const task = taskGraphState.tasks.find((t) => t.id === p.task_id);
-            if (task) {
-              task.state = "Running" as TaskState;
-              task.retry_count = p.attempt;
-              task.error = null;
-              taskGraphState.tasks = [...taskGraphState.tasks];
-            }
-            break;
-          }
-        }
+      // Delegate task-graph mutations to the owning store. Mirrors the
+      // existing `agents.applyAgentEvent` / `mcp.handleMcpEvent` pattern.
+      taskGraph.applyTaskEvent(domainEvent.payload);
 
-        // Route agent lifecycle events to the agents store
-        applyAgentEvent(domainEvent.payload);
+      // Surface task-failure errors as user-facing notifications.
+      if (domainEvent.payload.type === "AgentTaskFailed" && domainEvent.payload.error) {
+        ui.pushNotification("error", domainEvent.payload.error);
       }
 
-      // MCP events are not session-scoped — handle them regardless of session.
-      const payload = domainEvent.payload;
-      switch (payload.type) {
-        case "McpServerStarting":
-        case "McpServerReady":
-        case "McpServerStopped":
-        case "McpServerFailed":
-        case "McpToolCallStarted":
-        case "McpToolCallCompleted":
-        case "McpTrustGranted":
-        case "McpTrustRevoked":
-          handleMcpEvent(payload);
-          break;
-        // Phase 2: catalog source lifecycle events are global, not session-scoped.
-        case "CatalogSourceAdded":
-          void fetchSources();
-          break;
-        case "CatalogSourceFailed":
-          handleSourceFailed(payload.source, payload.error);
-          break;
-      }
+      // Route agent lifecycle events to the agents store.
+      agents.applyAgentEvent(domainEvent.payload);
+    }
+
+    // MCP and catalog source events are global, not session-scoped.
+    const payload = domainEvent.payload;
+    switch (payload.type) {
+      case "McpServerStarting":
+      case "McpServerReady":
+      case "McpServerStopped":
+      case "McpServerFailed":
+      case "McpToolCallStarted":
+      case "McpToolCallCompleted":
+      case "McpTrustGranted":
+      case "McpTrustRevoked":
+        mcp.handleMcpEvent(payload);
+        break;
+      case "CatalogSourceAdded":
+        void catalog.fetchSources();
+        break;
+      case "CatalogSourceFailed":
+        catalog.handleSourceFailed(payload.source, payload.error);
+        break;
+    }
+  });
+
+  // SYNCHRONOUS: must be called before any await so the current effect scope
+  // (captured by getCurrentScope()) is the one from setup().
+  tryOnScopeDispose(() => {
+    void unlistenPromise.then((u) => u()).catch(() => {});
+    session.setConnected(false);
+  });
+
+  void unlistenPromise
+    .then(() => session.setConnected(true))
+    .catch((err) => {
+      ui.pushNotification("error", `Failed to subscribe to session events: ${err}`);
     });
-    sessionState.connected = true;
-  });
-
-  onUnmounted(() => {
-    unlisten?.();
-    sessionState.connected = false;
-  });
 }

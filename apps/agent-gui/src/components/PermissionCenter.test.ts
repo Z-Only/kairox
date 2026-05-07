@@ -1,7 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mount } from "@vue/test-utils";
+import { setActivePinia, createPinia } from "pinia";
 import PermissionCenter from "./PermissionCenter.vue";
 import type { TraceEntryData } from "../types/trace";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// `PermissionCenter.vue` renders `<PermissionPrompt>`, which calls
+// `useI18n()`; bare `mount()` therefore throws "Need to install with
+// `app.use` function". `mountWithPlugins` installs i18n + router;
+// `reusePinia: true` keeps the `beforeEach` pinia.
+//
+// Passing the extended-options shape returns `{ wrapper, router }`; we
+// unwrap `.wrapper` so call-sites stay drop-in compatible with the prior
+// `mount(...)` usage.
+const mount = (comp: typeof PermissionCenter) =>
+  mountWithPlugins(comp, { reusePinia: true }).wrapper;
 
 // Use vi.hoisted so the mutable entries array is available inside vi.mock factories.
 // We use a plain object (not reactive) because vi.hoisted runs before imports are resolved.
@@ -22,17 +34,6 @@ vi.mock("../composables/useTraceStore", () => ({
   }
 }));
 
-// Mock stores used by PermissionPrompt child component
-vi.mock("../composables/useNotifications", () => ({
-  addNotification: vi.fn(),
-  dismissNotification: vi.fn(),
-  notifications: []
-}));
-vi.mock("../stores/mcp", () => ({
-  mcpState: { servers: [], trustedServerIds: [], loading: false },
-  trustServer: vi.fn(() => Promise.resolve())
-}));
-
 function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
   return {
     kind: "permission",
@@ -46,6 +47,7 @@ function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEn
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   vi.clearAllMocks();
   mockEntries.length = 0;
 });

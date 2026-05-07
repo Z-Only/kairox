@@ -1,74 +1,178 @@
 <script setup lang="ts">
-import {
-  mcpState,
-  startServer,
-  stopServer,
-  trustServer,
-  revokeTrust,
-  refreshTools
-} from "../stores/mcp";
+import { useI18n } from "vue-i18n";
+import { useMcpStore } from "@/stores/mcp";
 
+const { t } = useI18n();
+const mcp = useMcpStore();
 const emit = defineEmits<{ close: [] }>();
 
-function statusLabel(status: string): string {
+// Emoji + i18n text are split so the user-visible label is translatable
+// while the status indicator emoji stays consistent across locales.
+function statusEmoji(status: string): string {
   switch (status) {
     case "running":
-      return "🟢 Running";
+      return "🟢";
     case "starting":
-      return "🟡 Starting";
+      return "🟡";
     case "failed":
-      return "🔴 Failed";
+      return "🔴";
     default:
-      return "⚪ Stopped";
+      return "⚪";
   }
 }
+
+function statusText(status: string): string {
+  switch (status) {
+    case "running":
+      return t("mcp.statusRunning");
+    case "starting":
+      return t("mcp.statusStarting");
+    case "failed":
+      return t("mcp.statusFailed");
+    default:
+      return t("mcp.statusStopped");
+  }
+}
+
+function statusTagType(status: string): "success" | "warning" | "error" | "default" {
+  switch (status) {
+    case "running":
+      return "success";
+    case "starting":
+      return "warning";
+    case "failed":
+      return "error";
+    default:
+      return "default";
+  }
+}
+
+const trustedSet = computed(() => new Set(mcp.trustedServerIds));
 </script>
 
 <template>
+  <!-- The popover wrapper class (.mcp-manager) is preserved so
+       StatusBar's positioning + the existing tests keep working.
+       NCard provides the chrome (header, body, divider) while
+       NList renders the per-server rows. The .mcp-close-btn /
+       .mcp-server-actions class hooks are also kept since the
+       existing test suite drives the UI through them. -->
   <div class="mcp-manager">
-    <div class="mcp-manager-header">
-      <h3>MCP Servers</h3>
-      <button class="mcp-close-btn" @click="emit('close')">✕</button>
-    </div>
-    <div class="mcp-manager-list">
-      <div v-for="server in mcpState.servers" :key="server.id" class="mcp-server-item">
-        <div class="mcp-server-info">
-          <span class="mcp-server-name">{{ server.id }}</span>
-          <span class="mcp-server-status">{{ statusLabel(server.status) }}</span>
-          <span v-if="mcpState.trustedServerIds.includes(server.id)" class="mcp-trusted"
-            >✅ Trusted</span
-          >
-          <span v-else-if="server.status === 'running'" class="mcp-untrusted">⚠️ Not trusted</span>
-        </div>
-        <div v-if="server.status === 'failed' && server.error" class="mcp-server-error">
-          {{ server.error }}
-        </div>
-        <div class="mcp-server-actions">
-          <button v-if="server.status === 'stopped'" @click="startServer(server.id)">Start</button>
-          <button v-if="server.status === 'running'" @click="stopServer(server.id)">Stop</button>
-          <button v-if="server.status === 'failed'" @click="startServer(server.id)">Restart</button>
-          <button
-            v-if="server.status === 'running' && !mcpState.trustedServerIds.includes(server.id)"
-            @click="trustServer(server.id)"
-          >
-            Trust
-          </button>
-          <button
-            v-if="mcpState.trustedServerIds.includes(server.id)"
-            @click="revokeTrust(server.id)"
-          >
-            Revoke
-          </button>
-          <button v-if="server.status === 'running'" @click="refreshTools(server.id)">
-            Refresh
-          </button>
-        </div>
-        <div v-if="server.status === 'running' && server.tool_count" class="mcp-server-meta">
-          {{ server.tool_count }} tools
-        </div>
-      </div>
-      <p v-if="mcpState.servers.length === 0" class="mcp-empty">No MCP servers configured</p>
-    </div>
+    <NCard size="small" :bordered="true" class="mcp-manager-card" content-style="padding: 0;">
+      <template #header>
+        <NText strong>MCP Servers</NText>
+      </template>
+      <template #header-extra>
+        <NButton quaternary size="tiny" class="mcp-close-btn" @click="emit('close')"> ✕ </NButton>
+      </template>
+
+      <NEmpty v-if="mcp.servers.length === 0" size="small" class="mcp-empty-wrap">
+        <template #default>
+          <p class="mcp-empty">No MCP servers configured</p>
+        </template>
+      </NEmpty>
+
+      <NList v-else hoverable :bordered="false" class="mcp-manager-list">
+        <NListItem v-for="server in mcp.servers" :key="server.id">
+          <div class="mcp-server-item">
+            <div class="mcp-server-info">
+              <NText strong class="mcp-server-name">{{ server.id }}</NText>
+              <NTag
+                size="small"
+                :type="statusTagType(server.status)"
+                :bordered="false"
+                class="mcp-server-status"
+              >
+                {{ statusEmoji(server.status) }} {{ statusText(server.status) }}
+              </NTag>
+              <NTag
+                v-if="trustedSet.has(server.id)"
+                size="small"
+                type="success"
+                :bordered="false"
+                class="mcp-trusted"
+              >
+                ✅ Trusted
+              </NTag>
+              <NTag
+                v-else-if="server.status === 'running'"
+                size="small"
+                type="warning"
+                :bordered="false"
+                class="mcp-untrusted"
+              >
+                ⚠️ Not trusted
+              </NTag>
+            </div>
+
+            <NText
+              v-if="server.status === 'failed' && server.error"
+              type="error"
+              class="mcp-server-error"
+            >
+              {{ server.error }}
+            </NText>
+
+            <!-- The .mcp-server-actions wrapper + per-button order is
+                 preserved verbatim so the existing test suite (which
+                 picks "the first button") keeps targeting Start/Stop/
+                 Restart correctly. -->
+            <NSpace :size="4" class="mcp-server-actions" :wrap="true">
+              <NButton
+                v-if="server.status === 'stopped'"
+                size="tiny"
+                @click="mcp.startServer(server.id)"
+              >
+                Start
+              </NButton>
+              <NButton
+                v-if="server.status === 'running'"
+                size="tiny"
+                @click="mcp.stopServer(server.id)"
+              >
+                Stop
+              </NButton>
+              <NButton
+                v-if="server.status === 'failed'"
+                size="tiny"
+                @click="mcp.startServer(server.id)"
+              >
+                Restart
+              </NButton>
+              <NButton
+                v-if="server.status === 'running' && !trustedSet.has(server.id)"
+                size="tiny"
+                @click="mcp.trustServer(server.id)"
+              >
+                Trust
+              </NButton>
+              <NButton
+                v-if="trustedSet.has(server.id)"
+                size="tiny"
+                @click="mcp.revokeTrust(server.id)"
+              >
+                Revoke
+              </NButton>
+              <NButton
+                v-if="server.status === 'running'"
+                size="tiny"
+                @click="mcp.refreshTools(server.id)"
+              >
+                Refresh
+              </NButton>
+            </NSpace>
+
+            <NText
+              v-if="server.status === 'running' && server.tool_count"
+              depth="3"
+              class="mcp-server-meta"
+            >
+              {{ server.tool_count }} tools
+            </NText>
+          </div>
+        </NListItem>
+      </NList>
+    </NCard>
   </div>
 </template>
 
@@ -80,96 +184,50 @@ function statusLabel(status: string): string {
   width: 320px;
   max-height: 400px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #d7d7d7;
-  border-radius: 6px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   z-index: 100;
 }
-.mcp-manager-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid #e0e0e0;
-}
-.mcp-manager-header h3 {
-  margin: 0;
-  font-size: 13px;
+.mcp-manager-card {
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
 }
 .mcp-close-btn {
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 0 4px;
+  font-size: 14px;
   line-height: 1;
 }
-.mcp-close-btn:hover {
-  opacity: 0.7;
+.mcp-empty-wrap {
+  padding: 16px 0;
 }
-.mcp-manager-list {
+.mcp-empty {
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+.mcp-manager-list :deep(.n-list-item) {
   padding: 8px 12px;
 }
 .mcp-server-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.mcp-server-item:last-child {
-  border-bottom: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .mcp-server-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .mcp-server-name {
-  font-weight: 600;
   font-size: 12px;
 }
-.mcp-server-status {
-  font-size: 11px;
-}
-.mcp-trusted {
-  font-size: 11px;
-  color: #22a06b;
-}
+.mcp-server-status,
+.mcp-trusted,
 .mcp-untrusted {
-  font-size: 11px;
-  color: #e6a700;
+  font-size: 10px;
 }
 .mcp-server-error {
   font-size: 11px;
-  color: #d93025;
-  margin-top: 4px;
   overflow-wrap: anywhere;
-}
-.mcp-server-actions {
-  display: flex;
-  gap: 4px;
-  margin-top: 6px;
-}
-.mcp-server-actions button {
-  padding: 2px 8px;
-  font-size: 11px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  background: #f5f5f5;
-  cursor: pointer;
-}
-.mcp-server-actions button:hover {
-  background: #e8e8e8;
 }
 .mcp-server-meta {
   font-size: 11px;
-  color: #777;
-  margin-top: 4px;
-}
-.mcp-empty {
-  font-size: 12px;
-  color: #999;
-  text-align: center;
-  margin: 16px 0;
 }
 </style>

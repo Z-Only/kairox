@@ -1,0 +1,145 @@
+{
+  "common": {
+    "send": "Send",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{name}\"? This action cannot be undone.",
+    "save": "Save",
+    "edit": "Edit",
+    "retry": "Retry",
+    "close": "Close",
+    "copy": "Copy",
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Error",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "refresh": "Refresh"
+  },
+  "memory": {
+    "header": "Memories",
+    "scopeAll": "All",
+    "scopeSession": "Session",
+    "scopeUser": "User",
+    "scopeWorkspace": "Workspace",
+    "searchPlaceholder": "Search memories...",
+    "emptyHint": "No memories",
+    "deleteConfirm": "Delete this memory?"
+  },
+  "nav": {
+    "workbench": "Workbench",
+    "marketplace": "Marketplace",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "locale": "Language",
+    "localeEn": "English",
+    "localeZh": "中文（简体）",
+    "theme": "Theme",
+    "themeAuto": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "build": "Build",
+    "buildVersion": "Version",
+    "buildCommit": "Commit",
+    "buildBuiltAt": "Built at"
+  },
+  "notifications": {
+    "sessionError": "Session error",
+    "copySuccess": "Copied to clipboard",
+    "copyFailed": "Copy failed"
+  },
+  "status": {
+    "ready": "Ready",
+    "streaming": "Streaming",
+    "connecting": "Connecting",
+    "error": "Error",
+    "activeProfile": "Active profile"
+  },
+  "workbench": {
+    "sessionNotFound": "Session not found: {id}"
+  },
+  "sessions": {
+    "deleteConfirm": "Delete session \"{title}\"? Its conversation history will be permanently removed after 7 days.",
+    "newButton": "New",
+    "newButtonPrefix": "+ ",
+    "createButton": "Create",
+    "cancelButton": "Cancel",
+    "renameTitle": "Rename",
+    "deleteTitle": "Delete",
+    "emptyHint": "No sessions yet",
+    "newDialogTitle": "New Session",
+    "profileLabel": "Profile:",
+    "header": "Sessions"
+  },
+  "chat": {
+    "header": "Chat",
+    "placeholder": "Type your message...",
+    "cancelled": "[cancelled]",
+    "roleYou": "You",
+    "roleAgent": "Agent",
+    "sendFailed": "Failed to send message: {error}",
+    "cancelFailed": "Cancel failed: {error}"
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "tabBrowse": "Browse",
+    "tabInstalled": "Installed ({count})",
+    "sourceSettingsAria": "Catalog source settings",
+    "builtinSource": "Built-in",
+    "catalogEmpty": "No catalog entries match the current filters",
+    "installedEmpty": "No installed servers yet",
+    "sourcesEmpty": "No remote catalog sources configured.",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id and display_name are required",
+      "urlMustStartWithHttp": "URL must start with http:// or https://"
+    },
+    "install": {
+      "titleInstalling": "Installing…",
+      "titleComplete": "Install complete.",
+      "titleFailed": "Install failed",
+      "alertInstalled": "Install complete.",
+      "alertAlreadyInstalled": "Already installed.",
+      "alertMissingRuntimes": "Missing runtimes: {runtimes}",
+      "alertMissingEnv": "Required env: {keys}",
+      "alertUnexpected": "Install ended in an unexpected state.",
+      "stepDetectRuntime": "Detect runtime",
+      "stepWriteConfig": "Write config",
+      "stepStartServer": "Start server",
+      "anotherInProgress": "Another install is in progress."
+    }
+  },
+  "mcp": {
+    "statusRunning": "Running",
+    "statusStarting": "Starting",
+    "statusFailed": "Failed",
+    "statusStopped": "Stopped"
+  },
+  "trace": {
+    "tabTrace": "Trace",
+    "tabTasks": "Tasks",
+    "tabMemory": "Memory",
+    "emptyTrace": "No trace events yet"
+  },
+  "permission": {
+    "allow": "Allow",
+    "deny": "Deny",
+    "accept": "Accept",
+    "reject": "Reject",
+    "titlePermissionRequired": "Permission Required",
+    "titleMemoryProposed": "Memory Proposed"
+  },
+  "statusBar": {
+    "profile": "profile: {profile}",
+    "sessions": "sessions: {count}",
+    "streamingYes": "streaming: yes",
+    "streamingNo": "streaming: no",
+    "connectedYes": "connected: yes",
+    "connectedNo": "connected: no",
+    "mode": "mode: {mode}"
+  }
+}

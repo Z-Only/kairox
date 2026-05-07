@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import TaskSteps from "./TaskSteps.vue";
-import { clearTaskGraph, setTaskGraph } from "../stores/taskGraph";
+import { useTaskGraphStore } from "@/stores/taskGraph";
 import type { TaskSnapshot } from "../types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -20,7 +21,7 @@ const makeTask = (id: string, overrides?: Partial<TaskSnapshot>): TaskSnapshot =
 });
 
 beforeEach(() => {
-  clearTaskGraph();
+  setActivePinia(createPinia());
 });
 
 describe("TaskSteps", () => {
@@ -30,14 +31,16 @@ describe("TaskSteps", () => {
   });
 
   it("renders task tree with root task", () => {
-    setTaskGraph([makeTask("A", { title: "Root Task", state: "Running" })], "ses_1");
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask("A", { title: "Root Task", state: "Running" })], "ses_1");
     const wrapper = mount(TaskSteps);
     expect(wrapper.text()).toContain("Root Task");
     expect(wrapper.text()).toContain("running...");
   });
 
   it("shows error message for failed child task when expanded", async () => {
-    setTaskGraph(
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
       [
         makeTask("parent", { title: "Parent", state: "Completed" }),
         makeTask("child", {
@@ -57,7 +60,8 @@ describe("TaskSteps", () => {
   });
 
   it("renders state-specific CSS classes", () => {
-    setTaskGraph(
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
       [makeTask("1", { state: "Pending" }), makeTask("2", { state: "Failed", error: "err" })],
       "ses_1"
     );
@@ -67,7 +71,8 @@ describe("TaskSteps", () => {
   });
 
   it("displays Pending status icon", () => {
-    setTaskGraph([makeTask("1", { state: "Pending" })], "ses_1");
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask("1", { state: "Pending" })], "ses_1");
     const wrapper = mount(TaskSteps);
     expect(wrapper.find(".task-status").text()).toBe("⏳");
   });

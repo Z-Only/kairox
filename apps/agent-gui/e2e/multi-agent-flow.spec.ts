@@ -14,13 +14,19 @@ test.beforeEach(async ({ page }) => {
 
 test("planner decomposes task into sub-tasks", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
-  // Send a message that triggers planner decomposition
-  await page.locator(".message-input").fill("/plan Build a web server");
-  await page.locator(".send-button").click();
+  // Send a message that triggers planner decomposition. NInput renders a
+  // <textarea> inside [data-test="message-input"]; the Send button is an
+  // NButton with data-test="send-button". `{ force: true }` bypasses
+  // NaiveUI's `.n-input__placeholder` overlay (see chat-flow.spec.ts for
+  // the full explanation).
+  await page
+    .locator('[data-test="message-input"] textarea')
+    .fill("/plan Build a web server", { force: true });
+  await page.getByTestId("send-button").click();
 
   // Wait for the mock response
   await expect(page.locator(".message").first()).toBeVisible({
@@ -30,17 +36,17 @@ test("planner decomposes task into sub-tasks", async ({ page }) => {
 
 test("parallel workers appear with distinct badges", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Simulate a planner creating two parallel worker tasks
   await page.evaluate(() => {
     const mock = (window as any).__KAIROX_MOCK__;
-    const planId = mock.simulateTaskCreated("Plan: Feature X", "Planner");
+    const _planId = mock.simulateTaskCreated("Plan: Feature X", "Planner");
     const worker1Id = mock.simulateTaskCreated("Implement auth", "Worker");
     const worker2Id = mock.simulateTaskCreated("Implement API", "Worker");
     mock.simulateAgentSpawned("agent_w1", "Worker", worker1Id);
@@ -54,12 +60,12 @@ test("parallel workers appear with distinct badges", async ({ page }) => {
 
 test("agent spawned and idle lifecycle", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create a task, spawn an agent, start, complete, then idle
   await page.evaluate(() => {
@@ -79,12 +85,12 @@ test("agent spawned and idle lifecycle", async ({ page }) => {
 
 test("task retry button appears for failed tasks", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // Navigate to Tasks tab
-  await page.locator(".tab-group >> button", { hasText: "Tasks" }).click();
+  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
   // Create and fail a task
   await page.evaluate(() => {
@@ -102,7 +108,7 @@ test("task retry button appears for failed tasks", async ({ page }) => {
 
 test("task decomposition event creates system message in chat", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 

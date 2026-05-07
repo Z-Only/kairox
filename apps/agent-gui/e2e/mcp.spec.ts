@@ -46,8 +46,10 @@ test.describe("MCP Server Management", () => {
     const manager = page.locator(".mcp-manager");
     await expect(manager).toBeVisible();
 
-    const closeButton = page.locator(".mcp-manager-header button");
-    await closeButton.click();
+    // The manager moved to NCard's `header-extra` slot; the close button is
+    // an NButton with class `.mcp-close-btn` (no longer the legacy
+    // `.mcp-manager-header button` selector).
+    await page.locator(".mcp-close-btn").click();
     await expect(manager).not.toBeVisible();
   });
 });
@@ -58,7 +60,7 @@ test.describe("MCP Permission Prompt", () => {
     // This test would require triggering a permission request event
     // For now, verify the component exists in the DOM
     // In a real scenario, we'd emit a permission request event with an MCP tool
-    const permissionPrompt = page.locator(".permission-prompt");
+    const _permissionPrompt = page.locator(".permission-prompt");
     // Component may not be visible until a permission request is triggered
     // Just verify the page loaded
     await expect(page.locator("#app")).toBeVisible();

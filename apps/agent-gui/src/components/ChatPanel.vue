@@ -1,24 +1,35 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { sessionState, reportSendError } from "../stores/session";
-import { agentLabel } from "../stores/agents";
-import { addNotification } from "../composables/useNotifications";
+import { type ScrollbarInst } from "naive-ui";
+import { useSessionStore } from "@/stores/session";
+import { useAgentsStore } from "@/stores/agents";
+import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProjectedRole } from "../types";
 
+const { t } = useI18n();
+const session = useSessionStore();
+const agents = useAgentsStore();
+const { notify } = useNotifications();
 const inputText = ref("");
-const messageList = ref<HTMLElement | null>(null);
+const scrollbar = ref<ScrollbarInst | null>(null);
 
-/** Map role to display label. */
-const roleDisplay: Record<ProjectedRole, string> = {
-  user: "You",
-  assistant: "Agent",
+/**
+ * Map role to display label. Uses the locale's translations for the two
+ * user-facing roles (`user` → "You", `assistant` → "Agent"); the more
+ * specific Planner/Worker/Reviewer/System labels are intentionally kept in
+ * English because they refer to the agent-system role taxonomy and appear
+ * verbatim in trace events / system logs (see Task 7b carry-over #6 — only
+ * the user-facing greeting strings are translated here).
+ */
+const roleDisplay = computed<Record<ProjectedRole, string>>(() => ({
+  user: t("chat.roleYou"),
+  assistant: t("chat.roleAgent"),
   planner: "Planner",
   worker: "Worker",
   reviewer: "Reviewer",
   system: "System"
-};
+}));
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -31,26 +42,28 @@ const roleClass: Record<ProjectedRole, string> = {
 };
 
 /** Get the display label for a message, including agent attribution if available. */
-function messageLabel(msg: (typeof sessionState.projection.messages)[0]): string {
-  const base = roleDisplay[msg.role] || "Agent";
+function messageLabel(msg: (typeof session.projection.messages)[0]): string {
+  const base = roleDisplay.value[msg.role] || t("chat.roleAgent");
   if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
-    const label = agentLabel(msg.sourceAgentId);
+    const label = agents.agentLabel(msg.sourceAgentId);
     if (label) return `${base} (${label})`;
   }
   return base;
 }
 
+const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
+
 async function sendMessage() {
   const content = inputText.value.trim();
-  if (!content || sessionState.isStreaming) return;
+  if (!content || session.isStreaming) return;
 
   inputText.value = "";
   try {
     await invoke("send_message", { content });
   } catch (e) {
     console.error("Failed to send message:", e);
-    reportSendError(String(e));
-    addNotification("error", `Failed to send message: ${e}`);
+    session.reportSendError(String(e));
+    notify("error", t("chat.sendFailed", { error: String(e) }));
   }
 }
 
@@ -59,7 +72,7 @@ async function cancelSession() {
     await invoke("cancel_session");
   } catch (e) {
     console.error("Failed to cancel session:", e);
-    addNotification("error", `Cancel failed: ${e}`);
+    notify("error", t("chat.cancelFailed", { error: String(e) }));
   }
 }
 
@@ -71,68 +84,98 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 watch(
-  () => [sessionState.projection.messages.length, sessionState.projection.token_stream],
+  () => [session.projection.messages.length, session.projection.token_stream],
   async () => {
     await nextTick();
-    if (messageList.value) {
-      messageList.value.scrollTop = messageList.value.scrollHeight;
-    }
+    // NScrollbar exposes `scrollTo` for programmatic scrolling. Falling
+    // straight to a very large `top` keeps us pinned to the bottom of the
+    // message list as new tokens stream in.
+    scrollbar.value?.scrollTo({ top: 1e9 });
   }
 );
 </script>
 
 <template>
-  <section class="chat-panel">
+  <section class="chat-panel" data-test="chat-panel">
     <header class="chat-header">
-      <h2>Chat</h2>
-      <span class="profile-badge">{{ sessionState.currentProfile }}</span>
+      <h2>{{ t("chat.header") }}</h2>
+      <NTag size="small" :bordered="false" data-test="chat-profile-badge">
+        {{ session.currentProfile }}
+      </NTag>
     </header>
-    <div ref="messageList" class="message-list">
-      <div
-        v-for="(msg, i) in sessionState.projection.messages"
-        :key="i"
-        :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
-      >
-        <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
-          messageLabel(msg)
-        }}</span>
-        <!-- eslint-disable vue/no-v-html -->
-        <span
-          v-if="
-            msg.role === 'assistant' ||
-            msg.role === 'planner' ||
-            msg.role === 'worker' ||
-            msg.role === 'reviewer'
-          "
-          class="message-content markdown-body"
-          v-html="renderMarkdown(msg.content)"
-        ></span>
-        <!-- eslint-enable vue/no-v-html -->
-        <span v-else class="message-content">{{ msg.content }}</span>
-      </div>
-      <div v-if="sessionState.projection.token_stream" class="message message-assistant streaming">
-        <span class="message-role">Agent</span>
-        <span class="message-content"
-          >{{ sessionState.projection.token_stream }}<span class="cursor">▌</span></span
+
+    <NScrollbar ref="scrollbar" class="message-list" data-test="message-list">
+      <div class="message-list-inner">
+        <div
+          v-for="(msg, i) in session.projection.messages"
+          :key="i"
+          :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
         >
+          <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
+            messageLabel(msg)
+          }}</span>
+          <!-- eslint-disable vue/no-v-html -->
+          <span
+            v-if="
+              msg.role === 'assistant' ||
+              msg.role === 'planner' ||
+              msg.role === 'worker' ||
+              msg.role === 'reviewer'
+            "
+            class="message-content markdown-body"
+            v-html="renderMarkdown(msg.content)"
+          ></span>
+          <!-- eslint-enable vue/no-v-html -->
+          <span v-else class="message-content">{{ msg.content }}</span>
+        </div>
+        <div v-if="session.projection.token_stream" class="message message-assistant streaming">
+          <span class="message-role">{{ t("chat.roleAgent") }}</span>
+          <span class="message-content"
+            >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
+          >
+        </div>
+        <NAlert
+          v-if="session.projection.cancelled"
+          type="warning"
+          :show-icon="false"
+          class="cancelled-marker"
+          data-test="cancelled-marker"
+        >
+          {{ t("chat.cancelled") }}
+        </NAlert>
       </div>
-      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">[cancelled]</div>
-    </div>
+    </NScrollbar>
+
     <div class="input-area">
-      <textarea
-        v-model="inputText"
-        :disabled="sessionState.isStreaming"
-        class="message-input"
-        placeholder="Type your message..."
-        rows="1"
-        @keydown="handleKeydown"
-      ></textarea>
-      <button v-if="sessionState.isStreaming" class="cancel-button" @click="cancelSession">
-        Cancel
-      </button>
-      <button v-else class="send-button" :disabled="!inputText.trim()" @click="sendMessage">
-        Send
-      </button>
+      <NSpace :wrap="false" align="end" :size="8" :style="{ width: '100%' }">
+        <NInput
+          v-model:value="inputText"
+          type="textarea"
+          class="message-input"
+          data-test="message-input"
+          :disabled="session.isStreaming"
+          :autosize="{ minRows: 1, maxRows: 6 }"
+          :placeholder="t('chat.placeholder')"
+          @keydown="handleKeydown"
+        />
+        <NButton
+          v-if="session.isStreaming"
+          type="error"
+          data-test="cancel-button"
+          @click="cancelSession"
+        >
+          {{ t("common.cancel") }}
+        </NButton>
+        <NButton
+          v-else
+          type="primary"
+          data-test="send-button"
+          :disabled="sendDisabled"
+          @click="sendMessage"
+        >
+          {{ t("common.send") }}
+        </NButton>
+      </NSpace>
     </div>
   </section>
 </template>
@@ -149,22 +192,17 @@ watch(
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
-  border-bottom: 1px solid #d7d7d7;
+  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
 }
 .chat-header h2 {
   margin: 0;
   font-size: 14px;
 }
-.profile-badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  background: #e8e8e8;
-  border-radius: 4px;
-  color: #555;
-}
 .message-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+}
+.message-list-inner {
   padding: 12px 16px;
 }
 .message {
@@ -200,15 +238,6 @@ watch(
   color: #888;
   font-style: italic;
 }
-.role-badge-planner {
-  background: none;
-}
-.role-badge-worker {
-  background: none;
-}
-.role-badge-reviewer {
-  background: none;
-}
 .message-role {
   margin-right: 6px;
 }
@@ -220,8 +249,6 @@ watch(
   animation: blink 1s step-end infinite;
 }
 .cancelled-marker {
-  color: #b45309;
-  font-style: italic;
   margin-top: 4px;
 }
 @keyframes blink {
@@ -230,47 +257,11 @@ watch(
   }
 }
 .input-area {
-  display: flex;
-  gap: 8px;
   padding: 8px 16px;
-  border-top: 1px solid #d7d7d7;
+  border-top: 1px solid var(--app-border-color, #d7d7d7);
 }
 .message-input {
   flex: 1;
-  padding: 8px;
-  border: 1px solid #d7d7d7;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 13px;
-  resize: none;
-}
-.message-input:disabled {
-  background: #f5f5f5;
-}
-.send-button {
-  padding: 8px 16px;
-  background: #0077cc;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.send-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.cancel-button {
-  padding: 8px 16px;
-  background: #cc3333;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.cancel-button:hover {
-  background: #b32828;
 }
 .markdown-body :deep(pre.hljs) {
   margin: 8px 0;

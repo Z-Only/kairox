@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 
 test("permission prompt appears when agent requests tool access", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -36,7 +36,7 @@ test("permission prompt appears when agent requests tool access", async ({ page 
 
 test("granting permission updates the permission entry status", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -60,7 +60,7 @@ test("granting permission updates the permission entry status", async ({ page })
 
 test("denying permission shows denied status", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -84,7 +84,7 @@ test("denying permission shows denied status", async ({ page }) => {
 
 test("memory proposal appears in permission center", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -107,7 +107,7 @@ test("memory proposal appears in permission center", async ({ page }) => {
 
 test("accepting memory removes the prompt", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -146,7 +146,7 @@ test("accepting memory removes the prompt", async ({ page }) => {
 
 test("rejecting memory removes the prompt", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
@@ -182,7 +182,7 @@ test("rejecting memory removes the prompt", async ({ page }) => {
 
 test("permission center shows 'No pending requests' when empty", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".sessions-sidebar")).toBeVisible({
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 

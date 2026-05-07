@@ -12,6 +12,14 @@
 
 **Linked decisions (from brainstorming):** All 14 + 6 SFCs migrate to NaiveUI; setup-store Pinia; nested hash routes; common-copy i18n with en + zh-CN; auto-import allowlist `vue, vue-router, pinia, @vueuse/core, vue-i18n, naive-ui (selected hooks)`.
 
+**Commit message constraints (verified against repo `commitlint.config.js` which extends `@commitlint/config-conventional`):**
+
+- **header-max-length: 100 characters** (the entire first line `<type>(<scope>): <subject>` must be ≤100 chars)
+- **type-enum:** `build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test`
+- **scope-enum (allowed):** `core, runtime, models, tools, memory, store, config, tui, gui, deps, mcp, ci`
+- **subject-case:** lower-case
+- All commit messages in this plan have been pre-verified ≤100 chars. If you hit a `commitlint` failure, do NOT use `--no-verify`; report back NEEDS_CONTEXT instead.
+
 ---
 
 ## Pre-flight (do this once, not a numbered task)
@@ -50,7 +58,14 @@
 ## Task 1: Add 7 dependencies (commit 1)
 
 **Branch:** `feat/frontend-engineering`
-**Commit message:** `chore(deps): add pinia, vue-router, vue-i18n, naive-ui, @vueuse/core, unplugin-auto-import, unplugin-vue-components`
+**Commit message header (≤100 chars, verified 64):** `chore(deps): add frontend foundation deps for naive-ui migration`
+**Commit message body (provide via `-m` second arg):**
+
+```
+- runtime: pinia, vue-router, vue-i18n, naive-ui, @vueuse/core
+- dev: @pinia/testing, unplugin-auto-import, unplugin-vue-components
+```
+
 **Why first:** every later task depends on these being present in `node_modules` and `pnpm-lock.yaml`. Add them all in one commit so reviewers see the dep delta in one place.
 
 **Files:**
@@ -125,10 +140,13 @@
 
   ```bash
   git add apps/agent-gui/package.json pnpm-lock.yaml
-  git commit -m "chore(deps): add pinia, vue-router, vue-i18n, naive-ui, @vueuse/core, unplugin-auto-import, unplugin-vue-components"
+  git commit \
+    -m "chore(deps): add frontend foundation deps for naive-ui migration" \
+    -m "- runtime: pinia, vue-router, vue-i18n, naive-ui, @vueuse/core" \
+    -m "- dev: @pinia/testing, unplugin-auto-import, unplugin-vue-components"
   ```
 
-  Expected: husky pre-commit fires `prettier --write` on `package.json`, commit succeeds. `git log --oneline -1` shows the new commit.
+  Expected: husky pre-commit fires `prettier --write` on `package.json`, commit-msg hook accepts (header is 64 chars, well under the 100-char limit), commit succeeds. `git log --oneline -1 | cat` shows the new commit.
 
 ---
 
@@ -2446,6 +2464,22 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Commit message:** `feat(gui): integrate @vueuse/core (useDark, useColorMode, useStorage, tryOnScopeDispose)`
 **Why fourth:** the `ui` store skeleton from Task 3 is expanded with vueuse-backed state (theme + locale persistence). `useTauriEvents.ts` gets `tryOnScopeDispose` cleanup. No NaiveUI yet — that's Task 6.
 
+> **📋 Carry-over from Task 3 code-quality review (commit `ca15a29`) — bundle these with the @vueuse work below since this Task already touches `stores/ui.ts` and `composables/useTauriEvents.ts`. None are blockers; all are low/medium severity cleanups the Task 3 reviewer flagged for follow-up:**
+>
+> 1. **(medium) Move task-event mutations from `useTauriEvents.ts` into a new `taskGraph.applyTaskEvent(payload)` action.** Today `apps/agent-gui/src/composables/useTauriEvents.ts:39-101` directly mutates `taskGraph.tasks.push(...)`, sets `task.state = "Running"`, and reassigns `taskGraph.tasks = [...taskGraph.tasks]` (6 occurrences) from outside the store. Mirror the existing `agents.applyAgentEvent(payload)` (line 102 of the same file) and `mcp.handleMcpEvent(payload)` (line 113) patterns: add `applyTaskEvent(payload: EventPayload)` to `apps/agent-gui/src/stores/taskGraph.ts` containing every per-event branch (`task-spawned`, `task-state-changed`, `task-output`, etc.) currently inlined in `useTauriEvents.ts`, then have the composable call `taskGraph.applyTaskEvent(payload)`. Drop all six `taskGraph.tasks = [...taskGraph.tasks]` reassignments — they were `reactive()`-era reactivity pokes that are wasted allocations under Pinia + `ref()` (Vue 3.4+ tracks the proxy mutations natively).
+> 2. **(low) Replace App.vue first-run init mutations with a `session.initializeWorkspace()` action.** `apps/agent-gui/src/App.vue:43-47` currently writes `session.initialized = true; session.workspaceId = workspaceInfo.workspace_id; session.sessions = await invoke("list_sessions")` directly. Promote this to an action on `apps/agent-gui/src/stores/session.ts` so the store owns its initialization protocol; App.vue then awaits one call.
+> 3. **(low) `session.setProjection` should call the neighbor store's action, not poke its fields.** `apps/agent-gui/src/stores/session.ts:142-148` writes `taskGraph.tasks = next.task_graph.tasks; taskGraph.currentSessionId = currentSessionId.value` directly. Replace with `useTaskGraphStore().setTaskGraph(next.task_graph.tasks, currentSessionId.value)` — the action already exists at `stores/taskGraph.ts:25-28`. The same store already calls `useTaskGraphStore().clearTaskGraph()` correctly on line 159, so this restores internal consistency.
+> 4. **(low) Delete `composables/useNotifications.ts` and `composables/useNotifications.test.ts`.** Repo-wide grep `grep -rn "from.*useNotifications" apps/agent-gui/src` returns exactly one consumer: `useNotifications.test.ts` itself. The shim has no production callers (every store and SFC consumer uses `useUiStore()` directly). Since this Task is the natural place to expand `stores/ui.ts`, also delete the shim and its self-test. Do **not** add re-export aliases — Task 3 already established the no-back-compat-shim discipline.
+> 5. **(low) Pick one cross-store-call style and apply it consistently.** Currently:
+>    - `stores/catalog.ts` does `const ui = useUiStore(); … ui.pushNotification(…)` (binds once at action top, 10 occurrences)
+>    - `stores/session.ts:193,214` uses the same bound style; `stores/session.ts:245` uses inline `useUiStore().pushNotification(…)`
+>    - `stores/mcp.ts` (6 occurrences) and `stores/memory.ts` (2 occurrences) always inline
+>      Both styles are functionally correct (Pinia caches the store handle) and lazy (no top-level call), but inconsistency across files — and even within `session.ts` — is a smell. Adopt the **`const ui = useUiStore()` at action top** form everywhere. Apply uniformly across all four stores.
+> 6. **(low) Extract a shared `createUiStoreMock()` helper in `apps/agent-gui/src/test-utils/`.** Four test files (`stores/{memory,mcp,catalog}.test.ts` + `stores/session-ipc.test.ts`) hand-roll `vi.mock("@/stores/ui", …)` factories with subtle drift: `session-ipc.test.ts:13-19` includes `notifications: []` while the other three don't. Today this is harmless (no test reads `notifications` through the mock), but if a future store action ever reads `useUiStore().notifications`, three of the four mocks will return `undefined` and only one will pass. Extract the canonical full-shape factory once, have all four mocks delegate to it.
+> 7. **(informational) Consider migrating `composables/useTraceStore.ts` to a Pinia setup-store as part of this Task.** It is the only remaining `reactive(...)` top-level state in `apps/agent-gui/src/` (verified via `grep -rn "reactive(" apps/agent-gui/src/`). Migrating it here keeps the codebase fully Pinia-uniform and removes the asymmetry. **Decision is yours**: if scope is tight, defer to a separate `chore(gui): migrate useTraceStore to pinia` follow-up commit on this same branch. If you do migrate it, also rename the file to `apps/agent-gui/src/stores/trace.ts` for consistency, and update its sole consumer (`apps/agent-gui/src/composables/useTraceStore.test.ts` is the largest test file in the repo at 21 KB — handle with care).
+>
+> All seven items together comprise a single "tighten store boundaries + extend ui store" commit alongside the @vueuse integration. Keep the commit message header the same as already specified above; expand the body to mention the carried-over cleanups.
+
 **Files:**
 
 - Modify: `apps/agent-gui/src/stores/ui.ts`
@@ -2861,11 +2895,75 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
 > **Note for Task 5:** the `switchSession` action is already added to the session store in **Task 3 Step 8** (verified above). Task 5 may freely call `session.switchSession(id)` without redefining it.
 
+> **⚠️ MANDATORY for Task 5 (carried over from Task 2 spec-review follow-up):** Task 2 shipped `apps/agent-gui/src/router/routes.ts` with a `placeholderComponent(name)` factory in place of the spec's `() => import("@/views/*View.vue")` lazy imports, because rolldown (Vite 8 default bundler) statically resolves dynamic import paths and hard-fails when target SFCs are missing. Task 5 creates those SFCs, so **Task 5 MUST** apply this exact rewrite to `apps/agent-gui/src/router/routes.ts`:
+>
+> 1. Open `apps/agent-gui/src/router/routes.ts` with `read_file` to confirm the current shape (verified at Task 2 commit `aacbeeb`: 32 lines total). Then delete lines 3–11 inclusive — these 9 lines contain BOTH regions of the placeholder helper. The exact lines to remove are:
+>
+>    ```ts
+>    // TODO(Task 5): swap these placeholder components for real lazy imports of
+>    // `@/views/WorkbenchView.vue`, `@/views/MarketplaceView.vue`, and
+>    // `@/views/SettingsView.vue` once those SFCs exist. Vite's build cannot
+>    // statically resolve dynamic imports to non-existent modules, so we ship
+>    // runtime stubs in Task 2 to keep the build green.
+>    const placeholderComponent = (name: string) => () =>
+>      Promise.resolve({
+>        default: { name, template: `<div>view-placeholder:${name}</div>` }
+>      });
+>    ```
+>
+>    If Prettier has reformatted the file since Task 2 (line numbers may have shifted by ±1), match by content rather than line number: remove the entire 5-line `// TODO(Task 5): ...` comment block AND the entire 4-line `const placeholderComponent = ...` declaration that immediately follows it (ending with `});`).
+>
+> 2. Keep the `import type { RouteRecordRaw } from "vue-router";` line at the top of the file unchanged — it is still required by the `RouteRecordRaw[]` type annotation on the `routes` constant.
+> 3. Replace each route's `component` field as follows (verbatim, all three must be applied — no `(etc.)` shortcuts):
+>    - `component: placeholderComponent("WorkbenchView")` → `component: () => import("@/views/WorkbenchView.vue")`
+>    - `component: placeholderComponent("MarketplaceView")` → `component: () => import("@/views/MarketplaceView.vue")`
+>    - `component: placeholderComponent("SettingsView")` → `component: () => import("@/views/SettingsView.vue")`
+> 4. The rest of the `routes` array (paths, names, `props: true` on workbench, root redirect, `:pathMatch(.*)*` wildcard, route ordering) MUST remain byte-for-byte identical to the spec block in this plan at **Task 2 Step 3 (plan L230–L249)**. Do not add, remove, or reorder routes.
+> 5. After the rewrite:
+>    - Run `pnpm --filter agent-gui run build` and confirm rolldown can now statically resolve all three imports (no `UNLOADABLE_DEPENDENCY` errors); the build output should now show three additional lazy-loaded chunks (one per view).
+>    - Run `pnpm --filter agent-gui run test`. The test count MUST NOT regress relative to the previous task's verification step. Determine the floor by inspecting the previous task's implementer report (the most recent task before Task 5 — i.e. Task 4) for its final `pnpm --filter agent-gui run test` output, and using that exact reported count as the floor. Do not hard-code a number; always derive the floor from the prior task's actual measured count, because earlier tasks (Task 3 in particular) modify many existing `*.test.ts` files and may add or remove individual test cases as part of the Pinia migration. Task 5 itself adds no new unit tests (it only adds `data-test` attributes consumed by Playwright in Task 8), so the new count should equal the prior task's count exactly. If the count is lower, treat it as a regression and stop.
+>
+> Failing to do this means GUI navigation will forever render `<div>view-placeholder:WorkbenchView</div>` instead of the real views, and code-splitting (one chunk per view) will not work.
+
 ## Task 5: Add SettingsView + AppLayout + WorkbenchView/MarketplaceView wrappers (commit 5)
 
 **Branch:** `feat/frontend-engineering`
 **Commit message:** `feat(gui): add settings view, app layout, and route-level views`
 **Why fifth:** the router defined in Task 2 references views that do not exist. This commit creates them as **plain HTML wrappers** (no NaiveUI yet) so navigation works end-to-end. NaiveUI replaces the styling in Task 6. Settings view is the demo destination for locale + theme switching.
+
+> **📋 Carry-over from Task 3 code-quality review (commit `ca15a29`) — bundle this with the view-creation work below since this Task is the first one that actually consumes the `apps/agent-gui/src/test-utils/mount.ts` helper that Task 3 created:**
+>
+> - **(low) Add an import-only smoke test for `test-utils/mount.ts` and verify its dependency paths resolve.** The helper was created in Task 3 (commit `ca15a29`, file `apps/agent-gui/src/test-utils/mount.ts`, 31 LOC) but is currently zero-referenced (`grep -rn "mountWithPlugins\|from.*test-utils/mount" apps/agent-gui/` returns no call sites). The helper imports `@/locales/en.json` (exists, created in Task 2) and `@/router/routes` (exists, but at the start of this Task 5 it still exports the `placeholderComponent`-based routes from Task 2 — the MANDATORY follow-up that appears **earlier in this plan, immediately above this Task 5 heading** converts those routes to real `() => import("@/views/*View.vue")` lazy imports). Two concrete actions:
+>   1. After you have applied the MANDATORY router rewrite (the `⚠️ MANDATORY for Task 5` block immediately preceding this Task 5 section), create a one-test smoke spec at `apps/agent-gui/src/test-utils/mount.test.ts` that does `import { mountWithPlugins } from "./mount"` and asserts `typeof mountWithPlugins === "function"`. This guarantees both `@/locales/en.json` and `@/router/routes` resolve at test time before any real consumer (Task 6+) tries to use it. The spec must use the same vitest patterns as the rest of this repo (`describe` + `it` + `expect` from `vitest/globals`).
+>   2. Add a JSDoc comment block to `mountWithPlugins` documenting: (a) when to use it (component tests that need router-link / `<RouterView>` / `$t` resolution), (b) what it costs (creates a fresh memory-history router and English-only i18n on every mount — overkill for tests that don't need them), (c) recommended alternative for store-only tests (use `setActivePinia(createPinia())` + plain `mount(Component)` from `@vue/test-utils` directly).
+>
+> **📋 Carry-over from Task 4 code-quality re-review (commit `95db18b`) — bundle this with Task 5 since `useTauriEvents.ts` will likely be imported into the new `AppLayout.vue` (the layout is the natural mount point for the global session-event subscription) and any change to its error-surfacing behavior is best reviewed alongside its first layout-level consumer:**
+>
+> - **(IMPORTANT) Surface `listen()` rejection in `useTauriEvents.ts` instead of silently dropping it.** Currently `apps/agent-gui/src/composables/useTauriEvents.ts:80-82` reads:
+>
+>   ```ts
+>   void unlistenPromise.then(() => {
+>     session.setConnected(true);
+>   });
+>   ```
+>
+>   This chain has NO `.catch()`. If `listen()` rejects (Tauri channel down, IPC severed, missing permissions, etc.) the promise becomes an **unhandled rejection** — the runtime emits a console-only warning, and the user sees only the "disconnected" status indicator with no explanation. The cleanup chain at line 75-78 correctly uses `.catch(() => {})` (silent on dispose is right because the component is already unmounting and cannot show a toast), but the setup chain must NOT be silent.
+>
+>   **Required fix:**
+>
+>   ```ts
+>   void unlistenPromise
+>     .then(() => session.setConnected(true))
+>     .catch((err) => {
+>       ui.pushNotification("error", `Failed to subscribe to session events: ${err}`);
+>     });
+>   ```
+>
+>   The `ui` store handle is already bound at the top of `useTauriEvents()` (it's used by the existing `AgentTaskFailed → ui.pushNotification(...)` branch on line 64), so no new imports are needed.
+>
+>   **Test addition:** Since `useTauriEvents.ts` doesn't currently have a dedicated test file, add a minimal one at `apps/agent-gui/src/composables/useTauriEvents.test.ts` with one test case: mock `@tauri-apps/api/event`'s `listen` to return `Promise.reject(new Error("channel closed"))`, mount a tiny dummy component that calls `useTauriEvents()`, await a microtask flush, then assert `useUiStore().notifications` contains an entry with `level: "error"` and message starting with `"Failed to subscribe to session events"`. This locks in the fix and prevents future regressions. **Do NOT** add tests for the happy path here — those are covered indirectly by the existing 27 test files.
+>
+>   **Out-of-scope explicitly:** the parallel NIT the reviewer mentioned (unifying setup-chain + cleanup-chain into a single promise chain) is purely cosmetic; defer to a future refactor commit on this same branch only if you happen to be touching this file again.
 
 **Files:**
 
@@ -3233,9 +3331,23 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Commit message:** `feat(gui): integrate naive-ui with provider stack and theme overrides`
 **Why sixth:** wires NaiveUI's `NConfigProvider` + 4 service providers and maps existing CSS variables (`--accent`, `--border`, `--surface-alt`) to NaiveUI's theme tokens. **No SFC migration yet** — that's Task 7. After this commit, NaiveUI is available to call but no existing component uses it.
 
+**MANDATORY pre-work (carried over from Task 5 code-quality review — collect them BEFORE the NaiveUI work in Step 1; same commit):**
+
+- **Pre-work A — `WorkbenchView.vue` syncing guard (Task 5 IMPORTANT #1):**
+  Add a `const syncing = ref(false)` to `apps/agent-gui/src/views/WorkbenchView.vue`. Set it to `true` at the top of `syncRouteToSession`, reset in a `finally` block. The reverse watcher (`watch(() => session.currentSessionId, …)` that calls `router.replace`) must early-return when `syncing.value` is `true`. This closes the race where a not-found `router.replace({ name: "workbench" })` is immediately undone by the `currentSessionId` watcher writing the stale id back into the URL. Existing `WorkbenchView` tests must still pass; add at minimum one new vitest case asserting that, after a `switchSession` rejection, the URL ends up at `/workbench` (no sessionId param) and stays there for at least one tick.
+
+- **Pre-work B — `SettingsView.vue` single-write to ui store (Task 5 IMPORTANT #2):**
+  In `apps/agent-gui/src/views/SettingsView.vue` change both `<select>` elements from `v-model="locale" @change="ui.setLocale(...)"` (and the matching `colorMode` select) to `:value="locale" @change="(e) => ui.setLocale(...)"` so that the store action is the only write path. Do NOT keep `v-model` — the destructured `locale` / `colorMode` refs from `storeToRefs(ui)` must not be mutated directly from the template. Update `SettingsView.test.ts` (or add it if not present in Task 5) so it asserts that selecting an option calls `ui.setLocale` / `ui.setTheme` exactly once with the selected value, and that the destructured refs do NOT change unless the action runs.
+
+Both pre-work items must land in the same `feat(gui): integrate naive-ui …` commit as the rest of Task 6. Do not amend Task 5; do not introduce a separate commit.
+
 **Files:**
 
 - Create: `apps/agent-gui/src/styles/naive-theme.ts`
+- Modify: `apps/agent-gui/src/views/WorkbenchView.vue` (Pre-work A: syncing guard)
+- Modify: `apps/agent-gui/src/views/SettingsView.vue` (Pre-work B: drop v-model, single-write via action)
+- Modify (or create if absent): `apps/agent-gui/src/views/SettingsView.test.ts` (Pre-work B regression test)
+- Modify (or extend the existing test): `apps/agent-gui/src/views/WorkbenchView.test.ts` (Pre-work A regression test)
 - Modify: `apps/agent-gui/src/layouts/AppLayout.vue` (wrap with provider stack)
 - Modify: `apps/agent-gui/src/composables/useNotifications.ts` (delegate to NaiveUI's `useMessage` for toast UI; keep store as the source of truth)
 
@@ -3517,6 +3629,24 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 | `marketplace/InstallProgress.vue`    | `NProgress`, `NSpin`, `NAlert`, `NText`                                                                                         |
 | `marketplace/RuntimeMissingHint.vue` | `NAlert`, `NButton`, `NCode`                                                                                                    |
 
+**MANDATORY pre-work (carried over from Task 6 code-quality review — collect them BEFORE the SFC migration starts; same logical commit / split group):**
+
+- **Pre-work A — `useNotifications` ↔ `NotificationToast` semantic boundary (Task 6 IMPORTANT-1):**
+  Today `notify()` calls both `ui.pushNotification(level, content)` (which `NotificationToast.vue` renders as a custom slide-in toast) AND `message.<level>(content)` (NaiveUI top toast). Once any caller hooks `useNotifications`, the same event will appear twice. Resolve before wiring the first caller in this Task 7 SFC migration. Recommended approach: keep `ui.pushNotification` + `useNotifications.notify` as the single, intentional "user-facing transient + persistent log" path, and **migrate `NotificationToast.vue` per the spec §5.5 mapping** ("replaced by `useMessage()` (still keeps file as a slim adapter that watches `ui.notifications` and calls `message.create(...)`)") so that the store remains the source of truth and the visual layer is owned 100% by NaiveUI's `useMessage` — eliminating the dual render. Add a JSDoc note on `useNotifications.notify()` explicitly stating "the NaiveUI `<NotificationToast />` adapter consumes the same store entries; do NOT also call `message.*` directly elsewhere".
+- **Pre-work B — `useNotifications` runtime guard (Task 6 IMPORTANT-2):**
+  `useMessage()` throws if called outside an `<NMessageProvider>` subtree. Add a try/catch around the `useMessage()` call inside `useNotifications`, and on failure (a) `console.error` a clear "useNotifications must be called inside the AppLayout subtree" message, then (b) return a `notify()` that only writes to `ui.pushNotification` (never throws). This prevents a misuse from a store / router-guard / top-level service module from crashing the host component. Update / add `useNotifications.test.ts` with one new case mocking `useMessage` to throw and asserting `notify()` still pushes to the store and does not propagate the error.
+- **Pre-work C — `Session not found` i18n (Task 6 NIT-5):**
+  In `apps/agent-gui/src/views/WorkbenchView.vue` replace the hardcoded `` `Session not found: ${id}` `` with `t("workbench.sessionNotFound", { id })` (use `useI18n` already available in the file or add the import). Add the new key to **every** locale file under `apps/agent-gui/src/locales/` (currently `en.json` and `zh-CN.json`). Keep the `console.error('[WorkbenchView] switchSession failed:', err)` in English (developer-facing). The existing `WorkbenchView.test.ts` regression assertion that uses substring `badId` keeps working because `{ id }` interpolation still includes the id; verify by running the test.
+
+These three items must land in the same `refactor(gui): migrate components to naive-ui` commit (or, if Task 7 is split per the LOC-threshold rule below, in the **first** sub-commit so later sub-commits can rely on the cleaned `useNotifications` contract). Do not amend Task 6.
+
+**Carry-over from Task 5 review (collect opportunistically during the SFC migration — no extra commits, just take care of them when the file is open):**
+
+- **Task 5 IMPORTANT #4 — `SessionsSidebar.test.ts` `setTimeout(0)` brittleness:** when migrating `SessionsSidebar.vue` to NaiveUI components, replace the `await new Promise((r) => setTimeout(r, 0))` flush in the existing test with `await flushPromises()` from `@vue/test-utils` plus `await router.isReady()` so the assertion is robust to future `vi.useFakeTimers()` setup.
+- **Task 5 NIT #10 — `SessionsSidebar.createSession` side-effect surface:** when touching `SessionsSidebar.vue`, move the `currentProfile = result.profile` mutation, `resetProjection`, and global `clearTrace()` call into the `session.createSession()` action so the view layer only does `router.push`. This keeps the NaiveUI migration diff focused on UI markup rather than mixed UI + business logic.
+- **Task 5 NIT #8 — `SessionsSidebar.vue` native `<dialog open>`:** the spec §5.5 mapping does NOT list `NModal`/`NDrawer` for `SessionsSidebar.vue`, so this is **out of scope for Task 7** — leave the `<dialog>` element as-is. Track it as a separate follow-up if dialog UX matters; do not add it here.
+- **Task 5 NIT #9 — `MarketplaceView.vue` hardcoded English strings:** when this file appears in the Task 7 SFC migration, also replace the hardcoded `"Marketplace"` / `"Browse"` / `"Installed"` / `"Catalog source settings"` etc. with `t("...")` calls and add the keys to all locale files. Same i18n discipline as Pre-work C.
+
 **Files (every consumer of the above):**
 
 - 14 components in `src/components/`
@@ -3557,6 +3687,63 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   - **7c — mcp & marketplace:** `McpServerManager.vue`, `McpStatusIndicator.vue`, `CatalogSourcesSettings.vue`, `marketplace/*.vue`
 
   Each sub-commit follows the same per-component recipe (Steps 1-5 below) and ends with vitest + lint + build green. Use commit messages `refactor(gui): migrate chat & sessions to naive-ui`, `refactor(gui): migrate trace/tasks/permissions/memory to naive-ui`, `refactor(gui): migrate mcp & marketplace to naive-ui`.
+
+  **Status of sub-commits:**
+  - **7a — DONE** (commit `65bb7b0`, double-reviewed). Pre-work A/B/C all landed (NotificationToast → useMessage adapter; useNotifications wraps useMessage in try/catch with a fallback notify; WorkbenchView's "Session not found" goes through `t('workbench.sessionNotFound', { id })` with en/zh-CN keys). Task 5 carry-overs (#4 flushPromises + router.isReady; #10 createSession side-effect ownership in store) also landed. ConfirmDialog.vue / ConfirmDialog.test.ts kept on disk because MemoryBrowser still consumes them — they get removed in 7b along with MemoryBrowser's migration.
+  - **7b — DONE** (commit `87072e1`, double-reviewed; one IMPORTANT from quality review fixed in-place via `git commit --amend`). Migrated TraceTimeline / TraceEntry / TaskSteps / TaskNode / PermissionPrompt / PermissionCenter / MemoryBrowser to NaiveUI. Deleted `ConfirmDialog.vue` + `ConfirmDialog.test.ts` (MemoryBrowser was the last consumer; it now uses `useDialog().warning()`). All 7 of the 7a → 7b carry-overs (NotificationToast Set GC, useNotifications degraded log, dead i18n key removal, SessionsSidebar `<ul>` comment, ChatPanel/SessionsSidebar tests using `mountWithPlugins({ withNaiveProviders: true })`, i18n of remaining hardcoded strings, SessionsSidebar rename ref function form) bundled into the same commit. Spec §5.5 deviations on TraceTimeline (NButton tab strip vs NTabs — heterogeneous panels + NTabPane teleport semantics), TaskSteps (recursive TaskNode tree vs NSteps linear), TraceEntry (no `NTime` because data only has `durationMs`), PermissionPrompt (inline prompt, not modal — no `NModal`), and MemoryBrowser (no `NTabs/NDataTable` because text-heavy memory list is better served by `<ul>` + NTag/NText) have inline code comments justifying each engineering choice; all primary spec primitives (NScrollbar / NEmpty / NCard / NTag / NDivider / NText / NSpace / NButton / NSelect / NInput / NSpin / NList / NListItem / NPopconfirm-via-useDialog / NAlert) are in use.
+  - **7c — IN PROGRESS** (final sub-commit of Task 7).
+
+  **Opportunistic carry-overs from 7b code-quality review (collect during 7c — same logical commit, no extra commit):**
+  1. **[IMPORTANT] `PermissionPrompt.vue` "Trust this server" checkbox is a native `<input type="checkbox">`** (lines ~131-134), kept that way during 7b to preserve the `.mcp-trust-check input[type='checkbox']` test selector. The native input does not follow NaiveUI's dark-theme palette, producing a visual seam against the surrounding NTag / NButton / NCard. Migrate to `NCheckbox`, attach `[data-test="trust-server-checkbox"]` to the `NCheckbox`, and rewrite the test selector to use `wrapper.findComponent({ name: "NCheckbox" }).vm.$emit("update:checked", true)` (or query the `[data-test=...]` attribute directly). Production UI must match the rest of the prompt; the test must not reach into NaiveUI's internal DOM.
+
+  2. **[IMPORTANT] `NotificationToast.vue` dispatched-Set GC has an implicit contract on `useUiStore.dismissNotification`'s immutability.** The watcher iterates `for (const n of items)` while synchronously calling `ui.dismissNotification(n.id)`. Today the 5-push test passes, which implies `dismissNotification` reassigns `notifications.value = notifications.value.filter(...)` (new reference, the watcher's `items` parameter is decoupled). If a future maintainer "optimises" `dismissNotification` to `notifications.value.splice(idx, 1)` (in-place mutation), the `for...of` iterator skips elements and notifications get silently dropped. Add a `// MUST return a new array (filter), not in-place mutation. NotificationToast.vue's watcher iterates the same reference.` comment on `useUiStore.dismissNotification`, and add a one-line regression test that asserts `notifications.value` is a new reference after dismiss.
+
+  3. **[NIT] `sessions.newButton` i18n key bakes the visual prefix `+ ` into the translation** (`"+ New"` / `"+ 新建"`). Translations should carry text only; the `+` glyph belongs in the template (`+ {{ t('sessions.newButton') }}`) or as an NButton icon slot. Also update zh-CN to `"新建"` (no Chinese-mixed `+` punctuation).
+
+  4. **[NIT] `StatusBar.vue` body text is still hardcoded English** despite the 7a/7b commit message claiming "StatusBar hardcoded English strings are now t(...) calls". Only the NTooltip content (`status.activeProfile`) was actually translated. Add and use `status.streaming` / `status.connected` / `status.profileLabel` / `status.sessionsLabel` / `status.modeLabel` / `status.yes` / `status.no` (or compose `streaming: yes/no` etc. via parameterised keys) in both en/zh-CN.
+
+  5. **[NIT] `PermissionPrompt.vue` business terms** — `Permission Required` / `Memory Proposed` / `Allow` / `Deny` / `Accept` / `Reject` / `Trust this server` (~lines 55-65, 131) — are hardcoded English. Add `permissions.requiredTitle` / `permissions.memoryProposedTitle` / `permissions.allow` / `permissions.deny` / `permissions.accept` / `permissions.reject` / `permissions.trustServer` to en/zh-CN.
+
+  6. **[NIT] `TraceTimeline.vue` tab labels (`Trace` / `Tasks` / `Memory`) and the empty-state strings (`"No trace events yet"` / `"No tasks yet"` / PermissionCenter's `"Permissions"` / `"No pending requests"`)** are hardcoded English. Add `trace.tabTrace` / `trace.tabTasks` / `trace.tabMemory` / `trace.empty` / `tasks.empty` / `permissions.title` / `permissions.empty` etc.
+
+  7. **[NIT — from 7b I-1 fix re-review]** `MemoryBrowser.test.ts` comment near the `findComponent({ name: "Select" })` call says `"the SFC renders multiple internal `Select` subcomponents"`, which can be misread as "MemoryBrowser renders multiple `<NSelect>` itself". Reword to `"NaiveUI's NSelect implementation expands into multiple internal Select-named subcomponents (NSelectMenu etc.)"` so the next reader does not look for non-existent extra NSelects in the SFC.
+
+  8. **[NIT — from 7b I-1 fix re-review, optional]** The new NSelect-driven test asserts `expect(memory.filter).toBe(scope)` only — that is a state-level check that walks `handleFilterChange → setMemoryFilter → filter` end-to-end. If you want to additionally pin the contract that `setMemoryFilter` is the path used (so that future renames of the store action surface as failures), add `expect(setMemoryFilterSpy).toHaveBeenCalledWith(scope)` alongside the existing assertion. Skip if you prefer the looser end-to-end coupling.
+
+  Note on 7c carry-over scope: items 1-2 (IMPORTANT) MUST land inside the 7c commit. Items 3-8 (NIT) may be deferred to Task 9 (clean-up sweep) if the 7c diff already exceeds the LOC split threshold; in that case, list each deferred NIT explicitly in the 7c commit message body.
+
+  **Opportunistic carry-overs from 7a code-quality review (collect during 7b — same logical commit, no extra commit):**
+  1. **[IMPORTANT] `NotificationToast.vue` `dispatched` Set is monotonically growing.** The Set holds every `notification.id` ever forwarded but never removes them. `ui.pushNotification` mints fresh `crypto.randomUUID()` ids, so the Set strictly grows for the entire app lifetime. Quantitatively mild today (~80 bytes per entry), but it is a real long-running-session leak in `<NotificationToast>` which lives inside `AppLayout` for the whole app life. Pick the cleanest of these three approaches and explain the choice in a JSDoc on the Set:
+     - (a) `dispatched.delete(id)` immediately after `message.<level>(...)` returns. Verify the watcher does not re-enter and re-dispatch (`dismissNotification` shrinks the array, watcher re-runs, the now-deleted id is no longer in `items`, so `dispatched.has(id)` short-circuit still applies — but the new entry on next push is truly new id, so the recheck path is fine).
+     - (b) Each watcher tick GC against the current `items` array: `for (const id of dispatched) if (!items.find(n => n.id === id)) dispatched.delete(id)`. Add a hard cap (e.g. 500) as a belt-and-suspenders guard.
+     - (c) Replace the Set entirely with a `lastDispatchedIndex` cursor over the (append-only) `notifications` array. Process `items.slice(lastDispatchedIndex)` per tick. Requires the store to be append-only. Most invasive but cleanest semantically.
+
+     Recommended default: **(a) immediate delete** plus a 5-line JSDoc on the Set explaining "ids never repeat (UUID), so without delete this would grow unbounded — we delete after dispatch instead of keeping a permanent history".
+
+  2. **[IMPORTANT] `useNotifications.ts` error-level fallback is silent after the first crash.** When `useMessage()` throws on construction, the catch path `console.error`s once, then every subsequent `notify("error", ...)` only writes to the store (no further console output). Keep the no-throw design (good — protects callers), but capture the degraded state (`let providerAvailable = true; ... catch { providerAvailable = false }`) and, when `providerAvailable === false` and `level === "error"`, also `console.error("[useNotifications] (degraded) error:", content)` so each individual error still leaves a console trace. One-line guard, no API change.
+
+  3. **[NIT] Delete dead i18n key `notifications.sessionNotFound`** in both `apps/agent-gui/src/locales/en.json` (line ~44) and `zh-CN.json` (same line). The live key is `workbench.sessionNotFound`; the `notifications.*` one was left over from earlier iterations and has zero live references in the repo (verified by `git grep`). Trivial 1-line × 2-file delete.
+
+  4. **[NIT] Add a single-line comment on `SessionsSidebar.vue`'s `<ul class="session-list">` block** explaining why it stayed hand-rolled instead of migrating to `NList/NListItem/NThing`: the `.session-actions` element is hover-only (`.session-item:hover .session-actions { display: flex }`) and `NListItem`'s `#suffix` slot cannot be conditionally shown based on the parent `<li>:hover` state. This avoids future contributors thinking it was overlooked.
+
+  5. **[NIT] Migrate `ChatPanel.test.ts` and `SessionsSidebar.test.ts` to use `mountWithPlugins(comp, { withNaiveProviders: true, initialRoute: '/workbench' })`.** The helper that 7a added to `apps/agent-gui/src/test-utils/mount.ts` is currently NOT used by the very tests that need NaiveUI providers; both files hand-roll a 5-layer provider tree. Switching saves ~25 lines per file and demonstrates the helper's intended use site for future tests.
+
+  6. **[NIT] i18n the remaining hardcoded English strings** in:
+     - `SessionsSidebar.vue`: `+ New`, `Create`, `Cancel`, `Rename` (button title), `Delete` (button title), `No sessions yet`, `New Session` (modal title)
+     - `ChatPanel.vue`: `Failed to send message: ${e}`, `Cancel failed: ${e}`, the `roleDisplay` map literals (`You`/`Agent`), and the streaming `<span class="message-role">Agent</span>` literal
+     - `StatusBar.vue`: tooltip strings such as `Active profile`
+
+     Add the keys (`sessions.newButton` / `sessions.createButton` / `sessions.cancelButton` / `sessions.renameTitle` / `sessions.deleteTitle` / `sessions.emptyHint` / `sessions.newDialogTitle` / `chat.sendFailed` / `chat.cancelFailed` / `chat.roleYou` / `chat.roleAgent` / `status.activeProfile` etc.) to BOTH `en.json` and `zh-CN.json`.
+
+  7. **[NIT — fix during the SessionsSidebar work in 7b]** `SessionsSidebar.vue` rename `<input ref="renameInput">` is inside a `v-for`, so Vue 3 binds it as an array, not a single ref. Today this happens to work because `editingSessionId === item.id` ensures only one `<input>` is rendered, but it is a latent foot-gun. If you touch the file in 7b, switch to `:ref="(el) => { if (editingSessionId === item.id) renameInput.value = el as HTMLInputElement }"`. (If 7b does not touch SessionsSidebar.vue, skip this and roll it into the dialog/dropdown follow-up tracked under Task 5 NIT #8.)
+
+  **Defer to Task 8 (E2E):**
+  - Verify `NButton title` attribute → tooltip survives the migration in `SessionsSidebar` action buttons.
+  - Verify `NInput keydown` handler still receives Enter / Shift+Enter in `ChatPanel`.
+  - Migration of the native `<dialog>` + custom profile dropdown in `SessionsSidebar` (Task 5 NIT #8 explicit defer; spec §5.5 does NOT list NModal/NDrawer for this file).
+
+  **Pure type cleanup (Task 8 / 9 sweep, not 7b/7c):**
+  - The inline indexed-access type `(typeof session.projection.messages)[0]` appears in both `ChatPanel.vue` (~line 41) and `stores/session.ts` (~line 71). Extract a `ProjectedMessage` type in `apps/agent-gui/src/types/` and import it in both places.
 
 - [ ] **Step 1: Replace `ConfirmDialog.vue` with `useDialog()` callsites first**
 
@@ -3819,6 +4006,14 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Commit message:** `test(gui): update playwright e2e selectors and tauri-mock for new layout`
 **Why eighth:** after Task 5 (router) + Task 7 (NaiveUI), e2e specs may break because (a) URL paths now use hash routes, (b) old selectors (`button.primary`, `.session-row`) reference vanished classes, (c) `useTauriEvents` listeners changed lifecycle. We update specs + mock together to keep `just test-e2e` green.
 
+> **7c carry-over (must be addressed in this commit, before or alongside the e2e selector sweep):**
+>
+> 1. **[7c IMPORTANT-2 — `CatalogList.vue` hidden `<select data-test="catalog-trust">` is dead code]** The 7c review confirmed no current Vitest spec references `catalog-trust`; verify whether any Playwright e2e fixture uses it. If yes, migrate the fixture to drive `NSelect` via `findComponent({ name: "Select" })` or NSelect's `select-props` and then **delete** the hidden `<select>` from `CatalogList.vue`. If no, just delete the hidden `<select>` (and its `v-model="catalog.filters.trustMin"` binding) — it currently double-binds the same store filter and creates an a11y/maintenance hazard. Rationale: it was kept in 7c only as a defensive bridge; this is the right commit to close it because the e2e sweep is the only place it could matter.
+> 2. **[7c NIT-1 — `<InstallProgress>` lifetime coupled to `<NDrawer>`]** In `apps/agent-gui/src/components/marketplace/CatalogDetail.vue`, `<InstallProgress>` is currently nested inside the `<NDrawer>` subtree, so closing the drawer mid-install unmounts the install-progress modal. Move `<InstallProgress>` up one level — render it from `MarketplaceView.vue` (or `CatalogList.vue`) so it survives drawer close. Update any spec/e2e that asserted on its DOM location at the same time.
+> 3. **[7c NIT-2 — `InstallProgress` NModal `title` does not track outcome]** In `apps/agent-gui/src/components/marketplace/InstallProgress.vue`, replace the static `title="Installing…"` with a `computed` driven by `outcome.kind` (e.g. `"Installing…"` / `"Install complete."` / `"Install failed"`). This is a 5-line change but materially fixes the visual mismatch the 7c review flagged. If the e2e specs assert on the title text, update those assertions in the same commit.
+>
+> All three items are non-blocking for cb8944f's merge but must land before this commit (Task 8) is closed; they are scoped to the e2e/selector surface area Task 8 already touches, so bundling them avoids a separate commit just for ~10 LOC of cleanup.
+
 **Files:**
 
 - Modify: every spec under `apps/agent-gui/e2e/*.spec.ts` (10 files)
@@ -3941,6 +4136,35 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 **Branch:** `feat/frontend-engineering`
 **Commit message:** `feat(gui): add unplugin-auto-import and unplugin-vue-components`
 **Why ninth (not earlier):** auto-imports change the surface area of every file. Doing it last keeps earlier commits' diffs explicit (every import visible), and lets us delete redundant `import` statements as a single batched cleanup.
+
+> **Optional follow-up from Task 2 code-quality review (non-blocking, do at your discretion while editing `vite.config.ts`):**
+>
+> - In `apps/agent-gui/vite.config.ts`, change `server: { port: 1420, host: "0.0.0.0" }` to `server: { port: 1420, host: "127.0.0.1", strictPort: true }`. Tauri only loads from localhost; binding to `0.0.0.0` exposes the dev server (and HMR socket) to the LAN, which is unintended for a desktop-only project. Anyone needing LAN debugging can override with `vite --host` on the CLI. `strictPort: true` makes port collisions fail loudly instead of silently shifting, which matches Tauri's expectation of a fixed port.
+
+> **7c carry-over (clean-up sweep — fold into this Task 9 commit, the natural home for cross-cutting test infra + i18n cleanup):**
+>
+> 1. **[7c IMPORTANT-1 — `mountWithPlugins` lacks NaiveUI provider option]** `apps/agent-gui/src/components/marketplace/Marketplace.test.ts` mounts `MarketplaceView` (which renders `NTabs`/`NCard`/`NButton`) without an `NConfigProvider` ancestor. Today this passes by NaiveUI's silent fallback to default theme, but a future `useMessage()` call on this view will crash the spec, and the topology is asymmetric vs other view-level specs. Add a `wrapInNConfigProvider?: boolean` (or rename existing `withNaiveProviders` to consistently include `NConfigProvider`) option to `apps/agent-gui/src/test-utils/mount.ts`'s `mountWithPlugins`, default it to `true` for any spec mounting a view-level component, and update `Marketplace.test.ts` (and any other spec the audit reveals) to use it.
+> 2. **[7c IMPORTANT-3 — `CatalogSourcesSettings.vue` `.src-enable` native checkbox]** Migrate the remaining native `<input type="checkbox" :data-test="src-enable-${src.id}">` to `<NCheckbox>` with `data-test` forwarded — same pattern as the 7c IMPORTANT-1 PermissionPrompt fix. The 7c review verified `CatalogSourcesSettings.test.ts` does **not** assert on the checkbox toggle behaviour today, so no test rewrite is required (only confirm `pnpm test` stays green). This eliminates the last "native checkbox island" in the mcp/marketplace surface and removes the dark-theme visual break.
+> 3. **[7c NIT-5/6/7 + Task 7c-NIT-3/4/5/6 i18n sweep]** Convert remaining hardcoded English strings in the mcp + marketplace surface to `t()` calls under existing namespaces (or new `mcp.*` / `marketplace.*` keys), in en.json + zh-CN.json:
+>    - `McpServerManager.vue` `statusLabel(status)` returns (`🟢 Running` / `🟡 Starting` / `🔴 Failed` / `⚪ Stopped`) — split emoji from text and i18n the text
+>    - `CatalogSourcesSettings.vue` `formError` strings (`"id and display_name are required"`, `"URL must start with http:// or https://"`)
+>    - `NEmpty` `description` strings: `CatalogList` (`"No catalog entries match the current filters"`), `InstalledList` (`"No installed servers yet"`), `CatalogSourcesSettings` (`"No remote catalog sources configured."`)
+>    - Original 7c-deferred NIT 3/4/5/6: sessions.newButton bakes `"+ "` prefix into the i18n key (split presentation from value); `StatusBar` body text still hardcoded; `PermissionPrompt` business terms (Allow/Deny/Accept/Reject etc.); `TraceTimeline` tab labels + multi-SFC empty-state strings.
+> 4. **[7c NIT-4 — `MarketplaceView` `<h1>` style consistency]** Change `<h1>{{ t("marketplace.title") }}</h1>` to `<NText tag="h1" :depth="1">…</NText>` (or equivalent), to match `CatalogSourcesSettings`'s `<NText strong tag="h3">`. Trivial visual unification, ~1 line.
+> 5. **[7c NIT-3 — PermissionPrompt `.mcp-trust-check` dead `cursor: pointer`]** After 7c migrated the inner control to `<NCheckbox>`, the wrapper `.mcp-trust-check { cursor: pointer; }` is dead style (clicking the wrapper no longer toggles the checkbox). Remove the `cursor: pointer` declaration from the `.mcp-trust-check` block.
+> 6. **[7c NIT-7 — MemoryBrowser.test comment phrasing]** In `MemoryBrowser.test.ts`, refine the comment that currently reads roughly "the SFC renders multiple internal Select subcomponents" to be precise about which `findComponent({ name: "Select" })` call targets which scope filter. Cosmetic.
+> 7. **[7c NIT-8 — MemoryBrowser.test optional spy enhancement]** In `MemoryBrowser.test.ts`, add `expect(setMemoryFilterSpy).toHaveBeenCalledWith(scope)` after the `update:value` emit to lock the contract between the SFC and the store action, not just rely on the side-effect of `selectedScope.value`.
+>
+> Items 1+2 are IMPORTANT (they close real risks the 7c review surfaced); items 3-7 are NIT and may be split off if the auto-import diff already exceeds the LOC split threshold — in that case, list each deferred item explicitly in the commit message body.
+
+> **Task 8 review carry-over (fold into this Task 9 commit; same rationale as 7c — Task 9 is the natural home for cross-cutting marketplace store + i18n + test-infra cleanup):**
+>
+> 8. **[Task 8 IMPORTANT — `currentInstallEntryId` single-value race lets first install modal silently disappear]** In `apps/agent-gui/src/stores/catalog.ts` + `apps/agent-gui/src/components/marketplace/CatalogDetail.vue`. The Task 8 lift made `currentInstallEntryId: ref<string | null>` a single-value slot. User flow: open entry A → click Install → close drawer mid-install → open entry B → click Install. Step 5 overwrites `currentInstallEntryId` to entry B's id, the in-flight install of entry A still resolves and writes `installState[A]`, but no modal is mounted to render it — the user perceives "my install vanished". The cheaper fix (preferred): in CatalogDetail.vue's Install `<NButton>`, add `:disabled="catalog.currentInstallEntryId !== null && catalog.currentInstallEntryId !== entry.id"` and a tooltip "Another install is in progress." The fuller fix (only if user-test reveals concurrent installs are a real workflow): change `currentInstallEntryId` to `Set<string>` and let `<InstallProgress>` render one modal per active id (NaiveUI NModal supports stacking via `:z-index`). Pick the cheap fix unless evidence justifies the bigger one.
+> 9. **[Task 8 NIT — `dismissInstallProgress()` leaves stale outcome in `installState`]** In `apps/agent-gui/src/stores/catalog.ts`'s `requestInstallProgress(entryId)` action. After the user closes the modal post-install and clicks Install again on the same entry, `installState[entryId]` still holds the previous `outcome`, so `<InstallProgress>`'s `inFlight = computed(() => !outcome.value)` is `false` for one frame and the modal flashes the old NAlert before the new outcome lands. Fix: at the entry of `requestInstallProgress(entryId)`, do `delete installState.value[entryId]` before setting `currentInstallEntryId.value = entryId`. Two-line change.
+> 10. **[Task 8 NIT — `data-test="catalog-trust"` has no spec assertion guarding its existence]** In `apps/agent-gui/src/components/marketplace/Marketplace.test.ts`. Task 8 deleted CatalogList.vue's hidden `<select data-test="catalog-trust">` and moved the hook to the visible NSelect, but no spec ever asserted the hook's existence — `pnpm test` passing with 266 means "no one tests it", not "the hook is still selectable". Add a single existence assertion: `expect(wrapper.find('[data-test="catalog-trust"]').exists()).toBe(true)`. Fold into the existing Marketplace.test.ts top-level `describe`. Five-line change including imports.
+> 11. **[Task 8 NIT — InstallProgress.vue still has 11+ hardcoded English strings]** Item 3 above (the i18n sweep) already names `CatalogList` / `InstalledList` / `CatalogSourcesSettings` empty-state strings. Add `apps/agent-gui/src/components/marketplace/InstallProgress.vue` to the same sweep: the Task 8 commit added `modalTitle`'s 3 branches (`'Installing…'` / `'Install complete.'` / `'Install failed'`), and the existing template already has `'Already installed.'`, `'Missing runtimes:'`, `'Required env:'`, `'Detect runtime'`, `'Write config'`, `'Start server'`, `'Close'` — 11+ literals total. Migrate them all under the `marketplace.install.*` namespace in en.json + zh-CN.json. Doing this together with item 3 keeps the i18n migration atomic per surface; doing it standalone risks "modalTitle is i18n but the rest of the modal isn't" partial migration.
+
+> Items 8 is IMPORTANT (real UX bug — silent install loss under realistic interaction); items 9-11 are NIT (polish, no functional defect). All four came from the Task 8 code-quality review (no spec compliance issues were raised).
 
 **Files:**
 
@@ -4206,7 +4430,14 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 ## Task 10: Update AGENTS.md to reflect the new stack (commit 10)
 
 **Branch:** `feat/frontend-engineering`
-**Commit message:** `docs: update AGENTS.md GUI section for pinia, vue-router, vue-i18n, naive-ui, vueuse, unplugin`
+**Commit message header (≤100 chars, verified 56):** `docs(gui): update AGENTS.md for frontend foundation deps`
+**Commit message body:**
+
+```
+Reflect pinia, vue-router, vue-i18n, naive-ui, @vueuse/core,
+and the unplugin auto-imports introduced in this branch.
+```
+
 **Why last:** documentation always reflects shipped state, not aspirational state. We update only after every implementation commit lands.
 
 **Files:**

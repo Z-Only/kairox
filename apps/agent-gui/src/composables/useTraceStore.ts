@@ -1,3 +1,6 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Plain `.ts` modules must import `reactive`
+// from "vue" explicitly.
 import { reactive } from "vue";
 import type { DomainEvent } from "../types";
 import type { TraceEntryData } from "../types/trace";

@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ServerEntryResponse, InstallRequestPayload } from "../../generated/commands";
-import { installEntry } from "../../stores/catalog";
+import { useCatalogStore } from "@/stores/catalog";
 import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
-import InstallProgress from "./InstallProgress.vue";
 
+const { t } = useI18n();
+const catalog = useCatalogStore();
 const props = defineProps<{ entry: ServerEntryResponse }>();
 const emit = defineEmits<{ close: [] }>();
+
+// Disable Install when *another* entry's install is currently in flight
+// (single-value `currentInstallEntryId` slot — Task 8 review carry-over 8).
+const installDisabled = computed(
+  () => catalog.currentInstallEntryId !== null && catalog.currentInstallEntryId !== props.entry.id
+);
 
 const requirements = computed(() => parseRequirements(props.entry));
 const envSpec = computed(() => parseDefaultEnv(props.entry));
@@ -17,7 +24,6 @@ const overrides = ref<Record<string, string>>({});
 // PermissionCenter. Default to false and let the user opt in explicitly.
 const trustGrant = ref(false);
 const autoStart = ref(true);
-const showProgress = ref(false);
 
 // Re-initialise local form state whenever the selected entry changes.
 // Using `watch(..., immediate: true)` instead of `onMounted` so that switching
@@ -33,7 +39,6 @@ watch(
     overrides.value = next;
     trustGrant.value = false;
     autoStart.value = true;
-    showProgress.value = false;
   },
   { immediate: true }
 );
@@ -47,90 +52,134 @@ async function onInstall() {
     trust_grant: trustGrant.value,
     auto_start: autoStart.value
   };
-  showProgress.value = true;
-  await installEntry(req);
+  // InstallProgress lives on MarketplaceView so closing this drawer (which
+  // unmounts CatalogDetail) does not unmount the in-flight progress modal.
+  catalog.requestInstallProgress(props.entry.id);
+  await catalog.installEntry(req);
+}
+
+// NDrawer's `show` is two-way bound; flipping it to false fires
+// `update:show`, which we forward as the legacy `close` event so the
+// parent (`CatalogList`) can drop its `selected` ref without changing
+// its API.
+function onShowUpdate(next: boolean) {
+  if (!next) emit("close");
 }
 </script>
 
 <template>
-  <aside class="drawer" role="dialog" aria-modal="true" data-test="catalog-detail">
-    <header>
-      <h2>{{ entry.display_name }}</h2>
-      <button aria-label="Close" @click="emit('close')">×</button>
-    </header>
-    <p>{{ entry.description }}</p>
-    <a v-if="entry.homepage" :href="entry.homepage" target="_blank" rel="noopener"> Homepage </a>
+  <!-- NDrawer placement="right" mirrors the previous `position: fixed; right: 0`
+       slide-out detail panel. data-test="catalog-detail" stays attached to
+       the inner container so the existing e2e selector hits a real element
+       even though NDrawer renders in a teleport. -->
+  <NDrawer
+    :show="true"
+    :width="480"
+    placement="right"
+    :auto-focus="false"
+    :mask-closable="true"
+    @update:show="onShowUpdate"
+  >
+    <NDrawerContent :title="entry.display_name" closable :native-scrollbar="false">
+      <div data-test="catalog-detail" class="catalog-detail">
+        <NText depth="2">{{ entry.description }}</NText>
+        <a
+          v-if="entry.homepage"
+          :href="entry.homepage"
+          target="_blank"
+          rel="noopener"
+          class="homepage-link"
+        >
+          Homepage
+        </a>
 
-    <section>
-      <h3>Requirements</h3>
-      <RuntimeMissingHint :requirements="requirements" />
-    </section>
+        <NCard size="small" title="Requirements" :bordered="true">
+          <RuntimeMissingHint :requirements="requirements" />
+        </NCard>
 
-    <section>
-      <h3>Configure</h3>
-      <div v-for="spec in envSpec" :key="spec.key" class="field">
-        <label> {{ spec.label }}<span v-if="spec.required">*</span> </label>
-        <input
-          v-model="overrides[spec.key]"
-          :type="spec.secret ? 'password' : 'text'"
-          :placeholder="spec.default ?? ''"
-          :data-test="`env-${spec.key}`"
-        />
-        <small>{{ spec.description }}</small>
+        <NCard size="small" title="Configure" :bordered="true">
+          <NDescriptions
+            v-if="envSpec.length > 0"
+            label-placement="top"
+            :column="1"
+            size="small"
+            bordered
+          >
+            <NDescriptionsItem v-for="spec in envSpec" :key="spec.key">
+              <template #label> {{ spec.label }}<span v-if="spec.required">*</span> </template>
+              <NInput
+                v-model:value="overrides[spec.key]"
+                :type="spec.secret ? 'password' : 'text'"
+                :placeholder="spec.default ?? ''"
+                :show-password-on="spec.secret ? 'click' : undefined"
+                size="small"
+                :input-props="{ 'data-test': `env-${spec.key}` }"
+              />
+              <NText v-if="spec.description" depth="3" class="env-help">
+                {{ spec.description }}
+              </NText>
+            </NDescriptionsItem>
+          </NDescriptions>
+          <NText v-else depth="3">No configurable environment variables.</NText>
+        </NCard>
+
+        <NCard size="small" title="Options" :bordered="true">
+          <NSpace vertical :size="6">
+            <NCheckbox v-model:checked="trustGrant">
+              Trust this server (skip per-tool permission prompts)
+            </NCheckbox>
+            <NText v-if="entry.trust === 'verified'" depth="3" class="hint-verified">
+              This entry comes from a verified source. You can grant runtime trust to skip
+              permission prompts, but it remains opt-in.
+            </NText>
+            <NCheckbox v-model:checked="autoStart"> Start after install </NCheckbox>
+          </NSpace>
+        </NCard>
       </div>
-    </section>
 
-    <section class="options">
-      <label>
-        <input v-model="trustGrant" type="checkbox" />
-        Trust this server (skip per-tool permission prompts)
-      </label>
-      <p v-if="entry.trust === 'verified'" class="hint-verified">
-        This entry comes from a verified source. You can grant runtime trust to skip permission
-        prompts, but it remains opt-in.
-      </p>
-      <label> <input v-model="autoStart" type="checkbox" /> Start after install </label>
-    </section>
-
-    <footer>
-      <button data-test="catalog-install" @click="onInstall">Install</button>
-    </footer>
-
-    <InstallProgress v-if="showProgress" :catalog-id="entry.id" @close="showProgress = false" />
-  </aside>
+      <template #footer>
+        <NSpace>
+          <NTooltip :disabled="!installDisabled" trigger="hover" placement="top">
+            <template #trigger>
+              <!-- Wrap the Install button in a span so the disabled button
+                   still triggers the tooltip on hover (NaiveUI buttons
+                   suppress pointer events when disabled). -->
+              <span>
+                <NButton
+                  type="primary"
+                  size="small"
+                  data-test="catalog-install"
+                  :disabled="installDisabled"
+                  @click="onInstall"
+                >
+                  Install
+                </NButton>
+              </span>
+            </template>
+            {{ t("marketplace.install.anotherInProgress") }}
+          </NTooltip>
+          <NButton size="small" @click="emit('close')">Close</NButton>
+        </NSpace>
+      </template>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped>
-.drawer {
-  position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: min(480px, 90vw);
-  background: var(--surface, #fff);
-  border-left: 1px solid #ddd;
-  padding: 16px;
-  overflow-y: auto;
-  z-index: 50;
-}
-.drawer header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.field {
+.catalog-detail {
   display: flex;
   flex-direction: column;
-  margin-bottom: 8px;
+  gap: 12px;
 }
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.homepage-link {
+  font-size: 13px;
+}
+.env-help {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
 }
 .hint-verified {
-  margin: 0;
   font-size: 12px;
-  color: var(--muted, #555);
 }
 </style>
