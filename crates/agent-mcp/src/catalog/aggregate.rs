@@ -205,6 +205,50 @@ impl CatalogProvider for AggregateCatalogProvider {
 }
 
 #[cfg(test)]
+mod resilience_tests {
+    //! Contract guards for the "marketplace not configured" degraded path.
+    //!
+    //! `crates/agent-runtime/src/facade_runtime.rs` builds a builtin-only
+    //! `AggregateCatalogProvider` when the user has no `[mcp_marketplace]`
+    //! section in `kairox.toml`. These tests pin down the contracts that
+    //! that fallback depends on:
+    //!
+    //!   1. An aggregator with **zero** providers must not error on `list`
+    //!      / `get` / `refresh` — it must yield an empty/None result.
+    //!   2. The `new(Vec)` ergonomic constructor preserves these contracts.
+    use super::*;
+    use crate::catalog::CatalogQuery;
+
+    #[tokio::test]
+    async fn empty_providers_yield_empty_list_no_error() {
+        let agg = AggregateCatalogProvider::new(Vec::new());
+        let entries = agg
+            .list(&CatalogQuery::default())
+            .await
+            .expect("empty providers must not error on list");
+        assert!(entries.is_empty(), "empty providers must yield empty list");
+    }
+
+    #[tokio::test]
+    async fn empty_providers_yield_none_on_get_no_error() {
+        let agg = AggregateCatalogProvider::new(Vec::new());
+        let entry = agg
+            .get("anything")
+            .await
+            .expect("empty providers must not error on get");
+        assert!(entry.is_none(), "empty providers must yield None on get");
+    }
+
+    #[tokio::test]
+    async fn empty_providers_refresh_is_noop_no_error() {
+        let agg = AggregateCatalogProvider::new(Vec::new());
+        agg.refresh()
+            .await
+            .expect("empty providers must not error on refresh");
+    }
+}
+
+#[cfg(test)]
 mod tests_phase2 {
     use super::*;
     use crate::catalog::{
