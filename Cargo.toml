@@ -38,7 +38,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 toml = "1.1.2"
 toml_edit = "0.22"
 uuid = { version = "1", features = ["serde", "v4"] }
-which = "6"
+which = "8"
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
 eventsource-stream = "0.2.3"
 tracing = "0.1.44"
