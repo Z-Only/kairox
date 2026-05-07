@@ -101,7 +101,13 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   const hasEntries = computed(() => entries.value.length > 0);
   const installedCount = computed(() => installed.value.length);
-  const allSourceIds = computed<string[]>(() => ["builtin", ...sources.value.map((s) => s.id)]);
+  const allSourceIds = computed<string[]>(() => {
+    const ids = sources.value.map((s) => s.id);
+    if (!ids.includes("builtin")) {
+      ids.unshift("builtin");
+    }
+    return ids;
+  });
 
   function isSourceSelected(id: string): boolean {
     if (selectedSources.value === null) return true;

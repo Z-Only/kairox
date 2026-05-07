@@ -65,6 +65,8 @@ pub fn run() {
                     .with_permission_mode(PermissionMode::Interactive)
                     .with_context_limit(100_000)
                     .with_memory_store(mem_store.clone())
+                    .with_marketplace(db_dir.clone())
+                    .expect("Failed to initialize marketplace")
                     .with_builtin_tools(cwd)
                     .await;
 

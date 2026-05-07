@@ -9,6 +9,12 @@ import AppLayout from "@/layouts/AppLayout.vue";
 const session = useSessionStore();
 const ui = useUiStore();
 
+// Sync the resolved dark-mode flag to `<html class="dark">` so that
+// `theme.css`'s `html.dark { ... }` selector activates the dark palette.
+watchEffect(() => {
+  document.documentElement.classList.toggle("dark", ui.isDark);
+});
+
 useTauriEvents();
 useUpdater();
 

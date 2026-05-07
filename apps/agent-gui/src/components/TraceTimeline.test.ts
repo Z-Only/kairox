@@ -74,7 +74,7 @@ describe("TraceTimeline", () => {
     const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     expect(traceState.density).toBe("L2");
-    const densityButtons = wrapper.findAll(".density-toggles button");
+    const densityButtons = wrapper.findAll(".density-toolbar .density-btn");
     await densityButtons[2].trigger("click");
     expect(traceState.density).toBe("L3");
     await densityButtons[0].trigger("click");

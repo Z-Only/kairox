@@ -43,19 +43,23 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
           {{ t("trace.tabMemory") }}
         </button>
       </div>
-      <div v-if="rightPanelTab === 'trace'" class="density-toggles">
+    </header>
+    <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
+      <div class="density-toolbar">
+        <span class="density-label">Detail:</span>
         <button
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
-          class="btn btn-sm"
-          :class="{ 'btn-primary': traceState.density === d, active: traceState.density === d }"
+          class="density-btn"
+          :class="{
+            'density-btn--active': traceState.density === d,
+            active: traceState.density === d
+          }"
           @click="traceState.density = d"
         >
           {{ d }}
         </button>
       </div>
-    </header>
-    <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
       <TraceEntry
         v-for="entry in traceState.entries"
         :key="entry.id"
@@ -89,13 +93,41 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   display: flex;
   gap: 4px;
 }
-.density-toggles {
-  display: flex;
-  gap: 4px;
-}
 .trace-entries {
   flex: 1;
   min-height: 0;
+}
+.density-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-card-color);
+}
+.density-label {
+  font-size: 11px;
+  color: var(--app-text-color-3);
+  margin-right: 2px;
+}
+.density-btn {
+  padding: 1px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--app-text-color-2);
+  transition: all 0.15s;
+}
+.density-btn:hover {
+  background: var(--app-hover-color);
+  color: var(--app-text-color);
+}
+.density-btn--active {
+  background: var(--app-primary-color);
+  color: #fff;
+  border-color: var(--app-primary-color);
 }
 .empty-hint {
   padding: 12px;
