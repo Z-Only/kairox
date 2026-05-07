@@ -2,7 +2,6 @@
 import { darkTheme, useThemeVars, type GlobalTheme } from "naive-ui";
 import { useUiStore } from "@/stores/ui";
 import { lightThemeOverrides, darkThemeOverrides } from "@/styles/naive-theme";
-import StatusBar from "@/components/StatusBar.vue";
 import NotificationToast from "@/components/NotificationToast.vue";
 
 const { t } = useI18n();
@@ -22,11 +21,6 @@ const themeOverrides = computed(() => (isDark.value ? darkThemeOverrides : light
 // mode automatically. NaiveUI's internal `--n-*` variables are
 // component-scoped and not part of the public API — never reference them.
 const themeVars = useThemeVars();
-
-// Sync html[data-theme] for CSS selectors that depend on dark/light mode.
-watchEffect(() => {
-  document.documentElement.setAttribute("data-theme", isDark.value ? "dark" : "light");
-});
 </script>
 
 <template>
@@ -39,7 +33,6 @@ watchEffect(() => {
               class="app-shell"
               data-test="app-shell"
               :style="{
-                '--app-bg': themeVars.bodyColor,
                 '--app-body-color': themeVars.bodyColor,
                 '--app-card-color': themeVars.cardColor,
                 '--app-border-color': themeVars.borderColor,
@@ -56,7 +49,6 @@ watchEffect(() => {
                 </RouterLink>
               </nav>
               <RouterView />
-              <StatusBar />
               <NotificationToast />
             </div>
           </NNotificationProvider>
@@ -65,33 +57,3 @@ watchEffect(() => {
     </NLoadingBarProvider>
   </NConfigProvider>
 </template>
-
-<style scoped>
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: var(--app-body-color);
-  color: var(--app-text-color);
-}
-.app-nav {
-  display: flex;
-  gap: 8px;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--app-border-color);
-  background: var(--app-card-color);
-}
-.app-nav a {
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  text-decoration: none;
-  color: inherit;
-  font-size: 12px;
-  border-radius: 4px;
-}
-.app-nav a.router-link-active {
-  background: var(--app-primary-color);
-  color: #fff;
-  border-color: transparent;
-}
-</style>

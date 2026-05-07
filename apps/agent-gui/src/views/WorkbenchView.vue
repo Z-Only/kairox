@@ -5,6 +5,7 @@ import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
 import PermissionCenter from "@/components/PermissionCenter.vue";
+import StatusBar from "@/components/StatusBar.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -64,6 +65,7 @@ watch(currentSessionId, (next) => {
       <TraceTimeline />
       <PermissionCenter />
     </aside>
+    <StatusBar />
   </main>
 </template>
 
