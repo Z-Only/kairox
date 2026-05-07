@@ -20,9 +20,14 @@ const sourceChips = computed(() => {
   return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
 });
 
-onMounted(() => {
-  void catalog.fetchSources();
-  void catalog.fetchCatalog();
+onMounted(async () => {
+  await catalog.fetchSources();
+  const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
+  if (hasEnabledRemote) {
+    await catalog.refreshCatalogSource();
+  } else {
+    await catalog.fetchCatalog();
+  }
 });
 </script>
 

@@ -200,6 +200,11 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   async function refreshCatalogSource(source: string | null = null): Promise<void> {
     const ui = useUiStore();
+    if (source) {
+      delete sourceFailures.value[source];
+    } else {
+      sourceFailures.value = {};
+    }
     try {
       await invoke("refresh_catalog", { source });
       await fetchCatalog();
