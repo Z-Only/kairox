@@ -189,10 +189,7 @@ export const notifications = reactive<Notification[]>([]);
 
 let nextId = 0;
 
-export function addNotification(
-  type: Notification["type"],
-  message: string
-): void {
+export function addNotification(type: Notification["type"], message: string): void {
   const id = `notif-${nextId++}`;
   notifications.push({ id, type, message, timestamp: Date.now() });
   // Auto-dismiss after 8 seconds
@@ -211,10 +208,7 @@ Create `apps/agent-gui/src/components/NotificationToast.vue`:
 
 ```vue
 <script setup lang="ts">
-import {
-  notifications,
-  dismissNotification
-} from "../composables/useNotifications";
+import { notifications, dismissNotification } from "../composables/useNotifications";
 </script>
 
 <template>
@@ -225,17 +219,10 @@ import {
       :class="['notification', `notification--${notif.type}`]"
     >
       <span class="notification-icon">
-        {{
-          notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ"
-        }}
+        {{ notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ" }}
       </span>
       <span class="notification-message">{{ notif.message }}</span>
-      <button
-        class="notification-dismiss"
-        @click="dismissNotification(notif.id)"
-      >
-        ✕
-      </button>
+      <button class="notification-dismiss" @click="dismissNotification(notif.id)">✕</button>
     </div>
   </div>
 </template>
@@ -348,12 +335,9 @@ import { addNotification } from "./composables/useNotifications";
 Add in the `onMounted` callback, after existing code:
 
 ```typescript
-await listen<{ type: string; error: string; session_id: string }>(
-  "session-error",
-  (event) => {
-    addNotification("error", event.payload.error);
-  }
-);
+await listen<{ type: string; error: string; session_id: string }>("session-error", (event) => {
+  addNotification("error", event.payload.error);
+});
 ```
 
 Add `<NotificationToast />` in the template, after `<StatusBar />`:
@@ -459,19 +443,10 @@ Replace the send button block in the template. Find:
 Replace with:
 
 ```vue
-<button
-  v-if="sessionState.isStreaming"
-  class="cancel-button"
-  @click="cancelSession"
->
+<button v-if="sessionState.isStreaming" class="cancel-button" @click="cancelSession">
   Cancel
 </button>
-<button
-  v-else
-  class="send-button"
-  :disabled="!inputText.trim()"
-  @click="sendMessage"
->
+<button v-else class="send-button" :disabled="!inputText.trim()" @click="sendMessage">
   Send
 </button>
 ```
@@ -746,12 +721,7 @@ Create `apps/agent-gui/src/components/MemoryBrowser.vue`:
 ```vue
 <script setup lang="ts">
 import { onMounted, watch } from "vue";
-import {
-  memoryState,
-  loadMemories,
-  deleteMemoryItem,
-  setMemoryFilter
-} from "../stores/memory";
+import { memoryState, loadMemories, deleteMemoryItem, setMemoryFilter } from "../stores/memory";
 import { sessionState } from "../stores/session";
 import ConfirmDialog from "./ConfirmDialog.vue";
 import { ref } from "vue";
@@ -787,13 +757,12 @@ function cancelDelete() {
   showDeleteDialog.value = false;
 }
 
-const scopeFilters: Array<{ label: string; value: typeof memoryState.filter }> =
-  [
-    { label: "All", value: "all" },
-    { label: "Session", value: "session" },
-    { label: "User", value: "user" },
-    { label: "Workspace", value: "workspace" }
-  ];
+const scopeFilters: Array<{ label: string; value: typeof memoryState.filter }> = [
+  { label: "All", value: "all" },
+  { label: "Session", value: "session" },
+  { label: "User", value: "user" },
+  { label: "Workspace", value: "workspace" }
+];
 
 const scopeIcon: Record<string, string> = {
   session: "📋",
@@ -818,9 +787,7 @@ function handleSearchKeydown(e: KeyboardEvent) {
   <div class="memory-browser">
     <header class="memory-header">
       <h2>Memories</h2>
-      <button class="refresh-btn" @click="loadMemories" title="Refresh">
-        ↻
-      </button>
+      <button class="refresh-btn" @click="loadMemories" title="Refresh">↻</button>
     </header>
 
     <div class="memory-controls">
@@ -843,16 +810,11 @@ function handleSearchKeydown(e: KeyboardEvent) {
     </div>
 
     <div v-if="memoryState.loading" class="memory-empty">Loading...</div>
-    <div v-else-if="memoryState.memories.length === 0" class="memory-empty">
-      No memories
-    </div>
+    <div v-else-if="memoryState.memories.length === 0" class="memory-empty">No memories</div>
     <ul v-else class="memory-list">
       <li v-for="mem in memoryState.memories" :key="mem.id" class="memory-item">
         <div class="memory-meta">
-          <span
-            class="memory-scope"
-            :style="{ color: scopeColor[mem.scope] || '#666' }"
-          >
+          <span class="memory-scope" :style="{ color: scopeColor[mem.scope] || '#666' }">
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
           </span>
           <span v-if="mem.key" class="memory-key">{{ mem.key }}</span>
@@ -1041,10 +1003,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 Add the Memory tab button in the template, after the Tasks button:
 
 ```vue
-<button
-  :class="{ active: rightPanelTab === 'memory' }"
-  @click="rightPanelTab = 'memory'"
->
+<button :class="{ active: rightPanelTab === 'memory' }" @click="rightPanelTab = 'memory'">
   Memory
 </button>
 ```

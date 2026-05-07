@@ -85,9 +85,7 @@ async function createSession() {
 
 async function loadProfiles() {
   try {
-    availableProfiles.value = (await invoke(
-      "get_profile_info"
-    )) as ProfileDetail[];
+    availableProfiles.value = (await invoke("get_profile_info")) as ProfileDetail[];
     if (availableProfiles.value.length > 0) {
       selectedProfile.value = availableProfiles.value[0].alias;
     }
@@ -166,19 +164,14 @@ function keyIcon(hasApiKey: boolean): string {
   <aside class="sessions-sidebar">
     <header class="sidebar-header">
       <h2>Sessions</h2>
-      <button class="new-session-btn" @click="openNewSessionDialog">
-        + New
-      </button>
+      <button class="new-session-btn" @click="openNewSessionDialog">+ New</button>
     </header>
 
     <ul v-if="sessionState.sessions.length > 0" class="session-list">
       <li
         v-for="session in sessionState.sessions"
         :key="session.id"
-        :class="[
-          'session-item',
-          { active: session.id === sessionState.currentSessionId }
-        ]"
+        :class="['session-item', { active: session.id === sessionState.currentSessionId }]"
         @click="switchToSession(session.id)"
       >
         <span class="session-indicator">●</span>
@@ -226,10 +219,7 @@ function keyIcon(hasApiKey: boolean): string {
       <label>
         Profile:
         <div class="profile-dropdown">
-          <button
-            class="profile-trigger"
-            @click="profileDropdownOpen = !profileDropdownOpen"
-          >
+          <button class="profile-trigger" @click="profileDropdownOpen = !profileDropdownOpen">
             {{ selectedProfile }}
             <span class="caret">▼</span>
           </button>
@@ -237,18 +227,12 @@ function keyIcon(hasApiKey: boolean): string {
             <div
               v-for="p in availableProfiles"
               :key="p.alias"
-              :class="[
-                'profile-option',
-                { selected: p.alias === selectedProfile }
-              ]"
+              :class="['profile-option', { selected: p.alias === selectedProfile }]"
               @click="selectProfile(p.alias)"
             >
               <div class="profile-info">
                 <span class="profile-alias">{{ p.alias }}</span>
-                <span
-                  class="profile-detail"
-                  :title="`${p.provider} · ${p.model_id}`"
-                >
+                <span class="profile-detail" :title="`${p.provider} · ${p.model_id}`">
                   {{ p.provider }} · {{ p.model_id }}
                 </span>
               </div>

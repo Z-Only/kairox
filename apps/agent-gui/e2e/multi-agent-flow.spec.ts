@@ -100,9 +100,7 @@ test("task retry button appears for failed tasks", async ({ page }) => {
   });
 });
 
-test("task decomposition event creates system message in chat", async ({
-  page
-}) => {
+test("task decomposition event creates system message in chat", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -121,7 +119,5 @@ test("task decomposition event creates system message in chat", async ({
   await expect(page.locator(".message-system").first()).toBeVisible({
     timeout: 3_000
   });
-  await expect(page.locator(".message-system").first()).toContainText(
-    "decomposed"
-  );
+  await expect(page.locator(".message-system").first()).toContainText("decomposed");
 });

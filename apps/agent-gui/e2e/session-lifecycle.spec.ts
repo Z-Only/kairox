@@ -34,9 +34,7 @@ test("creates a new session", async ({ page }) => {
   await expect(page.locator(".new-session-dialog")).toBeVisible();
 
   // Click Create
-  await page
-    .locator(".new-session-dialog >> button", { hasText: "Create" })
-    .click();
+  await page.locator(".new-session-dialog >> button", { hasText: "Create" }).click();
 
   // Should now have 2 sessions
   await expect(page.locator(".session-item")).toHaveCount(2);
@@ -51,9 +49,7 @@ test("switches between sessions", async ({ page }) => {
   // Create a second session
   await page.locator(".new-session-btn").click();
   await expect(page.locator(".new-session-dialog")).toBeVisible();
-  await page
-    .locator(".new-session-dialog >> button", { hasText: "Create" })
-    .click();
+  await page.locator(".new-session-dialog >> button", { hasText: "Create" }).click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
   // Second session should be active (last created)
@@ -88,9 +84,7 @@ test("renames a session", async ({ page }) => {
   await input.press("Enter");
 
   // Verify new title appears
-  await expect(sessionItem.locator(".session-title")).toHaveText(
-    "My Renamed Session"
-  );
+  await expect(sessionItem.locator(".session-title")).toHaveText("My Renamed Session");
 });
 
 test("deletes a session with confirmation", async ({ page }) => {
@@ -102,9 +96,7 @@ test("deletes a session with confirmation", async ({ page }) => {
   // Create a second session so we still have one after deletion
   await page.locator(".new-session-btn").click();
   await expect(page.locator(".new-session-dialog")).toBeVisible();
-  await page
-    .locator(".new-session-dialog >> button", { hasText: "Create" })
-    .click();
+  await page.locator(".new-session-dialog >> button", { hasText: "Create" }).click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
   // Hover over first session, click delete

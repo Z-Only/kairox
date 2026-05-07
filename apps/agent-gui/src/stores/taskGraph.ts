@@ -57,9 +57,7 @@ export function buildTaskTree(tasks: TaskSnapshot[]): TaskTreeNode[] {
     const node: TaskTreeNode = {
       task,
       children: [],
-      agentLabel: task.assigned_agent_id
-        ? agentLabel(task.assigned_agent_id)
-        : null,
+      agentLabel: task.assigned_agent_id ? agentLabel(task.assigned_agent_id) : null,
       durationMs: null // Will be computed after tree is built if timestamps are available
     };
 

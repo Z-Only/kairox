@@ -34,9 +34,7 @@ describe("ChatPanel", () => {
   });
 
   it("renders assistant messages", () => {
-    sessionState.projection.messages = [
-      { role: "assistant", content: "Hi there!" }
-    ];
+    sessionState.projection.messages = [{ role: "assistant", content: "Hi there!" }];
     const wrapper = mount(ChatPanel);
     expect(wrapper.text()).toContain("Hi there!");
     expect(wrapper.text()).toContain("Agent");

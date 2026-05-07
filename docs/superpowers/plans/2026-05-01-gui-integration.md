@@ -805,11 +805,7 @@ Create `apps/agent-gui/src/stores/session.ts`:
 
 ```typescript
 import { reactive } from "vue";
-import type {
-  SessionProjection,
-  SessionInfoResponse,
-  DomainEvent
-} from "../types";
+import type { SessionProjection, SessionInfoResponse, DomainEvent } from "../types";
 
 export const sessionState = reactive({
   sessions: [] as SessionInfoResponse[],
@@ -982,10 +978,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 // Auto-scroll when new messages or streaming tokens arrive
 watch(
-  () => [
-    sessionState.projection.messages.length,
-    sessionState.projection.token_stream
-  ],
+  () => [sessionState.projection.messages.length, sessionState.projection.token_stream],
   async () => {
     await nextTick();
     if (messageList.value) {
@@ -1005,29 +998,18 @@ watch(
       <div
         v-for="(msg, i) in sessionState.projection.messages"
         :key="i"
-        :class="[
-          'message',
-          msg.role === 'user' ? 'message-user' : 'message-assistant'
-        ]"
+        :class="['message', msg.role === 'user' ? 'message-user' : 'message-assistant']"
       >
-        <span class="message-role">{{
-          msg.role === "user" ? "You" : "Agent"
-        }}</span>
+        <span class="message-role">{{ msg.role === "user" ? "You" : "Agent" }}</span>
         <span class="message-content">{{ msg.content }}</span>
       </div>
-      <div
-        v-if="sessionState.projection.token_stream"
-        class="message message-assistant streaming"
-      >
+      <div v-if="sessionState.projection.token_stream" class="message message-assistant streaming">
         <span class="message-role">Agent</span>
         <span class="message-content"
-          >{{ sessionState.projection.token_stream
-          }}<span class="cursor">▌</span></span
+          >{{ sessionState.projection.token_stream }}<span class="cursor">▌</span></span
         >
       </div>
-      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">
-        [cancelled]
-      </div>
+      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">[cancelled]</div>
     </div>
     <div class="input-area">
       <textarea
@@ -1169,11 +1151,7 @@ Create `apps/agent-gui/src/components/SessionsSidebar.vue`:
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { SessionProjection } from "../types";
-import {
-  sessionState,
-  setProjection,
-  resetProjection
-} from "../stores/session";
+import { sessionState, setProjection, resetProjection } from "../stores/session";
 
 const showNewSession = ref(false);
 const selectedProfile = ref("fake");
@@ -1230,19 +1208,14 @@ function openNewSessionDialog() {
   <aside class="sessions-sidebar">
     <header class="sidebar-header">
       <h2>Sessions</h2>
-      <button class="new-session-btn" @click="openNewSessionDialog">
-        + New
-      </button>
+      <button class="new-session-btn" @click="openNewSessionDialog">+ New</button>
     </header>
 
     <ul class="session-list" v-if="sessionState.sessions.length > 0">
       <li
         v-for="session in sessionState.sessions"
         :key="session.id"
-        :class="[
-          'session-item',
-          { active: session.id === sessionState.currentSessionId }
-        ]"
+        :class="['session-item', { active: session.id === sessionState.currentSessionId }]"
         @click="switchToSession(session.id)"
       >
         <span class="session-indicator">●</span>
@@ -1402,17 +1375,11 @@ import { sessionState } from "../stores/session";
   <footer class="status-bar">
     <span class="status-item">profile: {{ sessionState.currentProfile }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item"
-      >sessions: {{ sessionState.sessions.length }}</span
-    >
+    <span class="status-item">sessions: {{ sessionState.sessions.length }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item">{{
-      sessionState.isStreaming ? "streaming..." : "idle"
-    }}</span>
+    <span class="status-item">{{ sessionState.isStreaming ? "streaming..." : "idle" }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item">{{
-      sessionState.connected ? "connected" : "disconnected"
-    }}</span>
+    <span class="status-item">{{ sessionState.connected ? "connected" : "disconnected" }}</span>
   </footer>
 </template>
 
@@ -1925,12 +1892,7 @@ Create `apps/agent-gui/src/stores/session.test.ts`:
 
 ```typescript
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  sessionState,
-  applyEvent,
-  setProjection,
-  resetProjection
-} from "./session";
+import { sessionState, applyEvent, setProjection, resetProjection } from "./session";
 import type { DomainEvent } from "../types";
 
 // Reset state between tests

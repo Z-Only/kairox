@@ -33,9 +33,7 @@ vi.mock("../stores/mcp", () => ({
   trustServer: vi.fn(() => Promise.resolve())
 }));
 
-function makeEntry(
-  overrides: Partial<TraceEntryData> & { id: string }
-): TraceEntryData {
+function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
   return {
     kind: "permission",
     status: "pending",

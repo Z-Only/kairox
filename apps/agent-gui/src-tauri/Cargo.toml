@@ -39,7 +39,14 @@ specta = "=2.0.0-rc.24"
 specta-typescript = "0.0.11"
 tauri = { version = "2", features = [] }
 tauri-specta = { version = "=2.0.0-rc.24", features = ["derive", "typescript"] }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "process", "fs"] }
+tokio = { workspace = true, features = [
+  "macros",
+  "rt-multi-thread",
+  "sync",
+  "time",
+  "process",
+  "fs"
+] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

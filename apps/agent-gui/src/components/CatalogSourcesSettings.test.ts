@@ -59,9 +59,7 @@ describe("CatalogSourcesSettings.vue", () => {
     await flushPromises();
     expect(wrapper.text().toLowerCase()).toContain("url must start with http");
     // Only the initial list_catalog_sources call should have happened.
-    const addCalls = mockedInvoke.mock.calls.filter(
-      (c) => c[0] === "add_catalog_source"
-    );
+    const addCalls = mockedInvoke.mock.calls.filter((c) => c[0] === "add_catalog_source");
     expect(addCalls).toHaveLength(0);
   });
 
@@ -78,9 +76,7 @@ describe("CatalogSourcesSettings.vue", () => {
     await wrapper.find('[data-test="src-url"]').setValue("https://x/c.json");
     await wrapper.find('[data-test="src-save"]').trigger("click");
     await flushPromises();
-    const addCall = mockedInvoke.mock.calls.find(
-      (c) => c[0] === "add_catalog_source"
-    );
+    const addCall = mockedInvoke.mock.calls.find((c) => c[0] === "add_catalog_source");
     expect(addCall).toBeDefined();
     expect(addCall![1]).toMatchObject({
       request: { id: "x", url: "https://x/c.json" }
@@ -93,14 +89,10 @@ describe("CatalogSourcesSettings.vue", () => {
     ] as never);
     const wrapper = mount(CatalogSourcesSettings);
     await flushPromises();
-    mockedInvoke
-      .mockResolvedValueOnce(undefined as never)
-      .mockResolvedValueOnce([] as never);
+    mockedInvoke.mockResolvedValueOnce(undefined as never).mockResolvedValueOnce([] as never);
     await wrapper.find('[data-test="src-remove-x"]').trigger("click");
     await flushPromises();
-    const removeCall = mockedInvoke.mock.calls.find(
-      (c) => c[0] === "remove_catalog_source"
-    );
+    const removeCall = mockedInvoke.mock.calls.find((c) => c[0] === "remove_catalog_source");
     expect(removeCall).toBeDefined();
     expect(removeCall![1]).toMatchObject({ id: "x" });
   });

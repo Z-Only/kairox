@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
-import {
-  catalogState,
-  fetchInstalled,
-  uninstallEntry
-} from "../../stores/catalog";
+import { catalogState, fetchInstalled, uninstallEntry } from "../../stores/catalog";
 
 onMounted(() => fetchInstalled());
 
@@ -36,11 +32,7 @@ async function onUninstall(serverId: string) {
         <td>
           <button
             :disabled="!row.source"
-            :title="
-              row.source
-                ? ''
-                : 'Hand-edited entries are not removable from here'
-            "
+            :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
             :data-test="`uninstall-${row.server_id}`"
             @click="onUninstall(row.server_id)"
           >

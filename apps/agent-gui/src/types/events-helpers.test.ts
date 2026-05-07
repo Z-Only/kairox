@@ -61,8 +61,7 @@ describe("matchPayload", () => {
     };
 
     const result = matchPayload(payload, {
-      ToolInvocationCompleted: (p) =>
-        `${p.tool_id}:${p.exit_code}:${p.duration_ms}ms`,
+      ToolInvocationCompleted: (p) => `${p.tool_id}:${p.exit_code}:${p.duration_ms}ms`,
       WorkspaceOpened: fallback("no"),
       SessionInitialized: fallback("no"),
       UserMessageAdded: fallback("no"),

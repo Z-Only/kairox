@@ -268,11 +268,7 @@ File: `crates/agent-mcp/src/catalog/data/builtin-catalog.json`, embedded at comp
       "install": {
         "transport": "stdio",
         "command": "npx",
-        "args": [
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          "${WORKSPACE_PATH}"
-        ],
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_PATH}"],
         "env": {},
         "cwd": null
       },

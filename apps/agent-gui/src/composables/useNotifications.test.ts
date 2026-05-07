@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  notifications,
-  addNotification,
-  dismissNotification
-} from "./useNotifications";
+import { notifications, addNotification, dismissNotification } from "./useNotifications";
 
 describe("useNotifications", () => {
   beforeEach(() => {

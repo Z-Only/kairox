@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       os:
-        description: 'Target OS'
+        description: "Target OS"
         required: true
         type: choice
         options:
           - macos-latest
           - ubuntu-latest
           - windows-latest
-        default: 'macos-latest'
+        default: "macos-latest"
 
 permissions:
   contents: read

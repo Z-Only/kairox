@@ -30,26 +30,26 @@
 
 # OpenAI GPT-4.1 Mini
 [profiles.fast]
-provider        = "openai_compatible"
-model_id        = "gpt-4.1-mini"
-base_url        = "https://api.openai.com/v1"
-api_key_env     = "OPENAI_API_KEY"
+provider = "openai_compatible"
+model_id = "gpt-4.1-mini"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
 
 # OpenAI GPT-4.1
 [profiles.gpt4]
-provider        = "openai_compatible"
-model_id        = "gpt-4.1"
-base_url        = "https://api.openai.com/v1"
-api_key_env     = "OPENAI_API_KEY"
-context_window  = 1_047_576
-output_limit    = 32_768
+provider = "openai_compatible"
+model_id = "gpt-4.1"
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+context_window = 1_047_576
+output_limit = 32_768
 
 # DeepSeek Chat
 [profiles.deepseek]
-provider        = "openai_compatible"
-model_id        = "deepseek-chat"
-base_url        = "https://api.deepseek.com/v1"
-api_key_env     = "DEEPSEEK_API_KEY"
+provider = "openai_compatible"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
 
 # ---------------------------------------------------------------------------
 # Anthropic Claude
@@ -59,17 +59,17 @@ api_key_env     = "DEEPSEEK_API_KEY"
 # You can override the base_url to point to a gateway/proxy.
 
 [profiles.claude]
-provider        = "anthropic"
-model_id        = "claude-sonnet-4-20250514"
+provider = "anthropic"
+model_id = "claude-sonnet-4-20250514"
 # base_url      = "https://api.anthropic.com"          # default
 # api_key_env   = "ANTHROPIC_API_KEY"                   # optional; auto-fallback to ~/.claude/settings.json
 
 # Anthropic with custom gateway (corporate proxy / API relay)
 [profiles.claude-proxy]
-provider        = "anthropic"
-model_id        = "anthropic/claude-sonnet-4.6"
-base_url        = "https://your-gateway.example.com/api/anthropic"
-api_key_env     = "ANTHROPIC_AUTH_TOKEN"
+provider = "anthropic"
+model_id = "anthropic/claude-sonnet-4.6"
+base_url = "https://your-gateway.example.com/api/anthropic"
+api_key_env = "ANTHROPIC_AUTH_TOKEN"
 
 # ---------------------------------------------------------------------------
 # Local Ollama
@@ -77,23 +77,23 @@ api_key_env     = "ANTHROPIC_AUTH_TOKEN"
 # No API key needed. Make sure Ollama is running on the configured base_url.
 
 [profiles.local]
-provider        = "ollama"
-model_id        = "devstral"
-base_url        = "http://localhost:11434"
+provider = "ollama"
+model_id = "devstral"
+base_url = "http://localhost:11434"
 
 [profiles.local-qwen]
-provider        = "ollama"
-model_id        = "qwen3:8b"
-base_url        = "http://localhost:11434"
+provider = "ollama"
+model_id = "qwen3:8b"
+base_url = "http://localhost:11434"
 
 # ---------------------------------------------------------------------------
 # Fake provider (for testing / offline development)
 # ---------------------------------------------------------------------------
 
 [profiles.fake]
-provider        = "fake"
-model_id        = "fake-model"
-response        = "Hello from the Kairox fake provider!"
+provider = "fake"
+model_id = "fake-model"
+response = "Hello from the Kairox fake provider!"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MCP Server Configuration

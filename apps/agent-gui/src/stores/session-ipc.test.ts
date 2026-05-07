@@ -95,10 +95,7 @@ describe("deleteSession", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("delete failed"));
     await deleteSession("s1");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("delete failed")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("delete failed"));
   });
 });
 
@@ -114,10 +111,7 @@ describe("renameSession", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("rename failed"));
     await renameSession("s1", "New Title");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("rename failed")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("rename failed"));
   });
 });
 

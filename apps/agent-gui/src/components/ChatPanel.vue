@@ -31,9 +31,7 @@ const roleClass: Record<ProjectedRole, string> = {
 };
 
 /** Get the display label for a message, including agent attribution if available. */
-function messageLabel(
-  msg: (typeof sessionState.projection.messages)[0]
-): string {
+function messageLabel(msg: (typeof sessionState.projection.messages)[0]): string {
   const base = roleDisplay[msg.role] || "Agent";
   if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
     const label = agentLabel(msg.sourceAgentId);
@@ -73,10 +71,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 watch(
-  () => [
-    sessionState.projection.messages.length,
-    sessionState.projection.token_stream
-  ],
+  () => [sessionState.projection.messages.length, sessionState.projection.token_stream],
   async () => {
     await nextTick();
     if (messageList.value) {
@@ -98,13 +93,9 @@ watch(
         :key="i"
         :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
       >
-        <span
-          :class="[
-            'message-role',
-            `role-badge-${roleClass[msg.role] || 'assistant'}`
-          ]"
-          >{{ messageLabel(msg) }}</span
-        >
+        <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
+          messageLabel(msg)
+        }}</span>
         <!-- eslint-disable vue/no-v-html -->
         <span
           v-if="
@@ -119,19 +110,13 @@ watch(
         <!-- eslint-enable vue/no-v-html -->
         <span v-else class="message-content">{{ msg.content }}</span>
       </div>
-      <div
-        v-if="sessionState.projection.token_stream"
-        class="message message-assistant streaming"
-      >
+      <div v-if="sessionState.projection.token_stream" class="message message-assistant streaming">
         <span class="message-role">Agent</span>
         <span class="message-content"
-          >{{ sessionState.projection.token_stream
-          }}<span class="cursor">▌</span></span
+          >{{ sessionState.projection.token_stream }}<span class="cursor">▌</span></span
         >
       </div>
-      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">
-        [cancelled]
-      </div>
+      <div v-if="sessionState.projection.cancelled" class="cancelled-marker">[cancelled]</div>
     </div>
     <div class="input-area">
       <textarea
@@ -142,19 +127,10 @@ watch(
         rows="1"
         @keydown="handleKeydown"
       ></textarea>
-      <button
-        v-if="sessionState.isStreaming"
-        class="cancel-button"
-        @click="cancelSession"
-      >
+      <button v-if="sessionState.isStreaming" class="cancel-button" @click="cancelSession">
         Cancel
       </button>
-      <button
-        v-else
-        class="send-button"
-        :disabled="!inputText.trim()"
-        @click="sendMessage"
-      >
+      <button v-else class="send-button" :disabled="!inputText.trim()" @click="sendMessage">
         Send
       </button>
     </div>

@@ -412,11 +412,7 @@ Create `crates/agent-mcp/src/catalog/data/builtin-catalog.json` with the structu
       "install": {
         "transport": "stdio",
         "command": "npx",
-        "args": [
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          "${WORKSPACE_PATH}"
-        ],
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_PATH}"],
         "env": {},
         "cwd": null
       },
@@ -2483,12 +2479,10 @@ export const useCatalogStore = defineStore("catalog", () => {
     const minOrder = filters.trustMin ? order[filters.trustMin] : -1;
     return entries.value.filter((e) => {
       if (kw) {
-        const hay =
-          `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
+        const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
         if (!hay.includes(kw)) return false;
       }
-      if (filters.category && !e.categories.includes(filters.category))
-        return false;
+      if (filters.category && !e.categories.includes(filters.category)) return false;
       if (filters.trustMin) {
         const t = order[e.trust as keyof typeof order] ?? 0;
         if (t < minOrder) return false;
@@ -2513,21 +2507,14 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   async function refreshInstalled(): Promise<void> {
     try {
-      installed.value = await invoke<InstalledEntryResponse[]>(
-        "list_installed_entries"
-      );
+      installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
     } catch (e) {
       error.value = String(e);
     }
   }
 
-  async function install(
-    req: InstallRequestPayload
-  ): Promise<InstallOutcomeResponse> {
-    const outcome = await invoke<InstallOutcomeResponse>(
-      "install_catalog_entry",
-      { request: req }
-    );
+  async function install(req: InstallRequestPayload): Promise<InstallOutcomeResponse> {
+    const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request: req });
     installState[req.catalog_id] = outcome;
     if (outcome.kind === "installed") {
       await refreshInstalled();
@@ -2892,9 +2879,7 @@ const selected = ref<ServerEntryResponse | null>(null);
         <option value="verified">Verified+</option>
         <option value="community">Community+</option>
       </select>
-      <button @click="store.refreshSource(null)" data-test="catalog-refresh">
-        Refresh
-      </button>
+      <button @click="store.refreshSource(null)" data-test="catalog-refresh">Refresh</button>
     </div>
     <p v-if="store.loading">Loading…</p>
     <p v-else-if="store.error" class="error">{{ store.error }}</p>
@@ -3002,10 +2987,7 @@ Create `apps/agent-gui/src/components/marketplace/CatalogDetail.vue`:
 ```vue
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import type {
-  ServerEntryResponse,
-  InstallRequestPayload
-} from "../../generated/commands";
+import type { ServerEntryResponse, InstallRequestPayload } from "../../generated/commands";
 import { useMarketplace } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstallProgress from "./InstallProgress.vue";
@@ -3040,24 +3022,13 @@ async function onInstall() {
 </script>
 
 <template>
-  <aside
-    class="drawer"
-    role="dialog"
-    aria-modal="true"
-    data-test="catalog-detail"
-  >
+  <aside class="drawer" role="dialog" aria-modal="true" data-test="catalog-detail">
     <header>
       <h2>{{ entry.display_name }}</h2>
       <button @click="emit('close')" aria-label="Close">×</button>
     </header>
     <p>{{ entry.description }}</p>
-    <a
-      v-if="entry.homepage"
-      :href="entry.homepage"
-      target="_blank"
-      rel="noopener"
-      >Homepage</a
-    >
+    <a v-if="entry.homepage" :href="entry.homepage" target="_blank" rel="noopener">Homepage</a>
 
     <section>
       <h3>Requirements</h3>
@@ -3079,24 +3050,15 @@ async function onInstall() {
     </section>
 
     <section class="options">
-      <label
-        ><input type="checkbox" v-model="trustGrant" /> Trust this server</label
-      >
-      <label
-        ><input type="checkbox" v-model="autoStart" /> Start after
-        install</label
-      >
+      <label><input type="checkbox" v-model="trustGrant" /> Trust this server</label>
+      <label><input type="checkbox" v-model="autoStart" /> Start after install</label>
     </section>
 
     <footer>
       <button @click="onInstall" data-test="catalog-install">Install</button>
     </footer>
 
-    <InstallProgress
-      v-if="showProgress"
-      :catalog-id="entry.id"
-      @close="showProgress = false"
-    />
+    <InstallProgress v-if="showProgress" :catalog-id="entry.id" @close="showProgress = false" />
   </aside>
 </template>
 
@@ -3145,29 +3107,19 @@ const store = useCatalogStore();
 
 const outcome = computed(() => store.installState[props.catalogId]);
 
-const runtimeOk = computed(
-  () => outcome.value && outcome.value.kind !== "runtime_missing"
-);
+const runtimeOk = computed(() => outcome.value && outcome.value.kind !== "runtime_missing");
 const writeOk = computed(
-  () =>
-    outcome.value?.kind === "installed" ||
-    outcome.value?.kind === "already_installed"
+  () => outcome.value?.kind === "installed" || outcome.value?.kind === "already_installed"
 );
-const startOk = computed(
-  () => outcome.value?.kind === "installed" && outcome.value.started
-);
+const startOk = computed(() => outcome.value?.kind === "installed" && outcome.value.started);
 </script>
 
 <template>
   <div class="modal" role="dialog" data-test="install-progress">
     <h3>Installing…</h3>
     <ul>
-      <li :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }">
-        Detect runtime
-      </li>
-      <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">
-        Write config
-      </li>
+      <li :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }">Detect runtime</li>
+      <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">Write config</li>
       <li :class="{ ok: startOk }">Start server</li>
     </ul>
     <p v-if="outcome?.kind === 'runtime_missing'">
@@ -3221,14 +3173,7 @@ defineProps<{
     <li v-for="r in requirements" :key="r.kind">
       <strong>{{ r.kind }}</strong>
       <span v-if="r.min_version"> ({{ r.min_version }})</span>
-      <a
-        v-if="r.install_hint"
-        :href="r.install_hint"
-        target="_blank"
-        rel="noopener"
-      >
-        — install
-      </a>
+      <a v-if="r.install_hint" :href="r.install_hint" target="_blank" rel="noopener"> — install </a>
     </li>
   </ul>
 </template>
@@ -3281,11 +3226,7 @@ async function onUninstall(serverId: string) {
         <td>
           <button
             :disabled="!row.source"
-            :title="
-              row.source
-                ? ''
-                : 'Hand-edited entries are not removable from here'
-            "
+            :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
             @click="onUninstall(row.server_id)"
             :data-test="`uninstall-${row.server_id}`"
           >
@@ -3327,10 +3268,7 @@ async function onUninstall(serverId: string) {
 In `apps/agent-gui/src/App.vue` find the existing sidebar nav (the section that lists Sessions / MCP / Memory) and add a Marketplace entry pointing at the new view. Read `App.vue` first; the file uses `<script setup lang="ts">` and a `currentView`-style switch — match the existing style. Pseudo-diff:
 
 ```vue
-<button
-  :class="{ active: view === 'marketplace' }"
-  @click="view = 'marketplace'"
->
+<button :class="{ active: view === 'marketplace' }" @click="view = 'marketplace'">
   Marketplace
 </button>
 ...
@@ -3381,12 +3319,8 @@ test.describe("Marketplace", () => {
     await page.click("text=Marketplace");
   });
 
-  test("browses the catalog and shows the filesystem entry", async ({
-    page
-  }) => {
-    const card = page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" });
+  test("browses the catalog and shows the filesystem entry", async ({ page }) => {
+    const card = page.getByTestId("catalog-card").filter({ hasText: "Filesystem" });
     await expect(card).toBeVisible();
   });
 
@@ -3396,10 +3330,7 @@ test.describe("Marketplace", () => {
   });
 
   test("installs the filesystem entry happy path", async ({ page }) => {
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await expect(page.getByTestId("install-progress")).toBeVisible();
@@ -3413,21 +3344,13 @@ test.describe("Marketplace", () => {
       // @ts-ignore — set in tauri-mock state at runtime
       window.__MARKETPLACE_FORCE_MISSING__ = ["node"];
     });
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("catalog-install").click();
-    await expect(page.getByTestId("install-progress")).toContainText(
-      "Missing runtimes"
-    );
+    await expect(page.getByTestId("install-progress")).toContainText("Missing runtimes");
   });
 
   test("uninstall removes the entry", async ({ page }) => {
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await page.getByTestId("install-close").click();
@@ -3441,12 +3364,8 @@ test.describe("Marketplace", () => {
 The `runtime-missing path` test requires the mock to honour a `window.__MARKETPLACE_FORCE_MISSING__` override. Add that hook in `tauri-mock.js` `install_catalog_entry` case:
 
 ```js
-const forced =
-  (typeof window !== "undefined" && window.__MARKETPLACE_FORCE_MISSING__) ||
-  null;
-const baseMissing = reqs
-  .filter((r) => !state.catalogRuntimePresent[r.kind])
-  .map((r) => r.kind);
+const forced = (typeof window !== "undefined" && window.__MARKETPLACE_FORCE_MISSING__) || null;
+const baseMissing = reqs.filter((r) => !state.catalogRuntimePresent[r.kind]).map((r) => r.kind);
 const missing = forced || baseMissing;
 ```
 

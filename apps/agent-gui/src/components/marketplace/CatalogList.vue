@@ -32,9 +32,7 @@ onMounted(async () => {
         <option value="verified">Verified+</option>
         <option value="community">Community+</option>
       </select>
-      <button data-test="catalog-refresh" @click="refreshCatalogSource(null)">
-        Refresh
-      </button>
+      <button data-test="catalog-refresh" @click="refreshCatalogSource(null)">Refresh</button>
     </div>
     <p v-if="catalogState.loading">Loading…</p>
     <p v-else-if="catalogState.error" class="error">

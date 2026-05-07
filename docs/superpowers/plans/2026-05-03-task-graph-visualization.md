@@ -965,13 +965,7 @@ Add new types:
 
 ```typescript
 export type AgentRole = "Planner" | "Worker" | "Reviewer";
-export type TaskState =
-  | "Pending"
-  | "Running"
-  | "Blocked"
-  | "Completed"
-  | "Failed"
-  | "Cancelled";
+export type TaskState = "Pending" | "Running" | "Blocked" | "Completed" | "Failed" | "Cancelled";
 
 export interface TaskSnapshot {
   id: string;
@@ -1179,10 +1173,7 @@ watch(
   () => {
     const newExpanded = new Set<string>();
     for (const root of tree.value) {
-      if (
-        expanded.value.has(root.task.id) ||
-        expandedRoots.value.has(root.task.id)
-      ) {
+      if (expanded.value.has(root.task.id) || expandedRoots.value.has(root.task.id)) {
         newExpanded.add(root.task.id);
       }
     }
@@ -1219,49 +1210,28 @@ import { ref, watch } from "vue";
     <div v-if="tree.length === 0" class="empty-hint">No tasks yet</div>
     <template v-for="root in tree" :key="root.task.id">
       <div
-        :class="[
-          'task-node',
-          'task-root',
-          `task-state-${root.task.state.toLowerCase()}`
-        ]"
+        :class="['task-node', 'task-root', `task-state-${root.task.state.toLowerCase()}`]"
         @click="toggleExpand(root.task.id)"
       >
         <span class="task-expand" v-if="root.children.length > 0">
           {{ expanded.has(root.task.id) ? "▾" : "▸" }}
         </span>
         <span class="task-expand" v-else> </span>
-        <span class="task-status">{{
-          statusIcon[root.task.state] || "•"
-        }}</span>
-        <span
-          class="task-role"
-          :style="{ backgroundColor: roleColor[root.task.role] || '#666' }"
-        >
+        <span class="task-status">{{ statusIcon[root.task.state] || "•" }}</span>
+        <span class="task-role" :style="{ backgroundColor: roleColor[root.task.role] || '#666' }">
           {{ roleLabel[root.task.role] || "?" }}
         </span>
         <span class="task-title">{{ root.task.title }}</span>
-        <span
-          v-if="root.children.length > 0 && !expanded.has(root.task.id)"
-          class="task-summary"
-        >
+        <span v-if="root.children.length > 0 && !expanded.has(root.task.id)" class="task-summary">
           {{ childSummary(root.children) }}
         </span>
-        <span v-if="root.task.state === 'Running'" class="task-running">
-          running...
-        </span>
+        <span v-if="root.task.state === 'Running'" class="task-running"> running... </span>
       </div>
       <div v-if="expanded.has(root.task.id)" class="task-children">
         <template v-for="child in root.children" :key="child.task.id">
-          <div
-            :class="[
-              'task-node',
-              `task-state-${child.task.state.toLowerCase()}`
-            ]"
-          >
+          <div :class="['task-node', `task-state-${child.task.state.toLowerCase()}`]">
             <span class="task-indent">├─</span>
-            <span class="task-status">{{
-              statusIcon[child.task.state] || "•"
-            }}</span>
+            <span class="task-status">{{ statusIcon[child.task.state] || "•" }}</span>
             <span
               class="task-role"
               :style="{ backgroundColor: roleColor[child.task.role] || '#666' }"
@@ -1269,9 +1239,7 @@ import { ref, watch } from "vue";
               {{ roleLabel[child.task.role] || "?" }}
             </span>
             <span class="task-title">{{ child.task.title }}</span>
-            <span v-if="child.task.state === 'Running'" class="task-running">
-              running...
-            </span>
+            <span v-if="child.task.state === 'Running'" class="task-running"> running... </span>
           </div>
           <div v-if="child.task.error" class="task-error">
             <span class="task-indent">│ </span>
@@ -1392,16 +1360,10 @@ const rightPanelTab = ref<"trace" | "tasks">("trace");
   <section class="trace-timeline">
     <header class="trace-header">
       <div class="tab-group">
-        <button
-          :class="{ active: rightPanelTab === 'trace' }"
-          @click="rightPanelTab = 'trace'"
-        >
+        <button :class="{ active: rightPanelTab === 'trace' }" @click="rightPanelTab = 'trace'">
           Trace
         </button>
-        <button
-          :class="{ active: rightPanelTab === 'tasks' }"
-          @click="rightPanelTab = 'tasks'"
-        >
+        <button :class="{ active: rightPanelTab === 'tasks' }" @click="rightPanelTab = 'tasks'">
           Tasks
         </button>
       </div>
@@ -1423,9 +1385,7 @@ const rightPanelTab = ref<"trace" | "tasks">("trace");
         :entry="entry"
         :density="traceState.density"
       />
-      <p v-if="traceState.entries.length === 0" class="empty-hint">
-        No trace events yet
-      </p>
+      <p v-if="traceState.entries.length === 0" class="empty-hint">No trace events yet</p>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
   </section>

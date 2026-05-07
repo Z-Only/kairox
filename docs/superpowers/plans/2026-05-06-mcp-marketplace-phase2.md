@@ -3143,10 +3143,7 @@ describe("CatalogSourcesSettings.vue", () => {
     await wrapper.find('[data-test="src-url"]').setValue("not-a-url");
     await wrapper.find('[data-test="src-save"]').trigger("click");
     expect(wrapper.text()).toContain("URL must start with http");
-    expect(invoke).not.toHaveBeenCalledWith(
-      "add_catalog_source",
-      expect.any(Object)
-    );
+    expect(invoke).not.toHaveBeenCalledWith("add_catalog_source", expect.any(Object));
   });
 
   it("calls addSource with the form payload on save", async () => {
@@ -3272,9 +3269,7 @@ function cancelRemove() {
   <div class="catalog-sources-settings">
     <h3>Remote Catalog Sources</h3>
 
-    <p v-if="store.sources.length === 0" class="empty">
-      No remote catalog sources configured.
-    </p>
+    <p v-if="store.sources.length === 0" class="empty">No remote catalog sources configured.</p>
 
     <ul v-else class="src-list">
       <li v-for="src in store.sources" :key="src.id" class="src-row">
@@ -3284,27 +3279,16 @@ function cancelRemove() {
           <span class="src-kind">{{ src.kind }}</span>
           <a :href="src.url" target="_blank" rel="noopener">{{ src.url }}</a>
         </div>
-        <button
-          :data-test="`src-remove-${src.id}`"
-          @click="startRemove(src.id)"
-        >
-          Remove
-        </button>
+        <button :data-test="`src-remove-${src.id}`" @click="startRemove(src.id)">Remove</button>
       </li>
     </ul>
 
-    <button
-      v-if="!showAddForm"
-      data-test="add-source-toggle"
-      @click="showAddForm = true"
-    >
+    <button v-if="!showAddForm" data-test="add-source-toggle" @click="showAddForm = true">
       + Add source
     </button>
     <form v-else class="add-form" @submit.prevent="save">
       <label>id <input data-test="src-id" v-model="draft.id" /></label>
-      <label
-        >display name <input data-test="src-name" v-model="draft.display_name"
-      /></label>
+      <label>display name <input data-test="src-name" v-model="draft.display_name" /></label>
       <label
         >kind
         <select v-model="draft.kind">
@@ -3324,9 +3308,7 @@ function cancelRemove() {
         Remove source <code>{{ removeTarget }}</code
         >?
       </p>
-      <button data-test="src-confirm-remove" @click="confirmRemove">
-        Yes, remove
-      </button>
+      <button data-test="src-confirm-remove" @click="confirmRemove">Yes, remove</button>
       <button @click="cancelRemove">Cancel</button>
     </div>
   </div>
@@ -3530,10 +3512,7 @@ const settingsOpen = ref(false);
 onMounted(async () => {
   await store.loadSources();
   // default: all sources selected
-  selectedSources.value = new Set([
-    "builtin",
-    ...store.sources.map((s) => s.id)
-  ]);
+  selectedSources.value = new Set(["builtin", ...store.sources.map((s) => s.id)]);
 });
 
 const allSourceChips = computed(() => [
@@ -3639,9 +3618,7 @@ test("toggling source chip filters card grid", async ({ page }) => {
   await page.getByRole("link", { name: "Marketplace" }).click();
 
   // Built-in chip is on by default; cards are visible.
-  await expect(
-    page.locator('[data-test="catalog-card"]').first()
-  ).toBeVisible();
+  await expect(page.locator('[data-test="catalog-card"]').first()).toBeVisible();
 
   // Toggle Built-in off → no cards.
   await page.getByTestId("source-chip-builtin").click();
@@ -3649,9 +3626,7 @@ test("toggling source chip filters card grid", async ({ page }) => {
 
   // Toggle back on.
   await page.getByTestId("source-chip-builtin").click();
-  await expect(
-    page.locator('[data-test="catalog-card"]').first()
-  ).toBeVisible();
+  await expect(page.locator('[data-test="catalog-card"]').first()).toBeVisible();
 });
 ```
 

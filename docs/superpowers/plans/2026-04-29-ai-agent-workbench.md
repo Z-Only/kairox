@@ -2140,10 +2140,7 @@ import { traceLabels } from "./TraceTimeline";
 describe("traceLabels", () => {
   it("renders event types in order", () => {
     expect(
-      traceLabels([
-        { event_type: "UserMessageAdded" },
-        { event_type: "AssistantMessageCompleted" }
-      ])
+      traceLabels([{ event_type: "UserMessageAdded" }, { event_type: "AssistantMessageCompleted" }])
     ).toEqual(["UserMessageAdded", "AssistantMessageCompleted"]);
   });
 });
@@ -2260,10 +2257,7 @@ Create `apps/agent-gui/src/App.vue`:
 import PermissionCenter from "./components/PermissionCenter.vue";
 import TraceTimeline from "./components/TraceTimeline.vue";
 
-const events = [
-  { event_type: "WorkspaceOpened" },
-  { event_type: "UserMessageAdded" }
-];
+const events = [{ event_type: "WorkspaceOpened" }, { event_type: "UserMessageAdded" }];
 </script>
 
 <template>

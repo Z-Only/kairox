@@ -8,12 +8,9 @@ import PermissionPrompt from "./PermissionPrompt.vue";
     <h2>Permissions</h2>
     <div
       v-if="
-        traceState.entries.filter(
-          (e) => e.kind === 'permission' && e.status === 'pending'
-        ).length === 0 &&
-        traceState.entries.filter(
-          (e) => e.kind === 'memory' && e.status === 'pending'
-        ).length === 0
+        traceState.entries.filter((e) => e.kind === 'permission' && e.status === 'pending')
+          .length === 0 &&
+        traceState.entries.filter((e) => e.kind === 'memory' && e.status === 'pending').length === 0
       "
       class="empty-state"
     >
@@ -21,9 +18,7 @@ import PermissionPrompt from "./PermissionPrompt.vue";
     </div>
     <PermissionPrompt
       v-for="entry in traceState.entries.filter(
-        (e) =>
-          (e.kind === 'permission' || e.kind === 'memory') &&
-          e.status === 'pending'
+        (e) => (e.kind === 'permission' || e.kind === 'memory') && e.status === 'pending'
       )"
       :key="entry.id"
       :entry="entry"

@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  sessionState,
-  applyEvent,
-  setProjection,
-  resetProjection,
-  streamsByTask
-} from "./session";
+import { sessionState, applyEvent, setProjection, resetProjection, streamsByTask } from "./session";
 import type { DomainEvent, AgentRole, EventPayload } from "../types";
 import { agentState, clearAgents } from "./agents";
 
@@ -18,10 +12,7 @@ beforeEach(() => {
   clearAgents();
 });
 
-function makeEvent(
-  payload: EventPayload,
-  sourceAgentId = "agent_system"
-): DomainEvent {
+function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -117,9 +108,7 @@ describe("applyEvent", () => {
 
     expect(sessionState.projection.messages).toHaveLength(1);
     expect(sessionState.projection.messages[0].role).toBe("system");
-    expect(sessionState.projection.messages[0].content).toContain(
-      "3 sub-tasks"
-    );
+    expect(sessionState.projection.messages[0].content).toContain("3 sub-tasks");
   });
 
   it("handles TaskBlocked event", () => {
@@ -193,9 +182,7 @@ describe("setProjection", () => {
 
 describe("resetProjection", () => {
   it("clears all projection state and agent state", () => {
-    applyEvent(
-      makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" })
-    );
+    applyEvent(makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" }));
 
     resetProjection();
 

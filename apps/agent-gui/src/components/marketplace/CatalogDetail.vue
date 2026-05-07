@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import type {
-  ServerEntryResponse,
-  InstallRequestPayload
-} from "../../generated/commands";
+import type { ServerEntryResponse, InstallRequestPayload } from "../../generated/commands";
 import { installEntry } from "../../stores/catalog";
-import {
-  parseRequirements,
-  parseDefaultEnv
-} from "../../composables/useMarketplace";
+import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstallProgress from "./InstallProgress.vue";
 
@@ -59,25 +53,13 @@ async function onInstall() {
 </script>
 
 <template>
-  <aside
-    class="drawer"
-    role="dialog"
-    aria-modal="true"
-    data-test="catalog-detail"
-  >
+  <aside class="drawer" role="dialog" aria-modal="true" data-test="catalog-detail">
     <header>
       <h2>{{ entry.display_name }}</h2>
       <button aria-label="Close" @click="emit('close')">×</button>
     </header>
     <p>{{ entry.description }}</p>
-    <a
-      v-if="entry.homepage"
-      :href="entry.homepage"
-      target="_blank"
-      rel="noopener"
-    >
-      Homepage
-    </a>
+    <a v-if="entry.homepage" :href="entry.homepage" target="_blank" rel="noopener"> Homepage </a>
 
     <section>
       <h3>Requirements</h3>
@@ -104,23 +86,17 @@ async function onInstall() {
         Trust this server (skip per-tool permission prompts)
       </label>
       <p v-if="entry.trust === 'verified'" class="hint-verified">
-        This entry comes from a verified source. You can grant runtime trust to
-        skip permission prompts, but it remains opt-in.
+        This entry comes from a verified source. You can grant runtime trust to skip permission
+        prompts, but it remains opt-in.
       </p>
-      <label>
-        <input v-model="autoStart" type="checkbox" /> Start after install
-      </label>
+      <label> <input v-model="autoStart" type="checkbox" /> Start after install </label>
     </section>
 
     <footer>
       <button data-test="catalog-install" @click="onInstall">Install</button>
     </footer>
 
-    <InstallProgress
-      v-if="showProgress"
-      :catalog-id="entry.id"
-      @close="showProgress = false"
-    />
+    <InstallProgress v-if="showProgress" :catalog-id="entry.id" @close="showProgress = false" />
   </aside>
 </template>
 

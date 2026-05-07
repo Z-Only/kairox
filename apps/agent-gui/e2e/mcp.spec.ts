@@ -53,9 +53,7 @@ test.describe("MCP Server Management", () => {
 });
 
 test.describe("MCP Permission Prompt", () => {
-  test("MCP-specific permission dialog appears for MCP tools", async ({
-    page
-  }) => {
+  test("MCP-specific permission dialog appears for MCP tools", async ({ page }) => {
     await page.goto("/");
     // This test would require triggering a permission request event
     // For now, verify the component exists in the DOM

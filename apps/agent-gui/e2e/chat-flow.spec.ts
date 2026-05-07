@@ -25,9 +25,7 @@ test("sends a message and sees user message immediately", async ({ page }) => {
 
   // User message should appear
   await expect(page.locator(".message-user").first()).toBeVisible();
-  await expect(page.locator(".message-user").first()).toContainText(
-    "Hello agent!"
-  );
+  await expect(page.locator(".message-user").first()).toContainText("Hello agent!");
 });
 
 test("receives streaming assistant response", async ({ page }) => {
@@ -48,14 +46,10 @@ test("receives streaming assistant response", async ({ page }) => {
   await expect(page.locator(".message-assistant").first()).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.locator(".message-assistant").first()).toContainText(
-    "mock assistant"
-  );
+  await expect(page.locator(".message-assistant").first()).toContainText("mock assistant");
 });
 
-test("shows cancel button while streaming and send button when idle", async ({
-  page
-}) => {
+test("shows cancel button while streaming and send button when idle", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -104,7 +98,5 @@ test("chat panel shows profile badge", async ({ page }) => {
   await expect(page.locator(".chat-header .profile-badge")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.locator(".chat-header .profile-badge")).toContainText(
-    "fast"
-  );
+  await expect(page.locator(".chat-header .profile-badge")).toContainText("fast");
 });

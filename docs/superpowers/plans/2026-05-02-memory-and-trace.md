@@ -1646,9 +1646,7 @@ async function deny() {
       <p class="permission-description">
         {{ entry.title }}
       </p>
-      <div v-if="entry.scope" class="permission-meta">
-        Scope: {{ entry.scope }}
-      </div>
+      <div v-if="entry.scope" class="permission-meta">Scope: {{ entry.scope }}</div>
       <div class="permission-meta">Tool: {{ entry.toolId }}</div>
     </div>
     <div class="permission-actions">
@@ -1743,13 +1741,7 @@ const statusIcon: Record<string, string> = {
 </script>
 
 <template>
-  <div
-    :class="[
-      'trace-entry',
-      `trace-entry--${entry.status}`,
-      `trace-entry--${entry.kind}`
-    ]"
-  >
+  <div :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]">
     <!-- Permission prompt: special inline UI -->
     <PermissionPrompt
       v-if="entry.kind === 'permission' && entry.status === 'pending'"
@@ -1765,9 +1757,7 @@ const statusIcon: Record<string, string> = {
         <span v-if="entry.durationMs != null" class="entry-duration"
           >{{ (entry.durationMs / 1000).toFixed(1) }}s</span
         >
-        <span v-if="entry.status === 'running'" class="entry-running"
-          >running...</span
-        >
+        <span v-if="entry.status === 'running'" class="entry-running">running...</span>
       </div>
 
       <!-- L2: detail (collapsible) -->
@@ -1787,10 +1777,7 @@ const statusIcon: Record<string, string> = {
       </div>
 
       <!-- L3: raw JSON -->
-      <div
-        v-if="density === 'L3' && entry.expanded && entry.rawEvent"
-        class="entry-raw"
-      >
+      <div v-if="density === 'L3' && entry.expanded && entry.rawEvent" class="entry-raw">
         <pre class="entry-code">{{ entry.rawEvent }}</pre>
       </div>
     </template>
@@ -1912,9 +1899,7 @@ import { traceState } from "../composables/useTraceStore";
         :entry="entry"
         :density="traceState.density"
       />
-      <p v-if="traceState.entries.length === 0" class="empty-hint">
-        No trace events yet
-      </p>
+      <p v-if="traceState.entries.length === 0" class="empty-hint">No trace events yet</p>
     </div>
   </section>
 </template>

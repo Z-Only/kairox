@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import {
-  catalogState,
-  fetchSources,
-  isSourceSelected,
-  toggleSource
-} from "../stores/catalog";
+import { catalogState, fetchSources, isSourceSelected, toggleSource } from "../stores/catalog";
 import CatalogList from "../components/marketplace/CatalogList.vue";
 import InstalledList from "../components/marketplace/InstalledList.vue";
 import CatalogSourcesSettings from "../components/CatalogSourcesSettings.vue";

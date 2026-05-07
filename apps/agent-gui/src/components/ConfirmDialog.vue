@@ -19,10 +19,7 @@ const emit = defineEmits<{
       <p>{{ message }}</p>
       <div class="dialog-actions">
         <button class="btn-cancel" @click="emit('cancel')">Cancel</button>
-        <button
-          :class="['btn-confirm', { 'btn-danger': confirmDanger }]"
-          @click="emit('confirm')"
-        >
+        <button :class="['btn-confirm', { 'btn-danger': confirmDanger }]" @click="emit('confirm')">
           {{ confirmLabel || "Confirm" }}
         </button>
       </div>

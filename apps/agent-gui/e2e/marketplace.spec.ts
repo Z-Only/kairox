@@ -16,12 +16,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Marketplace", () => {
-  test("browses the catalog and shows the filesystem entry", async ({
-    page
-  }) => {
-    const card = page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" });
+  test("browses the catalog and shows the filesystem entry", async ({ page }) => {
+    const card = page.getByTestId("catalog-card").filter({ hasText: "Filesystem" });
     await expect(card).toBeVisible();
   });
 
@@ -31,10 +27,7 @@ test.describe("Marketplace", () => {
   });
 
   test("installs the filesystem entry happy path", async ({ page }) => {
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await expect(page.getByTestId("install-progress")).toBeVisible();
@@ -48,22 +41,14 @@ test.describe("Marketplace", () => {
       // @ts-expect-error injected on window for tauri-mock to read
       window.__MARKETPLACE_FORCE_MISSING__ = ["node"];
     });
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
-    await expect(page.getByTestId("install-progress")).toContainText(
-      "Missing runtimes"
-    );
+    await expect(page.getByTestId("install-progress")).toContainText("Missing runtimes");
   });
 
   test("uninstall removes the entry", async ({ page }) => {
-    await page
-      .getByTestId("catalog-card")
-      .filter({ hasText: "Filesystem" })
-      .click();
+    await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await page.getByTestId("install-close").click();
@@ -77,9 +62,7 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
   test("user can add and remove a remote catalog source", async ({ page }) => {
     // Open the source-settings drawer.
     await page.getByTestId("catalog-source-settings").click();
-    await expect(
-      page.getByTestId("catalog-source-settings-drawer")
-    ).toBeVisible();
+    await expect(page.getByTestId("catalog-source-settings-drawer")).toBeVisible();
     await expect(page.getByText("No remote catalog sources")).toBeVisible();
 
     // Add a new source.
@@ -114,9 +97,7 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     // Deselect builtin → builtin entries should disappear.
     await builtin.click();
     await expect(builtin).not.toHaveClass(/active/);
-    await expect(
-      page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })
-    ).toHaveCount(0);
+    await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toHaveCount(0);
   });
 
   test("validates URL when adding a source", async ({ page }) => {

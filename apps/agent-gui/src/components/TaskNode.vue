@@ -97,15 +97,8 @@ function handleToggle() {
       <span v-if="hasChildren" class="task-expand">
         {{ isExpanded ? "▾" : "▸" }}
       </span>
-      <span
-        v-else
-        :style="{ paddingLeft: depth > 0 ? '0' : '12px' }"
-        class="task-expand"
-      >
-      </span>
-      <span v-if="depth > 0" class="task-indent">
-        {{ "│ ".repeat(depth - 1) }}├─
-      </span>
+      <span v-else :style="{ paddingLeft: depth > 0 ? '0' : '12px' }" class="task-expand"> </span>
+      <span v-if="depth > 0" class="task-indent"> {{ "│ ".repeat(depth - 1) }}├─ </span>
       <span class="task-status">{{ statusIcon[node.task.state] || "•" }}</span>
       <span class="task-role" :style="{ backgroundColor: badgeColor }">
         {{ agentBadge }}
@@ -115,36 +108,16 @@ function handleToggle() {
       <span v-if="hasChildren && !isExpanded" class="task-summary">
         {{ childSummary() }}
       </span>
-      <span v-if="node.task.state === 'Running'" class="task-running">
-        running...
-      </span>
+      <span v-if="node.task.state === 'Running'" class="task-running"> running... </span>
       <span v-if="isFailed" class="task-actions">
-        <button title="Retry task" class="btn-retry" @click.stop="handleRetry">
-          ↻
-        </button>
-        <button
-          title="Cancel task"
-          class="btn-cancel"
-          @click.stop="handleCancel"
-        >
-          ✕
-        </button>
+        <button title="Retry task" class="btn-retry" @click.stop="handleRetry">↻</button>
+        <button title="Cancel task" class="btn-cancel" @click.stop="handleCancel">✕</button>
       </span>
       <span v-if="isBlocked" class="task-actions">
-        <button
-          title="Cancel blocked task"
-          class="btn-cancel"
-          @click.stop="handleCancel"
-        >
-          ✕
-        </button>
+        <button title="Cancel blocked task" class="btn-cancel" @click.stop="handleCancel">✕</button>
       </span>
     </div>
-    <div
-      v-if="node.task.error"
-      class="task-error"
-      :style="{ paddingLeft: `${depth * 16 + 8}px` }"
-    >
+    <div v-if="node.task.error" class="task-error" :style="{ paddingLeft: `${depth * 16 + 8}px` }">
       <span class="task-error-text">{{ node.task.error }}</span>
     </div>
     <div v-if="isExpanded && hasChildren" class="task-children">

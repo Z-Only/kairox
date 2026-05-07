@@ -29,13 +29,7 @@ const kindIcon: Record<string, string> = {
 </script>
 
 <template>
-  <div
-    :class="[
-      'trace-entry',
-      `trace-entry--${entry.status}`,
-      `trace-entry--${entry.kind}`
-    ]"
-  >
+  <div :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]">
     <!-- All entries show as a trace row; pending permission/memory
          interactions are handled exclusively by PermissionCenter -->
     <div class="entry-row" @click="toggle">
@@ -46,12 +40,8 @@ const kindIcon: Record<string, string> = {
       <span v-if="entry.durationMs != null" class="entry-duration">
         {{ (entry.durationMs / 1000).toFixed(1) }}s
       </span>
-      <span v-if="entry.status === 'running'" class="entry-running"
-        >running...</span
-      >
-      <span v-if="entry.status === 'pending'" class="entry-pending"
-        >pending</span
-      >
+      <span v-if="entry.status === 'running'" class="entry-running">running...</span>
+      <span v-if="entry.status === 'pending'" class="entry-pending">pending</span>
     </div>
     <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
       <div v-if="entry.input" class="entry-section">
@@ -66,18 +56,12 @@ const kindIcon: Record<string, string> = {
         <span class="entry-label">Reason:</span>
         <span>{{ entry.reason }}</span>
       </div>
-      <div
-        v-if="entry.content && entry.kind === 'memory'"
-        class="entry-section"
-      >
+      <div v-if="entry.content && entry.kind === 'memory'" class="entry-section">
         <span class="entry-label">Content:</span>
         <pre class="entry-code">{{ entry.content }}</pre>
       </div>
     </div>
-    <div
-      v-if="density === 'L3' && entry.expanded && entry.rawEvent"
-      class="entry-raw"
-    >
+    <div v-if="density === 'L3' && entry.expanded && entry.rawEvent" class="entry-raw">
       <pre class="entry-code">{{ entry.rawEvent }}</pre>
     </div>
   </div>

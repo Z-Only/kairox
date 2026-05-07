@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch, ref } from "vue";
-import {
-  memoryState,
-  loadMemories,
-  deleteMemoryItem,
-  setMemoryFilter
-} from "../stores/memory";
+import { memoryState, loadMemories, deleteMemoryItem, setMemoryFilter } from "../stores/memory";
 import { sessionState } from "../stores/session";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
@@ -73,9 +68,7 @@ function handleSearchKeydown(e: KeyboardEvent) {
   <div class="memory-browser">
     <header class="memory-header">
       <h2>Memories</h2>
-      <button class="refresh-btn" title="Refresh" @click="loadMemories">
-        ↻
-      </button>
+      <button class="refresh-btn" title="Refresh" @click="loadMemories">↻</button>
     </header>
 
     <div class="memory-controls">
@@ -98,16 +91,11 @@ function handleSearchKeydown(e: KeyboardEvent) {
     </div>
 
     <div v-if="memoryState.loading" class="memory-empty">Loading...</div>
-    <div v-else-if="memoryState.memories.length === 0" class="memory-empty">
-      No memories
-    </div>
+    <div v-else-if="memoryState.memories.length === 0" class="memory-empty">No memories</div>
     <ul v-else class="memory-list">
       <li v-for="mem in memoryState.memories" :key="mem.id" class="memory-item">
         <div class="memory-meta">
-          <span
-            class="memory-scope"
-            :style="{ color: scopeColor[mem.scope] || '#666' }"
-          >
+          <span class="memory-scope" :style="{ color: scopeColor[mem.scope] || '#666' }">
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
           </span>
           <span v-if="mem.key" class="memory-key">{{ mem.key }}</span>

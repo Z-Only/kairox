@@ -11,10 +11,7 @@ export const notifications = reactive<Notification[]>([]);
 
 let nextId = 0;
 
-export function addNotification(
-  type: Notification["type"],
-  message: string
-): void {
+export function addNotification(type: Notification["type"], message: string): void {
   const id = `notif-${nextId++}`;
   notifications.push({ id, type, message, timestamp: Date.now() });
   // Auto-dismiss after 8 seconds

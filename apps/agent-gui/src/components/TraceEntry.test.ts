@@ -77,8 +77,6 @@ describe("TraceEntry", () => {
     const wrapper = mount(TraceEntry, {
       props: { entry: { ...baseEntry, kind: "memory" }, density: "L2" }
     });
-    expect(wrapper.find(".trace-entry").classes()).toContain(
-      "trace-entry--memory"
-    );
+    expect(wrapper.find(".trace-entry").classes()).toContain("trace-entry--memory");
   });
 });

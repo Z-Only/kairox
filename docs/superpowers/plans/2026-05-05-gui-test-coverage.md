@@ -123,10 +123,7 @@ import { traceState, applyTraceEvent, clearTrace } from "./useTraceStore";
 import type { DomainEvent } from "../types";
 
 // Helper to build a DomainEvent with sensible defaults
-function makeEvent(
-  payload: DomainEvent["payload"],
-  overrides?: Partial<DomainEvent>
-): DomainEvent {
+function makeEvent(payload: DomainEvent["payload"], overrides?: Partial<DomainEvent>): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -450,9 +447,7 @@ describe("applyTraceEvent — Permission lifecycle", () => {
         request_id: "perm_1"
       })
     );
-    expect(traceState.entries.find((e) => e.id === "perm_1")!.status).toBe(
-      "completed"
-    );
+    expect(traceState.entries.find((e) => e.id === "perm_1")!.status).toBe("completed");
   });
 
   it("updates to failed on PermissionDenied", () => {
@@ -471,9 +466,7 @@ describe("applyTraceEvent — Permission lifecycle", () => {
         reason: "too dangerous"
       })
     );
-    expect(traceState.entries.find((e) => e.id === "perm_2")!.status).toBe(
-      "failed"
-    );
+    expect(traceState.entries.find((e) => e.id === "perm_2")!.status).toBe("failed");
   });
 });
 
@@ -515,9 +508,7 @@ describe("applyTraceEvent — Memory lifecycle", () => {
         content: "Rust"
       })
     );
-    expect(traceState.entries.find((e) => e.id === "mem_1")!.status).toBe(
-      "completed"
-    );
+    expect(traceState.entries.find((e) => e.id === "mem_1")!.status).toBe("completed");
   });
 
   it("updates to failed with reason on MemoryRejected", () => {
@@ -740,11 +731,7 @@ Create `apps/agent-gui/src/composables/useNotifications.test.ts`:
 
 ```typescript
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import {
-  notifications,
-  addNotification,
-  dismissNotification
-} from "./useNotifications";
+import { notifications, addNotification, dismissNotification } from "./useNotifications";
 
 beforeEach(() => {
   // Clear all notifications between tests
@@ -801,11 +788,7 @@ describe("type differentiation", () => {
     addNotification("error", "E");
     addNotification("warning", "W");
     addNotification("info", "I");
-    expect(notifications.map((n) => n.type)).toEqual([
-      "error",
-      "warning",
-      "info"
-    ]);
+    expect(notifications.map((n) => n.type)).toEqual(["error", "warning", "info"]);
   });
 });
 ```
@@ -1061,12 +1044,7 @@ vi.mock("../composables/useNotifications", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import {
-  memoryState,
-  loadMemories,
-  deleteMemoryItem,
-  setMemoryFilter
-} from "./memory";
+import { memoryState, loadMemories, deleteMemoryItem, setMemoryFilter } from "./memory";
 
 beforeEach(() => {
   memoryState.memories = [];
@@ -1106,10 +1084,7 @@ describe("loadMemories", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("db error"));
     await loadMemories();
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("db error")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("db error"));
   });
 });
 
@@ -1132,10 +1107,7 @@ describe("deleteMemoryItem", () => {
     ];
     mockedInvoke.mockRejectedValueOnce(new Error("not found"));
     await deleteMemoryItem("m1");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("not found")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("not found"));
     // Item should remain in local state since delete failed
     expect(memoryState.memories).toHaveLength(1);
   });
@@ -1295,10 +1267,7 @@ describe("deleteSession", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("delete failed"));
     await deleteSession("s1");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("delete failed")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("delete failed"));
   });
 });
 
@@ -1322,10 +1291,7 @@ describe("renameSession", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("rename failed"));
     await renameSession("s1", "New Title");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("rename failed")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("rename failed"));
   });
 });
 
@@ -1477,10 +1443,7 @@ Create `apps/agent-gui/src/components/NotificationToast.test.ts`:
 import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import NotificationToast from "./NotificationToast.vue";
-import {
-  notifications,
-  dismissNotification
-} from "../composables/useNotifications";
+import { notifications, dismissNotification } from "../composables/useNotifications";
 
 beforeEach(() => {
   notifications.splice(0, notifications.length);
@@ -1653,9 +1616,7 @@ describe("TraceEntry", () => {
     const wrapper = mount(TraceEntry, {
       props: { entry: { ...baseEntry, kind: "memory" }, density: "L2" }
     });
-    expect(wrapper.find(".trace-entry").classes()).toContain(
-      "trace-entry--memory"
-    );
+    expect(wrapper.find(".trace-entry").classes()).toContain("trace-entry--memory");
   });
 });
 ```
@@ -1778,17 +1739,10 @@ Create `apps/agent-gui/src/components/TaskSteps.test.ts`:
 import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import TaskSteps from "./TaskSteps.vue";
-import {
-  taskGraphState,
-  clearTaskGraph,
-  setTaskGraph
-} from "../stores/taskGraph";
+import { taskGraphState, clearTaskGraph, setTaskGraph } from "../stores/taskGraph";
 import type { TaskSnapshot } from "../types";
 
-const makeTask = (
-  id: string,
-  overrides?: Partial<TaskSnapshot>
-): TaskSnapshot => ({
+const makeTask = (id: string, overrides?: Partial<TaskSnapshot>): TaskSnapshot => ({
   id,
   title: `Task ${id}`,
   role: "Worker",
@@ -1809,10 +1763,7 @@ describe("TaskSteps", () => {
   });
 
   it("renders task tree with root task", () => {
-    setTaskGraph(
-      [makeTask("A", { title: "Root Task", state: "Running" })],
-      "ses_1"
-    );
+    setTaskGraph([makeTask("A", { title: "Root Task", state: "Running" })], "ses_1");
     const wrapper = mount(TaskSteps);
     expect(wrapper.text()).toContain("Root Task");
     expect(wrapper.text()).toContain("running...");
@@ -1838,10 +1789,7 @@ describe("TaskSteps", () => {
   });
 
   it("shows error message for failed task", () => {
-    setTaskGraph(
-      [makeTask("1", { state: "Failed", error: "Build failed" })],
-      "ses_1"
-    );
+    setTaskGraph([makeTask("1", { state: "Failed", error: "Build failed" })], "ses_1");
     const wrapper = mount(TaskSteps);
     expect(wrapper.text()).toContain("Build failed");
   });
@@ -1865,9 +1813,7 @@ describe("TaskSteps", () => {
       rootNode.trigger("click");
     }
     // Error text should be present irrespective of expand
-    expect(
-      wrapper.find(".task-error-text").exists() || wrapper.text()
-    ).toBeDefined();
+    expect(wrapper.find(".task-error-text").exists() || wrapper.text()).toBeDefined();
   });
 });
 ```
@@ -2107,9 +2053,7 @@ describe("ChatPanel", () => {
   });
 
   it("renders assistant messages with markdown", () => {
-    sessionState.projection.messages = [
-      { role: "assistant", content: "**bold text**" }
-    ];
+    sessionState.projection.messages = [{ role: "assistant", content: "**bold text**" }];
     const wrapper = mount(ChatPanel);
     expect(wrapper.text()).toContain("bold text");
     expect(wrapper.text()).toContain("Agent");

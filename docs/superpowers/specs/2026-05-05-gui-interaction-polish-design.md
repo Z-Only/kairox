@@ -68,19 +68,10 @@ When `sessionState.isStreaming` is true, replace the "Send" button with a "Cance
 
 ```vue
 <!-- In ChatPanel.vue template -->
-<button
-  v-if="sessionState.isStreaming"
-  class="cancel-button"
-  @click="cancelSession"
->
+<button v-if="sessionState.isStreaming" class="cancel-button" @click="cancelSession">
   Cancel
 </button>
-<button
-  v-else
-  class="send-button"
-  :disabled="!inputText.trim()"
-  @click="sendMessage"
->
+<button v-else class="send-button" :disabled="!inputText.trim()" @click="sendMessage">
   Send
 </button>
 ```
@@ -146,10 +137,7 @@ export const notifications = reactive<Notification[]>([]);
 
 let nextId = 0;
 
-export function addNotification(
-  type: Notification["type"],
-  message: string
-): void {
+export function addNotification(type: Notification["type"], message: string): void {
   const id = `notif-${nextId++}`;
   notifications.push({ id, type, message, timestamp: Date.now() });
   // Auto-dismiss after 8 seconds
@@ -177,12 +165,9 @@ import { listen } from "@tauri-apps/api/event";
 import { addNotification } from "./composables/useNotifications";
 
 onMounted(async () => {
-  await listen<{ type: string; error: string; session_id: string }>(
-    "session-error",
-    (event) => {
-      addNotification("error", event.payload.error);
-    }
-  );
+  await listen<{ type: string; error: string; session_id: string }>("session-error", (event) => {
+    addNotification("error", event.payload.error);
+  });
 });
 ```
 

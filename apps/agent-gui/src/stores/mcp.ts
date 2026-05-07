@@ -17,9 +17,7 @@ export const runningServers = computed(() =>
   mcpState.servers.filter((s) => s.status === "running")
 );
 
-export const failedServers = computed(() =>
-  mcpState.servers.filter((s) => s.status === "failed")
-);
+export const failedServers = computed(() => mcpState.servers.filter((s) => s.status === "failed"));
 
 export const runningCount = computed(() => runningServers.value.length);
 
@@ -87,9 +85,7 @@ export async function trustServer(id: string): Promise<void> {
 export async function revokeTrust(id: string): Promise<void> {
   try {
     await invoke("revoke_mcp_trust", { serverId: id });
-    mcpState.trustedServerIds = mcpState.trustedServerIds.filter(
-      (sid) => sid !== id
-    );
+    mcpState.trustedServerIds = mcpState.trustedServerIds.filter((sid) => sid !== id);
   } catch (e) {
     console.error("Failed to revoke MCP trust:", e);
     addNotification("error", `Failed to revoke MCP trust: ${e}`);
@@ -110,10 +106,7 @@ export async function refreshTools(id: string): Promise<void> {
  * Apply an MCP-related DomainEvent to the local state.
  * Called from useTauriEvents for real-time updates.
  */
-export function handleMcpEvent(payload: {
-  type: string;
-  [key: string]: unknown;
-}): void {
+export function handleMcpEvent(payload: { type: string; [key: string]: unknown }): void {
   switch (payload.type) {
     case "McpServerStarting":
       updateServer(payload.server_id as string, { status: "starting" });

@@ -141,9 +141,7 @@ describe("TaskNode", () => {
       });
       const badge = wrapper.find(".task-role");
       expect(badge.text()).toBe("W");
-      expect(badge.element.getAttribute("style")).toContain(
-        "rgb(34, 160, 107)"
-      );
+      expect(badge.element.getAttribute("style")).toContain("rgb(34, 160, 107)");
     });
 
     it("renders role badge with R for Reviewer", () => {
@@ -153,9 +151,7 @@ describe("TaskNode", () => {
       });
       const badge = wrapper.find(".task-role");
       expect(badge.text()).toBe("R");
-      expect(badge.element.getAttribute("style")).toContain(
-        "rgb(124, 58, 237)"
-      );
+      expect(badge.element.getAttribute("style")).toContain("rgb(124, 58, 237)");
     });
   });
 
@@ -236,9 +232,7 @@ describe("TaskNode", () => {
         props: { node, expanded: new Set(), depth: 0 }
       });
       expect(wrapper.find(".task-error").exists()).toBe(true);
-      expect(wrapper.find(".task-error-text").text()).toBe(
-        "Something went wrong"
-      );
+      expect(wrapper.find(".task-error-text").text()).toBe("Something went wrong");
     });
 
     it("does not display error when error is null", () => {

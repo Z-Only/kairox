@@ -30,19 +30,19 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_parsers = [
-    { message = "^feat", group = "<!-- 0 -->🚀 Features" },
-    { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
-    { message = "^perf", group = "<!-- 2 -->⚡ Performance" },
-    { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
-    { message = "^test", group = "<!-- 4 -->🧪 Testing" },
-    { message = "^refactor", group = "<!-- 5 -->🧹 Refactor" },
-    { message = "^style", group = "<!-- 6 -->🎨 Styling" },
-    { message = "^ci", group = "<!-- 7 -->👷 CI" },
-    { message = "^chore\\(release\\)", skip = true },
-    { message = "^chore\\(deps", group = "<!-- 8 -->📦 Dependencies" },
-    { message = "^chore", group = "<!-- 9 -->🔧 Miscellaneous Tasks" },
-    { body = ".*security", group = "<!-- 10 -->🔒 Security" },
-    { message = "^merge", skip = true },
+  { message = "^feat", group = "<!-- 0 -->🚀 Features" },
+  { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+  { message = "^perf", group = "<!-- 2 -->⚡ Performance" },
+  { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
+  { message = "^test", group = "<!-- 4 -->🧪 Testing" },
+  { message = "^refactor", group = "<!-- 5 -->🧹 Refactor" },
+  { message = "^style", group = "<!-- 6 -->🎨 Styling" },
+  { message = "^ci", group = "<!-- 7 -->👷 CI" },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore\\(deps", group = "<!-- 8 -->📦 Dependencies" },
+  { message = "^chore", group = "<!-- 9 -->🔧 Miscellaneous Tasks" },
+  { body = ".*security", group = "<!-- 10 -->🔒 Security" },
+  { message = "^merge", skip = true }
 ]
 protect_breaking_commits = false
 filter_commits = false

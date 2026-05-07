@@ -62,10 +62,8 @@ const state = {
       id: "filesystem",
       source: "builtin",
       display_name: "Filesystem",
-      summary:
-        "Read, write, and search files inside an allow-listed directory.",
-      description:
-        "Provides safe filesystem access scoped to a workspace path.",
+      summary: "Read, write, and search files inside an allow-listed directory.",
+      description: "Provides safe filesystem access scoped to a workspace path.",
       categories: ["filesystem", "dev-tools"],
       tags: ["files", "fs"],
       author: "MCP",
@@ -76,11 +74,7 @@ const state = {
       install_spec_json: JSON.stringify({
         transport: "stdio",
         command: "npx",
-        args: [
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          "${WORKSPACE_PATH}"
-        ],
+        args: ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_PATH}"],
         env: {},
         cwd: null
       }),
@@ -167,10 +161,7 @@ function emitEvent(eventName, payload) {
           // Tauri v2 event handlers receive { event, id, payload }
           handler({ event: eventName, id: eventId, payload: payload });
         } catch (e) {
-          console.error(
-            "[tauri-mock] Error in event listener for " + eventName + ":",
-            e
-          );
+          console.error("[tauri-mock] Error in event listener for " + eventName + ":", e);
         }
       }, 10);
     });
@@ -250,8 +241,7 @@ function invoke(cmd, args) {
     /* ─── App commands ───────────────────────────────────────── */
 
     case "initialize_workspace": {
-      if (state.initialized)
-        return Promise.reject(new Error("Workspace already initialized"));
+      if (state.initialized) return Promise.reject(new Error("Workspace already initialized"));
       var ws = { workspace_id: "wrk_mock", path: "/mock/workspace" };
       state.workspace = ws;
       state.initialized = true;
@@ -286,8 +276,7 @@ function invoke(cmd, args) {
       var found = state.profiles.find(function (p) {
         return p.alias === profile;
       });
-      if (!found)
-        return Promise.reject(new Error("Profile '" + profile + "' not found"));
+      if (!found) return Promise.reject(new Error("Profile '" + profile + "' not found"));
       return Promise.resolve(found);
     }
 
@@ -418,9 +407,7 @@ function invoke(cmd, args) {
       var decision = args.decision;
       var request = state.permissionRequests.get(requestId);
       if (!request)
-        return Promise.reject(
-          new Error("Permission request " + requestId + " not found")
-        );
+        return Promise.reject(new Error("Permission request " + requestId + " not found"));
       var sessionId = state.currentSessionId;
       if (sessionId) {
         if (decision === "grant") {
@@ -510,8 +497,7 @@ function invoke(cmd, args) {
       state.projections.delete(sessionId);
       state.traces.delete(sessionId);
       if (state.currentSessionId === sessionId) {
-        state.currentSessionId =
-          state.sessions.length > 0 ? state.sessions[0].id : null;
+        state.currentSessionId = state.sessions.length > 0 ? state.sessions[0].id : null;
       }
       return Promise.resolve(undefined);
     }
@@ -602,9 +588,7 @@ function invoke(cmd, args) {
         return e.id === req.catalog_id;
       });
       if (!entry) {
-        return Promise.reject(
-          new Error("catalog entry not found: " + req.catalog_id)
-        );
+        return Promise.reject(new Error("catalog entry not found: " + req.catalog_id));
       }
       var reqs = JSON.parse(entry.requirements_json);
       var baseMissing = reqs
@@ -616,14 +600,8 @@ function invoke(cmd, args) {
         });
       // Test hook: e2e specs may set window.__MARKETPLACE_FORCE_MISSING__
       // to a string[] of runtime kinds to force a runtime_missing outcome.
-      var forced =
-        (typeof window !== "undefined" &&
-          window.__MARKETPLACE_FORCE_MISSING__) ||
-        null;
-      var missing =
-        forced && Array.isArray(forced) && forced.length > 0
-          ? forced
-          : baseMissing;
+      var forced = (typeof window !== "undefined" && window.__MARKETPLACE_FORCE_MISSING__) || null;
+      var missing = forced && Array.isArray(forced) && forced.length > 0 ? forced : baseMissing;
       var sessionId = state.currentSessionId;
       if (missing.length > 0) {
         if (sessionId) {
@@ -814,9 +792,7 @@ function invoke(cmd, args) {
       var setId = args.id;
       var setEnabled = args.enabled;
       state.catalogSources = state.catalogSources.map(function (s) {
-        return s.id === setId
-          ? Object.assign({}, s, { enabled: setEnabled })
-          : s;
+        return s.id === setId ? Object.assign({}, s, { enabled: setEnabled }) : s;
       });
       return null;
     }

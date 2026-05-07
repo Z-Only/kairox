@@ -1,10 +1,6 @@
 import { reactive } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  SessionProjection,
-  SessionInfoResponse,
-  DomainEvent
-} from "../types";
+import type { SessionProjection, SessionInfoResponse, DomainEvent } from "../types";
 import { agentRoleToProjectedRole } from "../types";
 import { clearTrace, applyTraceEvent } from "../composables/useTraceStore";
 import { addNotification } from "../composables/useNotifications";
@@ -190,9 +186,7 @@ export function resetProjection() {
 export async function deleteSession(sessionId: string) {
   try {
     await invoke("delete_session", { sessionId });
-    sessionState.sessions = sessionState.sessions.filter(
-      (s) => s.id !== sessionId
-    );
+    sessionState.sessions = sessionState.sessions.filter((s) => s.id !== sessionId);
     // If we deleted the current session, switch to the first remaining one
     if (sessionState.currentSessionId === sessionId) {
       if (sessionState.sessions.length > 0) {
@@ -248,8 +242,7 @@ export async function renameSession(sessionId: string, title: string) {
 
 export async function recoverSessions(): Promise<boolean> {
   try {
-    const workspaces: { workspace_id: string; path: string }[] =
-      await invoke("list_workspaces");
+    const workspaces: { workspace_id: string; path: string }[] = await invoke("list_workspaces");
     if (workspaces.length === 0) {
       return false;
     }

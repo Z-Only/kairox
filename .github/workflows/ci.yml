@@ -277,17 +277,7 @@ jobs:
   ci-success:
     name: CI
     if: ${{ always() }}
-    needs:
-      [
-        format,
-        lint-rust,
-        lint-web,
-        test,
-        test-e2e,
-        type-sync,
-        build-tui,
-        build-gui
-      ]
+    needs: [format, lint-rust, lint-web, test, test-e2e, type-sync, build-tui, build-gui]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
