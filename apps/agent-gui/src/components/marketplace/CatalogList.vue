@@ -64,7 +64,7 @@ onMounted(async () => {
       v-else-if="catalog.visibleEntries.length === 0"
       :description="t('marketplace.catalogEmpty')"
     />
-    <NScrollbar v-else style="max-height: calc(100vh - 320px)">
+    <NScrollbar v-else :style="{ maxHeight: 'calc(100vh - 320px)' }">
       <div class="grid">
         <CatalogCard
           v-for="entry in catalog.visibleEntries"

@@ -74,7 +74,7 @@ const modalTitle = computed<string>(() => {
     :mask-closable="false"
     :bordered="true"
     size="small"
-    style="width: min(480px, 90vw)"
+    :style="{ width: 'min(480px, 90vw)' }"
     :title="modalTitle"
     @close="emit('close')"
   >

@@ -147,7 +147,7 @@ watch(
     </NScrollbar>
 
     <div class="input-area">
-      <NSpace :wrap="false" align="end" :size="8" style="width: 100%">
+      <NSpace :wrap="false" align="end" :size="8" :style="{ width: '100%' }">
         <NInput
           v-model:value="inputText"
           type="textarea"
