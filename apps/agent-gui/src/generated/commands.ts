@@ -4,252 +4,298 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	listProfiles: () => typedError<string[], string>(__TAURI_INVOKE("list_profiles")),
-	getProfileInfo: () => typedError<ProfileInfo[], string>(__TAURI_INVOKE("get_profile_info")),
-	initializeWorkspace: () => typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
-	startSession: (profile: string) => typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
-	sendMessage: (content: string) => typedError<null, string>(__TAURI_INVOKE("send_message", { content })),
-	listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
-	resolvePermission: (requestId: string, decision: string, reason: string | null) => typedError<null, string>(__TAURI_INVOKE("resolve_permission", { requestId, decision, reason })),
-	queryMemories: (scope: string | null, keywords: string[] | null, limit: number | null) => typedError<MemoryEntryResponse[], string>(__TAURI_INVOKE("query_memories", { scope, keywords, limit })),
-	deleteMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_memory", { id })),
-	listWorkspaces: () => typedError<WorkspaceInfoResponse[], string>(__TAURI_INVOKE("list_workspaces")),
-	renameSession: (sessionId: string, title: string) => typedError<null, string>(__TAURI_INVOKE("rename_session", { sessionId, title })),
-	deleteSession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("delete_session", { sessionId })),
-	getProfileDetail: (profile: string) => typedError<ProfileDetailResponse, string>(__TAURI_INVOKE("get_profile_detail", { profile })),
-	restoreWorkspace: (workspaceId: string) => typedError<null, string>(__TAURI_INVOKE("restore_workspace", { workspaceId })),
-	getTaskGraph: (sessionId: string) => typedError<TaskSnapshotResponse[], string>(__TAURI_INVOKE("get_task_graph", { sessionId })),
-	cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
-	getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
-	getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
-	listMcpServers: () => typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
-	startMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("start_mcp_server", { serverId })),
-	stopMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("stop_mcp_server", { serverId })),
-	refreshMcpTools: (serverId: string) => typedError<McpToolDefResponse[], string>(__TAURI_INVOKE("refresh_mcp_tools", { serverId })),
-	trustMcpServer: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("trust_mcp_server", { serverId })),
-	revokeMcpTrust: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("revoke_mcp_trust", { serverId })),
-	listMcpResources: (serverId: string) => typedError<McpResourceDefResponse[], string>(__TAURI_INVOKE("list_mcp_resources", { serverId })),
-	listMcpPrompts: (serverId: string) => typedError<McpPromptDefResponse[], string>(__TAURI_INVOKE("list_mcp_prompts", { serverId })),
-	readMcpResource: (serverId: string, uri: string) => typedError<McpContentBlockResponse[], string>(__TAURI_INVOKE("read_mcp_resource", { serverId, uri })),
-	listCatalog: (query: {
-	keyword: string | null,
-	category: string | null,
-	// "unverified" | "community" | "verified"
-	trust_min: string | null,
-	source: string | null,
-	limit: number | null,
-} | null) => typedError<ServerEntryResponse[], string>(__TAURI_INVOKE("list_catalog", { query })),
-	getCatalogEntry: (id: string, source: string | null) => typedError<{
-	id: string,
-	source: string,
-	display_name: string,
-	summary: string,
-	description: string,
-	categories: string[],
-	tags: string[],
-	author: string | null,
-	homepage: string | null,
-	version: string | null,
-	// Lower-case trust level: "unverified" | "community" | "verified".
-	trust: string,
-	icon: string | null,
-	// JSON-encoded `agent_mcp::catalog::InstallSpec`.
-	install_spec_json: string,
-	// JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
-	requirements_json: string,
-	// JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
-	default_env_json: string,
-} | null, string>(__TAURI_INVOKE("get_catalog_entry", { id, source })),
-	refreshCatalog: (source: string | null) => typedError<null, string>(__TAURI_INVOKE("refresh_catalog", { source })),
-	installCatalogEntry: (request: InstallRequestPayload) => typedError<InstallOutcomeResponse, string>(__TAURI_INVOKE("install_catalog_entry", { request })),
-	uninstallCatalogEntry: (serverId: string) => typedError<null, string>(__TAURI_INVOKE("uninstall_catalog_entry", { serverId })),
-	listInstalledEntries: () => typedError<InstalledEntryResponse[], string>(__TAURI_INVOKE("list_installed_entries")),
-	listCatalogSources: () => typedError<CatalogSourceViewResponse[], string>(__TAURI_INVOKE("list_catalog_sources")),
-	addCatalogSource: (request: AddCatalogSourceRequestPayload) => typedError<null, string>(__TAURI_INVOKE("add_catalog_source", { request })),
-	removeCatalogSource: (id: string) => typedError<null, string>(__TAURI_INVOKE("remove_catalog_source", { id })),
-	setCatalogSourceEnabled: (id: string, enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled })),
+  listProfiles: () => typedError<string[], string>(__TAURI_INVOKE("list_profiles")),
+  getProfileInfo: () => typedError<ProfileInfo[], string>(__TAURI_INVOKE("get_profile_info")),
+  initializeWorkspace: () =>
+    typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
+  startSession: (profile: string) =>
+    typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
+  sendMessage: (content: string) =>
+    typedError<null, string>(__TAURI_INVOKE("send_message", { content })),
+  listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
+  resolvePermission: (requestId: string, decision: string, reason: string | null) =>
+    typedError<null, string>(__TAURI_INVOKE("resolve_permission", { requestId, decision, reason })),
+  queryMemories: (scope: string | null, keywords: string[] | null, limit: number | null) =>
+    typedError<MemoryEntryResponse[], string>(
+      __TAURI_INVOKE("query_memories", { scope, keywords, limit })
+    ),
+  deleteMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_memory", { id })),
+  listWorkspaces: () =>
+    typedError<WorkspaceInfoResponse[], string>(__TAURI_INVOKE("list_workspaces")),
+  renameSession: (sessionId: string, title: string) =>
+    typedError<null, string>(__TAURI_INVOKE("rename_session", { sessionId, title })),
+  deleteSession: (sessionId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_session", { sessionId })),
+  getProfileDetail: (profile: string) =>
+    typedError<ProfileDetailResponse, string>(__TAURI_INVOKE("get_profile_detail", { profile })),
+  restoreWorkspace: (workspaceId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("restore_workspace", { workspaceId })),
+  getTaskGraph: (sessionId: string) =>
+    typedError<TaskSnapshotResponse[], string>(__TAURI_INVOKE("get_task_graph", { sessionId })),
+  cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
+  getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
+  getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
+  listMcpServers: () =>
+    typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
+  startMcpServer: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("start_mcp_server", { serverId })),
+  stopMcpServer: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("stop_mcp_server", { serverId })),
+  refreshMcpTools: (serverId: string) =>
+    typedError<McpToolDefResponse[], string>(__TAURI_INVOKE("refresh_mcp_tools", { serverId })),
+  trustMcpServer: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("trust_mcp_server", { serverId })),
+  revokeMcpTrust: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("revoke_mcp_trust", { serverId })),
+  listMcpResources: (serverId: string) =>
+    typedError<McpResourceDefResponse[], string>(
+      __TAURI_INVOKE("list_mcp_resources", { serverId })
+    ),
+  listMcpPrompts: (serverId: string) =>
+    typedError<McpPromptDefResponse[], string>(__TAURI_INVOKE("list_mcp_prompts", { serverId })),
+  readMcpResource: (serverId: string, uri: string) =>
+    typedError<McpContentBlockResponse[], string>(
+      __TAURI_INVOKE("read_mcp_resource", { serverId, uri })
+    ),
+  listCatalog: (
+    query: {
+      keyword: string | null;
+      category: string | null;
+      // "unverified" | "community" | "verified"
+      trust_min: string | null;
+      source: string | null;
+      limit: number | null;
+    } | null
+  ) => typedError<ServerEntryResponse[], string>(__TAURI_INVOKE("list_catalog", { query })),
+  getCatalogEntry: (id: string, source: string | null) =>
+    typedError<
+      {
+        id: string;
+        source: string;
+        display_name: string;
+        summary: string;
+        description: string;
+        categories: string[];
+        tags: string[];
+        author: string | null;
+        homepage: string | null;
+        version: string | null;
+        // Lower-case trust level: "unverified" | "community" | "verified".
+        trust: string;
+        icon: string | null;
+        // JSON-encoded `agent_mcp::catalog::InstallSpec`.
+        install_spec_json: string;
+        // JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
+        requirements_json: string;
+        // JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
+        default_env_json: string;
+      } | null,
+      string
+    >(__TAURI_INVOKE("get_catalog_entry", { id, source })),
+  refreshCatalog: (source: string | null) =>
+    typedError<null, string>(__TAURI_INVOKE("refresh_catalog", { source })),
+  installCatalogEntry: (request: InstallRequestPayload) =>
+    typedError<InstallOutcomeResponse, string>(
+      __TAURI_INVOKE("install_catalog_entry", { request })
+    ),
+  uninstallCatalogEntry: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("uninstall_catalog_entry", { serverId })),
+  listInstalledEntries: () =>
+    typedError<InstalledEntryResponse[], string>(__TAURI_INVOKE("list_installed_entries")),
+  listCatalogSources: () =>
+    typedError<CatalogSourceViewResponse[], string>(__TAURI_INVOKE("list_catalog_sources")),
+  addCatalogSource: (request: AddCatalogSourceRequestPayload) =>
+    typedError<null, string>(__TAURI_INVOKE("add_catalog_source", { request })),
+  removeCatalogSource: (id: string) =>
+    typedError<null, string>(__TAURI_INVOKE("remove_catalog_source", { id })),
+  setCatalogSourceEnabled: (id: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled }))
 };
 
 /* Types */
 export type AddCatalogSourceRequestPayload = {
-	id: string,
-	display_name: string,
-	kind: string,
-	url: string,
-	api_key_env: string | null,
-	priority: number | null,
-	default_trust: string | null,
-	enabled: boolean | null,
-	cache_ttl_seconds: number | null,
+  id: string;
+  display_name: string;
+  kind: string;
+  url: string;
+  api_key_env: string | null;
+  priority: number | null;
+  default_trust: string | null;
+  enabled: boolean | null;
+  cache_ttl_seconds: number | null;
 };
 
 export type BuildInfoResponse = {
-	version: string,
-	git_hash: string,
-	build_time: string,
+  version: string;
+  git_hash: string;
+  build_time: string;
 };
 
 export type CatalogQueryRequest = {
-	keyword: string | null,
-	category: string | null,
-	// "unverified" | "community" | "verified"
-	trust_min: string | null,
-	source: string | null,
-	limit: number | null,
+  keyword: string | null;
+  category: string | null;
+  // "unverified" | "community" | "verified"
+  trust_min: string | null;
+  source: string | null;
+  limit: number | null;
 };
 
 export type CatalogSourceViewResponse = {
-	id: string,
-	display_name: string,
-	kind: string,
-	url: string,
-	api_key_env: string | null,
-	priority: number,
-	default_trust: string,
-	enabled: boolean,
-	cache_ttl_seconds: number | null,
-	last_error: string | null,
+  id: string;
+  display_name: string;
+  kind: string;
+  url: string;
+  api_key_env: string | null;
+  priority: number;
+  default_trust: string;
+  enabled: boolean;
+  cache_ttl_seconds: number | null;
+  last_error: string | null;
 };
 
 export type InstallOutcomeResponse = {
-	// "installed" | "runtime_missing" | "already_installed" | "invalid_env"
-	kind: string,
-	server_id: string | null,
-	started: boolean | null,
-	missing_runtimes: string[],
-	missing_env_keys: string[],
+  // "installed" | "runtime_missing" | "already_installed" | "invalid_env"
+  kind: string;
+  server_id: string | null;
+  started: boolean | null;
+  missing_runtimes: string[];
+  missing_env_keys: string[];
 };
 
 export type InstallRequestPayload = {
-	catalog_id: string,
-	source: string,
-	server_id_override: string | null,
-	env_overrides: { [key in string]: string },
-	trust_grant: boolean,
-	auto_start: boolean,
+  catalog_id: string;
+  source: string;
+  server_id_override: string | null;
+  env_overrides: { [key in string]: string };
+  trust_grant: boolean;
+  auto_start: boolean;
 };
 
 export type InstalledEntryResponse = {
-	server_id: string,
-	catalog_id: string | null,
-	source: string | null,
-	display_name: string,
-	installed_at: string,
-	running: boolean,
+  server_id: string;
+  catalog_id: string | null;
+  source: string | null;
+  display_name: string;
+  installed_at: string;
+  running: boolean;
 };
 
-export type McpContentBlockResponse = { type: "text"; text: string } | { type: "image"; data: string; mime_type: string } | { type: "resource"; uri: string; name: string; mime_type: string | null };
+export type McpContentBlockResponse =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mime_type: string }
+  | { type: "resource"; uri: string; name: string; mime_type: string | null };
 
 export type McpPromptDefResponse = {
-	name: string,
-	description: string | null,
-	argument_count: number,
+  name: string;
+  description: string | null;
+  argument_count: number;
 };
 
 export type McpResourceDefResponse = {
-	uri: string,
-	name: string,
-	description: string | null,
-	mime_type: string | null,
+  uri: string;
+  name: string;
+  description: string | null;
+  mime_type: string | null;
 };
 
 // The lifecycle status of an MCP server connection.
-export type McpServerStatus = 
-// The server is stopped and not connected.
-"stopped" | 
-// The server is starting up (launching process or connecting).
-"starting" | 
-// The server is running and ready to accept requests.
-"running" | 
-// The server has failed and is no longer running.
-"failed";
+export type McpServerStatus =
+  // The server is stopped and not connected.
+  | "stopped"
+  // The server is starting up (launching process or connecting).
+  | "starting"
+  // The server is running and ready to accept requests.
+  | "running"
+  // The server has failed and is no longer running.
+  | "failed";
 
 export type McpServerStatusResponse = {
-	id: string,
-	status: McpServerStatus,
-	tool_count: number | null,
+  id: string;
+  status: McpServerStatus;
+  tool_count: number | null;
 };
 
 export type McpToolDefResponse = {
-	name: string,
-	description: string | null,
-	input_schema: string | null,
+  name: string;
+  description: string | null;
+  input_schema: string | null;
 };
 
 export type MemoryEntryResponse = {
-	id: string,
-	scope: string,
-	key: string | null,
-	content: string,
-	accepted: boolean,
+  id: string;
+  scope: string;
+  key: string | null;
+  content: string;
+  accepted: boolean;
 };
 
 export type ProfileDetailResponse = {
-	alias: string,
-	provider: string,
-	model_id: string,
-	local: boolean,
-	has_api_key: boolean,
+  alias: string;
+  provider: string;
+  model_id: string;
+  local: boolean;
+  has_api_key: boolean;
 };
 
 // Metadata about a profile for UI display.
 export type ProfileInfo = {
-	alias: string,
-	provider: string,
-	model_id: string,
-	local: boolean,
-	has_api_key: boolean,
+  alias: string;
+  provider: string;
+  model_id: string;
+  local: boolean;
+  has_api_key: boolean;
 };
 
 export type ServerEntryResponse = {
-	id: string,
-	source: string,
-	display_name: string,
-	summary: string,
-	description: string,
-	categories: string[],
-	tags: string[],
-	author: string | null,
-	homepage: string | null,
-	version: string | null,
-	// Lower-case trust level: "unverified" | "community" | "verified".
-	trust: string,
-	icon: string | null,
-	// JSON-encoded `agent_mcp::catalog::InstallSpec`.
-	install_spec_json: string,
-	// JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
-	requirements_json: string,
-	// JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
-	default_env_json: string,
+  id: string;
+  source: string;
+  display_name: string;
+  summary: string;
+  description: string;
+  categories: string[];
+  tags: string[];
+  author: string | null;
+  homepage: string | null;
+  version: string | null;
+  // Lower-case trust level: "unverified" | "community" | "verified".
+  trust: string;
+  icon: string | null;
+  // JSON-encoded `agent_mcp::catalog::InstallSpec`.
+  install_spec_json: string;
+  // JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
+  requirements_json: string;
+  // JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
+  default_env_json: string;
 };
 
 export type SessionInfoResponse = {
-	id: string,
-	title: string,
-	profile: string,
+  id: string;
+  title: string;
+  profile: string;
 };
 
 export type TaskSnapshotResponse = {
-	id: string,
-	title: string,
-	role: string,
-	state: string,
-	dependencies: string[],
-	error: string | null,
+  id: string;
+  title: string;
+  role: string;
+  state: string;
+  dependencies: string[];
+  error: string | null;
 };
 
 export type WorkspaceInfoResponse = {
-	workspace_id: string,
-	path: string,
+  workspace_id: string;
+  path: string;
 };
 
 /* Tauri Specta runtime */
-async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
-    try {
-        return { status: "ok", data: await result };
-    } catch (e) {
-        if (e instanceof Error) throw e;
-        return { status: "error", error: e as any };
-    }
+async function typedError<T, E>(
+  result: Promise<T>
+): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
+  try {
+    return { status: "ok", data: await result };
+  } catch (e) {
+    if (e instanceof Error) throw e;
+    return { status: "error", error: e as any };
+  }
 }
-
