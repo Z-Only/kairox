@@ -29,78 +29,73 @@ onMounted(() => {
 <template>
   <div class="marketplace-pane">
     <header class="marketplace-pane__header">
-      <NText tag="h1" :depth="1" class="marketplace-pane__title">
+      <h1 class="marketplace-pane__title">
         {{ t("marketplace.title") }}
-      </NText>
+      </h1>
     </header>
 
-    <NTabs v-model:value="catalog.tab" type="line" animated size="medium" class="marketplace-tabs">
-      <NTabPane name="browse">
-        <template #tab>
-          <span data-test="tab-browse">{{ t("marketplace.tabBrowse") }}</span>
-        </template>
+    <div class="marketplace-tabs">
+      <div class="tabs">
+        <button
+          data-test="tab-browse"
+          :class="['tab-btn', { active: catalog.tab === 'browse' }]"
+          @click="catalog.tab = 'browse'"
+        >
+          {{ t("marketplace.tabBrowse") }}
+        </button>
+        <button
+          data-test="tab-installed"
+          :class="['tab-btn', { active: catalog.tab === 'installed' }]"
+          @click="catalog.tab = 'installed'"
+        >
+          {{ t("marketplace.tabInstalled", { count: installedCount }) }}
+        </button>
+      </div>
 
+      <div v-show="catalog.tab === 'browse'">
         <div class="source-filter">
-          <NButton
+          <button
             v-for="chip in sourceChips"
             :key="chip.id"
             :data-test="`source-chip-${chip.id}`"
-            :type="catalog.isSourceSelected(chip.id) ? 'primary' : 'default'"
-            size="small"
-            round
-            :class="['chip', { active: catalog.isSourceSelected(chip.id) }]"
+            :class="['btn', 'chip', { active: catalog.isSourceSelected(chip.id) }]"
             @click="catalog.toggleSource(chip.id)"
           >
             {{ chip.display_name }}
-            <NTag
+            <span
               v-if="catalog.sourceFailures[chip.id]"
-              size="small"
-              type="error"
-              :bordered="false"
               :data-test="`src-warn-${chip.id}`"
               :title="catalog.sourceFailures[chip.id]"
-              class="warn"
+              class="tag tag-error warn"
             >
               ⚠
-            </NTag>
-          </NButton>
-          <NButton
-            quaternary
-            circle
-            size="small"
-            class="settings-icon"
+            </span>
+          </button>
+          <button
+            class="btn settings-icon"
             data-test="catalog-source-settings"
             :aria-label="t('marketplace.sourceSettingsAria')"
             @click="settingsOpen = !settingsOpen"
           >
-            <NIcon>
-              <span aria-hidden="true">⚙</span>
-            </NIcon>
-          </NButton>
+            <span aria-hidden="true">⚙</span>
+          </button>
         </div>
 
-        <NCard
+        <div
           v-if="settingsOpen"
-          size="small"
-          :bordered="true"
-          class="settings-drawer"
+          class="card settings-drawer"
           data-test="catalog-source-settings-drawer"
         >
           <CatalogSourcesSettings />
-        </NCard>
+        </div>
 
         <CatalogList />
-      </NTabPane>
+      </div>
 
-      <NTabPane name="installed">
-        <template #tab>
-          <span data-test="tab-installed">
-            {{ t("marketplace.tabInstalled", { count: installedCount }) }}
-          </span>
-        </template>
+      <div v-show="catalog.tab === 'installed'">
         <InstalledList />
-      </NTabPane>
-    </NTabs>
+      </div>
+    </div>
 
     <InstallProgress
       v-if="catalog.currentInstallEntryId"
@@ -116,9 +111,56 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
 }
-.marketplace-pane__header :deep(h1.marketplace-pane__title) {
+.marketplace-pane__title {
   margin: 0;
   font-size: 20px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
+  margin-bottom: 12px;
+}
+.tab-btn {
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--app-text-color, inherit);
+  border-bottom: 2px solid transparent;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+.tab-btn:hover {
+  color: var(--app-primary-color, #18a058);
+}
+.tab-btn.active {
+  color: var(--app-primary-color, #18a058);
+  border-bottom-color: var(--app-primary-color, #18a058);
+}
+.btn {
+  padding: 4px 12px;
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  border-radius: 14px;
+  background: var(--app-bg-color, #fff);
+  cursor: pointer;
+  color: var(--app-text-color, inherit);
+}
+.btn.active {
+  background: var(--app-primary-color, #18a058);
+  color: #fff;
+  border-color: var(--app-primary-color, #18a058);
+}
+.tag-error {
+  color: var(--app-error-color, #d03050);
+  font-size: 0.85em;
+}
+.card {
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  border-radius: 4px;
+  padding: 12px;
 }
 .source-filter {
   display: flex;

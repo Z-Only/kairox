@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { type SelectOption } from "naive-ui";
 import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
@@ -24,7 +23,7 @@ const draft = ref<AddCatalogSourceRequestPayload>({
 const sources = computed(() => catalog.sources);
 const failures = computed(() => catalog.sourceFailures);
 
-const kindOptions: SelectOption[] = [
+const kindOptions: { label: string; value: string }[] = [
   { label: "Kairox JSON", value: "kairox_json" },
   { label: "Smithery", value: "smithery" }
 ];
@@ -82,24 +81,20 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
 <template>
   <div class="catalog-sources-settings">
-    <NText strong tag="h3" class="header">Remote Catalog Sources</NText>
+    <h3 class="header"><strong>Remote Catalog Sources</strong></h3>
 
-    <NEmpty
-      v-if="sources.length === 0"
-      :description="t('marketplace.sourcesEmpty')"
-      class="empty"
-    />
+    <div v-if="sources.length === 0" class="empty-state">
+      {{ t("marketplace.sourcesEmpty") }}
+    </div>
 
-    <NList v-else hoverable bordered class="src-list">
-      <NListItem v-for="src in sources" :key="src.id" class="src-row">
+    <ul v-else class="list src-list">
+      <li v-for="src in sources" :key="src.id" class="src-row">
         <div class="src-meta">
-          <NSpace align="center" :size="6">
-            <NText strong>{{ src.display_name }}</NText>
-            <NText depth="3" code class="src-id">{{ src.id }}</NText>
-            <NTag size="small" :bordered="false" type="info" class="src-kind">
-              {{ src.kind }}
-            </NTag>
-          </NSpace>
+          <div class="src-meta-row">
+            <strong>{{ src.display_name }}</strong>
+            <code class="src-id">{{ src.id }}</code>
+            <span class="tag tag-info src-kind">{{ src.kind }}</span>
+          </div>
           <a
             v-if="src.url"
             :href="src.url"
@@ -109,99 +104,89 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
           >
             {{ src.url }}
           </a>
-          <NText
+          <span
             v-if="failures[src.id]"
-            type="error"
-            class="src-error"
+            class="src-error text-error"
             :title="`Last error: ${failures[src.id]}`"
           >
             ⚠ {{ failures[src.id] }}
-          </NText>
+          </span>
         </div>
-        <template #suffix>
-          <NSpace align="center" :size="8" class="src-actions">
-            <!-- 7c review carry-over: migrated from native <input
-                 type="checkbox"> to <NCheckbox> so the row follows the
-                 active NaiveUI theme. The data-test hook is forwarded
-                 verbatim so existing component tests
-                 ([data-test="src-enable-${id}"]) keep matching. NCheckbox
-                 emits update:checked with the new boolean value, which the
-                 setValue('checked') / .vm.$emit pattern in tests already
-                 supports. -->
-            <NCheckbox
+        <div class="src-actions">
+          <label class="src-enable" :data-test="`src-enable-${src.id}`">
+            <input
+              type="checkbox"
               :checked="src.enabled"
               :disabled="src.id === 'builtin'"
-              :data-test="`src-enable-${src.id}`"
-              size="small"
-              class="src-enable"
-              @update:checked="(checked) => onToggleChecked(src.id, checked)"
-            >
-              Enabled
-            </NCheckbox>
-            <NButton
-              v-if="src.id !== 'builtin'"
-              size="tiny"
-              :data-test="`src-remove-${src.id}`"
-              type="error"
-              ghost
-              @click="onRemove(src.id)"
-            >
-              Remove
-            </NButton>
-          </NSpace>
-        </template>
-      </NListItem>
-    </NList>
+              @change="onToggleChecked(src.id, ($event.target as HTMLInputElement).checked)"
+            />
+            Enabled
+          </label>
+          <button
+            v-if="src.id !== 'builtin'"
+            class="btn btn-error-ghost"
+            :data-test="`src-remove-${src.id}`"
+            @click="onRemove(src.id)"
+          >
+            Remove
+          </button>
+        </div>
+      </li>
+    </ul>
 
-    <NButton
+    <button
       v-if="!showAddForm"
+      class="btn"
       data-test="add-source-toggle"
-      size="small"
       @click="showAddForm = true"
     >
       + Add source
-    </NButton>
+    </button>
 
     <div v-else class="add-form">
       <label class="field">
-        <NText depth="2">id</NText>
-        <NInput v-model:value="draft.id" size="small" :input-props="{ 'data-test': 'src-id' }" />
+        <span class="field-label">id</span>
+        <input v-model="draft.id" class="input" data-test="src-id" />
       </label>
       <label class="field">
-        <NText depth="2">display name</NText>
-        <NInput
-          v-model:value="draft.display_name"
-          size="small"
-          :input-props="{ 'data-test': 'src-name' }"
-        />
+        <span class="field-label">display name</span>
+        <input v-model="draft.display_name" class="input" data-test="src-name" />
       </label>
       <label class="field">
-        <NText depth="2">kind</NText>
-        <NSelect v-model:value="draft.kind" :options="kindOptions" size="small" />
+        <span class="field-label">kind</span>
+        <select
+          :value="draft.kind"
+          class="input"
+          @change="draft.kind = ($event.target as HTMLSelectElement).value"
+        >
+          <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
       </label>
       <label class="field">
-        <NText depth="2">url</NText>
-        <NInput v-model:value="draft.url" size="small" :input-props="{ 'data-test': 'src-url' }" />
+        <span class="field-label">url</span>
+        <input v-model="draft.url" class="input" data-test="src-url" />
       </label>
       <label class="field">
-        <NText depth="2">api_key_env</NText>
-        <NInput v-model:value="draft.api_key_env" size="small" />
+        <span class="field-label">api_key_env</span>
+        <input v-model="draft.api_key_env" class="input" />
       </label>
-      <NText v-if="formError" type="error" class="error">
+      <span v-if="formError" class="error text-error">
         {{ formError }}
-      </NText>
-      <NSpace class="form-actions" :size="8">
-        <NButton size="small" type="primary" data-test="src-save" @click="save"> Save </NButton>
-        <NButton
-          size="small"
+      </span>
+      <div class="form-actions">
+        <button class="btn btn-primary" data-test="src-save" @click="save">Save</button>
+        <button
+          class="btn"
           @click="
             showAddForm = false;
             formError = null;
           "
         >
           Cancel
-        </NButton>
-      </NSpace>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -215,15 +200,33 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 .header {
   font-size: 14px;
   margin: 0;
+  font-weight: normal;
 }
-.empty {
+.empty-state {
   font-style: italic;
+  color: var(--app-text-color-3, #999);
+  text-align: center;
+  padding: 24px 0;
 }
-.src-list {
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--app-border-color, #e0e0e0);
   border-radius: 4px;
 }
 .src-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
+}
+.src-row:last-child {
+  border-bottom: none;
+}
+.src-row:hover {
+  background: var(--app-hover-color, rgba(0, 0, 0, 0.03));
 }
 .src-meta {
   display: flex;
@@ -231,11 +234,26 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   gap: 2px;
   min-width: 0;
 }
+.src-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .src-id {
   font-size: 0.85em;
 }
+.tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 0.75em;
+  line-height: 1.8;
+}
+.tag-info {
+  background: var(--app-info-color-suppl, #e8f4fd);
+  color: var(--app-info-color, #2080f0);
+}
 .src-kind {
-  font-size: 0.7em;
   text-transform: uppercase;
 }
 .src-url {
@@ -244,7 +262,13 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 .src-error {
   font-size: 0.85em;
 }
+.text-error {
+  color: var(--app-error-color, #d03050);
+}
 .src-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 .src-enable {
@@ -253,6 +277,25 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   gap: 4px;
   font-size: 0.85em;
   cursor: pointer;
+}
+.btn {
+  padding: 4px 12px;
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  border-radius: 4px;
+  background: var(--app-bg-color, #fff);
+  cursor: pointer;
+  font-size: 0.85em;
+  color: var(--app-text-color, inherit);
+}
+.btn-primary {
+  background: var(--app-primary-color, #18a058);
+  color: #fff;
+  border-color: var(--app-primary-color, #18a058);
+}
+.btn-error-ghost {
+  color: var(--app-error-color, #d03050);
+  border-color: var(--app-error-color, #d03050);
+  background: transparent;
 }
 .add-form {
   display: flex;
@@ -267,10 +310,24 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   flex-direction: column;
   gap: 2px;
 }
+.field-label {
+  color: var(--app-text-color-2, #666);
+  font-size: 0.85em;
+}
+.input {
+  padding: 4px 8px;
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  border-radius: 4px;
+  font-size: 0.85em;
+  background: var(--app-bg-color, #fff);
+  color: var(--app-text-color, inherit);
+}
 .error {
   margin: 0;
 }
 .form-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 4px;
 }
 </style>

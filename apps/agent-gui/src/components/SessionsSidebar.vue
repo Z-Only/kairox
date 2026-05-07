@@ -140,18 +140,12 @@ function keyIcon(hasApiKey: boolean): string {
   <aside class="sessions-sidebar" data-test="sessions-sidebar">
     <header class="sidebar-header">
       <h2>{{ t("sessions.header") }}</h2>
-      <NButton
-        size="tiny"
-        type="primary"
-        class="new-session-btn"
-        data-test="new-session-btn"
-        @click="openNewSessionDialog"
-      >
+      <button class="btn new-session-btn" data-test="new-session-btn" @click="openNewSessionDialog">
         {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
-      </NButton>
+      </button>
     </header>
 
-    <NScrollbar v-if="session.sessions.length > 0" class="session-scroll">
+    <div v-if="session.sessions.length > 0" class="session-scroll">
       <!-- Kept hand-rolled because hover-only .session-actions cannot be expressed via NListItem #suffix slot. -->
       <ul class="session-list">
         <li
@@ -180,38 +174,29 @@ function keyIcon(hasApiKey: boolean): string {
           <template v-else>
             <span class="session-title">{{ item.title }}</span>
             <span class="session-actions">
-              <NButton
-                quaternary
-                size="tiny"
+              <button
                 class="action-btn"
                 :title="t('sessions.renameTitle')"
                 @click.stop="startRename(item.id, item.title)"
               >
                 ✏️
-              </NButton>
-              <NButton
-                quaternary
-                size="tiny"
-                type="error"
+              </button>
+              <button
                 class="action-btn action-delete"
                 :title="t('sessions.deleteTitle')"
                 data-test="session-delete-btn"
                 @click.stop="promptDelete(item.id, item.title)"
               >
                 🗑️
-              </NButton>
+              </button>
             </span>
           </template>
         </li>
       </ul>
-    </NScrollbar>
-    <NEmpty
-      v-else
-      size="small"
-      class="empty-hint"
-      :description="t('sessions.emptyHint')"
-      data-test="sessions-empty"
-    />
+    </div>
+    <div v-else class="empty-state empty-hint" data-test="sessions-empty">
+      {{ t("sessions.emptyHint") }}
+    </div>
 
     <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
          scope for Task 7 spec §5.5 mapping). -->
@@ -277,12 +262,35 @@ function keyIcon(hasApiKey: boolean): string {
   margin: 0;
   font-size: 14px;
 }
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+}
 .new-session-btn {
   font-size: 12px;
   padding: 2px 8px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  background: var(--app-primary-color);
+  color: var(--app-inverse-text-color, #fff);
+}
+.session-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80px;
 }
 .session-list {
   list-style: none;

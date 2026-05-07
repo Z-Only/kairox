@@ -3,14 +3,15 @@ import MarketplacePane from "@/components/MarketplacePane.vue";
 </script>
 
 <template>
-  <NCard class="marketplace" :bordered="false" content-style="padding: 16px;">
+  <div class="marketplace card">
     <MarketplacePane />
-  </NCard>
+  </div>
 </template>
 
 <style scoped>
 .marketplace {
   height: 100%;
   overflow-y: auto;
+  padding: 16px;
 }
 </style>

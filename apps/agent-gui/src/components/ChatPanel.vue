@@ -97,12 +97,12 @@ watch(
   <section class="chat-panel" data-test="chat-panel">
     <header class="chat-header">
       <h2>{{ t("chat.header") }}</h2>
-      <NTag size="small" :bordered="false" data-test="chat-profile-badge">
+      <span class="tag" data-test="chat-profile-badge">
         {{ session.currentProfile }}
-      </NTag>
+      </span>
     </header>
 
-    <NScrollbar ref="scrollbar" class="message-list" data-test="message-list">
+    <div ref="scrollbar" class="message-list" data-test="message-list">
       <div class="message-list-inner">
         <div
           v-for="(msg, i) in session.projection.messages"
@@ -132,49 +132,44 @@ watch(
             >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
           >
         </div>
-        <NTag
+        <span
           v-if="session.projection.cancelled"
-          type="warning"
-          size="small"
-          :bordered="false"
-          class="cancelled-marker"
+          class="tag cancelled-marker"
           data-test="cancelled-marker"
         >
           {{ t("chat.cancelled") }}
-        </NTag>
+        </span>
       </div>
-    </NScrollbar>
+    </div>
 
     <div class="input-area">
       <div class="input-row">
-        <NInput
-          v-model:value="inputText"
-          type="textarea"
+        <textarea
+          v-model="inputText"
           class="message-input"
           data-test="message-input"
           :disabled="session.isStreaming"
-          :autosize="{ minRows: 1, maxRows: 6 }"
+          rows="1"
           :placeholder="t('chat.placeholder')"
-          :style="{ width: '100%' }"
           @keydown="handleKeydown"
         />
-        <NButton
+        <button
           v-if="session.isStreaming"
-          type="error"
+          class="btn btn-error"
           data-test="cancel-button"
           @click="cancelSession"
         >
           {{ t("common.cancel") }}
-        </NButton>
-        <NButton
+        </button>
+        <button
           v-else
-          type="primary"
+          class="btn btn-primary"
           data-test="send-button"
           :disabled="sendDisabled"
           @click="sendMessage"
         >
           {{ t("common.send") }}
-        </NButton>
+        </button>
       </div>
     </div>
   </section>
@@ -201,6 +196,7 @@ watch(
 .message-list {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 .message-list-inner {
   padding: 12px 16px;
@@ -258,6 +254,63 @@ watch(
     opacity: 0;
   }
 }
+.tag {
+  display: inline-block;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 22px;
+  border-radius: 3px;
+  background: var(--app-tag-color, color-mix(in srgb, var(--app-primary-color) 10%, transparent));
+  color: var(--app-text-color);
+}
+.cancelled-marker.tag {
+  background: color-mix(in srgb, var(--app-warning-color, #faad14) 15%, transparent);
+  color: var(--app-warning-color, #faad14);
+}
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--app-primary-color);
+  color: var(--app-inverse-text-color, #fff);
+  border-color: var(--app-primary-color);
+}
+.btn-error {
+  background: var(--app-error-color, #d03050);
+  color: var(--app-inverse-text-color, #fff);
+  border-color: var(--app-error-color, #d03050);
+}
+.message-input {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+.message-input:focus {
+  border-color: var(--app-primary-color);
+}
+.message-input:disabled {
+  opacity: 0.5;
+}
 .input-area {
   padding: 8px 16px;
   border-top: 1px solid var(--app-border-color, #d7d7d7);
@@ -266,10 +319,6 @@ watch(
   display: flex;
   gap: 8px;
   align-items: flex-end;
-}
-.message-input {
-  flex: 1;
-  min-width: 0;
 }
 .markdown-body :deep(pre.hljs) {
   margin: 8px 0;
