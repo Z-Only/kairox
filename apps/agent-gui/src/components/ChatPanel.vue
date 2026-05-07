@@ -210,32 +210,34 @@ watch(
   line-height: 1.5;
 }
 .message-user .message-role {
-  color: #0077cc;
+  color: var(--app-primary-color, #0077cc);
   font-weight: 600;
 }
 .message-assistant .message-role {
-  color: #22a06b;
+  color: var(--app-success-color, #22a06b);
   font-weight: 600;
 }
 .message-planner .message-role {
-  color: #0077cc;
+  color: var(--app-primary-color, #0077cc);
   font-weight: 600;
 }
 .message-worker .message-role {
-  color: #22a06b;
+  color: var(--app-success-color, #22a06b);
   font-weight: 600;
 }
 .message-reviewer .message-role {
-  color: #7c3aed;
+  color: var(--app-info-color, #7c3aed);
   font-weight: 600;
 }
 .message-system .message-role {
-  color: #888;
+  color: var(--app-text-color);
+  opacity: 0.6;
   font-weight: 600;
   font-style: italic;
 }
 .message-system .message-content {
-  color: #888;
+  color: var(--app-text-color);
+  opacity: 0.6;
   font-style: italic;
 }
 .message-role {
@@ -275,7 +277,7 @@ watch(
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 .markdown-body :deep(:not(pre) > code) {
-  background: #f0f0f0;
+  background: var(--app-card-color);
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 12px;
