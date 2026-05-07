@@ -1,8 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
 import PermissionPrompt from "./PermissionPrompt.vue";
 import type { TraceEntryData } from "../types/trace";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// `PermissionPrompt.vue` calls `useI18n()`; bare `mount()` throws
+// "Need to install with `app.use` function". `mountWithPlugins` installs
+// i18n + router; `reusePinia: true` keeps the `beforeEach` pinia (and the
+// `mcp.trustServer = mockedTrustServer` / `mcp.trustedServerIds` mutations
+// each test sets up before mounting).
+//
+// Note: passing the extended-options shape (`{ mount, reusePinia }`) makes
+// `mountWithPlugins` return `{ wrapper, router }` rather than a bare
+// wrapper, so we unwrap `.wrapper` here to keep the call-site API
+// identical to the previous `mount(...)` usage.
+const mount = (
+  comp: typeof PermissionPrompt,
+  options: { props: { entry: TraceEntryData } }
+) => mountWithPlugins(comp, { mount: options, reusePinia: true }).wrapper;
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({

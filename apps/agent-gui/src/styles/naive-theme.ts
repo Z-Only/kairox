@@ -1,4 +1,7 @@
 import type { GlobalThemeOverrides } from "naive-ui";
+// `GlobalThemeOverrides` is a NaiveUI type export and is NOT auto-imported
+// by `unplugin-vue-components` (the resolver only registers component
+// runtime values like `NButton`). Keep this import explicit.
 
 /**
  * NaiveUI theme overrides derived from the palette currently shipped in

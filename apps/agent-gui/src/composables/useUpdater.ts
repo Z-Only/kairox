@@ -1,4 +1,7 @@
-import { ref, onMounted } from "vue";
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Plain `.ts` composables must import the
+// reactivity primitives + lifecycle hooks they use.
+import { onMounted, ref } from "vue";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useUiStore } from "@/stores/ui";

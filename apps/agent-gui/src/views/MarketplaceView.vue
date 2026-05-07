@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { useI18n } from "vue-i18n";
-import { NCard, NTabs, NTabPane, NButton, NTag, NIcon } from "naive-ui";
 import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "@/components/marketplace/CatalogList.vue";
 import InstalledList from "@/components/marketplace/InstalledList.vue";
@@ -37,7 +34,9 @@ onMounted(() => {
     content-style="padding: 16px; display: flex; flex-direction: column; gap: 16px;"
   >
     <header class="marketplace__header">
-      <h1>{{ t("marketplace.title") }}</h1>
+      <NText tag="h1" :depth="1" class="marketplace__title">
+        {{ t("marketplace.title") }}
+      </NText>
     </header>
 
     <NTabs
@@ -131,7 +130,7 @@ onMounted(() => {
   height: 100%;
   overflow-y: auto;
 }
-.marketplace__header h1 {
+.marketplace__header :deep(h1.marketplace__title) {
   margin: 0;
   font-size: 20px;
 }

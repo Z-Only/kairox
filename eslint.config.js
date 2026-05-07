@@ -3,6 +3,23 @@ import globals from "globals";
 import pluginVue from "eslint-plugin-vue";
 import eslintConfigPrettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const autoImportGlobals = (() => {
+  const path = resolve(
+    __dirname,
+    "apps/agent-gui/.eslintrc-auto-import.json"
+  );
+  if (!existsSync(path)) return {};
+  try {
+    return JSON.parse(readFileSync(path, "utf8")).globals ?? {};
+  } catch {
+    return {};
+  }
+})();
 
 export default [
   {
@@ -26,7 +43,8 @@ export default [
       sourceType: "module",
       globals: {
         ...globals.browser,
-        ...globals.node
+        ...globals.node,
+        ...autoImportGlobals
       },
       parserOptions: {
         parser: tseslint.parser,

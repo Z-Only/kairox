@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
-import { storeToRefs } from "pinia";
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
 
 // Hoisted to module scope + `as const` so the option arrays are not rebuilt

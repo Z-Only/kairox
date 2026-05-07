@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { NScrollbar, NEmpty, NButton } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
 import { traceState } from "../composables/useTraceStore";
 
+const { t } = useI18n();
 const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 </script>
 
@@ -27,7 +27,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
           :class="{ active: rightPanelTab === 'trace' }"
           @click="rightPanelTab = 'trace'"
         >
-          Trace
+          {{ t("trace.tabTrace") }}
         </NButton>
         <NButton
           size="tiny"
@@ -35,7 +35,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
           :class="{ active: rightPanelTab === 'tasks' }"
           @click="rightPanelTab = 'tasks'"
         >
-          Tasks
+          {{ t("trace.tabTasks") }}
         </NButton>
         <NButton
           size="tiny"
@@ -43,7 +43,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
           :class="{ active: rightPanelTab === 'memory' }"
           @click="rightPanelTab = 'memory'"
         >
-          Memory
+          {{ t("trace.tabMemory") }}
         </NButton>
       </div>
       <div v-if="rightPanelTab === 'trace'" class="density-toggles">
@@ -70,7 +70,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         v-if="traceState.entries.length === 0"
         size="small"
         class="empty-hint"
-        description="No trace events yet"
+        :description="t('trace.emptyTrace')"
       />
     </NScrollbar>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />

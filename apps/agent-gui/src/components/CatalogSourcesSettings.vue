@@ -1,20 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import {
-  NList,
-  NListItem,
-  NInput,
-  NSelect,
-  NButton,
-  NEmpty,
-  NTag,
-  NText,
-  NSpace,
-  type SelectOption
-} from "naive-ui";
+import { type SelectOption } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
 
+const { t } = useI18n();
 const catalog = useCatalogStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
@@ -64,16 +54,20 @@ function resetDraft(): void {
 async function save(): Promise<void> {
   formError.value = null;
   if (!draft.value.id || !draft.value.display_name) {
-    formError.value = "id and display_name are required";
+    formError.value = t("marketplace.sourceFormError.idAndDisplayNameRequired");
     return;
   }
   if (!isValidUrl(draft.value.url)) {
-    formError.value = "URL must start with http:// or https://";
+    formError.value = t("marketplace.sourceFormError.urlMustStartWithHttp");
     return;
   }
   await catalog.addSource({ ...draft.value });
   showAddForm.value = false;
   resetDraft();
+}
+
+function onToggleChecked(id: string, checked: boolean): void {
+  void onToggle(id, checked);
 }
 
 async function onRemove(id: string): Promise<void> {
@@ -92,7 +86,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
     <NEmpty
       v-if="sources.length === 0"
-      description="No remote catalog sources configured."
+      :description="t('marketplace.sourcesEmpty')"
       class="empty"
     />
 
@@ -126,23 +120,24 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         </div>
         <template #suffix>
           <NSpace align="center" :size="8" class="src-actions">
-            <!-- Native checkbox preserved here on purpose: the existing
-                 component test drives it via [data-test="src-enable-..."] +
-                 setValue/change. NCheckbox would require a deeper refactor
-                 of those assertions; we still get NaiveUI theming around
-                 this row through the surrounding NList/NTag/NText. -->
-            <label class="src-enable">
-              <input
-                type="checkbox"
-                :checked="src.enabled"
-                :disabled="src.id === 'builtin'"
-                :data-test="`src-enable-${src.id}`"
-                @change="
-                  onToggle(src.id, ($event.target as HTMLInputElement).checked)
-                "
-              />
+            <!-- 7c review carry-over: migrated from native <input
+                 type="checkbox"> to <NCheckbox> so the row follows the
+                 active NaiveUI theme. The data-test hook is forwarded
+                 verbatim so existing component tests
+                 ([data-test="src-enable-${id}"]) keep matching. NCheckbox
+                 emits update:checked with the new boolean value, which the
+                 setValue('checked') / .vm.$emit pattern in tests already
+                 supports. -->
+            <NCheckbox
+              :checked="src.enabled"
+              :disabled="src.id === 'builtin'"
+              :data-test="`src-enable-${src.id}`"
+              size="small"
+              class="src-enable"
+              @update:checked="(checked) => onToggleChecked(src.id, checked)"
+            >
               Enabled
-            </label>
+            </NCheckbox>
             <NButton
               v-if="src.id !== 'builtin'"
               size="tiny"

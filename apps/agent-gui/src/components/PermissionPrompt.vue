@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  NAlert,
-  NButton,
-  NCard,
-  NCheckbox,
-  NSpace,
-  NTag,
-  NText
-} from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useMcpStore } from "@/stores/mcp";
 import { useAgentsStore } from "@/stores/agents";
 import type { TraceEntryData } from "../types/trace";
 
+const { t } = useI18n();
 const props = defineProps<{ entry: TraceEntryData }>();
 const mcp = useMcpStore();
 const agents = useAgentsStore();
@@ -59,10 +51,16 @@ const sourceAgentLabel = computed(() => {
 const alertType = computed<"warning" | "success">(() =>
   isMemory ? "success" : "warning"
 );
-const allowLabel = computed(() => (isMemory ? "Accept" : "Allow"));
-const denyLabel = computed(() => (isMemory ? "Reject" : "Deny"));
+const allowLabel = computed(() =>
+  isMemory ? t("permission.accept") : t("permission.allow")
+);
+const denyLabel = computed(() =>
+  isMemory ? t("permission.reject") : t("permission.deny")
+);
 const titleLabel = computed(() =>
-  isMemory ? "Memory Proposed" : "Permission Required"
+  isMemory
+    ? t("permission.titleMemoryProposed")
+    : t("permission.titlePermissionRequired")
 );
 const iconLabel = computed(() => (isMemory ? "🧠" : "🔑"));
 
@@ -238,6 +236,8 @@ async function deny() {
   gap: 4px;
   margin-top: 4px;
   font-size: 11px;
-  cursor: pointer;
+  /* `cursor: pointer` removed (7c review carry-over): after the inner
+     control migrated to <NCheckbox>, clicking the wrapper no longer
+     toggles the box, so the pointer cursor was misleading. */
 }
 </style>

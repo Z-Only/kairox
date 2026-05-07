@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { NScrollbar, NEmpty } from "naive-ui";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import TaskNode from "./TaskNode.vue";
 

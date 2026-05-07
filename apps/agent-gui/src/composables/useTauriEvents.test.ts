@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { defineComponent } from "vue";
 import { mount } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 

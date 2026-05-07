@@ -96,9 +96,19 @@ describe("MemoryBrowser", () => {
     const select = selectRoot.findComponent({ name: "Select" });
     expect(select.exists()).toBe(true);
 
+    // Spy on the store action — the SFC's `handleFilterChange` should
+    // call `setMemoryFilter(scope)` for every scope the user selects.
+    // Asserting the spy (not just the resulting `memory.filter`
+    // side-effect) locks in the contract between the SFC and the store
+    // action; otherwise a future refactor that mutates `memory.filter`
+    // directly would still pass without going through the action.
+    // (Task 9 carry-over from Task 7c NIT-8.)
+    const setFilterSpy = vi.spyOn(memory, "setMemoryFilter");
+
     for (const scope of ["session", "user", "workspace", "all"] as const) {
       select.vm.$emit("update:value", scope);
       await flushPromises();
+      expect(setFilterSpy).toHaveBeenCalledWith(scope);
       expect(memory.filter).toBe(scope);
     }
   });

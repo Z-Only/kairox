@@ -1,3 +1,6 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Plain `.ts` composables must import the
+// lifecycle + pinia helpers they use.
 import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useCatalogStore } from "@/stores/catalog";

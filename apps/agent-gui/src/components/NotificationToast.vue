@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import { storeToRefs } from "pinia";
 import { useMessage } from "naive-ui";
 import { useUiStore, type NotificationItem } from "@/stores/ui";
 

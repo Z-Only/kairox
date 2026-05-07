@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { NAlert, NButton, NModal, NSpin } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 
+const { t } = useI18n();
 const catalog = useCatalogStore();
 const props = defineProps<{ catalogId: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -53,16 +53,16 @@ const alertType = computed<"info" | "success" | "warning" | "error">(() => {
 // keeps the original copy; success-shaped kinds collapse to one label and
 // failure-shaped kinds to another.
 const modalTitle = computed<string>(() => {
-  if (!outcome.value) return "Installing…";
+  if (!outcome.value) return t("marketplace.install.titleInstalling");
   switch (outcome.value.kind) {
     case "installed":
     case "already_installed":
-      return "Install complete.";
+      return t("marketplace.install.titleComplete");
     case "runtime_missing":
     case "invalid_env":
-      return "Install failed";
+      return t("marketplace.install.titleFailed");
     default:
-      return "Installing…";
+      return t("marketplace.install.titleInstalling");
   }
 });
 </script>
@@ -89,17 +89,27 @@ const modalTitle = computed<string>(() => {
         :show-icon="true"
         :bordered="false"
       >
-        <span v-if="outcome?.kind === 'installed'">Install complete.</span>
+        <span v-if="outcome?.kind === 'installed'">
+          {{ t("marketplace.install.alertInstalled") }}
+        </span>
         <span v-else-if="outcome?.kind === 'already_installed'">
-          Already installed.
+          {{ t("marketplace.install.alertAlreadyInstalled") }}
         </span>
         <span v-else-if="outcome?.kind === 'runtime_missing'">
-          Missing runtimes: {{ outcome.missing_runtimes.join(", ") }}
+          {{
+            t("marketplace.install.alertMissingRuntimes", {
+              runtimes: outcome.missing_runtimes.join(", ")
+            })
+          }}
         </span>
         <span v-else-if="outcome?.kind === 'invalid_env'">
-          Required env: {{ outcome.missing_env_keys.join(", ") }}
+          {{
+            t("marketplace.install.alertMissingEnv", {
+              keys: outcome.missing_env_keys.join(", ")
+            })
+          }}
         </span>
-        <span v-else>Install ended in an unexpected state.</span>
+        <span v-else>{{ t("marketplace.install.alertUnexpected") }}</span>
       </NAlert>
       <NSpin v-else size="small" />
 
@@ -107,18 +117,20 @@ const modalTitle = computed<string>(() => {
         <li
           :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }"
         >
-          Detect runtime
+          {{ t("marketplace.install.stepDetectRuntime") }}
         </li>
         <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">
-          Write config
+          {{ t("marketplace.install.stepWriteConfig") }}
         </li>
-        <li :class="{ ok: startOk }">Start server</li>
+        <li :class="{ ok: startOk }">
+          {{ t("marketplace.install.stepStartServer") }}
+        </li>
       </ul>
     </div>
 
     <template #footer>
       <NButton size="small" data-test="install-close" @click="emit('close')">
-        Close
+        {{ t("common.close") }}
       </NButton>
     </template>
   </NModal>

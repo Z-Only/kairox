@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { NText } from "naive-ui";
-
 defineProps<{
   requirements: Array<{
     kind: string;

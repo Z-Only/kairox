@@ -1,6 +1,12 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Pinia stores are plain `.ts` modules and
+// must import `defineStore`, `ref`, `computed`, and the whitelisted
+// `@vueuse/core` hooks explicitly — otherwise Vite ESM evaluates this
+// module before any auto-import shim could exist and the browser hits
+// `ReferenceError: defineStore is not defined`.
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { usePreferredDark, useStorage } from "@vueuse/core";
+import { useStorage, usePreferredDark } from "@vueuse/core";
 
 export type NotificationLevel = "info" | "success" | "warning" | "error";
 export interface NotificationItem {

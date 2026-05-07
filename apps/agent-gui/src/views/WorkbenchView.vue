@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { storeToRefs } from "pinia";
-import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
 import { useUiStore } from "@/stores/ui";
 import SessionsSidebar from "@/components/SessionsSidebar.vue";

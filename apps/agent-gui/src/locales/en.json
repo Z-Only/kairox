@@ -65,7 +65,8 @@
   },
   "sessions": {
     "deleteConfirm": "Delete session \"{title}\"? Its conversation history will be permanently removed after 7 days.",
-    "newButton": "+ New",
+    "newButton": "New",
+    "newButtonPrefix": "+ ",
     "createButton": "Create",
     "cancelButton": "Cancel",
     "renameTitle": "Rename",
@@ -89,6 +90,56 @@
     "tabBrowse": "Browse",
     "tabInstalled": "Installed ({count})",
     "sourceSettingsAria": "Catalog source settings",
-    "builtinSource": "Built-in"
+    "builtinSource": "Built-in",
+    "catalogEmpty": "No catalog entries match the current filters",
+    "installedEmpty": "No installed servers yet",
+    "sourcesEmpty": "No remote catalog sources configured.",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id and display_name are required",
+      "urlMustStartWithHttp": "URL must start with http:// or https://"
+    },
+    "install": {
+      "titleInstalling": "Installing…",
+      "titleComplete": "Install complete.",
+      "titleFailed": "Install failed",
+      "alertInstalled": "Install complete.",
+      "alertAlreadyInstalled": "Already installed.",
+      "alertMissingRuntimes": "Missing runtimes: {runtimes}",
+      "alertMissingEnv": "Required env: {keys}",
+      "alertUnexpected": "Install ended in an unexpected state.",
+      "stepDetectRuntime": "Detect runtime",
+      "stepWriteConfig": "Write config",
+      "stepStartServer": "Start server",
+      "anotherInProgress": "Another install is in progress."
+    }
+  },
+  "mcp": {
+    "statusRunning": "Running",
+    "statusStarting": "Starting",
+    "statusFailed": "Failed",
+    "statusStopped": "Stopped"
+  },
+  "trace": {
+    "tabTrace": "Trace",
+    "tabTasks": "Tasks",
+    "tabMemory": "Memory",
+    "emptyTrace": "No trace events yet"
+  },
+  "permission": {
+    "allow": "Allow",
+    "deny": "Deny",
+    "accept": "Accept",
+    "reject": "Reject",
+    "titlePermissionRequired": "Permission Required",
+    "titleMemoryProposed": "Memory Proposed"
+  },
+  "statusBar": {
+    "profile": "profile: {profile}",
+    "sessions": "sessions: {count}",
+    "streamingYes": "streaming: yes",
+    "streamingNo": "streaming: no",
+    "connectedYes": "connected: yes",
+    "connectedNo": "connected: no",
+    "mode": "mode: {mode}"
   }
 }

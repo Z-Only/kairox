@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { NCard, NList, NListItem, NEmpty } from "naive-ui";
 import { traceState } from "../composables/useTraceStore";
 import PermissionPrompt from "./PermissionPrompt.vue";
 

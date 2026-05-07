@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { NText } from "naive-ui";
 import { useMcpStore } from "@/stores/mcp";
 
 const mcp = useMcpStore();

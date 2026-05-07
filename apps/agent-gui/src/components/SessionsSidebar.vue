@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, nextTick } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
-import { useDialog, NScrollbar, NButton, NEmpty } from "naive-ui";
-import { useI18n } from "vue-i18n";
+import { useDialog } from "naive-ui";
 import type { ProfileDetail } from "../types";
 import { useSessionStore } from "@/stores/session";
 
@@ -158,7 +155,7 @@ function keyIcon(hasApiKey: boolean): string {
         data-test="new-session-btn"
         @click="openNewSessionDialog"
       >
-        {{ t("sessions.newButton") }}
+        {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
       </NButton>
     </header>
 

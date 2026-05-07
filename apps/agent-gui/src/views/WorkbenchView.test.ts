@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { nextTick } from "vue";
-import { createRouter, createMemoryHistory } from "vue-router";
 import { createTestingPinia } from "@pinia/testing";
+// `createI18n` / `createRouter` / `createMemoryHistory` are not part of
+// `unplugin-auto-import`'s default `vue-i18n` / `vue-router` presets
+// (the presets only expose the runtime hooks `useI18n`/`useRoute`/
+// `useRouter`). Test setup that instantiates a fresh i18n / router
+// per spec must keep these imports explicit.
 import { createI18n } from "vue-i18n";
+import { createRouter, createMemoryHistory } from "vue-router";
 import { routes } from "@/router/routes";
 import en from "@/locales/en.json";
 import { useUiStore } from "@/stores/ui";

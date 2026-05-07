@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { NTag, NText, NEllipsis } from "naive-ui";
 import type { TraceEntryData } from "../types/trace";
 import { traceState } from "../composables/useTraceStore";
 

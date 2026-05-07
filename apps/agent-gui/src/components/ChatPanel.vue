@@ -1,16 +1,6 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  NScrollbar,
-  NInput,
-  NButton,
-  NSpace,
-  NTag,
-  NAlert,
-  type ScrollbarInst
-} from "naive-ui";
-import { useI18n } from "vue-i18n";
+import { type ScrollbarInst } from "naive-ui";
 import { useSessionStore } from "@/stores/session";
 import { useAgentsStore } from "@/stores/agents";
 import { useNotifications } from "@/composables/useNotifications";

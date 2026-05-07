@@ -1,3 +1,8 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Plain `.ts` infrastructure modules must
+// import their dependencies explicitly — otherwise the browser hits
+// `Uncaught ReferenceError: createI18n is not defined` and the app
+// never mounts.
 import { createI18n } from "vue-i18n";
 import { watch } from "vue";
 import { useUiStore } from "@/stores/ui";

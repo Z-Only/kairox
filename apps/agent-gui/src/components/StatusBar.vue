@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { NSpace, NTag, NText, NTooltip } from "naive-ui";
-import { useI18n } from "vue-i18n";
 import { useSessionStore } from "@/stores/session";
 import { useMcpStore } from "@/stores/mcp";
 import McpStatusIndicator from "./McpStatusIndicator.vue";
@@ -44,14 +41,14 @@ onMounted(async () => {
       <NTooltip trigger="hover">
         <template #trigger>
           <NTag size="small" :bordered="false" data-test="status-profile">
-            profile: {{ session.currentProfile }}
+            {{ t("statusBar.profile", { profile: session.currentProfile }) }}
           </NTag>
         </template>
         {{ t("status.activeProfile") }}
       </NTooltip>
 
       <NText depth="3" class="status-item" data-test="status-sessions">
-        sessions: {{ session.sessions.length }}
+        {{ t("statusBar.sessions", { count: session.sessions.length }) }}
       </NText>
 
       <NTag
@@ -60,7 +57,11 @@ onMounted(async () => {
         :type="streamingType"
         data-test="status-streaming"
       >
-        {{ session.isStreaming ? "streaming: yes" : "streaming: no" }}
+        {{
+          session.isStreaming
+            ? t("statusBar.streamingYes")
+            : t("statusBar.streamingNo")
+        }}
       </NTag>
 
       <NTag
@@ -69,11 +70,15 @@ onMounted(async () => {
         :type="connectedType"
         data-test="status-connected"
       >
-        {{ session.connected ? "connected: yes" : "connected: no" }}
+        {{
+          session.connected
+            ? t("statusBar.connectedYes")
+            : t("statusBar.connectedNo")
+        }}
       </NTag>
 
       <NText depth="3" class="status-item" data-test="status-mode">
-        mode: {{ permissionMode }}
+        {{ t("statusBar.mode", { mode: permissionMode }) }}
       </NText>
 
       <span class="mcp-status-wrapper">

@@ -1,30 +1,36 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import {
-  NCard,
-  NList,
-  NListItem,
-  NTag,
-  NButton,
-  NEmpty,
-  NSpace,
-  NText
-} from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useMcpStore } from "@/stores/mcp";
 
+const { t } = useI18n();
 const mcp = useMcpStore();
 const emit = defineEmits<{ close: [] }>();
 
-function statusLabel(status: string): string {
+// Emoji + i18n text are split so the user-visible label is translatable
+// while the status indicator emoji stays consistent across locales.
+function statusEmoji(status: string): string {
   switch (status) {
     case "running":
-      return "🟢 Running";
+      return "🟢";
     case "starting":
-      return "🟡 Starting";
+      return "🟡";
     case "failed":
-      return "🔴 Failed";
+      return "🔴";
     default:
-      return "⚪ Stopped";
+      return "⚪";
+  }
+}
+
+function statusText(status: string): string {
+  switch (status) {
+    case "running":
+      return t("mcp.statusRunning");
+    case "starting":
+      return t("mcp.statusStarting");
+    case "failed":
+      return t("mcp.statusFailed");
+    default:
+      return t("mcp.statusStopped");
   }
 }
 
@@ -95,7 +101,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
                 :bordered="false"
                 class="mcp-server-status"
               >
-                {{ statusLabel(server.status) }}
+                {{ statusEmoji(server.status) }} {{ statusText(server.status) }}
               </NTag>
               <NTag
                 v-if="trustedSet.has(server.id)"

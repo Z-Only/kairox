@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
-import { NEmpty, NButton, NTag, NText } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 
+const { t } = useI18n();
 const catalog = useCatalogStore();
 
 onMounted(() => catalog.fetchInstalled());
@@ -71,7 +71,7 @@ async function onUninstall(serverId: string) {
     </table>
     <NEmpty
       v-if="catalog.installed.length === 0"
-      description="No installed servers yet"
+      :description="t('marketplace.installedEmpty')"
       class="empty"
     />
   </div>

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { NCard, NTag, NText } from "naive-ui";
 import type { ServerEntryResponse } from "../../generated/commands";
 
 const props = defineProps<{ entry: ServerEntryResponse }>();

@@ -1,20 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import {
-  NEmpty,
-  NInput,
-  NSelect,
-  NButton,
-  NSpin,
-  NScrollbar,
-  NText,
-  type SelectOption
-} from "naive-ui";
+import { type SelectOption } from "naive-ui";
+import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
 import type { ServerEntryResponse } from "../../generated/commands";
 
+const { t } = useI18n();
 const catalog = useCatalogStore();
 const selected = ref<ServerEntryResponse | null>(null);
 
@@ -74,7 +66,7 @@ onMounted(async () => {
     </NText>
     <NEmpty
       v-else-if="catalog.visibleEntries.length === 0"
-      description="No catalog entries match the current filters"
+      :description="t('marketplace.catalogEmpty')"
     />
     <NScrollbar v-else style="max-height: calc(100vh - 320px)">
       <div class="grid">

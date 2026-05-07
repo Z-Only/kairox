@@ -1,7 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
 import McpServerManager from "./McpServerManager.vue";
+import { mountWithPlugins } from "@/test-utils/mount";
+
+// `McpServerManager.vue` calls `useI18n()`; bare `mount()` throws
+// "Need to install with `app.use` function". `mountWithPlugins` installs
+// i18n + router; `reusePinia: true` keeps the `beforeEach` pinia (and the
+// store mutations driven through `useMcpStore()` in each test).
+//
+// Passing the extended-options shape returns `{ wrapper, router }`; we
+// unwrap `.wrapper` so call-sites stay drop-in compatible with the prior
+// `mount(...)` usage.
+const mount = (comp: typeof McpServerManager) =>
+  mountWithPlugins(comp, { reusePinia: true }).wrapper;
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({

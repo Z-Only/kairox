@@ -1,19 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed, h } from "vue";
-import { storeToRefs } from "pinia";
-import {
-  NButton,
-  NEmpty,
-  NInput,
-  NSelect,
-  NSpace,
-  NSpin,
-  NTag,
-  NText,
-  useDialog,
-  type SelectOption
-} from "naive-ui";
-import { useI18n } from "vue-i18n";
+import { useDialog, type SelectOption } from "naive-ui";
 import { useMemoryStore } from "@/stores/memory";
 import { useSessionStore } from "@/stores/session";
 

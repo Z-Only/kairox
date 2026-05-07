@@ -1,17 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { storeToRefs } from "pinia";
-import { useI18n } from "vue-i18n";
-import {
-  NConfigProvider,
-  NLoadingBarProvider,
-  NMessageProvider,
-  NDialogProvider,
-  NNotificationProvider,
-  darkTheme,
-  useThemeVars,
-  type GlobalTheme
-} from "naive-ui";
+import { darkTheme, useThemeVars, type GlobalTheme } from "naive-ui";
 import { useUiStore } from "@/stores/ui";
 import { lightThemeOverrides, darkThemeOverrides } from "@/styles/naive-theme";
 import StatusBar from "@/components/StatusBar.vue";

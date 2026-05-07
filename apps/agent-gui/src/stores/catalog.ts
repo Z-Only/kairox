@@ -1,5 +1,8 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Pinia stores are plain `.ts` modules and
+// must import `defineStore`, `ref`, and `computed` explicitly.
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   ServerEntryResponse,
@@ -64,6 +67,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   }
 
   function requestInstallProgress(entryId: string): void {
+    // Clear any stale outcome from a previous install of the same entry
+    // BEFORE flipping the visible-modal flag — otherwise InstallProgress
+    // briefly renders the previous result alert (`inFlight = !outcome` is
+    // false for one frame) before the new outcome lands.
+    delete installState.value[entryId];
     currentInstallEntryId.value = entryId;
   }
 

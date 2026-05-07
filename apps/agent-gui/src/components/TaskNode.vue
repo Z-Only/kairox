@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { NButton, NCard, NDivider, NSpace, NTag, NText } from "naive-ui";
 import type { TaskTreeNode } from "@/stores/taskGraph";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 

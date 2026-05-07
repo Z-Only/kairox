@@ -65,7 +65,8 @@
   },
   "sessions": {
     "deleteConfirm": "删除会话「{title}」？该会话的对话记录将在 7 天后被永久移除。",
-    "newButton": "+ 新建",
+    "newButton": "新建",
+    "newButtonPrefix": "+ ",
     "createButton": "创建",
     "cancelButton": "取消",
     "renameTitle": "重命名",
@@ -89,6 +90,56 @@
     "tabBrowse": "浏览",
     "tabInstalled": "已安装（{count}）",
     "sourceSettingsAria": "目录源设置",
-    "builtinSource": "内置"
+    "builtinSource": "内置",
+    "catalogEmpty": "没有符合当前筛选条件的目录条目",
+    "installedEmpty": "暂无已安装的服务",
+    "sourcesEmpty": "尚未配置远程目录源。",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id 和 display_name 必填",
+      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
+    },
+    "install": {
+      "titleInstalling": "安装中…",
+      "titleComplete": "安装完成。",
+      "titleFailed": "安装失败",
+      "alertInstalled": "安装完成。",
+      "alertAlreadyInstalled": "已安装。",
+      "alertMissingRuntimes": "缺少运行时：{runtimes}",
+      "alertMissingEnv": "需要的环境变量：{keys}",
+      "alertUnexpected": "安装以未预期的状态结束。",
+      "stepDetectRuntime": "检测运行时",
+      "stepWriteConfig": "写入配置",
+      "stepStartServer": "启动服务",
+      "anotherInProgress": "另一项安装正在进行中。"
+    }
+  },
+  "mcp": {
+    "statusRunning": "运行中",
+    "statusStarting": "启动中",
+    "statusFailed": "失败",
+    "statusStopped": "已停止"
+  },
+  "trace": {
+    "tabTrace": "追踪",
+    "tabTasks": "任务",
+    "tabMemory": "记忆",
+    "emptyTrace": "暂无追踪事件"
+  },
+  "permission": {
+    "allow": "允许",
+    "deny": "拒绝",
+    "accept": "接受",
+    "reject": "拒绝",
+    "titlePermissionRequired": "需要权限",
+    "titleMemoryProposed": "提议保存记忆"
+  },
+  "statusBar": {
+    "profile": "profile: {profile}",
+    "sessions": "会话数: {count}",
+    "streamingYes": "传输中: 是",
+    "streamingNo": "传输中: 否",
+    "connectedYes": "已连接: 是",
+    "connectedNo": "已连接: 否",
+    "mode": "模式: {mode}"
   }
 }

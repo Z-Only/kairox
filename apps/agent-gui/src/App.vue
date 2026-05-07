@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useTauriEvents } from "@/composables/useTauriEvents";
 import { useUpdater } from "@/composables/useUpdater";

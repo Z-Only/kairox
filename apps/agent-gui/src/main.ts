@@ -1,3 +1,6 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). The bootstrap entry is a plain `.ts`
+// module, so `createApp` / `createPinia` must be imported explicitly.
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";

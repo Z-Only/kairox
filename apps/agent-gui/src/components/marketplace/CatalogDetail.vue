@@ -1,17 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import {
-  NDrawer,
-  NDrawerContent,
-  NCard,
-  NDescriptions,
-  NDescriptionsItem,
-  NInput,
-  NCheckbox,
-  NButton,
-  NText,
-  NSpace
-} from "naive-ui";
+import { useI18n } from "vue-i18n";
 import type {
   ServerEntryResponse,
   InstallRequestPayload
@@ -23,9 +11,18 @@ import {
 } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 
+const { t } = useI18n();
 const catalog = useCatalogStore();
 const props = defineProps<{ entry: ServerEntryResponse }>();
 const emit = defineEmits<{ close: [] }>();
+
+// Disable Install when *another* entry's install is currently in flight
+// (single-value `currentInstallEntryId` slot — Task 8 review carry-over 8).
+const installDisabled = computed(
+  () =>
+    catalog.currentInstallEntryId !== null &&
+    catalog.currentInstallEntryId !== props.entry.id
+);
 
 const requirements = computed(() => parseRequirements(props.entry));
 const envSpec = computed(() => parseDefaultEnv(props.entry));
@@ -162,14 +159,29 @@ function onShowUpdate(next: boolean) {
 
       <template #footer>
         <NSpace>
-          <NButton
-            type="primary"
-            size="small"
-            data-test="catalog-install"
-            @click="onInstall"
+          <NTooltip
+            :disabled="!installDisabled"
+            trigger="hover"
+            placement="top"
           >
-            Install
-          </NButton>
+            <template #trigger>
+              <!-- Wrap the Install button in a span so the disabled button
+                   still triggers the tooltip on hover (NaiveUI buttons
+                   suppress pointer events when disabled). -->
+              <span>
+                <NButton
+                  type="primary"
+                  size="small"
+                  data-test="catalog-install"
+                  :disabled="installDisabled"
+                  @click="onInstall"
+                >
+                  Install
+                </NButton>
+              </span>
+            </template>
+            {{ t("marketplace.install.anotherInProgress") }}
+          </NTooltip>
           <NButton size="small" @click="emit('close')">Close</NButton>
         </NSpace>
       </template>

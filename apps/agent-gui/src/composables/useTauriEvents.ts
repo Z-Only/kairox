@@ -1,3 +1,6 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). This composable is plain `.ts`, so the
+// `@vueuse/core` lifecycle helper must be imported explicitly.
 import { tryOnScopeDispose } from "@vueuse/core";
 import { listen } from "@tauri-apps/api/event";
 import type { DomainEvent } from "@/types";

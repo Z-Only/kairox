@@ -1,5 +1,13 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Plain `.ts` test helpers must import their
+// pinia/vue helpers explicitly.
+import { createPinia } from "pinia";
 import { vi } from "vitest";
 import type { NotificationItem } from "@/stores/ui";
+
+// Re-exported here so the few specs that need to seed pinia can import
+// from a single place; intentionally unused inside this file.
+export { createPinia };
 
 /**
  * Canonical mock factory for `useUiStore()` consumed by store unit tests.

@@ -18,11 +18,19 @@ import InstalledList from "./InstalledList.vue";
 // Task 7c) so mounting it through plain `mount()` would fail with
 // "Need to install with `app.use` function". `mountWithPlugins` wires the
 // shared i18n + Pinia + router stack the same way every other view test
-// does. NaiveUI providers are not required because MarketplaceView itself
-// does not call any service hook (`useMessage`, `useDialog`, etc.).
+// does.
+//
+// `wrapInNConfigProvider: true` is set defensively (Task 9 carry-over from
+// Task 7c IMPORTANT-1): MarketplaceView is a view-level surface, and any
+// future addition of a NaiveUI service hook (`useMessage`, `useDialog`,
+// `useNotification`, `useLoadingBar`) would crash this spec without an
+// `NConfigProvider` ancestor. Wrapping unconditionally also keeps the
+// mount topology symmetric with other view-level specs.
 function mountMarketplace() {
-  return mountWithPlugins(Marketplace, { initialRoute: "/marketplace" })
-    .wrapper;
+  return mountWithPlugins(Marketplace, {
+    initialRoute: "/marketplace",
+    wrapInNConfigProvider: true
+  }).wrapper;
 }
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -62,6 +70,18 @@ describe("Marketplace.vue", () => {
     await wrapper.find("[data-test='tab-installed']").trigger("click");
     await flushPromises();
     expect(wrapper.find("[data-test='installed-list']").exists()).toBe(true);
+  });
+
+  // Task 9 carry-over from Task 8 review NIT-10: lock the existence
+  // contract of the `data-test="catalog-trust"` hook. Task 8 deleted the
+  // hidden <select> dead code and moved this hook onto the visible
+  // NSelect, but no spec asserted it — vitest passing meant "no one tests
+  // it", not "the hook is still selectable". This single assertion
+  // prevents silent removal in future refactors.
+  it("exposes the catalog-trust selector hook on the visible NSelect", async () => {
+    const wrapper = mountMarketplace();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="catalog-trust"]').exists()).toBe(true);
   });
 });
 
@@ -201,6 +221,16 @@ describe("InstalledList.vue", () => {
     vi.clearAllMocks();
   });
 
+  // `InstalledList.vue` calls `useI18n()` (Task 9 i18n sweep) so bare
+  // `mount()` throws "Need to install with `app.use` function". We use
+  // `mountWithPlugins` to install i18n + router; `reusePinia: true`
+  // keeps the `beforeEach` pinia alive so `catalog.installed = [...]`
+  // mutations done in each test before mounting are not wiped. Returns
+  // the bare wrapper so the existing `wrapper.find` / `wrapper.text`
+  // call-sites stay drop-in compatible.
+  const mountInstalled = () =>
+    mountWithPlugins(InstalledList, { reusePinia: true }).wrapper;
+
   it("renders rows for each installed entry", async () => {
     const catalog = useCatalogStore();
     catalog.installed = [
@@ -214,7 +244,7 @@ describe("InstalledList.vue", () => {
       }
     ];
     vi.mocked(invoke).mockResolvedValueOnce([]); // refreshInstalled in onMounted
-    const wrapper = mount(InstalledList);
+    const wrapper = mountInstalled();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("Filesystem");
     expect(wrapper.text()).toContain("running");
@@ -233,7 +263,7 @@ describe("InstalledList.vue", () => {
       }
     ];
     vi.mocked(invoke).mockResolvedValueOnce([]);
-    const wrapper = mount(InstalledList);
+    const wrapper = mountInstalled();
     await wrapper.vm.$nextTick();
     const btn = wrapper.find("[data-test='uninstall-manual-server']");
     expect(btn.exists()).toBe(true);

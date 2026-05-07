@@ -1,3 +1,7 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). This test-utils module is plain `.ts`, so
+// `defineComponent`, `h`, `createI18n`, `createRouter`, etc. must be
+// imported explicitly.
 import {
   mount as baseMount,
   type ComponentMountingOptions
@@ -60,8 +64,28 @@ export interface MountWithPluginsOptions<T> {
    * `NDialogProvider` → `NNotificationProvider`). Required for any
    * component (or composable) that calls `useMessage()`, `useDialog()`,
    * `useNotification()`, or `useLoadingBar()`. Default `false`.
+   *
+   * Deprecated alias retained for backwards compatibility — prefer
+   * `wrapInNConfigProvider` for view-level specs.
    */
   withNaiveProviders?: boolean;
+  /**
+   * Wrap the component under test in NaiveUI's provider stack — same
+   * effect as `withNaiveProviders`, but the name signals intent for
+   * view-level specs that mount a top-level surface (e.g.
+   * `MarketplaceView`, `WorkbenchView`) and rely on theme tokens, dialog
+   * portals, etc. Either flag (or both) being `true` opts in.
+   */
+  wrapInNConfigProvider?: boolean;
+  /**
+   * When `true`, do NOT create a new Pinia instance — assume the caller
+   * has already called `setActivePinia(createPinia())` in `beforeEach`.
+   * Required for specs that follow the "useStore() → set state →
+   * mount()" pattern; otherwise `mountWithPlugins`'s internal
+   * `createPinia()` resets all stores and the pre-mount state mutations
+   * are lost. Default `false`.
+   */
+  reusePinia?: boolean;
   /** Initial route to push before mount (and `await router.isReady()`). */
   initialRoute?: string;
 }
@@ -84,12 +108,14 @@ export function mountWithPlugins<T extends Component>(
   options: ComponentMountingOptions<T> | MountWithPluginsOptions<T> = {}
 ) {
   // Detect whether the caller passed the new `MountWithPluginsOptions` shape
-  // (`{ mount?, withNaiveProviders?, initialRoute? }`) or the legacy
-  // `ComponentMountingOptions<T>` shape. The new shape is identified by the
-  // presence of any of its three known keys.
+  // (`{ mount?, withNaiveProviders?, wrapInNConfigProvider?, initialRoute? }`)
+  // or the legacy `ComponentMountingOptions<T>` shape. The new shape is
+  // identified by the presence of any of its known keys.
   const isExtendedOptions =
     "mount" in options ||
     "withNaiveProviders" in options ||
+    "wrapInNConfigProvider" in options ||
+    "reusePinia" in options ||
     "initialRoute" in options;
   const extended = (
     isExtendedOptions ? options : {}
@@ -97,9 +123,16 @@ export function mountWithPlugins<T extends Component>(
   const mountOpts: ComponentMountingOptions<T> = isExtendedOptions
     ? (extended.mount ?? {})
     : (options as ComponentMountingOptions<T>);
+  const shouldWrap =
+    extended.wrapInNConfigProvider === true ||
+    extended.withNaiveProviders === true;
 
-  const pinia = createPinia();
-  setActivePinia(pinia);
+  // When `reusePinia: true`, the caller has already done
+  // `setActivePinia(createPinia())` in beforeEach (and likely mutated
+  // store state before calling us). Creating a new pinia here would
+  // wipe those mutations.
+  const pinia = extended.reusePinia ? null : createPinia();
+  if (pinia) setActivePinia(pinia);
   const i18n = createI18n({
     legacy: false,
     locale: "en",
@@ -108,7 +141,7 @@ export function mountWithPlugins<T extends Component>(
   });
   const router = createRouter({ history: createMemoryHistory(), routes });
 
-  const target = extended.withNaiveProviders
+  const target = shouldWrap
     ? defineComponent({
         name: "NaiveProviderHarness",
         components: { Inner: comp },
@@ -133,10 +166,14 @@ export function mountWithPlugins<T extends Component>(
       })
     : comp;
 
+  // Only register the freshly-created pinia plugin; in `reusePinia`
+  // mode the caller's already-active pinia is picked up via
+  // `getActivePinia()` inside `setup()` — no plugin needed.
+  const plugins = pinia ? [pinia, i18n, router] : [i18n, router];
   const wrapper = baseMount(target as T, {
     ...mountOpts,
     global: {
-      plugins: [pinia, i18n, router],
+      plugins,
       ...(mountOpts.global ?? {})
     }
   });

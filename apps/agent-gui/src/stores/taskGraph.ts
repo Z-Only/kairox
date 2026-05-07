@@ -1,3 +1,6 @@
+// `unplugin-auto-import` only injects globals into `.vue` SFCs (we keep
+// `dirs: []` per spec §3 Q7). Pinia stores are plain `.ts` modules and
+// must import `defineStore` and `ref` explicitly.
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
