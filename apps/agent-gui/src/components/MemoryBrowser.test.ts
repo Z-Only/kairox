@@ -14,15 +14,10 @@ const mockedInvoke = vi.mocked(invoke);
 import { useMemoryStore } from "@/stores/memory";
 import { useSessionStore } from "@/stores/session";
 
-// MemoryBrowser uses `useI18n()` and `useDialog()` (added in Task 7b
-// when ConfirmDialog.vue was retired in favour of NaiveUI's dialog
-// hook). `mountWithPlugins({ withNaiveProviders: true })` wires the
-// same provider stack `AppLayout.vue` mounts at runtime so both hooks
-// resolve cleanly inside vitest.
+// MemoryBrowser uses `useI18n()`. `mountWithPlugins` wires the i18n +
+// Pinia + router plugin stack so hooks resolve cleanly inside vitest.
 function mountBrowser() {
-  return mountWithPlugins(MemoryBrowser, {
-    withNaiveProviders: true
-  });
+  return mountWithPlugins(MemoryBrowser, {});
 }
 
 beforeEach(() => {
@@ -79,15 +74,11 @@ describe("MemoryBrowser", () => {
     expect(wrapper.text()).toContain("user");
   });
 
-  it("changes active scope filter via NSelect", async () => {
+  it("changes active scope filter via select component", async () => {
     const { wrapper } = mountBrowser();
     await flushPromises();
-    // Drive the production `NSelect` (the only scope UI) directly.
     // Look the component up via the stable `data-test` hook on its
-    // root DOM node — NaiveUI registers the component as `Select`
-    // (no `N` prefix) and the SFC renders multiple internal `Select`
-    // subcomponents, so a `findComponent({ name: 'Select' })` query
-    // is ambiguous. Going through the DOM hook gets us the outer
+    // root DOM node. Going through the DOM hook gets us the outer
     // wrapper component whose `update:value` event the template
     // binds to `handleFilterChange`.
     const memory = useMemoryStore();

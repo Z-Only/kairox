@@ -12,14 +12,11 @@ vi.mock("@tauri-apps/api/event", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-// MemoryBrowser (rendered when the Memory tab is activated in 7b) now
-// calls `useI18n()` and `useDialog()`, so any render path that mounts
-// it requires the NaiveUI provider stack + i18n. `mountWithPlugins(
-// { withNaiveProviders: true })` wires both, plus a fresh Pinia.
+// MemoryBrowser (rendered when the Memory tab is activated) calls
+// `useI18n()`, so any render path that mounts it requires the i18n
+// plugin. `mountWithPlugins` wires i18n plus a fresh Pinia.
 function mountTimeline() {
-  return mountWithPlugins(TraceTimeline, {
-    withNaiveProviders: true
-  });
+  return mountWithPlugins(TraceTimeline, {});
 }
 
 beforeEach(() => {

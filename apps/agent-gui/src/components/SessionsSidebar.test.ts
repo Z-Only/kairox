@@ -17,14 +17,10 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 
-// `mountWithPlugins({ withNaiveProviders: true, initialRoute })` (added in
-// Task 7a) wires Pinia + i18n + the production router and wraps the
-// component in the same NaiveUI provider stack as `AppLayout.vue` so
-// `useDialog()` and the migrated NaiveUI components resolve cleanly. The
-// Sidebar exercises that helper as one of its intended consumers.
+// `mountWithPlugins({ initialRoute })` wires Pinia + i18n + the production
+// router so the Sidebar's dependencies resolve cleanly.
 async function mountSidebar() {
   const { wrapper, router } = mountWithPlugins(SessionsSidebar, {
-    withNaiveProviders: true,
     initialRoute: "/workbench"
   });
   await router.isReady();
@@ -55,7 +51,7 @@ describe("SessionsSidebar", () => {
 
   it("shows empty hint when no sessions", async () => {
     const { wrapper } = await mountSidebar();
-    // NEmpty renders the description text we passed in.
+    // The empty-state component renders the description text we passed in.
     expect(wrapper.text()).toContain("No sessions yet");
   });
 
@@ -65,7 +61,7 @@ describe("SessionsSidebar", () => {
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
     await flushPromises();
     // Use the data-test selector so the assertion does not depend on the
-    // ordering or class names of NaiveUI internals.
+    // ordering or class names of UI component internals.
     await wrapper.find('[data-test="session-item"]').trigger("click");
     // Replace the brittle `setTimeout(0)` flush with `flushPromises()` so
     // the test stays correct under `vi.useFakeTimers()` — see Task 5

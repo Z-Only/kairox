@@ -14,22 +14,13 @@ import CatalogCard from "./CatalogCard.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
 
-// MarketplaceView now calls `useI18n()` (Task 5 NIT #9 follow-up done in
-// Task 7c) so mounting it through plain `mount()` would fail with
-// "Need to install with `app.use` function". `mountWithPlugins` wires the
-// shared i18n + Pinia + router stack the same way every other view test
-// does.
-//
-// `wrapInNConfigProvider: true` is set defensively (Task 9 carry-over from
-// Task 7c IMPORTANT-1): MarketplaceView is a view-level surface, and any
-// future addition of a NaiveUI service hook (`useMessage`, `useDialog`,
-// `useNotification`, `useLoadingBar`) would crash this spec without an
-// `NConfigProvider` ancestor. Wrapping unconditionally also keeps the
-// mount topology symmetric with other view-level specs.
+// MarketplaceView calls `useI18n()` so mounting it through plain `mount()`
+// would fail with "Need to install with `app.use` function".
+// `mountWithPlugins` wires the shared i18n + Pinia + router stack the same
+// way every other view test does.
 function mountMarketplace() {
   return mountWithPlugins(Marketplace, {
-    initialRoute: "/marketplace",
-    wrapInNConfigProvider: true
+    initialRoute: "/marketplace"
   }).wrapper;
 }
 
