@@ -320,7 +320,7 @@ where
                 display_name: s.display_name.clone(),
                 kind: match s.kind {
                     agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
-                    agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+                    agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
                 },
                 url: s.url.clone(),
                 api_key_env: s.api_key_env.clone(),
@@ -902,7 +902,7 @@ fn catalog_source_to_view(s: agent_config::CatalogSourceConfig) -> CatalogSource
         display_name: s.display_name,
         kind: match s.kind {
             agent_config::CatalogSourceKind::KairoxJson => "kairox_json".into(),
-            agent_config::CatalogSourceKind::Smithery => "smithery".into(),
+            agent_config::CatalogSourceKind::McpRegistry => "mcp_registry".into(),
         },
         url: s.url,
         api_key_env: s.api_key_env,
@@ -919,7 +919,7 @@ fn request_to_source_config(
 ) -> agent_core::Result<agent_config::CatalogSourceConfig> {
     let kind = match r.kind.as_str() {
         "kairox_json" => agent_config::CatalogSourceKind::KairoxJson,
-        "smithery" => agent_config::CatalogSourceKind::Smithery,
+        "mcp_registry" => agent_config::CatalogSourceKind::McpRegistry,
         other => {
             return Err(agent_core::CoreError::InvalidState(format!(
                 "unsupported catalog source kind: {other}"
@@ -1148,7 +1148,7 @@ fn build_catalog_provider(
             display_name: s.display_name.clone(),
             kind: match s.kind {
                 agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
-                agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+                agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
             },
             url: s.url.clone(),
             api_key_env: s.api_key_env.clone(),

@@ -162,7 +162,7 @@ fn write_sources_to_doc(doc: &mut toml_edit::DocumentMut, sources: &[CatalogSour
         t["display_name"] = value(s.display_name.as_str());
         t["kind"] = value(match s.kind {
             CatalogSourceKind::KairoxJson => "kairox_json",
-            CatalogSourceKind::Smithery => "smithery",
+            CatalogSourceKind::McpRegistry => "mcp_registry",
         });
         t["url"] = value(s.url.as_str());
         if let Some(env) = &s.api_key_env {
@@ -193,8 +193,8 @@ mod tests {
         CatalogSourceConfig {
             id: id.into(),
             display_name: format!("Display {id}"),
-            kind: CatalogSourceKind::Smithery,
-            url: "https://registry.smithery.ai".into(),
+            kind: CatalogSourceKind::McpRegistry,
+            url: "https://registry.modelcontextprotocol.io".into(),
             api_key_env: None,
             priority: 100,
             default_trust: "community".into(),

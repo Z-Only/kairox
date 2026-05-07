@@ -669,7 +669,7 @@ args = []
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CatalogSourceKind {
     KairoxJson,
-    Smithery,
+    McpRegistry,
 }
 
 /// A user-configured remote catalog source, parsed from `[[catalog_sources]]`
@@ -735,7 +735,7 @@ fn default_true() -> bool {
 fn raw_to_source(raw: RawCatalogSource) -> Result<CatalogSourceConfig, ConfigError> {
     let kind = match raw.kind.as_str() {
         "kairox_json" => CatalogSourceKind::KairoxJson,
-        "smithery" => CatalogSourceKind::Smithery,
+        "mcp_registry" => CatalogSourceKind::McpRegistry,
         other => {
             return Err(ConfigError::Parse {
                 path: "marketplace".into(),
@@ -940,12 +940,12 @@ pub fn default_catalog_sources() -> Vec<CatalogSourceConfig> {
             cache_ttl_seconds: None,
         },
         CatalogSourceConfig {
-            id: "smithery".into(),
-            display_name: "Smithery Registry".into(),
-            kind: CatalogSourceKind::Smithery,
-            url: "https://registry.smithery.ai".into(),
+            id: "mcp-registry".into(),
+            display_name: "MCP Servers".into(),
+            kind: CatalogSourceKind::McpRegistry,
+            url: "https://registry.modelcontextprotocol.io".into(),
             api_key_env: None,
-            priority: 100,
+            priority: 50,
             default_trust: "community".into(),
             enabled: false,
             cache_ttl_seconds: None,
@@ -981,7 +981,7 @@ mod default_catalog_sources_tests {
         let defaults = default_catalog_sources();
         let ids: Vec<&str> = defaults.iter().map(|s| s.id.as_str()).collect();
         assert!(ids.contains(&"kairox-official"));
-        assert!(ids.contains(&"smithery"));
+        assert!(ids.contains(&"mcp-registry"));
         assert_eq!(defaults.len(), 2);
         assert!(
             defaults.iter().all(|s| !s.enabled),
@@ -993,10 +993,9 @@ mod default_catalog_sources_tests {
                 .all(|s| s.url.starts_with("https://") || s.url.starts_with("http://")),
             "default urls must be well-formed http(s)",
         );
-        // Smithery must use the Smithery kind, not KairoxJson.
-        let smithery = defaults.iter().find(|s| s.id == "smithery").unwrap();
-        assert_eq!(smithery.kind, CatalogSourceKind::Smithery);
-        assert_eq!(smithery.url, "https://registry.smithery.ai");
+        let mcp = defaults.iter().find(|s| s.id == "mcp-registry").unwrap();
+        assert_eq!(mcp.kind, CatalogSourceKind::McpRegistry);
+        assert_eq!(mcp.url, "https://registry.modelcontextprotocol.io");
     }
 
     #[test]
@@ -1004,17 +1003,17 @@ mod default_catalog_sources_tests {
         let merged = merge_with_defaults(Vec::new());
         let ids: Vec<&str> = merged.iter().map(|s| s.id.as_str()).collect();
         assert!(ids.contains(&"kairox-official"));
-        assert!(ids.contains(&"smithery"));
+        assert!(ids.contains(&"mcp-registry"));
         assert_eq!(merged.len(), 2);
     }
 
     #[test]
     fn merge_with_defaults_user_overrides_default_by_id() {
         let user = vec![CatalogSourceConfig {
-            id: "smithery".into(),
-            display_name: "My Smithery Mirror".into(),
-            kind: CatalogSourceKind::Smithery,
-            url: "https://my-mirror.example/catalog.json".into(),
+            id: "mcp-registry".into(),
+            display_name: "My MCP Mirror".into(),
+            kind: CatalogSourceKind::McpRegistry,
+            url: "https://my-mirror.example/v0.1/servers".into(),
             api_key_env: Some("MY_KEY".into()),
             priority: 10,
             default_trust: "verified".into(),
@@ -1022,13 +1021,11 @@ mod default_catalog_sources_tests {
             cache_ttl_seconds: Some(120),
         }];
         let merged = merge_with_defaults(user);
-        // Same id appears exactly once, with user's values intact.
-        let smithery: Vec<_> = merged.iter().filter(|s| s.id == "smithery").collect();
-        assert_eq!(smithery.len(), 1);
-        assert_eq!(smithery[0].display_name, "My Smithery Mirror");
-        assert!(smithery[0].enabled);
-        assert_eq!(smithery[0].priority, 10);
-        // The other default remains.
+        let mcp: Vec<_> = merged.iter().filter(|s| s.id == "mcp-registry").collect();
+        assert_eq!(mcp.len(), 1);
+        assert_eq!(mcp[0].display_name, "My MCP Mirror");
+        assert!(mcp[0].enabled);
+        assert_eq!(mcp[0].priority, 10);
         assert!(merged.iter().any(|s| s.id == "kairox-official"));
         assert_eq!(merged.len(), 2);
     }
@@ -1048,10 +1045,8 @@ mod default_catalog_sources_tests {
         }];
         let merged = merge_with_defaults(user);
         assert_eq!(merged[0].id, "custom-first");
-        // Remaining are the defaults, in the order returned by
-        // default_catalog_sources().
         assert_eq!(merged.len(), 3);
         assert_eq!(merged[1].id, "kairox-official");
-        assert_eq!(merged[2].id, "smithery");
+        assert_eq!(merged[2].id, "mcp-registry");
     }
 }
