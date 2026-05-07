@@ -42,7 +42,9 @@ async fn list_catalog_returns_builtin_entries_when_marketplace_not_configured() 
         .list_catalog(CatalogQuery::default())
         .await
         .expect("list_catalog must not error when marketplace is unconfigured");
-    // Built-in catalog ships 24 curated entries (see marketplace_integration.rs).
+    // Built-in catalog ships curated entries; the resilience contract here is
+    // just "non-empty" — the exact entry count is locked in
+    // `marketplace_integration.rs::lists_all_24_builtin_entries`.
     assert!(
         !entries.is_empty(),
         "built-in entries must be returned when marketplace is unconfigured"

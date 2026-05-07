@@ -27,7 +27,7 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -864,13 +864,23 @@ fn builtin_source_view() -> CatalogSourceView {
 /// where the user has no `[mcp_marketplace]` section in `kairox.toml`.
 /// The GUI marketplace tab still works because it sees the curated
 /// `BuiltinCatalogProvider` entries.
-fn builtin_only_provider() -> agent_core::Result<AggregateCatalogProvider> {
-    let builtin = Arc::new(
-        BuiltinCatalogProvider::new()
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("builtin catalog: {e}")))?,
-    );
-    let providers: Vec<Arc<dyn CatalogProvider>> = vec![builtin];
-    Ok(AggregateCatalogProvider::new(providers))
+///
+/// The aggregator is cached in a process-wide `OnceLock` so the GUI
+/// marketplace hot path (`list_catalog` / `get_catalog_entry`) does not
+/// re-parse the static built-in JSON on every poll. `BUILTIN_JSON` is
+/// `include_str!`'d at compile time, so a parse failure here means the
+/// shipped binary itself is broken — `expect` is the correct response.
+fn builtin_only_provider() -> agent_core::Result<Arc<AggregateCatalogProvider>> {
+    static BUILTIN_AGGREGATE: OnceLock<Arc<AggregateCatalogProvider>> = OnceLock::new();
+    let agg = BUILTIN_AGGREGATE.get_or_init(|| {
+        let builtin = Arc::new(
+            BuiltinCatalogProvider::new()
+                .expect("BUILTIN_JSON must parse; this is a build-time invariant"),
+        );
+        let providers: Vec<Arc<dyn CatalogProvider>> = vec![builtin];
+        Arc::new(AggregateCatalogProvider::new(providers))
+    });
+    Ok(Arc::clone(agg))
 }
 
 fn catalog_source_to_view(s: agent_config::CatalogSourceConfig) -> CatalogSourceView {
