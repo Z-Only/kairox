@@ -37,8 +37,8 @@
     "vue-tsc": "^3.2.8"
   },
   "optionalDependencies": {
-    "@rollup/rollup-darwin-arm64": "^4.60.3",
-    "@rollup/rollup-linux-x64-gnu": "^4.60.2",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.3"
+    "@rolldown/binding-darwin-arm64": "1.0.0-rc.17",
+    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.17",
+    "@rolldown/binding-win32-x64-msvc": "1.0.0-rc.17"
   }
 }
