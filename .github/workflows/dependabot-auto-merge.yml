@@ -2,10 +2,7 @@ name: Dependabot Auto Merge
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
@@ -13,75 +10,17 @@ permissions:
 
 jobs:
   auto-merge:
-    if: |
-      (github.event_name == 'pull_request' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'app/dependabot')) ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve PR number
-        id: pr
-        uses: actions/github-script@v9
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
         with:
-          script: |
-            let prNumber = null;
-            if (context.eventName === 'pull_request') {
-              prNumber = context.payload.pull_request.number;
-            } else if (context.eventName === 'workflow_run') {
-              const prs = context.payload.workflow_run.pull_requests || [];
-              if (prs.length > 0) prNumber = prs[0].number;
-            }
-            core.setOutput('number', prNumber ? String(prNumber) : '');
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch PR info
-        id: info
-        if: steps.pr.outputs.number != ''
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = Number('${{ steps.pr.outputs.number }}');
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-            });
-
-            const author = pr.user?.login || '';
-            const isDependabot = author === 'dependabot[bot]' || author === 'app/dependabot';
-            const isOpen = pr.state === 'open';
-            const isDraft = !!pr.draft;
-            const mergeState = pr.mergeable_state || '';
-            const headSha = pr.head.sha;
-
-            const { data: combined } = await github.rest.repos.getCombinedStatusForRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: headSha,
-            });
-
-            const checksOk = combined.state === 'success';
-            const clean = mergeState === 'clean' || mergeState === 'unstable' || mergeState === 'has_hooks';
-            core.info(`PR #${prNumber} author=${author} mergeState=${mergeState} checks=${combined.state}`);
-            core.setOutput('dependabot', String(isDependabot));
-            core.setOutput('open', String(isOpen));
-            core.setOutput('draft', String(isDraft));
-            core.setOutput('checks_ok', String(checksOk));
-            core.setOutput('clean', String(clean));
-            core.setOutput('number', String(prNumber));
-
-      - name: Merge PR
-        if: steps.info.outputs.dependabot == 'true' && steps.info.outputs.open == 'true' && steps.info.outputs.draft == 'false' && steps.info.outputs.checks_ok == 'true' && steps.info.outputs.clean == 'true'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const prNumber = Number('${{ steps.info.outputs.number }}');
-            try {
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-              core.info(`Merged PR #${prNumber}`);
-            } catch (error) {
-              core.info(`Merge skipped or failed: ${error.message}`);
-            }
+      - name: Enable auto-merge for Dependabot PR
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
