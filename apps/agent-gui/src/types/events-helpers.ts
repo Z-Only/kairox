@@ -8,10 +8,7 @@
 import type { EventPayload } from "../generated/events";
 
 /** Extract a specific EventPayload variant by its type tag. */
-export type ExtractPayload<T extends EventPayload["type"]> = Extract<
-  EventPayload,
-  { type: T }
->;
+export type ExtractPayload<T extends EventPayload["type"]> = Extract<EventPayload, { type: T }>;
 
 /**
  * Exhaustive event handler map.
@@ -35,10 +32,7 @@ export type PartialEventPayloadHandlers<R = void> = {
  * If a new variant is added to EventPayload, TypeScript will error
  * until a handler is added for it.
  */
-export function matchPayload<R>(
-  payload: EventPayload,
-  handlers: EventPayloadHandlers<R>
-): R {
+export function matchPayload<R>(payload: EventPayload, handlers: EventPayloadHandlers<R>): R {
   const handler = handlers[payload.type] as (p: EventPayload) => R;
   return handler(payload);
 }
@@ -51,8 +45,6 @@ export function matchPartialPayload<R>(
   payload: EventPayload,
   handlers: PartialEventPayloadHandlers<R>
 ): R | undefined {
-  const handler = handlers[payload.type] as
-    | ((p: EventPayload) => R)
-    | undefined;
+  const handler = handlers[payload.type] as ((p: EventPayload) => R) | undefined;
   return handler?.(payload);
 }

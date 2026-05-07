@@ -17,13 +17,7 @@ export type {
  * Phase 1 had only "user" | "assistant".
  * Phase 3 adds planner/worker/reviewer for multi-agent DAG execution.
  */
-export type ProjectedRole =
-  | "user"
-  | "assistant"
-  | "planner"
-  | "worker"
-  | "reviewer"
-  | "system";
+export type ProjectedRole = "user" | "assistant" | "planner" | "worker" | "reviewer" | "system";
 
 export interface ProjectedMessage {
   role: ProjectedRole;
@@ -74,9 +68,7 @@ export interface SessionMeta {
  * Map an AgentRole from the generated types to a ProjectedRole.
  * Used when attributing messages to specific agents.
  */
-export function agentRoleToProjectedRole(
-  role: AgentRole
-): "planner" | "worker" | "reviewer" {
+export function agentRoleToProjectedRole(role: AgentRole): "planner" | "worker" | "reviewer" {
   const map: Record<AgentRole, "planner" | "worker" | "reviewer"> = {
     Planner: "planner",
     Worker: "worker",

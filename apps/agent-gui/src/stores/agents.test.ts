@@ -14,11 +14,7 @@ beforeEach(() => {
   clearAgents();
 });
 
-function makeAgentSpawnedEvent(
-  agentId: string,
-  role: string,
-  taskId: string
-): DomainEvent {
+function makeAgentSpawnedEvent(agentId: string, role: string, taskId: string): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -89,9 +85,7 @@ describe("applyAgentEvent", () => {
   });
 
   it("marks agent as failed on AgentTaskFailed", () => {
-    applyAgentEvent(
-      makeAgentSpawnedEvent("agent_3", "Worker", "task_2").payload
-    );
+    applyAgentEvent(makeAgentSpawnedEvent("agent_3", "Worker", "task_2").payload);
 
     applyAgentEvent({
       type: "AgentTaskFailed",
@@ -104,9 +98,7 @@ describe("applyAgentEvent", () => {
   });
 
   it("resets agent to running on TaskRetried", () => {
-    applyAgentEvent(
-      makeAgentSpawnedEvent("agent_4", "Worker", "task_3").payload
-    );
+    applyAgentEvent(makeAgentSpawnedEvent("agent_4", "Worker", "task_3").payload);
 
     // Fail it first
     applyAgentEvent({

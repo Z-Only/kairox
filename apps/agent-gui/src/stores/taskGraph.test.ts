@@ -1,16 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  taskGraphState,
-  setTaskGraph,
-  clearTaskGraph,
-  buildTaskTree
-} from "./taskGraph";
+import { taskGraphState, setTaskGraph, clearTaskGraph, buildTaskTree } from "./taskGraph";
 import { agentState, clearAgents } from "./agents";
 import type { TaskSnapshot } from "../types";
 
-function makeTask(
-  overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">
-): TaskSnapshot {
+function makeTask(overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">): TaskSnapshot {
   return {
     title: `Task ${overrides.id}`,
     role: "Planner" as const,

@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  notifications,
-  dismissNotification
-} from "../composables/useNotifications";
+import { notifications, dismissNotification } from "../composables/useNotifications";
 </script>
 
 <template>
@@ -13,17 +10,10 @@ import {
       :class="['notification', `notification--${notif.type}`]"
     >
       <span class="notification-icon">
-        {{
-          notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ"
-        }}
+        {{ notif.type === "error" ? "✕" : notif.type === "warning" ? "⚠" : "ℹ" }}
       </span>
       <span class="notification-message">{{ notif.message }}</span>
-      <button
-        class="notification-dismiss"
-        @click="dismissNotification(notif.id)"
-      >
-        ✕
-      </button>
+      <button class="notification-dismiss" @click="dismissNotification(notif.id)">✕</button>
     </div>
   </div>
 </template>

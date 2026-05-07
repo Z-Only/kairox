@@ -25,9 +25,7 @@ export interface EnvVarSpecParsed {
   default: string | null;
 }
 
-export function parseRequirements(
-  entry: ServerEntryResponse
-): RuntimeRequirementParsed[] {
+export function parseRequirements(entry: ServerEntryResponse): RuntimeRequirementParsed[] {
   try {
     const v = JSON.parse(entry.requirements_json);
     return Array.isArray(v) ? (v as RuntimeRequirementParsed[]) : [];
@@ -36,9 +34,7 @@ export function parseRequirements(
   }
 }
 
-export function parseDefaultEnv(
-  entry: ServerEntryResponse
-): EnvVarSpecParsed[] {
+export function parseDefaultEnv(entry: ServerEntryResponse): EnvVarSpecParsed[] {
   try {
     const v = JSON.parse(entry.default_env_json);
     return Array.isArray(v) ? (v as EnvVarSpecParsed[]) : [];

@@ -16,11 +16,7 @@
       "install": {
         "transport": "stdio",
         "command": "npx",
-        "args": [
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          "${WORKSPACE_PATH}"
-        ],
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_PATH}"],
         "env": {},
         "cwd": null
       },
@@ -390,11 +386,7 @@
       "install": {
         "transport": "stdio",
         "command": "npx",
-        "args": [
-          "-y",
-          "@modelcontextprotocol/server-postgres",
-          "${POSTGRES_URL}"
-        ],
+        "args": ["-y", "@modelcontextprotocol/server-postgres", "${POSTGRES_URL}"],
         "env": {},
         "cwd": null
       },

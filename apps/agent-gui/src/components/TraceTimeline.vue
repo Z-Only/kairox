@@ -12,22 +12,13 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   <section class="trace-timeline">
     <header class="trace-header">
       <div class="tab-group">
-        <button
-          :class="{ active: rightPanelTab === 'trace' }"
-          @click="rightPanelTab = 'trace'"
-        >
+        <button :class="{ active: rightPanelTab === 'trace' }" @click="rightPanelTab = 'trace'">
           Trace
         </button>
-        <button
-          :class="{ active: rightPanelTab === 'tasks' }"
-          @click="rightPanelTab = 'tasks'"
-        >
+        <button :class="{ active: rightPanelTab === 'tasks' }" @click="rightPanelTab = 'tasks'">
           Tasks
         </button>
-        <button
-          :class="{ active: rightPanelTab === 'memory' }"
-          @click="rightPanelTab = 'memory'"
-        >
+        <button :class="{ active: rightPanelTab === 'memory' }" @click="rightPanelTab = 'memory'">
           Memory
         </button>
       </div>
@@ -49,9 +40,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         :entry="entry"
         :density="traceState.density"
       />
-      <p v-if="traceState.entries.length === 0" class="empty-hint">
-        No trace events yet
-      </p>
+      <p v-if="traceState.entries.length === 0" class="empty-hint">No trace events yet</p>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />

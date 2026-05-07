@@ -107,8 +107,7 @@ export function applyTraceEvent(event: DomainEvent) {
 
     case "AssistantMessageCompleted": {
       const runningModel = traceState.entries.find(
-        (e) =>
-          e.kind === "tool" && e.toolId === "model" && e.status === "running"
+        (e) => e.kind === "tool" && e.toolId === "model" && e.status === "running"
       );
       if (runningModel) {
         runningModel.status = "completed";

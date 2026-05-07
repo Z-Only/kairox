@@ -35,19 +35,14 @@ test("task appears when AgentTaskCreated event fires", async ({ page }) => {
 
   // Simulate task creation
   await page.evaluate(() => {
-    (window as any).__KAIROX_MOCK__.simulateTaskCreated(
-      "Analyze codebase",
-      "Planner"
-    );
+    (window as any).__KAIROX_MOCK__.simulateTaskCreated("Analyze codebase", "Planner");
   });
 
   // Task should appear in the task steps panel
   await expect(page.locator(".task-node").first()).toBeVisible({
     timeout: 3_000
   });
-  await expect(page.locator(".task-node").first()).toContainText(
-    "Analyze codebase"
-  );
+  await expect(page.locator(".task-node").first()).toContainText("Analyze codebase");
   // Should show Planner role badge
   await expect(page.locator(".task-role").first()).toContainText("P");
 });
@@ -63,10 +58,7 @@ test("task transitions through states", async ({ page }) => {
 
   // Create a task
   const taskId = await page.evaluate(() => {
-    return (window as any).__KAIROX_MOCK__.simulateTaskCreated(
-      "Build feature",
-      "Worker"
-    );
+    return (window as any).__KAIROX_MOCK__.simulateTaskCreated("Build feature", "Worker");
   });
 
   await expect(page.locator(".task-node").first()).toBeVisible({
@@ -78,10 +70,7 @@ test("task transitions through states", async ({ page }) => {
 
   // Start the task
   await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(
-      tid,
-      "AgentTaskStarted"
-    );
+    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskStarted");
   }, taskId);
 
   // Should show Running status (🔄)
@@ -91,10 +80,7 @@ test("task transitions through states", async ({ page }) => {
 
   // Complete the task
   await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(
-      tid,
-      "AgentTaskCompleted"
-    );
+    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskCompleted");
   }, taskId);
 
   // Should show Completed status (✅)
@@ -114,10 +100,7 @@ test("task shows error when it fails", async ({ page }) => {
 
   // Create and fail a task
   const taskId = await page.evaluate(() => {
-    return (window as any).__KAIROX_MOCK__.simulateTaskCreated(
-      "Risky operation",
-      "Worker"
-    );
+    return (window as any).__KAIROX_MOCK__.simulateTaskCreated("Risky operation", "Worker");
   });
 
   await expect(page.locator(".task-node").first()).toBeVisible({
@@ -126,11 +109,7 @@ test("task shows error when it fails", async ({ page }) => {
 
   // Fail the task
   await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(
-      tid,
-      "AgentTaskFailed",
-      "Model timeout"
-    );
+    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskFailed", "Model timeout");
   }, taskId);
 
   // Should show Failed status (❌)

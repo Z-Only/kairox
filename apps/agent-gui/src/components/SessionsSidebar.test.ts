@@ -51,9 +51,7 @@ describe("SessionsSidebar", () => {
   });
 
   it("invokes switch_session on session click", async () => {
-    sessionState.sessions = [
-      { id: "s1", title: "Session 1", profile: "fast" } as never
-    ];
+    sessionState.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
     mockedInvoke.mockResolvedValueOnce({
       messages: [],
       task_titles: [],

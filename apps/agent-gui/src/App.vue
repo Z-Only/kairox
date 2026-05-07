@@ -23,12 +23,9 @@ useUpdater();
 
 onMounted(async () => {
   // Listen for backend error events
-  await listen<{ type: string; error: string; session_id: string }>(
-    "session-error",
-    (event) => {
-      addNotification("error", event.payload.error);
-    }
-  );
+  await listen<{ type: string; error: string; session_id: string }>("session-error", (event) => {
+    addNotification("error", event.payload.error);
+  });
 
   // Try to recover existing workspace and sessions from metadata store
   const recovered = await recoverSessions();

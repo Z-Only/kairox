@@ -13,14 +13,7 @@ defineProps<{
     <li v-for="r in requirements" :key="r.kind">
       <strong>{{ r.kind }}</strong>
       <span v-if="r.min_version"> ({{ r.min_version }})</span>
-      <a
-        v-if="r.install_hint"
-        :href="r.install_hint"
-        target="_blank"
-        rel="noopener"
-      >
-        — install
-      </a>
+      <a v-if="r.install_hint" :href="r.install_hint" target="_blank" rel="noopener"> — install </a>
     </li>
   </ul>
 </template>

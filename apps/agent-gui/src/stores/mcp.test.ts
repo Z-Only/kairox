@@ -94,10 +94,7 @@ describe("fetchServers", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("network error"));
     await fetchServers();
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("network error")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("network error"));
     expect(mcpState.loading).toBe(false);
   });
 });
@@ -117,10 +114,7 @@ describe("startServer", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("start failed"));
     await startServer("s1");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("start failed")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("start failed"));
   });
 });
 
@@ -149,9 +143,7 @@ describe("trustServer", () => {
     mcpState.trustedServerIds = ["s1"];
     mockedInvoke.mockResolvedValueOnce(undefined);
     await trustServer("s1");
-    expect(mcpState.trustedServerIds.filter((id) => id === "s1")).toHaveLength(
-      1
-    );
+    expect(mcpState.trustedServerIds.filter((id) => id === "s1")).toHaveLength(1);
   });
 });
 

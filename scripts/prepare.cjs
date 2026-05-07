@@ -44,9 +44,7 @@ if (gitDir && gitDir.includes("/worktrees/")) {
     const relativePath = path.relative(path.dirname(hooksDir), targetDir);
     try {
       symlinkSync(relativePath, hooksDir);
-      console.log(
-        `husky - linked worktree hooks: ${hooksDir} -> ${relativePath}`
-      );
+      console.log(`husky - linked worktree hooks: ${hooksDir} -> ${relativePath}`);
     } catch (err) {
       console.warn(`husky - could not symlink worktree hooks: ${err.message}`);
       console.warn("husky - hooks may not work in this worktree");

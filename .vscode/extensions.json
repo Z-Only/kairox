@@ -3,8 +3,7 @@
     "rust-lang.rust-analyzer",
     "tauri-apps.tauri-vscode",
     "vue.volar",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
+    "oxc.oxc-vscode",
     "stylelint.vscode-stylelint",
     "editorconfig.editorconfig",
     "tamasfe.even-better-toml"

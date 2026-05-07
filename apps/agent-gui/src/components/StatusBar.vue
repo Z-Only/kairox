@@ -30,9 +30,7 @@ onMounted(async () => {
   <footer class="status-bar">
     <span class="status-item">profile: {{ sessionState.currentProfile }}</span>
     <span class="status-divider">│</span>
-    <span class="status-item"
-      >sessions: {{ sessionState.sessions.length }}</span
-    >
+    <span class="status-item">sessions: {{ sessionState.sessions.length }}</span>
     <span class="status-divider">│</span>
     <span class="status-item">{{
       sessionState.isStreaming ? "streaming: yes" : "streaming: no"

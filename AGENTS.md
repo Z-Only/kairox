@@ -74,7 +74,7 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 - **State management**: Pinia stores (`apps/agent-gui/src/stores/`). Composables in `composables/`.
 - **Types**: Centralized in `apps/agent-gui/src/types/`. Mirror Rust event types for Tauri IPC.
 - **Testing**: Vitest with `vitest/globals`. Test files colocated as `*.test.ts`.
-- **Style**: Prettier + ESLint + Stylelint. See lint-staged config for auto-fix rules.
+- **Style**: Oxlint + Oxfmt + Stylelint. See lint-staged config for auto-fix rules.
 
 ### Tauri IPC pattern
 
@@ -248,9 +248,9 @@ cargo test --workspace --all-targets
 Pre-commit hooks (husky + lint-staged) automatically run on staged files:
 
 - `*.rs` → `cargo fmt --all`
-- `*.{json,md}` → `prettier --write`
-- `apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}` → `prettier --write` + `eslint --fix`
-- `apps/agent-gui/src/**/*.{vue,css,scss,sass,less}` → `prettier --write` + `stylelint --fix`
+- `*.{json,md}` → `oxfmt --write`
+- `apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}` → `oxfmt --write` + `oxlint --fix`
+- `apps/agent-gui/src/**/*.{vue,css,scss,sass,less}` → `oxfmt --write` + `stylelint --fix`
 
 ## Version bumping
 

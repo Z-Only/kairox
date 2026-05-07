@@ -12,9 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
-test("permission prompt appears when agent requests tool access", async ({
-  page
-}) => {
+test("permission prompt appears when agent requests tool access", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -32,17 +30,11 @@ test("permission prompt appears when agent requests tool access", async ({
   await expect(page.locator(".permission-prompt").first()).toBeVisible({
     timeout: 3_000
   });
-  await expect(page.locator(".permission-prompt").first()).toContainText(
-    "Permission Required"
-  );
-  await expect(page.locator(".permission-prompt").first()).toContainText(
-    "fs.read"
-  );
+  await expect(page.locator(".permission-prompt").first()).toContainText("Permission Required");
+  await expect(page.locator(".permission-prompt").first()).toContainText("fs.read");
 });
 
-test("granting permission updates the permission entry status", async ({
-  page
-}) => {
+test("granting permission updates the permission entry status", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -50,10 +42,7 @@ test("granting permission updates the permission entry status", async ({
 
   // Simulate a permission request
   await page.evaluate(() => {
-    (window as any).__KAIROX_MOCK__.simulatePermissionRequest(
-      "shell.exec",
-      "Run: ls -la"
-    );
+    (window as any).__KAIROX_MOCK__.simulatePermissionRequest("shell.exec", "Run: ls -la");
   });
 
   await expect(page.locator(".permission-prompt").first()).toBeVisible({
@@ -77,10 +66,7 @@ test("denying permission shows denied status", async ({ page }) => {
 
   // Simulate a permission request
   await page.evaluate(() => {
-    (window as any).__KAIROX_MOCK__.simulatePermissionRequest(
-      "shell.rm",
-      "Delete: /tmp/old.txt"
-    );
+    (window as any).__KAIROX_MOCK__.simulatePermissionRequest("shell.rm", "Delete: /tmp/old.txt");
   });
 
   await expect(page.locator(".permission-prompt").first()).toBeVisible({
@@ -115,12 +101,8 @@ test("memory proposal appears in permission center", async ({ page }) => {
   await expect(page.locator(".memory-prompt").first()).toBeVisible({
     timeout: 3_000
   });
-  await expect(page.locator(".memory-prompt").first()).toContainText(
-    "Memory Proposed"
-  );
-  await expect(page.locator(".memory-prompt").first()).toContainText(
-    "concise explanations"
-  );
+  await expect(page.locator(".memory-prompt").first()).toContainText("Memory Proposed");
+  await expect(page.locator(".memory-prompt").first()).toContainText("concise explanations");
 });
 
 test("accepting memory removes the prompt", async ({ page }) => {
@@ -198,16 +180,12 @@ test("rejecting memory removes the prompt", async ({ page }) => {
   });
 });
 
-test("permission center shows 'No pending requests' when empty", async ({
-  page
-}) => {
+test("permission center shows 'No pending requests' when empty", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
   // By default, no permission requests
-  await expect(page.locator(".permission-center")).toContainText(
-    "No pending requests"
-  );
+  await expect(page.locator(".permission-center")).toContainText("No pending requests");
 });

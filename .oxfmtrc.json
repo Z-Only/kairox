@@ -1,0 +1,6 @@
+{
+  "$schema": "https://oxc.rs/docs/guide/config/node-api.html",
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "none"
+}

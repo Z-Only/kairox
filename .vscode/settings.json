@@ -1,6 +1,10 @@
 {
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSaveMode": "file",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "always"
+  },
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
@@ -9,13 +13,6 @@
   },
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.cargo.features": "all",
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact",
-    "vue"
-  ],
   "stylelint.validate": ["vue", "css", "scss", "sass", "less"],
   "files.eol": "\n",
   "files.insertFinalNewline": true,

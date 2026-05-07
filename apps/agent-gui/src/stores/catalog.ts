@@ -68,19 +68,13 @@ const TRUST_ORDER: Record<TrustLevel, number> = {
 
 export const filteredEntries = computed<ServerEntryResponse[]>(() => {
   const kw = catalogState.filters.keyword.trim().toLowerCase();
-  const minOrder = catalogState.filters.trustMin
-    ? TRUST_ORDER[catalogState.filters.trustMin]
-    : -1;
+  const minOrder = catalogState.filters.trustMin ? TRUST_ORDER[catalogState.filters.trustMin] : -1;
   return catalogState.entries.filter((e) => {
     if (kw) {
-      const hay =
-        `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
+      const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
       if (!hay.includes(kw)) return false;
     }
-    if (
-      catalogState.filters.category &&
-      !e.categories.includes(catalogState.filters.category)
-    ) {
+    if (catalogState.filters.category && !e.categories.includes(catalogState.filters.category)) {
       return false;
     }
     if (catalogState.filters.trustMin) {
@@ -95,9 +89,7 @@ export const hasEntries = computed(() => catalogState.entries.length > 0);
 
 export const installedCount = computed(() => catalogState.installed.length);
 
-export async function fetchCatalog(
-  query: CatalogQueryRequest = {}
-): Promise<void> {
+export async function fetchCatalog(query: CatalogQueryRequest = {}): Promise<void> {
   catalogState.loading = true;
   catalogState.error = null;
   try {
@@ -114,9 +106,7 @@ export async function fetchCatalog(
 
 export async function fetchInstalled(): Promise<void> {
   try {
-    catalogState.installed = await invoke<InstalledEntryResponse[]>(
-      "list_installed_entries"
-    );
+    catalogState.installed = await invoke<InstalledEntryResponse[]>("list_installed_entries");
   } catch (e) {
     catalogState.error = String(e);
     addNotification("error", `Failed to load installed entries: ${e}`);
@@ -143,10 +133,7 @@ export async function installEntry(
   request: InstallRequestPayload
 ): Promise<InstallOutcomeResponse | null> {
   try {
-    const outcome = await invoke<InstallOutcomeResponse>(
-      "install_catalog_entry",
-      { request }
-    );
+    const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request });
     catalogState.installState[request.catalog_id] = outcome;
     if (outcome.kind === "installed") {
       await fetchInstalled();
@@ -170,9 +157,7 @@ export async function uninstallEntry(serverId: string): Promise<void> {
   }
 }
 
-export async function refreshCatalogSource(
-  source: string | null = null
-): Promise<void> {
+export async function refreshCatalogSource(source: string | null = null): Promise<void> {
   try {
     await invoke("refresh_catalog", { source });
     await fetchCatalog();
@@ -188,18 +173,14 @@ export async function refreshCatalogSource(
 
 export async function fetchSources(): Promise<void> {
   try {
-    catalogState.sources = await invoke<CatalogSourceViewResponse[]>(
-      "list_catalog_sources"
-    );
+    catalogState.sources = await invoke<CatalogSourceViewResponse[]>("list_catalog_sources");
   } catch (e) {
     catalogState.error = String(e);
     addNotification("error", `Failed to load catalog sources: ${e}`);
   }
 }
 
-export async function addSource(
-  request: AddCatalogSourceRequestPayload
-): Promise<void> {
+export async function addSource(request: AddCatalogSourceRequestPayload): Promise<void> {
   try {
     await invoke("add_catalog_source", { request });
     await fetchSources();
@@ -220,10 +201,7 @@ export async function removeSource(id: string): Promise<void> {
   }
 }
 
-export async function setSourceEnabled(
-  id: string,
-  enabled: boolean
-): Promise<void> {
+export async function setSourceEnabled(id: string, enabled: boolean): Promise<void> {
   try {
     await invoke("set_catalog_source_enabled", { id, enabled });
     await fetchSources();
@@ -258,9 +236,7 @@ export function isSourceSelected(id: string): boolean {
 export function toggleSource(id: string): void {
   // Materialise the "all selected" sentinel into an explicit array on first toggle.
   const current = catalogState.selectedSources ?? allSourceIds.value.slice();
-  const next = current.includes(id)
-    ? current.filter((x) => x !== id)
-    : [...current, id];
+  const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
   catalogState.selectedSources = next;
 }
 

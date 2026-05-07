@@ -19,7 +19,7 @@ import { z } from "zod";
 
 const server = new McpServer({
   name: "echo-test-server",
-  version: "1.0.0",
+  version: "1.0.0"
 });
 
 // -- Tools -----------------------------------------------------------------
@@ -27,7 +27,7 @@ const server = new McpServer({
 server.tool("echo", "Echoes back the input", { message: z.string() }, async ({ message }) => {
   return {
     content: [{ type: "text", text: message }],
-    isError: false,
+    isError: false
   };
 });
 
@@ -35,36 +35,46 @@ server.tool("env", "Returns an environment variable", { name: z.string() }, asyn
   const value = process.env[name] ?? "";
   return {
     content: [{ type: "text", text: value }],
-    isError: false,
+    isError: false
   };
 });
 
 // -- Resources -------------------------------------------------------------
 
-server.resource("Echo Resource", "test://echo", { description: "A test resource", mimeType: "text/plain" }, async (uri) => {
-  return {
-    contents: [
-      {
-        uri: uri.href,
-        mimeType: "text/plain",
-        text: "Content of test://echo",
-      },
-    ],
-  };
-});
+server.resource(
+  "Echo Resource",
+  "test://echo",
+  { description: "A test resource", mimeType: "text/plain" },
+  async (uri) => {
+    return {
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/plain",
+          text: "Content of test://echo"
+        }
+      ]
+    };
+  }
+);
 
 // -- Prompts ---------------------------------------------------------------
 
-server.prompt("test-prompt", "A test prompt", { topic: z.string().describe("The topic") }, async ({ topic }) => {
-  return {
-    messages: [
-      {
-        role: "user",
-        content: { type: "text", text: `Tell me about ${topic}` },
-      },
-    ],
-  };
-});
+server.prompt(
+  "test-prompt",
+  "A test prompt",
+  { topic: z.string().describe("The topic") },
+  async ({ topic }) => {
+    return {
+      messages: [
+        {
+          role: "user",
+          content: { type: "text", text: `Tell me about ${topic}` }
+        }
+      ]
+    };
+  }
+);
 
 // -- Start -----------------------------------------------------------------
 

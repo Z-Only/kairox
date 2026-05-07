@@ -12,9 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
-test("notification container is not visible when no notifications", async ({
-  page
-}) => {
+test("notification container is not visible when no notifications", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -55,14 +53,10 @@ test("notification toast appears when error is triggered", async ({ page }) => {
   expect(toastEl).toBe(0);
 });
 
-test("permission center shows no pending requests initially", async ({
-  page
-}) => {
+test("permission center shows no pending requests initially", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".permission-center")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.locator(".permission-center")).toContainText(
-    "No pending requests"
-  );
+  await expect(page.locator(".permission-center")).toContainText("No pending requests");
 });

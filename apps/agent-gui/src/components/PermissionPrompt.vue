@@ -82,22 +82,16 @@ async function deny() {
         </span>
       </p>
       <p class="permission-description">{{ entry.title }}</p>
-      <div v-if="entry.scope" class="permission-meta">
-        Scope: {{ entry.scope }}
-      </div>
+      <div v-if="entry.scope" class="permission-meta">Scope: {{ entry.scope }}</div>
       <div v-if="entry.content" class="permission-meta">
         {{ entry.content }}
       </div>
-      <div class="permission-meta">
-        {{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}
-      </div>
+      <div class="permission-meta">{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}</div>
       <!-- MCP-specific UI -->
       <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
         <div class="mcp-server-label">
           MCP Server: <strong>{{ mcpServerId }}</strong>
-          <span v-if="isServerTrusted" class="mcp-trusted-badge"
-            >✅ Trusted</span
-          >
+          <span v-if="isServerTrusted" class="mcp-trusted-badge">✅ Trusted</span>
         </div>
         <label v-if="!isServerTrusted" class="mcp-trust-check">
           <input v-model="trustChecked" type="checkbox" />

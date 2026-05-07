@@ -13,12 +13,7 @@ vi.mock("../composables/useNotifications", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import {
-  memoryState,
-  loadMemories,
-  deleteMemoryItem,
-  setMemoryFilter
-} from "./memory";
+import { memoryState, loadMemories, deleteMemoryItem, setMemoryFilter } from "./memory";
 
 beforeEach(() => {
   memoryState.memories = [];
@@ -58,10 +53,7 @@ describe("loadMemories", () => {
     const { addNotification } = await import("../composables/useNotifications");
     mockedInvoke.mockRejectedValueOnce(new Error("db error"));
     await loadMemories();
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("db error")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("db error"));
   });
 });
 
@@ -84,10 +76,7 @@ describe("deleteMemoryItem", () => {
     ];
     mockedInvoke.mockRejectedValueOnce(new Error("not found"));
     await deleteMemoryItem("m1");
-    expect(addNotification).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("not found")
-    );
+    expect(addNotification).toHaveBeenCalledWith("error", expect.stringContaining("not found"));
     expect(memoryState.memories).toHaveLength(1);
   });
 });

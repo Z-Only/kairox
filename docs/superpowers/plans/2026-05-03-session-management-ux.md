@@ -1085,9 +1085,7 @@ Add to `apps/agent-gui/src/stores/session.ts`:
 export async function deleteSession(sessionId: string) {
   try {
     await invoke("delete_session", { sessionId });
-    sessionState.sessions = sessionState.sessions.filter(
-      (s) => s.id !== sessionId
-    );
+    sessionState.sessions = sessionState.sessions.filter((s) => s.id !== sessionId);
     // If we deleted the current session, switch to the first remaining one
     if (sessionState.currentSessionId === sessionId) {
       if (sessionState.sessions.length > 0) {
@@ -1136,8 +1134,7 @@ export async function renameSession(sessionId: string, title: string) {
 
 export async function recoverSessions() {
   try {
-    const workspaces: { workspace_id: string; path: string }[] =
-      await invoke("list_workspaces");
+    const workspaces: { workspace_id: string; path: string }[] = await invoke("list_workspaces");
     if (workspaces.length === 0) {
       return false;
     }
@@ -1255,10 +1252,7 @@ const emit = defineEmits<{
       <p>{{ message }}</p>
       <div class="dialog-actions">
         <button class="btn-cancel" @click="emit('cancel')">Cancel</button>
-        <button
-          :class="['btn-confirm', { 'btn-danger': confirmDanger }]"
-          @click="emit('confirm')"
-        >
+        <button :class="['btn-confirm', { 'btn-danger': confirmDanger }]" @click="emit('confirm')">
           {{ confirmLabel || "Confirm" }}
         </button>
       </div>
@@ -1440,9 +1434,7 @@ async function loadProfiles() {
       profile: "__all__"
     });
     // get_profile_detail expects a single profile. Load all via get_profile_info instead.
-    availableProfiles.value = (await invoke(
-      "get_profile_info"
-    )) as ProfileDetail[];
+    availableProfiles.value = (await invoke("get_profile_info")) as ProfileDetail[];
     if (availableProfiles.value.length > 0) {
       selectedProfile.value = availableProfiles.value[0].alias;
     }
@@ -1505,19 +1497,14 @@ function keyIcon(hasApiKey: boolean): string {
   <aside class="sessions-sidebar">
     <header class="sidebar-header">
       <h2>Sessions</h2>
-      <button class="new-session-btn" @click="openNewSessionDialog">
-        + New
-      </button>
+      <button class="new-session-btn" @click="openNewSessionDialog">+ New</button>
     </header>
 
     <ul v-if="sessionState.sessions.length > 0" class="session-list">
       <li
         v-for="session in sessionState.sessions"
         :key="session.id"
-        :class="[
-          'session-item',
-          { active: session.id === sessionState.currentSessionId }
-        ]"
+        :class="['session-item', { active: session.id === sessionState.currentSessionId }]"
         @click="switchToSession(session.id)"
       >
         <span class="session-indicator">●</span>
@@ -1565,10 +1552,7 @@ function keyIcon(hasApiKey: boolean): string {
       <label>
         Profile:
         <div class="profile-dropdown">
-          <button
-            class="profile-trigger"
-            @click="profileDropdownOpen = !profileDropdownOpen"
-          >
+          <button class="profile-trigger" @click="profileDropdownOpen = !profileDropdownOpen">
             {{ selectedProfile }}
             <span class="caret">▼</span>
           </button>
@@ -1576,16 +1560,11 @@ function keyIcon(hasApiKey: boolean): string {
             <div
               v-for="p in availableProfiles"
               :key="p.alias"
-              :class="[
-                'profile-option',
-                { selected: p.alias === selectedProfile }
-              ]"
+              :class="['profile-option', { selected: p.alias === selectedProfile }]"
               @click="selectProfile(p.alias)"
             >
               <span class="profile-alias">{{ p.alias }}</span>
-              <span class="profile-detail">
-                {{ p.provider }} · {{ p.model_id }}
-              </span>
+              <span class="profile-detail"> {{ p.provider }} · {{ p.model_id }} </span>
               <span class="profile-key">{{ keyIcon(p.has_api_key) }}</span>
             </div>
           </div>

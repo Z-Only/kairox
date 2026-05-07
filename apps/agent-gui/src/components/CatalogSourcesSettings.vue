@@ -78,9 +78,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   <div class="catalog-sources-settings">
     <h3>Remote Catalog Sources</h3>
 
-    <p v-if="sources.length === 0" class="empty">
-      No remote catalog sources configured.
-    </p>
+    <p v-if="sources.length === 0" class="empty">No remote catalog sources configured.</p>
 
     <ul v-else class="src-list">
       <li v-for="src in sources" :key="src.id" class="src-row">
@@ -88,12 +86,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
           <strong>{{ src.display_name }}</strong>
           <code class="src-id">{{ src.id }}</code>
           <span class="src-kind">{{ src.kind }}</span>
-          <a
-            v-if="src.url"
-            :href="src.url"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a v-if="src.url" :href="src.url" target="_blank" rel="noopener noreferrer">
             {{ src.url }}
           </a>
           <span v-if="failures[src.id]" class="src-error" title="Last error">
@@ -107,9 +100,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
               :checked="src.enabled"
               :disabled="src.id === 'builtin'"
               :data-test="`src-enable-${src.id}`"
-              @change="
-                onToggle(src.id, ($event.target as HTMLInputElement).checked)
-              "
+              @change="onToggle(src.id, ($event.target as HTMLInputElement).checked)"
             />
             Enabled
           </label>

@@ -367,13 +367,7 @@ AutoImport({
     "@vueuse/core",
     { "vue-i18n": ["useI18n"] },
     {
-      "naive-ui": [
-        "useDialog",
-        "useMessage",
-        "useNotification",
-        "useLoadingBar",
-        "useThemeVars"
-      ]
+      "naive-ui": ["useDialog", "useMessage", "useNotification", "useLoadingBar", "useThemeVars"]
     }
   ],
   dirs: [], // explicitly empty: business stores stay explicit

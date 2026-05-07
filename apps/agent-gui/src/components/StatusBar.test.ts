@@ -37,8 +37,6 @@ describe("StatusBar", () => {
     mockedInvoke.mockResolvedValueOnce("Interactive");
     mockedInvoke.mockResolvedValueOnce([]);
     const wrapper = mount(StatusBar);
-    expect(wrapper.findComponent({ name: "McpStatusIndicator" }).exists()).toBe(
-      true
-    );
+    expect(wrapper.findComponent({ name: "McpStatusIndicator" }).exists()).toBe(true);
   });
 });

@@ -9,10 +9,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
 
-const makeTask = (
-  id: string,
-  overrides?: Partial<TaskSnapshot>
-): TaskSnapshot => ({
+const makeTask = (id: string, overrides?: Partial<TaskSnapshot>): TaskSnapshot => ({
   id,
   title: `Task ${id}`,
   role: "Worker",
@@ -33,10 +30,7 @@ describe("TaskSteps", () => {
   });
 
   it("renders task tree with root task", () => {
-    setTaskGraph(
-      [makeTask("A", { title: "Root Task", state: "Running" })],
-      "ses_1"
-    );
+    setTaskGraph([makeTask("A", { title: "Root Task", state: "Running" })], "ses_1");
     const wrapper = mount(TaskSteps);
     expect(wrapper.text()).toContain("Root Task");
     expect(wrapper.text()).toContain("running...");
@@ -64,10 +58,7 @@ describe("TaskSteps", () => {
 
   it("renders state-specific CSS classes", () => {
     setTaskGraph(
-      [
-        makeTask("1", { state: "Pending" }),
-        makeTask("2", { state: "Failed", error: "err" })
-      ],
+      [makeTask("1", { state: "Pending" }), makeTask("2", { state: "Failed", error: "err" })],
       "ses_1"
     );
     const wrapper = mount(TaskSteps);
