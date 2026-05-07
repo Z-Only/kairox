@@ -17,9 +17,8 @@ onMounted(async () => {
   if (recovered) return;
 
   try {
-    const workspaceInfo: { workspace_id: string; path: string } = await invoke(
-      "initialize_workspace"
-    );
+    const workspaceInfo: { workspace_id: string; path: string } =
+      await invoke("initialize_workspace");
     session.workspaceId = workspaceInfo.workspace_id;
     session.initialized = true;
     session.sessions = await invoke("list_sessions");

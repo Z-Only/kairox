@@ -35,9 +35,7 @@ import { useSessionStore } from "@/stores/session";
  * The `prepareSession` callback runs after mount and before assertions so
  * the Pinia instance the component sees is the same one the test mutates.
  */
-function mountChatPanel(
-  prepareSession?: (session: ReturnType<typeof useSessionStore>) => void
-) {
+function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionStore>) => void) {
   const { wrapper } = mountWithPlugins(ChatPanel, {
     withNaiveProviders: true,
     initialRoute: "/workbench"

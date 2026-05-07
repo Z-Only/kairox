@@ -31,9 +31,7 @@ describe("useTauriEvents", () => {
 
     const ui = useUiStore();
     const errorNotice = ui.notifications.find(
-      (n) =>
-        n.level === "error" &&
-        n.message.startsWith("Failed to subscribe to session events")
+      (n) => n.level === "error" && n.message.startsWith("Failed to subscribe to session events")
     );
 
     expect(errorNotice).toBeDefined();

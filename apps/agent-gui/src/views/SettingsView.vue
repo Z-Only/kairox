@@ -36,11 +36,7 @@ const { locale, colorMode } = storeToRefs(ui);
         id="settings-locale"
         :value="locale"
         data-test="settings-locale"
-        @change="
-          ui.setLocale(
-            ($event.target as HTMLSelectElement).value as SupportedLocale
-          )
-        "
+        @change="ui.setLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
       >
         <option v-for="opt in locales" :key="opt.value" :value="opt.value">
           {{ t(opt.labelKey) }}
@@ -54,9 +50,7 @@ const { locale, colorMode } = storeToRefs(ui);
         id="settings-theme"
         :value="colorMode"
         data-test="settings-theme"
-        @change="
-          ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)
-        "
+        @change="ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)"
       >
         <option v-for="opt in themes" :key="opt.value" :value="opt.value">
           {{ t(opt.labelKey) }}

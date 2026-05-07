@@ -82,19 +82,13 @@ export const useCatalogStore = defineStore("catalog", () => {
   // ── computeds ────────────────────────────────────────────────────
   const filteredEntries = computed<ServerEntryResponse[]>(() => {
     const kw = filters.value.keyword.trim().toLowerCase();
-    const minOrder = filters.value.trustMin
-      ? TRUST_ORDER[filters.value.trustMin]
-      : -1;
+    const minOrder = filters.value.trustMin ? TRUST_ORDER[filters.value.trustMin] : -1;
     return entries.value.filter((e) => {
       if (kw) {
-        const hay =
-          `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
+        const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
         if (!hay.includes(kw)) return false;
       }
-      if (
-        filters.value.category &&
-        !e.categories.includes(filters.value.category)
-      ) {
+      if (filters.value.category && !e.categories.includes(filters.value.category)) {
         return false;
       }
       if (filters.value.trustMin) {
@@ -107,10 +101,7 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   const hasEntries = computed(() => entries.value.length > 0);
   const installedCount = computed(() => installed.value.length);
-  const allSourceIds = computed<string[]>(() => [
-    "builtin",
-    ...sources.value.map((s) => s.id)
-  ]);
+  const allSourceIds = computed<string[]>(() => ["builtin", ...sources.value.map((s) => s.id)]);
 
   function isSourceSelected(id: string): boolean {
     if (selectedSources.value === null) return true;
@@ -119,9 +110,7 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   function toggleSource(id: string): void {
     const current = selectedSources.value ?? allSourceIds.value.slice();
-    const next = current.includes(id)
-      ? current.filter((x) => x !== id)
-      : [...current, id];
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
     selectedSources.value = next;
   }
 
@@ -149,9 +138,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   async function fetchInstalled(): Promise<void> {
     const ui = useUiStore();
     try {
-      installed.value = await invoke<InstalledEntryResponse[]>(
-        "list_installed_entries"
-      );
+      installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load installed entries: ${e}`);
@@ -180,10 +167,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   ): Promise<InstallOutcomeResponse | null> {
     const ui = useUiStore();
     try {
-      const outcome = await invoke<InstallOutcomeResponse>(
-        "install_catalog_entry",
-        { request }
-      );
+      const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request });
       installState.value[request.catalog_id] = outcome;
       if (outcome.kind === "installed") {
         await fetchInstalled();
@@ -191,10 +175,7 @@ export const useCatalogStore = defineStore("catalog", () => {
       return outcome;
     } catch (e) {
       console.error("Failed to install catalog entry:", e);
-      ui.pushNotification(
-        "error",
-        `Failed to install ${request.catalog_id}: ${e}`
-      );
+      ui.pushNotification("error", `Failed to install ${request.catalog_id}: ${e}`);
       return null;
     }
   }
@@ -211,9 +192,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     }
   }
 
-  async function refreshCatalogSource(
-    source: string | null = null
-  ): Promise<void> {
+  async function refreshCatalogSource(source: string | null = null): Promise<void> {
     const ui = useUiStore();
     try {
       await invoke("refresh_catalog", { source });
@@ -227,18 +206,14 @@ export const useCatalogStore = defineStore("catalog", () => {
   async function fetchSources(): Promise<void> {
     const ui = useUiStore();
     try {
-      sources.value = await invoke<CatalogSourceViewResponse[]>(
-        "list_catalog_sources"
-      );
+      sources.value = await invoke<CatalogSourceViewResponse[]>("list_catalog_sources");
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load catalog sources: ${e}`);
     }
   }
 
-  async function addSource(
-    request: AddCatalogSourceRequestPayload
-  ): Promise<void> {
+  async function addSource(request: AddCatalogSourceRequestPayload): Promise<void> {
     const ui = useUiStore();
     try {
       await invoke("add_catalog_source", { request });

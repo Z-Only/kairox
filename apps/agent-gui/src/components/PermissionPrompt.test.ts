@@ -14,10 +14,8 @@ import { mountWithPlugins } from "@/test-utils/mount";
 // `mountWithPlugins` return `{ wrapper, router }` rather than a bare
 // wrapper, so we unwrap `.wrapper` here to keep the call-site API
 // identical to the previous `mount(...)` usage.
-const mount = (
-  comp: typeof PermissionPrompt,
-  options: { props: { entry: TraceEntryData } }
-) => mountWithPlugins(comp, { mount: options, reusePinia: true }).wrapper;
+const mount = (comp: typeof PermissionPrompt, options: { props: { entry: TraceEntryData } }) =>
+  mountWithPlugins(comp, { mount: options, reusePinia: true }).wrapper;
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({

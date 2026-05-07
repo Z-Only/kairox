@@ -48,19 +48,11 @@ const sourceAgentLabel = computed(() => {
   return null;
 });
 
-const alertType = computed<"warning" | "success">(() =>
-  isMemory ? "success" : "warning"
-);
-const allowLabel = computed(() =>
-  isMemory ? t("permission.accept") : t("permission.allow")
-);
-const denyLabel = computed(() =>
-  isMemory ? t("permission.reject") : t("permission.deny")
-);
+const alertType = computed<"warning" | "success">(() => (isMemory ? "success" : "warning"));
+const allowLabel = computed(() => (isMemory ? t("permission.accept") : t("permission.allow")));
+const denyLabel = computed(() => (isMemory ? t("permission.reject") : t("permission.deny")));
 const titleLabel = computed(() =>
-  isMemory
-    ? t("permission.titleMemoryProposed")
-    : t("permission.titlePermissionRequired")
+  isMemory ? t("permission.titleMemoryProposed") : t("permission.titlePermissionRequired")
 );
 const iconLabel = computed(() => (isMemory ? "🧠" : "🔑"));
 
@@ -120,15 +112,11 @@ async function deny() {
           <NText depth="2" class="permission-description">
             {{ entry.title }}
           </NText>
-          <div v-if="entry.scope" class="permission-meta">
-            Scope: {{ entry.scope }}
-          </div>
+          <div v-if="entry.scope" class="permission-meta">Scope: {{ entry.scope }}</div>
           <div v-if="entry.content" class="permission-meta">
             {{ entry.content }}
           </div>
-          <div class="permission-meta">
-            {{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}
-          </div>
+          <div class="permission-meta">{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}</div>
           <!-- MCP-specific UI. The wrapper classes (.mcp-permission-info,
                .mcp-trust-check, .mcp-trusted-badge) are kept verbatim so
                permission-prompt tests can still query them after the

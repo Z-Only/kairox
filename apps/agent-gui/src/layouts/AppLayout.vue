@@ -12,12 +12,8 @@ const { isDark } = storeToRefs(ui);
 // `null` selects NaiveUI's default light theme. We avoid importing
 // `lightTheme` explicitly because passing `null` is the documented way to opt
 // out of any built-in theme and is what the framework treats as "light".
-const theme = computed<GlobalTheme | null>(() =>
-  isDark.value ? darkTheme : null
-);
-const themeOverrides = computed(() =>
-  isDark.value ? darkThemeOverrides : lightThemeOverrides
-);
+const theme = computed<GlobalTheme | null>(() => (isDark.value ? darkTheme : null));
+const themeOverrides = computed(() => (isDark.value ? darkThemeOverrides : lightThemeOverrides));
 
 // `useThemeVars()` is the documented way to read NaiveUI theme tokens from
 // outside a NaiveUI component. We expose a stable subset as `--app-*` CSS
@@ -46,16 +42,10 @@ const themeVars = useThemeVars();
               }"
             >
               <nav class="app-nav" data-test="app-nav">
-                <RouterLink
-                  :to="{ name: 'workbench' }"
-                  data-test="nav-workbench"
-                >
+                <RouterLink :to="{ name: 'workbench' }" data-test="nav-workbench">
                   {{ t("nav.workbench") }}
                 </RouterLink>
-                <RouterLink
-                  :to="{ name: 'marketplace' }"
-                  data-test="nav-marketplace"
-                >
+                <RouterLink :to="{ name: 'marketplace' }" data-test="nav-marketplace">
                   {{ t("nav.marketplace") }}
                 </RouterLink>
                 <RouterLink :to="{ name: 'settings' }" data-test="nav-settings">

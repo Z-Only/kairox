@@ -16,13 +16,9 @@ export const useMcpStore = defineStore("mcp", () => {
   const trustedServerIds = ref<string[]>([]);
   const loading = ref(false);
 
-  const runningServers = computed(() =>
-    servers.value.filter((s) => s.status === "running")
-  );
+  const runningServers = computed(() => servers.value.filter((s) => s.status === "running"));
 
-  const failedServers = computed(() =>
-    servers.value.filter((s) => s.status === "failed")
-  );
+  const failedServers = computed(() => servers.value.filter((s) => s.status === "failed"));
 
   const runningCount = computed(() => runningServers.value.length);
 
@@ -46,8 +42,7 @@ export const useMcpStore = defineStore("mcp", () => {
     const ui = useUiStore();
     loading.value = true;
     try {
-      const result =
-        await invoke<McpServerStatusResponse[]>("list_mcp_servers");
+      const result = await invoke<McpServerStatusResponse[]>("list_mcp_servers");
       servers.value = result.map((s) => ({ ...s, error: undefined }));
     } catch (e) {
       console.error("Failed to fetch MCP servers:", e);
@@ -96,9 +91,7 @@ export const useMcpStore = defineStore("mcp", () => {
     const ui = useUiStore();
     try {
       await invoke("revoke_mcp_trust", { serverId: id });
-      trustedServerIds.value = trustedServerIds.value.filter(
-        (sid) => sid !== id
-      );
+      trustedServerIds.value = trustedServerIds.value.filter((sid) => sid !== id);
     } catch (e) {
       console.error("Failed to revoke MCP trust:", e);
       ui.pushNotification("error", `Failed to revoke MCP trust: ${e}`);
@@ -120,10 +113,7 @@ export const useMcpStore = defineStore("mcp", () => {
    * Apply an MCP-related DomainEvent to the local state.
    * Called from useTauriEvents for real-time updates.
    */
-  function handleMcpEvent(payload: {
-    type: string;
-    [key: string]: unknown;
-  }): void {
+  function handleMcpEvent(payload: { type: string; [key: string]: unknown }): void {
     switch (payload.type) {
       case "McpServerStarting":
         updateServer(payload.server_id as string, { status: "starting" });

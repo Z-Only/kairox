@@ -62,9 +62,7 @@ test("trace panel is visible in the right sidebar", async ({ page }) => {
   await expect(page.locator(".trace-timeline")).toBeVisible();
 });
 
-test("trace tab is selectable from the right-sidebar tab group", async ({
-  page
-}) => {
+test("trace tab is selectable from the right-sidebar tab group", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".trace-timeline")).toBeVisible({
     timeout: 10_000

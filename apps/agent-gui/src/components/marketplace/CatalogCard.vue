@@ -15,22 +15,12 @@ const trustTagType = computed<"success" | "warning" | "default">(() => {
 </script>
 
 <template>
-  <button
-    type="button"
-    class="card-button"
-    data-test="catalog-card"
-    @click="emit('click')"
-  >
+  <button type="button" class="card-button" data-test="catalog-card" @click="emit('click')">
     <NCard size="small" :bordered="true" class="catalog-card">
       <div class="card-head">
         <span class="icon">{{ entry.icon || "🔌" }}</span>
         <NText strong>{{ entry.display_name }}</NText>
-        <NTag
-          size="small"
-          :type="trustTagType"
-          :bordered="false"
-          class="trust-tag"
-        >
+        <NTag size="small" :type="trustTagType" :bordered="false" class="trust-tag">
           {{ entry.trust }}
         </NTag>
       </div>

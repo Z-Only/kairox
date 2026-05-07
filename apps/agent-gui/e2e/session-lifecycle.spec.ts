@@ -100,9 +100,7 @@ test("renames a session", async ({ page }) => {
   await input.press("Enter");
 
   // Verify new title appears
-  await expect(sessionItem.locator(".session-title")).toHaveText(
-    "My Renamed Session"
-  );
+  await expect(sessionItem.locator(".session-title")).toHaveText("My Renamed Session");
 });
 
 test("deletes a session with confirmation", async ({ page }) => {
@@ -138,7 +136,5 @@ test("status bar shows session count and mode", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status-bar")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("status-bar")).toContainText("sessions: 1");
-  await expect(page.getByTestId("status-bar")).toContainText(
-    "mode: interactive"
-  );
+  await expect(page.getByTestId("status-bar")).toContainText("mode: interactive");
 });

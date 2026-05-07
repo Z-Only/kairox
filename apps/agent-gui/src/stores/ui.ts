@@ -26,26 +26,16 @@ export const useUiStore = defineStore("ui", () => {
   // which loses the user's intent and breaks round-tripping. `usePreferredDark`
   // reads the system media query without touching storage, so `isDark` derives
   // cleanly without overwriting the persisted preference.
-  const colorMode = useStorage<ThemeMode>(
-    "kairox.color-mode",
-    "auto",
-    undefined,
-    {
-      flush: "sync",
-      serializer: {
-        read: (v) =>
-          v === "auto" || v === "light" || v === "dark"
-            ? (v as ThemeMode)
-            : "auto",
-        write: (v) => v
-      }
+  const colorMode = useStorage<ThemeMode>("kairox.color-mode", "auto", undefined, {
+    flush: "sync",
+    serializer: {
+      read: (v) => (v === "auto" || v === "light" || v === "dark" ? (v as ThemeMode) : "auto"),
+      write: (v) => v
     }
-  );
+  });
   const preferredDark = usePreferredDark();
   const isDark = computed(() =>
-    colorMode.value === "auto"
-      ? preferredDark.value
-      : colorMode.value === "dark"
+    colorMode.value === "auto" ? preferredDark.value : colorMode.value === "dark"
   );
 
   function setTheme(mode: ThemeMode) {
@@ -68,14 +58,9 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // ── Sidebar (future-proof) ──────────────────────────────
-  const sidebarCollapsed = useStorage(
-    "kairox.sidebar-collapsed",
-    false,
-    undefined,
-    {
-      flush: "sync"
-    }
-  );
+  const sidebarCollapsed = useStorage("kairox.sidebar-collapsed", false, undefined, {
+    flush: "sync"
+  });
 
   // ── Notifications ───────────────────────────────────────
   const notifications = ref<NotificationItem[]>([]);

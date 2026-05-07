@@ -8,10 +8,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-function makeEvent(
-  payload: EventPayload,
-  sourceAgentId = "agent_system"
-): DomainEvent {
+function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -91,9 +88,7 @@ describe("applyEvent", () => {
 
   it("marks cancelled on SessionCancelled", () => {
     const session = useSessionStore();
-    session.applyEvent(
-      makeEvent({ type: "SessionCancelled", reason: "user stopped" })
-    );
+    session.applyEvent(makeEvent({ type: "SessionCancelled", reason: "user stopped" }));
     expect(session.projection.cancelled).toBe(true);
     expect(session.isStreaming).toBe(false);
   });
@@ -129,9 +124,7 @@ describe("applyEvent", () => {
 
   it("handles TaskRetried event", () => {
     const session = useSessionStore();
-    session.applyEvent(
-      makeEvent({ type: "TaskRetried", task_id: "t1", attempt: 2 })
-    );
+    session.applyEvent(makeEvent({ type: "TaskRetried", task_id: "t1", attempt: 2 }));
     expect(session.projection.messages).toHaveLength(1);
     expect(session.projection.messages[0].role).toBe("system");
     expect(session.projection.messages[0].content).toContain("attempt 2");
@@ -179,9 +172,7 @@ describe("setProjection", () => {
 describe("resetProjection", () => {
   it("clears all projection state and agent state", () => {
     const session = useSessionStore();
-    session.applyEvent(
-      makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" })
-    );
+    session.applyEvent(makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" }));
     session.resetProjection();
     expect(session.projection.messages).toHaveLength(0);
     expect(session.projection.token_stream).toBe("");

@@ -60,7 +60,7 @@ test.describe("MCP Permission Prompt", () => {
     // This test would require triggering a permission request event
     // For now, verify the component exists in the DOM
     // In a real scenario, we'd emit a permission request event with an MCP tool
-    const permissionPrompt = page.locator(".permission-prompt");
+    const _permissionPrompt = page.locator(".permission-prompt");
     // Component may not be visible until a permission request is triggered
     // Just verify the page loaded
     await expect(page.locator("#app")).toBeVisible();

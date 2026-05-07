@@ -51,9 +51,7 @@ async function createSession() {
 
 async function loadProfiles() {
   try {
-    availableProfiles.value = (await invoke(
-      "get_profile_info"
-    )) as ProfileDetail[];
+    availableProfiles.value = (await invoke("get_profile_info")) as ProfileDetail[];
     if (availableProfiles.value.length > 0) {
       selectedProfile.value = availableProfiles.value[0].alias;
     }
@@ -106,10 +104,7 @@ function bindRenameInput(el: Element | null, itemId: string) {
 
 async function confirmRename() {
   if (editingSessionId.value && editingTitle.value.trim()) {
-    await session.renameSession(
-      editingSessionId.value,
-      editingTitle.value.trim()
-    );
+    await session.renameSession(editingSessionId.value, editingTitle.value.trim());
   }
   editingSessionId.value = null;
 }
@@ -228,10 +223,7 @@ function keyIcon(hasApiKey: boolean): string {
       <label>
         {{ t("sessions.profileLabel") }}
         <div class="profile-dropdown">
-          <button
-            class="profile-trigger"
-            @click="profileDropdownOpen = !profileDropdownOpen"
-          >
+          <button class="profile-trigger" @click="profileDropdownOpen = !profileDropdownOpen">
             {{ selectedProfile }}
             <span class="caret">▼</span>
           </button>
@@ -239,18 +231,12 @@ function keyIcon(hasApiKey: boolean): string {
             <div
               v-for="p in availableProfiles"
               :key="p.alias"
-              :class="[
-                'profile-option',
-                { selected: p.alias === selectedProfile }
-              ]"
+              :class="['profile-option', { selected: p.alias === selectedProfile }]"
               @click="selectProfile(p.alias)"
             >
               <div class="profile-info">
                 <span class="profile-alias">{{ p.alias }}</span>
-                <span
-                  class="profile-detail"
-                  :title="`${p.provider} · ${p.model_id}`"
-                >
+                <span class="profile-detail" :title="`${p.provider} · ${p.model_id}`">
                   {{ p.provider }} · {{ p.model_id }}
                 </span>
               </div>

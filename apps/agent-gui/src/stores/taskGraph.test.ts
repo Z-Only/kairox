@@ -8,9 +8,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-function makeTask(
-  overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">
-): TaskSnapshot {
+function makeTask(overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">): TaskSnapshot {
   return {
     title: `Task ${overrides.id}`,
     role: "Planner" as const,

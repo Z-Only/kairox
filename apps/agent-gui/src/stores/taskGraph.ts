@@ -60,9 +60,7 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
       const node: TaskTreeNode = {
         task,
         children: [],
-        agentLabel: task.assigned_agent_id
-          ? agents.agentLabel(task.assigned_agent_id)
-          : null,
+        agentLabel: task.assigned_agent_id ? agents.agentLabel(task.assigned_agent_id) : null,
         durationMs: null
       };
 

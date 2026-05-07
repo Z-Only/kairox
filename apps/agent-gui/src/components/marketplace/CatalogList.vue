@@ -48,11 +48,7 @@ onMounted(async () => {
         placeholder="All trust levels"
         data-test="catalog-trust"
       />
-      <NButton
-        size="small"
-        data-test="catalog-refresh"
-        @click="catalog.refreshCatalogSource(null)"
-      >
+      <NButton size="small" data-test="catalog-refresh" @click="catalog.refreshCatalogSource(null)">
         Refresh
       </NButton>
     </div>

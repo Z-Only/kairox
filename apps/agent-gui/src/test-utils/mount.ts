@@ -2,10 +2,7 @@
 // `dirs: []` per spec §3 Q7). This test-utils module is plain `.ts`, so
 // `defineComponent`, `h`, `createI18n`, `createRouter`, etc. must be
 // imported explicitly.
-import {
-  mount as baseMount,
-  type ComponentMountingOptions
-} from "@vue/test-utils";
+import { mount as baseMount, type ComponentMountingOptions } from "@vue/test-utils";
 import { defineComponent, h, type Component } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { createI18n } from "vue-i18n";
@@ -117,15 +114,12 @@ export function mountWithPlugins<T extends Component>(
     "wrapInNConfigProvider" in options ||
     "reusePinia" in options ||
     "initialRoute" in options;
-  const extended = (
-    isExtendedOptions ? options : {}
-  ) as MountWithPluginsOptions<T>;
+  const extended = (isExtendedOptions ? options : {}) as MountWithPluginsOptions<T>;
   const mountOpts: ComponentMountingOptions<T> = isExtendedOptions
     ? (extended.mount ?? {})
     : (options as ComponentMountingOptions<T>);
   const shouldWrap =
-    extended.wrapInNConfigProvider === true ||
-    extended.withNaiveProviders === true;
+    extended.wrapInNConfigProvider === true || extended.withNaiveProviders === true;
 
   // When `reusePinia: true`, the caller has already done
   // `setActivePinia(createPinia())` in beforeEach (and likely mutated
@@ -174,7 +168,7 @@ export function mountWithPlugins<T extends Component>(
     ...mountOpts,
     global: {
       plugins,
-      ...(mountOpts.global ?? {})
+      ...mountOpts.global
     }
   });
 

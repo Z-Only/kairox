@@ -39,13 +39,7 @@ onMounted(() => {
       </NText>
     </header>
 
-    <NTabs
-      v-model:value="catalog.tab"
-      type="line"
-      animated
-      size="medium"
-      class="marketplace-tabs"
-    >
+    <NTabs v-model:value="catalog.tab" type="line" animated size="medium" class="marketplace-tabs">
       <NTabPane name="browse">
         <template #tab>
           <span data-test="tab-browse">{{ t("marketplace.tabBrowse") }}</span>

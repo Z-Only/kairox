@@ -29,13 +29,7 @@ const kindIcon: Record<string, string> = {
 </script>
 
 <template>
-  <div
-    :class="[
-      'trace-entry',
-      `trace-entry--${entry.status}`,
-      `trace-entry--${entry.kind}`
-    ]"
-  >
+  <div :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]">
     <!-- All entries show as a trace row; pending permission/memory
          interactions are handled exclusively by PermissionCenter. The
          row's bespoke class names are preserved because the unit tests
@@ -50,23 +44,13 @@ const kindIcon: Record<string, string> = {
           {{ entry.toolId || entry.title }}
         </NEllipsis>
       </span>
-      <NTag
-        v-if="entry.scope"
-        size="tiny"
-        :bordered="false"
-        type="info"
-        class="entry-scope"
-      >
+      <NTag v-if="entry.scope" size="tiny" :bordered="false" type="info" class="entry-scope">
         {{ entry.scope }}
       </NTag>
       <NText v-if="entry.durationMs != null" depth="3" class="entry-duration">
         {{ (entry.durationMs / 1000).toFixed(1) }}s
       </NText>
-      <NText
-        v-if="entry.status === 'running'"
-        type="info"
-        class="entry-running"
-      >
+      <NText v-if="entry.status === 'running'" type="info" class="entry-running">
         running...
       </NText>
       <NTag
@@ -92,18 +76,12 @@ const kindIcon: Record<string, string> = {
         <span class="entry-label">Reason:</span>
         <span>{{ entry.reason }}</span>
       </div>
-      <div
-        v-if="entry.content && entry.kind === 'memory'"
-        class="entry-section"
-      >
+      <div v-if="entry.content && entry.kind === 'memory'" class="entry-section">
         <span class="entry-label">Content:</span>
         <pre class="entry-code">{{ entry.content }}</pre>
       </div>
     </div>
-    <div
-      v-if="density === 'L3' && entry.expanded && entry.rawEvent"
-      class="entry-raw"
-    >
+    <div v-if="density === 'L3' && entry.expanded && entry.rawEvent" class="entry-raw">
       <pre class="entry-code">{{ entry.rawEvent }}</pre>
     </div>
   </div>

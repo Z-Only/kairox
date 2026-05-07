@@ -54,10 +54,7 @@ describe("loadMemories", () => {
     const memory = useMemoryStore();
     mockedInvoke.mockRejectedValueOnce(new Error("db error"));
     await memory.loadMemories();
-    expect(pushNotificationSpy).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("db error")
-    );
+    expect(pushNotificationSpy).toHaveBeenCalledWith("error", expect.stringContaining("db error"));
   });
 });
 
@@ -99,10 +96,7 @@ describe("deleteMemoryItem", () => {
     ];
     mockedInvoke.mockRejectedValueOnce(new Error("not found"));
     await memory.deleteMemoryItem("m1");
-    expect(pushNotificationSpy).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("not found")
-    );
+    expect(pushNotificationSpy).toHaveBeenCalledWith("error", expect.stringContaining("not found"));
     expect(memory.memories).toHaveLength(1);
   });
 });

@@ -34,9 +34,7 @@ function statusText(status: string): string {
   }
 }
 
-function statusTagType(
-  status: string
-): "success" | "warning" | "error" | "default" {
+function statusTagType(status: string): "success" | "warning" | "error" | "default" {
   switch (status) {
     case "running":
       return "success";
@@ -60,31 +58,15 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
        .mcp-server-actions class hooks are also kept since the
        existing test suite drives the UI through them. -->
   <div class="mcp-manager">
-    <NCard
-      size="small"
-      :bordered="true"
-      class="mcp-manager-card"
-      content-style="padding: 0;"
-    >
+    <NCard size="small" :bordered="true" class="mcp-manager-card" content-style="padding: 0;">
       <template #header>
         <NText strong>MCP Servers</NText>
       </template>
       <template #header-extra>
-        <NButton
-          quaternary
-          size="tiny"
-          class="mcp-close-btn"
-          @click="emit('close')"
-        >
-          ✕
-        </NButton>
+        <NButton quaternary size="tiny" class="mcp-close-btn" @click="emit('close')"> ✕ </NButton>
       </template>
 
-      <NEmpty
-        v-if="mcp.servers.length === 0"
-        size="small"
-        class="mcp-empty-wrap"
-      >
+      <NEmpty v-if="mcp.servers.length === 0" size="small" class="mcp-empty-wrap">
         <template #default>
           <p class="mcp-empty">No MCP servers configured</p>
         </template>

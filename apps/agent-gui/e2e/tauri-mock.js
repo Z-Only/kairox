@@ -395,7 +395,7 @@ function invoke(cmd, args) {
       return Promise.resolve(state.workspace ? [state.workspace] : []);
 
     case "restore_workspace": {
-      var workspaceId = args.workspaceId || args.workspace_id;
+      var _workspaceId = args.workspaceId || args.workspace_id;
       if (state.sessions.length > 0) {
         state.currentSessionId = state.sessions[0].id;
       }
@@ -808,7 +808,7 @@ function invoke(cmd, args) {
 function installMock() {
   // __TAURI_INTERNALS__ — the core IPC bridge used by @tauri-apps/api
   window.__TAURI_INTERNALS__ = {
-    invoke: function (cmd, args, options) {
+    invoke: function (cmd, args, _options) {
       return invoke(cmd, args);
     },
     transformCallback: function (callback, once) {
@@ -817,7 +817,7 @@ function installMock() {
     unregisterCallback: function (id) {
       unregisterCallback(id);
     },
-    convertFileSrc: function (filePath, protocol) {
+    convertFileSrc: function (filePath, _protocol) {
       return "http://localhost/asset/" + filePath;
     }
   };

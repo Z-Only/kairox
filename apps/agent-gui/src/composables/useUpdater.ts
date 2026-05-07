@@ -34,10 +34,7 @@ export async function checkForUpdate(): Promise<void> {
         version: update.version,
         body: update.body ?? undefined
       };
-      ui.pushNotification(
-        "info",
-        `Kairox ${update.version} is available. Click to update.`
-      );
+      ui.pushNotification("info", `Kairox ${update.version} is available. Click to update.`);
     }
   } catch (e) {
     // Silently ignore update check failures (offline, etc.)
@@ -65,9 +62,7 @@ export async function downloadAndInstallUpdate(): Promise<void> {
     await update.downloadAndInstall((event) => {
       switch (event.event) {
         case "Started":
-          console.debug(
-            `Download started: ${event.data.contentLength ?? 0} bytes`
-          );
+          console.debug(`Download started: ${event.data.contentLength ?? 0} bytes`);
           break;
         case "Progress":
           break;

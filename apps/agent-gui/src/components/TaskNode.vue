@@ -107,15 +107,8 @@ function handleToggle() {
         <span v-if="hasChildren" class="task-expand">
           {{ isExpanded ? "▾" : "▸" }}
         </span>
-        <span
-          v-else
-          :style="{ paddingLeft: depth > 0 ? '0' : '12px' }"
-          class="task-expand"
-        >
-        </span>
-        <span v-if="depth > 0" class="task-indent">
-          {{ "│ ".repeat(depth - 1) }}├─
-        </span>
+        <span v-else :style="{ paddingLeft: depth > 0 ? '0' : '12px' }" class="task-expand"> </span>
+        <span v-if="depth > 0" class="task-indent"> {{ "│ ".repeat(depth - 1) }}├─ </span>
         <span class="task-status">
           {{ statusIcon[node.task.state] || "•" }}
         </span>
@@ -126,23 +119,13 @@ function handleToggle() {
           {{ agentBadge }}
         </span>
         <NText class="task-title">{{ node.task.title }}</NText>
-        <NTag
-          v-if="retryLabel()"
-          size="small"
-          type="warning"
-          :bordered="false"
-          class="task-retry"
-        >
+        <NTag v-if="retryLabel()" size="small" type="warning" :bordered="false" class="task-retry">
           {{ retryLabel() }}
         </NTag>
         <NText v-if="hasChildren && !isExpanded" depth="3" class="task-summary">
           {{ childSummary() }}
         </NText>
-        <NText
-          v-if="node.task.state === 'Running'"
-          type="info"
-          class="task-running"
-        >
+        <NText v-if="node.task.state === 'Running'" type="info" class="task-running">
           running...
         </NText>
         <NSpace v-if="isFailed" :size="2" :wrap="false" class="task-actions">
@@ -183,19 +166,12 @@ function handleToggle() {
         </NSpace>
       </NSpace>
     </NCard>
-    <div
-      v-if="node.task.error"
-      class="task-error"
-      :style="{ paddingLeft: `${depth * 16 + 8}px` }"
-    >
+    <div v-if="node.task.error" class="task-error" :style="{ paddingLeft: `${depth * 16 + 8}px` }">
       <NText type="error" class="task-error-text">
         {{ node.task.error }}
       </NText>
     </div>
-    <NDivider
-      v-if="depth === 0 && isExpanded && hasChildren"
-      class="task-divider"
-    />
+    <NDivider v-if="depth === 0 && isExpanded && hasChildren" class="task-divider" />
     <div v-if="isExpanded && hasChildren" class="task-children">
       <TaskNode
         v-for="child in node.children"

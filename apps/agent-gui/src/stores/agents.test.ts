@@ -7,11 +7,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-function makeAgentSpawnedEvent(
-  agentId: string,
-  role: string,
-  taskId: string
-): DomainEvent {
+function makeAgentSpawnedEvent(agentId: string, role: string, taskId: string): DomainEvent {
   return {
     schema_version: 1,
     workspace_id: "wrk_1",
@@ -86,9 +82,7 @@ describe("applyAgentEvent", () => {
 
   it("marks agent as failed on AgentTaskFailed", () => {
     const store = useAgentsStore();
-    store.applyAgentEvent(
-      makeAgentSpawnedEvent("agent_3", "Worker", "task_2").payload
-    );
+    store.applyAgentEvent(makeAgentSpawnedEvent("agent_3", "Worker", "task_2").payload);
 
     store.applyAgentEvent({
       type: "AgentTaskFailed",
@@ -102,9 +96,7 @@ describe("applyAgentEvent", () => {
 
   it("resets agent to running on TaskRetried", () => {
     const store = useAgentsStore();
-    store.applyAgentEvent(
-      makeAgentSpawnedEvent("agent_4", "Worker", "task_3").payload
-    );
+    store.applyAgentEvent(makeAgentSpawnedEvent("agent_4", "Worker", "task_3").payload);
 
     store.applyAgentEvent({
       type: "AgentTaskFailed",
@@ -164,9 +156,7 @@ describe("agentCountsByRole computed", () => {
     store.applyAgentEvent(makeAgentSpawnedEvent("p1", "Planner", "t0").payload);
     store.applyAgentEvent(makeAgentSpawnedEvent("w1", "Worker", "t1").payload);
     store.applyAgentEvent(makeAgentSpawnedEvent("w2", "Worker", "t2").payload);
-    store.applyAgentEvent(
-      makeAgentSpawnedEvent("r1", "Reviewer", "t3").payload
-    );
+    store.applyAgentEvent(makeAgentSpawnedEvent("r1", "Reviewer", "t3").payload);
 
     const counts = store.agentCountsByRole;
     expect(counts.get("Planner")).toBe(1);

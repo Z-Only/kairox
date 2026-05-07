@@ -13,13 +13,9 @@ const outcome = computed(() => catalog.installState[props.catalogId]);
 // "Detect runtime" only ticks when we either succeeded fully or failed *after*
 // runtime probe (i.e. invalid_env / already_installed / installed). It does
 // NOT tick on runtime_missing — that's the explicit failure path.
-const runtimeOk = computed(
-  () => !!outcome.value && outcome.value.kind !== "runtime_missing"
-);
+const runtimeOk = computed(() => !!outcome.value && outcome.value.kind !== "runtime_missing");
 const writeOk = computed(
-  () =>
-    outcome.value?.kind === "installed" ||
-    outcome.value?.kind === "already_installed"
+  () => outcome.value?.kind === "installed" || outcome.value?.kind === "already_installed"
 );
 // `outcome.started` mirrors the install request's auto_start flag rather than
 // confirmed liveness. UI shows it as "Start server requested" when ticked.
@@ -83,12 +79,7 @@ const modalTitle = computed<string>(() => {
     @close="emit('close')"
   >
     <div data-test="install-progress" class="install-progress">
-      <NAlert
-        v-if="!inFlight"
-        :type="alertType"
-        :show-icon="true"
-        :bordered="false"
-      >
+      <NAlert v-if="!inFlight" :type="alertType" :show-icon="true" :bordered="false">
         <span v-if="outcome?.kind === 'installed'">
           {{ t("marketplace.install.alertInstalled") }}
         </span>
@@ -114,9 +105,7 @@ const modalTitle = computed<string>(() => {
       <NSpin v-else size="small" />
 
       <ul class="steps">
-        <li
-          :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }"
-        >
+        <li :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }">
           {{ t("marketplace.install.stepDetectRuntime") }}
         </li>
         <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">

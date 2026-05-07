@@ -6,19 +6,13 @@ import PermissionPrompt from "./PermissionPrompt.vue";
 // on every render and so the `v-if`/`v-for` agree on the same source.
 const pendingEntries = computed(() =>
   traceState.entries.filter(
-    (e) =>
-      (e.kind === "permission" || e.kind === "memory") && e.status === "pending"
+    (e) => (e.kind === "permission" || e.kind === "memory") && e.status === "pending"
   )
 );
 </script>
 
 <template>
-  <NCard
-    size="small"
-    class="permission-center"
-    :bordered="false"
-    content-style="padding: 0;"
-  >
+  <NCard size="small" class="permission-center" :bordered="false" content-style="padding: 0;">
     <template #header>
       <h2>Permissions</h2>
     </template>

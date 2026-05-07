@@ -51,9 +51,7 @@ function messageLabel(msg: (typeof session.projection.messages)[0]): string {
   return base;
 }
 
-const sendDisabled = computed(
-  () => session.isStreaming || !inputText.value.trim()
-);
+const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
 
 async function sendMessage() {
   const content = inputText.value.trim();
@@ -113,13 +111,9 @@ watch(
           :key="i"
           :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
         >
-          <span
-            :class="[
-              'message-role',
-              `role-badge-${roleClass[msg.role] || 'assistant'}`
-            ]"
-            >{{ messageLabel(msg) }}</span
-          >
+          <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
+            messageLabel(msg)
+          }}</span>
           <!-- eslint-disable vue/no-v-html -->
           <span
             v-if="
@@ -134,14 +128,10 @@ watch(
           <!-- eslint-enable vue/no-v-html -->
           <span v-else class="message-content">{{ msg.content }}</span>
         </div>
-        <div
-          v-if="session.projection.token_stream"
-          class="message message-assistant streaming"
-        >
+        <div v-if="session.projection.token_stream" class="message message-assistant streaming">
           <span class="message-role">{{ t("chat.roleAgent") }}</span>
           <span class="message-content"
-            >{{ session.projection.token_stream
-            }}<span class="cursor">▌</span></span
+            >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
           >
         </div>
         <NAlert

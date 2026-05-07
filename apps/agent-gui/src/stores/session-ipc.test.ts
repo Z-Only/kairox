@@ -69,10 +69,7 @@ beforeEach(() => {
 describe("deleteSession", () => {
   it("removes session from the list on success", async () => {
     const session = useSessionStore();
-    session.sessions = [
-      makeSession("s1", "Session 1"),
-      makeSession("s2", "Session 2")
-    ] as never[];
+    session.sessions = [makeSession("s1", "Session 1"), makeSession("s2", "Session 2")] as never[];
     mockedInvoke.mockResolvedValueOnce(undefined);
     await session.deleteSession("s2");
     expect(session.sessions).toHaveLength(1);
@@ -134,9 +131,7 @@ describe("createSession", () => {
     expect(session.streamsByTask.size).toBe(0);
 
     // start_session was invoked with the requested profile alias.
-    const startCall = mockedInvoke.mock.calls.find(
-      ([cmd]) => cmd === "start_session"
-    );
+    const startCall = mockedInvoke.mock.calls.find(([cmd]) => cmd === "start_session");
     expect(startCall).toBeDefined();
     expect(startCall?.[1]).toEqual({ profile: "fast" });
   });
@@ -144,9 +139,7 @@ describe("createSession", () => {
   it("propagates start_session failures to the caller (the view surfaces them)", async () => {
     const session = useSessionStore();
     mockedInvoke.mockRejectedValueOnce(new Error("backend offline"));
-    await expect(session.createSession("fast")).rejects.toThrow(
-      "backend offline"
-    );
+    await expect(session.createSession("fast")).rejects.toThrow("backend offline");
   });
 });
 

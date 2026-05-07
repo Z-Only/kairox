@@ -35,12 +35,11 @@ const scopeIcon: Record<string, string> = {
   workspace: "🗂️"
 };
 
-const scopeTagType: Record<string, "default" | "info" | "success" | "warning"> =
-  {
-    session: "default",
-    user: "info",
-    workspace: "success"
-  };
+const scopeTagType: Record<string, "default" | "info" | "success" | "warning"> = {
+  session: "default",
+  user: "info",
+  workspace: "success"
+};
 
 function handleSearchKeydown(e: KeyboardEvent) {
   if (e.key === "Enter") {
@@ -66,11 +65,7 @@ function promptDelete(id: string, content: string) {
     content: () =>
       h("div", null, [
         h("p", null, t("memory.deleteConfirm")),
-        h(
-          "p",
-          { style: "margin-top: 8px; color: var(--n-text-color-3);" },
-          `“${preview}”`
-        )
+        h("p", { style: "margin-top: 8px; color: var(--n-text-color-3);" }, `“${preview}”`)
       ]),
     positiveText: t("common.delete"),
     negativeText: t("common.cancel"),
@@ -136,12 +131,7 @@ function promptDelete(id: string, content: string) {
           >
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
           </NTag>
-          <NTag
-            v-if="mem.key"
-            size="small"
-            :bordered="false"
-            class="memory-key"
-          >
+          <NTag v-if="mem.key" size="small" :bordered="false" class="memory-key">
             {{ mem.key }}
           </NTag>
           <NTag

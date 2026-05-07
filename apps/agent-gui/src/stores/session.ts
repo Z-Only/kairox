@@ -4,11 +4,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  SessionProjection,
-  SessionInfoResponse,
-  DomainEvent
-} from "@/types";
+import type { SessionProjection, SessionInfoResponse, DomainEvent } from "@/types";
 import { agentRoleToProjectedRole } from "@/types";
 import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
 import { useUiStore } from "@/stores/ui";
@@ -154,10 +150,7 @@ export const useSessionStore = defineStore("session", () => {
     projection.value = next;
     isStreaming.value = false;
     if (next.task_graph?.tasks) {
-      useTaskGraphStore().setTaskGraph(
-        next.task_graph.tasks,
-        currentSessionId.value
-      );
+      useTaskGraphStore().setTaskGraph(next.task_graph.tasks, currentSessionId.value);
     }
   }
 
@@ -206,10 +199,9 @@ export const useSessionStore = defineStore("session", () => {
   async function createSession(
     profile: string
   ): Promise<{ id: string; title: string; profile: string }> {
-    const result = await invoke<{ id: string; title: string; profile: string }>(
-      "start_session",
-      { profile }
-    );
+    const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
+      profile
+    });
     sessions.value = await invoke<SessionInfoResponse[]>("list_sessions");
     currentProfile.value = result.profile;
     resetProjection();
@@ -295,8 +287,7 @@ export const useSessionStore = defineStore("session", () => {
   async function recoverSessions(): Promise<boolean> {
     const ui = useUiStore();
     try {
-      const workspaces: { workspace_id: string; path: string }[] =
-        await invoke("list_workspaces");
+      const workspaces: { workspace_id: string; path: string }[] = await invoke("list_workspaces");
       if (workspaces.length === 0) {
         return false;
       }

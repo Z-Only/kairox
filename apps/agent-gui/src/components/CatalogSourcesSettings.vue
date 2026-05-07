@@ -165,11 +165,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
     <div v-else class="add-form">
       <label class="field">
         <NText depth="2">id</NText>
-        <NInput
-          v-model:value="draft.id"
-          size="small"
-          :input-props="{ 'data-test': 'src-id' }"
-        />
+        <NInput v-model:value="draft.id" size="small" :input-props="{ 'data-test': 'src-id' }" />
       </label>
       <label class="field">
         <NText depth="2">display name</NText>
@@ -181,19 +177,11 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       </label>
       <label class="field">
         <NText depth="2">kind</NText>
-        <NSelect
-          v-model:value="draft.kind"
-          :options="kindOptions"
-          size="small"
-        />
+        <NSelect v-model:value="draft.kind" :options="kindOptions" size="small" />
       </label>
       <label class="field">
         <NText depth="2">url</NText>
-        <NInput
-          v-model:value="draft.url"
-          size="small"
-          :input-props="{ 'data-test': 'src-url' }"
-        />
+        <NInput v-model:value="draft.url" size="small" :input-props="{ 'data-test': 'src-url' }" />
       </label>
       <label class="field">
         <NText depth="2">api_key_env</NText>
@@ -203,9 +191,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         {{ formError }}
       </NText>
       <NSpace class="form-actions" :size="8">
-        <NButton size="small" type="primary" data-test="src-save" @click="save">
-          Save
-        </NButton>
+        <NButton size="small" type="primary" data-test="src-save" @click="save"> Save </NButton>
         <NButton
           size="small"
           @click="

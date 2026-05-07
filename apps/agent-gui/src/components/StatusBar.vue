@@ -51,30 +51,12 @@ onMounted(async () => {
         {{ t("statusBar.sessions", { count: session.sessions.length }) }}
       </NText>
 
-      <NTag
-        size="small"
-        :bordered="false"
-        :type="streamingType"
-        data-test="status-streaming"
-      >
-        {{
-          session.isStreaming
-            ? t("statusBar.streamingYes")
-            : t("statusBar.streamingNo")
-        }}
+      <NTag size="small" :bordered="false" :type="streamingType" data-test="status-streaming">
+        {{ session.isStreaming ? t("statusBar.streamingYes") : t("statusBar.streamingNo") }}
       </NTag>
 
-      <NTag
-        size="small"
-        :bordered="false"
-        :type="connectedType"
-        data-test="status-connected"
-      >
-        {{
-          session.connected
-            ? t("statusBar.connectedYes")
-            : t("statusBar.connectedNo")
-        }}
+      <NTag size="small" :bordered="false" :type="connectedType" data-test="status-connected">
+        {{ session.connected ? t("statusBar.connectedYes") : t("statusBar.connectedNo") }}
       </NTag>
 
       <NText depth="3" class="status-item" data-test="status-mode">
@@ -83,10 +65,7 @@ onMounted(async () => {
 
       <span class="mcp-status-wrapper">
         <McpStatusIndicator @click="showMcpManager = !showMcpManager" />
-        <McpServerManager
-          v-if="showMcpManager"
-          @close="showMcpManager = false"
-        />
+        <McpServerManager v-if="showMcpManager" @close="showMcpManager = false" />
       </span>
     </NSpace>
   </footer>

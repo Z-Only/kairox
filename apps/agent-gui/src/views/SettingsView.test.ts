@@ -38,9 +38,7 @@ describe("SettingsView (Pre-work B regression)", () => {
   it("renders the locale select with the store value and routes writes through ui.setLocale", async () => {
     const { wrapper, ui } = mountSettings();
 
-    const localeSelect = wrapper.find<HTMLSelectElement>(
-      "select#settings-locale"
-    );
+    const localeSelect = wrapper.find<HTMLSelectElement>("select#settings-locale");
     expect(localeSelect.exists()).toBe(true);
     expect(localeSelect.element.value).toBe("en");
 
@@ -56,9 +54,7 @@ describe("SettingsView (Pre-work B regression)", () => {
   it("renders the theme select with the store value and routes writes through ui.setTheme", async () => {
     const { wrapper, ui } = mountSettings();
 
-    const themeSelect = wrapper.find<HTMLSelectElement>(
-      "select#settings-theme"
-    );
+    const themeSelect = wrapper.find<HTMLSelectElement>("select#settings-theme");
     expect(themeSelect.exists()).toBe(true);
     expect(themeSelect.element.value).toBe("auto");
 

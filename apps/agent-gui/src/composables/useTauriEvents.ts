@@ -27,11 +27,7 @@ export function useTauriEvents() {
     // Only process session-scoped events for the current session.
     const domainEvent = tauriEvent.payload;
     const sessionId: string | undefined = domainEvent.session_id;
-    if (
-      sessionId &&
-      session.currentSessionId &&
-      sessionId === session.currentSessionId
-    ) {
+    if (sessionId && session.currentSessionId && sessionId === session.currentSessionId) {
       session.applyEvent(domainEvent);
       applyTraceEvent(domainEvent);
 
@@ -40,10 +36,7 @@ export function useTauriEvents() {
       taskGraph.applyTaskEvent(domainEvent.payload);
 
       // Surface task-failure errors as user-facing notifications.
-      if (
-        domainEvent.payload.type === "AgentTaskFailed" &&
-        domainEvent.payload.error
-      ) {
+      if (domainEvent.payload.type === "AgentTaskFailed" && domainEvent.payload.error) {
         ui.pushNotification("error", domainEvent.payload.error);
       }
 
@@ -83,9 +76,6 @@ export function useTauriEvents() {
   void unlistenPromise
     .then(() => session.setConnected(true))
     .catch((err) => {
-      ui.pushNotification(
-        "error",
-        `Failed to subscribe to session events: ${err}`
-      );
+      ui.pushNotification("error", `Failed to subscribe to session events: ${err}`);
     });
 }

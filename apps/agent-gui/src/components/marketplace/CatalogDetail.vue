@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import type {
-  ServerEntryResponse,
-  InstallRequestPayload
-} from "../../generated/commands";
+import type { ServerEntryResponse, InstallRequestPayload } from "../../generated/commands";
 import { useCatalogStore } from "@/stores/catalog";
-import {
-  parseRequirements,
-  parseDefaultEnv
-} from "../../composables/useMarketplace";
+import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 
 const { t } = useI18n();
@@ -19,9 +13,7 @@ const emit = defineEmits<{ close: [] }>();
 // Disable Install when *another* entry's install is currently in flight
 // (single-value `currentInstallEntryId` slot — Task 8 review carry-over 8).
 const installDisabled = computed(
-  () =>
-    catalog.currentInstallEntryId !== null &&
-    catalog.currentInstallEntryId !== props.entry.id
+  () => catalog.currentInstallEntryId !== null && catalog.currentInstallEntryId !== props.entry.id
 );
 
 const requirements = computed(() => parseRequirements(props.entry));
@@ -88,11 +80,7 @@ function onShowUpdate(next: boolean) {
     :mask-closable="true"
     @update:show="onShowUpdate"
   >
-    <NDrawerContent
-      :title="entry.display_name"
-      closable
-      :native-scrollbar="false"
-    >
+    <NDrawerContent :title="entry.display_name" closable :native-scrollbar="false">
       <div data-test="catalog-detail" class="catalog-detail">
         <NText depth="2">{{ entry.description }}</NText>
         <a
@@ -118,9 +106,7 @@ function onShowUpdate(next: boolean) {
             bordered
           >
             <NDescriptionsItem v-for="spec in envSpec" :key="spec.key">
-              <template #label>
-                {{ spec.label }}<span v-if="spec.required">*</span>
-              </template>
+              <template #label> {{ spec.label }}<span v-if="spec.required">*</span> </template>
               <NInput
                 v-model:value="overrides[spec.key]"
                 :type="spec.secret ? 'password' : 'text'"
@@ -142,28 +128,18 @@ function onShowUpdate(next: boolean) {
             <NCheckbox v-model:checked="trustGrant">
               Trust this server (skip per-tool permission prompts)
             </NCheckbox>
-            <NText
-              v-if="entry.trust === 'verified'"
-              depth="3"
-              class="hint-verified"
-            >
-              This entry comes from a verified source. You can grant runtime
-              trust to skip permission prompts, but it remains opt-in.
+            <NText v-if="entry.trust === 'verified'" depth="3" class="hint-verified">
+              This entry comes from a verified source. You can grant runtime trust to skip
+              permission prompts, but it remains opt-in.
             </NText>
-            <NCheckbox v-model:checked="autoStart">
-              Start after install
-            </NCheckbox>
+            <NCheckbox v-model:checked="autoStart"> Start after install </NCheckbox>
           </NSpace>
         </NCard>
       </div>
 
       <template #footer>
         <NSpace>
-          <NTooltip
-            :disabled="!installDisabled"
-            trigger="hover"
-            placement="top"
-          >
+          <NTooltip :disabled="!installDisabled" trigger="hover" placement="top">
             <template #trigger>
               <!-- Wrap the Install button in a span so the disabled button
                    still triggers the tooltip on hover (NaiveUI buttons

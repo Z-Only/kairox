@@ -46,7 +46,7 @@ test("parallel workers appear with distinct badges", async ({ page }) => {
   // Simulate a planner creating two parallel worker tasks
   await page.evaluate(() => {
     const mock = (window as any).__KAIROX_MOCK__;
-    const planId = mock.simulateTaskCreated("Plan: Feature X", "Planner");
+    const _planId = mock.simulateTaskCreated("Plan: Feature X", "Planner");
     const worker1Id = mock.simulateTaskCreated("Implement auth", "Worker");
     const worker2Id = mock.simulateTaskCreated("Implement API", "Worker");
     mock.simulateAgentSpawned("agent_w1", "Worker", worker1Id);

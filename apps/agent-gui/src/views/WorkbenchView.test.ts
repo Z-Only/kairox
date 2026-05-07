@@ -73,9 +73,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
 
     const params1 = router.currentRoute.value.params;
     const id1 = params1.sessionId;
-    expect(id1 === undefined || id1 === "" || !("sessionId" in params1)).toBe(
-      true
-    );
+    expect(id1 === undefined || id1 === "" || !("sessionId" in params1)).toBe(true);
 
     // Second flush: if the reverse watcher were going to rewrite the bad id
     // back into the URL, it would do so on the next microtask after the
@@ -85,13 +83,10 @@ describe("WorkbenchView (Pre-work A regression)", () => {
 
     const params2 = router.currentRoute.value.params;
     const id2 = params2.sessionId;
-    expect(id2 === undefined || id2 === "" || !("sessionId" in params2)).toBe(
-      true
-    );
+    expect(id2 === undefined || id2 === "" || !("sessionId" in params2)).toBe(true);
 
     expect(ui.pushNotification).toHaveBeenCalledTimes(1);
-    const call = (ui.pushNotification as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0];
+    const call = (ui.pushNotification as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(call[0]).toBe("error");
     expect(String(call[1])).toContain("badId");
   });

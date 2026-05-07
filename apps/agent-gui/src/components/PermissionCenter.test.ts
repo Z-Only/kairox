@@ -34,9 +34,7 @@ vi.mock("../composables/useTraceStore", () => ({
   }
 }));
 
-function makeEntry(
-  overrides: Partial<TraceEntryData> & { id: string }
-): TraceEntryData {
+function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
   return {
     kind: "permission",
     status: "pending",

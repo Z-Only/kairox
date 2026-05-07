@@ -21,9 +21,7 @@ test.beforeEach(async ({ page }) => {
 //   - The empty-state copy ("No memories…") comes from the i18n
 //     `memory.emptyHint` key passed as the NEmpty `description`.
 
-test("memory browser tab is accessible from trace timeline", async ({
-  page
-}) => {
+test("memory browser tab is accessible from trace timeline", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
@@ -135,10 +133,7 @@ test("query_memories mock returns correct data", async ({ page }) => {
 
   // Query all memories
   const memories = await page.evaluate(async () => {
-    return await (window as any).__TAURI_INTERNALS__.invoke(
-      "query_memories",
-      {}
-    );
+    return await (window as any).__TAURI_INTERNALS__.invoke("query_memories", {});
   });
 
   expect(memories).toHaveLength(3);
@@ -183,10 +178,7 @@ test("delete_memory removes the memory from mock state", async ({ page }) => {
 
   // Verify it's gone
   const memories = await page.evaluate(async () => {
-    return await (window as any).__TAURI_INTERNALS__.invoke(
-      "query_memories",
-      {}
-    );
+    return await (window as any).__TAURI_INTERNALS__.invoke("query_memories", {});
   });
 
   expect(memories).toHaveLength(1);

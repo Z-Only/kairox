@@ -9,10 +9,7 @@ import { dirname, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const autoImportGlobals = (() => {
-  const path = resolve(
-    __dirname,
-    "apps/agent-gui/.eslintrc-auto-import.json"
-  );
+  const path = resolve(__dirname, "apps/agent-gui/.eslintrc-auto-import.json");
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, "utf8")).globals ?? {};

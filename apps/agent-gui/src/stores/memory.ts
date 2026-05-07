@@ -25,9 +25,7 @@ export const useMemoryStore = defineStore("memory", () => {
     loading.value = true;
     try {
       const scope = filter.value === "all" ? null : filter.value;
-      const keywords = searchQuery.value
-        ? searchQuery.value.split(/\s+/).filter(Boolean)
-        : null;
+      const keywords = searchQuery.value ? searchQuery.value.split(/\s+/).filter(Boolean) : null;
       memories.value = await invoke("query_memories", {
         scope,
         keywords,

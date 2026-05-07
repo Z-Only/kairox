@@ -42,7 +42,7 @@ test("notification toast appears when error is triggered", async ({ page }) => {
   // Alternatively, directly add a notification via the store
   await page.evaluate(() => {
     // Access the Vue store directly — this tests that the notification system works
-    const { addNotification } = (window as any).__KAIROX_NOTIFS__ || {};
+    const { addNotification: _addNotification } = (window as any).__KAIROX_NOTIFS__ || {};
     // Since we can't easily access the Vue store from outside,
     // we'll test the mock's IPC error path instead.
     // The mock throws if send_message is called without a session.

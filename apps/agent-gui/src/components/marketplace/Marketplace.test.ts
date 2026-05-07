@@ -228,8 +228,7 @@ describe("InstalledList.vue", () => {
   // mutations done in each test before mounting are not wiped. Returns
   // the bare wrapper so the existing `wrapper.find` / `wrapper.text`
   // call-sites stay drop-in compatible.
-  const mountInstalled = () =>
-    mountWithPlugins(InstalledList, { reusePinia: true }).wrapper;
+  const mountInstalled = () => mountWithPlugins(InstalledList, { reusePinia: true }).wrapper;
 
   it("renders rows for each installed entry", async () => {
     const catalog = useCatalogStore();

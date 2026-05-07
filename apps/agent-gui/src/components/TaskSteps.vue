@@ -39,12 +39,7 @@ function toggleExpand(taskId: string) {
     <!-- The "No tasks yet" copy is preserved verbatim because the existing
          unit test asserts on its presence; switching to NEmpty's
          description prop keeps both the visual upgrade and the assertion. -->
-    <NEmpty
-      v-if="tree.length === 0"
-      size="small"
-      class="empty-hint"
-      description="No tasks yet"
-    />
+    <NEmpty v-if="tree.length === 0" size="small" class="empty-hint" description="No tasks yet" />
     <NScrollbar v-else class="task-tree-scroll">
       <TaskNode
         v-for="root in tree"

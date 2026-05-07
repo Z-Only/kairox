@@ -217,9 +217,7 @@ describe("catalog store — Phase 2 sources", () => {
   it("removeSource calls remove_catalog_source then re-fetches", async () => {
     const catalog = useCatalogStore();
     catalog.sources = [sampleSource];
-    mockedInvoke
-      .mockResolvedValueOnce(undefined as never)
-      .mockResolvedValueOnce([] as never);
+    mockedInvoke.mockResolvedValueOnce(undefined as never).mockResolvedValueOnce([] as never);
     await catalog.removeSource("smithery");
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "remove_catalog_source", {
       id: "smithery"
@@ -234,11 +232,10 @@ describe("catalog store — Phase 2 sources", () => {
       .mockResolvedValueOnce(undefined as never)
       .mockResolvedValueOnce([{ ...sampleSource, enabled: false }] as never);
     await catalog.setSourceEnabled("smithery", false);
-    expect(mockedInvoke).toHaveBeenNthCalledWith(
-      1,
-      "set_catalog_source_enabled",
-      { id: "smithery", enabled: false }
-    );
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_catalog_source_enabled", {
+      id: "smithery",
+      enabled: false
+    });
     expect(catalog.sources[0].enabled).toBe(false);
   });
 

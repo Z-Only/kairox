@@ -36,11 +36,7 @@ async function onUninstall(serverId: string) {
             <NText depth="2">{{ row.source ?? "(manual)" }}</NText>
           </td>
           <td>
-            <NTag
-              size="small"
-              :type="row.running ? 'success' : 'default'"
-              :bordered="false"
-            >
+            <NTag size="small" :type="row.running ? 'success' : 'default'" :bordered="false">
               {{ row.running ? "running" : "stopped" }}
             </NTag>
           </td>
@@ -55,11 +51,7 @@ async function onUninstall(serverId: string) {
             <NButton
               size="tiny"
               :disabled="!row.source"
-              :title="
-                row.source
-                  ? ''
-                  : 'Hand-edited entries are not removable from here'
-              "
+              :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
               :data-test="`uninstall-${row.server_id}`"
               @click="onUninstall(row.server_id)"
             >

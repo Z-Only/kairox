@@ -598,9 +598,7 @@ export const useMemoryStore = defineStore("memory", () => {
     loading.value = true;
     try {
       const scope = filter.value === "all" ? null : filter.value;
-      const keywords = searchQuery.value
-        ? searchQuery.value.split(/\s+/).filter(Boolean)
-        : null;
+      const keywords = searchQuery.value ? searchQuery.value.split(/\s+/).filter(Boolean) : null;
       memories.value = await invoke("query_memories", {
         scope,
         keywords,
@@ -943,19 +941,13 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     // ── computeds ────────────────────────────────────────────────────
     const filteredEntries = computed<ServerEntryResponse[]>(() => {
       const kw = filters.value.keyword.trim().toLowerCase();
-      const minOrder = filters.value.trustMin
-        ? TRUST_ORDER[filters.value.trustMin]
-        : -1;
+      const minOrder = filters.value.trustMin ? TRUST_ORDER[filters.value.trustMin] : -1;
       return entries.value.filter((e) => {
         if (kw) {
-          const hay =
-            `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
+          const hay = `${e.display_name} ${e.summary} ${e.tags.join(" ")}`.toLowerCase();
           if (!hay.includes(kw)) return false;
         }
-        if (
-          filters.value.category &&
-          !e.categories.includes(filters.value.category)
-        ) {
+        if (filters.value.category && !e.categories.includes(filters.value.category)) {
           return false;
         }
         if (filters.value.trustMin) {
@@ -968,10 +960,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
     const hasEntries = computed(() => entries.value.length > 0);
     const installedCount = computed(() => installed.value.length);
-    const allSourceIds = computed<string[]>(() => [
-      "builtin",
-      ...sources.value.map((s) => s.id)
-    ]);
+    const allSourceIds = computed<string[]>(() => ["builtin", ...sources.value.map((s) => s.id)]);
 
     function isSourceSelected(id: string): boolean {
       if (selectedSources.value === null) return true;
@@ -980,9 +969,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
     function toggleSource(id: string): void {
       const current = selectedSources.value ?? allSourceIds.value.slice();
-      const next = current.includes(id)
-        ? current.filter((x) => x !== id)
-        : [...current, id];
+      const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
       selectedSources.value = next;
     }
 
@@ -991,9 +978,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     );
 
     // ── actions ──────────────────────────────────────────────────────
-    async function fetchCatalog(
-      query: CatalogQueryRequest = {}
-    ): Promise<void> {
+    async function fetchCatalog(query: CatalogQueryRequest = {}): Promise<void> {
       const ui = useUiStore();
       loading.value = true;
       error.value = null;
@@ -1012,9 +997,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     async function fetchInstalled(): Promise<void> {
       const ui = useUiStore();
       try {
-        installed.value = await invoke<InstalledEntryResponse[]>(
-          "list_installed_entries"
-        );
+        installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
       } catch (e) {
         error.value = String(e);
         ui.pushNotification("error", `Failed to load installed entries: ${e}`);
@@ -1033,10 +1016,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         });
       } catch (e) {
         console.error("Failed to get catalog entry:", e);
-        ui.pushNotification(
-          "error",
-          `Failed to load catalog entry ${id}: ${e}`
-        );
+        ui.pushNotification("error", `Failed to load catalog entry ${id}: ${e}`);
         return null;
       }
     }
@@ -1046,10 +1026,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     ): Promise<InstallOutcomeResponse | null> {
       const ui = useUiStore();
       try {
-        const outcome = await invoke<InstallOutcomeResponse>(
-          "install_catalog_entry",
-          { request }
-        );
+        const outcome = await invoke<InstallOutcomeResponse>("install_catalog_entry", { request });
         installState.value[request.catalog_id] = outcome;
         if (outcome.kind === "installed") {
           await fetchInstalled();
@@ -1057,10 +1034,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         return outcome;
       } catch (e) {
         console.error("Failed to install catalog entry:", e);
-        ui.pushNotification(
-          "error",
-          `Failed to install ${request.catalog_id}: ${e}`
-        );
+        ui.pushNotification("error", `Failed to install ${request.catalog_id}: ${e}`);
         return null;
       }
     }
@@ -1077,9 +1051,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
       }
     }
 
-    async function refreshCatalogSource(
-      source: string | null = null
-    ): Promise<void> {
+    async function refreshCatalogSource(source: string | null = null): Promise<void> {
       const ui = useUiStore();
       try {
         await invoke("refresh_catalog", { source });
@@ -1093,28 +1065,21 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     async function fetchSources(): Promise<void> {
       const ui = useUiStore();
       try {
-        sources.value = await invoke<CatalogSourceViewResponse[]>(
-          "list_catalog_sources"
-        );
+        sources.value = await invoke<CatalogSourceViewResponse[]>("list_catalog_sources");
       } catch (e) {
         error.value = String(e);
         ui.pushNotification("error", `Failed to load catalog sources: ${e}`);
       }
     }
 
-    async function addSource(
-      request: AddCatalogSourceRequestPayload
-    ): Promise<void> {
+    async function addSource(request: AddCatalogSourceRequestPayload): Promise<void> {
       const ui = useUiStore();
       try {
         await invoke("add_catalog_source", { request });
         await fetchSources();
       } catch (e) {
         console.error("Failed to add catalog source:", e);
-        ui.pushNotification(
-          "error",
-          `Failed to add source ${request.id}: ${e}`
-        );
+        ui.pushNotification("error", `Failed to add source ${request.id}: ${e}`);
       }
     }
 
@@ -1130,10 +1095,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
       }
     }
 
-    async function setSourceEnabled(
-      id: string,
-      enabled: boolean
-    ): Promise<void> {
+    async function setSourceEnabled(id: string, enabled: boolean): Promise<void> {
       const ui = useUiStore();
       try {
         await invoke("set_catalog_source_enabled", { id, enabled });
@@ -1317,13 +1279,9 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
       await catalog.uninstallEntry("filesystem");
 
-      expect(mockedInvoke).toHaveBeenNthCalledWith(
-        1,
-        "uninstall_catalog_entry",
-        {
-          serverId: "filesystem"
-        }
-      );
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "uninstall_catalog_entry", {
+        serverId: "filesystem"
+      });
       expect(catalog.installState["filesystem"]).toBeUndefined();
     });
 
@@ -1416,9 +1374,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     it("removeSource calls remove_catalog_source then re-fetches", async () => {
       const catalog = useCatalogStore();
       catalog.sources = [sampleSource];
-      mockedInvoke
-        .mockResolvedValueOnce(undefined as never)
-        .mockResolvedValueOnce([] as never);
+      mockedInvoke.mockResolvedValueOnce(undefined as never).mockResolvedValueOnce([] as never);
       await catalog.removeSource("smithery");
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "remove_catalog_source", {
         id: "smithery"
@@ -1433,11 +1389,10 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         .mockResolvedValueOnce(undefined as never)
         .mockResolvedValueOnce([{ ...sampleSource, enabled: false }] as never);
       await catalog.setSourceEnabled("smithery", false);
-      expect(mockedInvoke).toHaveBeenNthCalledWith(
-        1,
-        "set_catalog_source_enabled",
-        { id: "smithery", enabled: false }
-      );
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_catalog_source_enabled", {
+        id: "smithery",
+        enabled: false
+      });
       expect(catalog.sources[0].enabled).toBe(false);
     });
 
@@ -1470,11 +1425,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   import { defineStore } from "pinia";
   import { ref } from "vue";
   import { invoke } from "@tauri-apps/api/core";
-  import type {
-    SessionProjection,
-    SessionInfoResponse,
-    DomainEvent
-  } from "@/types";
+  import type { SessionProjection, SessionInfoResponse, DomainEvent } from "@/types";
   import { agentRoleToProjectedRole } from "@/types";
   import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
   import { useUiStore } from "@/stores/ui";
@@ -1711,10 +1662,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         return true;
       } catch (e) {
         console.error("Failed to recover sessions:", e);
-        useUiStore().pushNotification(
-          "error",
-          `Failed to recover sessions: ${e}`
-        );
+        useUiStore().pushNotification("error", `Failed to recover sessions: ${e}`);
         return false;
       }
     }
@@ -1758,10 +1706,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     setActivePinia(createPinia());
   });
 
-  function makeEvent(
-    payload: EventPayload,
-    sourceAgentId = "agent_system"
-  ): DomainEvent {
+  function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): DomainEvent {
     return {
       schema_version: 1,
       workspace_id: "wrk_1",
@@ -1841,9 +1786,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
     it("marks cancelled on SessionCancelled", () => {
       const session = useSessionStore();
-      session.applyEvent(
-        makeEvent({ type: "SessionCancelled", reason: "user stopped" })
-      );
+      session.applyEvent(makeEvent({ type: "SessionCancelled", reason: "user stopped" }));
       expect(session.projection.cancelled).toBe(true);
       expect(session.isStreaming).toBe(false);
     });
@@ -1879,9 +1822,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 
     it("handles TaskRetried event", () => {
       const session = useSessionStore();
-      session.applyEvent(
-        makeEvent({ type: "TaskRetried", task_id: "t1", attempt: 2 })
-      );
+      session.applyEvent(makeEvent({ type: "TaskRetried", task_id: "t1", attempt: 2 }));
       expect(session.projection.messages).toHaveLength(1);
       expect(session.projection.messages[0].role).toBe("system");
       expect(session.projection.messages[0].content).toContain("attempt 2");
@@ -1929,9 +1870,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   describe("resetProjection", () => {
     it("clears all projection state and agent state", () => {
       const session = useSessionStore();
-      session.applyEvent(
-        makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" })
-      );
+      session.applyEvent(makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "hi" }));
       session.resetProjection();
       expect(session.projection.messages).toHaveLength(0);
       expect(session.projection.token_stream).toBe("");
@@ -2075,9 +2014,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   describe("recoverSessions", () => {
     it("restores workspace and sessions on success", async () => {
       const session = useSessionStore();
-      mockedInvoke.mockResolvedValueOnce([
-        { workspace_id: "ws1", path: "/tmp" }
-      ]); // list_workspaces
+      mockedInvoke.mockResolvedValueOnce([{ workspace_id: "ws1", path: "/tmp" }]); // list_workspaces
       mockedInvoke.mockResolvedValueOnce(undefined); // restore_workspace
       mockedInvoke.mockResolvedValueOnce([
         {
@@ -2238,11 +2175,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
       unlisten = await listen<DomainEvent>("session-event", (tauriEvent) => {
         const domainEvent = tauriEvent.payload;
         const sessionId: string | undefined = domainEvent.session_id;
-        if (
-          sessionId &&
-          session.currentSessionId &&
-          sessionId === session.currentSessionId
-        ) {
+        if (sessionId && session.currentSessionId && sessionId === session.currentSessionId) {
           session.applyEvent(domainEvent);
           applyTraceEvent(domainEvent);
 
@@ -2367,11 +2300,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   Verified current `App.vue` (line 8) imports:
 
   ```ts
-  import {
-    sessionState,
-    recoverSessions,
-    setProjection
-  } from "./stores/session";
+  import { sessionState, recoverSessions, setProjection } from "./stores/session";
   import { addNotification } from "./composables/useNotifications";
   ```
 
@@ -2415,12 +2344,9 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   useUpdater();
 
   onMounted(async () => {
-    await listen<{ type: string; error: string; session_id: string }>(
-      "session-error",
-      (event) => {
-        ui.pushNotification("error", event.payload.error);
-      }
-    );
+    await listen<{ type: string; error: string; session_id: string }>("session-error", (event) => {
+      ui.pushNotification("error", event.payload.error);
+    });
 
     const recovered = await session.recoverSessions();
     if (recovered) return;
@@ -2468,10 +2394,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   Create `apps/agent-gui/src/test-utils/mount.ts`:
 
   ```ts
-  import {
-    mount as baseMount,
-    type ComponentMountingOptions
-  } from "@vue/test-utils";
+  import { mount as baseMount, type ComponentMountingOptions } from "@vue/test-utils";
   import type { Component } from "vue";
   import { createPinia, setActivePinia } from "pinia";
   import { createI18n } from "vue-i18n";
@@ -2596,17 +2519,12 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     }
 
     // ── Locale ──────────────────────────────────────────────
-    const locale = useStorage<SupportedLocale>(
-      "kairox.locale",
-      "en",
-      undefined,
-      {
-        serializer: {
-          read: (v) => (v === "zh-CN" || v === "en" ? v : "en"),
-          write: (v) => v
-        }
+    const locale = useStorage<SupportedLocale>("kairox.locale", "en", undefined, {
+      serializer: {
+        read: (v) => (v === "zh-CN" || v === "en" ? v : "en"),
+        write: (v) => v
       }
-    );
+    });
 
     function setLocale(next: SupportedLocale) {
       locale.value = next;
@@ -2749,123 +2667,116 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
     // listen() returns a Promise<UnlistenFn>; await it eagerly inside an IIFE
     // so cleanup registration via tryOnScopeDispose runs in the same setup tick.
     void (async () => {
-      const unlisten = await listen<DomainEvent>(
-        "session-event",
-        (tauriEvent) => {
-          // Only process session-scoped events for the current session.
-          const domainEvent = tauriEvent.payload;
-          const sessionId: string | undefined = domainEvent.session_id;
-          if (
-            sessionId &&
-            session.currentSessionId &&
-            sessionId === session.currentSessionId
-          ) {
-            applyEvent(domainEvent);
-            applyTraceEvent(domainEvent);
+      const unlisten = await listen<DomainEvent>("session-event", (tauriEvent) => {
+        // Only process session-scoped events for the current session.
+        const domainEvent = tauriEvent.payload;
+        const sessionId: string | undefined = domainEvent.session_id;
+        if (sessionId && session.currentSessionId && sessionId === session.currentSessionId) {
+          applyEvent(domainEvent);
+          applyTraceEvent(domainEvent);
 
-            // Mirror the Rust SessionProjection::apply() task-graph mutations
-            // so the Tasks panel updates immediately without an async invoke.
-            const p = domainEvent.payload;
-            switch (p.type) {
-              case "AgentTaskCreated": {
-                if (!taskGraph.tasks.some((t) => t.id === p.task_id)) {
-                  taskGraph.tasks.push({
-                    id: p.task_id,
-                    title: p.title,
-                    role: p.role,
-                    state: "Pending" as TaskState,
-                    dependencies: p.dependencies,
-                    error: null,
-                    retry_count: 0,
-                    max_retries: 3,
-                    assigned_agent_id: null,
-                    failure_reason: null
-                  });
-                  if (taskGraph.currentSessionId === sessionId) {
-                    taskGraph.tasks = [...taskGraph.tasks];
-                  }
-                }
-                break;
-              }
-              case "AgentTaskStarted": {
-                const task = taskGraph.tasks.find((t) => t.id === p.task_id);
-                if (task) {
-                  task.state = "Running" as TaskState;
+          // Mirror the Rust SessionProjection::apply() task-graph mutations
+          // so the Tasks panel updates immediately without an async invoke.
+          const p = domainEvent.payload;
+          switch (p.type) {
+            case "AgentTaskCreated": {
+              if (!taskGraph.tasks.some((t) => t.id === p.task_id)) {
+                taskGraph.tasks.push({
+                  id: p.task_id,
+                  title: p.title,
+                  role: p.role,
+                  state: "Pending" as TaskState,
+                  dependencies: p.dependencies,
+                  error: null,
+                  retry_count: 0,
+                  max_retries: 3,
+                  assigned_agent_id: null,
+                  failure_reason: null
+                });
+                if (taskGraph.currentSessionId === sessionId) {
                   taskGraph.tasks = [...taskGraph.tasks];
                 }
-                break;
               }
-              case "AgentTaskCompleted": {
-                const task = taskGraph.tasks.find((t) => t.id === p.task_id);
-                if (task) {
-                  task.state = "Completed" as TaskState;
-                  taskGraph.tasks = [...taskGraph.tasks];
-                }
-                break;
-              }
-              case "AgentTaskFailed": {
-                const task = taskGraph.tasks.find((t) => t.id === p.task_id);
-                if (task) {
-                  task.state = "Failed" as TaskState;
-                  task.error = p.error;
-                  taskGraph.tasks = [...taskGraph.tasks];
-                }
-                if (p.error) {
-                  ui.pushNotification("error", p.error);
-                }
-                break;
-              }
-              case "TaskBlocked": {
-                const task = taskGraph.tasks.find((t) => t.id === p.task_id);
-                if (task) {
-                  task.state = "Blocked" as TaskState;
-                  task.error = p.reason || "Dependency failed";
-                  taskGraph.tasks = [...taskGraph.tasks];
-                }
-                break;
-              }
-              case "TaskDecomposed": {
-                // Informational — sub-tasks arrive via separate AgentTaskCreated events.
-                break;
-              }
-              case "TaskRetried": {
-                const task = taskGraph.tasks.find((t) => t.id === p.task_id);
-                if (task) {
-                  task.state = "Running" as TaskState;
-                  task.retry_count = p.attempt;
-                  task.error = null;
-                  taskGraph.tasks = [...taskGraph.tasks];
-                }
-                break;
-              }
+              break;
             }
-
-            // Route agent lifecycle events to the agents store.
-            agents.applyAgentEvent(domainEvent.payload);
+            case "AgentTaskStarted": {
+              const task = taskGraph.tasks.find((t) => t.id === p.task_id);
+              if (task) {
+                task.state = "Running" as TaskState;
+                taskGraph.tasks = [...taskGraph.tasks];
+              }
+              break;
+            }
+            case "AgentTaskCompleted": {
+              const task = taskGraph.tasks.find((t) => t.id === p.task_id);
+              if (task) {
+                task.state = "Completed" as TaskState;
+                taskGraph.tasks = [...taskGraph.tasks];
+              }
+              break;
+            }
+            case "AgentTaskFailed": {
+              const task = taskGraph.tasks.find((t) => t.id === p.task_id);
+              if (task) {
+                task.state = "Failed" as TaskState;
+                task.error = p.error;
+                taskGraph.tasks = [...taskGraph.tasks];
+              }
+              if (p.error) {
+                ui.pushNotification("error", p.error);
+              }
+              break;
+            }
+            case "TaskBlocked": {
+              const task = taskGraph.tasks.find((t) => t.id === p.task_id);
+              if (task) {
+                task.state = "Blocked" as TaskState;
+                task.error = p.reason || "Dependency failed";
+                taskGraph.tasks = [...taskGraph.tasks];
+              }
+              break;
+            }
+            case "TaskDecomposed": {
+              // Informational — sub-tasks arrive via separate AgentTaskCreated events.
+              break;
+            }
+            case "TaskRetried": {
+              const task = taskGraph.tasks.find((t) => t.id === p.task_id);
+              if (task) {
+                task.state = "Running" as TaskState;
+                task.retry_count = p.attempt;
+                task.error = null;
+                taskGraph.tasks = [...taskGraph.tasks];
+              }
+              break;
+            }
           }
 
-          // MCP and catalog source events are global, not session-scoped.
-          const payload = domainEvent.payload;
-          switch (payload.type) {
-            case "McpServerStarting":
-            case "McpServerReady":
-            case "McpServerStopped":
-            case "McpServerFailed":
-            case "McpToolCallStarted":
-            case "McpToolCallCompleted":
-            case "McpTrustGranted":
-            case "McpTrustRevoked":
-              mcp.handleMcpEvent(payload);
-              break;
-            case "CatalogSourceAdded":
-              void catalog.fetchSources();
-              break;
-            case "CatalogSourceFailed":
-              catalog.handleSourceFailed(payload.source, payload.error);
-              break;
-          }
+          // Route agent lifecycle events to the agents store.
+          agents.applyAgentEvent(domainEvent.payload);
         }
-      );
+
+        // MCP and catalog source events are global, not session-scoped.
+        const payload = domainEvent.payload;
+        switch (payload.type) {
+          case "McpServerStarting":
+          case "McpServerReady":
+          case "McpServerStopped":
+          case "McpServerFailed":
+          case "McpToolCallStarted":
+          case "McpToolCallCompleted":
+          case "McpTrustGranted":
+          case "McpTrustRevoked":
+            mcp.handleMcpEvent(payload);
+            break;
+          case "CatalogSourceAdded":
+            void catalog.fetchSources();
+            break;
+          case "CatalogSourceFailed":
+            catalog.handleSourceFailed(payload.source, payload.error);
+            break;
+        }
+      });
 
       tryOnScopeDispose(() => {
         unlisten();
@@ -3044,10 +2955,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 >   void unlistenPromise
 >     .then(() => session.setConnected(true))
 >     .catch((err) => {
->       ui.pushNotification(
->         "error",
->         `Failed to subscribe to session events: ${err}`
->       );
+>       ui.pushNotification("error", `Failed to subscribe to session events: ${err}`);
 >     });
 >   ```
 >
@@ -3177,11 +3085,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
   <script setup lang="ts">
   import { useI18n } from "vue-i18n";
   import { storeToRefs } from "pinia";
-  import {
-    useUiStore,
-    type ThemeMode,
-    type SupportedLocale
-  } from "@/stores/ui";
+  import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
 
   const { t } = useI18n();
   const ui = useUiStore();
@@ -3208,11 +3112,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         <select
           v-model="locale"
           data-test="settings-locale"
-          @change="
-            ui.setLocale(
-              ($event.target as HTMLSelectElement).value as SupportedLocale
-            )
-          "
+          @change="ui.setLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
         >
           <option v-for="opt in locales" :key="opt.value" :value="opt.value">
             {{ t(opt.labelKey) }}
@@ -3225,9 +3125,7 @@ const { memories, loading, filter, searchQuery } = storeToRefs(memory);
         <select
           v-model="colorMode"
           data-test="settings-theme"
-          @change="
-            ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)
-          "
+          @change="ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)"
         >
           <option v-for="opt in themes" :key="opt.value" :value="opt.value">
             {{ t(opt.labelKey) }}
@@ -3591,10 +3489,7 @@ Both pre-work items must land in the same `feat(gui): integrate naive-ui …` co
     type GlobalTheme
   } from "naive-ui";
   import { useUiStore } from "@/stores/ui";
-  import {
-    lightThemeOverrides,
-    darkThemeOverrides
-  } from "@/styles/naive-theme";
+  import { lightThemeOverrides, darkThemeOverrides } from "@/styles/naive-theme";
   import StatusBar from "@/components/StatusBar.vue";
   import NotificationToast from "@/components/NotificationToast.vue";
 
@@ -3602,12 +3497,8 @@ Both pre-work items must land in the same `feat(gui): integrate naive-ui …` co
   const ui = useUiStore();
   const { isDark } = storeToRefs(ui);
 
-  const theme = computed<GlobalTheme | null>(() =>
-    isDark.value ? darkTheme : null
-  );
-  const themeOverrides = computed(() =>
-    isDark.value ? darkThemeOverrides : lightThemeOverrides
-  );
+  const theme = computed<GlobalTheme | null>(() => (isDark.value ? darkTheme : null));
+  const themeOverrides = computed(() => (isDark.value ? darkThemeOverrides : lightThemeOverrides));
   </script>
 
   <template>
@@ -3925,9 +3816,7 @@ These three items must land in the same `refactor(gui): migrate components to na
   // NaiveUI dialog (replaces the old ConfirmDialog component)
   const naiveDialog = page.locator(".n-dialog");
   await expect(naiveDialog).toBeVisible();
-  await naiveDialog
-    .locator(".n-dialog__action button.n-button--primary-type")
-    .click();
+  await naiveDialog.locator(".n-dialog__action button.n-button--primary-type").click();
   ```
 
   1.5 Verify nothing else references the deleted file or `.dialog-box` class:
@@ -4398,10 +4287,7 @@ These three items must land in the same `refactor(gui): migrate components to na
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const autoImportGlobals = (() => {
-    const path = resolve(
-      __dirname,
-      "apps/agent-gui/.eslintrc-auto-import.json"
-    );
+    const path = resolve(__dirname, "apps/agent-gui/.eslintrc-auto-import.json");
     if (!existsSync(path)) return {};
     try {
       return JSON.parse(readFileSync(path, "utf8")).globals ?? {};

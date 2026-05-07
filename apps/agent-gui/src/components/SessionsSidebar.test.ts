@@ -62,9 +62,7 @@ describe("SessionsSidebar", () => {
   it("navigates to the workbench route with the session id on click", async () => {
     const { wrapper, router } = await mountSidebar();
     const session = useSessionStore();
-    session.sessions = [
-      { id: "s1", title: "Session 1", profile: "fast" } as never
-    ];
+    session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
     await flushPromises();
     // Use the data-test selector so the assertion does not depend on the
     // ordering or class names of NaiveUI internals.
