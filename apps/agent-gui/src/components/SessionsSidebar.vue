@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { useDialog } from "naive-ui";
+import { useConfirm } from "@/composables/useConfirm";
 import type { ProfileDetail } from "../types";
 import { useSessionStore } from "@/stores/session";
 
 const { t } = useI18n();
-const dialog = useDialog();
+const { confirm } = useConfirm();
 
 const session = useSessionStore();
 const route = useRoute();
@@ -113,20 +113,17 @@ function cancelRename() {
   editingSessionId.value = null;
 }
 
-function promptDelete(sessionId: string, title: string) {
-  // The destructive confirmation is portal-rendered by NaiveUI under
-  // `<NDialogProvider>` (mounted in `AppLayout.vue`). The view layer no
-  // longer owns visibility state — the dialog hook does, and a positive
-  // click delegates to the existing `session.deleteSession` action.
-  dialog.warning({
+async function promptDelete(sessionId: string, title: string) {
+  const confirmed = await confirm({
     title: t("common.confirm"),
-    content: t("sessions.deleteConfirm", { title }),
-    positiveText: t("common.delete"),
-    negativeText: t("common.cancel"),
-    onPositiveClick: () => {
-      void session.deleteSession(sessionId);
-    }
+    message: t("sessions.deleteConfirm", { title }),
+    confirmText: t("common.delete"),
+    cancelText: t("common.cancel"),
+    type: "warning"
   });
+  if (confirmed) {
+    void session.deleteSession(sessionId);
+  }
 }
 
 function selectProfile(alias: string) {
@@ -337,10 +334,10 @@ function keyIcon(hasApiKey: boolean): string {
   line-height: 1;
 }
 .action-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--app-hover-color);
 }
 .action-delete:hover {
-  background: rgba(204, 51, 51, 0.1);
+  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
 }
 .rename-input {
   flex: 1;
@@ -371,7 +368,7 @@ function keyIcon(hasApiKey: boolean): string {
   border-radius: 8px;
   padding: 20px;
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-2, 0 4px 16px rgba(0, 0, 0, 0.15));
 }
 .new-session-dialog h3 {
   margin: 0 0 12px;
@@ -413,7 +410,7 @@ function keyIcon(hasApiKey: boolean): string {
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-1, 0 4px 12px rgba(0, 0, 0, 0.1));
   z-index: 10;
   max-height: 200px;
   overflow-y: auto;
@@ -472,7 +469,7 @@ function keyIcon(hasApiKey: boolean): string {
 }
 .dialog-actions button:first-child {
   background: var(--app-primary-color);
-  color: #fff;
+  color: var(--app-inverse-text-color, #fff);
   border-color: var(--app-primary-color);
 }
 </style>

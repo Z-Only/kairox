@@ -12,22 +12,19 @@ const pendingEntries = computed(() =>
 </script>
 
 <template>
-  <NCard size="small" class="permission-center" :bordered="false" content-style="padding: 0;">
-    <template #header>
+  <div class="card permission-center">
+    <div class="card-header">
       <h2>Permissions</h2>
-    </template>
-    <NEmpty
-      v-if="pendingEntries.length === 0"
-      size="small"
-      class="empty-state"
-      description="No pending requests"
-    />
-    <NList v-else hoverable bordered :show-divider="false">
-      <NListItem v-for="entry in pendingEntries" :key="entry.id">
-        <PermissionPrompt :entry="entry" />
-      </NListItem>
-    </NList>
-  </NCard>
+    </div>
+    <div class="card-content">
+      <div v-if="pendingEntries.length === 0" class="empty-state">No pending requests</div>
+      <ul v-else class="permission-list">
+        <li v-for="entry in pendingEntries" :key="entry.id" class="permission-list-item">
+          <PermissionPrompt :entry="entry" />
+        </li>
+      </ul>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -36,10 +33,10 @@ const pendingEntries = computed(() =>
   max-height: 260px;
   overflow-y: auto;
 }
-.permission-center :deep(.n-card-header) {
+.card-header {
   padding: 12px 12px 4px;
 }
-.permission-center :deep(.n-card__content) {
+.card-content {
   padding: 4px 12px 12px;
 }
 .permission-center h2 {
@@ -49,5 +46,16 @@ const pendingEntries = computed(() =>
 .empty-state {
   color: var(--app-text-disabled-color, #999);
   font-size: 13px;
+}
+.permission-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.permission-list-item {
+  padding: 4px 0;
+}
+.permission-list-item:hover {
+  background: var(--app-hover-color, #f0f4f8);
 }
 </style>

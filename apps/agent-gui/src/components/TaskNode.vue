@@ -87,11 +87,9 @@ function handleToggle() {
 
 <template>
   <div class="task-node-wrapper">
-    <!-- NCard hosts each row; the .task-node hook class is preserved so
-         existing tests (and any consumer styling) keep matching. The card
-         is borderless because TaskSteps already provides the surface. -->
-    <NCard
+    <div
       :class="[
+        'card',
         'task-node',
         `task-state-${node.task.state.toLowerCase()}`,
         {
@@ -99,11 +97,9 @@ function handleToggle() {
           'task-interactive': hasChildren || isFailed || isBlocked
         }
       ]"
-      :bordered="false"
-      size="small"
       @click="handleToggle"
     >
-      <NSpace align="center" :size="4" :wrap="false" class="task-row">
+      <div class="task-row">
         <span v-if="hasChildren" class="task-expand">
           {{ isExpanded ? "▾" : "▸" }}
         </span>
@@ -118,60 +114,39 @@ function handleToggle() {
         <span class="task-role" :style="{ backgroundColor: badgeColor }">
           {{ agentBadge }}
         </span>
-        <NText class="task-title">{{ node.task.title }}</NText>
-        <NTag v-if="retryLabel()" size="small" type="warning" :bordered="false" class="task-retry">
+        <span class="task-title">{{ node.task.title }}</span>
+        <span v-if="retryLabel()" class="tag tag-warning task-retry">
           {{ retryLabel() }}
-        </NTag>
-        <NText v-if="hasChildren && !isExpanded" depth="3" class="task-summary">
+        </span>
+        <span v-if="hasChildren && !isExpanded" class="task-summary">
           {{ childSummary() }}
-        </NText>
-        <NText v-if="node.task.state === 'Running'" type="info" class="task-running">
-          running...
-        </NText>
-        <NSpace v-if="isFailed" :size="2" :wrap="false" class="task-actions">
-          <!-- NButton renders an inner <button>; the .btn-retry / .btn-cancel
-               wrapper classes preserve the existing test selectors. -->
-          <NButton
-            quaternary
-            circle
-            size="tiny"
-            title="Retry task"
-            class="btn-retry"
-            @click.stop="handleRetry"
-          >
+        </span>
+        <span v-if="node.task.state === 'Running'" class="task-running"> running... </span>
+        <div v-if="isFailed" class="task-actions">
+          <button class="btn btn-icon btn-retry" title="Retry task" @click.stop="handleRetry">
             ↻
-          </NButton>
-          <NButton
-            quaternary
-            circle
-            size="tiny"
-            title="Cancel task"
-            class="btn-cancel"
-            @click.stop="handleCancel"
-          >
+          </button>
+          <button class="btn btn-icon btn-cancel" title="Cancel task" @click.stop="handleCancel">
             ✕
-          </NButton>
-        </NSpace>
-        <NSpace v-if="isBlocked" :size="2" :wrap="false" class="task-actions">
-          <NButton
-            quaternary
-            circle
-            size="tiny"
+          </button>
+        </div>
+        <div v-if="isBlocked" class="task-actions">
+          <button
+            class="btn btn-icon btn-cancel"
             title="Cancel blocked task"
-            class="btn-cancel"
             @click.stop="handleCancel"
           >
             ✕
-          </NButton>
-        </NSpace>
-      </NSpace>
-    </NCard>
-    <div v-if="node.task.error" class="task-error" :style="{ paddingLeft: `${depth * 16 + 8}px` }">
-      <NText type="error" class="task-error-text">
-        {{ node.task.error }}
-      </NText>
+          </button>
+        </div>
+      </div>
     </div>
-    <NDivider v-if="depth === 0 && isExpanded && hasChildren" class="task-divider" />
+    <div v-if="node.task.error" class="task-error" :style="{ paddingLeft: `${depth * 16 + 8}px` }">
+      <span class="task-error-text">
+        {{ node.task.error }}
+      </span>
+    </div>
+    <hr v-if="depth === 0 && isExpanded && hasChildren" class="divider task-divider" />
     <div v-if="isExpanded && hasChildren" class="task-children">
       <TaskNode
         v-for="child in node.children"
@@ -192,8 +167,6 @@ function handleToggle() {
 .task-node {
   font-size: 12px;
   cursor: default;
-}
-.task-node :deep(.n-card__content) {
   padding: 4px 8px;
 }
 .task-interactive {
@@ -203,6 +176,10 @@ function handleToggle() {
   background: var(--app-hover-color, #f0f4f8);
 }
 .task-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
   min-height: 20px;
   width: 100%;
 }
@@ -246,12 +223,31 @@ function handleToggle() {
 .task-summary {
   font-size: 10px;
   flex-shrink: 0;
+  color: var(--app-text-color-3, #999);
 }
 .task-running {
   font-size: 10px;
   flex-shrink: 0;
+  color: var(--app-info-color, #2080f0);
+}
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 50%;
+  color: var(--app-text-color-2, #555);
+}
+.btn-icon:hover {
+  background: var(--app-hover-color, #f0f4f8);
 }
 .task-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-wrap: nowrap;
   flex-shrink: 0;
   margin-left: 4px;
 }
@@ -262,6 +258,7 @@ function handleToggle() {
 .task-error-text {
   font-size: 11px;
   background: var(--app-error-bg, #fff5f5);
+  color: var(--app-error-color, #cc3333);
   border-radius: 3px;
   padding: 2px 6px;
   max-width: 100%;

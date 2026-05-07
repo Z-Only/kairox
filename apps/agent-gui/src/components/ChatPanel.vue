@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { type ScrollbarInst } from "naive-ui";
 import { useSessionStore } from "@/stores/session";
 import { useAgentsStore } from "@/stores/agents";
 import { useNotifications } from "@/composables/useNotifications";
@@ -12,7 +11,7 @@ const session = useSessionStore();
 const agents = useAgentsStore();
 const { notify } = useNotifications();
 const inputText = ref("");
-const scrollbar = ref<ScrollbarInst | null>(null);
+const scrollbar = ref<HTMLElement | null>(null);
 
 /**
  * Map role to display label. Uses the locale's translations for the two
@@ -87,10 +86,9 @@ watch(
   () => [session.projection.messages.length, session.projection.token_stream],
   async () => {
     await nextTick();
-    // NScrollbar exposes `scrollTo` for programmatic scrolling. Falling
-    // straight to a very large `top` keeps us pinned to the bottom of the
-    // message list as new tokens stream in.
-    scrollbar.value?.scrollTo({ top: 1e9 });
+    if (scrollbar.value) {
+      scrollbar.value.scrollTo({ top: scrollbar.value.scrollHeight, behavior: "smooth" });
+    }
   }
 );
 </script>
