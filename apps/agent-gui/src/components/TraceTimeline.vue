@@ -21,58 +21,51 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
            NButton so they pick up the NaiveUI theme without touching the
            tests' active-class assertion. -->
       <div class="tab-group">
-        <NButton
-          size="tiny"
-          :type="rightPanelTab === 'trace' ? 'primary' : 'default'"
-          :class="{ active: rightPanelTab === 'trace' }"
+        <button
+          class="btn btn-sm"
+          :class="{ 'btn-primary': rightPanelTab === 'trace', active: rightPanelTab === 'trace' }"
           @click="rightPanelTab = 'trace'"
         >
           {{ t("trace.tabTrace") }}
-        </NButton>
-        <NButton
-          size="tiny"
-          :type="rightPanelTab === 'tasks' ? 'primary' : 'default'"
-          :class="{ active: rightPanelTab === 'tasks' }"
+        </button>
+        <button
+          class="btn btn-sm"
+          :class="{ 'btn-primary': rightPanelTab === 'tasks', active: rightPanelTab === 'tasks' }"
           @click="rightPanelTab = 'tasks'"
         >
           {{ t("trace.tabTasks") }}
-        </NButton>
-        <NButton
-          size="tiny"
-          :type="rightPanelTab === 'memory' ? 'primary' : 'default'"
-          :class="{ active: rightPanelTab === 'memory' }"
+        </button>
+        <button
+          class="btn btn-sm"
+          :class="{ 'btn-primary': rightPanelTab === 'memory', active: rightPanelTab === 'memory' }"
           @click="rightPanelTab = 'memory'"
         >
           {{ t("trace.tabMemory") }}
-        </NButton>
+        </button>
       </div>
       <div v-if="rightPanelTab === 'trace'" class="density-toggles">
-        <NButton
+        <button
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
-          size="tiny"
-          :type="traceState.density === d ? 'primary' : 'default'"
-          :class="{ active: traceState.density === d }"
+          class="btn btn-sm"
+          :class="{ 'btn-primary': traceState.density === d, active: traceState.density === d }"
           @click="traceState.density = d"
         >
           {{ d }}
-        </NButton>
+        </button>
       </div>
     </header>
-    <NScrollbar v-if="rightPanelTab === 'trace'" class="trace-entries">
+    <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
       <TraceEntry
         v-for="entry in traceState.entries"
         :key="entry.id"
         :entry="entry"
         :density="traceState.density"
       />
-      <NEmpty
-        v-if="traceState.entries.length === 0"
-        size="small"
-        class="empty-hint"
-        :description="t('trace.emptyTrace')"
-      />
-    </NScrollbar>
+      <div v-if="traceState.entries.length === 0" class="empty-state empty-hint">
+        {{ t("trace.emptyTrace") }}
+      </div>
+    </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
   </section>
@@ -90,7 +83,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
+  border-bottom: 1px solid var(--app-border-color);
 }
 .tab-group {
   display: flex;
@@ -106,7 +99,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 }
 .empty-hint {
   padding: 12px;
-  color: var(--app-text-disabled-color, #999);
+  color: var(--app-text-color-3);
   font-size: 12px;
 }
 </style>
