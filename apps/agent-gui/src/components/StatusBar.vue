@@ -116,13 +116,13 @@ onMounted(async () => {
   display: inline-block;
 }
 .dot-success {
-  background: var(--app-primary-color, #52c41a);
+  background: var(--app-success-color, #52c41a);
 }
 .dot-error {
-  background: var(--app-primary-color, #ff4d4f);
+  background: var(--app-error-color, #ff4d4f);
 }
 .dot-warning {
-  background: var(--app-primary-color, #faad14);
+  background: var(--app-warning-color, #faad14);
 }
 .dot-default {
   background: var(--app-text-color);

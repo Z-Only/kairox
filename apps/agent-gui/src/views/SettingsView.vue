@@ -63,6 +63,8 @@ const { locale, colorMode } = storeToRefs(ui);
 .settings {
   padding: 16px;
   max-width: 640px;
+  flex: 1;
+  overflow: auto;
 }
 .settings__row {
   display: flex;

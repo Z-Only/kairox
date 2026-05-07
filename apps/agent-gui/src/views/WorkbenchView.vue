@@ -73,13 +73,17 @@ watch(currentSessionId, (next) => {
 .workbench {
   display: grid;
   grid-template-columns: 220px 1fr 280px;
+  grid-template-rows: 1fr auto;
   flex: 1;
   overflow: hidden;
 }
 .right-sidebar {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #d7d7d7;
+  border-left: 1px solid var(--app-border-color);
   overflow: hidden;
+}
+.status-bar {
+  grid-column: 1 / -1;
 }
 </style>

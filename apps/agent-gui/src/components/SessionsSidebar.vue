@@ -274,7 +274,7 @@ function keyIcon(hasApiKey: boolean): string {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #d7d7d7;
+  border-bottom: 1px solid var(--app-border-color);
 }
 .sidebar-header h2 {
   margin: 0;
@@ -283,8 +283,6 @@ function keyIcon(hasApiKey: boolean): string {
 .new-session-btn {
   font-size: 12px;
   padding: 2px 8px;
-  background: #0077cc;
-  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -304,14 +302,14 @@ function keyIcon(hasApiKey: boolean): string {
   position: relative;
 }
 .session-item:hover {
-  background: #f0f4f8;
+  background: var(--app-hover-color);
 }
 .session-item.active {
-  background: #e1ecf7;
+  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
   font-weight: 600;
 }
 .session-indicator {
-  color: #22a06b;
+  color: var(--app-success-color);
   font-size: 10px;
   flex-shrink: 0;
 }
@@ -346,16 +344,18 @@ function keyIcon(hasApiKey: boolean): string {
 }
 .rename-input {
   flex: 1;
-  border: 1px solid #0077cc;
+  border: 1px solid var(--app-primary-color);
   border-radius: 3px;
   padding: 2px 4px;
   font-size: 13px;
   outline: none;
   font-family: inherit;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
 }
 .empty-hint {
   padding: 12px;
-  color: #999;
+  color: var(--app-text-color-3);
   font-size: 13px;
 }
 
@@ -366,8 +366,8 @@ function keyIcon(hasApiKey: boolean): string {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: white;
-  border: 1px solid #d7d7d7;
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
   padding: 20px;
   z-index: 100;
@@ -393,24 +393,25 @@ function keyIcon(hasApiKey: boolean): string {
   align-items: center;
   width: 100%;
   padding: 6px 10px;
-  border: 1px solid #d7d7d7;
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  background: white;
+  background: var(--app-card-color);
   cursor: pointer;
   font-size: 13px;
   text-align: left;
+  color: var(--app-text-color);
 }
 .caret {
   font-size: 10px;
-  color: #777;
+  color: var(--app-text-color-3);
 }
 .profile-menu {
   position: absolute;
   top: 100%;
   left: 0;
   min-width: 320px;
-  background: white;
-  border: 1px solid #d7d7d7;
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -426,10 +427,10 @@ function keyIcon(hasApiKey: boolean): string {
   font-size: 12px;
 }
 .profile-option:hover {
-  background: #f0f4f8;
+  background: var(--app-hover-color);
 }
 .profile-option.selected {
-  background: #e1ecf7;
+  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
   font-weight: 600;
 }
 .profile-alias {
@@ -437,7 +438,7 @@ function keyIcon(hasApiKey: boolean): string {
   font-size: 13px;
 }
 .profile-detail {
-  color: #666;
+  color: var(--app-text-color-2);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -463,15 +464,15 @@ function keyIcon(hasApiKey: boolean): string {
 }
 .dialog-actions button {
   padding: 6px 12px;
-  border: 1px solid #d7d7d7;
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
   cursor: pointer;
-  background: white;
+  background: var(--app-card-color);
   font-size: 13px;
 }
 .dialog-actions button:first-child {
-  background: #0077cc;
-  color: white;
-  border-color: #0077cc;
+  background: var(--app-primary-color);
+  color: #fff;
+  border-color: var(--app-primary-color);
 }
 </style>

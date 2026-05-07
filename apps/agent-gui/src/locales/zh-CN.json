@@ -36,6 +36,7 @@
   },
   "settings": {
     "title": "设置",
+    "general": "通用",
     "locale": "语言",
     "localeEn": "English",
     "localeZh": "中文（简体）",

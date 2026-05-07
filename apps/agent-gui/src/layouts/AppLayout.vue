@@ -37,7 +37,15 @@ const themeVars = useThemeVars();
                 '--app-card-color': themeVars.cardColor,
                 '--app-border-color': themeVars.borderColor,
                 '--app-text-color': themeVars.textColor1,
-                '--app-primary-color': themeVars.primaryColor
+                '--app-primary-color': themeVars.primaryColor,
+                '--app-text-color-2': themeVars.textColor2,
+                '--app-text-color-3': themeVars.textColor3,
+                '--app-success-color': themeVars.successColor,
+                '--app-warning-color': themeVars.warningColor,
+                '--app-error-color': themeVars.errorColor,
+                '--app-info-color': themeVars.infoColor,
+                '--app-hover-color': themeVars.hoverColor,
+                '--app-code-bg': themeVars.codeColor
               }"
             >
               <nav class="app-nav" data-test="app-nav">
@@ -57,3 +65,37 @@ const themeVars = useThemeVars();
     </NLoadingBarProvider>
   </NConfigProvider>
 </template>
+
+<style scoped>
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.app-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-card-color);
+  font-size: 13px;
+}
+.app-nav a {
+  text-decoration: none;
+  color: var(--app-text-color-2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.app-nav a:hover {
+  color: var(--app-text-color);
+  background: var(--app-hover-color);
+}
+.app-nav a.router-link-active {
+  color: var(--app-primary-color);
+  font-weight: 600;
+}
+</style>

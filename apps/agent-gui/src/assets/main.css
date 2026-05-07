@@ -19,8 +19,8 @@ body,
     Roboto,
     sans-serif;
   font-size: 14px;
-  color: #333;
-  background: #fff;
+  color: var(--app-text-color, #333);
+  background: var(--app-body-color, #fff);
 }
 
 #app {
