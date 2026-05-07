@@ -14,8 +14,8 @@ async function onUninstall(serverId: string) {
 
 <template>
   <!-- A semantic <table> is retained because the existing test suite asserts
-       layout via row/cell text. We swap the per-cell controls to NaiveUI
-       primitives so coloring + button affordance follow the active theme. -->
+       layout via row/cell text. Per-cell controls use native HTML elements
+       with theme-aware CSS variable colours. -->
   <div class="installed-wrap" data-test="installed-list">
     <table class="installed">
       <thead>
@@ -30,42 +30,39 @@ async function onUninstall(serverId: string) {
       <tbody>
         <tr v-for="row in catalog.installed" :key="row.server_id">
           <td>
-            <NText strong>{{ row.display_name }}</NText>
+            <span class="text-strong">{{ row.display_name }}</span>
           </td>
           <td>
-            <NText depth="2">{{ row.source ?? "(manual)" }}</NText>
+            <span class="text-secondary">{{ row.source ?? "(manual)" }}</span>
           </td>
           <td>
-            <NTag size="small" :type="row.running ? 'success' : 'default'" :bordered="false">
+            <span :class="['tag', 'tag-sm', row.running ? 'tag-success' : 'tag-default']">
               {{ row.running ? "running" : "stopped" }}
-            </NTag>
+            </span>
           </td>
           <td>
-            <NText depth="3">{{ row.installed_at }}</NText>
+            <span class="text-tertiary">{{ row.installed_at }}</span>
           </td>
           <td>
             <!-- The disabled button still needs to appear in the DOM for the
                  existing test (which checks the disabled attribute on a
-                 hand-edited row). NButton renders a real <button>, so the
-                 attribute round-trips. -->
-            <NButton
-              size="tiny"
+                 hand-edited row). -->
+            <button
+              class="btn btn-xs"
               :disabled="!row.source"
               :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
               :data-test="`uninstall-${row.server_id}`"
               @click="onUninstall(row.server_id)"
             >
               Uninstall
-            </NButton>
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
-    <NEmpty
-      v-if="catalog.installed.length === 0"
-      :description="t('marketplace.installedEmpty')"
-      class="empty"
-    />
+    <div v-if="catalog.installed.length === 0" class="empty-state empty">
+      {{ t("marketplace.installedEmpty") }}
+    </div>
   </div>
 </template>
 
@@ -78,7 +75,62 @@ async function onUninstall(serverId: string) {
 .installed td {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--app-border-color, #eee);
+  border-bottom: 1px solid var(--app-border-color);
+}
+.text-strong {
+  font-weight: 600;
+  color: var(--app-text-color);
+}
+.text-secondary {
+  color: var(--app-text-color-2);
+}
+.text-tertiary {
+  color: var(--app-text-color-3);
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 22px;
+  font-size: 12px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.tag-default {
+  background: var(--app-hover-color);
+  color: var(--app-text-color);
+}
+.tag-success {
+  background: var(--app-success-bg);
+  color: var(--app-success-color);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--app-hover-color);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-xs {
+  height: 24px;
+}
+.empty-state {
+  text-align: center;
+  color: var(--app-text-color-3);
+  padding: 24px 0;
 }
 .empty {
   margin-top: 24px;
