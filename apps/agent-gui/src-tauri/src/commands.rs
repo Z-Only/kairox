@@ -10,6 +10,55 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri::State;
 
+// ---------------------------------------------------------------------------
+// Marketplace error helpers
+// ---------------------------------------------------------------------------
+
+/// Sentinel substrings the runtime layer uses when the marketplace install
+/// directory or remote catalog source registry has not been wired up.
+const NOT_CONFIGURED_MARKERS: &[&str] = &["not configured", "not initialized"];
+
+fn is_marketplace_not_configured(err: &agent_core::CoreError) -> bool {
+    let agent_core::CoreError::InvalidState(msg) = err;
+    let lower = msg.to_lowercase();
+    NOT_CONFIGURED_MARKERS
+        .iter()
+        .any(|marker| lower.contains(marker))
+}
+
+/// Belt-and-suspenders for read-only marketplace commands.
+pub(crate) fn degrade_marketplace_not_configured<T: Default>(
+    err: agent_core::CoreError,
+) -> Result<T, String> {
+    if is_marketplace_not_configured(&err) {
+        Ok(T::default())
+    } else {
+        Err(err.to_string())
+    }
+}
+
+/// User-facing error rewriter for mutating marketplace commands.
+pub(crate) fn friendly_marketplace_error(err: agent_core::CoreError) -> String {
+    if !is_marketplace_not_configured(&err) {
+        return err.to_string();
+    }
+    let agent_core::CoreError::InvalidState(msg) = &err;
+    let lower = msg.to_lowercase();
+    if lower.contains("install dir") {
+        "Marketplace is not configured yet. Please set the marketplace install \
+         directory in Settings before installing or uninstalling servers."
+            .to_string()
+    } else if lower.contains("source registry") || lower.contains("catalog source") {
+        "Marketplace catalog sources are not available yet. Open the \
+         Marketplace page once to initialize them, then try again."
+            .to_string()
+    } else {
+        "Marketplace is not configured yet. Please configure it in Settings \
+         before performing this action."
+            .to_string()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct WorkspaceInfoResponse {
     pub workspace_id: String,
@@ -1209,5 +1258,90 @@ mod catalog_sources_command_tests {
         let json = serde_json::to_string(&r).unwrap();
         assert!(json.contains("\"kind\":\"smithery\""));
         assert!(json.contains("\"last_error\":\"timeout\""));
+    }
+}
+
+#[cfg(test)]
+mod marketplace_error_helper_tests {
+    use super::*;
+    use agent_core::CoreError;
+
+    #[test]
+    fn degrades_marketplace_not_configured_to_default_vec() {
+        let err = CoreError::InvalidState("marketplace not configured".into());
+        let result: Result<Vec<String>, String> = degrade_marketplace_not_configured(err);
+        assert_eq!(result, Ok(Vec::new()));
+    }
+
+    #[test]
+    fn degrades_install_dir_not_configured_to_default_unit() {
+        let err = CoreError::InvalidState(
+            "marketplace install dir not configured; cannot install".into(),
+        );
+        let result: Result<(), String> = degrade_marketplace_not_configured(err);
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn degrades_source_registry_not_initialized_to_default_option() {
+        let err = CoreError::InvalidState(
+            "catalog source registry not initialized; cannot modify sources".into(),
+        );
+        let result: Result<Option<String>, String> = degrade_marketplace_not_configured(err);
+        assert_eq!(result, Ok(None));
+    }
+
+    #[test]
+    fn degrade_passes_through_unrelated_errors() {
+        let err = CoreError::InvalidState("some other invariant violated".into());
+        let result: Result<Vec<String>, String> = degrade_marketplace_not_configured(err);
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("some other invariant"),
+            "expected raw error passthrough, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn friendly_rewrites_install_dir_error() {
+        let err = CoreError::InvalidState(
+            "marketplace install dir not configured; cannot install".into(),
+        );
+        let msg = friendly_marketplace_error(err);
+        assert!(
+            !msg.to_lowercase().contains("invalid state"),
+            "raw Display leaked: {msg}"
+        );
+        assert!(!msg.contains("InvalidState"), "raw variant leaked: {msg}");
+        assert!(
+            msg.to_lowercase().contains("marketplace"),
+            "expected user-facing hint about marketplace, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn friendly_rewrites_source_registry_error() {
+        let err = CoreError::InvalidState(
+            "catalog source registry not initialized; cannot modify sources".into(),
+        );
+        let msg = friendly_marketplace_error(err);
+        assert!(!msg.to_lowercase().contains("invalid state"));
+        assert!(!msg.to_lowercase().contains("not initialized"));
+        assert!(
+            msg.to_lowercase().contains("marketplace")
+                || msg.to_lowercase().contains("catalog source"),
+            "expected user-facing hint, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn friendly_passes_through_unrelated_errors() {
+        let err = CoreError::InvalidState("workspace busy".into());
+        let msg = friendly_marketplace_error(err);
+        assert!(
+            msg.contains("workspace busy"),
+            "expected raw passthrough, got: {msg}"
+        );
     }
 }
