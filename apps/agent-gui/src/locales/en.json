@@ -140,6 +140,10 @@
     "streamingNo": "streaming: no",
     "connectedYes": "connected: yes",
     "connectedNo": "connected: no",
-    "mode": "mode: {mode}"
+    "mode": "mode: {mode}",
+    "sessionsLabel": "Sessions",
+    "streamingLabel": "Streaming",
+    "connectedLabel": "Connected",
+    "modeLabel": "Mode"
   }
 }

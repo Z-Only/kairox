@@ -140,6 +140,10 @@
     "streamingNo": "传输中: 否",
     "connectedYes": "已连接: 是",
     "connectedNo": "已连接: 否",
-    "mode": "模式: {mode}"
+    "mode": "模式: {mode}",
+    "sessionsLabel": "会话",
+    "streamingLabel": "传输中",
+    "connectedLabel": "已连接",
+    "modeLabel": "模式"
   }
 }

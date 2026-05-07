@@ -11,80 +11,124 @@ const mcp = useMcpStore();
 const permissionMode = ref("interactive");
 const showMcpManager = ref(false);
 
-const streamingType = computed<"warning" | "default">(() =>
+const streamingDotType = computed<"warning" | "default">(() =>
   session.isStreaming ? "warning" : "default"
 );
-const connectedType = computed<"success" | "error">(() =>
+const connectedDotType = computed<"success" | "error">(() =>
   session.connected ? "success" : "error"
 );
 
 onMounted(async () => {
   try {
     const mode: string = await invoke("get_permission_mode");
-    // Convert PascalCase to lowercase for display
     permissionMode.value = mode.toLowerCase();
   } catch {
     permissionMode.value = "interactive";
   }
-  // Fetch MCP server status on mount
   try {
     await mcp.fetchServers();
   } catch {
-    // Non-critical — status indicator will just show empty state
+    // Non-critical
   }
 });
 </script>
 
 <template>
   <footer class="status-bar" data-test="status-bar">
-    <NSpace size="small" align="center" :wrap="false">
-      <NTooltip trigger="hover">
-        <template #trigger>
-          <NTag size="small" :bordered="false" data-test="status-profile">
-            {{ t("statusBar.profile", { profile: session.currentProfile }) }}
-          </NTag>
-        </template>
-        {{ t("status.activeProfile") }}
-      </NTooltip>
+    <div class="status-items">
+      <!-- Profile -->
+      <div class="status-item">
+        <span class="status-label">{{ t("status.activeProfile") }}:</span>
+        <span class="status-value">{{ session.currentProfile }}</span>
+      </div>
 
-      <NText depth="3" class="status-item" data-test="status-sessions">
-        {{ t("statusBar.sessions", { count: session.sessions.length }) }}
-      </NText>
+      <!-- Sessions -->
+      <div class="status-item">
+        <span class="status-label">{{ t("statusBar.sessionsLabel") }}:</span>
+        <span class="status-value">{{ session.sessions.length }}</span>
+      </div>
 
-      <NTag size="small" :bordered="false" :type="streamingType" data-test="status-streaming">
-        {{ session.isStreaming ? t("statusBar.streamingYes") : t("statusBar.streamingNo") }}
-      </NTag>
+      <!-- Streaming -->
+      <div class="status-item">
+        <span class="status-label">{{ t("statusBar.streamingLabel") }}:</span>
+        <span class="status-dot" :class="`dot-${streamingDotType}`"></span>
+        <span class="status-value">{{
+          session.isStreaming ? t("common.yes") : t("common.no")
+        }}</span>
+      </div>
 
-      <NTag size="small" :bordered="false" :type="connectedType" data-test="status-connected">
-        {{ session.connected ? t("statusBar.connectedYes") : t("statusBar.connectedNo") }}
-      </NTag>
+      <!-- Connected -->
+      <div class="status-item">
+        <span class="status-label">{{ t("statusBar.connectedLabel") }}:</span>
+        <span class="status-dot" :class="`dot-${connectedDotType}`"></span>
+        <span class="status-value">{{ session.connected ? t("common.yes") : t("common.no") }}</span>
+      </div>
 
-      <NText depth="3" class="status-item" data-test="status-mode">
-        {{ t("statusBar.mode", { mode: permissionMode }) }}
-      </NText>
+      <!-- Mode -->
+      <div class="status-item">
+        <span class="status-label">{{ t("statusBar.modeLabel") }}:</span>
+        <span class="status-value">{{ permissionMode }}</span>
+      </div>
 
-      <span class="mcp-status-wrapper">
+      <!-- MCP -->
+      <div class="status-item mcp-item">
         <McpStatusIndicator @click="showMcpManager = !showMcpManager" />
         <McpServerManager v-if="showMcpManager" @close="showMcpManager = false" />
-      </span>
-    </NSpace>
+      </div>
+    </div>
   </footer>
 </template>
 
 <style scoped>
 .status-bar {
-  padding: 4px 16px;
-  background: var(--app-card-color, #f5f5f5);
-  border-top: 1px solid var(--app-border-color, #d7d7d7);
-  font-size: 11px;
-  color: var(--app-text-color, #555);
+  padding: 6px 16px;
+  background: var(--app-card-color);
+  border-top: 1px solid var(--app-border-color);
+  font-size: 12px;
+  color: var(--app-text-color);
+}
+.status-items {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 .status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.status-label {
+  color: var(--app-text-color);
+  opacity: 0.7;
   font-size: 11px;
 }
-.mcp-status-wrapper {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
+.status-value {
+  color: var(--app-text-color);
+  font-weight: 500;
+  font-size: 11px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot-success {
+  background: var(--app-primary-color, #52c41a);
+}
+.dot-error {
+  background: var(--app-primary-color, #ff4d4f);
+}
+.dot-warning {
+  background: var(--app-primary-color, #faad14);
+}
+.dot-default {
+  background: var(--app-text-color);
+  opacity: 0.4;
+}
+.mcp-item {
+  margin-left: auto;
 }
 </style>
