@@ -95,6 +95,7 @@ watch(
 
 <template>
   <section class="chat-panel" data-test="chat-panel">
+    <ContextMeter />
     <header class="chat-header">
       <h2>{{ t("chat.header") }}</h2>
       <span class="tag" data-test="chat-profile-badge">
