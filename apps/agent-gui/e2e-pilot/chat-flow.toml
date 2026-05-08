@@ -12,14 +12,11 @@ action = "wait"
 selector = "[data-test='sessions-sidebar']"
 timeout_ms = 15000
 
-# `fill` uses `HTMLInputElement.value` under the hood, which only accepts
-# <input> elements; the chat box is a <textarea>, so we use `type` instead
-# (per-character keyboard events that drive Vue's v-model correctly).
 [[step]]
 name = "type message"
-action = "type"
+action = "fill"
 target = "textarea[data-test='message-input']"
-text = "Hello from pilot test"
+value = "Hello from pilot test"
 
 [[step]]
 name = "send message"
