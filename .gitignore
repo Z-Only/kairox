@@ -70,3 +70,21 @@ test-results/
 # tauri-pilot runner outputs (created by scripts/run-pilot-tests.sh)
 /pilot-results/
 /tauri-pilot-failures/
+# Test coverage reports (vitest, c8, istanbul, cargo-tarpaulin, etc.)
+coverage/
+**/coverage/
+
+# =============================================================================
+# Build / Compilation cache
+# =============================================================================
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
