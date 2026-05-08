@@ -10,9 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod http_cache;
 pub mod http_client;
-pub mod kairox_json;
 pub mod mcp_registry;
-pub mod smithery;
 
 pub use http_cache::HttpResponseCache;
 pub use http_client::SharedHttpClient;

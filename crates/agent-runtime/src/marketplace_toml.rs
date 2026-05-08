@@ -267,14 +267,14 @@ args = []
         )
         .unwrap();
         let mt = MarketplaceToml::new(tmp.path());
-        mt.add_source(sample_source("smithery")).unwrap();
+        mt.add_source(sample_source("mcp-registry")).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
         // mcp_servers.fs must survive verbatim.
         assert!(raw.contains("[mcp_servers.fs]"));
         assert!(raw.contains("command = \"fs-server\""));
         // catalog_sources entry must be present.
         assert!(raw.contains("[[catalog_sources]]"));
-        assert!(raw.contains("id = \"smithery\""));
+        assert!(raw.contains("id = \"mcp-registry\""));
     }
 
     #[test]
