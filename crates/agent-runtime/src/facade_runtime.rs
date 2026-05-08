@@ -596,6 +596,16 @@ where
             // statically compiled so there is nothing to fetch.
             return Ok(());
         };
+
+        // Rebuild the aggregate from disk before refreshing so that sources
+        // configured in `mcp_servers.toml` (but not present at startup
+        // because `with_marketplace` passes `&[]`) are loaded into the
+        // aggregate. Without this, only the builtin provider is refreshed
+        // and remote entries never appear.
+        if self.marketplace_dir.is_some() {
+            self.rebuild_aggregate_from_disk().await?;
+        }
+
         catalog
             .refresh()
             .await
