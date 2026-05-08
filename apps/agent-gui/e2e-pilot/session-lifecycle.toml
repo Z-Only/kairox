@@ -1,0 +1,23 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Session lifecycle"
+fail_fast = true
+global_timeout_ms = 60000
+
+[[step]]
+name = "wait for app ready"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "assert initial session exists"
+action = "assert-visible"
+target = "[data-test='sessions-sidebar']"
+
+[[step]]
+name = "screenshot initial state"
+action = "screenshot"
+path = "tauri-pilot-failures/session-lifecycle-init.png"

@@ -21,8 +21,18 @@ pub fn run() {
 
     let _specta_builder = specta::create_specta();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    // `mut` is only used when the `pilot` feature is enabled in a debug build;
+    // suppress the lint when the `#[cfg]` block below is compiled out.
+    #[cfg_attr(not(all(debug_assertions, feature = "pilot")), allow(unused_mut))]
+    let mut builder =
+        tauri::Builder::default().plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(all(debug_assertions, feature = "pilot"))]
+    {
+        builder = builder.plugin(tauri_plugin_pilot::init());
+    }
+
+    builder
         .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {

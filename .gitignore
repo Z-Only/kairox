@@ -67,3 +67,6 @@ apps/agent-gui/src-tauri/gen/
 playwright-report/
 apps/agent-gui/test-results/
 test-results/
+# tauri-pilot runner outputs (created by scripts/run-pilot-tests.sh)
+/pilot-results/
+/tauri-pilot-failures/

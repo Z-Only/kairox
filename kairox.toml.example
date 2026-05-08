@@ -92,7 +92,7 @@ base_url = "http://localhost:11434"
 
 [profiles.fake]
 provider = "fake"
-model_id = "fake-model"
+model_id = "fake"
 response = "Hello from the Kairox fake provider!"
 
 # ─────────────────────────────────────────────────────────────────────────────

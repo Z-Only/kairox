@@ -1,0 +1,31 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Chat flow"
+fail_fast = true
+global_timeout_ms = 60000
+
+# NOTE: The full "type message → press Enter → assert user message" flow is
+# intentionally omitted. tauri-pilot v0.5.0 (commit 624c9c32) ships a bug in
+# `crates/tauri-plugin-pilot/js/bridge.js` where both the `fill` and `type`
+# handlers grab the value setter via:
+#
+#   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value") ||
+#   Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value");
+#
+# The `||` short-circuits to the HTMLInputElement setter, which throws when
+# applied to a <textarea> with:
+#
+#   The HTMLInputElement.value setter can only be used on instances of
+#   HTMLInputElement
+#
+# The chat input is a <textarea v-model="inputText"> (see
+# apps/agent-gui/src/components/ChatPanel.vue), so neither `fill` nor `type`
+# can drive it. Restore the message-send steps once tauri-pilot ships a fix
+# (track via https://github.com/mpiton/tauri-pilot).
+[[step]]
+name = "wait for app ready"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
