@@ -170,8 +170,11 @@ pub struct PermissionDecision {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 /// A single trace entry wrapping a domain event, used for trace panel display.
+///
+/// Note: only `PartialEq` (not `Eq`) because the wrapped `DomainEvent::payload`
+/// contains `f32` fields (`ContextUsage`, `CompactionReason::Threshold { ratio }`).
 pub struct TraceEntry {
     pub event: DomainEvent,
 }
