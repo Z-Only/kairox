@@ -192,9 +192,7 @@ async fn compact_inner<S: EventStore>(
         .iter()
         .map(|e| match &e.payload {
             EventPayload::UserMessageAdded { content, .. }
-            | EventPayload::AssistantMessageCompleted { content, .. } => {
-                (content.len() / 4) as u64
-            }
+            | EventPayload::AssistantMessageCompleted { content, .. } => (content.len() / 4) as u64,
             _ => 0,
         })
         .sum::<u64>();
@@ -507,7 +505,10 @@ mod tests {
                 }
             )
         });
-        assert!(failed, "expected ContextCompactionFailed (fallback_used=true)");
+        assert!(
+            failed,
+            "expected ContextCompactionFailed (fallback_used=true)"
+        );
     }
 
     #[tokio::test]
@@ -567,6 +568,9 @@ mod tests {
             })
             .unwrap()
             .timestamp;
-        assert!(last < pair2_user_ts, "last={last:?} should be < {pair2_user_ts:?}");
+        assert!(
+            last < pair2_user_ts,
+            "last={last:?} should be < {pair2_user_ts:?}"
+        );
     }
 }

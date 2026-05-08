@@ -57,18 +57,21 @@ pub fn build_model_messages(
     // skipped, and the corresponding summary text is injected as a
     // pseudo-user message at the position the first replaced event would
     // have occupied. Summaries themselves are never emitted as plain events.
-    let mut summaries: Vec<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, String)> =
-        session_events
-            .iter()
-            .filter_map(|e| match &e.payload {
-                EventPayload::CompactionSummary {
-                    replaces_event_range: (first, last),
-                    content,
-                    ..
-                } => Some((*first, *last, content.clone())),
-                _ => None,
-            })
-            .collect();
+    let mut summaries: Vec<(
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+        String,
+    )> = session_events
+        .iter()
+        .filter_map(|e| match &e.payload {
+            EventPayload::CompactionSummary {
+                replaces_event_range: (first, last),
+                content,
+                ..
+            } => Some((*first, *last, content.clone())),
+            _ => None,
+        })
+        .collect();
     summaries.sort_by_key(|(first, _, _)| *first);
     let covered = |ts: chrono::DateTime<chrono::Utc>| -> bool {
         summaries

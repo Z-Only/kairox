@@ -4,8 +4,8 @@
 
 use crate::commands::*;
 use agent_core::{
-    AgentRole, ContextSource, ContextUsage, DomainEvent, EventPayload, PrivacyClassification,
-    TaskGraphSnapshot, TaskSnapshot, TaskState,
+    AgentRole, CompactionReason, ContextSource, ContextUsage, DomainEvent, EventPayload,
+    PrivacyClassification, TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -93,4 +93,6 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ContextUsage>()
         .typ::<ModelLimits>()
         .typ::<LimitSource>()
+        // Context-mgmt P2: compaction reason (referenced by 4 new EventPayload variants)
+        .typ::<CompactionReason>()
 }

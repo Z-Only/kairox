@@ -540,7 +540,10 @@ fn context_compaction_started_event_round_trips() {
 
     let s = serde_json::to_string(&event.payload).unwrap();
     let back: EventPayload = serde_json::from_str(&s).unwrap();
-    assert!(matches!(back, EventPayload::ContextCompactionStarted { .. }));
+    assert!(matches!(
+        back,
+        EventPayload::ContextCompactionStarted { .. }
+    ));
 }
 
 #[test]

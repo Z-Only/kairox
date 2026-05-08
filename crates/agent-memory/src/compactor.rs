@@ -59,9 +59,7 @@ pub fn render_transcript(events: &[DomainEvent]) -> String {
                 tool_call_id,
                 ..
             } => {
-                out.push_str(&format!(
-                    "### tool_call ({tool_id}, id={tool_call_id})\n\n"
-                ));
+                out.push_str(&format!("### tool_call ({tool_id}, id={tool_call_id})\n\n"));
             }
             EventPayload::ToolInvocationCompleted {
                 tool_id,
@@ -347,9 +345,6 @@ mod tests {
     fn sliding_window_fallback_includes_count_and_marker() {
         let s = Compactor::sliding_window_fallback(42);
         assert!(s.contains("42"), "expected count, got: {s}");
-        assert!(
-            s.contains("sliding window"),
-            "expected marker, got: {s}"
-        );
+        assert!(s.contains("sliding window"), "expected marker, got: {s}");
     }
 }
