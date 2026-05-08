@@ -4,6 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# Opt-in feature for integration tests that hit a live model API
+# (e.g. GitHub Models via GITHUB_TOKEN). Off by default so the regular
+# `cargo test --workspace` stays hermetic. Enabled by `just test-live`
+# and the `live-model-tests` CI job.
+live-model-tests = []
+
 [dependencies]
 agent-core = { path = "../agent-core" }
 agent-memory = { path = "../agent-memory" }
