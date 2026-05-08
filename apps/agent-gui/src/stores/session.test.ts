@@ -162,7 +162,10 @@ describe("setProjection", () => {
       task_titles: ["task 1"],
       token_stream: "",
       cancelled: false,
-      task_graph: { tasks: [] }
+      task_graph: { tasks: [] },
+      last_context_usage: null,
+      model_limits: null,
+      compaction: { type: "Idle" }
     });
     expect(session.projection.messages).toHaveLength(2);
     expect(session.isStreaming).toBe(false);

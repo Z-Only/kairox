@@ -367,3 +367,58 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
         "subscribe_all should receive events from session 2"
     );
 }
+
+// ---------------------------------------------------------------------------
+// P3 Task 10: `:compact` typed in chat dispatches `Command::CompactSession`
+// instead of `Command::SendMessage`.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn colon_compact_input_dispatches_compact_session_command() {
+    use agent_core::projection::SessionProjection;
+    use agent_core::{SessionId, WorkspaceId};
+    use agent_tui::components::chat::ChatPanel;
+    use agent_tui::components::{Command, EventContext, FocusTarget};
+    use agent_tui::keybindings::KeyAction;
+
+    let workspace_id = WorkspaceId::new();
+    let session_id = Some(SessionId::new());
+    let projection = SessionProjection::default();
+
+    let ctx = EventContext {
+        focus: FocusTarget::Chat,
+        current_session: &projection,
+        sessions: &[],
+        model_profile: "fake",
+        permission_mode: PermissionMode::Suggest,
+        sidebar_left_visible: true,
+        sidebar_right_visible: false,
+        workspace_id: &workspace_id,
+        current_session_id: &session_id,
+    };
+
+    let mut chat = ChatPanel::new();
+    for ch in ":compact".chars() {
+        let _ = chat.apply_key_action(KeyAction::InputCharacter(ch), &ctx);
+    }
+    let (_effects, commands) = chat.apply_key_action(KeyAction::SendInput, &ctx);
+
+    assert!(
+        commands
+            .iter()
+            .any(|c| matches!(c, Command::CompactSession { .. })),
+        "expected Command::CompactSession; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|c| matches!(c, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+    // Buffer should be cleared after `:compact` is consumed.
+    assert!(
+        chat.input_content.is_empty(),
+        "expected input cleared, got {:?}",
+        chat.input_content
+    );
+}

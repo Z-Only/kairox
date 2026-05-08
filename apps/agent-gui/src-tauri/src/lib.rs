@@ -133,6 +133,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             crate::commands::list_profiles,
+            crate::commands::list_profiles_with_limits,
             crate::commands::get_profile_info,
             crate::commands::initialize_workspace,
             crate::commands::start_session,
@@ -150,6 +151,7 @@ pub fn run() {
             crate::commands::restore_workspace,
             crate::commands::get_task_graph,
             crate::commands::cancel_session,
+            crate::commands::compact_session,
             crate::commands::get_permission_mode,
             crate::commands::get_build_info,
             // MCP commands

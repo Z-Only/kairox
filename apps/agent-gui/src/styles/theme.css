@@ -16,6 +16,16 @@
   --app-info-color: #3b82f6;
   --app-hover-color: #f3f4f6;
   --app-code-bg: #f1f5f9;
+
+  /* Context meter — per-source colours (light) */
+  --src-system: #6b7280; /* slate-500 */
+  --src-tools: #2563eb; /* blue-600 */
+  --src-memory: #7c3aed; /* violet-600 */
+  --src-history: #16a34a; /* green-600 */
+  --src-tool-result: #f59e0b; /* amber-500 */
+  --src-selected-file: #db2777; /* pink-600 */
+  --src-compaction-summary: #9ca3af; /* slate-400 */
+  --src-request: #0ea5e9; /* sky-500 */
 }
 
 html.dark {
@@ -32,4 +42,14 @@ html.dark {
   --app-info-color: #60a5fa;
   --app-hover-color: #1f2937;
   --app-code-bg: #1e293b;
+
+  /* Context meter — per-source colours (dark, higher contrast) */
+  --src-system: #94a3b8;
+  --src-tools: #60a5fa;
+  --src-memory: #a78bfa;
+  --src-history: #4ade80;
+  --src-tool-result: #fbbf24;
+  --src-selected-file: #f472b6;
+  --src-compaction-summary: #6b7280;
+  --src-request: #38bdf8;
 }

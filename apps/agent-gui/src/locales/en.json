@@ -59,7 +59,12 @@
     "streaming": "Streaming",
     "connecting": "Connecting",
     "error": "Error",
-    "activeProfile": "Active profile"
+    "activeProfile": "Active profile",
+    "compacting": "Compacting context…",
+    "contextNearFull": "Context window nearly full"
+  },
+  "errors": {
+    "sessionBusy": "Session is busy: {reason}"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"
@@ -85,6 +90,27 @@
     "roleAgent": "Agent",
     "sendFailed": "Failed to send message: {error}",
     "cancelFailed": "Cancel failed: {error}"
+  },
+  "context": {
+    "title": "Context",
+    "estimated": "estimated",
+    "compactNow": "Compact now",
+    "compactInProgress": "Compacting…",
+    "compactionFailed": "Compaction failed: {error}",
+    "switchModel": "Switch model…",
+    "reservedForResponse": "Reserved for response",
+    "failedFallback": "Used sliding-window fallback",
+    "noUsageYet": "No usage yet",
+    "popoverHeader": "Context window",
+    "percentOfBudget": "{pct}% of budget",
+    "sourceSystem": "System",
+    "sourceTools": "Tool definitions",
+    "sourceMemory": "Memory",
+    "sourceHistory": "Conversation history",
+    "sourceToolResult": "Tool results",
+    "sourceSelectedFile": "Selected files",
+    "sourceCompactionSummary": "Compaction summary",
+    "sourceRequest": "User request"
   },
   "marketplace": {
     "title": "Marketplace",

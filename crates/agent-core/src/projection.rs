@@ -4,21 +4,54 @@ use crate::{TaskSnapshot, TaskState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type")]
+pub enum CompactionStatus {
+    #[default]
+    Idle,
+    Running,
+    Failed {
+        error: String,
+    },
+}
+
+/// Mirror of `agent_models::ModelLimits` so projections survive the
+/// `agent-core` ← `agent-models` dependency boundary. The runtime converts
+/// on the boundary; field shape is kept in lock-step manually.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectedModelLimits {
+    pub context_window: u64,
+    pub output_limit: u64,
+    /// Snake-case `LimitSource` discriminant: "user_config" | "builtin_registry" | "runtime_probe" | "fallback".
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionProjection {
     pub messages: Vec<ProjectedMessage>,
     pub task_titles: Vec<String>,
     pub task_graph: TaskGraphSnapshot,
     pub token_stream: String,
     pub cancelled: bool,
+    #[serde(default)]
+    pub last_context_usage: Option<crate::context_types::ContextUsage>,
+    #[serde(default)]
+    pub model_limits: Option<ProjectedModelLimits>,
+    #[serde(default)]
+    pub compaction: CompactionStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProjectedMessage {
     pub role: ProjectedRole,
     pub content: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectedRole {
     User,
@@ -116,9 +149,22 @@ impl SessionProjection {
                     t.failure_reason = None;
                 }
             }
+            EventPayload::ContextAssembled { usage } => {
+                self.last_context_usage = Some(usage.clone());
+            }
+            EventPayload::ContextCompactionStarted { .. } => {
+                self.compaction = CompactionStatus::Running;
+            }
+            EventPayload::ContextCompactionCompleted { .. } => {
+                self.compaction = CompactionStatus::Idle;
+            }
+            EventPayload::ContextCompactionFailed { error, .. } => {
+                self.compaction = CompactionStatus::Failed {
+                    error: error.clone(),
+                };
+            }
             // Events not relevant to session projection
             EventPayload::WorkspaceOpened { .. }
-            | EventPayload::ContextAssembled { .. }
             | EventPayload::ModelRequestStarted { .. }
             | EventPayload::ModelToolCallRequested { .. }
             | EventPayload::PermissionRequested { .. }
@@ -148,9 +194,6 @@ impl SessionProjection {
             | EventPayload::CatalogRuntimeMissing { .. }
             | EventPayload::CatalogSourceAdded { .. }
             | EventPayload::CatalogSourceFailed { .. }
-            | EventPayload::ContextCompactionStarted { .. }
-            | EventPayload::ContextCompactionCompleted { .. }
-            | EventPayload::ContextCompactionFailed { .. }
             | EventPayload::CompactionSummary { .. } => {}
         }
     }
@@ -214,6 +257,9 @@ mod tests {
             task_graph: TaskGraphSnapshot::default(),
             token_stream: "hello".into(),
             cancelled: true,
+            last_context_usage: None,
+            model_limits: None,
+            compaction: CompactionStatus::default(),
         };
 
         let json = serde_json::to_value(&projection).unwrap();
@@ -278,5 +324,129 @@ mod tests {
         assert_eq!(projection.token_stream, "hello");
         assert_eq!(projection.task_titles, vec!["inspect repo"]);
         assert!(projection.cancelled);
+    }
+
+    #[test]
+    fn compaction_status_serializes_with_internal_tag() {
+        let s = CompactionStatus::Idle;
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Idle");
+
+        let s = CompactionStatus::Running;
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Running");
+
+        let s = CompactionStatus::Failed {
+            error: "llm timeout".into(),
+        };
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Failed");
+        assert_eq!(json["error"], "llm timeout");
+
+        let back: CompactionStatus = serde_json::from_value(json).unwrap();
+        assert!(matches!(back, CompactionStatus::Failed { .. }));
+    }
+
+    #[test]
+    fn compaction_status_default_is_idle() {
+        let s = CompactionStatus::default();
+        assert!(matches!(s, CompactionStatus::Idle));
+    }
+
+    #[test]
+    fn projects_context_assembled_into_last_context_usage() {
+        use crate::context_types::{ContextSource, ContextUsage};
+        let workspace_id = WorkspaceId::new();
+        let session_id = SessionId::new();
+        let usage = ContextUsage {
+            total_tokens: 12_000,
+            budget_tokens: 180_000,
+            context_window: 200_000,
+            output_reservation: 20_000,
+            by_source: vec![
+                (ContextSource::System, 2_000),
+                (ContextSource::History, 10_000),
+            ],
+            estimator: "cl100k_base".to_string(),
+            corrected_by_real_usage: false,
+        };
+
+        let event = DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::ContextAssembled {
+                usage: usage.clone(),
+            },
+        );
+
+        let projection = SessionProjection::from_events(&[event]);
+
+        let cached = projection.last_context_usage.expect("usage should be set");
+        assert_eq!(cached.total_tokens, 12_000);
+        assert_eq!(cached.budget_tokens, 180_000);
+        assert_eq!(cached.by_source.len(), 2);
+    }
+
+    #[test]
+    fn projects_compaction_lifecycle_into_compaction_status() {
+        use crate::events::CompactionReason;
+        let workspace_id = WorkspaceId::new();
+        let session_id = SessionId::new();
+
+        let started = DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::ContextCompactionStarted {
+                reason: CompactionReason::UserRequested,
+                before_tokens: 180_000u64,
+                candidate_event_count: 42usize,
+            },
+        );
+        let completed = DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::ContextCompactionCompleted {
+                summary_id: "sum_1".into(),
+                after_tokens: 30_000u64,
+                fallback_used: false,
+            },
+        );
+
+        let only_started = SessionProjection::from_events(std::slice::from_ref(&started));
+        assert!(matches!(only_started.compaction, CompactionStatus::Running));
+
+        let started_then_done = SessionProjection::from_events(&[started, completed]);
+        assert!(matches!(
+            started_then_done.compaction,
+            CompactionStatus::Idle
+        ));
+    }
+
+    #[test]
+    fn projects_compaction_failed_into_failed_status() {
+        let workspace_id = WorkspaceId::new();
+        let session_id = SessionId::new();
+        let failed = DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::ContextCompactionFailed {
+                error: "model timeout".into(),
+                fallback_used: true,
+            },
+        );
+
+        let projection = SessionProjection::from_events(&[failed]);
+        match projection.compaction {
+            CompactionStatus::Failed { error } => assert_eq!(error, "model timeout"),
+            other => panic!("expected Failed, got {other:?}"),
+        }
     }
 }

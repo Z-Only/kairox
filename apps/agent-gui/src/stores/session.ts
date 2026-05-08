@@ -4,7 +4,13 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { SessionProjection, SessionInfoResponse, DomainEvent } from "@/types";
+import type {
+  SessionProjection,
+  SessionInfoResponse,
+  DomainEvent,
+  ContextUsage,
+  ProjectedModelLimits
+} from "@/types";
 import { agentRoleToProjectedRole } from "@/types";
 import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
 import { useUiStore } from "@/stores/ui";
@@ -17,7 +23,10 @@ function emptyProjection(): SessionProjection {
     task_titles: [],
     task_graph: { tasks: [] },
     token_stream: "",
-    cancelled: false
+    cancelled: false,
+    last_context_usage: null,
+    model_limits: null,
+    compaction: { type: "Idle" }
   };
 }
 
@@ -28,6 +37,10 @@ export const useSessionStore = defineStore("session", () => {
   const workspaceId = ref<string | null>(null);
   const projection = ref<SessionProjection>(emptyProjection());
   const currentProfile = ref<string>("fast");
+  const lastContextUsage = ref<ContextUsage | null>(null);
+  const modelLimits = ref<ProjectedModelLimits | null>(null);
+  const compacting = ref(false);
+  const lastCompactionError = ref<string | null>(null);
   const isStreaming = ref(false);
   const connected = ref(false);
   const initialized = ref(false);
@@ -122,11 +135,28 @@ export const useSessionStore = defineStore("session", () => {
         });
         break;
       }
+      case "ContextAssembled": {
+        lastContextUsage.value = p.usage;
+        break;
+      }
+      case "ContextCompactionStarted": {
+        compacting.value = true;
+        lastCompactionError.value = null;
+        break;
+      }
+      case "ContextCompactionCompleted": {
+        compacting.value = false;
+        break;
+      }
+      case "ContextCompactionFailed": {
+        compacting.value = false;
+        lastCompactionError.value = p.error;
+        break;
+      }
       case "AgentSpawned":
       case "AgentIdle":
         break;
       case "SessionInitialized":
-      case "ContextAssembled":
       case "ModelRequestStarted":
       case "ModelToolCallRequested":
       case "ToolInvocationStarted":
@@ -152,6 +182,16 @@ export const useSessionStore = defineStore("session", () => {
     if (next.task_graph?.tasks) {
       useTaskGraphStore().setTaskGraph(next.task_graph.tasks, currentSessionId.value);
     }
+    // P3: hydrate context refs from the projection snapshot. The three P3
+    // fields are `#[serde(default)]` on the Rust side (see
+    // `crates/agent-core/src/projection.rs`), so they may be missing when a
+    // legacy backend / test fixture sends a pre-P3 shape. Treat any missing
+    // value as the same default the Rust side would emit.
+    lastContextUsage.value = next.last_context_usage ?? null;
+    modelLimits.value = next.model_limits ?? null;
+    const status = next.compaction ?? { type: "Idle" };
+    compacting.value = status.type === "Running";
+    lastCompactionError.value = status.type === "Failed" ? status.error : null;
   }
 
   function resetProjection() {
@@ -159,6 +199,11 @@ export const useSessionStore = defineStore("session", () => {
     isStreaming.value = false;
     streamsByTask.value.clear();
     useAgentsStore().clearAgents();
+    // P3: clear context refs.
+    lastContextUsage.value = null;
+    modelLimits.value = null;
+    compacting.value = false;
+    lastCompactionError.value = null;
   }
 
   async function switchSession(sessionId: string): Promise<void> {
@@ -314,6 +359,10 @@ export const useSessionStore = defineStore("session", () => {
     workspaceId,
     projection,
     currentProfile,
+    lastContextUsage,
+    modelLimits,
+    compacting,
+    lastCompactionError,
     isStreaming,
     connected,
     initialized,

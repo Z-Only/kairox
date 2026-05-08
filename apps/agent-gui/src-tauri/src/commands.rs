@@ -1211,3 +1211,102 @@ mod catalog_sources_command_tests {
         assert!(json.contains("\"last_error\":\"timeout\""));
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProfileWithLimits {
+    pub alias: String,
+    pub provider: String,
+    pub model_id: String,
+    pub context_window: u64,
+    pub output_limit: u64,
+    /// Snake-case `LimitSource`: "user_config" | "builtin_registry" | "runtime_probe" | "fallback".
+    pub limit_source: String,
+    pub has_api_key: bool,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_profiles_with_limits(
+    state: State<'_, GuiState>,
+) -> Result<Vec<ProfileWithLimits>, String> {
+    let mut out = Vec::with_capacity(state.config.profiles.len());
+    for (alias, profile) in &state.config.profiles {
+        let limits = agent_config::resolve_limits(profile);
+        let limit_source = match limits.source {
+            agent_models::LimitSource::UserConfig => "user_config",
+            agent_models::LimitSource::BuiltinRegistry => "builtin_registry",
+            agent_models::LimitSource::RuntimeProbe => "runtime_probe",
+            agent_models::LimitSource::Fallback => "fallback",
+        };
+        let has_api_key = profile.api_key.is_some()
+            || profile
+                .api_key_env
+                .as_deref()
+                .map(|env| std::env::var(env).is_ok())
+                .unwrap_or(false)
+            || matches!(profile.provider.as_str(), "ollama" | "fake");
+        out.push(ProfileWithLimits {
+            alias: alias.clone(),
+            provider: profile.provider.clone(),
+            model_id: profile.model_id.clone(),
+            context_window: limits.context_window,
+            output_limit: limits.output_limit,
+            limit_source: limit_source.into(),
+            has_api_key,
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn compact_session(state: State<'_, GuiState>) -> Result<(), String> {
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current
+            .clone()
+            .ok_or_else(|| "No active session to compact".to_string())?
+    };
+
+    state
+        .runtime
+        .compact_session(session_id, agent_core::CompactionReason::UserRequested)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod compact_session_command_tests {
+    use super::compact_session;
+
+    #[test]
+    fn compact_session_command_function_exists() {
+        // Compile-time presence check — if `compact_session` is renamed or
+        // removed this fails to compile, which is exactly the signal we want
+        // before `collect_commands![]` / `generate_handler![]` blow up.
+        let _ = compact_session;
+    }
+}
+
+#[cfg(test)]
+mod profile_with_limits_tests {
+    use super::*;
+
+    #[test]
+    fn profile_with_limits_serializes_expected_shape() {
+        let p = ProfileWithLimits {
+            alias: "fast".into(),
+            provider: "openai".into(),
+            model_id: "gpt-4o-mini".into(),
+            context_window: 128_000,
+            output_limit: 16_384,
+            limit_source: "builtin_registry".into(),
+            has_api_key: true,
+        };
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("\"alias\":\"fast\""));
+        assert!(json.contains("\"context_window\":128000"));
+        assert!(json.contains("\"limit_source\":\"builtin_registry\""));
+        assert!(json.contains("\"has_api_key\":true"));
+    }
+}

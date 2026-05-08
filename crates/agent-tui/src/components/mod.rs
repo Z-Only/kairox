@@ -88,6 +88,10 @@ pub struct StatusInfo {
     pub mcp_server_count: usize,
     pub hint: String,
     pub error: Option<String>,
+    /// P3: latest `ContextAssembled.usage`. `None` until the first event.
+    pub context_usage: Option<agent_core::context_types::ContextUsage>,
+    /// P3: `true` between `ContextCompactionStarted` and `Completed`/`Failed`.
+    pub compacting: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,6 +132,12 @@ pub enum Command {
         model_profile: String,
     },
     SwitchSession {
+        session_id: SessionId,
+    },
+    /// P3: user typed `:compact` in the chat panel; ask the runtime to
+    /// summarise older history into a compaction summary.
+    CompactSession {
+        workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
     },
 }
