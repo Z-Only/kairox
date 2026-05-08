@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pilot",
+  "description": "Capability for the tauri-pilot plugin. Only loaded by tauri-build when the cargo feature `pilot` is enabled AND the build is a debug profile (matches the plugin registration gate in src/lib.rs).",
+  "windows": ["main"],
+  "permissions": ["pilot:default"]
+}
