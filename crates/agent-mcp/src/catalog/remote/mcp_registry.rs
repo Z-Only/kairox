@@ -333,8 +333,8 @@ impl McpRegistryProvider {
 
         loop {
             let url = match &cursor {
-                Some(c) => format!("{base}?count={PAGE_SIZE}&cursor={c}"),
-                None => format!("{base}?count={PAGE_SIZE}"),
+                Some(c) => format!("{base}?limit={PAGE_SIZE}&cursor={c}"),
+                None => format!("{base}?limit={PAGE_SIZE}"),
             };
 
             let resp = self

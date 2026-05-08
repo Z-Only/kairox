@@ -117,6 +117,8 @@ export const useCatalogStore = defineStore("catalog", () => {
     await setSourceEnabled(id, !currentlyEnabled);
     if (!currentlyEnabled && id !== "builtin") {
       await refreshCatalogSource(id);
+    } else {
+      await fetchCatalog();
     }
   }
 

@@ -11,7 +11,7 @@ const formError = ref<string | null>(null);
 const draft = ref<AddCatalogSourceRequestPayload>({
   id: "",
   display_name: "",
-  kind: "kairox_json",
+  kind: "mcp_registry",
   url: "",
   api_key_env: null,
   priority: 100,
@@ -24,8 +24,7 @@ const sources = computed(() => catalog.sources);
 const failures = computed(() => catalog.sourceFailures);
 
 const kindOptions: { label: string; value: string }[] = [
-  { label: "Kairox JSON", value: "kairox_json" },
-  { label: "Smithery", value: "smithery" }
+  { label: "MCP Registry", value: "mcp_registry" }
 ];
 
 onMounted(() => {
@@ -40,7 +39,7 @@ function resetDraft(): void {
   draft.value = {
     id: "",
     display_name: "",
-    kind: "kairox_json",
+    kind: "mcp_registry",
     url: "",
     api_key_env: null,
     priority: 100,
@@ -78,6 +77,8 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   await catalog.setSourceEnabled(id, enabled);
   if (enabled && id !== "builtin") {
     await catalog.refreshCatalogSource(id);
+  } else {
+    await catalog.fetchCatalog();
   }
 }
 </script>
