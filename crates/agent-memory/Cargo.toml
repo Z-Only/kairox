@@ -9,6 +9,7 @@ specta = ["dep:specta"]
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-models = { path = "../agent-models" }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
