@@ -701,6 +701,9 @@ mod tests {
             task_graph: TaskGraphSnapshot::default(),
             token_stream: String::new(),
             cancelled: false,
+            last_context_usage: None,
+            model_limits: None,
+            compaction: agent_core::projection::CompactionStatus::Idle,
         };
 
         let backend = TestBackend::new(80, 10);
@@ -727,6 +730,9 @@ mod tests {
             task_graph: TaskGraphSnapshot::default(),
             token_stream: "thinking".to_string(),
             cancelled: true,
+            last_context_usage: None,
+            model_limits: None,
+            compaction: agent_core::projection::CompactionStatus::Idle,
         };
 
         let backend = TestBackend::new(80, 10);

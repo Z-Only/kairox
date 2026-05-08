@@ -38,6 +38,10 @@ pub struct App {
     pub domain_events: Vec<DomainEvent>,
     pub quit_confirmed: bool,
     pub quitting: bool,
+    /// P3: latest `ContextAssembled.usage`, propagated into the status bar.
+    pub last_context_usage: Option<agent_core::context_types::ContextUsage>,
+    /// P3: `true` between `ContextCompactionStarted` and `Completed`/`Failed`.
+    pub compacting: bool,
 }
 
 impl App {
@@ -58,6 +62,8 @@ impl App {
             domain_events: Vec::new(),
             quit_confirmed: false,
             quitting: false,
+            last_context_usage: None,
+            compacting: false,
         }
     }
 
@@ -445,6 +451,27 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
 
+            // P3: context-meter events update status-bar state. The trailing
+            // `sync_status_bar()` call at the end of this method picks up the
+            // new values, so each arm only mutates `App` fields and marks dirty.
+            EventPayload::ContextAssembled { usage } => {
+                self.last_context_usage = Some(usage.clone());
+                self.compacting = false;
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::ContextCompactionStarted { .. } => {
+                self.compacting = true;
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::ContextCompactionCompleted { .. } => {
+                self.compacting = false;
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::ContextCompactionFailed { .. } => {
+                self.compacting = false;
+                self.state.render_scheduler.mark_dirty();
+            }
+
             // All other events — just mark dirty
             _ => {
                 self.state.render_scheduler.mark_dirty();
@@ -716,6 +743,8 @@ impl App {
             mcp_server_count: 0,
             hint,
             error: None,
+            context_usage: self.last_context_usage.clone(),
+            compacting: self.compacting,
         };
         self.status_bar
             .handle_effect(&CrossPanelEffect::SetStatus(info));

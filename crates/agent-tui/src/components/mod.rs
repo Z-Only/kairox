@@ -88,6 +88,10 @@ pub struct StatusInfo {
     pub mcp_server_count: usize,
     pub hint: String,
     pub error: Option<String>,
+    /// P3: latest `ContextAssembled.usage`. `None` until the first event.
+    pub context_usage: Option<agent_core::context_types::ContextUsage>,
+    /// P3: `true` between `ContextCompactionStarted` and `Completed`/`Failed`.
+    pub compacting: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
