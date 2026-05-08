@@ -1,0 +1,36 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Chat flow"
+fail_fast = true
+global_timeout_ms = 60000
+
+[[step]]
+name = "wait for app ready"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "type message"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Hello from pilot test"
+
+[[step]]
+name = "send message"
+action = "press"
+key = "Enter"
+
+[[step]]
+name = "wait for user message"
+action = "wait"
+selector = ".message-user"
+timeout_ms = 10000
+
+[[step]]
+name = "assert user message displayed"
+action = "assert-text"
+target = ".message-user"
+expected = "Hello from pilot test"

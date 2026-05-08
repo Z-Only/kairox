@@ -1,0 +1,23 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "App bootstrap"
+fail_fast = true
+global_timeout_ms = 30000
+
+[[step]]
+name = "wait for sidebar"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "assert sidebar visible"
+action = "assert-visible"
+target = "[data-test='sessions-sidebar']"
+
+[[step]]
+name = "assert message input exists"
+action = "assert-visible"
+target = "textarea[data-test='message-input']"
