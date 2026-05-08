@@ -59,7 +59,12 @@
     "streaming": "传输中",
     "connecting": "连接中",
     "error": "错误",
-    "activeProfile": "当前 Profile"
+    "activeProfile": "当前 Profile",
+    "compacting": "正在压缩上下文…",
+    "contextNearFull": "上下文窗口接近满载"
+  },
+  "errors": {
+    "sessionBusy": "会话繁忙：{reason}"
   },
   "workbench": {
     "sessionNotFound": "未找到会话：{id}"
@@ -85,6 +90,27 @@
     "roleAgent": "智能体",
     "sendFailed": "发送消息失败：{error}",
     "cancelFailed": "取消失败：{error}"
+  },
+  "context": {
+    "title": "上下文",
+    "estimated": "估算",
+    "compactNow": "立即压缩",
+    "compactInProgress": "压缩中…",
+    "compactionFailed": "压缩失败：{error}",
+    "switchModel": "切换模型…",
+    "reservedForResponse": "为模型回复预留",
+    "failedFallback": "已使用滑动窗口回退",
+    "noUsageYet": "暂无用量数据",
+    "popoverHeader": "上下文窗口",
+    "percentOfBudget": "占预算 {pct}%",
+    "sourceSystem": "系统",
+    "sourceTools": "工具定义",
+    "sourceMemory": "记忆",
+    "sourceHistory": "对话历史",
+    "sourceToolResult": "工具结果",
+    "sourceSelectedFile": "选中的文件",
+    "sourceCompactionSummary": "压缩摘要",
+    "sourceRequest": "用户请求"
   },
   "marketplace": {
     "title": "应用市场",
