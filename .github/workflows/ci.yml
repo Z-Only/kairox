@@ -275,10 +275,123 @@ jobs:
         working-directory: apps/agent-gui
         run: pnpm run build
 
+  live-model-tests:
+    name: Live model tests (GitHub Models)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      models: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci
+
+      - name: Run live model integration test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo test -p agent-runtime --features live-model-tests --test live_model_tests -- --nocapture
+
+  tauri-pilot-e2e:
+    name: Tauri pilot E2E (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci-pilot-${{ matrix.os }}
+
+      - name: Install Linux system deps for Tauri and xvfb
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xvfb
+
+      - name: Install repo tooling deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install tauri-pilot CLI
+        run: cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli --locked
+
+      - name: Build Tauri debug binary with pilot feature
+        run: pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot
+
+      - name: Run pilot E2E scenarios (Linux, with xvfb)
+        if: matrix.os == 'ubuntu-latest'
+        run: timeout 600 xvfb-run -a scripts/run-pilot-tests.sh
+
+      - name: Run pilot E2E scenarios (macOS)
+        if: matrix.os == 'macos-latest'
+        run: timeout 600 scripts/run-pilot-tests.sh
+
+      - name: Upload pilot JUnit results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: pilot-results-${{ matrix.os }}
+          path: pilot-results/
+          retention-days: 7
+
+      - name: Upload pilot failure artifacts
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: pilot-failures-${{ matrix.os }}
+          path: tauri-pilot-failures/
+          retention-days: 7
+
   ci-success:
     name: CI
     if: ${{ always() }}
-    needs: [format, lint-rust, lint-web, test, test-e2e, type-sync, build-tui, build-gui]
+    needs:
+      [
+        format,
+        lint-rust,
+        lint-web,
+        test,
+        test-e2e,
+        type-sync,
+        build-tui,
+        build-gui,
+        live-model-tests,
+        tauri-pilot-e2e
+      ]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
