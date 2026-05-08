@@ -1275,6 +1275,26 @@ pub async fn compact_session(state: State<'_, GuiState>) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// P4: swap the active model profile for the current session.
+///
+/// The switch takes effect at the next `send_message` — in-flight
+/// streams keep using the old profile end-to-end. Returns an error
+/// when the alias is unknown or the session is currently compacting.
+#[tauri::command]
+#[specta::specta]
+pub async fn switch_model(
+    state: State<'_, GuiState>,
+    session_id: String,
+    profile_alias: String,
+) -> Result<(), String> {
+    let session_id = agent_core::SessionId::from_string(session_id);
+    state
+        .runtime
+        .switch_model(session_id, profile_alias)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod compact_session_command_tests {
     use super::compact_session;
@@ -1285,6 +1305,19 @@ mod compact_session_command_tests {
         // removed this fails to compile, which is exactly the signal we want
         // before `collect_commands![]` / `generate_handler![]` blow up.
         let _ = compact_session;
+    }
+}
+
+#[cfg(test)]
+mod switch_model_command_tests {
+    use super::switch_model;
+
+    #[test]
+    fn switch_model_command_function_exists() {
+        // Compile-time presence check — if `switch_model` is renamed or
+        // removed this fails to compile before `collect_commands!` /
+        // `generate_handler!` get a chance to blow up at runtime.
+        let _ = switch_model;
     }
 }
 
