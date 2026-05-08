@@ -91,7 +91,7 @@ where
             model: Arc::new(model),
             permission_engine: Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Suggest))),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
-            context_assembler: ContextAssembler::new_standalone(100_000),
+            context_assembler: ContextAssembler::new_standalone(),
             memory_store: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
@@ -154,8 +154,11 @@ where
         self
     }
 
-    pub fn with_context_limit(mut self, max_tokens: usize) -> Self {
-        self.context_assembler = ContextAssembler::new_standalone(max_tokens);
+    /// Legacy builder kept for compatibility. The `max_tokens` argument is
+    /// ignored — Task 8 will replace this with per-session `ContextBudget`
+    /// configuration. Until then call sites can keep passing their old value.
+    pub fn with_context_limit(mut self, _max_tokens: usize) -> Self {
+        self.context_assembler = ContextAssembler::new_standalone();
         self
     }
 
@@ -171,7 +174,7 @@ where
     /// Set the memory store for persistent memory.
     pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
         self.memory_store = Some(store.clone());
-        self.context_assembler = ContextAssembler::new(100_000, store);
+        self.context_assembler = ContextAssembler::new(store);
         self
     }
 
