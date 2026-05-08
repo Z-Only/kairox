@@ -12,14 +12,11 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
-// Selector notes after Task 7 NaiveUI migration:
-//   - `.message-input` is now an NInput root <div>, not a fillable element.
-//     Drive its inner <textarea> via `[data-test="message-input"] textarea`.
-//   - `.send-button` / `.cancel-button` / `.cancelled-marker` are NButton/
-//     NAlert wrappers; we drive them via the data-test hooks the SFC already
-//     forwards through the NaiveUI components.
-//   - The profile badge moved into a dedicated NTag with
-//     data-test="chat-profile-badge" (was `.chat-header .profile-badge`).
+// Selector notes:
+//   - The message input is a plain <textarea data-test="message-input">.
+//   - `.send-button` / `.cancel-button` / `.cancelled-marker` are driven
+//     via their data-test attributes.
+//   - The profile badge uses data-test="chat-profile-badge".
 
 test("sends a message and sees user message immediately", async ({ page }) => {
   await page.goto("/");
@@ -27,12 +24,9 @@ test("sends a message and sees user message immediately", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Type a message. NaiveUI NInput renders a `.n-input__placeholder` overlay
-  // on top of the real <textarea> until it has focus, so Playwright's default
-  // `fill()` visibility check fails. `{ force: true }` bypasses the overlay
-  // check; the underlying <textarea> still receives the value via input event.
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("Hello agent!", { force: true });
+  // Type a message into the plain <textarea>.
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("Hello agent!");
   await input.press("Enter");
 
   // User message should appear
@@ -46,10 +40,9 @@ test("receives streaming assistant response", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Send a message. `{ force: true }` bypasses NaiveUI's `.n-input__placeholder`
-  // overlay (see the first test in this file for the full explanation).
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("Tell me something", { force: true });
+  // Send a message.
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("Tell me something");
   await input.press("Enter");
 
   // Should see streaming indicator (cursor)
@@ -72,10 +65,9 @@ test("shows cancel button while streaming and send button when idle", async ({ p
   await expect(page.getByTestId("send-button")).toBeVisible();
   await expect(page.getByTestId("cancel-button")).toBeHidden();
 
-  // Send a message (triggers streaming). `{ force: true }` bypasses NaiveUI's
-  // `.n-input__placeholder` overlay (see the first test in this file).
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("Hello", { force: true });
+  // Send a message (triggers streaming).
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("Hello");
   await input.press("Enter");
 
   // During streaming, Cancel should appear
@@ -96,10 +88,9 @@ test("cancels a streaming session", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Send a message. `{ force: true }` bypasses NaiveUI's
-  // `.n-input__placeholder` overlay (see the first test in this file).
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("Long response please", { force: true });
+  // Send a message.
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("Long response please");
   await input.press("Enter");
 
   // Click Cancel during streaming

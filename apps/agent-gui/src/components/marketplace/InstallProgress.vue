@@ -64,72 +64,162 @@ const modalTitle = computed<string>(() => {
 </script>
 
 <template>
-  <!-- NModal with show=true mirrors the previous always-on `position: fixed`
-       behaviour while picking up theming, focus trap and overlay handling.
-       data-test="install-progress" stays attached to the modal body for
-       the existing selectors. -->
-  <NModal
-    :show="true"
-    preset="card"
-    :mask-closable="false"
-    :bordered="true"
-    size="small"
-    :style="{ width: 'min(480px, 90vw)' }"
-    :title="modalTitle"
-    @close="emit('close')"
-  >
-    <div data-test="install-progress" class="install-progress">
-      <NAlert v-if="!inFlight" :type="alertType" :show-icon="true" :bordered="false">
-        <span v-if="outcome?.kind === 'installed'">
-          {{ t("marketplace.install.alertInstalled") }}
-        </span>
-        <span v-else-if="outcome?.kind === 'already_installed'">
-          {{ t("marketplace.install.alertAlreadyInstalled") }}
-        </span>
-        <span v-else-if="outcome?.kind === 'runtime_missing'">
-          {{
-            t("marketplace.install.alertMissingRuntimes", {
-              runtimes: outcome.missing_runtimes.join(", ")
-            })
-          }}
-        </span>
-        <span v-else-if="outcome?.kind === 'invalid_env'">
-          {{
-            t("marketplace.install.alertMissingEnv", {
-              keys: outcome.missing_env_keys.join(", ")
-            })
-          }}
-        </span>
-        <span v-else>{{ t("marketplace.install.alertUnexpected") }}</span>
-      </NAlert>
-      <NSpin v-else size="small" />
+  <!-- Modal overlay replaces NModal. data-test="install-progress" stays
+       attached to the modal body for the existing selectors. -->
+  <Teleport to="body">
+    <div class="modal-overlay">
+      <div class="modal-card">
+        <header class="modal-header">
+          <span class="modal-title">{{ modalTitle }}</span>
+          <button class="btn modal-close-btn" aria-label="Close" @click="emit('close')">✕</button>
+        </header>
 
-      <ul class="steps">
-        <li :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }">
-          {{ t("marketplace.install.stepDetectRuntime") }}
-        </li>
-        <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">
-          {{ t("marketplace.install.stepWriteConfig") }}
-        </li>
-        <li :class="{ ok: startOk }">
-          {{ t("marketplace.install.stepStartServer") }}
-        </li>
-      </ul>
+        <div data-test="install-progress" class="install-progress">
+          <div v-if="!inFlight" :class="['alert', `alert-${alertType}`]">
+            <span v-if="outcome?.kind === 'installed'">
+              {{ t("marketplace.install.alertInstalled") }}
+            </span>
+            <span v-else-if="outcome?.kind === 'already_installed'">
+              {{ t("marketplace.install.alertAlreadyInstalled") }}
+            </span>
+            <span v-else-if="outcome?.kind === 'runtime_missing'">
+              {{
+                t("marketplace.install.alertMissingRuntimes", {
+                  runtimes: outcome.missing_runtimes.join(", ")
+                })
+              }}
+            </span>
+            <span v-else-if="outcome?.kind === 'invalid_env'">
+              {{
+                t("marketplace.install.alertMissingEnv", {
+                  keys: outcome.missing_env_keys.join(", ")
+                })
+              }}
+            </span>
+            <span v-else>{{ t("marketplace.install.alertUnexpected") }}</span>
+          </div>
+          <div v-else class="spinner" />
+
+          <ul class="steps">
+            <li :class="{ ok: runtimeOk, fail: outcome?.kind === 'runtime_missing' }">
+              {{ t("marketplace.install.stepDetectRuntime") }}
+            </li>
+            <li :class="{ ok: writeOk, fail: outcome?.kind === 'invalid_env' }">
+              {{ t("marketplace.install.stepWriteConfig") }}
+            </li>
+            <li :class="{ ok: startOk }">
+              {{ t("marketplace.install.stepStartServer") }}
+            </li>
+          </ul>
+        </div>
+
+        <footer class="modal-footer">
+          <button class="btn btn-sm" data-test="install-close" @click="emit('close')">
+            {{ t("common.close") }}
+          </button>
+        </footer>
+      </div>
     </div>
-
-    <template #footer>
-      <NButton size="small" data-test="install-close" @click="emit('close')">
-        {{ t("common.close") }}
-      </NButton>
-    </template>
-  </NModal>
+  </Teleport>
 </template>
 
 <style scoped>
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-overlay-color, rgba(0, 0, 0, 0.3));
+}
+.modal-card {
+  width: min(480px, 90vw);
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-card-color);
+  box-shadow: var(--app-shadow-2);
+  color: var(--app-text-color);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-border-color);
+}
+.modal-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.modal-close-btn {
+  font-size: 16px;
+  padding: 2px 6px;
+  line-height: 1;
+}
 .install-progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 16px;
+}
+.modal-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--app-border-color);
+}
+.alert {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.alert-success {
+  background: var(--app-success-bg);
+  color: var(--app-success-color);
+}
+.alert-info {
+  background: var(--app-bg-color);
+  color: var(--app-info-color);
+}
+.alert-warning {
+  background: var(--app-warning-bg);
+  color: var(--app-warning-color);
+}
+.alert-error {
+  background: var(--app-error-bg);
+  color: var(--app-error-color);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--app-hover-color);
+}
+.btn-sm {
+  height: 28px;
+}
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--app-border-color);
+  border-top-color: var(--app-primary-color);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .steps {
   list-style: none;
@@ -141,14 +231,14 @@ const modalTitle = computed<string>(() => {
 }
 .steps li::before {
   content: "○ ";
-  color: var(--app-text-color-3, #999);
+  color: var(--app-text-color-3);
 }
 .steps li.ok::before {
   content: "✓ ";
-  color: var(--app-success-color, #18a058);
+  color: var(--app-success-color);
 }
 .steps li.fail::before {
   content: "✗ ";
-  color: var(--app-error-color, #d03050);
+  color: var(--app-error-color);
 }
 </style>

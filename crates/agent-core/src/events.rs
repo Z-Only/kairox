@@ -428,18 +428,18 @@ fn catalog_source_added_event_round_trips() {
         AgentId::system(),
         PrivacyClassification::FullTrace,
         EventPayload::CatalogSourceAdded {
-            source: "smithery".into(),
+            source: "mcp-registry".into(),
         },
     );
     let json = serde_json::to_value(&event).unwrap();
     assert_eq!(json["event_type"], "CatalogSourceAdded");
     assert_eq!(json["payload"]["type"], "CatalogSourceAdded");
-    assert_eq!(json["payload"]["source"], "smithery");
+    assert_eq!(json["payload"]["source"], "mcp-registry");
 
     let s = serde_json::to_string(&event.payload).unwrap();
     let back: EventPayload = serde_json::from_str(&s).unwrap();
     assert!(
-        matches!(back, EventPayload::CatalogSourceAdded { ref source } if source == "smithery")
+        matches!(back, EventPayload::CatalogSourceAdded { ref source } if source == "mcp-registry")
     );
 }
 
@@ -451,7 +451,7 @@ fn catalog_source_failed_event_round_trips() {
         AgentId::system(),
         PrivacyClassification::FullTrace,
         EventPayload::CatalogSourceFailed {
-            source: "smithery".into(),
+            source: "mcp-registry".into(),
             error: "timeout".into(),
         },
     );
@@ -464,6 +464,6 @@ fn catalog_source_failed_event_round_trips() {
     let back: EventPayload = serde_json::from_str(&s).unwrap();
     assert!(
         matches!(back, EventPayload::CatalogSourceFailed { ref source, ref error }
-        if source == "smithery" && error == "timeout")
+        if source == "mcp-registry" && error == "timeout")
     );
 }

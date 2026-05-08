@@ -74,9 +74,9 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 - **State management**: Pinia setup-stores (`defineStore('name', () => { /* state, getters, actions */ })`) under `apps/agent-gui/src/stores/`. Composables in `composables/`. Use `useXxxStore()` + `storeToRefs()` in consumers.
 - **Routing**: vue-router with `createWebHashHistory()`. Route table at `apps/agent-gui/src/router/routes.ts`. Workbench routes are nested: `/workbench/:sessionId?`.
 - **i18n**: vue-i18n v9 (composition API mode). Locale messages under `apps/agent-gui/src/locales/{en,zh-CN}.json`. Only common copy (`common.*`, `nav.*`, `settings.*`, `notifications.*`, `status.*`) is translated; per-feature strings stay inline.
-- **UI library**: NaiveUI. Provider stack lives in `apps/agent-gui/src/layouts/AppLayout.vue` (`NConfigProvider` → `NLoadingBarProvider` → `NMessageProvider` → `NDialogProvider` → `NNotificationProvider`). Theme overrides in `apps/agent-gui/src/styles/naive-theme.ts` mirror existing CSS variables.
+- **UI library**: None — the GUI uses native HTML elements + CSS custom properties (`apps/agent-gui/src/styles/theme.css`) + a shared CSS class library (`apps/agent-gui/src/styles/components.css`). Toast notifications are powered by `useToast()` (composable) + `ToastContainer.vue`. Confirmation dialogs use `useConfirm()` (provide/inject) + `ConfirmDialog.vue` with native `<dialog>`.
 - **Composable utilities**: `@vueuse/core` (whitelisted via auto-import: `useDark`, `useColorMode`, `useStorage`, `useEventListener`, `tryOnScopeDispose`, `useDebounceFn`, `useThrottleFn`, `useIntervalFn`, `useTimeoutFn`, `useClipboard`, `useFocus`).
-- **Auto-imports**: `unplugin-auto-import` + `unplugin-vue-components` are configured in `vite.config.ts` (mirrored in `vitest.config.ts`). The whitelist covers `vue`, `vue-router`, `pinia`, `vue-i18n`, and selected `@vueuse/core` hooks. NaiveUI components are auto-registered in templates; `useMessage`/`useDialog`/`useNotification`/`useLoadingBar` are functions and must still be imported explicitly. Auto-import only transforms `.vue` files (we keep `dirs: []`); plain `.ts` modules — stores, composables, the router, `locales/index.ts`, `main.ts`, test-utils — still import their `vue`/`pinia`/`vue-i18n`/`@vueuse/core` symbols explicitly. Generated artifacts (`src/auto-imports.d.ts`, `src/components.d.ts`) are gitignored — Vite regenerates them on dev/build.
+- **Auto-imports**: `unplugin-auto-import` + `unplugin-vue-components` are configured in `vite.config.ts` (mirrored in `vitest.config.ts`). The whitelist covers `vue`, `vue-router`, `pinia`, `vue-i18n`, and selected `@vueuse/core` hooks. Project components under `src/components/` are auto-registered in templates. Auto-import only transforms `.vue` files (we keep `dirs: []`); plain `.ts` modules — stores, composables, the router, `locales/index.ts`, `main.ts`, test-utils — still import their `vue`/`pinia`/`vue-i18n`/`@vueuse/core` symbols explicitly. Generated artifacts (`src/auto-imports.d.ts`, `src/components.d.ts`) are gitignored — Vite regenerates them on dev/build.
 - **Path alias**: `@/*` resolves to `apps/agent-gui/src/*` (configured in `vite.config.ts` and `tsconfig.json`).
 - **Types**: Centralized in `apps/agent-gui/src/types/`. Mirror Rust event types for Tauri IPC.
 - **Testing**: Vitest with `vitest/globals` + `@vue/test-utils`. Test helper `src/test-utils/mount.ts` exposes `mountWithPlugins()` that injects pinia, i18n, and a memory-history router. Use `@pinia/testing`'s `createTestingPinia()` when you want spy-able actions.
@@ -143,21 +143,22 @@ kairox/
 │       ├── src/            # Vue frontend
 │       │   ├── App.vue     # thin root: mounts AppLayout, handles workspace bootstrap
 │       │   ├── main.ts     # createApp + pinia + router + i18n + bindLocaleToStore
-│       │   ├── layouts/AppLayout.vue # NaiveUI provider stack + nav + RouterView
+│       │   ├── layouts/AppLayout.vue # ConfirmDialog + ToastContainer + nav + RouterView
 │       │   ├── views/      # WorkbenchView, MarketplaceView, SettingsView (lazy)
 │       │   ├── router/     # index.ts (createWebHashHistory) + routes.ts
 │       │   ├── locales/    # en.json, zh-CN.json, index.ts (i18n instance)
-│       │   ├── styles/naive-theme.ts # NaiveUI theme overrides (light + dark)
+│       │   ├── styles/theme.css      # CSS custom properties (light + dark via html.dark)
+│       │   ├── styles/components.css # Shared CSS classes (btn, tag, card, alert, etc.)
 │       │   ├── components/ # ChatPanel, TraceTimeline, TaskSteps, TaskNode,
 │       │   │               #   PermissionPrompt, PermissionCenter, MemoryBrowser,
 │       │   │               #   McpServerManager, McpStatusIndicator, SessionsSidebar,
-│       │   │               #   StatusBar, NotificationToast, TraceEntry,
+│       │   │               #   StatusBar, ToastContainer, ConfirmDialog, TraceEntry,
 │       │   │               #   marketplace/* (CatalogList, CatalogCard, CatalogDetail,
 │       │   │               #     InstalledList, InstallProgress, RuntimeMissingHint)
 │       │   ├── stores/     # session, taskGraph, agents, mcp, memory, catalog, ui
 │       │   ├── composables/# useTauriEvents (session-filtered), useTraceStore,
-│       │   │               #   useNotifications (delegates to ui store), useUpdater,
-│       │   │               #   useMarketplace
+│       │   │               #   useNotifications (delegates to ui store), useToast,
+│       │   │               #   useConfirm, useUpdater, useMarketplace
 │       │   ├── test-utils/mount.ts # mountWithPlugins helper for vitest
 │       │   ├── types/      # TypeScript type definitions (re-exports from generated/)
 │       │   │   └── events-helpers.ts  # ExtractPayload, EventPayloadHandlers, matchPayload
@@ -354,12 +355,12 @@ just gen-types
 
 ### When modifying the GUI
 
-- Vue components go in `apps/agent-gui/src/components/`. Prefer NaiveUI components over hand-rolled markup; reach for `<NCard>`, `<NButton>`, `<NList>`, `<NModal>`, etc. before writing new CSS.
+- Vue components go in `apps/agent-gui/src/components/`. Use native HTML elements with CSS classes from `src/styles/components.css` (`.btn`, `.card`, `.tag`, `.alert`, etc.) and CSS custom properties from `src/styles/theme.css`. For toasts use `useToast()`; for confirmation dialogs use `useConfirm()`.
 - Pinia stores live in `apps/agent-gui/src/stores/` and use the setup-store form (`defineStore('name', () => ({ /* state, getters, actions */ }))`). Cross-store dependencies should be resolved lazily inside actions (e.g. `const session = useSessionStore()` _inside_ the function body, not at module top level).
 - Composables go in `apps/agent-gui/src/composables/`. Use `tryOnScopeDispose` (auto-imported from `@vueuse/core` inside `.vue` files; explicitly imported in plain `.ts`) for cleanup of `listen()` subscriptions.
 - Routes go in `apps/agent-gui/src/router/routes.ts`. Use `useRoute`/`useRouter` (auto-imported in templates) inside components.
 - i18n: add new common-copy keys to BOTH `apps/agent-gui/src/locales/en.json` AND `apps/agent-gui/src/locales/zh-CN.json`. Reach for `t("common.send")` in templates. Per-feature strings can stay inline.
-- Theme: extend `apps/agent-gui/src/styles/naive-theme.ts` for both `lightThemeOverrides` and `darkThemeOverrides`. Toggle dark mode via `useUiStore().setTheme('dark')`.
+- Theme: CSS custom properties are defined in `apps/agent-gui/src/styles/theme.css` (light defaults in `:root`, dark overrides in `html.dark`). Toggle dark mode via `useUiStore().setTheme('dark')`. Add new design tokens as `--app-*` variables.
 - TypeScript types go in `apps/agent-gui/src/types/`.
 - Auto-generated event types are in `apps/agent-gui/src/generated/events.ts` — **never edit this file manually**, run `just gen-types` instead.
 - Event helper types (`ExtractPayload`, `EventPayloadHandlers`, `matchPayload`) are in `apps/agent-gui/src/types/events-helpers.ts`.
@@ -408,9 +409,8 @@ just test-all              # all test layers: unit + integration + fullstack + G
 - **Don't forget to register new Tauri commands in both `generate_handler!` (for invocation) and `collect_commands!` (for specta type generation)**; missing either one causes runtime or type-gen failures
 - **Don't import what's auto-imported in `.vue` files**: `vue`, `vue-router`, `pinia`, `vue-i18n`, and the whitelisted `@vueuse/core` hooks listed in `vite.config.ts` are globals inside SFCs. Re-importing them in a `.vue` file creates a "duplicate import" warning at lint time. The exception is when shadowing or aliasing — use explicit imports then.
 - **Plain `.ts` modules still need explicit imports**: auto-import only transforms `.vue` files (we keep `dirs: []`). Stores, composables, the router, `locales/index.ts`, `main.ts`, and test-utils MUST keep explicit `import { defineStore } from "pinia"` / `import { ref, computed } from "vue"` / `import { createI18n } from "vue-i18n"` etc. Otherwise the browser hits `Uncaught ReferenceError: createI18n is not defined` at module load and the app never mounts.
-- **Don't import NaiveUI components for templates**: `<NButton>`, `<NCard>`, etc. are auto-resolved by `NaiveUiResolver`. NaiveUI **functions** like `useMessage()`, `useDialog()`, `useNotification()`, `useLoadingBar()` are NOT components and DO need explicit imports.
 - **Don't commit `apps/agent-gui/src/auto-imports.d.ts` or `apps/agent-gui/src/components.d.ts`** — they are regenerated on every Vite dev/build and are listed in `.gitignore`.
-- **Don't reach for `useMessage()` outside a component wrapped by `<NMessageProvider>`** — it returns null and crashes at use. The provider tree lives in `AppLayout.vue`. For tests, mount via `mountWithPlugins({ withNaiveProviders: true })` so the component sees the same provider stack.
+- **Don't use `useConfirm()` outside a component wrapped by `<ConfirmDialog>`** — `inject()` will throw. The provider lives in `AppLayout.vue`. For toasts, `useToast()` works anywhere Pinia is active.
 - **Don't navigate via `view = ref('workbench')` patterns**: vue-router is the source of truth. Use `router.push({ name: 'workbench', params: { sessionId } })` and read state via `useRoute()`.
 
 ## Privacy defaults

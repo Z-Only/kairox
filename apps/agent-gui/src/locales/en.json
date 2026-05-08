@@ -36,6 +36,7 @@
   },
   "settings": {
     "title": "Settings",
+    "general": "General",
     "locale": "Language",
     "localeEn": "English",
     "localeZh": "中文（简体）",
@@ -140,6 +141,10 @@
     "streamingNo": "streaming: no",
     "connectedYes": "connected: yes",
     "connectedNo": "connected: no",
-    "mode": "mode: {mode}"
+    "mode": "mode: {mode}",
+    "sessionsLabel": "Sessions",
+    "streamingLabel": "Streaming",
+    "connectedLabel": "Connected",
+    "modeLabel": "Mode"
   }
 }

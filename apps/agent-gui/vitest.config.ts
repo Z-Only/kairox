@@ -3,8 +3,6 @@ import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
-import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
-
 // Vitest must run through the same `unplugin-auto-import` /
 // `unplugin-vue-components` pipeline as Vite. Otherwise the bulk import
 // cleanup done in Task 9 (where `defineStore`, `ref`, `computed`,
@@ -46,7 +44,6 @@ export default defineConfig({
       vueTemplate: true
     }),
     Components({
-      resolvers: [NaiveUiResolver()],
       dirs: ["src/components"],
       extensions: ["vue"],
       deep: true,

@@ -3,12 +3,22 @@
 //! Centralises timeout, user-agent, bearer-token and conditional-GET
 //! handling so individual provider adapters stay focused on
 //! source-specific decoding.
+//!
+//! Some servers (notably the official MCP Registry behind Google Cloud
+//! infrastructure) reject connections from Rust's `hyper`/`rustls` stack
+//! due to TLS fingerprint filtering, producing "Broken pipe (os error
+//! 32)" at connect time even though the same URL works from `curl`. When
+//! the primary `reqwest` path fails with a connection-level error the
+//! client transparently retries via the system `curl` binary.
 
 use crate::catalog::remote::RemoteError;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, USER_AGENT};
 use std::time::Duration;
 
 const DEFAULT_USER_AGENT: &str = concat!("kairox-marketplace/", env!("CARGO_PKG_VERSION"));
+
+/// Maximum time (seconds) for the curl fallback process.
+const CURL_TIMEOUT_SECONDS: u64 = 30;
 
 #[derive(Clone)]
 pub struct SharedHttpClient {
@@ -30,8 +40,8 @@ pub struct GetResponse {
 impl SharedHttpClient {
     pub fn new() -> Result<Self, RemoteError> {
         let inner = reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(5))
-            .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
             .user_agent(DEFAULT_USER_AGENT)
             .build()
             .map_err(|e| RemoteError::Http(e.to_string()))?;
@@ -39,6 +49,30 @@ impl SharedHttpClient {
     }
 
     pub async fn get_json(&self, url: &str, opts: GetOpts<'_>) -> Result<GetResponse, RemoteError> {
+        match self.get_json_reqwest(url, &opts).await {
+            Ok(resp) => Ok(resp),
+            Err(primary_err) if is_connection_error(&primary_err) => {
+                tracing::warn!(
+                    url,
+                    error = %primary_err,
+                    "reqwest connect failed, falling back to curl"
+                );
+                self.get_json_curl(url, &opts).await.map_err(|curl_err| {
+                    RemoteError::Http(format!(
+                        "curl fallback also failed: {curl_err} (original: {primary_err})"
+                    ))
+                })
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Primary path: use the in-process `reqwest` client.
+    async fn get_json_reqwest(
+        &self,
+        url: &str,
+        opts: &GetOpts<'_>,
+    ) -> Result<GetResponse, RemoteError> {
         let mut headers = HeaderMap::new();
         if let Some(env_key) = opts.api_key_env {
             let value = std::env::var(env_key)
@@ -60,7 +94,7 @@ impl SharedHttpClient {
             .headers(headers)
             .send()
             .await
-            .map_err(|e| RemoteError::Http(e.to_string()))?;
+            .map_err(|e| RemoteError::Http(reqwest_error_chain(&e)))?;
         let status = resp.status().as_u16();
         let etag = resp
             .headers()
@@ -74,6 +108,143 @@ impl SharedHttpClient {
             .to_vec();
         Ok(GetResponse { status, etag, body })
     }
+
+    /// Fallback: shell out to the system `curl` binary. This uses the
+    /// operating system's native TLS stack and avoids TLS fingerprint
+    /// filtering that blocks `hyper`/`rustls`.
+    async fn get_json_curl(
+        &self,
+        url: &str,
+        opts: &GetOpts<'_>,
+    ) -> Result<GetResponse, RemoteError> {
+        use tokio::process::Command;
+
+        let mut cmd = Command::new("curl");
+        cmd.args([
+            "--silent",
+            "--show-error",
+            "--location", // follow redirects
+            "--max-time",
+            &CURL_TIMEOUT_SECONDS.to_string(),
+            "--header",
+            &format!("User-Agent: {DEFAULT_USER_AGENT}"),
+            "--header",
+            "Accept: application/json",
+            // Write HTTP status code to stderr so we can parse it
+            "--write-out",
+            "\n%{http_code}",
+        ]);
+
+        if let Some(env_key) = opts.api_key_env {
+            let value = std::env::var(env_key)
+                .map_err(|_| RemoteError::Config(format!("missing env var: {env_key}")))?;
+            cmd.args(["--header", &format!("Authorization: Bearer {value}")]);
+        }
+        if let Some(etag) = opts.if_none_match {
+            cmd.args(["--header", &format!("If-None-Match: {etag}")]);
+        }
+
+        // Include response headers so we can extract ETag.
+        cmd.args(["--dump-header", "-"]);
+        cmd.arg(url);
+
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| RemoteError::Http(format!("curl spawn failed: {e}")))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RemoteError::Http(format!(
+                "curl exited {}: {stderr}",
+                output.status
+            )));
+        }
+
+        parse_curl_dump_header_output(&output.stdout)
+    }
+}
+
+/// Flatten a `reqwest::Error` into a single string that preserves the
+/// full source chain (e.g. "error sending request … : Broken pipe (os
+/// error 32)"). The default `Display` impl only shows the top-level
+/// message and hides the underlying OS error that we need for fallback
+/// detection.
+fn reqwest_error_chain(err: &reqwest::Error) -> String {
+    use std::fmt::Write;
+    let mut buf = err.to_string();
+    let mut source = std::error::Error::source(err);
+    while let Some(inner) = source {
+        let _ = write!(buf, ": {inner}");
+        source = inner.source();
+    }
+    buf
+}
+
+/// Returns `true` for errors that indicate the connection itself failed
+/// (as opposed to a valid HTTP error response). These are candidates for
+/// the curl fallback.
+fn is_connection_error(err: &RemoteError) -> bool {
+    match err {
+        RemoteError::Http(msg) => {
+            let lower = msg.to_lowercase();
+            lower.contains("broken pipe")
+                || lower.contains("connection reset")
+                || lower.contains("connection refused")
+                || lower.contains("error sending request")
+                || lower.contains("connection closed before message completed")
+                || lower.contains("connection closed")
+        }
+        _ => false,
+    }
+}
+
+/// Parse curl output produced with `--dump-header -`.
+///
+/// The output format is:
+/// ```text
+/// HTTP/2 200\r\n
+/// content-type: application/json\r\n
+/// etag: "abc"\r\n
+/// \r\n
+/// {"body":"here"}
+/// 123              <-- appended by --write-out "\n%{http_code}"
+/// ```
+fn parse_curl_dump_header_output(raw: &[u8]) -> Result<GetResponse, RemoteError> {
+    let full = String::from_utf8_lossy(raw);
+
+    // Split headers from body at the first blank line (\r\n\r\n).
+    let (header_block, body_and_code) = full
+        .split_once("\r\n\r\n")
+        .ok_or_else(|| RemoteError::Http("curl: cannot find header/body boundary".into()))?;
+
+    // The --write-out appends "\n<status_code>" after the body.
+    let (body_str, status_str) = match body_and_code.rsplit_once('\n') {
+        Some((b, s)) if s.chars().all(|c| c.is_ascii_digit()) && !s.is_empty() => (b, s),
+        _ => {
+            // Fallback: try to parse status from the HTTP status line.
+            let status_from_header = header_block
+                .lines()
+                .next()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .unwrap_or("200");
+            (body_and_code, status_from_header)
+        }
+    };
+
+    let status: u16 = status_str.trim().parse().unwrap_or(200);
+
+    // Extract ETag from response headers.
+    let etag = header_block
+        .lines()
+        .find(|line| line.to_lowercase().starts_with("etag:"))
+        .map(|line| line[5..].trim().to_string());
+
+    Ok(GetResponse {
+        status,
+        etag,
+        body: body_str.as_bytes().to_vec(),
+    })
 }
 
 #[cfg(test)]

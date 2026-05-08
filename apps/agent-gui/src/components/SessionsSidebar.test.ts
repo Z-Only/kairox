@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { confirmDialogKey } from "@/composables/useConfirm";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -17,15 +18,18 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 
-// `mountWithPlugins({ withNaiveProviders: true, initialRoute })` (added in
-// Task 7a) wires Pinia + i18n + the production router and wraps the
-// component in the same NaiveUI provider stack as `AppLayout.vue` so
-// `useDialog()` and the migrated NaiveUI components resolve cleanly. The
-// Sidebar exercises that helper as one of its intended consumers.
+// `mountWithPlugins({ initialRoute })` wires Pinia + i18n + the production
+// router so the Sidebar's dependencies resolve cleanly.
 async function mountSidebar() {
   const { wrapper, router } = mountWithPlugins(SessionsSidebar, {
-    withNaiveProviders: true,
-    initialRoute: "/workbench"
+    initialRoute: "/workbench",
+    mount: {
+      global: {
+        provide: {
+          [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+        }
+      }
+    }
   });
   await router.isReady();
   return { wrapper, router };
@@ -55,7 +59,7 @@ describe("SessionsSidebar", () => {
 
   it("shows empty hint when no sessions", async () => {
     const { wrapper } = await mountSidebar();
-    // NEmpty renders the description text we passed in.
+    // The empty-state component renders the description text we passed in.
     expect(wrapper.text()).toContain("No sessions yet");
   });
 
@@ -65,7 +69,7 @@ describe("SessionsSidebar", () => {
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
     await flushPromises();
     // Use the data-test selector so the assertion does not depend on the
-    // ordering or class names of NaiveUI internals.
+    // ordering or class names of UI component internals.
     await wrapper.find('[data-test="session-item"]').trigger("click");
     // Replace the brittle `setTimeout(0)` flush with `flushPromises()` so
     // the test stays correct under `vi.useFakeTimers()` — see Task 5

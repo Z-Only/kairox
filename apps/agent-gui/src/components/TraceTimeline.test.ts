@@ -3,6 +3,7 @@ import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { confirmDialogKey } from "@/composables/useConfirm";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -12,14 +13,21 @@ vi.mock("@tauri-apps/api/event", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-// MemoryBrowser (rendered when the Memory tab is activated in 7b) now
-// calls `useI18n()` and `useDialog()`, so any render path that mounts
-// it requires the NaiveUI provider stack + i18n. `mountWithPlugins(
-// { withNaiveProviders: true })` wires both, plus a fresh Pinia.
+// MemoryBrowser (rendered when the Memory tab is activated) calls
+// `useI18n()` and `useConfirm()`, so any render path that mounts it
+// requires the i18n plugin and the confirmDialog injection.
+// `mountWithPlugins` wires i18n plus a fresh Pinia; we provide the
+// confirm injection via `mount.global.provide`.
 function mountTimeline() {
   return mountWithPlugins(TraceTimeline, {
-    withNaiveProviders: true
-  });
+    mount: {
+      global: {
+        provide: {
+          [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+        }
+      }
+    }
+  }).wrapper;
 }
 
 beforeEach(() => {
@@ -39,7 +47,7 @@ beforeEach(() => {
 
 describe("TraceTimeline", () => {
   it("shows Trace tab as active by default", () => {
-    const { wrapper } = mountTimeline();
+    const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     const buttons = wrapper.findAll(".tab-group button");
     expect(buttons[0].classes()).toContain("active");
@@ -47,7 +55,7 @@ describe("TraceTimeline", () => {
   });
 
   it("switches to Tasks tab when clicked", async () => {
-    const { wrapper } = mountTimeline();
+    const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     const buttons = wrapper.findAll(".tab-group button");
     await buttons[1].trigger("click");
@@ -55,7 +63,7 @@ describe("TraceTimeline", () => {
   });
 
   it("switches to Memory tab when clicked", async () => {
-    const { wrapper } = mountTimeline();
+    const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     const buttons = wrapper.findAll(".tab-group button");
     await buttons[2].trigger("click");
@@ -63,10 +71,10 @@ describe("TraceTimeline", () => {
   });
 
   it("cycles density when density buttons are clicked", async () => {
-    const { wrapper } = mountTimeline();
+    const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     expect(traceState.density).toBe("L2");
-    const densityButtons = wrapper.findAll(".density-toggles button");
+    const densityButtons = wrapper.findAll(".density-toolbar .density-btn");
     await densityButtons[2].trigger("click");
     expect(traceState.density).toBe("L3");
     await densityButtons[0].trigger("click");

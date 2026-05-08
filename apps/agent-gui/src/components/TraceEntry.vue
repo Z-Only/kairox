@@ -34,34 +34,34 @@ const kindIcon: Record<string, string> = {
          interactions are handled exclusively by PermissionCenter. The
          row's bespoke class names are preserved because the unit tests
          (TraceEntry.test.ts) assert against `.entry-row`, `.entry-status`,
-         `.entry-detail`, and `.entry-duration` — switching to NaiveUI
+         `.entry-detail`, and `.entry-duration` — using CSS-class-based
          primitives inside the row keeps those selectors stable. -->
     <div class="entry-row" @click="toggle">
       <span class="entry-icon">{{ kindIcon[entry.kind] || "•" }}</span>
       <span class="entry-status">{{ statusIcon[entry.status] }}</span>
       <span class="entry-tool">
-        <NEllipsis :tooltip="false">
+        <span class="truncate">
           {{ entry.toolId || entry.title }}
-        </NEllipsis>
+        </span>
       </span>
-      <NTag v-if="entry.scope" size="tiny" :bordered="false" type="info" class="entry-scope">
+      <span v-if="entry.scope" class="tag tag-info entry-scope">
         {{ entry.scope }}
-      </NTag>
-      <NText v-if="entry.durationMs != null" depth="3" class="entry-duration">
-        {{ (entry.durationMs / 1000).toFixed(1) }}s
-      </NText>
-      <NText v-if="entry.status === 'running'" type="info" class="entry-running">
-        running...
-      </NText>
-      <NTag
-        v-if="entry.status === 'pending'"
-        size="tiny"
-        :bordered="false"
-        type="warning"
-        class="entry-pending"
+      </span>
+      <span
+        v-if="entry.durationMs != null"
+        :style="{ color: 'var(--app-text-color-3)' }"
+        class="entry-duration"
       >
-        pending
-      </NTag>
+        {{ (entry.durationMs / 1000).toFixed(1) }}s
+      </span>
+      <span
+        v-if="entry.status === 'running'"
+        :style="{ color: 'var(--app-info-color)' }"
+        class="entry-running"
+      >
+        running...
+      </span>
+      <span v-if="entry.status === 'pending'" class="tag tag-warning entry-pending"> pending </span>
     </div>
     <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
       <div v-if="entry.input" class="entry-section">
@@ -90,10 +90,10 @@ const kindIcon: Record<string, string> = {
 <style scoped>
 .trace-entry {
   font-size: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--app-border-color);
 }
 .trace-entry--pending {
-  background: #fffbf0;
+  background: color-mix(in srgb, var(--app-warning-color) 8%, transparent);
 }
 .entry-row {
   display: flex;
@@ -103,7 +103,7 @@ const kindIcon: Record<string, string> = {
   cursor: pointer;
 }
 .entry-row:hover {
-  background: #f8f8f8;
+  background: var(--app-hover-color);
 }
 .entry-icon {
   font-size: 11px;
@@ -121,27 +121,27 @@ const kindIcon: Record<string, string> = {
 .entry-scope {
   font-size: 10px;
   padding: 1px 4px;
-  background: #e8f0fe;
+  background: color-mix(in srgb, var(--app-info-color) 15%, transparent);
   border-radius: 3px;
-  color: #3367d6;
+  color: var(--app-info-color);
 }
 .entry-duration {
-  color: #777;
+  color: var(--app-text-color-3);
   font-size: 11px;
 }
 .entry-running {
-  color: #0077cc;
+  color: var(--app-info-color);
   font-size: 11px;
 }
 .entry-pending {
-  color: #b45309;
+  color: var(--app-warning-color);
   font-size: 10px;
   font-weight: 600;
 }
 .entry-detail,
 .entry-raw {
   padding: 4px 8px 8px;
-  background: #fafafa;
+  background: var(--app-card-color);
 }
 .entry-section {
   margin-bottom: 4px;
@@ -149,13 +149,13 @@ const kindIcon: Record<string, string> = {
 .entry-label {
   font-weight: 600;
   font-size: 11px;
-  color: #555;
+  color: var(--app-text-color-2);
 }
 .entry-code {
   margin: 2px 0 0;
   padding: 6px 8px;
-  background: #1e1e2e;
-  color: #cdd6f4;
+  background: var(--app-code-bg);
+  color: var(--app-text-color);
   border-radius: 4px;
   font-size: 11px;
   line-height: 1.4;

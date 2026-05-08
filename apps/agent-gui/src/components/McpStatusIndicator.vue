@@ -22,24 +22,26 @@ const dot = computed(() => {
   return "⚪";
 });
 
-// Map indicator state → NText `type` so coloring follows the active
-// NaiveUI theme (light/dark) instead of the hard-coded colours we
-// previously baked into the dot emojis.
-const textType = computed<"default" | "success" | "warning" | "error">(() => {
-  if (mcp.failedServers.length > 0) return "error";
-  if (mcp.runningCount > 0) return "success";
-  if (mcp.hasServers) return "warning";
-  return "default";
+const textColorVar = computed(() => {
+  if (mcp.failedServers.length > 0) return "var(--app-error-color)";
+  if (mcp.runningCount > 0) return "var(--app-success-color)";
+  if (mcp.hasServers) return "var(--app-warning-color)";
+  return "var(--app-text-color-2)";
 });
 </script>
 
 <template>
   <!-- Outer span + .mcp-status / .mcp-failed|running|stopped|none class
        hooks are preserved verbatim so the existing test suite (which
-       asserts on these classes) keeps passing after the NaiveUI move.
-       NText handles theme-aware colouring of the label. -->
-  <span class="mcp-status" :class="indicatorClass" @click="emit('click')">
-    <NText :type="textType">{{ dot }} {{ label }}</NText>
+       asserts on these classes) keeps passing.
+       Theme-aware colouring of the label is handled via CSS variables. -->
+  <span
+    class="mcp-status"
+    :class="indicatorClass"
+    :style="{ color: textColorVar }"
+    @click="emit('click')"
+  >
+    {{ dot }} {{ label }}
   </span>
 </template>
 

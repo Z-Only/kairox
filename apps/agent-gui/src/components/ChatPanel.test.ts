@@ -3,11 +3,11 @@ import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
 import { mountWithPlugins } from "@/test-utils/mount";
 
-// jsdom does not implement `Element.prototype.scrollTo`. NaiveUI's
-// `<NScrollbar>` calls it inside its own `scrollTo()` method when the
-// message-list watcher fires (see ChatPanel.vue), which would surface as a
-// noisy unhandled rejection during these tests even though no assertion
-// depends on the scroll behaviour. Stub it once for the whole file.
+// jsdom does not implement `Element.prototype.scrollTo`. The scrollbar
+// calls it inside its own `scrollTo()` method when the message-list watcher
+// fires (see ChatPanel.vue), which would surface as a noisy unhandled
+// rejection during these tests even though no assertion depends on the
+// scroll behaviour. Stub it once for the whole file.
 if (typeof Element !== "undefined" && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = (() => {}) as Element["scrollTo"];
 }
@@ -22,11 +22,6 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 
-// ChatPanel calls `useNotifications()` → `useMessage()` at setup; that hook
-// throws unless wrapped under <NMessageProvider>. We mount via the shared
-// `mountWithPlugins` helper with `withNaiveProviders: true` (added in Task 7a)
-// so the provider stack matches the runtime `AppLayout.vue` tree without
-// hand-rolling 5 layers per test file.
 /**
  * `mountWithPlugins` activates a fresh Pinia internally, so the per-test
  * pattern is:
@@ -37,7 +32,6 @@ import { useSessionStore } from "@/stores/session";
  */
 function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionStore>) => void) {
   const { wrapper } = mountWithPlugins(ChatPanel, {
-    withNaiveProviders: true,
     initialRoute: "/workbench"
   });
   const session = useSessionStore();
@@ -114,9 +108,10 @@ describe("ChatPanel", () => {
       s.isStreaming = true;
     });
     await flushPromises();
-    // NInput renders a real <textarea> beneath; assert via the native element
-    // because that's what the user actually interacts with.
-    const textarea = wrapper.find('[data-test="message-input"] textarea');
+    // Assert via the native <textarea> element because that's what the
+    // user actually interacts with. The data-test attribute lives on the
+    // <textarea> itself (not a wrapper), so we select it directly.
+    const textarea = wrapper.find('textarea[data-test="message-input"]');
     expect(textarea.exists()).toBe(true);
     expect(textarea.attributes("disabled")).toBeDefined();
   });

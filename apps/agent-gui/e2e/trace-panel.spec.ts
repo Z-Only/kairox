@@ -18,12 +18,9 @@ test("trace panel shows events after sending a message", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Send a message to trigger events. NaiveUI NInput renders the field as a
-  // <textarea> nested inside the [data-test="message-input"] root <div>.
-  // `{ force: true }` bypasses NaiveUI's `.n-input__placeholder` overlay
-  // (see chat-flow.spec.ts for the full explanation).
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("Hello", { force: true });
+  // Send a message to trigger events.
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("Hello");
   await input.press("Enter");
 
   // Trace panel should show entries after events are processed
@@ -39,10 +36,9 @@ test("trace entries contain event details", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Send a message. `{ force: true }` bypasses NaiveUI's
-  // `.n-input__placeholder` overlay (see chat-flow.spec.ts).
-  const input = page.locator('[data-test="message-input"] textarea');
-  await input.fill("What is Rust?", { force: true });
+  // Send a message.
+  const input = page.locator('textarea[data-test="message-input"]');
+  await input.fill("What is Rust?");
   await input.press("Enter");
 
   // Wait for trace entries to appear
@@ -67,9 +63,7 @@ test("trace tab is selectable from the right-sidebar tab group", async ({ page }
   await expect(page.locator(".trace-timeline")).toBeVisible({
     timeout: 10_000
   });
-  // The hand-rolled tab strip in TraceTimeline.vue renders NaiveUI NButtons
-  // that forward `:class="{ active }"` to their root, so the active state is
-  // still selectable via the legacy `.active` class hook.
+  // The tab strip highlights the active tab with an `.active` class.
   const traceTab = page.locator(".tab-group .active", { hasText: "Trace" });
   await expect(traceTab).toBeVisible();
 });

@@ -80,15 +80,28 @@ impl MarketplaceToml {
         })
     }
 
-    /// Toggle the `enabled` field. Errors if the source is not present.
+    /// Toggle the `enabled` field. If the id is not yet present on disk
+    /// but matches one of the shipped defaults
+    /// (see [`agent_config::default_catalog_sources`]), the default is
+    /// seeded into the file with the requested `enabled` value. This lets
+    /// the GUI flip a built-in default to enabled without first having to
+    /// "add" it. Errors only if the id is unknown to both the file and
+    /// the defaults.
     pub fn set_enabled(&self, id: &str, enabled: bool) -> Result<()> {
         self.mutate(|sources| {
-            let s = sources
-                .iter_mut()
+            if let Some(existing) = sources.iter_mut().find(|s| s.id == id) {
+                existing.enabled = enabled;
+                return Ok(());
+            }
+            if let Some(mut seeded) = agent_config::default_catalog_sources()
+                .into_iter()
                 .find(|s| s.id == id)
-                .ok_or_else(|| MarketplaceTomlError::NotFound(id.to_string()))?;
-            s.enabled = enabled;
-            Ok(())
+            {
+                seeded.enabled = enabled;
+                sources.push(seeded);
+                return Ok(());
+            }
+            Err(MarketplaceTomlError::NotFound(id.to_string()))
         })
     }
 
@@ -148,8 +161,7 @@ fn write_sources_to_doc(doc: &mut toml_edit::DocumentMut, sources: &[CatalogSour
         t["id"] = value(s.id.as_str());
         t["display_name"] = value(s.display_name.as_str());
         t["kind"] = value(match s.kind {
-            CatalogSourceKind::KairoxJson => "kairox_json",
-            CatalogSourceKind::Smithery => "smithery",
+            CatalogSourceKind::McpRegistry => "mcp_registry",
         });
         t["url"] = value(s.url.as_str());
         if let Some(env) = &s.api_key_env {
@@ -180,8 +192,8 @@ mod tests {
         CatalogSourceConfig {
             id: id.into(),
             display_name: format!("Display {id}"),
-            kind: CatalogSourceKind::Smithery,
-            url: "https://registry.smithery.ai".into(),
+            kind: CatalogSourceKind::McpRegistry,
+            url: "https://registry.modelcontextprotocol.io".into(),
             api_key_env: None,
             priority: 100,
             default_trust: "community".into(),
@@ -201,10 +213,10 @@ mod tests {
     fn add_then_read_round_trips() {
         let tmp = tempfile::tempdir().unwrap();
         let mt = MarketplaceToml::new(tmp.path());
-        mt.add_source(sample_source("smithery")).unwrap();
+        mt.add_source(sample_source("mcp-registry")).unwrap();
         let got = mt.read_sources().unwrap();
         assert_eq!(got.len(), 1);
-        assert_eq!(got[0].id, "smithery");
+        assert_eq!(got[0].id, "mcp-registry");
         assert_eq!(got[0].priority, 100);
     }
 
@@ -255,14 +267,14 @@ args = []
         )
         .unwrap();
         let mt = MarketplaceToml::new(tmp.path());
-        mt.add_source(sample_source("smithery")).unwrap();
+        mt.add_source(sample_source("mcp-registry")).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
         // mcp_servers.fs must survive verbatim.
         assert!(raw.contains("[mcp_servers.fs]"));
         assert!(raw.contains("command = \"fs-server\""));
         // catalog_sources entry must be present.
         assert!(raw.contains("[[catalog_sources]]"));
-        assert!(raw.contains("id = \"smithery\""));
+        assert!(raw.contains("id = \"mcp-registry\""));
     }
 
     #[test]

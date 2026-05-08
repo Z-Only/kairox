@@ -59,11 +59,11 @@ mod tests {
     async fn sink_forwards_failed_event_to_broadcast() {
         let (tx, mut rx) = broadcast::channel(8);
         let sink = CatalogEventSink::new(tx);
-        sink.emit_source_failed("smithery", "timeout").await;
+        sink.emit_source_failed("mcp-registry", "timeout").await;
         let ev = rx.recv().await.unwrap();
         match ev.payload {
             EventPayload::CatalogSourceFailed { source, error } => {
-                assert_eq!(source, "smithery");
+                assert_eq!(source, "mcp-registry");
                 assert_eq!(error, "timeout");
             }
             other => panic!("unexpected payload: {other:?}"),

@@ -1,0 +1,347 @@
+/* components.css — Shared CSS classes for the application UI. */
+
+/* === Buttons === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.btn:hover {
+  background: var(--app-hover-color);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--app-primary-color);
+  border-color: var(--app-primary-color);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-danger {
+  background: var(--app-error-color);
+  border-color: var(--app-error-color);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background: var(--app-hover-color);
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.btn-icon {
+  padding: 4px 6px;
+}
+
+/* === Tags === */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--app-hover-color);
+  color: var(--app-text-color-2);
+}
+
+.tag-success {
+  background: color-mix(in srgb, var(--app-success-color) 15%, transparent);
+  color: var(--app-success-color);
+}
+
+.tag-warning {
+  background: color-mix(in srgb, var(--app-warning-color) 15%, transparent);
+  color: var(--app-warning-color);
+}
+
+.tag-error {
+  background: color-mix(in srgb, var(--app-error-color) 15%, transparent);
+  color: var(--app-error-color);
+}
+
+.tag-info {
+  background: color-mix(in srgb, var(--app-info-color) 15%, transparent);
+  color: var(--app-info-color);
+}
+
+/* === Cards === */
+.card {
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-border-color);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.card-body {
+  padding: 12px 16px;
+}
+
+/* === Alerts === */
+.alert {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  border-left: 3px solid;
+}
+
+.alert-info {
+  border-color: var(--app-info-color);
+  background: color-mix(in srgb, var(--app-info-color) 8%, transparent);
+}
+
+.alert-warning {
+  border-color: var(--app-warning-color);
+  background: color-mix(in srgb, var(--app-warning-color) 8%, transparent);
+}
+
+.alert-error {
+  border-color: var(--app-error-color);
+  background: color-mix(in srgb, var(--app-error-color) 8%, transparent);
+}
+
+.alert-success {
+  border-color: var(--app-success-color);
+  background: color-mix(in srgb, var(--app-success-color) 8%, transparent);
+}
+
+/* === Empty state === */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: var(--app-text-color-3);
+  font-size: 13px;
+}
+
+/* === Divider === */
+.divider {
+  border: none;
+  border-top: 1px solid var(--app-border-color);
+  margin: 8px 0;
+}
+
+/* === Spinner === */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--app-border-color);
+  border-top-color: var(--app-primary-color);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Truncate === */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* === List === */
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.list > li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.list > li:last-child {
+  border-bottom: none;
+}
+
+/* === Description list === */
+.desc-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+
+.desc-list dt {
+  color: var(--app-text-color-3);
+  font-weight: 500;
+}
+
+.desc-list dd {
+  margin: 0;
+  color: var(--app-text-color);
+}
+
+/* === Tabs === */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--app-text-color-2);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--app-text-color);
+}
+
+.tab-btn[aria-selected="true"] {
+  color: var(--app-primary-color);
+  border-bottom-color: var(--app-primary-color);
+  font-weight: 600;
+}
+
+/* === Dialog (native <dialog>) === */
+dialog {
+  border: 1px solid var(--app-border-color);
+  border-radius: 10px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  padding: 0;
+  max-width: 480px;
+  width: 90vw;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 18%);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+/* === Drawer (dialog variant) === */
+dialog.drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  max-width: 520px;
+  width: 90vw;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  animation: slide-in-right 0.2s ease-out;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* === Form elements === */
+select,
+input,
+textarea {
+  padding: 6px 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-body-color);
+  color: var(--app-text-color);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--app-primary-color);
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* === Status dot === */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.status-dot--ok {
+  background: var(--app-success-color);
+}
+
+.status-dot--warn {
+  background: var(--app-warning-color);
+}
+
+.status-dot--err {
+  background: var(--app-error-color);
+}
+
+.status-dot--idle {
+  background: var(--app-text-color-3);
+}

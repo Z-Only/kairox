@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { useDialog } from "naive-ui";
+import { useConfirm } from "@/composables/useConfirm";
 import type { ProfileDetail } from "../types";
 import { useSessionStore } from "@/stores/session";
 
 const { t } = useI18n();
-const dialog = useDialog();
+const { confirm } = useConfirm();
 
 const session = useSessionStore();
 const route = useRoute();
@@ -113,20 +113,17 @@ function cancelRename() {
   editingSessionId.value = null;
 }
 
-function promptDelete(sessionId: string, title: string) {
-  // The destructive confirmation is portal-rendered by NaiveUI under
-  // `<NDialogProvider>` (mounted in `AppLayout.vue`). The view layer no
-  // longer owns visibility state — the dialog hook does, and a positive
-  // click delegates to the existing `session.deleteSession` action.
-  dialog.warning({
+async function promptDelete(sessionId: string, title: string) {
+  const confirmed = await confirm({
     title: t("common.confirm"),
-    content: t("sessions.deleteConfirm", { title }),
-    positiveText: t("common.delete"),
-    negativeText: t("common.cancel"),
-    onPositiveClick: () => {
-      void session.deleteSession(sessionId);
-    }
+    message: t("sessions.deleteConfirm", { title }),
+    confirmText: t("common.delete"),
+    cancelText: t("common.cancel"),
+    type: "warning"
   });
+  if (confirmed) {
+    void session.deleteSession(sessionId);
+  }
 }
 
 function selectProfile(alias: string) {
@@ -143,18 +140,12 @@ function keyIcon(hasApiKey: boolean): string {
   <aside class="sessions-sidebar" data-test="sessions-sidebar">
     <header class="sidebar-header">
       <h2>{{ t("sessions.header") }}</h2>
-      <NButton
-        size="tiny"
-        type="primary"
-        class="new-session-btn"
-        data-test="new-session-btn"
-        @click="openNewSessionDialog"
-      >
+      <button class="btn new-session-btn" data-test="new-session-btn" @click="openNewSessionDialog">
         {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
-      </NButton>
+      </button>
     </header>
 
-    <NScrollbar v-if="session.sessions.length > 0" class="session-scroll">
+    <div v-if="session.sessions.length > 0" class="session-scroll">
       <!-- Kept hand-rolled because hover-only .session-actions cannot be expressed via NListItem #suffix slot. -->
       <ul class="session-list">
         <li
@@ -183,38 +174,29 @@ function keyIcon(hasApiKey: boolean): string {
           <template v-else>
             <span class="session-title">{{ item.title }}</span>
             <span class="session-actions">
-              <NButton
-                quaternary
-                size="tiny"
+              <button
                 class="action-btn"
                 :title="t('sessions.renameTitle')"
                 @click.stop="startRename(item.id, item.title)"
               >
                 ✏️
-              </NButton>
-              <NButton
-                quaternary
-                size="tiny"
-                type="error"
+              </button>
+              <button
                 class="action-btn action-delete"
                 :title="t('sessions.deleteTitle')"
                 data-test="session-delete-btn"
                 @click.stop="promptDelete(item.id, item.title)"
               >
                 🗑️
-              </NButton>
+              </button>
             </span>
           </template>
         </li>
       </ul>
-    </NScrollbar>
-    <NEmpty
-      v-else
-      size="small"
-      class="empty-hint"
-      :description="t('sessions.emptyHint')"
-      data-test="sessions-empty"
-    />
+    </div>
+    <div v-else class="empty-state empty-hint" data-test="sessions-empty">
+      {{ t("sessions.emptyHint") }}
+    </div>
 
     <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
          scope for Task 7 spec §5.5 mapping). -->
@@ -274,20 +256,41 @@ function keyIcon(hasApiKey: boolean): string {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #d7d7d7;
+  border-bottom: 1px solid var(--app-border-color);
 }
 .sidebar-header h2 {
   margin: 0;
   font-size: 14px;
 }
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+}
 .new-session-btn {
   font-size: 12px;
   padding: 2px 8px;
-  background: #0077cc;
-  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  background: var(--app-primary-color);
+  color: var(--app-inverse-text-color, #fff);
+}
+.session-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 80px;
 }
 .session-list {
   list-style: none;
@@ -304,14 +307,14 @@ function keyIcon(hasApiKey: boolean): string {
   position: relative;
 }
 .session-item:hover {
-  background: #f0f4f8;
+  background: var(--app-hover-color);
 }
 .session-item.active {
-  background: #e1ecf7;
+  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
   font-weight: 600;
 }
 .session-indicator {
-  color: #22a06b;
+  color: var(--app-success-color);
   font-size: 10px;
   flex-shrink: 0;
 }
@@ -339,23 +342,25 @@ function keyIcon(hasApiKey: boolean): string {
   line-height: 1;
 }
 .action-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--app-hover-color);
 }
 .action-delete:hover {
-  background: rgba(204, 51, 51, 0.1);
+  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
 }
 .rename-input {
   flex: 1;
-  border: 1px solid #0077cc;
+  border: 1px solid var(--app-primary-color);
   border-radius: 3px;
   padding: 2px 4px;
   font-size: 13px;
   outline: none;
   font-family: inherit;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
 }
 .empty-hint {
   padding: 12px;
-  color: #999;
+  color: var(--app-text-color-3);
   font-size: 13px;
 }
 
@@ -366,12 +371,12 @@ function keyIcon(hasApiKey: boolean): string {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: white;
-  border: 1px solid #d7d7d7;
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
   padding: 20px;
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-shadow-2, 0 4px 16px rgba(0, 0, 0, 0.15));
 }
 .new-session-dialog h3 {
   margin: 0 0 12px;
@@ -393,26 +398,27 @@ function keyIcon(hasApiKey: boolean): string {
   align-items: center;
   width: 100%;
   padding: 6px 10px;
-  border: 1px solid #d7d7d7;
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  background: white;
+  background: var(--app-card-color);
   cursor: pointer;
   font-size: 13px;
   text-align: left;
+  color: var(--app-text-color);
 }
 .caret {
   font-size: 10px;
-  color: #777;
+  color: var(--app-text-color-3);
 }
 .profile-menu {
   position: absolute;
   top: 100%;
   left: 0;
   min-width: 320px;
-  background: white;
-  border: 1px solid #d7d7d7;
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-1, 0 4px 12px rgba(0, 0, 0, 0.1));
   z-index: 10;
   max-height: 200px;
   overflow-y: auto;
@@ -426,10 +432,10 @@ function keyIcon(hasApiKey: boolean): string {
   font-size: 12px;
 }
 .profile-option:hover {
-  background: #f0f4f8;
+  background: var(--app-hover-color);
 }
 .profile-option.selected {
-  background: #e1ecf7;
+  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
   font-weight: 600;
 }
 .profile-alias {
@@ -437,7 +443,7 @@ function keyIcon(hasApiKey: boolean): string {
   font-size: 13px;
 }
 .profile-detail {
-  color: #666;
+  color: var(--app-text-color-2);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -463,15 +469,15 @@ function keyIcon(hasApiKey: boolean): string {
 }
 .dialog-actions button {
   padding: 6px 12px;
-  border: 1px solid #d7d7d7;
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
   cursor: pointer;
-  background: white;
+  background: var(--app-card-color);
   font-size: 13px;
 }
 .dialog-actions button:first-child {
-  background: #0077cc;
-  color: white;
-  border-color: #0077cc;
+  background: var(--app-primary-color);
+  color: var(--app-inverse-text-color, #fff);
+  border-color: var(--app-primary-color);
 }
 </style>

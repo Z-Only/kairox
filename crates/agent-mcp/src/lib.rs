@@ -27,8 +27,8 @@ pub use catalog::{
 // Remote catalog: gated behind the `remote-catalog` feature.
 #[cfg(feature = "remote-catalog")]
 pub use catalog::remote::{
-    build_provider as build_remote_catalog_provider, HttpResponseCache, KairoxJsonProvider,
-    RemoteError, RemoteSourceConfig, RemoteSourceKind, SharedHttpClient, SmitheryProvider,
+    build_provider as build_remote_catalog_provider, HttpResponseCache, RemoteError,
+    RemoteSourceConfig, RemoteSourceKind, SharedHttpClient,
 };
 
 /// Errors that can occur during MCP client operations.

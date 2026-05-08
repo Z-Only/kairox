@@ -52,9 +52,9 @@ describe("StatusBar", () => {
     mockedInvoke.mockResolvedValueOnce([]);
     const wrapper = mountStatusBar();
     const text = wrapper.text();
-    expect(text).toContain("profile:");
-    expect(text).toContain("sessions:");
-    expect(text).toContain("streaming: no");
-    expect(text).toContain("connected: no");
+    expect(text).toContain("Active profile");
+    expect(text).toContain("Sessions");
+    expect(text).toContain("Streaming");
+    expect(text).toContain("Connected");
   });
 });

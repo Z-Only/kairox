@@ -12,18 +12,18 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn list_catalog_aggregates_builtin_and_two_remote_sources() {
-    let kairox_server = MockServer::start().await;
+    let first_server = MockServer::start().await;
     Mock::given(method("GET"))
-        .and(path("/c.json"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(kairox_doc()))
-        .mount(&kairox_server)
+        .and(path("/v0.1/servers"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(mcp_registry_doc("k1", "K1")))
+        .mount(&first_server)
         .await;
 
-    let smithery_server = MockServer::start().await;
+    let second_server = MockServer::start().await;
     Mock::given(method("GET"))
-        .and(path("/servers"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(smithery_doc()))
-        .mount(&smithery_server)
+        .and(path("/v0.1/servers"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(mcp_registry_doc("s1", "S1")))
+        .mount(&second_server)
         .await;
 
     let (runtime, _tmp) = build_marketplace_runtime().await;
@@ -32,8 +32,8 @@ async fn list_catalog_aggregates_builtin_and_two_remote_sources() {
         .add_catalog_source(AddCatalogSourceRequest {
             id: "internal".into(),
             display_name: "Internal".into(),
-            kind: "kairox_json".into(),
-            url: format!("{}/c.json", kairox_server.uri()),
+            kind: "mcp_registry".into(),
+            url: first_server.uri(),
             api_key_env: None,
             priority: Some(10),
             default_trust: Some("verified".into()),
@@ -45,10 +45,10 @@ async fn list_catalog_aggregates_builtin_and_two_remote_sources() {
 
     runtime
         .add_catalog_source(AddCatalogSourceRequest {
-            id: "smithery".into(),
-            display_name: "Smithery".into(),
-            kind: "smithery".into(),
-            url: smithery_server.uri(),
+            id: "second".into(),
+            display_name: "Second".into(),
+            kind: "mcp_registry".into(),
+            url: second_server.uri(),
             api_key_env: None,
             priority: Some(50),
             default_trust: Some("community".into()),
@@ -60,15 +60,15 @@ async fn list_catalog_aggregates_builtin_and_two_remote_sources() {
 
     let entries = runtime.list_catalog(CatalogQuery::default()).await.unwrap();
 
-    // Builtin entries (>= 1) + 1 internal + 1 smithery.
+    // Builtin entries (>= 1) + 1 internal + 1 second.
     assert!(entries.len() >= 3, "got {}", entries.len());
     assert!(
         entries.iter().any(|e| e.source == "internal"),
         "expected internal source"
     );
     assert!(
-        entries.iter().any(|e| e.source == "smithery"),
-        "expected smithery source"
+        entries.iter().any(|e| e.source == "second"),
+        "expected second source"
     );
     assert!(
         entries.iter().any(|e| e.source == "builtin"),
@@ -80,7 +80,7 @@ async fn list_catalog_aggregates_builtin_and_two_remote_sources() {
 async fn failed_source_does_not_break_list_and_emits_event() {
     let dead_server = MockServer::start().await;
     Mock::given(method("GET"))
-        .and(path("/c.json"))
+        .and(path("/v0.1/servers"))
         .respond_with(ResponseTemplate::new(503))
         .mount(&dead_server)
         .await;
@@ -92,8 +92,8 @@ async fn failed_source_does_not_break_list_and_emits_event() {
         .add_catalog_source(AddCatalogSourceRequest {
             id: "broken".into(),
             display_name: "Broken".into(),
-            kind: "kairox_json".into(),
-            url: format!("{}/c.json", dead_server.uri()),
+            kind: "mcp_registry".into(),
+            url: dead_server.uri(),
             api_key_env: None,
             priority: Some(10),
             default_trust: Some("community".into()),
@@ -139,38 +139,28 @@ async fn failed_source_does_not_break_list_and_emits_event() {
     );
 }
 
-fn kairox_doc() -> String {
-    r#"{
-      "schema_version": "1",
-      "entries": [{
-        "id": "k1",
-        "source": "ignored",
-        "display_name": "K1",
-        "summary": "kairox sample",
-        "description": "",
-        "categories": ["dev-tools"],
-        "tags": [],
-        "author": null,
-        "homepage": null,
-        "version": null,
-        "install": {"transport":"stdio","command":"echo","args":[],"env":{}},
-        "requirements": [],
-        "trust": "verified",
-        "default_env": [],
-        "icon": null
-      }]
-    }"#
-    .into()
-}
-
-fn smithery_doc() -> String {
-    r#"{"servers":[{
-      "qualifiedName":"@a/b",
-      "displayName":"Ab",
-      "description":"Hello.",
-      "tags":[],
-      "verified":true,
-      "connection":{"type":"stdio","command":"echo","args":[],"env":{}}
-    }]}"#
-        .into()
+fn mcp_registry_doc(name: &str, title: &str) -> String {
+    format!(
+        r#"{{
+      "servers": [{{
+        "server": {{
+          "name": "{name}",
+          "title": "{title}",
+          "description": "sample mcp server",
+          "version": "1.0.0",
+          "remotes": [],
+          "packages": [{{
+            "registryType": "npm",
+            "identifier": "@example/{name}",
+            "version": "1.0.0",
+            "environmentVariables": []
+          }}]
+        }},
+        "_meta": {{
+          "isLatest": true
+        }}
+      }}],
+      "metadata": {{}}
+    }}"#
+    )
 }

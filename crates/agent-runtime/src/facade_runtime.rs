@@ -27,7 +27,7 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
@@ -298,9 +298,15 @@ where
         })?;
 
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
-        let sources = mt
+        let user_sources = mt
             .read_sources()
             .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        // Merge in the shipped defaults so that a user who toggled a
+        // default to enabled (without ever adding a custom override) still
+        // gets a real remote provider built. Defaults whose enabled flag
+        // remains false are filtered out below — the merge is purely a
+        // "make the candidate set complete" step, not auto-fetching.
+        let sources = agent_config::merge_with_defaults(user_sources);
 
         let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();
         let builtin =
@@ -313,8 +319,7 @@ where
                 id: s.id.clone(),
                 display_name: s.display_name.clone(),
                 kind: match s.kind {
-                    agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
-                    agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+                    agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
                 },
                 url: s.url.clone(),
                 api_key_env: s.api_key_env.clone(),
@@ -545,14 +550,22 @@ where
         &self,
         query: CoreCatalogQuery,
     ) -> agent_core::Result<Vec<CoreServerEntry>> {
-        let catalog = self.catalog.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
-        })?;
         let inner_query = map_query(query);
-        let entries = catalog
-            .list(&inner_query)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog list: {e}")))?;
+        let entries = match self.catalog.as_ref() {
+            Some(catalog) => catalog
+                .list(&inner_query)
+                .await
+                .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog list: {e}")))?,
+            None => {
+                // Marketplace not configured: degrade to a builtin-only
+                // aggregator so the GUI can still render its catalog out of
+                // the box. See `catalog_resilience` integration tests.
+                let builtin = builtin_only_provider()?;
+                builtin.list(&inner_query).await.map_err(|e| {
+                    agent_core::CoreError::InvalidState(format!("catalog list: {e}"))
+                })?
+            }
+        };
         Ok(entries.into_iter().map(map_entry_to_core).collect())
     }
 
@@ -561,20 +574,38 @@ where
         id: String,
         _source: Option<String>,
     ) -> agent_core::Result<Option<CoreServerEntry>> {
-        let catalog = self.catalog.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
-        })?;
-        let entry = catalog
-            .get(&id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("catalog get: {e}")))?;
+        let entry =
+            match self.catalog.as_ref() {
+                Some(catalog) => catalog.get(&id).await.map_err(|e| {
+                    agent_core::CoreError::InvalidState(format!("catalog get: {e}"))
+                })?,
+                None => {
+                    // Marketplace not configured: degrade to builtin-only lookup.
+                    let builtin = builtin_only_provider()?;
+                    builtin.get(&id).await.map_err(|e| {
+                        agent_core::CoreError::InvalidState(format!("catalog get: {e}"))
+                    })?
+                }
+            };
         Ok(entry.map(map_entry_to_core))
     }
 
     async fn refresh_catalog(&self, _source: Option<String>) -> agent_core::Result<()> {
-        let catalog = self.catalog.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
-        })?;
+        let Some(catalog) = self.catalog.as_ref() else {
+            // No remote sources to refresh — noop. The builtin catalog is
+            // statically compiled so there is nothing to fetch.
+            return Ok(());
+        };
+
+        // Rebuild the aggregate from disk before refreshing so that sources
+        // configured in `mcp_servers.toml` (but not present at startup
+        // because `with_marketplace` passes `&[]`) are loaded into the
+        // aggregate. Without this, only the builtin provider is refreshed
+        // and remote entries never appear.
+        if self.marketplace_dir.is_some() {
+            self.rebuild_aggregate_from_disk().await?;
+        }
+
         catalog
             .refresh()
             .await
@@ -598,11 +629,18 @@ where
         &self,
         request: CoreInstallRequest,
     ) -> agent_core::Result<CoreInstallOutcomeView> {
+        // Install genuinely needs disk + catalog state to write to. If the
+        // marketplace was never wired, fail with a clearer message instead
+        // of the generic "marketplace not configured".
         let catalog = self.catalog.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "marketplace install dir not configured; cannot install".into(),
+            )
         })?;
         let installer = self.installer.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "marketplace install dir not configured; cannot install".into(),
+            )
         })?;
 
         let inner_req = map_install_request(request);
@@ -675,7 +713,9 @@ where
 
     async fn uninstall_catalog_entry(&self, server_id: String) -> agent_core::Result<()> {
         let installer = self.installer.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "marketplace install dir not configured; cannot uninstall".into(),
+            )
         })?;
         installer
             .uninstall(&server_id)
@@ -698,9 +738,12 @@ where
     }
 
     async fn list_installed_entries(&self) -> agent_core::Result<Vec<CoreInstalledEntry>> {
-        let installer = self.installer.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
-        })?;
+        let Some(installer) = self.installer.as_ref() else {
+            // No installer wired (marketplace unconfigured) → nothing can
+            // possibly be installed. Return empty rather than erroring so
+            // the GUI's "Installed" tab renders as empty state.
+            return Ok(Vec::new());
+        };
         let ids = installer
             .list_installed_ids()
             .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
@@ -739,29 +782,29 @@ where
     // -----------------------------------------------------------------------
 
     async fn list_catalog_sources(&self) -> agent_core::Result<Vec<CatalogSourceView>> {
-        let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
-        })?;
-        let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
-        let sources = mt
-            .read_sources()
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+        // The implicit builtin source is always present, even when no
+        // marketplace dir has been configured (GUI cold-start with no
+        // [mcp_marketplace] section in kairox.toml).
+        let builtin_view = builtin_source_view();
 
-        // Always prepend the implicit builtin source.
-        let mut out = Vec::with_capacity(sources.len() + 1);
-        out.push(agent_core::CatalogSourceView {
-            id: "builtin".into(),
-            display_name: "Built-in".into(),
-            kind: "builtin".into(),
-            url: String::new(),
-            api_key_env: None,
-            priority: 0,
-            default_trust: "verified".into(),
-            enabled: true,
-            cache_ttl_seconds: None,
-            last_error: None,
-        });
-        for s in sources {
+        // Even before any marketplace dir is wired, surface the shipped
+        // default remote sources so the GUI marketplace tab has visible
+        // subscriptions out of the box. All defaults are enabled=false,
+        // so this is purely informational until the user opts in.
+        let user_sources = match self.marketplace_dir.as_ref() {
+            Some(dir) => {
+                let mt = crate::marketplace_toml::MarketplaceToml::new(dir);
+                mt.read_sources().map_err(|e| {
+                    agent_core::CoreError::InvalidState(format!("marketplace toml: {e}"))
+                })?
+            }
+            None => Vec::new(),
+        };
+        let merged = agent_config::merge_with_defaults(user_sources);
+
+        let mut out = Vec::with_capacity(merged.len() + 1);
+        out.push(builtin_view);
+        for s in merged {
             out.push(catalog_source_to_view(s));
         }
         Ok(out)
@@ -769,7 +812,9 @@ where
 
     async fn add_catalog_source(&self, request: AddCatalogSourceRequest) -> agent_core::Result<()> {
         let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "catalog source registry not initialized; cannot modify sources".into(),
+            )
         })?;
         let cfg = request_to_source_config(request)?;
         let id = cfg.id.clone();
@@ -789,7 +834,9 @@ where
             return Ok(());
         }
         let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "catalog source registry not initialized; cannot modify sources".into(),
+            )
         })?;
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         mt.remove_source(&id)
@@ -806,7 +853,9 @@ where
             return Ok(());
         }
         let marketplace_dir = self.marketplace_dir.as_ref().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("marketplace not configured".into())
+            agent_core::CoreError::InvalidState(
+                "catalog source registry not initialized; cannot modify sources".into(),
+            )
         })?;
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         mt.set_enabled(&id, enabled)
@@ -815,13 +864,53 @@ where
     }
 }
 
+/// View descriptor for the always-present implicit "builtin" catalog
+/// source. Returned by [`AppFacade::list_catalog_sources`] both when the
+/// marketplace is fully wired and when it is not configured at all.
+fn builtin_source_view() -> CatalogSourceView {
+    CatalogSourceView {
+        id: "builtin".into(),
+        display_name: "Built-in".into(),
+        kind: "builtin".into(),
+        url: String::new(),
+        api_key_env: None,
+        priority: 0,
+        default_trust: "verified".into(),
+        enabled: true,
+        cache_ttl_seconds: None,
+        last_error: None,
+    }
+}
+
+/// Build a builtin-only `AggregateCatalogProvider` for the degraded path
+/// where the user has no `[mcp_marketplace]` section in `kairox.toml`.
+/// The GUI marketplace tab still works because it sees the curated
+/// `BuiltinCatalogProvider` entries.
+///
+/// The aggregator is cached in a process-wide `OnceLock` so the GUI
+/// marketplace hot path (`list_catalog` / `get_catalog_entry`) does not
+/// re-parse the static built-in JSON on every poll. `BUILTIN_JSON` is
+/// `include_str!`'d at compile time, so a parse failure here means the
+/// shipped binary itself is broken — `expect` is the correct response.
+fn builtin_only_provider() -> agent_core::Result<Arc<AggregateCatalogProvider>> {
+    static BUILTIN_AGGREGATE: OnceLock<Arc<AggregateCatalogProvider>> = OnceLock::new();
+    let agg = BUILTIN_AGGREGATE.get_or_init(|| {
+        let builtin = Arc::new(
+            BuiltinCatalogProvider::new()
+                .expect("BUILTIN_JSON must parse; this is a build-time invariant"),
+        );
+        let providers: Vec<Arc<dyn CatalogProvider>> = vec![builtin];
+        Arc::new(AggregateCatalogProvider::new(providers))
+    });
+    Ok(Arc::clone(agg))
+}
+
 fn catalog_source_to_view(s: agent_config::CatalogSourceConfig) -> CatalogSourceView {
     CatalogSourceView {
         id: s.id,
         display_name: s.display_name,
         kind: match s.kind {
-            agent_config::CatalogSourceKind::KairoxJson => "kairox_json".into(),
-            agent_config::CatalogSourceKind::Smithery => "smithery".into(),
+            agent_config::CatalogSourceKind::McpRegistry => "mcp_registry".into(),
         },
         url: s.url,
         api_key_env: s.api_key_env,
@@ -837,8 +926,7 @@ fn request_to_source_config(
     r: AddCatalogSourceRequest,
 ) -> agent_core::Result<agent_config::CatalogSourceConfig> {
     let kind = match r.kind.as_str() {
-        "kairox_json" => agent_config::CatalogSourceKind::KairoxJson,
-        "smithery" => agent_config::CatalogSourceKind::Smithery,
+        "mcp_registry" => agent_config::CatalogSourceKind::McpRegistry,
         other => {
             return Err(agent_core::CoreError::InvalidState(format!(
                 "unsupported catalog source kind: {other}"
@@ -1066,8 +1154,7 @@ fn build_catalog_provider(
             id: s.id.clone(),
             display_name: s.display_name.clone(),
             kind: match s.kind {
-                agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
-                agent_config::CatalogSourceKind::Smithery => RemoteSourceKind::Smithery,
+                agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
             },
             url: s.url.clone(),
             api_key_env: s.api_key_env.clone(),

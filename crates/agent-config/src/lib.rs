@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 pub use builder::build_router;
 pub use discovery::find_config;
 pub use loader::{
-    load_from_str, load_with_marketplace_loaded, load_with_marketplace_overlay,
-    parse_catalog_sources, resolve_api_keys, resolve_mcp_env, validate, CatalogSourceConfig,
-    CatalogSourceKind, LoadedConfig,
+    default_catalog_sources, load_from_str, load_with_marketplace_loaded,
+    load_with_marketplace_overlay, merge_with_defaults, parse_catalog_sources, resolve_api_keys,
+    resolve_mcp_env, validate, CatalogSourceConfig, CatalogSourceKind, LoadedConfig,
 };
 
 // ---------------------------------------------------------------------------

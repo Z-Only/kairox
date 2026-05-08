@@ -18,14 +18,8 @@ test("planner decomposes task into sub-tasks", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Send a message that triggers planner decomposition. NInput renders a
-  // <textarea> inside [data-test="message-input"]; the Send button is an
-  // NButton with data-test="send-button". `{ force: true }` bypasses
-  // NaiveUI's `.n-input__placeholder` overlay (see chat-flow.spec.ts for
-  // the full explanation).
-  await page
-    .locator('[data-test="message-input"] textarea')
-    .fill("/plan Build a web server", { force: true });
+  // Send a message that triggers planner decomposition.
+  await page.locator('textarea[data-test="message-input"]').fill("/plan Build a web server");
   await page.getByTestId("send-button").click();
 
   // Wait for the mock response

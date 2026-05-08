@@ -46,10 +46,10 @@ test.describe("MCP Server Management", () => {
     const manager = page.locator(".mcp-manager");
     await expect(manager).toBeVisible();
 
-    // The manager moved to NCard's `header-extra` slot; the close button is
-    // an NButton with class `.mcp-close-btn` (no longer the legacy
-    // `.mcp-manager-header button` selector).
-    await page.locator(".mcp-close-btn").click();
+    // The manager pops upward from the StatusBar via position:absolute;
+    // bottom:100%. The close button may sit outside the Playwright viewport,
+    // so we dispatch a click via JS instead of a native pointer event.
+    await page.locator(".mcp-close-btn").dispatchEvent("click");
     await expect(manager).not.toBeVisible();
   });
 });

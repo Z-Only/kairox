@@ -83,35 +83,25 @@ async function deny() {
 </script>
 
 <template>
-  <!-- NaiveUI NAlert hosts the whole prompt; .permission-prompt /
-       .memory-prompt wrappers are kept as hook classes so existing
-       tests and any consumer styling can still target them. -->
-  <NAlert
-    :class="['permission-prompt', isMemory ? 'memory-prompt' : '']"
-    :type="alertType"
-    :show-icon="false"
-    :bordered="true"
-    size="small"
+  <!-- .permission-prompt / .memory-prompt wrappers are kept as hook
+       classes so existing tests and any consumer styling can still
+       target them. -->
+  <div
+    :class="['permission-prompt', 'alert', `alert-${alertType}`, isMemory ? 'memory-prompt' : '']"
   >
-    <NCard size="small" :bordered="false" class="permission-card">
-      <NSpace align="start" :size="8" :wrap="false">
+    <div class="card permission-card">
+      <div class="permission-layout">
         <span class="permission-icon">{{ iconLabel }}</span>
         <div class="permission-body">
-          <NSpace align="center" :size="6" class="permission-title-row">
-            <NText strong class="permission-title">{{ titleLabel }}</NText>
-            <NTag
-              v-if="sourceAgentLabel"
-              size="small"
-              type="info"
-              :bordered="false"
-              class="permission-agent-badge"
-            >
+          <div class="permission-title-row">
+            <strong class="permission-title">{{ titleLabel }}</strong>
+            <span v-if="sourceAgentLabel" class="tag tag-info permission-agent-badge">
               {{ sourceAgentLabel }}
-            </NTag>
-          </NSpace>
-          <NText depth="2" class="permission-description">
+            </span>
+          </div>
+          <span :style="{ color: 'var(--app-text-color-2)' }" class="permission-description">
             {{ entry.title }}
-          </NText>
+          </span>
           <div v-if="entry.scope" class="permission-meta">Scope: {{ entry.scope }}</div>
           <div v-if="entry.content" class="permission-meta">
             {{ entry.content }}
@@ -119,92 +109,169 @@ async function deny() {
           <div class="permission-meta">{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}</div>
           <!-- MCP-specific UI. The wrapper classes (.mcp-permission-info,
                .mcp-trust-check, .mcp-trusted-badge) are kept verbatim so
-               permission-prompt tests can still query them after the
-               NaiveUI migration. -->
+               permission-prompt tests can still query them. -->
           <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
             <div class="mcp-server-label">
               MCP Server: <strong>{{ mcpServerId }}</strong>
-              <NTag
-                v-if="isServerTrusted"
-                size="small"
-                type="success"
-                :bordered="false"
-                class="mcp-trusted-badge"
-              >
+              <span v-if="isServerTrusted" class="tag tag-success mcp-trusted-badge">
                 ✅ Trusted
-              </NTag>
+              </span>
             </div>
-            <!-- NCheckbox replaces the previous native <input type="checkbox">
-                 so the control follows the surrounding NaiveUI dark-theme
-                 palette. The .mcp-trust-check wrapper class is preserved so
-                 layout selectors keep working; tests drive the control via
+            <!-- The .mcp-trust-check wrapper class is preserved so layout
+                 selectors keep working; tests drive the control via
                  [data-test="trust-server-checkbox"] +
                  findComponent({ name: "Checkbox" }) instead of reaching for
                  a raw <input>. -->
             <div v-if="!isServerTrusted" class="mcp-trust-check">
-              <NCheckbox
-                v-model:checked="trustChecked"
-                size="small"
-                data-test="trust-server-checkbox"
-              >
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  :checked="trustChecked"
+                  data-test="trust-server-checkbox"
+                  @change="trustChecked = $event.target.checked"
+                />
                 Trust this server for future requests
-              </NCheckbox>
+              </label>
             </div>
           </div>
         </div>
-        <NSpace :size="6" :wrap="false" class="permission-actions">
+        <div class="permission-actions">
           <!-- NButton renders an inner <button>; the .btn-allow / .btn-deny
                wrapper classes preserve the existing test selectors. -->
-          <NButton type="success" size="small" class="btn-allow" @click="allow">
+          <button class="btn btn-allow" @click="allow">
             {{ allowLabel }}
-          </NButton>
-          <NButton size="small" class="btn-deny" @click="deny">
+          </button>
+          <button class="btn btn-deny" @click="deny">
             {{ denyLabel }}
-          </NButton>
-        </NSpace>
-      </NSpace>
-    </NCard>
-  </NAlert>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .permission-prompt {
   margin: 4px 0;
 }
-.permission-card :deep(.n-card__content) {
+
+/* Alert base & variants */
+.alert {
+  border-radius: 4px;
+  border: 1px solid var(--app-border-color, #e0e0e0);
+}
+
+.alert-warning {
+  background: var(--app-warning-color-suppl, #fff8e6);
+  border-color: var(--app-warning-color, #e8b339);
+}
+
+.alert-success {
+  background: var(--app-success-color-suppl, #edf8ee);
+  border-color: var(--app-success-color, #18a058);
+}
+
+/* Card replacement */
+.permission-card {
   padding: 4px 8px;
 }
+
+/* Layout (replaces NSpace align="start" :size="8" :wrap="false") */
+.permission-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
 .permission-icon {
   font-size: 16px;
   flex-shrink: 0;
 }
+
 .permission-body {
   flex: 1;
   min-width: 0;
 }
+
+/* Title row (replaces NSpace align="center" :size="6") */
 .permission-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 2px;
 }
+
 .permission-title {
   font-size: 12px;
 }
+
+/* Tag base & variants */
+.tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.tag-info {
+  background: var(--app-info-color-suppl, #e8f4ff);
+  color: var(--app-info-color, #2080f0);
+}
+
+.tag-success {
+  background: var(--app-success-color-suppl, #edf8ee);
+  color: var(--app-success-color, #18a058);
+}
+
 .permission-agent-badge {
   font-size: 10px;
 }
+
 .permission-description {
   display: block;
   margin: 2px 0 4px;
   font-size: 12px;
 }
+
 .permission-meta {
   font-size: 11px;
   color: var(--app-text-color-3, #777);
   margin-top: 2px;
   overflow-wrap: anywhere;
 }
+
+/* Actions (replaces NSpace :size="6" :wrap="false") */
 .permission-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
   flex-shrink: 0;
 }
+
+/* Button base & variants */
+.btn {
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--app-border-color, #e0e0e0);
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--app-button-color, #fff);
+  color: var(--app-text-color, #333);
+  line-height: 1.6;
+}
+
+.btn-allow {
+  background: var(--app-success-color, #18a058);
+  border-color: var(--app-success-color, #18a058);
+  color: #fff;
+}
+
+.btn-deny {
+  background: var(--app-button-color, #fff);
+}
+
 .mcp-permission-info {
   margin-top: 6px;
   padding: 4px 8px;
@@ -212,20 +279,29 @@ async function deny() {
   border-radius: 4px;
   border: 1px solid var(--app-border-color, #c8d6f0);
 }
+
 .mcp-server-label {
   font-size: 11px;
 }
+
 .mcp-trusted-badge {
   margin-left: 6px;
 }
+
 .mcp-trust-check {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-top: 4px;
   font-size: 11px;
-  /* `cursor: pointer` removed (7c review carry-over): after the inner
-     control migrated to <NCheckbox>, clicking the wrapper no longer
-     toggles the box, so the pointer cursor was misleading. */
+}
+
+/* Checkbox label (replaces NCheckbox) */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 11px;
 }
 </style>

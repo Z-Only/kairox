@@ -61,10 +61,33 @@ pub fn run() {
 
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
 
+                // Read catalog sources from disk so that remote providers
+                // (e.g. MCP Registry) configured in mcp_servers.toml are
+                // registered in the aggregate at startup — not only after
+                // the first explicit refresh.
+                let catalog_sources = {
+                    let toml_path = db_dir.join("mcp_servers.toml");
+                    let user_sources = match std::fs::read_to_string(&toml_path) {
+                        Ok(raw) => agent_config::parse_catalog_sources(&raw).unwrap_or_else(|e| {
+                            eprintln!("Catalog sources warning: {e}, using defaults");
+                            Vec::new()
+                        }),
+                        Err(_) => Vec::new(),
+                    };
+                    agent_config::merge_with_defaults(user_sources)
+                };
+                eprintln!(
+                    "Catalog sources: {} (enabled: {})",
+                    catalog_sources.len(),
+                    catalog_sources.iter().filter(|s| s.enabled).count()
+                );
+
                 let runtime = LocalRuntime::new(store, router)
                     .with_permission_mode(PermissionMode::Interactive)
                     .with_context_limit(100_000)
                     .with_memory_store(mem_store.clone())
+                    .with_marketplace_loaded(db_dir.clone(), &catalog_sources)
+                    .expect("Failed to initialize marketplace")
                     .with_builtin_tools(cwd)
                     .await;
 

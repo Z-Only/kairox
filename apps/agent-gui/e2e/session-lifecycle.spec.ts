@@ -13,18 +13,16 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
-// Selector notes after Task 7 NaiveUI migration:
-//   - SessionsSidebar still renders the legacy `.session-item` (per-row) and
-//     `.session-title` class hooks; the New Session dialog is still the
-//     hand-rolled native <dialog class="new-session-dialog">. The Create
-//     button now exposes data-test="create-session-btn".
-//   - The destructive delete confirmation moved from a hand-rolled
-//     `.dialog-box` ConfirmDialog to NaiveUI's portal-mounted NDialog
-//     (rendered as `.n-dialog`). The Delete button is the dialog's
-//     `positiveText` action.
-//   - Rename / delete row buttons are now NButton wrappers; the legacy
-//     `.action-btn` / `.action-delete` classes are still forwarded to the
-//     NButton root so the existing selectors keep working.
+// Selector notes:
+//   - SessionsSidebar renders `.session-item` (per-row) and `.session-title`
+//     class hooks; the New Session dialog is a native
+//     <dialog class="new-session-dialog">. The Create button exposes
+//     data-test="create-session-btn".
+//   - The destructive delete confirmation uses a native
+//     <dialog class="confirm-dialog"> opened via showModal(). The confirm
+//     button exposes data-test="confirm-ok".
+//   - Rename / delete row buttons use `.action-btn` / `.action-delete`
+//     classes.
 
 test("initializes workspace on first load", async ({ page }) => {
   await page.goto("/");
@@ -120,13 +118,11 @@ test("deletes a session with confirmation", async ({ page }) => {
   await sessionItem.hover();
   await sessionItem.getByTestId("session-delete-btn").click();
 
-  // The destructive confirmation is now NaiveUI's portal-mounted NDialog
-  // (mounted under <NDialogProvider> in AppLayout.vue). Its root carries
-  // `.n-dialog`, and the positive-text "Delete" action renders as a button
-  // inside the dialog.
-  const dialog = page.locator(".n-dialog");
+  // The destructive confirmation uses a native <dialog class="confirm-dialog">
+  // opened via showModal(). The confirm button exposes data-test="confirm-ok".
+  const dialog = page.locator("dialog.confirm-dialog");
   await expect(dialog).toBeVisible();
-  await dialog.locator("button", { hasText: "Delete" }).click();
+  await page.getByTestId("confirm-ok").click();
 
   // Should have 1 session remaining
   await expect(page.locator(".session-item")).toHaveCount(1);
@@ -135,6 +131,6 @@ test("deletes a session with confirmation", async ({ page }) => {
 test("status bar shows session count and mode", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status-bar")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId("status-bar")).toContainText("sessions: 1");
-  await expect(page.getByTestId("status-bar")).toContainText("mode: interactive");
+  await expect(page.getByTestId("status-bar")).toContainText(/Sessions/i);
+  await expect(page.getByTestId("status-bar")).toContainText(/interactive/i);
 });

@@ -16,12 +16,14 @@ defineProps<{
        coloring of the install hint link. -->
   <ul class="hint" data-test="runtime-hint">
     <li v-for="r in requirements" :key="r.kind">
-      <NText strong>{{ r.kind }}</NText>
-      <NText v-if="r.min_version" depth="3"> ({{ r.min_version }}) </NText>
-      <NText v-if="r.install_hint" type="info">
+      <strong>{{ r.kind }}</strong>
+      <span v-if="r.min_version" :style="{ color: 'var(--app-text-color-3)' }">
+        ({{ r.min_version }})
+      </span>
+      <span v-if="r.install_hint" :style="{ color: 'var(--app-info-color)' }">
         —
         <a :href="r.install_hint" target="_blank" rel="noopener">install</a>
-      </NText>
+      </span>
     </li>
   </ul>
 </template>

@@ -5,6 +5,7 @@ import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
 import PermissionCenter from "@/components/PermissionCenter.vue";
+import StatusBar from "@/components/StatusBar.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -64,6 +65,7 @@ watch(currentSessionId, (next) => {
       <TraceTimeline />
       <PermissionCenter />
     </aside>
+    <StatusBar />
   </main>
 </template>
 
@@ -71,13 +73,18 @@ watch(currentSessionId, (next) => {
 .workbench {
   display: grid;
   grid-template-columns: 220px 1fr 280px;
+  grid-template-rows: 1fr auto;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 .right-sidebar {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #d7d7d7;
+  border-left: 1px solid var(--app-border-color);
   overflow: hidden;
+}
+:deep(.status-bar) {
+  grid-column: 1 / -1;
 }
 </style>

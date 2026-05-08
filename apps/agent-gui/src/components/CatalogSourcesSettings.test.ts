@@ -22,10 +22,10 @@ import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
 const sampleSource = {
-  id: "smithery",
-  display_name: "Smithery",
-  kind: "smithery",
-  url: "https://registry.smithery.ai",
+  id: "mcp-registry",
+  display_name: "Model Context Protocol Servers",
+  kind: "mcp_registry",
+  url: "https://registry.modelcontextprotocol.io",
   api_key_env: null,
   priority: 50,
   default_trust: "community",
@@ -51,8 +51,8 @@ describe("CatalogSourcesSettings.vue", () => {
     mockedInvoke.mockResolvedValueOnce([sampleSource] as never);
     const wrapper = mount(CatalogSourcesSettings);
     await flushPromises();
-    expect(wrapper.text()).toContain("Smithery");
-    expect(wrapper.text()).toContain("registry.smithery.ai");
+    expect(wrapper.text()).toContain("Model Context Protocol Servers");
+    expect(wrapper.text()).toContain("registry.modelcontextprotocol.io");
   });
 
   it("validates url before calling addSource", async () => {
@@ -93,7 +93,7 @@ describe("CatalogSourcesSettings.vue", () => {
 
   it("removes a source via the remove button", async () => {
     mockedInvoke.mockResolvedValueOnce([
-      { ...sampleSource, id: "x", display_name: "X", kind: "kairox_json" }
+      { ...sampleSource, id: "x", display_name: "X", kind: "mcp_registry" }
     ] as never);
     const wrapper = mount(CatalogSourcesSettings);
     await flushPromises();

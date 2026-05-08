@@ -45,7 +45,6 @@ export const useCatalogStore = defineStore("catalog", () => {
   });
   const sources = ref<CatalogSourceViewResponse[]>([]);
   const sourceFailures = ref<Record<string, string>>({});
-  const selectedSources = ref<string[] | null>(null);
   // Catalog id whose install-progress modal is currently visible. Hoisted out
   // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
   // the progress modal survives drawer dismissal mid-install. `null` = hidden.
@@ -62,7 +61,6 @@ export const useCatalogStore = defineStore("catalog", () => {
     filters.value = { keyword: "", category: null, trustMin: null };
     sources.value = [];
     sourceFailures.value = {};
-    selectedSources.value = null;
     currentInstallEntryId.value = null;
   }
 
@@ -101,21 +99,31 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   const hasEntries = computed(() => entries.value.length > 0);
   const installedCount = computed(() => installed.value.length);
-  const allSourceIds = computed<string[]>(() => ["builtin", ...sources.value.map((s) => s.id)]);
+  const allSourceIds = computed<string[]>(() => {
+    const ids = sources.value.map((s) => s.id);
+    if (!ids.includes("builtin")) {
+      ids.unshift("builtin");
+    }
+    return ids;
+  });
 
-  function isSourceSelected(id: string): boolean {
-    if (selectedSources.value === null) return true;
-    return selectedSources.value.includes(id);
+  function isSourceEnabled(id: string): boolean {
+    const src = sources.value.find((s) => s.id === id);
+    return src != null ? src.enabled : id === "builtin";
   }
 
-  function toggleSource(id: string): void {
-    const current = selectedSources.value ?? allSourceIds.value.slice();
-    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
-    selectedSources.value = next;
+  async function toggleSource(id: string): Promise<void> {
+    const currentlyEnabled = isSourceEnabled(id);
+    await setSourceEnabled(id, !currentlyEnabled);
+    if (!currentlyEnabled && id !== "builtin") {
+      await refreshCatalogSource(id);
+    } else {
+      await fetchCatalog();
+    }
   }
 
   const visibleEntries = computed<ServerEntryResponse[]>(() =>
-    filteredEntries.value.filter((e) => isSourceSelected(e.source))
+    filteredEntries.value.filter((e) => isSourceEnabled(e.source))
   );
 
   // ── actions ──────────────────────────────────────────────────────
@@ -138,7 +146,12 @@ export const useCatalogStore = defineStore("catalog", () => {
   async function fetchInstalled(): Promise<void> {
     const ui = useUiStore();
     try {
-      installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      const result = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      // Replace array contents in-place via splice so Vue's reactive proxy
+      // correctly notifies all watchers and computed properties. A plain
+      // `installed.value = result` assignment can silently detach the proxy
+      // in Pinia setup-stores when called from deeply-nested async flows.
+      installed.value.splice(0, installed.value.length, ...result);
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load installed entries: ${e}`);
@@ -194,6 +207,11 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   async function refreshCatalogSource(source: string | null = null): Promise<void> {
     const ui = useUiStore();
+    if (source) {
+      delete sourceFailures.value[source];
+    } else {
+      sourceFailures.value = {};
+    }
     try {
       await invoke("refresh_catalog", { source });
       await fetchCatalog();
@@ -262,7 +280,6 @@ export const useCatalogStore = defineStore("catalog", () => {
     filters,
     sources,
     sourceFailures,
-    selectedSources,
     currentInstallEntryId,
     // computeds
     filteredEntries,
@@ -272,7 +289,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     visibleEntries,
     // helpers
     reset,
-    isSourceSelected,
+    isSourceEnabled,
     toggleSource,
     handleSourceFailed,
     requestInstallProgress,

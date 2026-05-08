@@ -1,0 +1,35 @@
+/* theme.css — Light/dark theme via CSS custom properties.
+ * Toggled by @vueuse/core's useDark() which adds/removes html.dark.
+ */
+
+:root {
+  --app-body-color: #ffffff;
+  --app-card-color: #f9fafb;
+  --app-border-color: #e5e7eb;
+  --app-text-color: #1f2937;
+  --app-text-color-2: #6b7280;
+  --app-text-color-3: #9ca3af;
+  --app-primary-color: #3b82f6;
+  --app-success-color: #22c55e;
+  --app-warning-color: #f59e0b;
+  --app-error-color: #ef4444;
+  --app-info-color: #3b82f6;
+  --app-hover-color: #f3f4f6;
+  --app-code-bg: #f1f5f9;
+}
+
+html.dark {
+  --app-body-color: #111827;
+  --app-card-color: #1f2937;
+  --app-border-color: #374151;
+  --app-text-color: #f9fafb;
+  --app-text-color-2: #9ca3af;
+  --app-text-color-3: #6b7280;
+  --app-primary-color: #60a5fa;
+  --app-success-color: #4ade80;
+  --app-warning-color: #fbbf24;
+  --app-error-color: #f87171;
+  --app-info-color: #60a5fa;
+  --app-hover-color: #1f2937;
+  --app-code-bg: #1e293b;
+}

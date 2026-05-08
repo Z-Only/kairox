@@ -2,7 +2,6 @@ import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
-import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -36,9 +35,6 @@ export default defineConfig({
       vueTemplate: true
     }),
     Components({
-      // Naive UI components are auto-imported on use.
-      resolvers: [NaiveUiResolver()],
-      // Project SFCs under src/components are also auto-registered for templates.
       dirs: ["src/components"],
       extensions: ["vue"],
       deep: true,

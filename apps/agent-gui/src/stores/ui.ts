@@ -18,6 +18,13 @@ export interface NotificationItem {
 export type ThemeMode = "auto" | "light" | "dark";
 export type SupportedLocale = "en" | "zh-CN";
 
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: NotificationLevel;
+  duration: number;
+}
+
 export const useUiStore = defineStore("ui", () => {
   // ── Theme ───────────────────────────────────────────────
   // `colorMode` exposes the user's raw preference ("auto" | "light" | "dark"),
@@ -72,20 +79,26 @@ export const useUiStore = defineStore("ui", () => {
       message,
       timestamp: Date.now()
     });
+    // Bridge to toast system so every notification also produces a visual toast.
+    addToast(message, level);
   }
 
   function dismissNotification(id: string) {
-    // INVARIANT: this MUST replace `notifications.value` with a fresh array
-    // (filter), never mutate the existing array in place (no `splice`, no
-    // `pop`). NotificationToast.vue's deep watcher iterates `notifications`
-    // with `for (const n of items)` and synchronously calls
-    // `ui.dismissNotification(n.id)` on every iteration. An in-place
-    // `splice(idx, 1)` would shift the remaining elements down and the
-    // for-of iterator would skip the next entry, silently dropping
-    // notifications. Reassigning to a filtered copy keeps the iterator's
-    // snapshot stable and is covered by the immutability regression test in
-    // ui.test.ts.
     notifications.value = notifications.value.filter((n) => n.id !== id);
+  }
+
+  // ── Toasts (visual notifications) ──
+  const toasts = ref<ToastItem[]>([]);
+  let toastCounter = 0;
+
+  function addToast(message: string, type: NotificationLevel = "info", duration = 4000): string {
+    const id = `toast-${++toastCounter}-${Date.now()}`;
+    toasts.value = [...toasts.value, { id, message, type, duration }];
+    return id;
+  }
+
+  function removeToast(id: string) {
+    toasts.value = toasts.value.filter((t) => t.id !== id);
   }
 
   return {
@@ -97,6 +110,9 @@ export const useUiStore = defineStore("ui", () => {
     sidebarCollapsed,
     notifications,
     pushNotification,
-    dismissNotification
+    dismissNotification,
+    toasts,
+    addToast,
+    removeToast
   };
 });

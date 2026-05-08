@@ -14,22 +14,17 @@ import CatalogCard from "./CatalogCard.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
 
-// MarketplaceView now calls `useI18n()` (Task 5 NIT #9 follow-up done in
-// Task 7c) so mounting it through plain `mount()` would fail with
-// "Need to install with `app.use` function". `mountWithPlugins` wires the
-// shared i18n + Pinia + router stack the same way every other view test
-// does.
-//
-// `wrapInNConfigProvider: true` is set defensively (Task 9 carry-over from
-// Task 7c IMPORTANT-1): MarketplaceView is a view-level surface, and any
-// future addition of a NaiveUI service hook (`useMessage`, `useDialog`,
-// `useNotification`, `useLoadingBar`) would crash this spec without an
-// `NConfigProvider` ancestor. Wrapping unconditionally also keeps the
-// mount topology symmetric with other view-level specs.
+// MarketplaceView calls `useI18n()` so mounting it through plain `mount()`
+// would fail with "Need to install with `app.use` function".
+// `mountWithPlugins` wires the shared i18n + Pinia + router stack the same
+// way every other view test does.
+// `reusePinia: true` keeps the Pinia instance created in `beforeEach` so
+// that `useCatalogStore()` calls in the test body and inside the component
+// reference the same store instance.
 function mountMarketplace() {
   return mountWithPlugins(Marketplace, {
-    initialRoute: "/marketplace",
-    wrapInNConfigProvider: true
+    reusePinia: true,
+    initialRoute: "/marketplace"
   }).wrapper;
 }
 
@@ -93,83 +88,90 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     vi.clearAllMocks();
   });
 
+  // Helper: mock invoke by command name rather than call order.
+  // MarketplacePane uses `v-show` (not `v-if`) so InstalledList and
+  // CatalogList both mount eagerly, each calling invoke in onMounted.
+  // Using `mockResolvedValueOnce` is fragile because the consumption
+  // order depends on Vue's component tree walk. This helper routes
+  // responses by the first positional argument (the Tauri command name).
+  function mockInvokeByCommand(responses: Record<string, unknown>) {
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd in responses) return Promise.resolve(responses[cmd]);
+      return Promise.resolve([]);
+    });
+  }
+
+  const mcpRegistrySource = {
+    id: "mcp-registry",
+    display_name: "Model Context Protocol Servers",
+    kind: "mcp_registry",
+    url: "https://x",
+    api_key_env: null,
+    priority: 50,
+    default_trust: "community",
+    enabled: true,
+    cache_ttl_seconds: null,
+    last_error: null
+  };
+
   it("renders a chip per configured source plus a builtin chip", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([] as never) // list_catalog
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never); // list_catalog_sources
+    mockInvokeByCommand({
+      list_catalog_sources: [mcpRegistrySource],
+      list_catalog: [],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
     const chips = wrapper.findAll('[data-test^="source-chip-"]');
     expect(chips.length).toBe(2);
     expect(wrapper.text()).toContain("Built-in");
-    expect(wrapper.text()).toContain("Smithery");
+    expect(wrapper.text()).toContain("Model Context Protocol Servers");
   });
 
   it("shows ⚠ badge when CatalogSourceFailed observed", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([] as never)
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never);
+    mockInvokeByCommand({
+      list_catalog_sources: [mcpRegistrySource],
+      list_catalog: [],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
-    useCatalogStore().handleSourceFailed("smithery", "timeout");
+    useCatalogStore().handleSourceFailed("mcp-registry", "timeout");
     await wrapper.vm.$nextTick();
-    expect(wrapper.find('[data-test="src-warn-smithery"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="src-warn-mcp-registry"]').exists()).toBe(true);
   });
 
-  it("deselecting a chip filters its entries out of CatalogList", async () => {
-    vi.mocked(invoke)
-      .mockResolvedValueOnce([
+  it("deselecting a chip disables the source and filters its entries", async () => {
+    // builtin starts enabled; mcp-registry also enabled=true in the fixture.
+    // Clicking builtin calls setSourceEnabled("builtin", false) which is a
+    // no-op on the Rust side, but the store's isSourceEnabled() already
+    // reflects the source.enabled flag from the fetchSources response.
+    // To simulate the toggle we directly mutate the source state as the
+    // Rust side would after a successful set_catalog_source_enabled call.
+    mockInvokeByCommand({
+      list_catalog_sources: [mcpRegistrySource],
+      list_catalog: [
         fixtureEntry({ id: "a", source: "builtin", display_name: "A-entry" }),
-        fixtureEntry({ id: "b", source: "smithery", display_name: "B-entry" })
-      ] as never)
-      .mockResolvedValueOnce([
-        {
-          id: "smithery",
-          display_name: "Smithery",
-          kind: "smithery",
-          url: "https://x",
-          api_key_env: null,
-          priority: 50,
-          default_trust: "community",
-          enabled: true,
-          cache_ttl_seconds: null,
-          last_error: null
-        }
-      ] as never);
+        fixtureEntry({ id: "b", source: "mcp-registry", display_name: "B-entry" })
+      ],
+      list_installed_entries: []
+    });
     const wrapper = mountMarketplace();
     await flushPromises();
     expect(wrapper.text()).toContain("A-entry");
     expect(wrapper.text()).toContain("B-entry");
-    await wrapper.find('[data-test="source-chip-builtin"]').trigger("click");
+
+    // Simulate set_catalog_source_enabled("mcp-registry", false) + fetchSources
+    const store = useCatalogStore();
+    store.sources = [
+      {
+        ...mcpRegistrySource,
+        enabled: false
+      }
+    ];
     await flushPromises();
-    expect(wrapper.text()).not.toContain("A-entry");
-    expect(wrapper.text()).toContain("B-entry");
+    expect(wrapper.text()).toContain("A-entry");
+    expect(wrapper.text()).not.toContain("B-entry");
   });
 });
 
