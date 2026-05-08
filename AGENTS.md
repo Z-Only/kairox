@@ -429,7 +429,7 @@ The recipe invokes `pnpm --filter agent-gui exec -- tauri build --debug --no-bun
 cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
 ```
 
-**CI** runs the matching `tauri-pilot-e2e` job in `.github/workflows/ci.yml` against the `ubuntu-latest` (with `xvfb-run`) and `macos-latest` runners; per-scenario JUnit XML is uploaded as a `pilot-results-${{ matrix.os }}` artifact, and on failure the `pilot-failures-${{ matrix.os }}` artifact (containing the contents of the local `tauri-pilot-failures/` directory) preserves screenshots.
+**CI** runs the matching `tauri-pilot-e2e` job in `.github/workflows/ci.yml` against the `ubuntu-latest` (with `xvfb-run`) and `macos-latest` runners; per-scenario JUnit XML is uploaded as a `pilot-results-${{ matrix.os }}` artifact, and on failure the `tauri-pilot-failures-${{ matrix.os }}` artifact preserves screenshots from the local `tauri-pilot-failures/` directory.
 
 **When to update the scenarios**: any time you change UI markers (`data-test='...'`) referenced by the TOML scenarios, add a new bootstrap-critical view, or adjust the chat-send flow.
 

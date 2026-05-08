@@ -372,7 +372,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: pilot-failures-${{ matrix.os }}
+          name: tauri-pilot-failures-${{ matrix.os }}
           path: tauri-pilot-failures/
           retention-days: 7
 
