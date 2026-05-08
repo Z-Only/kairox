@@ -18,8 +18,12 @@
 #   base_url        — API base URL (required for openai_compatible, optional for others)
 #   api_key         — direct API key string (takes priority over api_key_env)
 #   api_key_env     — environment variable name holding the API key
-#   context_window  — max context tokens (default: 128_000)
-#   output_limit    — max output tokens (default: 16_384)
+#   context_window  — (optional) max context tokens. When omitted, Kairox resolves it via:
+#                       1. built-in model registry (matches "gpt-4o", "claude-sonnet-4", ...)
+#                       2. Ollama runtime probe (POST /api/show) — only for ollama profiles
+#                       3. conservative provider-specific fallback
+#                     Override this field to pin a value (e.g. for self-hosted deployments).
+#   output_limit    — (optional) max output tokens. Same three-layer resolution as above.
 #   response        — static response text (only used by the "fake" provider)
 # ═══════════════════════════════════════════════════════════════════════════
 

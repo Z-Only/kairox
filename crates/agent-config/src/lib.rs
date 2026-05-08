@@ -1,11 +1,13 @@
 pub mod builder;
 pub mod discovery;
+pub mod limits;
 pub mod loader;
 
 use serde::{Deserialize, Serialize};
 
 pub use builder::build_router;
 pub use discovery::find_config;
+pub use limits::resolve_limits;
 pub use loader::{
     default_catalog_sources, load_from_str, load_with_marketplace_loaded,
     load_with_marketplace_overlay, merge_with_defaults, parse_catalog_sources, resolve_api_keys,
@@ -29,21 +31,13 @@ pub struct ProfileDef {
     /// Name of an environment variable that holds the API key.
     #[serde(default)]
     pub api_key_env: Option<String>,
-    #[serde(default = "default_context_window")]
-    pub context_window: u64,
-    #[serde(default = "default_output_limit")]
-    pub output_limit: u64,
+    #[serde(default)]
+    pub context_window: Option<u64>,
+    #[serde(default)]
+    pub output_limit: Option<u64>,
     /// Response text for the fake provider.
     #[serde(default)]
     pub response: Option<String>,
-}
-
-fn default_context_window() -> u64 {
-    128_000
-}
-
-fn default_output_limit() -> u64 {
-    16_384
 }
 
 /// Metadata about a profile for UI display.
@@ -193,8 +187,8 @@ impl Config {
                     base_url: None,
                     api_key: None,
                     api_key_env: None,
-                    context_window: 4096,
-                    output_limit: 2048,
+                    context_window: Some(4096),
+                    output_limit: Some(2048),
                     response: Some("hello from Kairox".into()),
                 },
             ),
@@ -206,8 +200,8 @@ impl Config {
                     base_url: Some("http://localhost:11434".into()),
                     api_key: None,
                     api_key_env: None,
-                    context_window: 128_000,
-                    output_limit: 16_384,
+                    context_window: Some(128_000),
+                    output_limit: Some(16_384),
                     response: None,
                 },
             ),
@@ -224,8 +218,8 @@ impl Config {
                         base_url: Some("https://api.openai.com/v1".into()),
                         api_key: None,
                         api_key_env: Some("OPENAI_API_KEY".into()),
-                        context_window: 128_000,
-                        output_limit: 16_384,
+                        context_window: Some(128_000),
+                        output_limit: Some(16_384),
                         response: None,
                     },
                 ),

@@ -52,8 +52,8 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
             base_url: profile_toml.base_url,
             api_key: profile_toml.api_key,
             api_key_env: profile_toml.api_key_env,
-            context_window: profile_toml.context_window.unwrap_or(128_000),
-            output_limit: profile_toml.output_limit.unwrap_or(16_384),
+            context_window: profile_toml.context_window,
+            output_limit: profile_toml.output_limit,
             response: profile_toml.response,
         };
 
@@ -240,13 +240,15 @@ base_url = "http://localhost:11434"
             Some("https://api.openai.com/v1".to_string())
         );
         assert_eq!(fast_def.api_key_env, Some("OPENAI_API_KEY".to_string()));
-        assert_eq!(fast_def.context_window, 128_000);
+        assert_eq!(fast_def.context_window, Some(128_000));
 
         let (local_name, local_def) = &config.profiles[1];
         assert_eq!(local_name, "local-code");
         assert_eq!(local_def.provider, "ollama");
         assert_eq!(local_def.model_id, "devstral");
-        assert_eq!(local_def.context_window, 128_000); // default
+        // omitted in TOML → None; `resolve_limits` will fall back to
+        // builtin registry / provider default at usage time.
+        assert_eq!(local_def.context_window, None);
     }
 
     #[test]
