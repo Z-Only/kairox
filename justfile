@@ -146,3 +146,21 @@ test-mcp:
     cargo test -p agent-config -- mcp
     cargo test -p agent-runtime --test mcp_integration
     @echo "✅ MCP tests passed"
+
+# Run live model integration tests against GitHub Models (requires GITHUB_TOKEN;
+# the test self-skips with a notice when GITHUB_TOKEN is absent, so this is
+# safe to invoke locally without configuring credentials)
+test-live:
+    cargo test -p agent-runtime --features live-model-tests --test live_model_tests -- --nocapture
+    @echo "✅ Live model tests passed (or skipped without GITHUB_TOKEN)"
+
+# Build the Tauri debug binary with the pilot plugin enabled and run the
+# tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/. Requires the
+# tauri-pilot CLI on PATH; install via:
+#     cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
+# On Linux you typically need to wrap this recipe in `xvfb-run -a just
+# test-pilot`; on macOS the Tauri window will appear briefly during the run.
+test-pilot:
+    pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot
+    scripts/run-pilot-tests.sh
+    @echo "✅ tauri-pilot E2E scenarios passed"
