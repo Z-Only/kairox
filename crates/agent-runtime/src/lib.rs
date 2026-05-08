@@ -1,5 +1,6 @@
 pub mod agent_loop;
 pub mod agents;
+pub mod compaction;
 pub(crate) mod catalog_sink;
 pub mod context_budget;
 pub mod dag_executor;

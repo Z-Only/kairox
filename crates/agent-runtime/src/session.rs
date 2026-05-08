@@ -30,6 +30,9 @@ pub struct SessionState {
     /// Used as the denominator when `update_corrector(real_input_tokens, last_estimate)`
     /// runs on `ModelEvent::Completed`.
     pub last_estimated_tokens: u64,
+    /// `true` while a `compact_session` call is in flight. `send_message`
+    /// must reject with `CoreError::SessionBusy` when this is set.
+    pub compacting: bool,
 }
 use agent_store::{EventStore, SessionRow};
 use futures::stream::BoxStream;
