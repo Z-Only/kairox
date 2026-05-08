@@ -398,6 +398,64 @@ just test-all              # all test layers: unit + integration + fullstack + G
 
 > Additional integration tests live alongside `full_stack.rs` in `crates/agent-runtime/tests/`: `agent_loop.rs`, `session_lifecycle.rs`, `task_graph_integration.rs`, `memory_protocol.rs`, `mcp_integration.rs`, `refactor_baseline.rs`, `fake_session.rs`. They are all picked up by `cargo test --workspace`.
 
+### Tauri pilot E2E (full-stack desktop tests)
+
+Beyond the Playwright tests (which mock the Tauri IPC boundary), Kairox also runs a **real desktop E2E** stack on top of [`tauri-plugin-pilot`](https://github.com/mpiton/tauri-pilot). The plugin exposes a Unix-socket JSON-RPC 2.0 interface inside a running Tauri app, and the `tauri-pilot` CLI drives TOML-defined scenarios against it.
+
+**Double feature gating** — to keep release binaries safe, the pilot plugin is only registered when **both** conditions hold:
+
+1. The build is a debug profile (`debug_assertions` is set), and
+2. The cargo feature `pilot` is explicitly enabled (`apps/agent-gui/src-tauri/Cargo.toml`).
+
+The `apps/agent-gui/src-tauri/build.rs` mirrors this: it only loads the dedicated capability file `apps/agent-gui/src-tauri/capabilities/pilot.json` (which grants `pilot:default`) when both gates are open. The default capability file does not reference the pilot permission, so a release build neither links the plugin nor advertises the capability.
+
+**Scenarios** live under `apps/agent-gui/e2e-pilot/*.toml`:
+
+- `app-bootstrap.toml` — sidebar + message input render after launch
+- `chat-flow.toml` — sending a message renders a user bubble
+- `session-lifecycle.toml` — sidebar visible immediately after launch (placeholder for richer session flows)
+
+**Running locally** (`just test-pilot`):
+
+```bash
+just test-pilot     # builds the Tauri debug binary with --features pilot, then runs the scenarios
+```
+
+The recipe invokes `pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot` followed by `scripts/run-pilot-tests.sh`. The script writes per-scenario JUnit XML to `pilot-results/<name>.xml` and dumps screenshots/logs into `tauri-pilot-failures/` on failure (both directories are gitignored). On Linux you usually need `xvfb-run -a just test-pilot`; on macOS the Tauri window appears briefly during the run.
+
+**Prerequisite**: `tauri-pilot-cli` must be on `PATH`. Install with:
+
+```bash
+cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
+```
+
+**CI** runs the matching `tauri-pilot-e2e` job in `.github/workflows/ci.yml` against the `ubuntu-latest` (with `xvfb-run`) and `macos-latest` runners; per-scenario JUnit XML is uploaded as a `pilot-results-${{ matrix.os }}` artifact, and on failure the `pilot-failures-${{ matrix.os }}` artifact (containing the contents of the local `tauri-pilot-failures/` directory) preserves screenshots.
+
+**When to update the scenarios**: any time you change UI markers (`data-test='...'`) referenced by the TOML scenarios, add a new bootstrap-critical view, or adjust the chat-send flow.
+
+### Live model integration tests
+
+To guard against silent regressions in the OpenAI-compatible model client, `crates/agent-runtime/tests/live_model_tests.rs` exercises a real model API (GitHub Models, `openai/gpt-4o-mini`) end-to-end. The test is gated behind the `live-model-tests` cargo feature so the regular `cargo test --workspace` stays hermetic.
+
+**Behavior without a token**: the test reads `GITHUB_TOKEN` via `std::env::var`. When it is absent the test prints a skip notice and returns early — it never panics. This means `just test-live` is safe to run locally without configuring credentials.
+
+**Profile + fixture**:
+
+- Fixture: `fixtures/test-profiles/github-models.toml` (profile `github-gpt4o-mini`, `provider = "openai_compatible"`, `base_url = "https://models.github.ai/inference"`, `api_key_env = "GITHUB_TOKEN"`).
+- The test loads it via `agent_config::loader::{load_from_str, resolve_api_keys, validate}` + `build_router`, then sends a one-shot prompt and asserts the stream emits a `Completed` event with non-empty content. Both the stream open and stream drain are wrapped in a 60s `tokio::time::timeout`.
+
+**Running locally** (`just test-live`):
+
+```bash
+just test-live      # cargo test -p agent-runtime --features live-model-tests --test live_model_tests -- --nocapture
+```
+
+The `-- --nocapture` flag is what surfaces the skip notice on stderr when `GITHUB_TOKEN` is absent; running the bare `cargo test` form will still pass but the skip message stays hidden behind cargo's default output capture.
+
+**CI** runs the matching `live-model-tests` job with `permissions: { contents: read, models: read }` so the auto-injected `GITHUB_TOKEN` (with the GitHub Models scope) can call the inference API. The job times out after 15 minutes.
+
+**When to update the fixture**: only when GitHub Models retires the chosen model or moves the inference endpoint. The model is intentionally on the Low tier (15 RPM / 150 RPD) for CI safety.
+
 ### Common pitfalls
 
 - **Don't add crate-level `version`**: all crates use `version.workspace = true`
@@ -412,6 +470,8 @@ just test-all              # all test layers: unit + integration + fullstack + G
 - **Don't commit `apps/agent-gui/src/auto-imports.d.ts` or `apps/agent-gui/src/components.d.ts`** — they are regenerated on every Vite dev/build and are listed in `.gitignore`.
 - **Don't use `useConfirm()` outside a component wrapped by `<ConfirmDialog>`** — `inject()` will throw. The provider lives in `AppLayout.vue`. For toasts, `useToast()` works anywhere Pinia is active.
 - **Don't navigate via `view = ref('workbench')` patterns**: vue-router is the source of truth. Use `router.push({ name: 'workbench', params: { sessionId } })` and read state via `useRoute()`.
+- **Don't forget `xvfb-run -a` when running `just test-pilot` on Linux** — `tauri build --debug` produces a real GUI binary that requires a display. macOS and Windows runners use the native window server.
+- **Don't assume `just test-live` without `GITHUB_TOKEN` is broken** — the test self-skips with an `eprintln!` notice and exits 0 by design, so the recipe stays safe to run locally without credentials.
 
 ## Privacy defaults
 
@@ -421,27 +481,29 @@ The initial runtime stores event envelopes and full fake-session content in SQLi
 
 A `justfile` is provided for common tasks. Install with `cargo install just` or `brew install just`.
 
-| Command                   | Description                                             |
-| ------------------------- | ------------------------------------------------------- |
-| `just check`              | Full CI gate: format check + lint + test                |
-| `just fmt-check`          | Check formatting (Rust + web)                           |
-| `just lint`               | Run clippy + oxlint + stylelint                         |
-| `just test`               | Run all Rust tests                                      |
-| `just test-gui`           | Run GUI (Vitest) tests                                  |
-| `just fmt`                | Auto-format all code                                    |
-| `just tui`                | Run the TUI app                                         |
-| `just gui-dev`            | Run GUI dev server (Vite)                               |
-| `just tauri-dev`          | Run Tauri desktop app in dev mode                       |
-| `just bump-version X.Y.Z` | Bump version in all config files                        |
-| `just check-types`        | Verify generated TypeScript types are in sync with Rust |
-| `just test-e2e`           | Run GUI frontend E2E tests with Playwright              |
-| `just test-e2e-headed`    | Run E2E tests in headed mode for debugging              |
-| `just test-e2e-ui`        | Run E2E tests with Playwright UI mode                   |
-| `just test-tui`           | Run TUI app logic integration tests                     |
-| `just test-fullstack`     | Run full-stack runtime integration tests                |
-| `just test-all`           | Run all test layers: unit + integration + E2E + TUI     |
-| `just test-mcp`           | Run MCP integration tests                               |
-| `just worktree <name>`    | Create a git worktree with pnpm install                 |
+| Command                   | Description                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `just check`              | Full CI gate: format check + lint + test                                               |
+| `just fmt-check`          | Check formatting (Rust + web)                                                          |
+| `just lint`               | Run clippy + oxlint + stylelint                                                        |
+| `just test`               | Run all Rust tests                                                                     |
+| `just test-gui`           | Run GUI (Vitest) tests                                                                 |
+| `just fmt`                | Auto-format all code                                                                   |
+| `just tui`                | Run the TUI app                                                                        |
+| `just gui-dev`            | Run GUI dev server (Vite)                                                              |
+| `just tauri-dev`          | Run Tauri desktop app in dev mode                                                      |
+| `just bump-version X.Y.Z` | Bump version in all config files                                                       |
+| `just check-types`        | Verify generated TypeScript types are in sync with Rust                                |
+| `just test-e2e`           | Run GUI frontend E2E tests with Playwright                                             |
+| `just test-e2e-headed`    | Run E2E tests in headed mode for debugging                                             |
+| `just test-e2e-ui`        | Run E2E tests with Playwright UI mode                                                  |
+| `just test-tui`           | Run TUI app logic integration tests                                                    |
+| `just test-fullstack`     | Run full-stack runtime integration tests                                               |
+| `just test-all`           | Run all test layers: unit + integration + E2E + TUI                                    |
+| `just test-mcp`           | Run MCP integration tests                                                              |
+| `just test-live`          | Run the live GitHub Models integration test (self-skips without `GITHUB_TOKEN`)        |
+| `just test-pilot`         | Build the Tauri debug binary with `--features pilot` and run the tauri-pilot scenarios |
+| `just worktree <name>`    | Create a git worktree with pnpm install                                                |
 
 ## Common workflow recipes
 
