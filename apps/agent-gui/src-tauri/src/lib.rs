@@ -133,6 +133,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             crate::commands::list_profiles,
+            crate::commands::list_profiles_with_limits,
             crate::commands::get_profile_info,
             crate::commands::initialize_workspace,
             crate::commands::start_session,

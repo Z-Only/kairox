@@ -4,8 +4,9 @@
 
 use crate::commands::*;
 use agent_core::{
-    AgentRole, CompactionReason, ContextSource, ContextUsage, DomainEvent, EventPayload,
-    PrivacyClassification, TaskGraphSnapshot, TaskSnapshot, TaskState,
+    AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage, DomainEvent,
+    EventPayload, PrivacyClassification, ProjectedModelLimits, TaskGraphSnapshot, TaskSnapshot,
+    TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -17,6 +18,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::new()
         .commands(collect_commands![
             list_profiles,
+            list_profiles_with_limits,
             get_profile_info,
             initialize_workspace,
             start_session,
@@ -62,6 +64,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SessionInfoResponse>()
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileDetailResponse>()
+        .typ::<ProfileWithLimits>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
         // MCP response types
@@ -96,4 +99,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<LimitSource>()
         // Context-mgmt P2: compaction reason (referenced by 4 new EventPayload variants)
         .typ::<CompactionReason>()
+        // Context-mgmt P3: projection types consumed by GUI
+        .typ::<CompactionStatus>()
+        .typ::<ProjectedModelLimits>()
 }
