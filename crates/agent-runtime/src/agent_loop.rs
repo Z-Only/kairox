@@ -576,7 +576,21 @@ where
                         arguments,
                     });
                 }
-                Ok(ModelEvent::Completed { .. }) => {
+                Ok(ModelEvent::Completed { usage: real_usage }) => {
+                    // Feed real input-token usage back into the per-session
+                    // UsageCorrector so the next iteration's cl100k_base
+                    // estimate is multiplied by an EMA-smoothed correction
+                    // factor (clamped to [0.7, 1.5]). Anthropic + OpenAI
+                    // populate `usage`; Ollama leaves it None today.
+                    if let Some(u) = real_usage {
+                        let mut states = deps.session_states.lock().await;
+                        if let Some(entry) = states.get_mut(request.session_id.as_str()) {
+                            let estimated = entry.last_estimated_tokens;
+                            if estimated > 0 {
+                                entry.usage_corrector.update(u.input_tokens, estimated);
+                            }
+                        }
+                    }
                     // Always emit AssistantMessageCompleted when the model
                     // finishes, even with empty text (e.g., tool-only response).
                     // The GUI relies on this event to reset the streaming state.

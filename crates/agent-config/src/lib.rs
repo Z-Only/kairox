@@ -5,7 +5,7 @@ pub mod loader;
 
 use serde::{Deserialize, Serialize};
 
-pub use builder::build_router;
+pub use builder::{build_ollama_clients, build_router};
 pub use discovery::find_config;
 pub use limits::resolve_limits;
 pub use loader::{

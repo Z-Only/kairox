@@ -409,13 +409,56 @@ where
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
-        crate::session::start_session(
+        let model_profile_alias = request.model_profile.clone();
+        let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
             request.workspace_id,
             request.model_profile,
         )
-        .await
+        .await?;
+
+        // Resolve initial limits from config + builtin registry. If the
+        // session uses an Ollama profile and we have a typed client for it,
+        // spawn a bounded probe to refine `context_window` from the live
+        // server.
+        let profile_def = self
+            .config
+            .profiles
+            .iter()
+            .find(|(alias, _)| alias == &model_profile_alias)
+            .map(|(_, def)| def.clone());
+        if let Some(def) = profile_def {
+            let initial_limits = agent_config::resolve_limits(&def);
+            self.set_session_limits(&session_id, initial_limits.clone())
+                .await;
+
+            if def.provider == "ollama" {
+                if let Some(client) = self.ollama_clients.get(&model_profile_alias).cloned() {
+                    let model_id = def.model_id.clone();
+                    let session_id_for_probe = session_id.clone();
+                    let session_states = self.session_states.clone();
+                    tokio::spawn(async move {
+                        let probe = tokio::time::timeout(
+                            std::time::Duration::from_secs(3),
+                            client.probe_context_window(&model_id),
+                        )
+                        .await;
+                        if let Ok(Some(window)) = probe {
+                            let mut states = session_states.lock().await;
+                            if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
+                                if let Some(ref mut l) = entry.model_limits {
+                                    l.context_window = window;
+                                    l.source = agent_models::LimitSource::RuntimeProbe;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        Ok(session_id)
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {

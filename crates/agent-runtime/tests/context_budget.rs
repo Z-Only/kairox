@@ -9,6 +9,7 @@ use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use sqlx::sqlite::SqlitePoolOptions;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 async fn build_test_runtime() -> Arc<LocalRuntime<SqliteEventStore, FakeModelClient>> {
@@ -87,4 +88,102 @@ async fn context_assembled_event_emitted_with_budget_respected() {
             .iter()
             .any(|(s, n)| matches!(s, agent_core::ContextSource::System) && *n > 0));
     }
+}
+
+/// Verifies that when a session uses an Ollama profile, the runtime fires
+/// the `probe_context_window` request on `start_session` and the next
+/// `ContextAssembled` event reflects the probed value (NOT the registry
+/// fallback nor the TOML override).
+#[tokio::test]
+async fn ollama_session_uses_probed_context_window() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    // 1. Mock Ollama server: /api/show returns a 32k window via
+    //    `model_info."llama.context_length"` (the field name used by
+    //    `probe_context_window` in `crates/agent-models/src/ollama.rs`).
+    let mock = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/show"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model_info": { "llama.context_length": 32_768_u64 }
+        })))
+        .mount(&mock)
+        .await;
+
+    // 2. Build runtime in-line — `build_test_runtime` doesn't know about
+    //    Ollama, so we mirror the production wiring (router + ollama_clients
+    //    + config) here.
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    // FakeModelClient handles the actual chat completion — the Ollama probe
+    // is independent of the model client used for `send_message`.
+    let model = FakeModelClient::new(vec!["ok".into(); 8]);
+
+    let config_toml = format!(
+        r#"
+[profiles.ollama-test]
+provider = "ollama"
+model_id = "llama3"
+base_url = "{}"
+"#,
+        mock.uri()
+    );
+    let config = Arc::new(agent_config::load_from_str(&config_toml, "test-inline.toml").unwrap());
+
+    let ollama_client = Arc::new(agent_models::OllamaClient::new(
+        agent_models::OllamaConfig {
+            base_url: mock.uri(),
+            default_model: "llama3".into(),
+            context_window: 8_192, // fallback — should be overridden by probe
+        },
+    ));
+    let mut clients = HashMap::new();
+    clients.insert("ollama-test".to_string(), ollama_client);
+
+    let runtime = Arc::new(
+        LocalRuntime::new(store, model)
+            .with_config(config)
+            .with_ollama_clients(clients),
+    );
+
+    // 3. Open workspace + start session — probe fires here as a tokio::spawn.
+    let ws_info = runtime.open_workspace(".".into()).await.unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: ws_info.workspace_id.clone(),
+            model_profile: "ollama-test".into(),
+        })
+        .await
+        .unwrap();
+
+    // 4. Wait for the spawned probe to land. The mock answers in <1ms, so
+    //    200ms is generous (the probe itself is bounded to 3s).
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    // 5. Send one message → ContextAssembled is emitted with the probed window.
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: ws_info.workspace_id,
+            session_id: session_id.clone(),
+            content: "hi".into(),
+        })
+        .await
+        .unwrap();
+
+    let events = load_events(&runtime, &session_id).await;
+    let usage = events
+        .iter()
+        .find_map(|e| match &e.payload {
+            EventPayload::ContextAssembled { usage } => Some(usage),
+            _ => None,
+        })
+        .expect("ContextAssembled emitted");
+    assert_eq!(
+        usage.context_window, 32_768,
+        "Ollama probe should have overridden the fallback (got {})",
+        usage.context_window
+    );
+
+    // Avoid "unused" warnings when the pool helper is no-op'd.
+    let _ = SqlitePoolOptions::new();
 }
