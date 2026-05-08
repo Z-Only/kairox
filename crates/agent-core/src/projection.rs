@@ -4,6 +4,30 @@ use crate::{TaskSnapshot, TaskState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type")]
+pub enum CompactionStatus {
+    #[default]
+    Idle,
+    Running,
+    Failed {
+        error: String,
+    },
+}
+
+/// Mirror of `agent_models::ModelLimits` so projections survive the
+/// `agent-core` ← `agent-models` dependency boundary. The runtime converts
+/// on the boundary; field shape is kept in lock-step manually.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectedModelLimits {
+    pub context_window: u64,
+    pub output_limit: u64,
+    /// Snake-case `LimitSource` discriminant: "user_config" | "builtin_registry" | "runtime_probe" | "fallback".
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SessionProjection {
     pub messages: Vec<ProjectedMessage>,
     pub task_titles: Vec<String>,
@@ -278,5 +302,32 @@ mod tests {
         assert_eq!(projection.token_stream, "hello");
         assert_eq!(projection.task_titles, vec!["inspect repo"]);
         assert!(projection.cancelled);
+    }
+
+    #[test]
+    fn compaction_status_serializes_with_internal_tag() {
+        let s = CompactionStatus::Idle;
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Idle");
+
+        let s = CompactionStatus::Running;
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Running");
+
+        let s = CompactionStatus::Failed {
+            error: "llm timeout".into(),
+        };
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["type"], "Failed");
+        assert_eq!(json["error"], "llm timeout");
+
+        let back: CompactionStatus = serde_json::from_value(json).unwrap();
+        assert!(matches!(back, CompactionStatus::Failed { .. }));
+    }
+
+    #[test]
+    fn compaction_status_default_is_idle() {
+        let s = CompactionStatus::default();
+        assert!(matches!(s, CompactionStatus::Idle));
     }
 }

@@ -23,6 +23,9 @@ pub use facade::{
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};
+pub use projection::{
+    CompactionStatus, ProjectedMessage, ProjectedModelLimits, ProjectedRole, SessionProjection,
+};
 pub use task_types::{
     AgentRole, BackoffStrategy, FailurePolicy, RetryConfig, TaskFailureReason, TaskState,
 };
