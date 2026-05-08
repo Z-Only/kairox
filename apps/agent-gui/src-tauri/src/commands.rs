@@ -1211,3 +1211,33 @@ mod catalog_sources_command_tests {
         assert!(json.contains("\"last_error\":\"timeout\""));
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn compact_session(state: State<'_, GuiState>) -> Result<(), String> {
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current
+            .clone()
+            .ok_or_else(|| "No active session to compact".to_string())?
+    };
+
+    state
+        .runtime
+        .compact_session(session_id, agent_core::CompactionReason::UserRequested)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod compact_session_command_tests {
+    use super::compact_session;
+
+    #[test]
+    fn compact_session_command_function_exists() {
+        // Compile-time presence check — if `compact_session` is renamed or
+        // removed this fails to compile, which is exactly the signal we want
+        // before `collect_commands![]` / `generate_handler![]` blow up.
+        let _ = compact_session;
+    }
+}
