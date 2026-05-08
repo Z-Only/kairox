@@ -418,6 +418,129 @@ where
         .await
     }
 
+    /// Switch the active model profile for an ongoing session.
+    ///
+    /// The switch takes effect at the next `send_message` call — any
+    /// in-flight agent loop completes on the old profile end-to-end so
+    /// provider-specific tool-call formats (Anthropic `tool_use` vs.
+    /// OpenAI function-calling) don't get mixed mid-stream.
+    ///
+    /// Errors:
+    /// - `CoreError::InvalidState` if the alias is unknown.
+    /// - `CoreError::SessionBusy` if the session is currently compacting.
+    ///
+    /// Same-profile switches (alias equals the current profile) are a
+    /// silent no-op — they return `Ok(())` without appending an event.
+    pub async fn switch_model(
+        &self,
+        session_id: agent_core::SessionId,
+        profile_alias: String,
+    ) -> agent_core::Result<()> {
+        // Validate alias exists in the loaded Config.
+        let profile_def = self
+            .config
+            .profiles
+            .iter()
+            .find(|(alias, _)| alias == &profile_alias)
+            .map(|(_, def)| def.clone())
+            .ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "unknown model profile: {profile_alias}"
+                ))
+            })?;
+
+        // Resolve the session's current profile using the same helper
+        // the agent loop uses — the two resolvers must never drift.
+        let events = self
+            .store
+            .load_session(&session_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        let from_profile = crate::agent_loop::latest_model_profile_for(&events);
+
+        // Same-profile switch → silent no-op.
+        if from_profile == profile_alias {
+            return Ok(());
+        }
+
+        let workspace_id = events
+            .first()
+            .map(|e| e.workspace_id.clone())
+            .ok_or_else(|| agent_core::CoreError::InvalidState("session has no events".into()))?;
+
+        // Busy-gate — refuse when compacting (mirrors compact_session
+        // lines 374-388 of this file).
+        {
+            let states = self.session_states.lock().await;
+            if let Some(entry) = states.get(&session_id.to_string()) {
+                if entry.compacting {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: session_id.to_string(),
+                        reason: "context compaction in progress".into(),
+                    });
+                }
+            }
+        }
+
+        // Resolve the new profile's limits (registry + user overrides).
+        let new_limits = agent_config::resolve_limits(&profile_def);
+        let limit_source_str = match new_limits.source {
+            agent_models::LimitSource::UserConfig => "user_config",
+            agent_models::LimitSource::BuiltinRegistry => "builtin_registry",
+            agent_models::LimitSource::RuntimeProbe => "runtime_probe",
+            agent_models::LimitSource::Fallback => "fallback",
+        };
+
+        let event = agent_core::DomainEvent::new(
+            workspace_id,
+            session_id.clone(),
+            agent_core::AgentId::system(),
+            agent_core::PrivacyClassification::MinimalTrace,
+            agent_core::EventPayload::ModelProfileSwitched {
+                from_profile,
+                to_profile: profile_alias.clone(),
+                effective_at: chrono::Utc::now(),
+                context_window: new_limits.context_window,
+                output_limit: new_limits.output_limit,
+                limit_source: limit_source_str.into(),
+            },
+        );
+        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
+        // Refresh cached limits so the next send_message's agent loop
+        // doesn't re-derive from the old profile.
+        self.set_session_limits(&session_id, new_limits.clone())
+            .await;
+
+        // Ollama probe for the new profile (fire-and-forget, 3s timeout) —
+        // mirrors the probe spawned by start_session around line 515.
+        if profile_def.provider == "ollama" {
+            if let Some(client) = self.ollama_clients.get(&profile_alias).cloned() {
+                let model_id = profile_def.model_id.clone();
+                let session_id_for_probe = session_id.clone();
+                let session_states = self.session_states.clone();
+                tokio::spawn(async move {
+                    let probe = tokio::time::timeout(
+                        std::time::Duration::from_secs(3),
+                        client.probe_context_window(&model_id),
+                    )
+                    .await;
+                    if let Ok(Some(window)) = probe {
+                        let mut states = session_states.lock().await;
+                        if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
+                            if let Some(ref mut l) = entry.model_limits {
+                                l.context_window = window;
+                                l.source = agent_models::LimitSource::RuntimeProbe;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     /// Phase 2: rebuild the aggregate's remote provider list from
     /// `<marketplace_dir>/mcp_servers.toml`, calling
     /// [`AggregateCatalogProvider::reload`]. The builtin provider is
@@ -1567,6 +1690,195 @@ mod tests {
                 session_id: session_id.clone(),
                 content: "hello".into(),
             })
+            .await;
+        match result {
+            Err(agent_core::CoreError::SessionBusy { session_id: id, .. }) => {
+                assert_eq!(id, session_id.to_string());
+            }
+            other => panic!("expected SessionBusy, got {other:?}"),
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // P4: mid-session model switch
+    // ------------------------------------------------------------------
+
+    fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
+        // Field list verified against `crates/agent-config/src/lib.rs`:
+        //   ProfileDef { provider, model_id, base_url, api_key, api_key_env,
+        //     context_window, output_limit, response }.
+        //   Config { profiles, mcp_servers, source, context: ContextPolicy }.
+        //   ContextPolicy is `#[derive(Default)]` (line 147) — `::default()` is
+        //   safe. ConfigSource::Defaults is the variant used elsewhere in
+        //   facade_runtime.rs test fixtures.
+        use agent_config::{ConfigSource, ContextPolicy, ProfileDef};
+        let fast = ProfileDef {
+            provider: "fake".into(),
+            model_id: "fake".into(),
+            api_key: None,
+            api_key_env: None,
+            base_url: None,
+            context_window: None,
+            output_limit: None,
+            response: None,
+        };
+        let opus = ProfileDef {
+            provider: "fake".into(),
+            model_id: "fake-opus".into(),
+            api_key: None,
+            api_key_env: None,
+            base_url: None,
+            context_window: None,
+            output_limit: None,
+            response: None,
+        };
+        Arc::new(agent_config::Config {
+            profiles: vec![("fast".into(), fast), ("opus".into(), opus)],
+            mcp_servers: vec![],
+            source: ConfigSource::Defaults,
+            context: ContextPolicy::default(),
+        })
+    }
+
+    #[tokio::test]
+    async fn switch_model_appends_event_and_updates_session_limits() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fast".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .switch_model(session_id.clone(), "opus".into())
+            .await
+            .expect("switch should succeed");
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        let switched = events
+            .iter()
+            .find(|e| {
+                matches!(
+                    &e.payload,
+                    agent_core::EventPayload::ModelProfileSwitched { .. }
+                )
+            })
+            .expect("ModelProfileSwitched event present");
+        match &switched.payload {
+            agent_core::EventPayload::ModelProfileSwitched {
+                from_profile,
+                to_profile,
+                ..
+            } => {
+                assert_eq!(from_profile, "fast");
+                assert_eq!(to_profile, "opus");
+            }
+            _ => unreachable!(),
+        }
+
+        let states = runtime.session_states_for_test().lock().await;
+        let entry = states.get(session_id.as_str()).unwrap();
+        let limits = entry
+            .model_limits
+            .as_ref()
+            .expect("limits set after switch");
+        assert!(limits.context_window > 0);
+    }
+
+    #[tokio::test]
+    async fn switch_model_rejects_unknown_alias() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fast".into(),
+            })
+            .await
+            .unwrap();
+
+        let result = runtime.switch_model(session_id, "nonexistent".into()).await;
+        assert!(matches!(
+            result,
+            Err(agent_core::CoreError::InvalidState(ref msg)) if msg.contains("nonexistent")
+        ));
+    }
+
+    #[tokio::test]
+    async fn switch_model_is_noop_when_alias_matches_current_profile() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fast".into(),
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .switch_model(session_id.clone(), "fast".into())
+            .await
+            .expect("same-profile switch is a no-op, not an error");
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        let count = events
+            .iter()
+            .filter(|e| {
+                matches!(
+                    &e.payload,
+                    agent_core::EventPayload::ModelProfileSwitched { .. }
+                )
+            })
+            .count();
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
+    async fn switch_model_returns_session_busy_when_compacting() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fast".into(),
+            })
+            .await
+            .unwrap();
+
+        {
+            let mut states = runtime.session_states.lock().await;
+            states
+                .entry(session_id.to_string())
+                .or_insert_with(crate::session::SessionState::default)
+                .compacting = true;
+        }
+
+        let result = runtime
+            .switch_model(session_id.clone(), "opus".into())
             .await;
         match result {
             Err(agent_core::CoreError::SessionBusy { session_id: id, .. }) => {
