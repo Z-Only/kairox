@@ -72,6 +72,24 @@ pub enum EventPayload {
         after_tokens: u64,
         summarised_by_profile: String,
     },
+    /// Mid-session model profile change. The new profile only takes effect
+    /// at the next `send_message` (agent-loop entry) — in-flight streams
+    /// continue on the old profile end-to-end so provider-specific
+    /// tool-call formats don't get mixed mid-stream.
+    ModelProfileSwitched {
+        from_profile: String,
+        to_profile: String,
+        effective_at: DateTime<Utc>,
+        /// Mirrors `agent_models::ModelLimits.context_window` so this
+        /// event can be consumed by `agent-core` projections without
+        /// introducing a cycle on `agent-models`.
+        context_window: u64,
+        /// Mirrors `agent_models::ModelLimits.output_limit`.
+        output_limit: u64,
+        /// Snake-case `agent_models::LimitSource` discriminant: one of
+        /// `"user_config" | "builtin_registry" | "runtime_probe" | "fallback"`.
+        limit_source: String,
+    },
     ModelRequestStarted {
         model_profile: String,
         model_id: String,
@@ -246,6 +264,7 @@ impl EventPayload {
             Self::ContextCompactionCompleted { .. } => "ContextCompactionCompleted",
             Self::ContextCompactionFailed { .. } => "ContextCompactionFailed",
             Self::CompactionSummary { .. } => "CompactionSummary",
+            Self::ModelProfileSwitched { .. } => "ModelProfileSwitched",
             Self::ModelRequestStarted { .. } => "ModelRequestStarted",
             Self::ModelTokenDelta { .. } => "ModelTokenDelta",
             Self::ModelToolCallRequested { .. } => "ModelToolCallRequested",
@@ -663,4 +682,60 @@ fn context_assembled_payload_carries_usage_struct() {
     assert_eq!(json["payload"]["usage"]["context_window"], 200_000);
     assert_eq!(json["payload"]["usage"]["estimator"], "cl100k_base");
     assert_eq!(json["payload"]["usage"]["by_source"][0][0], "system");
+}
+
+#[test]
+fn model_profile_switched_event_round_trips() {
+    use chrono::TimeZone;
+    let effective_at = chrono::Utc.with_ymd_and_hms(2026, 5, 9, 10, 0, 0).unwrap();
+    let payload = EventPayload::ModelProfileSwitched {
+        from_profile: "fast".into(),
+        to_profile: "claude-opus".into(),
+        effective_at,
+        context_window: 200_000,
+        output_limit: 16_384,
+        limit_source: "builtin_registry".into(),
+    };
+
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "ModelProfileSwitched");
+    assert_eq!(json["from_profile"], "fast");
+    assert_eq!(json["to_profile"], "claude-opus");
+    assert_eq!(json["context_window"], 200_000);
+    assert_eq!(json["output_limit"], 16_384);
+    assert_eq!(json["limit_source"], "builtin_registry");
+    assert_eq!(json["effective_at"], "2026-05-09T10:00:00Z");
+
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    match back {
+        EventPayload::ModelProfileSwitched {
+            from_profile,
+            to_profile,
+            effective_at: at,
+            context_window,
+            output_limit,
+            limit_source,
+        } => {
+            assert_eq!(from_profile, "fast");
+            assert_eq!(to_profile, "claude-opus");
+            assert_eq!(at, effective_at);
+            assert_eq!(context_window, 200_000);
+            assert_eq!(output_limit, 16_384);
+            assert_eq!(limit_source, "builtin_registry");
+        }
+        other => panic!("wrong variant: {other:?}"),
+    }
+}
+
+#[test]
+fn event_type_method_covers_model_profile_switched() {
+    let p = EventPayload::ModelProfileSwitched {
+        from_profile: "a".into(),
+        to_profile: "b".into(),
+        effective_at: chrono::Utc::now(),
+        context_window: 0,
+        output_limit: 0,
+        limit_source: "fallback".into(),
+    };
+    assert_eq!(p.event_type(), "ModelProfileSwitched");
 }
