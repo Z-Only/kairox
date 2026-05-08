@@ -354,11 +354,14 @@ jobs:
 
       - name: Run pilot E2E scenarios (Linux, with xvfb)
         if: matrix.os == 'ubuntu-latest'
-        run: timeout 600 xvfb-run -a scripts/run-pilot-tests.sh
+        # The job-level `timeout-minutes: 30` already caps runtime. We avoid
+        # GNU `timeout(1)` here because it is not available on macOS runners
+        # by default, and we want both platforms on the same code path.
+        run: xvfb-run -a scripts/run-pilot-tests.sh
 
       - name: Run pilot E2E scenarios (macOS)
         if: matrix.os == 'macos-latest'
-        run: timeout 600 scripts/run-pilot-tests.sh
+        run: scripts/run-pilot-tests.sh
 
       - name: Upload pilot JUnit results
         uses: actions/upload-artifact@v7

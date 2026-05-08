@@ -67,6 +67,24 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+# `ping` only verifies the IPC socket is up; the webview itself takes a few
+# additional seconds to attach (especially under xvfb on Linux). Without this
+# extra probe the first scenario step fails with:
+#   RPC error (-32603): Eval failed: No webview available
+# We poll a trivial `eval` until it succeeds (up to 30s) so that scenarios
+# start with a known-ready webview.
+for i in $(seq 1 30); do
+    if tauri-pilot eval '1' >/dev/null 2>&1; then
+        echo "webview ready after ${i}s"
+        break
+    fi
+    if [[ "$i" -eq 30 ]]; then
+        echo "ERROR: webview did not become ready within 30s after ping" >&2
+        exit 1
+    fi
+    sleep 1
+done
+
 # ─── Run every scenario ────────────────────────────────────────────────────────
 
 # `tauri-pilot run` accepts exactly one scenario path; iterate explicitly.
