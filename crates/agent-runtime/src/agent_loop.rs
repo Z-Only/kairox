@@ -52,8 +52,42 @@ pub fn build_model_messages(
     let mut tool_results: std::collections::HashMap<String, (String, String)> =
         std::collections::HashMap::new(); // tool_call_id -> (tool_id, output_preview)
 
-    // First pass: collect tool call requests and results
+    // P2: Compute the union of timestamp ranges covered by CompactionSummary
+    // events. Real events whose timestamp falls inside ANY covered range are
+    // skipped, and the corresponding summary text is injected as a
+    // pseudo-user message at the position the first replaced event would
+    // have occupied. Summaries themselves are never emitted as plain events.
+    let mut summaries: Vec<(
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+        String,
+    )> = session_events
+        .iter()
+        .filter_map(|e| match &e.payload {
+            EventPayload::CompactionSummary {
+                replaces_event_range: (first, last),
+                content,
+                ..
+            } => Some((*first, *last, content.clone())),
+            _ => None,
+        })
+        .collect();
+    summaries.sort_by_key(|(first, _, _)| *first);
+    let covered = |ts: chrono::DateTime<chrono::Utc>| -> bool {
+        summaries
+            .iter()
+            .any(|(first, last, _)| ts >= *first && ts <= *last)
+    };
+
+    // First pass: collect tool call requests and results — skip events that
+    // fall inside a covered range so the summary fully replaces them.
     for event in session_events {
+        if matches!(event.payload, EventPayload::CompactionSummary { .. }) {
+            continue;
+        }
+        if covered(event.timestamp) {
+            continue;
+        }
         match &event.payload {
             EventPayload::ModelToolCallRequested {
                 tool_call_id,
@@ -80,9 +114,31 @@ pub fn build_model_messages(
         }
     }
 
-    // Second pass: build messages with proper tool_calls and tool_call_id
+    // Second pass: build messages with proper tool_calls and tool_call_id.
+    // Summaries are injected just before the first event whose timestamp
+    // is strictly greater than the summary's `last_ts` (so they appear
+    // chronologically in place of the replaced range).
+    let mut injected: Vec<bool> = vec![false; summaries.len()];
     let mut tool_call_idx = 0;
     for event in session_events {
+        if matches!(event.payload, EventPayload::CompactionSummary { .. }) {
+            continue;
+        }
+        // Inject any summary whose covered range ends strictly before this event.
+        for (idx, (_, last_ts, content)) in summaries.iter().enumerate() {
+            if !injected[idx] && event.timestamp > *last_ts {
+                messages.push(agent_models::ModelMessage {
+                    role: "user".into(),
+                    content: format!("[Conversation summary]\n{content}"),
+                    tool_calls: Vec::new(),
+                    tool_call_id: None,
+                });
+                injected[idx] = true;
+            }
+        }
+        if covered(event.timestamp) {
+            continue;
+        }
         match &event.payload {
             EventPayload::UserMessageAdded { content, .. } => {
                 messages.push(agent_models::ModelMessage {
@@ -363,6 +419,48 @@ where
         },
     );
     append_and_broadcast(&**store, event_tx, &assembled_event).await?;
+
+    // P2: Auto-compaction trigger. Fire-and-forget so the agent loop does
+    // NOT block on the summariser LLM call. The busy gate inside
+    // `compact_session` ensures we never stack two compactions for the
+    // same session.
+    {
+        let already_compacting = {
+            let states = session_states.lock().await;
+            states
+                .get(&request.session_id.to_string())
+                .map(|s| s.compacting)
+                .unwrap_or(false)
+        };
+        let threshold = config.context.auto_compact_threshold;
+        if should_trigger_auto_compaction(&usage, threshold, already_compacting) {
+            let store_clone = store.clone();
+            let model_clone = model.clone();
+            let tx_clone = event_tx.clone();
+            let states_clone = session_states.clone();
+            let workspace_id = request.workspace_id.clone();
+            let session_id = request.session_id.clone();
+            let ratio = usage.ratio();
+            let profile_alias = config
+                .context
+                .compactor_profile
+                .clone()
+                .unwrap_or_else(|| model_profile_alias.clone());
+            tokio::spawn(async move {
+                let _ = crate::compaction::compact_session(
+                    &*store_clone,
+                    &tx_clone,
+                    &*model_clone,
+                    &profile_alias,
+                    &states_clone,
+                    workspace_id,
+                    session_id,
+                    agent_core::CompactionReason::Threshold { ratio },
+                )
+                .await;
+            });
+        }
+    }
 
     // Build the actual ModelMessage list. This MUST preserve tool_call /
     // tool_result id pairing (otherwise Anthropic / OpenAI reject the request),
@@ -986,6 +1084,21 @@ where
     Ok(())
 }
 
+/// Decide whether the agent loop should fire an auto-compaction request
+/// for this iteration. Pure function so it's trivial to unit-test the
+/// boundary cases (threshold == 1.0 disables; busy gate skips; exact
+/// equality counts as crossing the threshold per spec §4.4).
+pub fn should_trigger_auto_compaction(
+    usage: &agent_core::ContextUsage,
+    threshold: f32,
+    already_compacting: bool,
+) -> bool {
+    if already_compacting || threshold >= 1.0 {
+        return false;
+    }
+    usage.ratio() >= threshold
+}
+
 /// Builds a `Vec<ModelMessage>` from `session_events` (preserving tool_call /
 /// tool_result id pairing) and trims the FRONT until cumulative input tokens
 /// fit `budget_tokens`. The system prompt + the most-recent user message are
@@ -1062,6 +1175,136 @@ mod tests {
             PrivacyClassification::FullTrace,
             payload,
         )
+    }
+
+    #[test]
+    fn build_model_messages_substitutes_compaction_summary_for_event_range() {
+        // Build 5 turns; insert a CompactionSummary covering the first 3 pairs.
+        let base = chrono::Utc::now();
+        let make_at = |payload: EventPayload, secs: i64| -> DomainEvent {
+            DomainEvent::new(
+                WorkspaceId::new(),
+                SessionId::new(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                payload,
+            )
+            .with_timestamp(base + chrono::Duration::seconds(secs))
+        };
+
+        let mut events: Vec<DomainEvent> = (0..5)
+            .flat_map(|i| {
+                let t = (i as i64) * 10;
+                vec![
+                    make_at(
+                        EventPayload::UserMessageAdded {
+                            message_id: format!("u{i}"),
+                            content: format!("user {i}"),
+                        },
+                        t,
+                    ),
+                    make_at(
+                        EventPayload::AssistantMessageCompleted {
+                            message_id: format!("a{i}"),
+                            content: format!("assistant {i}"),
+                        },
+                        t + 1,
+                    ),
+                ]
+            })
+            .collect();
+
+        let first_ts = events[0].timestamp;
+        let last_ts = events[5].timestamp; // covers pairs 0..=2 inclusive
+        events.push(make_at(
+            EventPayload::CompactionSummary {
+                summary_id: "sum_test".into(),
+                content: "[SUMMARY] earlier turns about user goal X".into(),
+                replaces_event_range: (first_ts, last_ts),
+                reason: agent_core::CompactionReason::UserRequested,
+                before_tokens: 1000,
+                after_tokens: 50,
+                summarised_by_profile: "fast".into(),
+            },
+            55, // newer than every replaced event but older than the new turn
+        ));
+        events.sort_by_key(|e| e.timestamp);
+
+        let messages = build_model_messages("latest", &events);
+
+        // (a) The summary text MUST appear in messages.
+        let joined: String = messages
+            .iter()
+            .map(|m| m.content.clone())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            joined.contains("[SUMMARY] earlier turns about user goal X"),
+            "summary text missing from assembled messages: {joined}"
+        );
+        // (b) The replaced "user 0".."assistant 2" content must NOT appear.
+        for replaced in [
+            "user 0",
+            "assistant 0",
+            "user 1",
+            "assistant 1",
+            "user 2",
+            "assistant 2",
+        ] {
+            assert!(
+                !joined.contains(replaced),
+                "replaced event '{replaced}' leaked into messages: {joined}"
+            );
+        }
+        // (c) The kept tail ("user 3", "assistant 3", "user 4", "assistant 4") must remain.
+        for kept in ["user 3", "assistant 3", "user 4", "assistant 4"] {
+            assert!(
+                joined.contains(kept),
+                "kept event '{kept}' missing from messages: {joined}"
+            );
+        }
+        // (d) The trailing "latest" user turn must still be present.
+        assert_eq!(messages.last().map(|m| m.content.as_str()), Some("latest"));
+    }
+
+    #[test]
+    fn should_trigger_auto_compaction_uses_threshold_and_not_compacting() {
+        let usage_at = |total: u64, budget: u64| -> agent_core::ContextUsage {
+            agent_core::ContextUsage {
+                total_tokens: total,
+                budget_tokens: budget,
+                context_window: budget + 12_000,
+                output_reservation: 12_000,
+                by_source: vec![],
+                estimator: "cl100k_base".into(),
+                corrected_by_real_usage: false,
+            }
+        };
+
+        // Below threshold → no trigger.
+        assert!(!should_trigger_auto_compaction(
+            &usage_at(50_000, 200_000),
+            0.85,
+            false
+        ));
+        // At threshold → trigger.
+        assert!(should_trigger_auto_compaction(
+            &usage_at(170_000, 200_000),
+            0.85,
+            false
+        ));
+        // Above threshold but already compacting → no trigger.
+        assert!(!should_trigger_auto_compaction(
+            &usage_at(190_000, 200_000),
+            0.85,
+            true
+        ));
+        // Threshold == 1.0 disables auto-compaction entirely.
+        assert!(!should_trigger_auto_compaction(
+            &usage_at(199_000, 200_000),
+            1.0,
+            false
+        ));
     }
 
     #[test]

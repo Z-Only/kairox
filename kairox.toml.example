@@ -156,3 +156,20 @@ response = "Hello from the Kairox fake provider!"
 # type = "sse"
 # url = "http://localhost:8080/mcp"
 # keep_alive = true
+
+# -----------------------------------------------------------------------------
+# Session compaction & context budgeting (optional; safe defaults shown).
+# -----------------------------------------------------------------------------
+[context]
+# When the assembled context reaches this fraction of the budget, the runtime
+# triggers automatic compaction. Set to 1.0 to disable auto-compaction.
+auto_compact_threshold = 0.85
+
+# Optional: profile alias to use for the summarisation LLM call. When unset,
+# the session's currently active profile is used. Useful to point at a
+# cheap fast model (e.g. "fast") even when the session runs on "claude-opus".
+# compactor_profile = "fast"
+
+# Optional: cap on MCP tool definitions tokens. When the serialised tool
+# schemas exceed this, the assembler drops the lowest priority tools first.
+# max_tool_definition_tokens = 25000

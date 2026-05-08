@@ -11,7 +11,19 @@ pub enum PrivacyClassification {
     FullTrace,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Why a session compaction was triggered. `Threshold { ratio }` is fired
+/// automatically by `agent_loop` when `ContextAssembled.usage.ratio()`
+/// crosses `ContextPolicy.auto_compact_threshold`. `UserRequested` is the
+/// manual path (TUI `:compact` / GUI button — both wired in P3).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type")]
+pub enum CompactionReason {
+    UserRequested,
+    Threshold { ratio: f32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "PascalCase")]
 pub enum EventPayload {
@@ -36,6 +48,29 @@ pub enum EventPayload {
     },
     ContextAssembled {
         usage: crate::context_types::ContextUsage,
+    },
+    ContextCompactionStarted {
+        reason: CompactionReason,
+        before_tokens: u64,
+        candidate_event_count: usize,
+    },
+    ContextCompactionCompleted {
+        summary_id: String,
+        after_tokens: u64,
+        fallback_used: bool,
+    },
+    ContextCompactionFailed {
+        error: String,
+        fallback_used: bool,
+    },
+    CompactionSummary {
+        summary_id: String,
+        content: String,
+        replaces_event_range: (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>),
+        reason: CompactionReason,
+        before_tokens: u64,
+        after_tokens: u64,
+        summarised_by_profile: String,
     },
     ModelRequestStarted {
         model_profile: String,
@@ -207,6 +242,10 @@ impl EventPayload {
             Self::AgentTaskCreated { .. } => "AgentTaskCreated",
             Self::AgentTaskStarted { .. } => "AgentTaskStarted",
             Self::ContextAssembled { .. } => "ContextAssembled",
+            Self::ContextCompactionStarted { .. } => "ContextCompactionStarted",
+            Self::ContextCompactionCompleted { .. } => "ContextCompactionCompleted",
+            Self::ContextCompactionFailed { .. } => "ContextCompactionFailed",
+            Self::CompactionSummary { .. } => "CompactionSummary",
             Self::ModelRequestStarted { .. } => "ModelRequestStarted",
             Self::ModelTokenDelta { .. } => "ModelTokenDelta",
             Self::ModelToolCallRequested { .. } => "ModelToolCallRequested",
@@ -250,7 +289,7 @@ impl EventPayload {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DomainEvent {
     pub schema_version: u32,
@@ -465,6 +504,132 @@ fn catalog_source_failed_event_round_trips() {
         matches!(back, EventPayload::CatalogSourceFailed { ref source, ref error }
         if source == "mcp-registry" && error == "timeout")
     );
+}
+
+#[test]
+fn compaction_reason_serializes_with_internal_tag() {
+    let r = CompactionReason::UserRequested;
+    let json = serde_json::to_value(r).unwrap();
+    assert_eq!(json["type"], "UserRequested");
+
+    let r = CompactionReason::Threshold { ratio: 0.87 };
+    let json = serde_json::to_value(r).unwrap();
+    assert_eq!(json["type"], "Threshold");
+    assert!((json["ratio"].as_f64().unwrap() - 0.87).abs() < 1e-6);
+}
+
+#[test]
+fn context_compaction_started_event_round_trips() {
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        EventPayload::ContextCompactionStarted {
+            reason: CompactionReason::Threshold { ratio: 0.9 },
+            before_tokens: 180_000,
+            candidate_event_count: 42,
+        },
+    );
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["event_type"], "ContextCompactionStarted");
+    assert_eq!(json["payload"]["type"], "ContextCompactionStarted");
+    assert_eq!(json["payload"]["before_tokens"], 180_000);
+    assert_eq!(json["payload"]["candidate_event_count"], 42);
+    assert_eq!(json["payload"]["reason"]["type"], "Threshold");
+
+    let s = serde_json::to_string(&event.payload).unwrap();
+    let back: EventPayload = serde_json::from_str(&s).unwrap();
+    assert!(matches!(
+        back,
+        EventPayload::ContextCompactionStarted { .. }
+    ));
+}
+
+#[test]
+fn context_compaction_completed_and_failed_round_trip() {
+    let completed = EventPayload::ContextCompactionCompleted {
+        summary_id: "sum_1".into(),
+        after_tokens: 30_000,
+        fallback_used: false,
+    };
+    let json = serde_json::to_value(&completed).unwrap();
+    assert_eq!(json["type"], "ContextCompactionCompleted");
+    assert_eq!(json["fallback_used"], false);
+    let _back: EventPayload = serde_json::from_value(json).unwrap();
+
+    let failed = EventPayload::ContextCompactionFailed {
+        error: "model timeout".into(),
+        fallback_used: true,
+    };
+    let json = serde_json::to_value(&failed).unwrap();
+    assert_eq!(json["type"], "ContextCompactionFailed");
+    assert_eq!(json["fallback_used"], true);
+    let _back: EventPayload = serde_json::from_value(json).unwrap();
+}
+
+#[test]
+fn compaction_summary_event_round_trips_with_timestamp_range() {
+    use chrono::TimeZone;
+    let from = chrono::Utc.with_ymd_and_hms(2026, 5, 8, 9, 0, 0).unwrap();
+    let to = chrono::Utc.with_ymd_and_hms(2026, 5, 8, 10, 0, 0).unwrap();
+    let payload = EventPayload::CompactionSummary {
+        summary_id: "sum_1".into(),
+        content: "## User goal\n...".into(),
+        replaces_event_range: (from, to),
+        reason: CompactionReason::UserRequested,
+        before_tokens: 180_000,
+        after_tokens: 4_000,
+        summarised_by_profile: "fast".into(),
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "CompactionSummary");
+    assert_eq!(json["summarised_by_profile"], "fast");
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    if let EventPayload::CompactionSummary {
+        replaces_event_range,
+        ..
+    } = back
+    {
+        assert_eq!(replaces_event_range.0, from);
+        assert_eq!(replaces_event_range.1, to);
+    } else {
+        panic!("wrong variant");
+    }
+}
+
+#[test]
+fn event_type_method_covers_new_compaction_variants() {
+    let started = EventPayload::ContextCompactionStarted {
+        reason: CompactionReason::UserRequested,
+        before_tokens: 0,
+        candidate_event_count: 0,
+    };
+    assert_eq!(started.event_type(), "ContextCompactionStarted");
+
+    let completed = EventPayload::ContextCompactionCompleted {
+        summary_id: "x".into(),
+        after_tokens: 0,
+        fallback_used: false,
+    };
+    assert_eq!(completed.event_type(), "ContextCompactionCompleted");
+
+    let failed = EventPayload::ContextCompactionFailed {
+        error: "x".into(),
+        fallback_used: false,
+    };
+    assert_eq!(failed.event_type(), "ContextCompactionFailed");
+
+    let summary = EventPayload::CompactionSummary {
+        summary_id: "x".into(),
+        content: "x".into(),
+        replaces_event_range: (chrono::Utc::now(), chrono::Utc::now()),
+        reason: CompactionReason::UserRequested,
+        before_tokens: 0,
+        after_tokens: 0,
+        summarised_by_profile: "fast".into(),
+    };
+    assert_eq!(summary.event_type(), "CompactionSummary");
 }
 
 #[test]

@@ -121,6 +121,7 @@ where
                 profiles: vec![],
                 mcp_servers: vec![],
                 source: agent_config::ConfigSource::Defaults,
+                context: agent_config::ContextPolicy::default(),
             }),
             ollama_clients: HashMap::new(),
         }
@@ -164,6 +165,15 @@ where
     #[cfg(any(test, feature = "test-helpers"))]
     pub fn event_store_for_test(&self) -> &S {
         &self.store
+    }
+
+    /// Test-only accessor for the per-session state map. Used by the P2
+    /// compaction integration test to flip the busy gate deterministically.
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn session_states_for_test(
+        &self,
+    ) -> &Arc<Mutex<HashMap<String, crate::session::SessionState>>> {
+        &self.session_states
     }
 
     /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
@@ -339,6 +349,75 @@ where
         crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
     }
 
+    /// Trigger a compaction pass for `session_id`. Blocks until the chain
+    /// completes (success or fallback). Returns `Err(SessionBusy)` if a
+    /// compaction is already running for the same session.
+    ///
+    /// This is the inherent method; P3 will surface it via the `AppFacade`
+    /// trait once the GUI/TUI commands wire to it.
+    pub async fn compact_session(
+        &self,
+        session_id: SessionId,
+        reason: agent_core::CompactionReason,
+    ) -> agent_core::Result<()> {
+        // Resolve the workspace_id from the first event of the session.
+        let events = self
+            .store
+            .load_session(&session_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        let workspace_id = events
+            .first()
+            .map(|e| e.workspace_id.clone())
+            .ok_or_else(|| agent_core::CoreError::InvalidState("session has no events".into()))?;
+
+        // Pre-check the busy gate so we can surface SessionBusy upfront
+        // (the orchestrator silently no-ops when already compacting).
+        {
+            let states = self.session_states.lock().await;
+            if let Some(entry) = states.get(&session_id.to_string()) {
+                if entry.compacting {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: session_id.to_string(),
+                        reason: "compaction already running".into(),
+                    });
+                }
+            }
+        }
+
+        // Pick the profile alias for the summarisation call:
+        // ContextPolicy.compactor_profile takes priority; otherwise fall
+        // back to the session's current profile (from SessionInitialized).
+        let profile_alias = self
+            .config
+            .context
+            .compactor_profile
+            .clone()
+            .unwrap_or_else(|| {
+                events
+                    .iter()
+                    .find_map(|e| match &e.payload {
+                        agent_core::EventPayload::SessionInitialized { model_profile } => {
+                            Some(model_profile.clone())
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| "fake".to_string())
+            });
+
+        crate::compaction::compact_session(
+            &*self.store,
+            &self.event_tx,
+            &*self.model,
+            &profile_alias,
+            &self.session_states,
+            workspace_id,
+            session_id,
+            reason,
+        )
+        .await
+    }
+
     /// Phase 2: rebuild the aggregate's remote provider list from
     /// `<marketplace_dir>/mcp_servers.toml`, calling
     /// [`AggregateCatalogProvider::reload`]. The builtin provider is
@@ -462,6 +541,20 @@ where
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
+        // Reject sends while a compaction is in flight (P2 busy gate).
+        // The state is cleared by `compaction::compact_session` on exit.
+        {
+            let states = self.session_states.lock().await;
+            if let Some(entry) = states.get(&request.session_id.to_string()) {
+                if entry.compacting {
+                    return Err(agent_core::CoreError::SessionBusy {
+                        session_id: request.session_id.to_string(),
+                        reason: "context compaction in progress".into(),
+                    });
+                }
+            }
+        }
+
         match self.execution_mode(&request) {
             ExecutionMode::DagExecution => {
                 let executor = self.dag_executor.as_ref().ok_or_else(|| {
@@ -1439,6 +1532,48 @@ mod tests {
             runtime.execution_mode(&request),
             ExecutionMode::DagExecution
         );
+    }
+
+    #[tokio::test]
+    async fn send_message_returns_session_busy_when_compacting() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hello".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+            })
+            .await
+            .unwrap();
+
+        // Force the session into compacting state.
+        {
+            let mut states = runtime.session_states.lock().await;
+            states
+                .entry(session_id.to_string())
+                .or_insert_with(crate::session::SessionState::default)
+                .compacting = true;
+        }
+
+        let result = runtime
+            .send_message(SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "hello".into(),
+            })
+            .await;
+        match result {
+            Err(agent_core::CoreError::SessionBusy { session_id: id, .. }) => {
+                assert_eq!(id, session_id.to_string());
+            }
+            other => panic!("expected SessionBusy, got {other:?}"),
+        }
     }
 
     #[tokio::test]

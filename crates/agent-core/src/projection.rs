@@ -147,7 +147,11 @@ impl SessionProjection {
             | EventPayload::CatalogEntryUninstalled { .. }
             | EventPayload::CatalogRuntimeMissing { .. }
             | EventPayload::CatalogSourceAdded { .. }
-            | EventPayload::CatalogSourceFailed { .. } => {}
+            | EventPayload::CatalogSourceFailed { .. }
+            | EventPayload::ContextCompactionStarted { .. }
+            | EventPayload::ContextCompactionCompleted { .. }
+            | EventPayload::ContextCompactionFailed { .. }
+            | EventPayload::CompactionSummary { .. } => {}
         }
     }
 

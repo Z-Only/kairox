@@ -106,6 +106,7 @@ dependencies = [
  "agent-models",
  "async-trait",
  "chrono",
+ "futures",
  "regex",
  "serde",
  "serde_json",
