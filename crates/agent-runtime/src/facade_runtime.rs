@@ -436,15 +436,19 @@ where
             }
             ExecutionMode::SingleStep => {
                 crate::agent_loop::run_agent_loop(
-                    &self.store,
-                    &self.model,
-                    &self.event_tx,
-                    &self.tool_registry,
-                    &self.permission_engine,
-                    &self.pending_permissions,
-                    &self.memory_store,
-                    &self.task_graphs,
-                    &self.active_cancellation,
+                    crate::agent_loop::AgentLoopDeps {
+                        store: &self.store,
+                        model: &self.model,
+                        event_tx: &self.event_tx,
+                        tool_registry: &self.tool_registry,
+                        permission_engine: &self.permission_engine,
+                        pending_permissions: &self.pending_permissions,
+                        memory_store: &self.memory_store,
+                        task_graphs: &self.task_graphs,
+                        active_cancellation: &self.active_cancellation,
+                        config: &self.config,
+                        session_states: &self.session_states,
+                    },
                     &request,
                 )
                 .await

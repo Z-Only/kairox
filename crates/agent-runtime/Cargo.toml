@@ -34,8 +34,10 @@ tracing.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 tempfile = { workspace = true }
+tiktoken-rs = "0.11"
 
 [features]
+default = ["test-helpers"]
 test-helpers = []
 
 [dev-dependencies]

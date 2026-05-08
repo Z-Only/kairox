@@ -112,7 +112,10 @@ const FALLBACK_OLLAMA: ModelLimits = ModelLimits {
 };
 const FALLBACK_FAKE: ModelLimits = ModelLimits {
     context_window: 4_096,
-    output_limit: 2_048,
+    // Small completions only — keep `output_reservation` (= output_limit +
+    // 2k safety floor) well below `context_window` so the fake-driven
+    // integration tests have a non-trivial input budget.
+    output_limit: 256,
     source: LimitSource::Fallback,
 };
 const FALLBACK_GENERIC: ModelLimits = ModelLimits {
