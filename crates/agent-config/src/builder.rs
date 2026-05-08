@@ -22,6 +22,33 @@ pub fn build_router(config: &Config) -> ModelRouter {
     router
 }
 
+/// Build a map of profile alias → typed `Arc<OllamaClient>` for every profile
+/// whose `provider == "ollama"`. The runtime keeps these typed handles so it
+/// can call `probe_context_window` on session init — `ModelRouter` only stores
+/// `Arc<dyn ModelClient>` and would otherwise force an `Any` downcast.
+pub fn build_ollama_clients(
+    config: &Config,
+) -> std::collections::HashMap<String, Arc<OllamaClient>> {
+    let mut clients = std::collections::HashMap::new();
+    for (alias, def) in &config.profiles {
+        if def.provider != "ollama" {
+            continue;
+        }
+        let ollama_config = OllamaConfig {
+            base_url: def
+                .base_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:11434".to_string()),
+            default_model: def.model_id.clone(),
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+        };
+        clients.insert(alias.clone(), Arc::new(OllamaClient::new(ollama_config)));
+    }
+    clients
+}
+
 fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
     let capabilities = match def.provider.as_str() {
         "openai_compatible" => ModelCapabilities {
@@ -30,8 +57,12 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             json_schema: true,
             vision: false,
             reasoning_controls: false,
-            context_window: def.context_window,
-            output_limit: def.output_limit,
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+            output_limit: def
+                .output_limit
+                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: false,
         },
         "anthropic" => ModelCapabilities {
@@ -40,8 +71,12 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             json_schema: false,
             vision: false,
             reasoning_controls: false,
-            context_window: def.context_window,
-            output_limit: def.output_limit,
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+            output_limit: def
+                .output_limit
+                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: false,
         },
         "ollama" => ModelCapabilities {
@@ -50,8 +85,12 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             json_schema: false,
             vision: false,
             reasoning_controls: false,
-            context_window: def.context_window,
-            output_limit: def.output_limit,
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+            output_limit: def
+                .output_limit
+                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: true,
         },
         "fake" => ModelCapabilities {
@@ -60,8 +99,12 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             json_schema: false,
             vision: false,
             reasoning_controls: false,
-            context_window: def.context_window,
-            output_limit: def.output_limit,
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+            output_limit: def
+                .output_limit
+                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: true,
         },
         _ => ModelCapabilities {
@@ -70,8 +113,12 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
             json_schema: false,
             vision: false,
             reasoning_controls: false,
-            context_window: def.context_window,
-            output_limit: def.output_limit,
+            context_window: def
+                .context_window
+                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
+            output_limit: def
+                .output_limit
+                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: false,
         },
     };
@@ -128,7 +175,9 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 base_url,
                 api_key_env,
                 default_model: def.model_id.clone(),
-                max_tokens: def.output_limit,
+                max_tokens: def
+                    .output_limit
+                    .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
                 headers: Vec::new(),
                 capability_overrides: None,
             };
@@ -141,7 +190,9 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                     .clone()
                     .unwrap_or_else(|| "http://localhost:11434".to_string()),
                 default_model: def.model_id.clone(),
-                context_window: def.context_window,
+                context_window: def
+                    .context_window
+                    .unwrap_or_else(|| crate::resolve_limits(def).context_window),
             };
             Box::new(OllamaClient::new(config))
         }
@@ -226,8 +277,8 @@ mod tests {
             base_url: Some("https://api.anthropic.com".into()),
             api_key: None,
             api_key_env: Some("ANTHROPIC_API_KEY".into()),
-            context_window: 200_000,
-            output_limit: 16_384,
+            context_window: Some(200_000),
+            output_limit: Some(16_384),
             response: None,
         };
         let profile = build_profile("fast", &fast_def);
@@ -241,8 +292,8 @@ mod tests {
             base_url: Some("http://localhost:11434".into()),
             api_key: None,
             api_key_env: None,
-            context_window: 128_000,
-            output_limit: 16_384,
+            context_window: Some(128_000),
+            output_limit: Some(16_384),
             response: None,
         };
         let profile = build_profile("local-code", &ollama_def);

@@ -92,10 +92,14 @@ pub fn run() {
                     catalog_sources.iter().filter(|s| s.enabled).count()
                 );
 
+                let ollama_clients = agent_config::build_ollama_clients(&config);
+                let config_arc = std::sync::Arc::new(config.clone());
                 let runtime = LocalRuntime::new(store, router)
                     .with_permission_mode(PermissionMode::Interactive)
                     .with_context_limit(100_000)
                     .with_memory_store(mem_store.clone())
+                    .with_config(config_arc)
+                    .with_ollama_clients(ollama_clients)
                     .with_marketplace_loaded(db_dir.clone(), &catalog_sources)
                     .expect("Failed to initialize marketplace")
                     .with_builtin_tools(cwd)
@@ -206,9 +210,13 @@ mod integration_tests {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let config = Config::defaults();
         let router = config.build_router();
+        let ollama_clients = agent_config::build_ollama_clients(&config);
+        let config_arc = std::sync::Arc::new(config);
         LocalRuntime::new(store, router)
             .with_permission_mode(PermissionMode::Suggest)
             .with_context_limit(100_000)
+            .with_config(config_arc)
+            .with_ollama_clients(ollama_clients)
     }
 
     #[tokio::test]

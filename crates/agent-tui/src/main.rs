@@ -261,11 +261,15 @@ async fn main() -> Result<()> {
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
 
+    let ollama_clients = agent_config::build_ollama_clients(&config);
+    let config_arc = std::sync::Arc::new(config);
     let runtime = Arc::new(
         LocalRuntime::new(store, router)
             .with_permission_mode(PermissionMode::Suggest)
             .with_context_limit(100_000)
             .with_memory_store(mem_store)
+            .with_config(config_arc)
+            .with_ollama_clients(ollama_clients)
             .with_builtin_tools(workspace_path.clone())
             .await,
     );

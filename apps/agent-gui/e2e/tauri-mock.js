@@ -327,8 +327,18 @@ function invoke(cmd, args) {
       setTimeout(function () {
         var ctxEvent = makeEvent(sessionId, {
           type: "ContextAssembled",
-          token_estimate: 256,
-          sources: ["system_prompt", "conversation_history"]
+          usage: {
+            total_tokens: 256,
+            budget_tokens: 100000,
+            context_window: 128000,
+            output_reservation: 28000,
+            by_source: [
+              ["system", 128],
+              ["history", 128]
+            ],
+            estimator: "cl100k_base",
+            corrected_by_real_usage: false
+          }
         });
         trace.push(ctxEvent);
         emitEvent("session-event", ctxEvent);

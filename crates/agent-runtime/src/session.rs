@@ -4,12 +4,33 @@
 //! making the session logic independently testable without requiring a full
 //! `LocalRuntime`.
 
+use crate::context_budget::UsageCorrector;
 use crate::event_emitter::append_and_broadcast;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, CoreError, DomainEvent, EventPayload, PrivacyClassification, SessionId, SessionMeta,
     TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
+use agent_models::ModelLimits;
+
+/// Per-session in-memory state held by `LocalRuntime`. NOT persisted —
+/// reconstructed lazily from event history if the process restarts mid-session.
+///
+/// Stored as `Arc<Mutex<HashMap<String, SessionState>>>` on `LocalRuntime`
+/// (the key is `session_id.to_string()`).
+#[derive(Debug, Clone, Default)]
+pub struct SessionState {
+    /// Resolved model limits. `None` until the first call to `set_session_limits`
+    /// (typically right after `SessionInitialized` is emitted).
+    pub model_limits: Option<ModelLimits>,
+    /// EMA-corrector that turns our cl100k_base estimate into something
+    /// closer to the provider's reported `input_tokens`.
+    pub usage_corrector: UsageCorrector,
+    /// Most recent `ContextAssembled.usage.total_tokens` for this session.
+    /// Used as the denominator when `update_corrector(real_input_tokens, last_estimate)`
+    /// runs on `ModelEvent::Completed`.
+    pub last_estimated_tokens: u64,
+}
 use agent_store::{EventStore, SessionRow};
 use futures::stream::BoxStream;
 use std::collections::HashMap;

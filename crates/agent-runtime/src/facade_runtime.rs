@@ -77,6 +77,16 @@ where
     /// Phase 2: shared HTTP client + cache for remote catalog providers.
     catalog_http: Option<SharedHttpClient>,
     catalog_cache: Option<Arc<HttpResponseCache>>,
+    /// Per-session in-memory state. Inserted lazily on first access.
+    session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+    /// Loaded TOML config (`Config::load()` in production, in-line in tests).
+    /// Required by Tasks 9-10 to look up `ProfileDef` by alias and call
+    /// `agent_config::resolve_limits`.
+    config: Arc<agent_config::Config>,
+    /// Profile-alias → typed Ollama client. Populated by `with_ollama_clients`
+    /// at wiring time so Task 10 can fire `probe_context_window`. Empty when
+    /// no Ollama profiles are configured.
+    ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -91,7 +101,7 @@ where
             model: Arc::new(model),
             permission_engine: Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Suggest))),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
-            context_assembler: ContextAssembler::new_standalone(100_000),
+            context_assembler: ContextAssembler::new_standalone(),
             memory_store: None,
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
@@ -106,7 +116,54 @@ where
             aggregate_handle: None,
             catalog_http: None,
             catalog_cache: None,
+            session_states: Arc::new(Mutex::new(HashMap::new())),
+            config: Arc::new(agent_config::Config {
+                profiles: vec![],
+                mcp_servers: vec![],
+                source: agent_config::ConfigSource::Defaults,
+            }),
+            ollama_clients: HashMap::new(),
         }
+    }
+
+    /// Inject the loaded `Config` so the runtime can resolve `ModelLimits`
+    /// per session. Called by every production wiring site after `Config::load()`.
+    pub fn with_config(mut self, config: Arc<agent_config::Config>) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// Register typed Ollama clients per profile alias. Called by the wiring
+    /// code AFTER `build_router` so we retain the typed handle needed for
+    /// `probe_context_window` (which `Arc<dyn ModelClient>` cannot expose).
+    /// Idempotent — calling twice replaces the entries.
+    pub fn with_ollama_clients(
+        mut self,
+        clients: HashMap<String, Arc<agent_models::OllamaClient>>,
+    ) -> Self {
+        self.ollama_clients = clients;
+        self
+    }
+
+    /// Update the in-memory `SessionState` for `session_id` with newly
+    /// resolved model limits. Inserts a default `SessionState` if missing.
+    pub(crate) async fn set_session_limits(
+        &self,
+        session_id: &SessionId,
+        limits: agent_models::ModelLimits,
+    ) {
+        let mut states = self.session_states.lock().await;
+        let entry = states
+            .entry(session_id.to_string())
+            .or_insert_with(crate::session::SessionState::default);
+        entry.model_limits = Some(limits);
+    }
+
+    /// Test-only accessor for the underlying event store. Gated so production
+    /// code can never read it.
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn event_store_for_test(&self) -> &S {
+        &self.store
     }
 
     /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
@@ -154,8 +211,11 @@ where
         self
     }
 
-    pub fn with_context_limit(mut self, max_tokens: usize) -> Self {
-        self.context_assembler = ContextAssembler::new_standalone(max_tokens);
+    /// Legacy builder kept for compatibility. The `max_tokens` argument is
+    /// ignored — Task 8 will replace this with per-session `ContextBudget`
+    /// configuration. Until then call sites can keep passing their old value.
+    pub fn with_context_limit(mut self, _max_tokens: usize) -> Self {
+        self.context_assembler = ContextAssembler::new_standalone();
         self
     }
 
@@ -171,7 +231,7 @@ where
     /// Set the memory store for persistent memory.
     pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
         self.memory_store = Some(store.clone());
-        self.context_assembler = ContextAssembler::new(100_000, store);
+        self.context_assembler = ContextAssembler::new(store);
         self
     }
 
@@ -349,13 +409,56 @@ where
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
-        crate::session::start_session(
+        let model_profile_alias = request.model_profile.clone();
+        let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
             request.workspace_id,
             request.model_profile,
         )
-        .await
+        .await?;
+
+        // Resolve initial limits from config + builtin registry. If the
+        // session uses an Ollama profile and we have a typed client for it,
+        // spawn a bounded probe to refine `context_window` from the live
+        // server.
+        let profile_def = self
+            .config
+            .profiles
+            .iter()
+            .find(|(alias, _)| alias == &model_profile_alias)
+            .map(|(_, def)| def.clone());
+        if let Some(def) = profile_def {
+            let initial_limits = agent_config::resolve_limits(&def);
+            self.set_session_limits(&session_id, initial_limits.clone())
+                .await;
+
+            if def.provider == "ollama" {
+                if let Some(client) = self.ollama_clients.get(&model_profile_alias).cloned() {
+                    let model_id = def.model_id.clone();
+                    let session_id_for_probe = session_id.clone();
+                    let session_states = self.session_states.clone();
+                    tokio::spawn(async move {
+                        let probe = tokio::time::timeout(
+                            std::time::Duration::from_secs(3),
+                            client.probe_context_window(&model_id),
+                        )
+                        .await;
+                        if let Ok(Some(window)) = probe {
+                            let mut states = session_states.lock().await;
+                            if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
+                                if let Some(ref mut l) = entry.model_limits {
+                                    l.context_window = window;
+                                    l.source = agent_models::LimitSource::RuntimeProbe;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        Ok(session_id)
     }
 
     async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
@@ -376,15 +479,19 @@ where
             }
             ExecutionMode::SingleStep => {
                 crate::agent_loop::run_agent_loop(
-                    &self.store,
-                    &self.model,
-                    &self.event_tx,
-                    &self.tool_registry,
-                    &self.permission_engine,
-                    &self.pending_permissions,
-                    &self.memory_store,
-                    &self.task_graphs,
-                    &self.active_cancellation,
+                    crate::agent_loop::AgentLoopDeps {
+                        store: &self.store,
+                        model: &self.model,
+                        event_tx: &self.event_tx,
+                        tool_registry: &self.tool_registry,
+                        permission_engine: &self.permission_engine,
+                        pending_permissions: &self.pending_permissions,
+                        memory_store: &self.memory_store,
+                        task_graphs: &self.task_graphs,
+                        active_cancellation: &self.active_cancellation,
+                        config: &self.config,
+                        session_states: &self.session_states,
+                    },
                     &request,
                 )
                 .await

@@ -103,6 +103,7 @@ name = "agent-memory"
 version = "0.17.0"
 dependencies = [
  "agent-core",
+ "agent-models",
  "async-trait",
  "chrono",
  "regex",
@@ -128,6 +129,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "specta",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
@@ -155,6 +157,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "thiserror 2.0.18",
+ "tiktoken-rs",
  "tokio",
  "tokio-stream",
  "tokio-util",

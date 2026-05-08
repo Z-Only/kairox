@@ -74,15 +74,16 @@ export function applyTraceEvent(event: DomainEvent) {
     case "ContextAssembled": {
       // ContextAssembled events have no unique ID; use a generated one
       // that cannot conflict with real-time events (different format).
+      const sourceLabels = p.usage.by_source.map(([src, n]) => `${src}:${n}`).join(", ");
       pushEntry({
         id: `ctx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         kind: "tool",
         status: "completed",
         toolId: "context",
-        title: `Context assembled (${p.token_estimate} tokens)`,
+        title: `Context assembled (${p.usage.total_tokens} / ${p.usage.budget_tokens} tokens)`,
         startedAt: Date.now(),
         expanded: false,
-        outputPreview: p.sources.join(", "),
+        outputPreview: sourceLabels,
         rawEvent: rawJson(event)
       });
       break;

@@ -25,7 +25,7 @@ path = "src/bin/export_events.rs"
 
 [dependencies]
 agent-core = { path = "../../../crates/agent-core", features = ["specta"] }
-agent-models = { path = "../../../crates/agent-models" }
+agent-models = { path = "../../../crates/agent-models", features = ["specta"] }
 agent-runtime = { path = "../../../crates/agent-runtime" }
 agent-store = { path = "../../../crates/agent-store" }
 agent-config = { path = "../../../crates/agent-config" }

@@ -1,6 +1,7 @@
 pub mod agent_loop;
 pub mod agents;
 pub(crate) mod catalog_sink;
+pub mod context_budget;
 pub mod dag_executor;
 pub mod event_emitter;
 pub mod facade_runtime;

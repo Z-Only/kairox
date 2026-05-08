@@ -181,25 +181,51 @@ pub fn build_model_messages(
     messages
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Bundles every dependency `run_agent_loop` needs. Introduced to avoid a
+/// 12-argument signature once `config` and `session_states` were added in
+/// Task 8.
+pub struct AgentLoopDeps<'a, S, M>
+where
+    S: EventStore + 'static,
+    M: ModelClient + 'static,
+{
+    pub store: &'a Arc<S>,
+    pub model: &'a Arc<M>,
+    pub event_tx: &'a tokio::sync::broadcast::Sender<DomainEvent>,
+    pub tool_registry: &'a Arc<Mutex<ToolRegistry>>,
+    pub permission_engine: &'a Arc<Mutex<PermissionEngine>>,
+    pub pending_permissions:
+        &'a Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pub memory_store: &'a Option<Arc<dyn MemoryStore>>,
+    pub task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
+    pub active_cancellation: &'a Arc<Mutex<Option<CancellationToken>>>,
+    pub config: &'a Arc<agent_config::Config>,
+    pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+}
+
 pub async fn run_agent_loop<S, M>(
-    store: &Arc<S>,
-    model: &Arc<M>,
-    event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
-    tool_registry: &Arc<Mutex<ToolRegistry>>,
-    permission_engine: &Arc<Mutex<PermissionEngine>>,
-    pending_permissions: &Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>,
-    >,
-    memory_store: &Option<Arc<dyn MemoryStore>>,
-    task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
-    active_cancellation: &Arc<Mutex<Option<CancellationToken>>>,
+    deps: AgentLoopDeps<'_, S, M>,
     request: &SendMessageRequest,
 ) -> agent_core::Result<()>
 where
     S: EventStore + 'static,
     M: ModelClient + 'static,
 {
+    // Destructure once so the existing body keeps working with the same
+    // local names (no rename needed).
+    let AgentLoopDeps {
+        store,
+        model,
+        event_tx,
+        tool_registry,
+        permission_engine,
+        pending_permissions,
+        memory_store,
+        task_graphs,
+        active_cancellation,
+        config,
+        session_states,
+    } = deps;
     // Record user message
     let user_event = DomainEvent::new(
         request.workspace_id.clone(),
@@ -219,13 +245,44 @@ where
         .await
         .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
 
-    let messages = build_model_messages(&request.content, &session_events);
+    // Resolve the profile alias from session events (fallback "fake" for legacy).
+    let model_profile_alias: String = session_events
+        .iter()
+        .find_map(|e| match &e.payload {
+            EventPayload::SessionInitialized { model_profile } => Some(model_profile.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "fake".to_string());
 
-    // Inject registered tool definitions into model request
-    let tool_defs = {
+    // Resolve ModelLimits: prefer per-session cached limits (Task 10's probe may
+    // have refined them), otherwise re-resolve from config + registry.
+    let limits = {
+        let states = session_states.lock().await;
+        states
+            .get(&request.session_id.to_string())
+            .and_then(|s| s.model_limits.clone())
+    }
+    .unwrap_or_else(|| {
+        let profile_def = config
+            .profiles
+            .iter()
+            .find(|(alias, _)| alias == &model_profile_alias)
+            .map(|(_, def)| def);
+        match profile_def {
+            Some(def) => agent_config::resolve_limits(def),
+            None => agent_models::lookup_limits("fake", "fake"), // pre-0.7 sessions
+        }
+    });
+
+    let budget = crate::context_budget::build_budget(&limits);
+
+    // Tool definitions: serialised once, consumed both by the assembler (token
+    // accounting) AND by the model adapter (the actual schemas to inject).
+    let tool_defs: Vec<agent_models::ToolDefinition> = {
         let registry = tool_registry.lock().await;
-        let definitions = registry.list_all().await;
-        definitions
+        registry
+            .list_all()
+            .await
             .into_iter()
             .map(|td| agent_models::ToolDefinition {
                 name: td.tool_id,
@@ -234,17 +291,6 @@ where
             })
             .collect()
     };
-
-    // Use the session's model profile to route to the correct model client.
-    // The model profile is recorded in the SessionInitialized event.
-    // Fall back to "fake" for backward compatibility with pre-0.7 sessions.
-    let model_profile = session_events
-        .iter()
-        .find_map(|e| match &e.payload {
-            EventPayload::SessionInitialized { model_profile } => Some(model_profile.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "fake".to_string());
 
     // Retrieve relevant memories from the MemoryStore and inject them
     // into the system prompt so the model can use prior context.
@@ -255,8 +301,82 @@ where
         system_prompt.push_str(&section);
     }
 
+    // History strings — one per narrative event. Tool-call / tool-result
+    // pairing for the actual ModelMessage list happens below in
+    // `build_model_messages_within_budget`; this `session_history` is purely
+    // for the assembler's token accounting and dropping decisions.
+    let session_history: Vec<String> = session_events
+        .iter()
+        .filter_map(|e| match &e.payload {
+            EventPayload::UserMessageAdded { content, .. } => Some(format!("user: {content}")),
+            EventPayload::AssistantMessageCompleted { content, .. } => {
+                Some(format!("assistant: {content}"))
+            }
+            EventPayload::ToolInvocationCompleted {
+                tool_id,
+                output_preview,
+                ..
+            } => Some(format!("tool[{tool_id}]: {output_preview}")),
+            _ => None,
+        })
+        .collect();
+
+    let assembler = agent_memory::ContextAssembler::new_standalone();
+    let bundle = assembler
+        .assemble(
+            agent_memory::ContextRequest {
+                system_prompt: Some(system_prompt.clone()),
+                user_request: request.content.clone(),
+                session_history,
+                tool_definitions: tool_defs.clone(),
+                ..Default::default()
+            },
+            budget.clone(),
+        )
+        .await;
+
+    // Apply per-session UsageCorrector (no-op until Task 10 wires real-usage feedback).
+    let mut usage = bundle.usage.clone();
+    {
+        let mut states = session_states.lock().await;
+        let entry = states
+            .entry(request.session_id.to_string())
+            .or_insert_with(crate::session::SessionState::default);
+        if entry.usage_corrector.samples > 0 {
+            usage.total_tokens = entry.usage_corrector.apply(usage.total_tokens);
+            for (_, n) in &mut usage.by_source {
+                *n = entry.usage_corrector.apply(*n);
+            }
+            usage.corrected_by_real_usage = true;
+        }
+        entry.last_estimated_tokens = usage.total_tokens;
+    }
+
+    // Emit the event so UIs can show usage.
+    let assembled_event = DomainEvent::new(
+        request.workspace_id.clone(),
+        request.session_id.clone(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        EventPayload::ContextAssembled {
+            usage: usage.clone(),
+        },
+    );
+    append_and_broadcast(&**store, event_tx, &assembled_event).await?;
+
+    // Build the actual ModelMessage list. This MUST preserve tool_call /
+    // tool_result id pairing (otherwise Anthropic / OpenAI reject the request),
+    // so we run the existing `build_model_messages` over `session_events` and
+    // then trim the FRONT of the resulting Vec until cumulative tokens fit
+    // budget.input_budget().
+    let messages = build_model_messages_within_budget(
+        &request.content,
+        &session_events,
+        budget.input_budget(),
+    );
+
     let model_request = ModelRequest {
-        model_profile,
+        model_profile: model_profile_alias,
         messages,
         system_prompt: Some(system_prompt),
         tools: tool_defs,
@@ -456,7 +576,21 @@ where
                         arguments,
                     });
                 }
-                Ok(ModelEvent::Completed { .. }) => {
+                Ok(ModelEvent::Completed { usage: real_usage }) => {
+                    // Feed real input-token usage back into the per-session
+                    // UsageCorrector so the next iteration's cl100k_base
+                    // estimate is multiplied by an EMA-smoothed correction
+                    // factor (clamped to [0.7, 1.5]). Anthropic + OpenAI
+                    // populate `usage`; Ollama leaves it None today.
+                    if let Some(u) = real_usage {
+                        let mut states = deps.session_states.lock().await;
+                        if let Some(entry) = states.get_mut(request.session_id.as_str()) {
+                            let estimated = entry.last_estimated_tokens;
+                            if estimated > 0 {
+                                entry.usage_corrector.update(u.input_tokens, estimated);
+                            }
+                        }
+                    }
                     // Always emit AssistantMessageCompleted when the model
                     // finishes, even with empty text (e.g., tool-only response).
                     // The GUI relies on this event to reset the streaming state.
@@ -850,4 +984,130 @@ where
     *active_cancellation.lock().await = None;
 
     Ok(())
+}
+
+/// Builds a `Vec<ModelMessage>` from `session_events` (preserving tool_call /
+/// tool_result id pairing) and trims the FRONT until cumulative input tokens
+/// fit `budget_tokens`. The system prompt + the most-recent user message are
+/// always kept (they're appended last by `build_model_messages`).
+///
+/// Token accounting MUST match what providers actually bill — `ModelMessage`
+/// has three serialised parts: `role`, `content`, and `tool_calls`
+/// (a `Vec<ToolCall>` whose `arguments` is `serde_json::Value`). Tool calls
+/// alone often weigh thousands of tokens for non-trivial payloads, so we
+/// serialise the whole message to JSON and count that. This matches the
+/// estimator used by `ContextAssembler` (cl100k_base on serialised text).
+pub fn build_model_messages_within_budget(
+    user_content: &str,
+    session_events: &[DomainEvent],
+    budget_tokens: u64,
+) -> Vec<agent_models::ModelMessage> {
+    let mut messages = build_model_messages(user_content, session_events);
+
+    let bpe = match tiktoken_rs::cl100k_base() {
+        Ok(bpe) => bpe,
+        Err(_) => return messages, // tokenizer unavailable; emit as-is
+    };
+    let count_message = |m: &agent_models::ModelMessage| -> u64 {
+        // Use compact JSON to mirror what the OpenAI/Anthropic adapters
+        // ultimately serialise. Failures fall back to content-only count.
+        match serde_json::to_string(m) {
+            Ok(s) => bpe.encode_with_special_tokens(&s).len() as u64,
+            Err(_) => bpe.encode_with_special_tokens(&m.content).len() as u64,
+        }
+    };
+
+    // Always keep the trailing user message (the active turn). Trim from the
+    // FRONT, but NEVER drop a `tool` role message without also dropping the
+    // matching assistant `tool_calls` message that precedes it — otherwise
+    // OpenAI / Anthropic reject the request with "tool_call_id has no
+    // matching assistant tool_calls".
+    let mut total: u64 = messages.iter().map(&count_message).sum();
+    while total > budget_tokens && messages.len() > 1 {
+        let front = messages.first().unwrap();
+        if front.role == "tool" {
+            // No matching assistant left at the front — safe to drop alone.
+            total = total.saturating_sub(count_message(front));
+            messages.remove(0);
+            continue;
+        }
+        if front.role == "assistant" && !front.tool_calls.is_empty() {
+            // Drop the assistant AND every tool message immediately following it
+            // (the matching `tool_call_id` results) in one atomic step.
+            total = total.saturating_sub(count_message(front));
+            messages.remove(0);
+            while !messages.is_empty() && messages[0].role == "tool" {
+                total = total.saturating_sub(count_message(&messages[0]));
+                messages.remove(0);
+            }
+            continue;
+        }
+        // Plain user/assistant text — drop one.
+        total = total.saturating_sub(count_message(front));
+        messages.remove(0);
+    }
+    messages
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_core::{AgentId, PrivacyClassification, SessionId, WorkspaceId};
+
+    fn make_event(payload: EventPayload) -> DomainEvent {
+        DomainEvent::new(
+            WorkspaceId::new(),
+            SessionId::new(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+    }
+
+    #[test]
+    fn within_budget_keeps_tail_user_and_pairs_tool_calls() {
+        // Build 3 plain user/assistant pairs, each padded so cumulative tokens
+        // exceed the 100-token budget and the trimmer must drop from the front.
+        let mut events = Vec::new();
+        for i in 0..3 {
+            events.push(make_event(EventPayload::UserMessageAdded {
+                message_id: format!("u{i}"),
+                content: format!("user turn {i} ").repeat(20),
+            }));
+            events.push(make_event(EventPayload::AssistantMessageCompleted {
+                message_id: format!("a{i}"),
+                content: format!("assistant turn {i} ").repeat(20),
+            }));
+        }
+
+        let trimmed = build_model_messages_within_budget("latest", &events, 100);
+
+        // (a) total token count <= 100
+        let bpe = tiktoken_rs::cl100k_base().unwrap();
+        let total: usize = trimmed
+            .iter()
+            .map(|m| {
+                bpe.encode_with_special_tokens(&serde_json::to_string(m).unwrap())
+                    .len()
+            })
+            .sum();
+        assert!(total <= 100, "trimmed total {} exceeded budget 100", total);
+
+        // (b) trailing user message is the active turn
+        assert_eq!(trimmed.last().map(|m| m.role.as_str()), Some("user"));
+        assert_eq!(trimmed.last().map(|m| m.content.as_str()), Some("latest"));
+
+        // (c) every `tool` role message has a preceding assistant with non-empty tool_calls
+        for (i, m) in trimmed.iter().enumerate() {
+            if m.role == "tool" {
+                assert!(i > 0, "tool message at index 0 is unpaired");
+                let prev = &trimmed[i - 1];
+                assert!(
+                    prev.role == "assistant" && !prev.tool_calls.is_empty(),
+                    "tool message at {} not preceded by assistant with tool_calls",
+                    i
+                );
+            }
+        }
+    }
 }

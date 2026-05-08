@@ -4,7 +4,7 @@ pub mod marker;
 pub mod memory;
 pub mod store;
 
-pub use context::{ContextAssembler, ContextBundle, ContextRequest};
+pub use context::{ContextAssembler, ContextBudget, ContextBundle, ContextRequest, ContextSource};
 pub use extractor::extract_keywords;
 pub use marker::{extract_memory_markers, strip_memory_markers, MemoryMarker};
 pub use memory::{durable_memory_requires_confirmation, MemoryDecision, MemoryEntry, MemoryScope};

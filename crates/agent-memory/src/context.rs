@@ -4,15 +4,7 @@ use crate::store::{MemoryQuery, MemoryStore};
 use std::sync::Arc;
 use tiktoken_rs::CoreBPE;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ContextSource {
-    System,
-    Request,
-    Memory,
-    History,
-    ToolResult,
-    SelectedFile,
-}
+pub use agent_core::{ContextSource, ContextUsage};
 
 #[derive(Debug, Clone, Default)]
 pub struct ContextRequest {
@@ -25,72 +17,92 @@ pub struct ContextRequest {
     pub active_task: Option<String>,
     pub session_id: Option<String>,
     pub workspace_id: Option<String>,
+    /// MCP + built-in tool schemas to be injected into the model request.
+    /// They're serialised once and counted as a single ToolDefinitions section.
+    pub tool_definitions: Vec<agent_models::ToolDefinition>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextBudget {
+    /// Total context window of the active model (e.g. 200_000 for Sonnet 4).
+    pub context_window: u64,
+    /// Tokens reserved for the upcoming completion. Effective input budget
+    /// is `context_window - output_reservation`.
+    pub output_reservation: u64,
+    /// Optional per-source soft caps (applied before the global drop pass).
+    pub source_caps: Vec<(ContextSource, u64)>,
+}
+
+impl ContextBudget {
+    pub fn input_budget(&self) -> u64 {
+        self.context_window.saturating_sub(self.output_reservation)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ContextBundle {
     pub messages: Vec<String>,
-    pub token_count: usize,
     pub sources: Vec<ContextSource>,
     pub truncated: bool,
+    pub usage: ContextUsage,
 }
 
 pub struct ContextAssembler {
-    max_tokens: usize,
     memory_store: Option<Arc<dyn MemoryStore>>,
     tokenizer: CoreBPE,
 }
 
 impl ContextAssembler {
-    pub fn new(max_tokens: usize, memory_store: Arc<dyn MemoryStore>) -> Self {
+    pub fn new(memory_store: Arc<dyn MemoryStore>) -> Self {
         Self {
-            max_tokens,
             memory_store: Some(memory_store),
-            tokenizer: tiktoken_rs::cl100k_base().unwrap(),
+            tokenizer: tiktoken_rs::cl100k_base().expect("cl100k_base bundled with tiktoken-rs"),
         }
     }
 
     /// Create a standalone assembler without a memory store.
     /// Used by TUI where memory integration is deferred.
     /// Memories passed in ContextRequest will still be included.
-    pub fn new_standalone(max_tokens: usize) -> Self {
+    pub fn new_standalone() -> Self {
         Self {
-            max_tokens,
             memory_store: None,
-            tokenizer: tiktoken_rs::cl100k_base().unwrap(),
+            tokenizer: tiktoken_rs::cl100k_base().expect("cl100k_base bundled with tiktoken-rs"),
         }
     }
 
-    pub async fn assemble(&self, request: ContextRequest) -> ContextBundle {
-        let mut sections: Vec<(ContextSource, String, usize)> = Vec::new();
+    pub async fn assemble(&self, request: ContextRequest, budget: ContextBudget) -> ContextBundle {
+        let mut sections: Vec<(ContextSource, String, u64)> = Vec::new();
 
         // P0: System prompt (never dropped)
         if let Some(sp) = &request.system_prompt {
-            let tokens = self.count_tokens(sp);
-            sections.push((ContextSource::System, sp.clone(), tokens));
+            let n = self.count_tokens(sp);
+            sections.push((ContextSource::System, sp.clone(), n));
         }
 
-        // P1: User request (dropped last)
+        // P0.5: Tool definitions — bundle as one JSON block (so the model adapter
+        // can recover the structured array). Counted once.
+        if !request.tool_definitions.is_empty() {
+            let payload = serde_json::to_string(&request.tool_definitions)
+                .unwrap_or_else(|_| String::from("[]"));
+            let n = self.count_tokens(&payload);
+            sections.push((ContextSource::ToolDefinitions, payload, n));
+        }
+
+        // P1: User request (dropped second-to-last)
         let request_text = format!("User request: {}", request.user_request);
-        sections.push((
-            ContextSource::Request,
-            request_text.clone(),
-            self.count_tokens(&request_text),
-        ));
+        let n = self.count_tokens(&request_text);
+        sections.push((ContextSource::Request, request_text, n));
 
         // Active task (part of history priority)
         if let Some(task) = &request.active_task {
             let text = format!("Active task: {task}");
-            sections.push((
-                ContextSource::History,
-                text.clone(),
-                self.count_tokens(&text),
-            ));
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::History, text, n));
         }
 
         // P2: Memories — query store if available, otherwise use provided
         let memories = if request.memories.is_empty() {
-            if let Some(ref store) = self.memory_store {
+            if let Some(store) = &self.memory_store {
                 let keywords = extract_keywords(&request.user_request);
                 store
                     .query(MemoryQuery {
@@ -108,84 +120,110 @@ impl ContextAssembler {
         } else {
             request.memories.clone()
         };
-
-        for mem in &memories {
-            if mem.accepted {
-                let text = format!("Memory: {}", mem.content);
-                sections.push((
-                    ContextSource::Memory,
-                    text.clone(),
-                    self.count_tokens(&text),
-                ));
-            }
+        for mem in memories.iter().filter(|m| m.accepted) {
+            let text = format!("Memory: {}", mem.content);
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::Memory, text, n));
         }
 
         // P3: Session history
         for h in &request.session_history {
             let text = format!("History: {h}");
-            sections.push((
-                ContextSource::History,
-                text.clone(),
-                self.count_tokens(&text),
-            ));
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::History, text, n));
         }
 
         // P4: Tool results
         for tr in &request.tool_results {
             let text = format!("Tool result: {tr}");
-            sections.push((
-                ContextSource::ToolResult,
-                text.clone(),
-                self.count_tokens(&text),
-            ));
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::ToolResult, text, n));
         }
 
         // P5: Selected files (dropped first)
         for sf in &request.selected_files {
             let text = format!("Selected file: {sf}");
-            sections.push((
-                ContextSource::SelectedFile,
-                text.clone(),
-                self.count_tokens(&text),
-            ));
+            let n = self.count_tokens(&text);
+            sections.push((ContextSource::SelectedFile, text, n));
         }
 
-        // Truncate from lowest priority
-        let mut total_tokens: usize = sections.iter().map(|(_, _, t)| *t).sum();
+        // Pass 1: per-source caps (drop LIFO inside the capped category).
         let mut truncated = false;
-
-        while total_tokens > self.max_tokens {
-            if let Some(idx) = find_lowest_priority_drop(&sections) {
-                total_tokens -= sections[idx].2;
-                sections.remove(idx);
-                truncated = true;
-            } else {
-                break;
+        for (capped_src, cap) in &budget.source_caps {
+            loop {
+                let total: u64 = sections
+                    .iter()
+                    .filter(|(s, _, _)| s == capped_src)
+                    .map(|(_, _, n)| *n)
+                    .sum();
+                if total <= *cap {
+                    break;
+                }
+                // Drop the LAST occurrence of this source (LIFO).
+                if let Some(idx) = sections.iter().rposition(|(s, _, _)| s == capped_src) {
+                    sections.remove(idx);
+                    truncated = true;
+                } else {
+                    break;
+                }
             }
         }
 
+        // Pass 2: global budget — drop lowest-priority section repeatedly.
+        let input_budget = budget.input_budget();
+        let mut total: u64 = sections.iter().map(|(_, _, n)| *n).sum();
+        while total > input_budget {
+            let Some(idx) = find_lowest_priority_drop(&sections) else {
+                break;
+            };
+            total -= sections[idx].2;
+            sections.remove(idx);
+            truncated = true;
+        }
+
+        // Build per-source breakdown for ContextUsage.
+        let mut by_source: Vec<(ContextSource, u64)> = Vec::new();
+        for (src, _, n) in &sections {
+            if let Some(entry) = by_source.iter_mut().find(|(s, _)| s == src) {
+                entry.1 += n;
+            } else {
+                by_source.push((*src, *n));
+            }
+        }
+
+        let usage = ContextUsage {
+            total_tokens: total,
+            budget_tokens: input_budget,
+            context_window: budget.context_window,
+            output_reservation: budget.output_reservation,
+            by_source,
+            estimator: "cl100k_base".to_string(),
+            corrected_by_real_usage: false,
+        };
+
         ContextBundle {
             messages: sections.iter().map(|(_, s, _)| s.clone()).collect(),
-            token_count: total_tokens,
-            sources: sections.iter().map(|(src, _, _)| src.clone()).collect(),
+            sources: sections.iter().map(|(src, _, _)| *src).collect(),
             truncated,
+            usage,
         }
     }
 
-    fn count_tokens(&self, text: &str) -> usize {
-        self.tokenizer.encode_with_special_tokens(text).len()
+    fn count_tokens(&self, text: &str) -> u64 {
+        self.tokenizer.encode_with_special_tokens(text).len() as u64
     }
 }
 
 /// Find the index of the lowest-priority section that can be dropped.
-/// Priority (highest first): System, Request, Memory, History, ToolResult, SelectedFile
-/// System and Request are never dropped.
-fn find_lowest_priority_drop(sections: &[(ContextSource, String, usize)]) -> Option<usize> {
+/// Priority (highest first): System, Request, ToolDefinitions, Memory, History, ToolResult, SelectedFile.
+/// System and Request are never dropped (and ToolDefinitions only as a last resort).
+fn find_lowest_priority_drop(sections: &[(ContextSource, String, u64)]) -> Option<usize> {
     let drop_order = [
         ContextSource::SelectedFile,
         ContextSource::ToolResult,
         ContextSource::History,
         ContextSource::Memory,
+        ContextSource::ToolDefinitions, // last resort: drop tool defs before failing
     ];
     for category in &drop_order {
         for (i, (src, _, _)) in sections.iter().enumerate() {
@@ -211,27 +249,38 @@ mod tests {
             .await
             .unwrap();
         let store = Arc::new(SqliteMemoryStore::new(pool).await.unwrap()) as Arc<dyn MemoryStore>;
-        let assembler = ContextAssembler::new(500, store.clone());
+        let assembler = ContextAssembler::new(store.clone());
         (assembler, store)
+    }
+
+    fn test_budget(window: u64, output: u64) -> ContextBudget {
+        ContextBudget {
+            context_window: window,
+            output_reservation: output,
+            source_caps: vec![],
+        }
     }
 
     #[tokio::test]
     async fn assembles_request_with_standalone_assembler() {
-        let assembler = ContextAssembler::new_standalone(100);
+        let assembler = ContextAssembler::new_standalone();
         let bundle = assembler
-            .assemble(ContextRequest {
-                user_request: "fix tests".into(),
-                session_history: vec!["previous answer".into()],
-                selected_files: vec![],
-                tool_results: vec![],
-                memories: vec![],
-                active_task: None,
-                ..Default::default()
-            })
+            .assemble(
+                ContextRequest {
+                    user_request: "fix tests".into(),
+                    session_history: vec!["previous answer".into()],
+                    selected_files: vec![],
+                    tool_results: vec![],
+                    memories: vec![],
+                    active_task: None,
+                    ..Default::default()
+                },
+                test_budget(200, 100),
+            )
             .await;
 
         assert!(bundle.messages.join("\n").contains("fix tests"));
-        assert!(bundle.token_count <= 100);
+        assert!(bundle.usage.total_tokens <= bundle.usage.budget_tokens);
     }
 
     #[tokio::test]
@@ -247,10 +296,13 @@ mod tests {
             .unwrap();
 
         let bundle = assembler
-            .assemble(ContextRequest {
-                user_request: "nextest config".into(),
-                ..Default::default()
-            })
+            .assemble(
+                ContextRequest {
+                    user_request: "nextest config".into(),
+                    ..Default::default()
+                },
+                test_budget(600, 100),
+            )
             .await;
 
         assert!(bundle.messages.join("\n").contains("Use cargo nextest"));
@@ -258,18 +310,21 @@ mod tests {
 
     #[tokio::test]
     async fn truncates_lowest_priority_first() {
-        let assembler = ContextAssembler::new_standalone(50);
+        let assembler = ContextAssembler::new_standalone();
         let long_files: Vec<String> = (0..20)
             .map(|i| format!("file_content_{i}_with_a_long_name"))
             .collect();
 
         let bundle = assembler
-            .assemble(ContextRequest {
-                system_prompt: Some("System".into()),
-                user_request: "request".into(),
-                selected_files: long_files,
-                ..Default::default()
-            })
+            .assemble(
+                ContextRequest {
+                    system_prompt: Some("System".into()),
+                    user_request: "request".into(),
+                    selected_files: long_files,
+                    ..Default::default()
+                },
+                test_budget(100, 50),
+            )
             .await;
 
         // System and request should survive
@@ -279,16 +334,39 @@ mod tests {
 
     #[tokio::test]
     async fn never_drops_system_or_request() {
-        let assembler = ContextAssembler::new_standalone(20);
+        let assembler = ContextAssembler::new_standalone();
         let bundle = assembler
-            .assemble(ContextRequest {
-                system_prompt: Some("Important system prompt".into()),
-                user_request: "User query here".into(),
-                ..Default::default()
-            })
+            .assemble(
+                ContextRequest {
+                    system_prompt: Some("Important system prompt".into()),
+                    user_request: "User query here".into(),
+                    ..Default::default()
+                },
+                test_budget(100, 80),
+            )
             .await;
 
         let combined = bundle.messages.join("\n");
         assert!(combined.contains("Important system prompt") || combined.contains("User query"));
+    }
+
+    #[test]
+    fn input_budget_subtracts_output_reservation() {
+        let budget = ContextBudget {
+            context_window: 200_000,
+            output_reservation: 12_000,
+            source_caps: vec![],
+        };
+        assert_eq!(budget.input_budget(), 188_000);
+    }
+
+    #[test]
+    fn input_budget_saturates_at_zero_when_reservation_exceeds_window() {
+        let budget = ContextBudget {
+            context_window: 8_000,
+            output_reservation: 12_000,
+            source_caps: vec![],
+        };
+        assert_eq!(budget.input_budget(), 0);
     }
 }

@@ -56,6 +56,42 @@ impl OllamaClient {
         Self { config, http }
     }
 
+    /// Best-effort discovery of a model's native context window.
+    ///
+    /// POSTs to `/api/show` and reads `model_info.<arch>.context_length`.
+    /// Returns `None` on any transport, parse, or "missing field" error
+    /// so callers can fall back to the built-in registry / static default.
+    ///
+    /// 3-second hard timeout — never blocks a session for long.
+    pub async fn probe_context_window(&self, model_id: &str) -> Option<u64> {
+        let url = format!("{}/api/show", self.config.base_url.trim_end_matches('/'));
+        let body = serde_json::json!({ "name": model_id });
+
+        let resp = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            self.http.post(&url).json(&body).send(),
+        )
+        .await
+        .ok()?
+        .ok()?;
+
+        if !resp.status().is_success() {
+            return None;
+        }
+
+        let value: serde_json::Value = resp.json().await.ok()?;
+        let model_info = value.get("model_info")?.as_object()?;
+
+        for (key, val) in model_info {
+            if key.ends_with(".context_length") {
+                if let Some(n) = val.as_u64() {
+                    return Some(n);
+                }
+            }
+        }
+        None
+    }
+
     fn build_chat_request(&self, request: &ModelRequest) -> serde_json::Value {
         let mut messages = Vec::new();
         if let Some(ref system_prompt) = request.system_prompt {
@@ -230,5 +266,81 @@ mod tests {
         assert!(events
             .iter()
             .any(|e| matches!(e, ModelEvent::Completed { .. })));
+    }
+
+    #[tokio::test]
+    async fn probe_context_window_reads_context_length_from_show_endpoint() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let body = serde_json::json!({
+            "model_info": {
+                "general.architecture": "llama",
+                "llama.context_length": 8192_u64
+            }
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/api/show"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&mock_server)
+            .await;
+
+        let client = OllamaClient::new(OllamaConfig {
+            base_url: mock_server.uri(),
+            default_model: "llama3:8b".into(),
+            context_window: 0,
+        });
+
+        assert_eq!(client.probe_context_window("llama3:8b").await, Some(8192));
+    }
+
+    #[tokio::test]
+    async fn probe_context_window_returns_none_on_http_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/show"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&mock_server)
+            .await;
+
+        let client = OllamaClient::new(OllamaConfig {
+            base_url: mock_server.uri(),
+            default_model: "missing".into(),
+            context_window: 0,
+        });
+
+        assert!(client.probe_context_window("missing").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn probe_context_window_handles_unknown_architecture() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let body = serde_json::json!({
+            "model_info": {
+                "general.architecture": "qwen",
+                "qwen.context_length": 32768_u64
+            }
+        });
+        Mock::given(method("POST"))
+            .and(path("/api/show"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&mock_server)
+            .await;
+
+        let client = OllamaClient::new(OllamaConfig {
+            base_url: mock_server.uri(),
+            default_model: "qwen2:7b".into(),
+            context_window: 0,
+        });
+
+        assert_eq!(client.probe_context_window("qwen2:7b").await, Some(32768));
     }
 }

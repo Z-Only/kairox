@@ -1,5 +1,6 @@
 pub mod account;
 pub mod build_info;
+pub mod context_types;
 pub mod error;
 pub mod events;
 pub mod facade;
@@ -11,6 +12,7 @@ pub mod task_types;
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
 pub use account::{AccountService, AccountState, LocalNoAccountService};
+pub use context_types::{ContextSource, ContextUsage};
 pub use error::CoreError;
 pub use events::{DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
