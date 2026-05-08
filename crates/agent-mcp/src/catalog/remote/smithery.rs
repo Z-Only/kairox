@@ -612,7 +612,7 @@ mod tests {
             RemoteSourceConfig {
                 id: "smithery".into(),
                 display_name: "Smithery".into(),
-                kind: RemoteSourceKind::Smithery,
+                kind: RemoteSourceKind::McpRegistry,
                 url: server.uri(),
                 api_key_env: None,
                 priority: 50,

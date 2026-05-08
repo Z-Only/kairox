@@ -208,7 +208,7 @@ mod tests {
         RemoteSourceConfig {
             id: "kx".into(),
             display_name: "kx".into(),
-            kind: RemoteSourceKind::KairoxJson,
+            kind: RemoteSourceKind::McpRegistry,
             url: url.to_string(),
             api_key_env: None,
             priority: 100,

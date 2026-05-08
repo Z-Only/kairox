@@ -161,7 +161,6 @@ fn write_sources_to_doc(doc: &mut toml_edit::DocumentMut, sources: &[CatalogSour
         t["id"] = value(s.id.as_str());
         t["display_name"] = value(s.display_name.as_str());
         t["kind"] = value(match s.kind {
-            CatalogSourceKind::KairoxJson => "kairox_json",
             CatalogSourceKind::McpRegistry => "mcp_registry",
         });
         t["url"] = value(s.url.as_str());
@@ -214,10 +213,10 @@ mod tests {
     fn add_then_read_round_trips() {
         let tmp = tempfile::tempdir().unwrap();
         let mt = MarketplaceToml::new(tmp.path());
-        mt.add_source(sample_source("smithery")).unwrap();
+        mt.add_source(sample_source("mcp-registry")).unwrap();
         let got = mt.read_sources().unwrap();
         assert_eq!(got.len(), 1);
-        assert_eq!(got[0].id, "smithery");
+        assert_eq!(got[0].id, "mcp-registry");
         assert_eq!(got[0].priority, 100);
     }
 

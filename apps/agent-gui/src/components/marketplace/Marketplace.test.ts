@@ -101,10 +101,10 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     });
   }
 
-  const smitherySource = {
-    id: "smithery",
-    display_name: "Smithery",
-    kind: "smithery",
+  const mcpRegistrySource = {
+    id: "mcp-registry",
+    display_name: "Model Context Protocol Servers",
+    kind: "mcp_registry",
     url: "https://x",
     api_key_env: null,
     priority: 50,
@@ -116,7 +116,7 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
 
   it("renders a chip per configured source plus a builtin chip", async () => {
     mockInvokeByCommand({
-      list_catalog_sources: [smitherySource],
+      list_catalog_sources: [mcpRegistrySource],
       list_catalog: [],
       list_installed_entries: []
     });
@@ -125,34 +125,34 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     const chips = wrapper.findAll('[data-test^="source-chip-"]');
     expect(chips.length).toBe(2);
     expect(wrapper.text()).toContain("Built-in");
-    expect(wrapper.text()).toContain("Smithery");
+    expect(wrapper.text()).toContain("Model Context Protocol Servers");
   });
 
   it("shows ⚠ badge when CatalogSourceFailed observed", async () => {
     mockInvokeByCommand({
-      list_catalog_sources: [smitherySource],
+      list_catalog_sources: [mcpRegistrySource],
       list_catalog: [],
       list_installed_entries: []
     });
     const wrapper = mountMarketplace();
     await flushPromises();
-    useCatalogStore().handleSourceFailed("smithery", "timeout");
+    useCatalogStore().handleSourceFailed("mcp-registry", "timeout");
     await wrapper.vm.$nextTick();
-    expect(wrapper.find('[data-test="src-warn-smithery"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="src-warn-mcp-registry"]').exists()).toBe(true);
   });
 
   it("deselecting a chip disables the source and filters its entries", async () => {
-    // builtin starts enabled; smithery also enabled=true in the fixture.
+    // builtin starts enabled; mcp-registry also enabled=true in the fixture.
     // Clicking builtin calls setSourceEnabled("builtin", false) which is a
     // no-op on the Rust side, but the store's isSourceEnabled() already
     // reflects the source.enabled flag from the fetchSources response.
     // To simulate the toggle we directly mutate the source state as the
     // Rust side would after a successful set_catalog_source_enabled call.
     mockInvokeByCommand({
-      list_catalog_sources: [smitherySource],
+      list_catalog_sources: [mcpRegistrySource],
       list_catalog: [
         fixtureEntry({ id: "a", source: "builtin", display_name: "A-entry" }),
-        fixtureEntry({ id: "b", source: "smithery", display_name: "B-entry" })
+        fixtureEntry({ id: "b", source: "mcp-registry", display_name: "B-entry" })
       ],
       list_installed_entries: []
     });
@@ -161,11 +161,11 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
     expect(wrapper.text()).toContain("A-entry");
     expect(wrapper.text()).toContain("B-entry");
 
-    // Simulate set_catalog_source_enabled("smithery", false) + fetchSources
+    // Simulate set_catalog_source_enabled("mcp-registry", false) + fetchSources
     const store = useCatalogStore();
     store.sources = [
       {
-        ...smitherySource,
+        ...mcpRegistrySource,
         enabled: false
       }
     ];

@@ -163,10 +163,10 @@ describe("catalog store", () => {
 });
 
 const sampleSource = {
-  id: "smithery",
-  display_name: "Smithery",
-  kind: "smithery",
-  url: "https://registry.smithery.ai",
+  id: "mcp-registry",
+  display_name: "Model Context Protocol Servers",
+  kind: "mcp_registry",
+  url: "https://registry.modelcontextprotocol.io",
   api_key_env: null,
   priority: 50,
   default_trust: "community",
@@ -188,7 +188,7 @@ describe("catalog store — Phase 2 sources", () => {
     await catalog.fetchSources();
     expect(mockedInvoke).toHaveBeenCalledWith("list_catalog_sources");
     expect(catalog.sources).toHaveLength(1);
-    expect(catalog.sources[0].id).toBe("smithery");
+    expect(catalog.sources[0].id).toBe("mcp-registry");
   });
 
   it("addSource calls add_catalog_source then re-fetches", async () => {
@@ -197,10 +197,10 @@ describe("catalog store — Phase 2 sources", () => {
       .mockResolvedValueOnce(undefined as never)
       .mockResolvedValueOnce([sampleSource] as never);
     await catalog.addSource({
-      id: "smithery",
-      display_name: "Smithery",
-      kind: "smithery",
-      url: "https://registry.smithery.ai",
+      id: "mcp-registry",
+      display_name: "Model Context Protocol Servers",
+      kind: "mcp_registry",
+      url: "https://registry.modelcontextprotocol.io",
       api_key_env: null,
       priority: 50,
       default_trust: "community",
@@ -208,7 +208,7 @@ describe("catalog store — Phase 2 sources", () => {
       cache_ttl_seconds: null
     });
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "add_catalog_source", {
-      request: expect.objectContaining({ id: "smithery" })
+      request: expect.objectContaining({ id: "mcp-registry" })
     });
     expect(mockedInvoke).toHaveBeenNthCalledWith(2, "list_catalog_sources");
     expect(catalog.sources).toHaveLength(1);
@@ -218,9 +218,9 @@ describe("catalog store — Phase 2 sources", () => {
     const catalog = useCatalogStore();
     catalog.sources = [sampleSource];
     mockedInvoke.mockResolvedValueOnce(undefined as never).mockResolvedValueOnce([] as never);
-    await catalog.removeSource("smithery");
+    await catalog.removeSource("mcp-registry");
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "remove_catalog_source", {
-      id: "smithery"
+      id: "mcp-registry"
     });
     expect(catalog.sources).toHaveLength(0);
   });
@@ -231,9 +231,9 @@ describe("catalog store — Phase 2 sources", () => {
     mockedInvoke
       .mockResolvedValueOnce(undefined as never)
       .mockResolvedValueOnce([{ ...sampleSource, enabled: false }] as never);
-    await catalog.setSourceEnabled("smithery", false);
+    await catalog.setSourceEnabled("mcp-registry", false);
     expect(mockedInvoke).toHaveBeenNthCalledWith(1, "set_catalog_source_enabled", {
-      id: "smithery",
+      id: "mcp-registry",
       enabled: false
     });
     expect(catalog.sources[0].enabled).toBe(false);
@@ -241,7 +241,7 @@ describe("catalog store — Phase 2 sources", () => {
 
   it("handleSourceFailed records sourceFailures keyed by source id", () => {
     const catalog = useCatalogStore();
-    catalog.handleSourceFailed("smithery", "timeout");
-    expect(catalog.sourceFailures.smithery).toBe("timeout");
+    catalog.handleSourceFailed("mcp-registry", "timeout");
+    expect(catalog.sourceFailures["mcp-registry"]).toBe("timeout");
   });
 });

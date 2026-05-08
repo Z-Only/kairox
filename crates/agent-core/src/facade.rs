@@ -108,7 +108,7 @@ pub struct InstalledEntry {
 pub struct CatalogSourceView {
     pub id: String,
     pub display_name: String,
-    /// Lower-case kind discriminator: "builtin" | "kairox_json" | "smithery".
+    /// Lower-case kind discriminator: "builtin" | "mcp_registry".
     pub kind: String,
     /// Empty for the builtin source.
     pub url: String,
@@ -130,7 +130,7 @@ pub struct CatalogSourceView {
 pub struct AddCatalogSourceRequest {
     pub id: String,
     pub display_name: String,
-    /// "kairox_json" | "smithery"
+    /// "mcp_registry"
     pub kind: String,
     pub url: String,
     pub api_key_env: Option<String>,

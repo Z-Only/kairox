@@ -3,7 +3,7 @@
 //! This module is gated behind the `remote-catalog` cargo feature. It defines
 //! the configuration types ([`RemoteSourceConfig`], [`RemoteSourceKind`]) and
 //! error type ([`RemoteError`]) shared by all remote provider implementations
-//! (Kairox JSON, Smithery, …).
+//! (Kairox JSON, MCP Registry).
 
 use crate::catalog::{CatalogError, TrustLevel};
 use serde::{Deserialize, Serialize};
@@ -16,9 +16,7 @@ pub mod smithery;
 
 pub use http_cache::HttpResponseCache;
 pub use http_client::SharedHttpClient;
-pub use kairox_json::KairoxJsonProvider;
 pub use mcp_registry::McpRegistryProvider;
-pub use smithery::SmitheryProvider;
 
 use crate::catalog::CatalogProvider;
 use std::sync::Arc;
@@ -32,9 +30,7 @@ pub fn build_provider(
     cache: Arc<HttpResponseCache>,
 ) -> Arc<dyn CatalogProvider> {
     match cfg.kind {
-        RemoteSourceKind::KairoxJson => Arc::new(KairoxJsonProvider::new(cfg, http, cache)),
         RemoteSourceKind::McpRegistry => Arc::new(McpRegistryProvider::new(cfg, http, cache)),
-        RemoteSourceKind::Smithery => Arc::new(SmitheryProvider::new(cfg, http, cache)),
     }
 }
 
@@ -49,22 +45,6 @@ mod build_tests {
         let cache = Arc::new(HttpResponseCache::new(
             std::env::temp_dir().join("kairox-test-cache"),
         ));
-        let kj = build_provider(
-            RemoteSourceConfig {
-                id: "k".into(),
-                display_name: "k".into(),
-                kind: RemoteSourceKind::KairoxJson,
-                url: "https://x/c.json".into(),
-                api_key_env: None,
-                priority: 100,
-                default_trust: TrustLevel::Community,
-                enabled: true,
-                cache_ttl_seconds: None,
-            },
-            http.clone(),
-            cache.clone(),
-        );
-        assert_eq!(kj.source_id(), "k");
         let mcp = build_provider(
             RemoteSourceConfig {
                 id: "m".into(),
@@ -77,26 +57,10 @@ mod build_tests {
                 enabled: true,
                 cache_ttl_seconds: None,
             },
-            http.clone(),
-            cache.clone(),
-        );
-        assert_eq!(mcp.source_id(), "m");
-        let sm = build_provider(
-            RemoteSourceConfig {
-                id: "s".into(),
-                display_name: "s".into(),
-                kind: RemoteSourceKind::Smithery,
-                url: "https://reg".into(),
-                api_key_env: None,
-                priority: 100,
-                default_trust: TrustLevel::Community,
-                enabled: true,
-                cache_ttl_seconds: None,
-            },
             http,
             cache,
         );
-        assert_eq!(sm.source_id(), "s");
+        assert_eq!(mcp.source_id(), "m");
     }
 }
 
@@ -104,13 +68,8 @@ mod build_tests {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RemoteSourceKind {
-    /// A `kairox_json` catalog: a single JSON document hosted at `url`,
-    /// matching our internal `ServerEntry` schema (schema_version="1").
-    KairoxJson,
     /// The official MCP Registry (`https://registry.modelcontextprotocol.io`).
     McpRegistry,
-    /// A Smithery Registry endpoint (`https://registry.smithery.ai`).
-    Smithery,
 }
 
 /// A single remote catalog source as configured by the user.
@@ -126,8 +85,7 @@ pub struct RemoteSourceConfig {
     pub display_name: String,
     /// Adapter kind.
     pub kind: RemoteSourceKind,
-    /// Base URL. For KairoxJson this is the document URL; for Smithery this
-    /// is the registry root (we append `/servers`).
+    /// Base URL. For McpRegistry this is the registry root URL.
     pub url: String,
     /// If set, the value of this environment variable is sent as a
     /// `Bearer` token in the `Authorization` header.
@@ -169,23 +127,11 @@ mod tests {
 
     #[test]
     fn remote_source_kind_serde_round_trip() {
-        let k1 = RemoteSourceKind::KairoxJson;
+        let k1 = RemoteSourceKind::McpRegistry;
         let s = serde_json::to_string(&k1).unwrap();
-        assert_eq!(s, "\"kairox_json\"");
-        let back: RemoteSourceKind = serde_json::from_str(&s).unwrap();
-        assert_eq!(back, k1);
-
-        let k2 = RemoteSourceKind::McpRegistry;
-        let s = serde_json::to_string(&k2).unwrap();
         assert_eq!(s, "\"mcp_registry\"");
         let back: RemoteSourceKind = serde_json::from_str(&s).unwrap();
-        assert_eq!(back, k2);
-
-        let k3 = RemoteSourceKind::Smithery;
-        let s = serde_json::to_string(&k3).unwrap();
-        assert_eq!(s, "\"smithery\"");
-        let back: RemoteSourceKind = serde_json::from_str(&s).unwrap();
-        assert_eq!(back, k3);
+        assert_eq!(back, k1);
     }
 
     #[test]

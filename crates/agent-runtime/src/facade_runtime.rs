@@ -319,7 +319,6 @@ where
                 id: s.id.clone(),
                 display_name: s.display_name.clone(),
                 kind: match s.kind {
-                    agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
                     agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
                 },
                 url: s.url.clone(),
@@ -901,7 +900,6 @@ fn catalog_source_to_view(s: agent_config::CatalogSourceConfig) -> CatalogSource
         id: s.id,
         display_name: s.display_name,
         kind: match s.kind {
-            agent_config::CatalogSourceKind::KairoxJson => "kairox_json".into(),
             agent_config::CatalogSourceKind::McpRegistry => "mcp_registry".into(),
         },
         url: s.url,
@@ -918,7 +916,6 @@ fn request_to_source_config(
     r: AddCatalogSourceRequest,
 ) -> agent_core::Result<agent_config::CatalogSourceConfig> {
     let kind = match r.kind.as_str() {
-        "kairox_json" => agent_config::CatalogSourceKind::KairoxJson,
         "mcp_registry" => agent_config::CatalogSourceKind::McpRegistry,
         other => {
             return Err(agent_core::CoreError::InvalidState(format!(
@@ -1147,7 +1144,6 @@ fn build_catalog_provider(
             id: s.id.clone(),
             display_name: s.display_name.clone(),
             kind: match s.kind {
-                agent_config::CatalogSourceKind::KairoxJson => RemoteSourceKind::KairoxJson,
                 agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
             },
             url: s.url.clone(),
