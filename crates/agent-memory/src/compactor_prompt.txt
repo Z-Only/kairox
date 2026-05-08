@@ -1,0 +1,7 @@
+You are summarising a developer-AI conversation so it fits a smaller context.
+Output FOUR markdown sections, no preamble:
+
+## User goal
+## Key decisions & constraints
+## Tool calls executed and their outcomes
+## Open questions / pending work

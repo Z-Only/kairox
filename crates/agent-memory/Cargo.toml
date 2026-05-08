@@ -12,6 +12,7 @@ agent-core = { path = "../agent-core" }
 agent-models = { path = "../agent-models" }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+futures = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,6 +20,7 @@ specta = { workspace = true, optional = true, features = ["chrono"] }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tiktoken-rs = "0.11"
+tokio = { workspace = true, features = ["time"] }
 uuid = { workspace = true }
 
 [dev-dependencies]

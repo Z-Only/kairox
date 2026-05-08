@@ -1,9 +1,13 @@
+pub mod compactor;
 pub mod context;
 pub mod extractor;
 pub mod marker;
 pub mod memory;
 pub mod store;
 
+pub use compactor::{
+    render_transcript, Compactor, CompactorError, COMPACTOR_PROMPT, LLM_RETRY_ATTEMPTS,
+};
 pub use context::{ContextAssembler, ContextBudget, ContextBundle, ContextRequest, ContextSource};
 pub use extractor::extract_keywords;
 pub use marker::{extract_memory_markers, strip_memory_markers, MemoryMarker};
