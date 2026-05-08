@@ -50,7 +50,7 @@ apps/agent-gui/src/generated/
 apps/agent-gui/src/auto-imports.d.ts
 apps/agent-gui/src/components.d.ts
 # Tauri auto-generated code
-apps/agent-gui/src-tauri/gen
+apps/agent-gui/src-tauri/gen/
 .superpowers/
 .worktrees/
 
