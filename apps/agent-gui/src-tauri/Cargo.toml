@@ -47,9 +47,13 @@ tokio = { workspace = true, features = [
   "process",
   "fs"
 ] }
+tauri-plugin-pilot = { git = "https://github.com/mpiton/tauri-pilot", optional = true }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[features]
+pilot = ["dep:tauri-plugin-pilot"]
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
