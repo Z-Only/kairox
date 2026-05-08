@@ -167,6 +167,15 @@ where
         &self.store
     }
 
+    /// Test-only accessor for the per-session state map. Used by the P2
+    /// compaction integration test to flip the busy gate deterministically.
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn session_states_for_test(
+        &self,
+    ) -> &Arc<Mutex<HashMap<String, crate::session::SessionState>>> {
+        &self.session_states
+    }
+
     /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
     /// targeting `<config_dir>/mcp_servers.toml`.
     ///
@@ -360,9 +369,7 @@ where
         let workspace_id = events
             .first()
             .map(|e| e.workspace_id.clone())
-            .ok_or_else(|| {
-                agent_core::CoreError::InvalidState("session has no events".into())
-            })?;
+            .ok_or_else(|| agent_core::CoreError::InvalidState("session has no events".into()))?;
 
         // Pre-check the busy gate so we can surface SessionBusy upfront
         // (the orchestrator silently no-ops when already compacting).
