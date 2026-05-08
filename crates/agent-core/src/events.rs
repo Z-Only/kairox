@@ -35,8 +35,7 @@ pub enum EventPayload {
         task_id: TaskId,
     },
     ContextAssembled {
-        token_estimate: usize,
-        sources: Vec<String>,
+        usage: crate::context_types::ContextUsage,
     },
     ModelRequestStarted {
         model_profile: String,
@@ -466,4 +465,37 @@ fn catalog_source_failed_event_round_trips() {
         matches!(back, EventPayload::CatalogSourceFailed { ref source, ref error }
         if source == "mcp-registry" && error == "timeout")
     );
+}
+
+#[test]
+fn context_assembled_payload_carries_usage_struct() {
+    use crate::context_types::{ContextSource, ContextUsage};
+
+    let event = DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::MinimalTrace,
+        EventPayload::ContextAssembled {
+            usage: ContextUsage {
+                total_tokens: 12_345,
+                budget_tokens: 188_000,
+                context_window: 200_000,
+                output_reservation: 12_000,
+                by_source: vec![
+                    (ContextSource::System, 800),
+                    (ContextSource::ToolDefinitions, 11_545),
+                ],
+                estimator: "cl100k_base".into(),
+                corrected_by_real_usage: false,
+            },
+        },
+    );
+
+    let json = serde_json::to_value(&event).unwrap();
+    assert_eq!(json["event_type"], "ContextAssembled");
+    assert_eq!(json["payload"]["usage"]["total_tokens"], 12_345);
+    assert_eq!(json["payload"]["usage"]["context_window"], 200_000);
+    assert_eq!(json["payload"]["usage"]["estimator"], "cl100k_base");
+    assert_eq!(json["payload"]["usage"]["by_source"][0][0], "system");
 }

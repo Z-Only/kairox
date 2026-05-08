@@ -60,9 +60,17 @@ fn agent_task_started_roundtrips() {
 
 #[test]
 fn context_assembled_roundtrips() {
+    use agent_core::context_types::{ContextSource, ContextUsage};
     let event = make_event(EventPayload::ContextAssembled {
-        token_estimate: 4096,
-        sources: vec!["memory".into(), "system".into()],
+        usage: ContextUsage {
+            total_tokens: 4096,
+            budget_tokens: 100_000,
+            context_window: 128_000,
+            output_reservation: 28_000,
+            by_source: vec![(ContextSource::Memory, 1024), (ContextSource::System, 3072)],
+            estimator: "cl100k_base".into(),
+            corrected_by_real_usage: false,
+        },
     });
     assert_eq!(roundtrip(&event), event);
 }

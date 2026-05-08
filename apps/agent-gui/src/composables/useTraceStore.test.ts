@@ -139,12 +139,22 @@ describe("useTraceStore", () => {
   // 3. ContextAssembled
   // -----------------------------------------------------------------------
   describe("ContextAssembled", () => {
-    it("creates a completed entry with token estimate and sources as outputPreview", () => {
+    it("creates a completed entry with token usage and per-source breakdown as outputPreview", () => {
       applyTraceEvent(
         makeEvent({
           type: "ContextAssembled",
-          token_estimate: 1500,
-          sources: ["file-a.rs", "file-b.ts"]
+          usage: {
+            total_tokens: 1500,
+            budget_tokens: 100_000,
+            context_window: 128_000,
+            output_reservation: 28_000,
+            by_source: [
+              ["selected_file", 800],
+              ["selected_file", 700]
+            ],
+            estimator: "cl100k_base",
+            corrected_by_real_usage: false
+          }
         })
       );
 
@@ -153,16 +163,23 @@ describe("useTraceStore", () => {
       expect(entry.kind).toBe("tool");
       expect(entry.status).toBe("completed");
       expect(entry.toolId).toBe("context");
-      expect(entry.title).toBe("Context assembled (1500 tokens)");
-      expect(entry.outputPreview).toBe("file-a.rs, file-b.ts");
+      expect(entry.title).toBe("Context assembled (1500 / 100000 tokens)");
+      expect(entry.outputPreview).toBe("selected_file:800, selected_file:700");
     });
 
     it("generates unique IDs for multiple ContextAssembled events", async () => {
       applyTraceEvent(
         makeEvent({
           type: "ContextAssembled",
-          token_estimate: 100,
-          sources: []
+          usage: {
+            total_tokens: 100,
+            budget_tokens: 100_000,
+            context_window: 128_000,
+            output_reservation: 28_000,
+            by_source: [],
+            estimator: "cl100k_base",
+            corrected_by_real_usage: false
+          }
         })
       );
 
@@ -172,8 +189,15 @@ describe("useTraceStore", () => {
       applyTraceEvent(
         makeEvent({
           type: "ContextAssembled",
-          token_estimate: 200,
-          sources: []
+          usage: {
+            total_tokens: 200,
+            budget_tokens: 100_000,
+            context_window: 128_000,
+            output_reservation: 28_000,
+            by_source: [],
+            estimator: "cl100k_base",
+            corrected_by_real_usage: false
+          }
         })
       );
 
@@ -715,8 +739,15 @@ describe("useTraceStore", () => {
       applyTraceEvent(
         makeEvent({
           type: "ContextAssembled",
-          token_estimate: 500,
-          sources: ["src/main.rs"]
+          usage: {
+            total_tokens: 500,
+            budget_tokens: 100_000,
+            context_window: 128_000,
+            output_reservation: 28_000,
+            by_source: [["selected_file", 500]],
+            estimator: "cl100k_base",
+            corrected_by_real_usage: false
+          }
         })
       );
 
