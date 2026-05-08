@@ -20,6 +20,19 @@ const sourceChips = computed(() => {
   return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
 });
 
+// Re-fetch installed entries whenever the user switches to the "installed" tab.
+// The InstalledList component uses v-show (not v-if) so its onMounted fires only
+// once at initial render. Without this watcher, entries added after mount (e.g.
+// via installEntry) would not appear until a full page reload.
+watch(
+  () => catalog.tab,
+  (tab) => {
+    if (tab === "installed") {
+      catalog.fetchInstalled();
+    }
+  }
+);
+
 onMounted(async () => {
   await catalog.fetchSources();
   const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);

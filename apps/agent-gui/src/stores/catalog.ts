@@ -146,7 +146,12 @@ export const useCatalogStore = defineStore("catalog", () => {
   async function fetchInstalled(): Promise<void> {
     const ui = useUiStore();
     try {
-      installed.value = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      const result = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      // Replace array contents in-place via splice so Vue's reactive proxy
+      // correctly notifies all watchers and computed properties. A plain
+      // `installed.value = result` assignment can silently detach the proxy
+      // in Pinia setup-stores when called from deeply-nested async flows.
+      installed.value.splice(0, installed.value.length, ...result);
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load installed entries: ${e}`);

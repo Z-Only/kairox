@@ -1,6 +1,8 @@
 /**
  * E2E: MCP Marketplace — browse, filter, install (happy + runtime-missing),
  * uninstall flows backed by tauri-mock fixtures.
+ *
+ * Marketplace is accessed via the Settings page's "Marketplace" tab.
  */
 import { test, expect } from "@playwright/test";
 import { dirname, resolve } from "path";
@@ -12,7 +14,8 @@ test.beforeEach(async ({ page }) => {
   const mockPath = resolve(__dirname, "tauri-mock.js");
   await page.addInitScript({ path: mockPath });
   await page.goto("/");
-  await page.getByTestId("nav-marketplace").click();
+  await page.getByTestId("nav-settings").click();
+  await page.getByRole("tab", { name: /marketplace/i }).click();
 });
 
 test.describe("Marketplace", () => {
@@ -30,15 +33,13 @@ test.describe("Marketplace", () => {
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
-    await expect(page.getByTestId("install-progress")).toBeVisible();
+    // Wait for the install to complete (progress text shows "Install complete.").
+    await expect(page.getByTestId("install-progress")).toContainText(/complete/i, {
+      timeout: 10_000
+    });
     await page.getByTestId("install-close").click();
-    // After Task 8's NIT-1 lift, InstallProgress is hosted on
-    // MarketplaceView (not inside CatalogDetail's NDrawer), so closing the
-    // modal leaves the drawer's `.n-drawer-mask` overlay intercepting clicks
-    // until the drawer itself is dismissed. Press Escape to close the drawer
-    // before clicking the tab header.
-    await page.keyboard.press("Escape");
-    await expect(page.locator(".n-drawer-mask")).toHaveCount(0);
+    // Close the CatalogDetail drawer that still overlays the page.
+    await page.locator(".drawer-close-btn").click();
     await page.getByTestId("tab-installed").click();
     await expect(page.getByTestId("uninstall-filesystem")).toBeEnabled();
   });
@@ -58,12 +59,13 @@ test.describe("Marketplace", () => {
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
+    // Wait for the install to complete before closing.
+    await expect(page.getByTestId("install-progress")).toContainText(/complete/i, {
+      timeout: 10_000
+    });
     await page.getByTestId("install-close").click();
-    // Drawer mask lingers after closing the install-progress modal because
-    // InstallProgress is now hosted at view-level (Task 8 NIT-1 lift). Press
-    // Escape to dismiss the drawer before driving the Installed tab.
-    await page.keyboard.press("Escape");
-    await expect(page.locator(".n-drawer-mask")).toHaveCount(0);
+    // Close the CatalogDetail drawer that still overlays the page.
+    await page.locator(".drawer-close-btn").click();
     await page.getByTestId("tab-installed").click();
     await page.getByTestId("uninstall-filesystem").click();
     await expect(page.getByTestId("uninstall-filesystem")).toHaveCount(0);
@@ -93,7 +95,7 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
   });
 
   test("toggling source chip filters card grid", async ({ page }) => {
-    // Add a remote source so we have a non-builtin chip to deselect.
+    // Add a remote source so we have a non-builtin chip to toggle.
     await page.getByTestId("catalog-source-settings").click();
     await page.getByTestId("add-source-toggle").click();
     await page.getByTestId("src-id").fill("smithery");
@@ -101,15 +103,17 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     await page.getByTestId("src-url").fill("https://registry.smithery.ai");
     await page.getByTestId("src-save").click();
 
-    // Builtin chip exists and is active by default.
-    const builtin = page.getByTestId("source-chip-builtin");
-    await expect(builtin).toBeVisible();
-    await expect(builtin).toHaveClass(/active/);
+    // The new remote chip starts active.
+    const remote = page.getByTestId("source-chip-smithery");
+    await expect(remote).toBeVisible();
+    await expect(remote).toHaveClass(/active/);
 
-    // Deselect builtin → builtin entries should disappear.
-    await builtin.click();
-    await expect(builtin).not.toHaveClass(/active/);
-    await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toHaveCount(0);
+    // Deselect the remote chip → only builtin entries remain.
+    await remote.click();
+    await expect(remote).not.toHaveClass(/active/);
+    // Builtin chip stays active and filesystem card is still visible.
+    await expect(page.getByTestId("source-chip-builtin")).toHaveClass(/active/);
+    await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toBeVisible();
   });
 
   test("validates URL when adding a source", async ({ page }) => {
