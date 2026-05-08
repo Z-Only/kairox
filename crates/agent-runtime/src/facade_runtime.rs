@@ -121,6 +121,7 @@ where
                 profiles: vec![],
                 mcp_servers: vec![],
                 source: agent_config::ConfigSource::Defaults,
+                context: agent_config::ContextPolicy::default(),
             }),
             ollama_clients: HashMap::new(),
         }

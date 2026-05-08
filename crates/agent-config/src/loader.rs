@@ -9,6 +9,8 @@ struct ConfigToml {
     profiles: toml::value::Table,
     #[serde(default)]
     mcp_servers: toml::value::Table,
+    #[serde(default)]
+    context: crate::ContextPolicy,
 }
 
 /// Intermediate profile structure for deserialization.
@@ -93,6 +95,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         profiles,
         mcp_servers,
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
+        context: config_toml.context,
     })
 }
 
@@ -211,6 +214,47 @@ pub fn validate(config: &Config) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_context_policy_with_defaults_and_overrides() {
+        // Defaults: omitting [context] yields the default ContextPolicy.
+        let cfg_default: crate::Config = crate::loader::load_from_str(
+            r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+"#,
+            "test.toml",
+        )
+        .unwrap();
+        assert!(
+            (cfg_default.context.auto_compact_threshold - 0.85_f32).abs() < 1e-6,
+            "default threshold should be 0.85, got {}",
+            cfg_default.context.auto_compact_threshold
+        );
+        assert!(cfg_default.context.compactor_profile.is_none());
+        assert!(cfg_default.context.max_tool_definition_tokens.is_none());
+
+        // Overrides: explicit values take precedence.
+        let cfg_user: crate::Config = crate::loader::load_from_str(
+            r#"
+[profiles.fast]
+provider = "openai_compatible"
+model_id = "gpt-4o"
+base_url = "https://api.openai.com/v1"
+
+[context]
+auto_compact_threshold = 0.7
+compactor_profile = "fast"
+max_tool_definition_tokens = 25000
+"#,
+            "test.toml",
+        )
+        .unwrap();
+        assert!((cfg_user.context.auto_compact_threshold - 0.7).abs() < 1e-6);
+        assert_eq!(cfg_user.context.compactor_profile.as_deref(), Some("fast"));
+        assert_eq!(cfg_user.context.max_tool_definition_tokens, Some(25_000));
+    }
 
     #[test]
     fn parses_valid_toml_with_multiple_profiles() {
