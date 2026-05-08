@@ -58,17 +58,34 @@ impl ChatPanel {
         match action {
             // -- Send ----------------------------------------------------------
             KeyAction::SendInput if !self.input_content.is_empty() => {
-                self.input_history.push(self.input_content.clone());
-                let content = std::mem::take(&mut self.input_content);
-                self.input_cursor = 0;
-                self.input_history_index = None;
+                let trimmed = self.input_content.trim();
+                // P3: intercept `:compact` before treating the input as a chat
+                // message. The buffer is cleared but NOT pushed onto
+                // `input_history` — slash-style commands shouldn't pollute the
+                // up-arrow recall list.
+                if trimmed == ":compact" {
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    if let Some(session_id) = ctx.current_session_id {
+                        commands.push(Command::CompactSession {
+                            workspace_id: ctx.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                        });
+                    }
+                } else {
+                    self.input_history.push(self.input_content.clone());
+                    let content = std::mem::take(&mut self.input_content);
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
 
-                if let Some(session_id) = ctx.current_session_id {
-                    commands.push(Command::SendMessage {
-                        workspace_id: ctx.workspace_id.clone(),
-                        session_id: session_id.clone(),
-                        content,
-                    });
+                    if let Some(session_id) = ctx.current_session_id {
+                        commands.push(Command::SendMessage {
+                            workspace_id: ctx.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            content,
+                        });
+                    }
                 }
             }
 

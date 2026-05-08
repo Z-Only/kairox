@@ -134,6 +134,12 @@ pub enum Command {
     SwitchSession {
         session_id: SessionId,
     },
+    /// P3: user typed `:compact` in the chat panel; ask the runtime to
+    /// summarise older history into a compaction summary.
+    CompactSession {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+    },
 }
 
 /// Read-only shared state passed to components on every event.
