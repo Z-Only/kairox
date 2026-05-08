@@ -8,8 +8,8 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 
 - Rust workspace (edition 2021, resolver 2) + Vue 3 + TypeScript
 - Package manager: **pnpm only** (never npm or yarn)
-- Lint: `cargo clippy -D warnings`, ESLint, Stylelint
-- Format: `cargo fmt`, Prettier
+- Lint: `cargo clippy -D warnings`, oxlint, Stylelint
+- Format: `cargo fmt`, oxfmt
 - Test: `cargo test --workspace --all-targets`, `vitest run`
 
 ## Crate structure & dependency direction

@@ -67,7 +67,7 @@ graph TD
 - **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, and MCP marketplace UI
 - **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
-- **Quality gates** — parallel CI with aggregation `ci-success` job, type-sync checks, cargo clippy, ESLint, Stylelint, Prettier, commitlint
+- **Quality gates** — parallel CI with aggregation `ci-success` job, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint
 - **E2E testing** — 10 Playwright E2E spec files for the GUI frontend (chat flow, sessions, permissions/memory, task graph, trace, memory browser, notifications, MCP, multi-agent), 7 TUI app-logic integration tests, 13 full-stack runtime tests, plus dedicated MCP integration tests and DAG executor / AgentStrategy / GUI component coverage
 
 ## Repository layout
@@ -85,7 +85,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development (current release `v0.16.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The GUI supports session cancellation, error notifications, code syntax highlighting, a real-time status bar, agent attribution, and N-level task tree visualization. Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer), and the runtime has been refactored into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability. MCP (Model Context Protocol) integration connects to external tool servers via stdio and SSE transports, with config-driven server lifecycle management, trust-based permissions, and an in-app marketplace combining a built-in catalog with remote catalog sources for one-click install. Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell`, `patch`, and ripgrep-backed `search`. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. The desktop app ships with Tauri 2 auto-update wired to GitHub Releases. Release packaging includes SHA256 checksums and structured artifact naming. CI runs E2E tests alongside parallel jobs with type-sync checks via `tauri-specta` and an aggregation `ci-success` job for branch protection compatibility. GUI test coverage has been expanded to 127+ tests across stores, composables, and components, with additional MCP E2E tests and dedicated DAG executor / AgentStrategy / GUI component test suites.
+Kairox is in active development (current release `v0.17.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, and permission control. Sessions persist across restarts via SQLite storage. Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The GUI supports session cancellation, error notifications, code syntax highlighting, a real-time status bar, agent attribution, and N-level task tree visualization. Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer), and the runtime has been refactored into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability. MCP (Model Context Protocol) integration connects to external tool servers via stdio and SSE transports, with config-driven server lifecycle management, trust-based permissions, and an in-app marketplace combining a built-in catalog with remote catalog sources for one-click install. Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell`, `patch`, and ripgrep-backed `search`. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI. The desktop app ships with Tauri 2 auto-update wired to GitHub Releases. Release packaging includes SHA256 checksums and structured artifact naming. CI runs E2E tests alongside parallel jobs with type-sync checks via `tauri-specta` and an aggregation `ci-success` job for branch protection compatibility. GUI test coverage has been expanded to 127+ tests across stores, composables, and components, with additional MCP E2E tests and dedicated DAG executor / AgentStrategy / GUI component test suites. The frontend toolchain has migrated from ESLint + Prettier to the Oxc toolchain (oxlint + oxfmt) for faster linting and formatting. The GUI now features a complete frontend engineering foundation with vue-router, vue-i18n, and Pinia setup stores.
 
 ## Requirements
 
@@ -127,7 +127,7 @@ Or individually:
 
 ```bash
 just fmt-check      # format check
-just lint           # clippy + eslint + stylelint
+just lint           # clippy + oxlint + stylelint
 just test           # cargo test
 just check-types    # Rust ↔ TypeScript type sync
 ```
@@ -170,8 +170,8 @@ just tauri-build
 
 Repository-level quality tooling includes:
 
-- **Prettier** for frontend/docs formatting
-- **ESLint** for Vue/TS linting
+- **oxfmt** for frontend/docs formatting
+- **oxlint** for Vue/TS linting
 - **Stylelint** for styles and Vue style blocks
 - **cargo fmt** for Rust formatting
 - **cargo clippy** for Rust linting
