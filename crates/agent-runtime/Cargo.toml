@@ -35,6 +35,9 @@ uuid.workspace = true
 chrono.workspace = true
 tempfile = { workspace = true }
 
+[features]
+test-helpers = []
+
 [dev-dependencies]
 agent-tools = { path = "../agent-tools" }
 agent-mcp = { path = "../agent-mcp", features = ["remote-catalog"] }
