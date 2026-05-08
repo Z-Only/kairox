@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-05-08
+
+### 🚀 Features
+
+- **ci**: migrate from ESLint + Prettier to Oxc toolchain (oxlint + oxfmt) (#100)
+- **gui**: frontend engineering foundation (router/i18n/pinia/naive-ui) (#101)
+- **gui**: polish GUI display and fix marketplace (#102)
+
+### 🐛 Bug Fixes
+
+- **ci**: make Generate latest.json robust to Tauri arch tokens (amd64/x64) (#62)
+- **ci**: use GitHub native auto-merge for Dependabot PRs (#82)
+
+### 📚 Documentation
+
+- **superpowers**: add Oxc toolchain migration design spec
+- **superpowers**: add Oxc toolchain migration implementation plan
+
+### 📦 Dependencies
+
+- **deps**: bump dependencies across all ecosystems
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: configure oxc ignorePatterns instead of .oxfmtignore, add gen to gitignore
+
 ## [0.16.0] - 2026-05-06
 
 ### 🚀 Features

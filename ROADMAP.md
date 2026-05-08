@@ -34,12 +34,17 @@
 - ✅ Implement Tauri 2 auto-update with GitHub Release endpoint (#57)
 - ✅ MCP marketplace Phase 1 — built-in catalog, installer, GUI (#59)
 - ✅ MCP marketplace Phase 2 — remote catalog sources with multi-source aggregation (#60)
+- ✅ Migrate frontend toolchain from ESLint + Prettier to Oxc (oxlint + oxfmt) (#100)
+- ✅ GUI frontend engineering foundation: vue-router, vue-i18n, Pinia setup stores (#101)
+- ✅ Polish GUI display and fix marketplace issues (#102)
+- ✅ Use GitHub native auto-merge for Dependabot PRs (#82)
 
 ## Mid term
 
 - Support more model providers and profile policies
 - ✅ Add multi-agent orchestration UX in TUI and GUI
 - ✅ MCP server marketplace UX (Phase 1 + 2 shipped in v0.16.0)
+- Improve GUI UX with richer interaction patterns and accessibility
 - Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
 - Improve extension and manifest discovery flows
 - Add better observability, tracing, and diagnostics tools

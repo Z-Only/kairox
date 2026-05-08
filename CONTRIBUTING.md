@@ -62,7 +62,7 @@ This repository uses Conventional Commits. Allowed scopes: `core`, `runtime`, `m
 ## Code style
 
 - Rust: `cargo fmt` and `cargo clippy`
-- Frontend/docs: `prettier`, `eslint`, `stylelint`
+- Frontend/docs: `oxfmt`, `oxlint`, `stylelint`
 - Hooks: `husky`, `lint-staged`, `commitlint`
 
 ## Adding new event types or Tauri commands
