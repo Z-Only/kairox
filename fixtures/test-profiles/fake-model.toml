@@ -1,0 +1,6 @@
+# Fake model profile for deterministic tauri-pilot E2E tests.
+# FakeModelClient echoes input or returns canned responses — no network needed.
+
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
