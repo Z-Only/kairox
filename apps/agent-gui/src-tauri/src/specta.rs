@@ -4,11 +4,12 @@
 
 use crate::commands::*;
 use agent_core::{
-    AgentRole, DomainEvent, EventPayload, PrivacyClassification, TaskGraphSnapshot, TaskSnapshot,
-    TaskState,
+    AgentRole, ContextSource, ContextUsage, DomainEvent, EventPayload, PrivacyClassification,
+    TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
+use agent_models::{LimitSource, ModelLimits};
 use tauri_specta::collect_commands;
 
 /// Build the specta collector with all command and event type information.
@@ -87,4 +88,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<TaskSnapshot>()
         .typ::<TaskGraphSnapshot>()
         .typ::<MemoryScope>()
+        // Context-mgmt P1: per-model window metadata + budget-driven assembly
+        .typ::<ContextSource>()
+        .typ::<ContextUsage>()
+        .typ::<ModelLimits>()
+        .typ::<LimitSource>()
 }

@@ -3,6 +3,26 @@
 /* Types */
 export type AgentRole = "Planner" | "Worker" | "Reviewer";
 
+export type ContextSource =
+  | "system"
+  | "tool_definitions"
+  | "request"
+  | "memory"
+  | "history"
+  | "tool_result"
+  | "selected_file"
+  | "compaction_summary";
+
+export type ContextUsage = {
+  total_tokens: number;
+  budget_tokens: number;
+  context_window: number;
+  output_reservation: number;
+  by_source: [ContextSource, number][];
+  estimator: string;
+  corrected_by_real_usage: boolean;
+};
+
 export type DomainEvent = {
   schema_version: number;
   workspace_id: string;
@@ -26,7 +46,7 @@ export type EventPayload =
       dependencies: string[];
     }
   | { type: "AgentTaskStarted"; task_id: string }
-  | { type: "ContextAssembled"; token_estimate: number; sources: string[] }
+  | { type: "ContextAssembled"; usage: ContextUsage }
   | { type: "ModelRequestStarted"; model_profile: string; model_id: string }
   | { type: "ModelTokenDelta"; delta: string }
   | { type: "ModelToolCallRequested"; tool_call_id: string; tool_id: string }
