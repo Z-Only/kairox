@@ -2,7 +2,6 @@
 
 > **Status:** Draft (awaiting user approval)
 > **Date:** 2026-05-08
-> **Author:** Aone Copilot (with user `蝉雨`)
 > **Companion mockup:** `.superpowers/brainstorm/context-meter-mockup.html`
 > **Implementation plans (to be authored next):**
 > `docs/superpowers/plans/2026-05-08-context-p1-model-window-metadata.md`
