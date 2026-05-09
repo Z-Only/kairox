@@ -5,6 +5,7 @@
 //! the helper that converts session history into model messages.
 
 use crate::event_emitter::append_and_broadcast;
+use crate::skills::render_active_skill_block;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AgentRole, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification,
@@ -257,6 +258,8 @@ where
     pub active_cancellation: &'a Arc<Mutex<Option<CancellationToken>>>,
     pub config: &'a Arc<agent_config::Config>,
     pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+    pub skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
+    pub active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
 }
 
 /// Resolve the active model profile alias from a session's full event log.
@@ -267,6 +270,40 @@ where
 ///    original profile).
 /// 3. The literal `"fake"` (only reached for broken event logs — kept for
 ///    symmetry with the pre-P4 fallback).
+async fn load_active_skill_blocks(
+    skill_registry: &Option<Arc<dyn agent_skills::SkillRegistry>>,
+    active_skills: &Arc<Mutex<HashMap<String, Vec<String>>>>,
+    session_id: &agent_core::SessionId,
+) -> agent_core::Result<Vec<String>> {
+    let Some(registry) = skill_registry else {
+        return Ok(Vec::new());
+    };
+    let skill_ids = {
+        let active_skills = active_skills.lock().await;
+        active_skills
+            .get(&session_id.to_string())
+            .cloned()
+            .unwrap_or_default()
+    };
+
+    let mut rendered_skills = Vec::new();
+    for skill_id in skill_ids {
+        let skill_id = agent_skills::SkillId::new(skill_id);
+        let document = registry
+            .load_document(&skill_id)
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let source = crate::skills::skill_source_kind_to_string(document.metadata.source.kind);
+        rendered_skills.push(render_active_skill_block(
+            &document.metadata.name,
+            &source,
+            &document.body_markdown,
+        ));
+    }
+
+    Ok(rendered_skills)
+}
+
 pub(crate) fn latest_model_profile_for(events: &[agent_core::DomainEvent]) -> String {
     for event in events.iter().rev() {
         match &event.payload {
@@ -304,6 +341,8 @@ where
         active_cancellation,
         config,
         session_states,
+        skill_registry,
+        active_skills,
     } = deps;
     // Record user message
     let user_event = DomainEvent::new(
@@ -401,6 +440,12 @@ where
         .assemble(
             agent_memory::ContextRequest {
                 system_prompt: Some(system_prompt.clone()),
+                active_skills: load_active_skill_blocks(
+                    skill_registry,
+                    active_skills,
+                    &request.session_id,
+                )
+                .await?,
                 user_request: request.content.clone(),
                 session_history,
                 tool_definitions: tool_defs.clone(),

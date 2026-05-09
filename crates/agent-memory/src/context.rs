@@ -14,6 +14,7 @@ pub struct ContextRequest {
     pub selected_files: Vec<String>,
     pub tool_results: Vec<String>,
     pub memories: Vec<MemoryEntry>,
+    pub active_skills: Vec<String>,
     pub active_task: Option<String>,
     pub session_id: Option<String>,
     pub workspace_id: Option<String>,
@@ -79,7 +80,18 @@ impl ContextAssembler {
             sections.push((ContextSource::System, sp.clone(), n));
         }
 
-        // P0.5: Tool definitions — bundle as one JSON block (so the model adapter
+        // P0.5: Active skills — high-priority session guidance, below System
+        // but above tool definitions.
+        if !request.active_skills.is_empty() {
+            let block = format!(
+                "<active_skills>\n{}\n</active_skills>",
+                request.active_skills.join("\n")
+            );
+            let tokens = self.count_tokens(&block);
+            sections.push((ContextSource::Skill, block, tokens));
+        }
+
+        // P0.75: Tool definitions — bundle as one JSON block (so the model adapter
         // can recover the structured array). Counted once.
         if !request.tool_definitions.is_empty() {
             let payload = serde_json::to_string(&request.tool_definitions)
@@ -215,8 +227,8 @@ impl ContextAssembler {
 }
 
 /// Find the index of the lowest-priority section that can be dropped.
-/// Priority (highest first): System, Request, ToolDefinitions, Memory, History, ToolResult, SelectedFile.
-/// System and Request are never dropped (and ToolDefinitions only as a last resort).
+/// Priority (highest first): System, Skill, ToolDefinitions, Request, Memory, History, ToolResult, SelectedFile.
+/// System, Skill, and Request are never dropped (and ToolDefinitions only as a last resort).
 fn find_lowest_priority_drop(sections: &[(ContextSource, String, u64)]) -> Option<usize> {
     let drop_order = [
         ContextSource::SelectedFile,

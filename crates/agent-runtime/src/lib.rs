@@ -11,6 +11,7 @@ pub mod mcp_manager;
 pub mod memory_handler;
 pub mod permission;
 pub mod session;
+pub mod skills;
 pub mod task_graph;
 
 pub mod test_support;

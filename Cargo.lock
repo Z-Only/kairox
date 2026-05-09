@@ -147,6 +147,7 @@ dependencies = [
  "agent-mcp",
  "agent-memory",
  "agent-models",
+ "agent-skills",
  "agent-store",
  "agent-tools",
  "anyhow",

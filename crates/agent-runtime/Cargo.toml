@@ -21,6 +21,7 @@ agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 agent-mcp = { path = "../agent-mcp", features = ["remote-catalog"] }
 agent-config = { path = "../agent-config" }
+agent-skills = { path = "../agent-skills" }
 anyhow = { workspace = true }
 toml = { workspace = true }
 toml_edit = { workspace = true }
