@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use agent_core::{
-    ActivateSkillRequest, AppFacade, ContextSource, EventPayload, StartSessionRequest,
+    ActivateSkillRequest, AppFacade, ContextSource, EventPayload, SendMessageRequest,
+    StartSessionRequest,
 };
 use agent_memory::{ContextAssembler, ContextBudget, ContextRequest};
 use agent_models::FakeModelClient;
@@ -97,6 +98,112 @@ async fn manual_activation_lists_active_skills_for_that_session() {
             EventPayload::SkillActivated { skill_id, .. } if skill_id == "code-review"
         )
     }));
+}
+
+#[tokio::test]
+async fn repeated_skills_activation_does_not_emit_duplicate_skill_activated_events() {
+    let skill_root = tempfile::tempdir().expect("skill root should be created");
+    write_test_skill(
+        skill_root.path(),
+        "code-review",
+        "Review code changes",
+        "Use a careful review checklist.",
+    );
+    let registry = FileSkillRegistry::discover(vec![SkillRoot::new(
+        SkillSourceKind::Workspace,
+        skill_root.path(),
+    )])
+    .await
+    .expect("skill registry should discover test skill");
+    let runtime = build_runtime_with_skill_registry(Arc::new(registry)).await;
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+        })
+        .await
+        .expect("session should start");
+
+    for _ in 0..2 {
+        runtime
+            .activate_skill(ActivateSkillRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                session_id: session_id.clone(),
+                skill_id: "code-review".into(),
+            })
+            .await
+            .expect("manual skill activation should be idempotent");
+    }
+
+    let events = runtime
+        .event_store_for_test()
+        .load_session(&session_id)
+        .await
+        .expect("events should load");
+    let skill_activated_count = events
+        .iter()
+        .filter(|event| {
+            matches!(
+                &event.payload,
+                EventPayload::SkillActivated { skill_id, .. } if skill_id == "code-review"
+            )
+        })
+        .count();
+    assert_eq!(skill_activated_count, 1);
+}
+
+#[tokio::test]
+async fn send_message_skips_missing_active_skills_documents() {
+    let skill_root = tempfile::tempdir().expect("skill root should be created");
+    write_test_skill(
+        skill_root.path(),
+        "code-review",
+        "Review code changes",
+        "Use a careful review checklist.",
+    );
+    let skill_file = skill_root.path().join("code-review").join("SKILL.md");
+    let registry = FileSkillRegistry::discover(vec![SkillRoot::new(
+        SkillSourceKind::Workspace,
+        skill_root.path(),
+    )])
+    .await
+    .expect("skill registry should discover test skill");
+    let runtime = build_runtime_with_skill_registry(Arc::new(registry)).await;
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+        })
+        .await
+        .expect("session should start");
+    runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            session_id: session_id.clone(),
+            skill_id: "code-review".into(),
+        })
+        .await
+        .expect("manual skill activation should succeed");
+    std::fs::remove_file(skill_file).expect("skill document should be removable");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "continue despite missing skill document".into(),
+        })
+        .await
+        .expect("missing active skill documents should not block send_message");
 }
 
 #[tokio::test]

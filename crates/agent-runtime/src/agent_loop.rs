@@ -288,11 +288,18 @@ async fn load_active_skill_blocks(
 
     let mut rendered_skills = Vec::new();
     for skill_id in skill_ids {
-        let skill_id = agent_skills::SkillId::new(skill_id);
-        let document = registry
-            .load_document(&skill_id)
-            .await
-            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let skill_id_value = agent_skills::SkillId::new(skill_id.clone());
+        let document = match registry.load_document(&skill_id_value).await {
+            Ok(document) => document,
+            Err(error) => {
+                tracing::warn!(
+                    skill_id = %skill_id,
+                    error = %error,
+                    "skipping active skill because its document could not be loaded"
+                );
+                continue;
+            }
+        };
         let source = crate::skills::skill_source_kind_to_string(document.metadata.source.kind);
         rendered_skills.push(render_active_skill_block(
             &document.metadata.name,

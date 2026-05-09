@@ -915,29 +915,35 @@ where
         })?;
         let active_view = skill_metadata_to_active_view(&metadata);
 
-        {
+        let activated = {
             let mut active_skills = self.active_skills.lock().await;
             let session_skills = active_skills
                 .entry(request.session_id.to_string())
                 .or_insert_with(Vec::new);
-            if !session_skills.iter().any(|id| id == &request.skill_id) {
+            if session_skills.iter().any(|id| id == &request.skill_id) {
+                false
+            } else {
                 session_skills.push(request.skill_id.clone());
+                true
             }
-        }
+        };
 
-        let event = DomainEvent::new(
-            request.workspace_id,
-            request.session_id,
-            AgentId::system(),
-            PrivacyClassification::MinimalTrace,
-            EventPayload::SkillActivated {
-                skill_id: active_view.skill_id.clone(),
-                name: active_view.name.clone(),
-                source: active_view.source.clone(),
-                activation_mode: active_view.activation_mode.clone(),
-            },
-        );
-        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+        if activated {
+            let event = DomainEvent::new(
+                request.workspace_id,
+                request.session_id,
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::SkillActivated {
+                    skill_id: active_view.skill_id.clone(),
+                    name: active_view.name.clone(),
+                    source: active_view.source.clone(),
+                    activation_mode: active_view.activation_mode.clone(),
+                },
+            );
+            crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event)
+                .await?;
+        }
 
         Ok(active_view)
     }
