@@ -442,17 +442,15 @@ where
         })
         .collect();
 
+    let active_skill_blocks =
+        load_active_skill_blocks(skill_registry, active_skills, &request.session_id).await?;
+
     let assembler = agent_memory::ContextAssembler::new_standalone();
     let bundle = assembler
         .assemble(
             agent_memory::ContextRequest {
                 system_prompt: Some(system_prompt.clone()),
-                active_skills: load_active_skill_blocks(
-                    skill_registry,
-                    active_skills,
-                    &request.session_id,
-                )
-                .await?,
+                active_skills: active_skill_blocks.clone(),
                 user_request: request.content.clone(),
                 session_history,
                 tool_definitions: tool_defs.clone(),
@@ -461,6 +459,12 @@ where
             budget.clone(),
         )
         .await;
+
+    if !active_skill_blocks.is_empty() {
+        system_prompt.push_str("\n\n<active_skills>\n");
+        system_prompt.push_str(&active_skill_blocks.join("\n"));
+        system_prompt.push_str("\n</active_skills>");
+    }
 
     // Apply per-session UsageCorrector (no-op until Task 10 wires real-usage feedback).
     let mut usage = bundle.usage.clone();

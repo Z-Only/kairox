@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use futures::{stream, stream::BoxStream};
+use tokio::sync::Mutex as AsyncMutex;
+
 use agent_core::{
     ActivateSkillRequest, AppFacade, ContextSource, EventPayload, SendMessageRequest,
     StartSessionRequest,
 };
 use agent_memory::{ContextAssembler, ContextBudget, ContextRequest};
-use agent_models::FakeModelClient;
+use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::{EventStore, SqliteEventStore};
@@ -36,6 +40,31 @@ async fn build_runtime_with_skill_registry(
         .expect("in-memory event store");
     let model = FakeModelClient::new(vec!["ok".into()]);
     LocalRuntime::new(store, model).with_skill_registry(registry)
+}
+
+#[derive(Clone, Debug)]
+struct RecordingModelClient {
+    requests: Arc<AsyncMutex<Vec<ModelRequest>>>,
+}
+
+impl RecordingModelClient {
+    fn new(requests: Arc<AsyncMutex<Vec<ModelRequest>>>) -> Self {
+        Self { requests }
+    }
+}
+
+#[async_trait]
+impl ModelClient for RecordingModelClient {
+    async fn stream(
+        &self,
+        request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        self.requests.lock().await.push(request);
+        Ok(Box::pin(stream::iter(vec![
+            Ok(ModelEvent::TokenDelta("ok".into())),
+            Ok(ModelEvent::Completed { usage: None }),
+        ])))
+    }
 }
 
 #[tokio::test]
@@ -204,6 +233,77 @@ async fn send_message_skips_missing_active_skills_documents() {
         })
         .await
         .expect("missing active skill documents should not block send_message");
+}
+
+#[tokio::test]
+async fn send_message_includes_active_skill_block_in_model_request() {
+    let skill_root = tempfile::tempdir().expect("skill root should be created");
+    write_test_skill(
+        skill_root.path(),
+        "code-review",
+        "Review code changes",
+        "Always inspect error handling before approving code.",
+    );
+    let registry = FileSkillRegistry::discover(vec![SkillRoot::new(
+        SkillSourceKind::Workspace,
+        skill_root.path(),
+    )])
+    .await
+    .expect("skill registry should discover test skill");
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let captured_requests = Arc::new(AsyncMutex::new(Vec::new()));
+    let model = RecordingModelClient::new(captured_requests.clone());
+    let runtime = LocalRuntime::new(store, model).with_skill_registry(Arc::new(registry));
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+        })
+        .await
+        .expect("session should start");
+    runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            session_id: session_id.clone(),
+            skill_id: "code-review".into(),
+        })
+        .await
+        .expect("manual skill activation should succeed");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "review this patch".into(),
+        })
+        .await
+        .expect("send_message should complete");
+
+    let requests = captured_requests.lock().await;
+    let request = requests
+        .first()
+        .expect("model should receive one request after send_message");
+    let request_text = std::iter::once(request.system_prompt.as_deref().unwrap_or_default())
+        .chain(
+            request
+                .messages
+                .iter()
+                .map(|message| message.content.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(request_text.contains("<active_skills>"));
+    assert!(request_text.contains("<skill name=\"code-review\" source=\"workspace\">"));
+    assert!(request_text.contains("Always inspect error handling before approving code."));
+    assert!(request_text.contains("</active_skills>"));
 }
 
 #[tokio::test]
