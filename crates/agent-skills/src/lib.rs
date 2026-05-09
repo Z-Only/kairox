@@ -1,7 +1,9 @@
 pub mod frontmatter;
+pub mod registry;
 pub mod types;
 
 pub use frontmatter::{parse_skill_markdown, ParsedSkillMarkdown};
+pub use registry::*;
 pub use types::*;
 
 #[derive(Debug, thiserror::Error)]
