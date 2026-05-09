@@ -130,6 +130,11 @@ describe("SessionsSidebar", () => {
     );
   });
 
+  it("waits for session deletion before continuing after confirmation", () => {
+    expect(sessionsSidebarSource).not.toContain("void session.deleteSession");
+    expect(sessionsSidebarSource).toContain("await session.deleteSession(sessionId)");
+  });
+
   it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
     mockedInvoke.mockResolvedValueOnce([
       {

@@ -69,6 +69,27 @@ beforeEach(() => {
   pushNotificationSpy.mockClear();
 });
 
+describe("switchSession", () => {
+  it("updates the current session only after the backend switch completes", async () => {
+    const session = useSessionStore();
+    session.sessions = [makeSession("s1", "Session 1", "fast")] as never[];
+
+    let resolveSwitch!: (value: typeof emptyProjection) => void;
+    const switchPromise = new Promise<typeof emptyProjection>((resolve) => {
+      resolveSwitch = resolve;
+    });
+    mockedInvoke.mockReturnValueOnce(switchPromise as never); // switch_session
+    mockedInvoke.mockResolvedValueOnce([]); // get_trace
+
+    const pendingSwitch = session.switchSession("s1");
+
+    expect(session.currentSessionId).toBeNull();
+    resolveSwitch(emptyProjection);
+    await pendingSwitch;
+    expect(session.currentSessionId).toBe("s1");
+  });
+});
+
 describe("deleteSession", () => {
   it("removes session from the list on success", async () => {
     const session = useSessionStore();
@@ -91,6 +112,7 @@ describe("deleteSession", () => {
     mockedInvoke.mockResolvedValueOnce([]); // get_trace
     await session.deleteSession("s2");
     expect(session.currentSessionId).toBe("s1");
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_session", { sessionId: "s1" });
   });
 
   it("notifies on error", async () => {

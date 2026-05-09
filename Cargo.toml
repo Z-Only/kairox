@@ -9,7 +9,8 @@ members = [
   "crates/agent-config",
   "crates/agent-tui",
   "apps/agent-gui/src-tauri",
-  "crates/agent-mcp"
+  "crates/agent-mcp",
+  "crates/agent-skills"
 ]
 resolver = "2"
 
@@ -29,6 +30,7 @@ specta = { version = "=2.0.0-rc.24", features = ["derive"] }
 schemars = { version = "0.8", features = ["chrono", "uuid1"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.149"
+serde_yaml = "0.9"
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid", "json"] }
 tempfile = "3.27.0"
 thiserror = "2.0.18"

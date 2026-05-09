@@ -12,6 +12,7 @@ pub enum ContextSource {
     ToolResult,
     SelectedFile,
     CompactionSummary,
+    Skill,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +65,7 @@ mod tests {
             serde_json::to_value(ContextSource::CompactionSummary).unwrap(),
             "compaction_summary"
         );
+        assert_eq!(serde_json::to_value(ContextSource::Skill).unwrap(), "skill");
     }
 
     #[test]

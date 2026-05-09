@@ -13,6 +13,21 @@ selector = "[data-test='app-shell']"
 timeout_ms = 15000
 
 [[step]]
+name = "app nav visible"
+action = "assert-visible"
+target = "[data-test='app-nav']"
+
+[[step]]
+name = "settings nav visible"
+action = "assert-visible"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "workbench view visible"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
+
+[[step]]
 name = "open settings"
 action = "click"
 target = "[data-test='nav-settings']"

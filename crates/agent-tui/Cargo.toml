@@ -10,6 +10,7 @@ agent-models = { path = "../agent-models" }
 agent-config = { path = "../agent-config" }
 agent-memory = { path = "../agent-memory" }
 agent-runtime = { path = "../agent-runtime" }
+agent-skills = { path = "../agent-skills" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 anyhow.workspace = true

@@ -1,9 +1,58 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { useUiStore } from "@/stores/ui";
+import { commands } from "@/generated/commands";
 import SettingsView from "./SettingsView.vue";
+
+vi.mock("@/generated/commands", () => ({
+  commands: {
+    listSkills: vi.fn(),
+    listActiveSkills: vi.fn(),
+    getSkillDetail: vi.fn(),
+    activateSkill: vi.fn(),
+    deactivateSkill: vi.fn()
+  }
+}));
+
+const mockedCommands = vi.mocked(commands);
+
+const discoveredSkill = {
+  id: "test-driven-rust",
+  name: "test-driven-rust",
+  description: "Write Rust changes test-first.",
+  version: "1.0.0",
+  source: "builtin:/skills/test-driven-rust",
+  activation_mode: "manual",
+  keywords: ["rust", "tdd"],
+  tools: [],
+  can_request_tools: [],
+  valid: true,
+  validation_error: null
+};
+
+const invalidSkill = {
+  id: "broken-skill",
+  name: "broken-skill",
+  description: "Fixture for validation errors.",
+  version: null,
+  source: "workspace:/skills/broken-skill",
+  activation_mode: "manual",
+  keywords: [],
+  tools: [],
+  can_request_tools: [],
+  valid: false,
+  validation_error: "Missing required description"
+};
+
+const activeSkill = {
+  skill_id: "test-driven-rust",
+  name: "test-driven-rust",
+  source: "builtin:/skills/test-driven-rust",
+  activation_mode: "manual"
+};
 
 const settingsViewSource = readFileSync(
   fileURLToPath(import.meta.url).replace(/\.test\.ts$/, ".vue"),
@@ -26,6 +75,10 @@ function mountSettings() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedCommands.listSkills.mockResolvedValue([discoveredSkill, invalidSkill]);
+  mockedCommands.listActiveSkills.mockResolvedValue([]);
+  mockedCommands.activateSkill.mockResolvedValue(activeSkill);
+  mockedCommands.deactivateSkill.mockResolvedValue(null);
 });
 
 describe("SettingsView (Pre-work B regression)", () => {
@@ -102,6 +155,73 @@ describe("SettingsView (Pre-work B regression)", () => {
 
     await themeSelect.trigger("blur");
     expect(themeSelect.classes()).not.toContain("settings__select--focused");
+  });
+
+  it("loads and renders discovered skills when opening the Skills tab", async () => {
+    const { wrapper } = mountSettings();
+
+    await wrapper.find('[data-test="settings-tab-skills"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.listSkills).toHaveBeenCalledTimes(1);
+    expect(mockedCommands.listActiveSkills).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-test="settings-skills-panel"]').isVisible()).toBe(true);
+    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
+      "Write Rust changes test-first."
+    );
+    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
+      "builtin:/skills/test-driven-rust"
+    );
+    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
+      "Mode: manual"
+    );
+    expect(wrapper.find('[data-test="skill-card-broken-skill"]').text()).toContain(
+      "Missing required description"
+    );
+    expect(
+      wrapper.find<HTMLButtonElement>('[data-test="skill-toggle-broken-skill"]').element.disabled
+    ).toBe(true);
+  });
+
+  it("toggles a valid skill between active and inactive states", async () => {
+    const { wrapper } = mountSettings();
+
+    await wrapper.find('[data-test="settings-tab-skills"]').trigger("click");
+    await flushPromises();
+
+    const toggleButton = wrapper.find('[data-test="skill-toggle-test-driven-rust"]');
+    expect(toggleButton.text()).toBe("Activate");
+
+    await toggleButton.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.activateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(toggleButton.text()).toBe("Deactivate");
+
+    await toggleButton.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.deactivateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(toggleButton.text()).toBe("Activate");
+  });
+
+  it("retries loading skills when the first tab load fails", async () => {
+    mockedCommands.listSkills.mockRejectedValueOnce(new Error("skills unavailable"));
+
+    const { wrapper } = mountSettings();
+    const skillsTab = wrapper.find('[data-test="settings-tab-skills"]');
+
+    await skillsTab.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[role="alert"]').text()).toContain("skills unavailable");
+
+    await wrapper.findAll('[role="tab"]')[0].trigger("click");
+    await skillsTab.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.listSkills).toHaveBeenCalledTimes(2);
+    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').exists()).toBe(true);
   });
 
   it("P1-S1-settings-landmarks exposes the settings page as the main landmark with a level-one heading", () => {

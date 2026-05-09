@@ -4,9 +4,9 @@
 
 use crate::commands::*;
 use agent_core::{
-    AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage, DomainEvent,
-    EventPayload, PrivacyClassification, ProjectedModelLimits, TaskGraphSnapshot, TaskSnapshot,
-    TaskState,
+    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage,
+    DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits, SkillDetail, SkillView,
+    TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -38,6 +38,12 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             switch_model,
             get_permission_mode,
             get_build_info,
+            // Skill commands
+            list_skills,
+            get_skill_detail,
+            activate_skill,
+            deactivate_skill,
+            list_active_skills,
             // MCP commands
             list_mcp_servers,
             start_mcp_server,
@@ -68,6 +74,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ProfileWithLimits>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
+        // Skill response types
+        .typ::<SkillView>()
+        .typ::<SkillDetail>()
+        .typ::<ActiveSkillView>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()

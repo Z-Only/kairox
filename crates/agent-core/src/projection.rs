@@ -180,6 +180,11 @@ impl SessionProjection {
             | EventPayload::MemoryAccepted { .. }
             | EventPayload::MemoryRejected { .. }
             | EventPayload::ReviewerFindingAdded { .. }
+            | EventPayload::SkillDiscovered { .. }
+            | EventPayload::SkillValidationFailed { .. }
+            | EventPayload::SkillActivated { .. }
+            | EventPayload::SkillDeactivated { .. }
+            | EventPayload::SkillSuggested { .. }
             | EventPayload::McpServerStarting { .. }
             | EventPayload::McpServerReady { .. }
             | EventPayload::McpServerStopped { .. }

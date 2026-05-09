@@ -9,9 +9,11 @@ use agent_core::projection::ProjectedRole;
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
+use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
 use futures::StreamExt;
+use std::sync::Arc;
 
 /// Helper: create a runtime with FakeModelClient.
 async fn make_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
@@ -522,4 +524,219 @@ fn colon_model_without_alias_falls_through_as_chat_message() {
             .any(|c| matches!(c, Command::SwitchModel { .. })),
         "expected NO SwitchModel without alias; got {commands:?}"
     );
+}
+
+fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
+    use agent_core::projection::SessionProjection;
+    use agent_core::{SessionId, WorkspaceId};
+    use agent_tui::components::chat::ChatPanel;
+    use agent_tui::components::{EventContext, FocusTarget};
+    use agent_tui::keybindings::KeyAction;
+
+    let workspace_id = WorkspaceId::new();
+    let session_id = Some(SessionId::new());
+    let projection = SessionProjection::default();
+    let ctx = EventContext {
+        focus: FocusTarget::Chat,
+        current_session: &projection,
+        sessions: &[],
+        model_profile: "fake",
+        permission_mode: PermissionMode::Suggest,
+        sidebar_left_visible: true,
+        sidebar_right_visible: false,
+        workspace_id: &workspace_id,
+        current_session_id: &session_id,
+    };
+
+    let mut chat = ChatPanel::new();
+    for character in input.chars() {
+        let _ = chat.apply_key_action(KeyAction::InputCharacter(character), &ctx);
+    }
+    let (_effects, commands) = chat.apply_key_action(KeyAction::SendInput, &ctx);
+    commands
+}
+
+fn write_test_skill(root: &std::path::Path, name: &str, description: &str, body: &str) {
+    let skill_directory = root.join(name);
+    std::fs::create_dir_all(&skill_directory).expect("skill directory should be created");
+    std::fs::write(
+        skill_directory.join("SKILL.md"),
+        format!("---\nname: {name}\ndescription: {description}\n---\n{body}"),
+    )
+    .expect("skill file should be written");
+}
+
+#[test]
+fn colon_skills_input_dispatches_list_skills_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skills");
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::ListSkills)),
+        "expected Command::ListSkills; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_skill_show_input_dispatches_show_skill_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skill show test-driven-rust");
+
+    assert!(
+        commands.iter().any(
+            |command| matches!(command, Command::ShowSkill { skill_id } if skill_id == "test-driven-rust")
+        ),
+        "expected Command::ShowSkill for test-driven-rust; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_skill_activate_input_dispatches_activate_skill_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skill activate test-driven-rust");
+
+    assert!(
+        commands.iter().any(
+            |command| matches!(command, Command::ActivateSkill { skill_id, .. } if skill_id == "test-driven-rust")
+        ),
+        "expected Command::ActivateSkill for test-driven-rust; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_skill_deactivate_input_dispatches_deactivate_skill_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skill deactivate test-driven-rust");
+
+    assert!(
+        commands.iter().any(
+            |command| matches!(command, Command::DeactivateSkill { skill_id, .. } if skill_id == "test-driven-rust")
+        ),
+        "expected Command::DeactivateSkill for test-driven-rust; got {commands:?}"
+    );
+}
+
+#[tokio::test]
+async fn tui_skill_commands_call_facade_and_render_visible_messages() {
+    use agent_core::projection::ProjectedRole;
+    use agent_core::{EventPayload, SessionId, WorkspaceId};
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let skill_root = std::env::temp_dir().join(format!(
+        "kairox-tui-skill-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after UNIX_EPOCH")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&skill_root).expect("skill root should be created");
+    write_test_skill(
+        &skill_root,
+        "test-driven-rust",
+        "Use when implementing Rust changes with test-first development.",
+        "# Test-driven Rust\n\nWrite a failing test first.\n",
+    );
+    let registry = FileSkillRegistry::discover(vec![SkillRoot::new(
+        SkillSourceKind::Workspace,
+        &skill_root,
+    )])
+    .await
+    .expect("skill registry should discover test skill");
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let model = FakeModelClient::new(vec!["ok".into()]);
+    let runtime = Arc::new(LocalRuntime::new(store, model).with_skill_registry(Arc::new(registry)));
+
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    app.current_session_id = Some(session_id.clone());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::ListSkills,
+            Command::ShowSkill {
+                skill_id: "test-driven-rust".into(),
+            },
+            Command::ActivateSkill {
+                workspace_id: workspace_id.clone(),
+                session_id: session_id.clone(),
+                skill_id: "test-driven-rust".into(),
+            },
+            Command::DeactivateSkill {
+                workspace_id,
+                session_id: session_id.clone(),
+                skill_id: "test-driven-rust".into(),
+            },
+        ],
+    )
+    .await;
+
+    let visible_messages: Vec<&str> = app
+        .state
+        .current_session
+        .messages
+        .iter()
+        .filter(|message| message.role == ProjectedRole::Assistant)
+        .map(|message| message.content.as_str())
+        .collect();
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("test-driven-rust")),
+        "expected a visible skill list/detail message; got {visible_messages:?}"
+    );
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("activated test-driven-rust")),
+        "expected visible activation confirmation; got {visible_messages:?}"
+    );
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("deactivated test-driven-rust")),
+        "expected visible deactivation confirmation; got {visible_messages:?}"
+    );
+
+    let trace = runtime
+        .get_trace(session_id)
+        .await
+        .expect("skill commands should write trace events");
+    assert!(
+        trace.iter().any(|entry| {
+            matches!(
+                &entry.event.payload,
+                EventPayload::SkillActivated { skill_id, .. } if skill_id == "test-driven-rust"
+            )
+        }),
+        "expected SkillActivated trace event; got {trace:?}"
+    );
+    assert!(
+        trace.iter().any(|entry| {
+            matches!(
+                &entry.event.payload,
+                EventPayload::SkillDeactivated { skill_id, .. } if skill_id == "test-driven-rust"
+            )
+        }),
+        "expected SkillDeactivated trace event; got {trace:?}"
+    );
+
+    std::fs::remove_dir_all(skill_root).expect("test skill root should be cleaned up");
 }

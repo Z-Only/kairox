@@ -1,12 +1,16 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
+use crate::skills::{
+    skill_document_to_detail, skill_metadata_to_active_view, skill_metadata_to_view,
+};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::{
-    AddCatalogSourceRequest, AgentId, AgentStatusInfo, AppFacade, CatalogQuery as CoreCatalogQuery,
-    CatalogSourceView, DomainEvent, EventPayload, InstallOutcomeView as CoreInstallOutcomeView,
+    ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentId, AgentStatusInfo,
+    AppFacade, CatalogQuery as CoreCatalogQuery, CatalogSourceView, DeactivateSkillRequest,
+    DomainEvent, EventPayload, InstallOutcomeView as CoreInstallOutcomeView,
     InstallRequest as CoreInstallRequest, InstalledEntry as CoreInstalledEntry, PermissionDecision,
     PrivacyClassification, SendMessageRequest, ServerEntry as CoreServerEntry, SessionId,
-    StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
+    SkillDetail, SkillView, StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
 use agent_mcp::catalog::{
     AggregateCatalogProvider, BuiltinCatalogProvider, CatalogProvider, CatalogQuery,
@@ -77,6 +81,8 @@ where
     /// Phase 2: shared HTTP client + cache for remote catalog providers.
     catalog_http: Option<SharedHttpClient>,
     catalog_cache: Option<Arc<HttpResponseCache>>,
+    skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
+    active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
     /// Per-session in-memory state. Inserted lazily on first access.
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     /// Loaded TOML config (`Config::load()` in production, in-line in tests).
@@ -116,6 +122,8 @@ where
             aggregate_handle: None,
             catalog_http: None,
             catalog_cache: None,
+            skill_registry: None,
+            active_skills: Arc::new(Mutex::new(HashMap::new())),
             session_states: Arc::new(Mutex::new(HashMap::new())),
             config: Arc::new(agent_config::Config {
                 profiles: vec![],
@@ -218,6 +226,11 @@ where
 
     pub fn with_permission_mode(mut self, mode: PermissionMode) -> Self {
         self.permission_engine = Arc::new(Mutex::new(PermissionEngine::new(mode)));
+        self
+    }
+
+    pub fn with_skill_registry(mut self, registry: Arc<dyn agent_skills::SkillRegistry>) -> Self {
+        self.skill_registry = Some(registry);
         self
     }
 
@@ -707,6 +720,8 @@ where
                         active_cancellation: &self.active_cancellation,
                         config: &self.config,
                         session_states: &self.session_states,
+                        skill_registry: &self.skill_registry,
+                        active_skills: &self.active_skills,
                     },
                     &request,
                 )
@@ -865,10 +880,136 @@ where
         }
     }
 
+    async fn list_skills(&self) -> agent_core::Result<Vec<SkillView>> {
+        let Some(registry) = &self.skill_registry else {
+            return Ok(Vec::new());
+        };
+        Ok(registry.list().iter().map(skill_metadata_to_view).collect())
+    }
+
+    async fn get_skill(&self, skill_id: String) -> agent_core::Result<Option<SkillDetail>> {
+        let Some(registry) = &self.skill_registry else {
+            return Ok(None);
+        };
+        let skill_id = agent_skills::SkillId::new(skill_id);
+        if registry.get(&skill_id).is_none() {
+            return Ok(None);
+        }
+        let document = registry
+            .load_document(&skill_id)
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        Ok(Some(skill_document_to_detail(document)))
+    }
+
+    async fn activate_skill(
+        &self,
+        request: ActivateSkillRequest,
+    ) -> agent_core::Result<ActiveSkillView> {
+        let registry = self.skill_registry.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill registry not configured".into())
+        })?;
+        let skill_id = agent_skills::SkillId::new(request.skill_id.clone());
+        let metadata = registry.get(&skill_id).ok_or_else(|| {
+            agent_core::CoreError::InvalidState(format!("skill not found: {}", request.skill_id))
+        })?;
+        let active_view = skill_metadata_to_active_view(&metadata);
+
+        let activated = {
+            let mut active_skills = self.active_skills.lock().await;
+            let session_skills = active_skills
+                .entry(request.session_id.to_string())
+                .or_insert_with(Vec::new);
+            if session_skills.iter().any(|id| id == &request.skill_id) {
+                false
+            } else {
+                session_skills.push(request.skill_id.clone());
+                true
+            }
+        };
+
+        if activated {
+            let event = DomainEvent::new(
+                request.workspace_id,
+                request.session_id,
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::SkillActivated {
+                    skill_id: active_view.skill_id.clone(),
+                    name: active_view.name.clone(),
+                    source: active_view.source.clone(),
+                    activation_mode: active_view.activation_mode.clone(),
+                },
+            );
+            crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event)
+                .await?;
+        }
+
+        Ok(active_view)
+    }
+
+    async fn deactivate_skill(&self, request: DeactivateSkillRequest) -> agent_core::Result<()> {
+        let registry = self.skill_registry.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill registry not configured".into())
+        })?;
+        let skill_id = agent_skills::SkillId::new(request.skill_id.clone());
+        let metadata = registry.get(&skill_id).ok_or_else(|| {
+            agent_core::CoreError::InvalidState(format!("skill not found: {}", request.skill_id))
+        })?;
+        let active_view = skill_metadata_to_active_view(&metadata);
+
+        let removed = {
+            let mut active_skills = self.active_skills.lock().await;
+            let Some(session_skills) = active_skills.get_mut(&request.session_id.to_string())
+            else {
+                return Ok(());
+            };
+            let original_len = session_skills.len();
+            session_skills.retain(|id| id != &request.skill_id);
+            session_skills.len() != original_len
+        };
+        if !removed {
+            return Ok(());
+        }
+
+        let event = DomainEvent::new(
+            request.workspace_id,
+            request.session_id,
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::SkillDeactivated {
+                skill_id: active_view.skill_id,
+                name: active_view.name,
+                source: active_view.source,
+            },
+        );
+        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await
+    }
+
+    async fn list_active_skills(
+        &self,
+        session_id: SessionId,
+    ) -> agent_core::Result<Vec<ActiveSkillView>> {
+        let Some(registry) = &self.skill_registry else {
+            return Ok(Vec::new());
+        };
+        let skill_ids = {
+            let active_skills = self.active_skills.lock().await;
+            active_skills
+                .get(&session_id.to_string())
+                .cloned()
+                .unwrap_or_default()
+        };
+        Ok(skill_ids
+            .into_iter()
+            .filter_map(|skill_id| registry.get(&agent_skills::SkillId::new(skill_id)))
+            .map(|metadata| skill_metadata_to_active_view(&metadata))
+            .collect())
+    }
+
     // -----------------------------------------------------------------------
     // Marketplace catalog
     // -----------------------------------------------------------------------
-
     async fn list_catalog(
         &self,
         query: CoreCatalogQuery,

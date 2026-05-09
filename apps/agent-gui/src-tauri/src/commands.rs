@@ -600,6 +600,100 @@ pub fn get_build_info() -> BuildInfoResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Skill commands
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_skills(state: State<'_, GuiState>) -> Result<Vec<agent_core::SkillView>, String> {
+    state
+        .runtime
+        .list_skills()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_skill_detail(
+    state: State<'_, GuiState>,
+    skill_id: String,
+) -> Result<agent_core::SkillDetail, String> {
+    state
+        .runtime
+        .get_skill(skill_id.clone())
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Skill not found: {skill_id}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn activate_skill(
+    state: State<'_, GuiState>,
+    skill_id: String,
+) -> Result<agent_core::ActiveSkillView, String> {
+    let workspace_id = {
+        let workspace_id = state.workspace_id.lock().await;
+        workspace_id.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current_session_id = state.current_session_id.lock().await;
+        current_session_id.clone().ok_or("No active session")?
+    };
+
+    state
+        .runtime
+        .activate_skill(agent_core::ActivateSkillRequest {
+            workspace_id,
+            session_id,
+            skill_id,
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn deactivate_skill(state: State<'_, GuiState>, skill_id: String) -> Result<(), String> {
+    let workspace_id = {
+        let workspace_id = state.workspace_id.lock().await;
+        workspace_id.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current_session_id = state.current_session_id.lock().await;
+        current_session_id.clone().ok_or("No active session")?
+    };
+
+    state
+        .runtime
+        .deactivate_skill(agent_core::DeactivateSkillRequest {
+            workspace_id,
+            session_id,
+            skill_id,
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_active_skills(
+    state: State<'_, GuiState>,
+) -> Result<Vec<agent_core::ActiveSkillView>, String> {
+    let session_id = {
+        let current_session_id = state.current_session_id.lock().await;
+        current_session_id.clone().ok_or("No active session")?
+    };
+
+    state
+        .runtime
+        .list_active_skills(session_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // MCP commands
 // ---------------------------------------------------------------------------
 

@@ -224,11 +224,11 @@ export const useSessionStore = defineStore("session", () => {
     resetProjection();
     clearTrace();
     useTaskGraphStore().clearTaskGraph();
-    currentSessionId.value = sessionId;
-    currentProfile.value = target.profile;
     const next = await invoke<SessionProjection>("switch_session", {
       sessionId
     });
+    currentSessionId.value = sessionId;
+    currentProfile.value = target.profile;
     setProjection(next);
     const traceStrings = await invoke<string[]>("get_trace", { sessionId });
     for (const jsonStr of traceStrings) {

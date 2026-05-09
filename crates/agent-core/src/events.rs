@@ -193,6 +193,31 @@ pub enum EventPayload {
     SessionCancelled {
         reason: String,
     },
+    SkillDiscovered {
+        skill_id: String,
+        name: String,
+        source: String,
+    },
+    SkillValidationFailed {
+        path: String,
+        error: String,
+    },
+    SkillActivated {
+        skill_id: String,
+        name: String,
+        source: String,
+        activation_mode: String,
+    },
+    SkillDeactivated {
+        skill_id: String,
+        name: String,
+        source: String,
+    },
+    SkillSuggested {
+        skill_id: String,
+        name: String,
+        reason: String,
+    },
     McpServerStarting {
         server_id: String,
     },
@@ -289,6 +314,11 @@ impl EventPayload {
             Self::AgentIdle { .. } => "AgentIdle",
             Self::TaskRetried { .. } => "TaskRetried",
             Self::SessionCancelled { .. } => "SessionCancelled",
+            Self::SkillDiscovered { .. } => "SkillDiscovered",
+            Self::SkillValidationFailed { .. } => "SkillValidationFailed",
+            Self::SkillActivated { .. } => "SkillActivated",
+            Self::SkillDeactivated { .. } => "SkillDeactivated",
+            Self::SkillSuggested { .. } => "SkillSuggested",
             Self::McpServerStarting { .. } => "McpServerStarting",
             Self::McpServerReady { .. } => "McpServerReady",
             Self::McpServerStopped { .. } => "McpServerStopped",

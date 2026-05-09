@@ -16,10 +16,10 @@ pub use context_types::{ContextSource, ContextUsage};
 pub use error::CoreError;
 pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
-    AddCatalogSourceRequest, AgentStatusInfo, AppFacade, CatalogQuery, CatalogSourceView,
-    InstallOutcomeView, InstallRequest, InstalledEntry, PermissionDecision, SendMessageRequest,
-    ServerEntry, SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry,
-    WorkspaceInfo,
+    ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
+    CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView, InstallRequest,
+    InstalledEntry, PermissionDecision, SendMessageRequest, ServerEntry, SessionMeta, SkillDetail,
+    SkillView, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

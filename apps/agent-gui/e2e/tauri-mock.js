@@ -98,6 +98,35 @@ const state = {
     }
   ],
   installedCatalog: [],
+  skills: [
+    {
+      id: "test-driven-rust",
+      name: "test-driven-rust",
+      description: "Write Rust changes test-first.",
+      version: "1.0.0",
+      source: "builtin:/skills/test-driven-rust",
+      activation_mode: "manual",
+      keywords: ["rust", "tdd"],
+      tools: [],
+      can_request_tools: [],
+      valid: true,
+      validation_error: null
+    },
+    {
+      id: "broken-skill",
+      name: "broken-skill",
+      description: "Fixture for validation errors.",
+      version: null,
+      source: "workspace:/skills/broken-skill",
+      activation_mode: "manual",
+      keywords: [],
+      tools: [],
+      can_request_tools: [],
+      valid: false,
+      validation_error: "Missing required description"
+    }
+  ],
+  activeSkills: [],
   catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true },
   // Phase 2: catalog sources — only user-configured remote sources are listed here.
   // The builtin source is implicit (the GUI's source chip bar always renders a
@@ -646,6 +675,47 @@ function invoke(cmd, args) {
         git_hash: "mock",
         build_time: "2026-05-05"
       });
+
+    case "list_skills":
+      return Promise.resolve(state.skills);
+
+    case "get_skill_detail": {
+      var detailSkill = state.skills.find(function (skill) {
+        return skill.id === args.skillId;
+      });
+      if (!detailSkill) return Promise.reject(new Error("Skill not found: " + args.skillId));
+      return Promise.resolve({
+        view: detailSkill,
+        body_markdown: "# " + detailSkill.name + "\n\n" + detailSkill.description
+      });
+    }
+
+    case "activate_skill": {
+      var skillToActivate = state.skills.find(function (skill) {
+        return skill.id === args.skillId;
+      });
+      if (!skillToActivate) return Promise.reject(new Error("Skill not found: " + args.skillId));
+      var activeSkill = {
+        skill_id: skillToActivate.id,
+        name: skillToActivate.name,
+        source: skillToActivate.source,
+        activation_mode: skillToActivate.activation_mode
+      };
+      state.activeSkills = state.activeSkills.filter(function (skill) {
+        return skill.skill_id !== activeSkill.skill_id;
+      });
+      state.activeSkills.push(activeSkill);
+      return Promise.resolve(activeSkill);
+    }
+
+    case "deactivate_skill":
+      state.activeSkills = state.activeSkills.filter(function (skill) {
+        return skill.skill_id !== args.skillId;
+      });
+      return Promise.resolve(null);
+
+    case "list_active_skills":
+      return Promise.resolve(state.activeSkills);
 
     case "list_mcp_servers":
       return [
