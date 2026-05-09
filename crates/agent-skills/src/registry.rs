@@ -50,8 +50,28 @@ impl FileSkillRegistry {
                     continue;
                 }
 
-                let raw_skill_markdown = tokio::fs::read_to_string(&skill_path).await?;
-                let parsed_skill = parse_skill_markdown(&raw_skill_markdown)?;
+                let raw_skill_markdown = match tokio::fs::read_to_string(&skill_path).await {
+                    Ok(raw_skill_markdown) => raw_skill_markdown,
+                    Err(error) => {
+                        tracing::warn!(
+                            skill_path = %skill_path.display(),
+                            error = %error,
+                            "skipping skill because its SKILL.md could not be read"
+                        );
+                        continue;
+                    }
+                };
+                let parsed_skill = match parse_skill_markdown(&raw_skill_markdown) {
+                    Ok(parsed_skill) => parsed_skill,
+                    Err(error) => {
+                        tracing::warn!(
+                            skill_path = %skill_path.display(),
+                            error = %error,
+                            "skipping skill because its SKILL.md is invalid"
+                        );
+                        continue;
+                    }
+                };
                 let skill_id = SkillId::new(parsed_skill.frontmatter.name.clone());
 
                 skills.insert(
@@ -169,6 +189,36 @@ mod tests {
         assert_eq!(metadata.source.root, workspace_root.path());
         assert_eq!(metadata.source.path, workspace_skill_path);
         assert_eq!(registry.list(), vec![metadata]);
+    }
+
+    #[tokio::test]
+    async fn skips_invalid_skill_documents_during_discovery() {
+        let user_root = tempfile::tempdir().expect("user root should be created");
+        let invalid_skill_directory = user_root.path().join("invalid-skill");
+        fs::create_dir_all(&invalid_skill_directory).expect("invalid skill directory should exist");
+        fs::write(
+            invalid_skill_directory.join("SKILL.md"),
+            "---\nname: broken-skill\n---\n# Missing description\n",
+        )
+        .expect("invalid skill should be written");
+        write_skill(
+            user_root.path(),
+            "valid-skill",
+            "valid-skill",
+            "Valid skill description",
+            "Valid body\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![SkillRoot::new(
+            SkillSourceKind::User,
+            user_root.path(),
+        )])
+        .await
+        .expect("invalid skill documents should not abort discovery");
+
+        assert_eq!(registry.list().len(), 1);
+        assert!(registry.get(&SkillId::new("broken-skill")).is_none());
+        assert!(registry.get(&SkillId::new("valid-skill")).is_some());
     }
 
     #[tokio::test]

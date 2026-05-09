@@ -71,6 +71,8 @@ pub fn skill_activation_mode_to_string(mode: SkillActivationMode) -> String {
 mod tests {
     use std::path::PathBuf;
 
+    use agent_skills::SkillSourceKind;
+
     use super::build_default_skill_roots;
 
     #[test]
@@ -79,11 +81,10 @@ mod tests {
         let workspace = PathBuf::from("/workspace/project");
         let roots = build_default_skill_roots(&home, &workspace);
 
-        assert!(roots
-            .iter()
-            .any(|root| root.path.ends_with(".config/kairox/skills")));
-        assert!(roots
-            .iter()
-            .any(|root| root.path.ends_with(".kairox/skills")));
+        assert_eq!(roots.len(), 2);
+        assert_eq!(roots[0].kind, SkillSourceKind::User);
+        assert_eq!(roots[0].path, home.join(".config/kairox/skills"));
+        assert_eq!(roots[1].kind, SkillSourceKind::Workspace);
+        assert_eq!(roots[1].path, workspace.join(".kairox/skills"));
     }
 }
