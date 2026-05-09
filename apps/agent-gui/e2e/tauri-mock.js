@@ -589,6 +589,48 @@ function invoke(cmd, args) {
       return Promise.resolve(undefined);
     }
 
+    case "switch_model": {
+      var alias = args && (args.profileAlias || args.profile_alias);
+      var switchSid = (args && (args.sessionId || args.session_id)) || state.currentSessionId;
+      if (!alias) {
+        return Promise.reject(new Error("profileAlias required"));
+      }
+      if (!switchSid) {
+        return Promise.reject(new Error("No active session"));
+      }
+      var fromProfile = state.currentProfile;
+      if (fromProfile === alias) {
+        return Promise.resolve(null); // same-profile: silent no-op (mirrors runtime)
+      }
+      // Resolve new limits from the same table list_profiles_with_limits uses.
+      var newWindow;
+      var newOutput;
+      if (alias === "fast") {
+        newWindow = 128000;
+        newOutput = 16384;
+      } else if (alias === "smart") {
+        newWindow = 200000;
+        newOutput = 16384;
+      } else {
+        // Unknown alias → reject like the real runtime does
+        // (agent-core::CoreError::InvalidState).
+        return Promise.reject(new Error("Unknown model profile: " + alias));
+      }
+      state.currentProfile = alias;
+      var switchedEvent = makeEvent(switchSid, {
+        type: "ModelProfileSwitched",
+        from_profile: fromProfile,
+        to_profile: alias,
+        effective_at: new Date().toISOString(),
+        context_window: newWindow,
+        output_limit: newOutput,
+        limit_source: "builtin_registry"
+      });
+      getTrace(switchSid).push(switchedEvent);
+      emitEvent("session-event", switchedEvent);
+      return Promise.resolve(null);
+    }
+
     case "get_task_graph": {
       var sessionId = args.sessionId || args.session_id;
       if (!sessionId) return Promise.reject(new Error("sessionId is required"));
