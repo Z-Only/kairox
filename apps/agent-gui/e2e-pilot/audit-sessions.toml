@@ -68,6 +68,12 @@ action = "click"
 target = "[data-test='session-rename-confirm']"
 
 [[step]]
+name = "wait for delete button after rename"
+action = "wait"
+selector = "[data-test='session-delete-btn']"
+timeout_ms = 5000
+
+[[step]]
 name = "delete button visible"
 action = "assert-visible"
 target = "[data-test='session-delete-btn']"
