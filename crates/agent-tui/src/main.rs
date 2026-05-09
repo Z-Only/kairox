@@ -170,6 +170,13 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::ListSkills
+            | Command::ShowSkill { .. }
+            | Command::ActivateSkill { .. }
+            | Command::DeactivateSkill { .. } => {
+                app::dispatch_commands(runtime, app, vec![command]).await;
+            }
+
             Command::StartSession {
                 workspace_id: ws_id,
                 model_profile: mp,

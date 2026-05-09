@@ -93,6 +93,53 @@ impl ChatPanel {
                             alias,
                         });
                     }
+                } else if trimmed == ":skills" {
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    commands.push(Command::ListSkills);
+                } else if let Some(skill_id) = trimmed
+                    .strip_prefix(":skill show ")
+                    .map(str::trim)
+                    .filter(|skill_id| !skill_id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    commands.push(Command::ShowSkill { skill_id });
+                } else if let Some(skill_id) = trimmed
+                    .strip_prefix(":skill activate ")
+                    .map(str::trim)
+                    .filter(|skill_id| !skill_id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    if let Some(session_id) = ctx.current_session_id {
+                        commands.push(Command::ActivateSkill {
+                            workspace_id: ctx.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            skill_id,
+                        });
+                    }
+                } else if let Some(skill_id) = trimmed
+                    .strip_prefix(":skill deactivate ")
+                    .map(str::trim)
+                    .filter(|skill_id| !skill_id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    if let Some(session_id) = ctx.current_session_id {
+                        commands.push(Command::DeactivateSkill {
+                            workspace_id: ctx.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            skill_id,
+                        });
+                    }
                 } else {
                     self.input_history.push(self.input_content.clone());
                     let content = std::mem::take(&mut self.input_content);

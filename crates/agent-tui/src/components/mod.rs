@@ -149,6 +149,24 @@ pub enum Command {
         session_id: SessionId,
         alias: String,
     },
+    /// User typed `:skills` to list discovered native skills.
+    ListSkills,
+    /// User typed `:skill show <id>` to show one native skill.
+    ShowSkill {
+        skill_id: String,
+    },
+    /// User typed `:skill activate <id>` to activate one skill for the current session.
+    ActivateSkill {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        skill_id: String,
+    },
+    /// User typed `:skill deactivate <id>` to deactivate one skill for the current session.
+    DeactivateSkill {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        skill_id: String,
+    },
 }
 
 /// Read-only shared state passed to components on every event.
