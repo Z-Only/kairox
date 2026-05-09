@@ -1,6 +1,9 @@
 pub mod frontmatter;
 pub mod types;
 
+pub use frontmatter::{parse_skill_markdown, ParsedSkillMarkdown};
+pub use types::*;
+
 #[derive(Debug, thiserror::Error)]
 pub enum SkillError {
     #[error("missing SKILL.md frontmatter")]
