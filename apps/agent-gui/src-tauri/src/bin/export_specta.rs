@@ -28,6 +28,7 @@ fn main() {
     let specta_builder = tauri_specta::Builder::new()
         .commands(collect_commands![
             agent_gui_tauri::commands::list_profiles,
+            agent_gui_tauri::commands::list_profiles_with_limits,
             agent_gui_tauri::commands::get_profile_info,
             agent_gui_tauri::commands::initialize_workspace,
             agent_gui_tauri::commands::start_session,
