@@ -165,6 +165,7 @@ impl SessionProjection {
             }
             // Events not relevant to session projection
             EventPayload::WorkspaceOpened { .. }
+            | EventPayload::ModelProfileSwitched { .. }
             | EventPayload::ModelRequestStarted { .. }
             | EventPayload::ModelToolCallRequested { .. }
             | EventPayload::PermissionRequested { .. }

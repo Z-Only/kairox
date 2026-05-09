@@ -35,6 +35,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_task_graph,
             cancel_session,
             compact_session,
+            switch_model,
             get_permission_mode,
             get_build_info,
             // MCP commands

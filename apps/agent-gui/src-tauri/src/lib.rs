@@ -152,6 +152,7 @@ pub fn run() {
             crate::commands::get_task_graph,
             crate::commands::cancel_session,
             crate::commands::compact_session,
+            crate::commands::switch_model,
             crate::commands::get_permission_mode,
             crate::commands::get_build_info,
             // MCP commands

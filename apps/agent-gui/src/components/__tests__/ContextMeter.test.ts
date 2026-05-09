@@ -110,3 +110,132 @@ describe("ContextMeter.vue", () => {
     expect(wrapper.find('[data-test="context-meter-reserved"]').exists()).toBe(true);
   });
 });
+
+describe("ContextMeter.vue — Switch model dropdown (P4)", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    setActivePinia(createPinia());
+    // `openProfilePicker()` calls `list_profiles_with_limits` once and
+    // caches the result; provide a two-profile fixture by default.
+    invokeMock.mockImplementation(async (cmd: string, _args?: unknown) => {
+      if (cmd === "list_profiles_with_limits") {
+        return [
+          {
+            alias: "fast",
+            provider: "openai",
+            model_id: "gpt-4o-mini",
+            context_window: 128_000,
+            output_limit: 16_384,
+            limit_source: "builtin_registry",
+            has_api_key: true
+          },
+          {
+            alias: "opus",
+            provider: "anthropic",
+            model_id: "claude-opus",
+            context_window: 200_000,
+            output_limit: 16_384,
+            limit_source: "builtin_registry",
+            has_api_key: true
+          }
+        ];
+      }
+      if (cmd === "switch_model") return null;
+      return null;
+    });
+  });
+
+  it("enables the switch-model button when a session is active and idle", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_test";
+    session.currentProfile = "fast";
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    const btn = wrapper.find('[data-test="context-meter-switch-model"]');
+    expect(btn.exists()).toBe(true);
+    expect(btn.attributes("disabled")).toBeUndefined();
+  });
+
+  it("keeps the switch-model button disabled while compacting", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_test";
+    session.currentProfile = "fast";
+    session.compacting = true;
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    const btn = wrapper.find('[data-test="context-meter-switch-model"]');
+    expect(btn.attributes("disabled")).toBeDefined();
+  });
+
+  it("opens the profile picker when the switch-model button is clicked", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_test";
+    session.currentProfile = "fast";
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-switch-model"]').trigger("click");
+    // `openProfilePicker` awaits `invoke("list_profiles_with_limits")` — let the
+    // microtask queue drain so the profile list renders.
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    const items = wrapper.findAll('[data-test^="context-meter-profile-"]');
+    expect(items.length).toBe(2);
+    expect(wrapper.find('[data-test="context-meter-profile-fast"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="context-meter-profile-opus"]').exists()).toBe(true);
+    // The "(Current)" marker sits on the current alias.
+    expect(wrapper.find('[data-test="context-meter-profile-fast"]').text()).toMatch(
+      /current|当前/i
+    );
+  });
+
+  it("calls switch_model with the selected alias and closes the popover", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_test";
+    session.currentProfile = "fast";
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-switch-model"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-profile-opus"]').trigger("click");
+    // Let the awaited `invoke("switch_model")` resolve.
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    expect(invokeMock).toHaveBeenCalledWith("switch_model", {
+      sessionId: "ses_test",
+      profileAlias: "opus"
+    });
+    // Popover should close after a successful switch.
+    expect(wrapper.find('[data-test="context-meter-popover"]').exists()).toBe(false);
+  });
+
+  it("clicking the already-current profile is a no-op (no switch_model call)", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_test";
+    session.currentProfile = "fast";
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-switch-model"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-profile-fast"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    const switchCalls = invokeMock.mock.calls.filter((c) => c[0] === "switch_model");
+    expect(switchCalls.length).toBe(0);
+  });
+});

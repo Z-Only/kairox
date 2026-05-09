@@ -155,4 +155,31 @@ describe("useSessionStore — context fields", () => {
     expect(session.compacting).toBe(false);
     expect(session.lastCompactionError).toBeNull();
   });
+
+  it("updates currentProfile and modelLimits on ModelProfileSwitched", () => {
+    const session = useSessionStore();
+    // Sanity: store starts with the default "fast" profile (verified at
+    // `stores/session.ts:39` — `currentProfile = ref<string>("fast")`).
+    expect(session.currentProfile).toBe("fast");
+    expect(session.modelLimits).toBeNull();
+
+    session.applyEvent(
+      makeEvent({
+        type: "ModelProfileSwitched",
+        from_profile: "fast",
+        to_profile: "opus",
+        effective_at: "2026-05-09T10:00:00Z",
+        context_window: 200_000,
+        output_limit: 16_384,
+        limit_source: "builtin_registry"
+      })
+    );
+
+    expect(session.currentProfile).toBe("opus");
+    expect(session.modelLimits).toEqual({
+      context_window: 200_000,
+      output_limit: 16_384,
+      source: "builtin_registry"
+    });
+  });
 });

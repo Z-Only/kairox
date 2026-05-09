@@ -2,12 +2,50 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
 import { useToast } from "@/composables/useToast";
-import type { ContextSource } from "@/types";
+import type { ContextSource, ProfileWithLimits } from "@/types";
 
 const { t } = useI18n();
 const session = useSessionStore();
 const toast = useToast();
 const popoverOpen = ref(false);
+const profilePickerOpen = ref(false);
+const profiles = ref<ProfileWithLimits[]>([]);
+const switchingProfile = ref(false);
+
+async function openProfilePicker() {
+  if (!session.currentSessionId || session.compacting || switchingProfile.value) return;
+  if (profiles.value.length === 0) {
+    try {
+      profiles.value = await invoke<ProfileWithLimits[]>("list_profiles_with_limits");
+    } catch (e) {
+      toast.error(t("context.switchModelFailed", { error: String(e) }));
+      return;
+    }
+  }
+  profilePickerOpen.value = true;
+}
+
+async function onProfilePicked(alias: string) {
+  if (!session.currentSessionId || switchingProfile.value) return;
+  if (alias === session.currentProfile) {
+    profilePickerOpen.value = false;
+    return;
+  }
+  switchingProfile.value = true;
+  try {
+    await invoke("switch_model", {
+      sessionId: session.currentSessionId,
+      profileAlias: alias
+    });
+    toast.success(t("context.switchModelSuccess", { profile: alias }));
+    profilePickerOpen.value = false;
+    popoverOpen.value = false;
+  } catch (e) {
+    toast.error(t("context.switchModelFailed", { error: String(e) }));
+  } finally {
+    switchingProfile.value = false;
+  }
+}
 
 const ratio = computed(() => {
   const u = session.lastContextUsage;
@@ -168,8 +206,9 @@ async function onCompactClick() {
           type="button"
           class="btn btn-ghost"
           data-test="context-meter-switch-model"
-          disabled
+          :disabled="!session.currentSessionId || session.compacting || switchingProfile"
           :title="t('context.switchModel')"
+          @click="openProfilePicker"
         >
           {{ t("context.switchModel") }}
         </button>
@@ -182,6 +221,30 @@ async function onCompactClick() {
         >
           {{ session.compacting ? t("context.compactInProgress") : t("context.compactNow") }}
         </button>
+      </div>
+      <div v-if="profilePickerOpen" class="profile-picker" data-test="context-meter-picker">
+        <header class="profile-picker-header">
+          {{ t("context.switchModelChoose") }}
+        </header>
+        <ul class="profile-list">
+          <li v-for="p in profiles" :key="p.alias">
+            <button
+              type="button"
+              class="profile-item"
+              :data-test="`context-meter-profile-${p.alias}`"
+              :disabled="switchingProfile"
+              @click="onProfilePicked(p.alias)"
+            >
+              <span class="profile-alias">{{ p.alias }}</span>
+              <span class="profile-meta">
+                {{ p.model_id }} · {{ Math.round(p.context_window / 1000) }}k
+                <span v-if="p.alias === session.currentProfile" class="profile-current">
+                  ({{ t("context.switchModelCurrent") }})
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
       </div>
     </div>
   </div>
@@ -334,5 +397,58 @@ async function onCompactClick() {
 }
 .btn-ghost {
   background: transparent;
+}
+.profile-picker {
+  margin-top: 8px;
+  border-top: 1px solid var(--app-border-color);
+  padding-top: 8px;
+}
+.profile-picker-header {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  opacity: 0.8;
+}
+.profile-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-text-color);
+  cursor: pointer;
+  text-align: left;
+}
+.profile-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+  border-color: var(--app-border-color);
+}
+.profile-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.profile-alias {
+  font-weight: 600;
+  font-size: 13px;
+}
+.profile-meta {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.profile-current {
+  color: var(--app-primary-color);
+  font-weight: 600;
 }
 </style>

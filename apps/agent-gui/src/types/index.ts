@@ -134,6 +134,7 @@ export type {
   SessionInfoResponse,
   MemoryEntryResponse,
   ProfileInfo,
+  ProfileWithLimits,
   ProfileDetailResponse,
   TaskSnapshotResponse,
   McpServerStatusResponse,
