@@ -64,7 +64,8 @@
     "contextNearFull": "上下文窗口接近满载"
   },
   "errors": {
-    "sessionBusy": "会话繁忙：{reason}"
+    "sessionBusy": "会话繁忙：{reason}",
+    "profileNotFound": "未知的模型配置：{alias}"
   },
   "workbench": {
     "sessionNotFound": "未找到会话：{id}"
@@ -98,6 +99,10 @@
     "compactInProgress": "压缩中…",
     "compactionFailed": "压缩失败：{error}",
     "switchModel": "切换模型…",
+    "switchModelChoose": "选择模型",
+    "switchModelCurrent": "当前",
+    "switchModelSuccess": "已切换到 {profile}",
+    "switchModelFailed": "切换模型失败：{error}",
     "reservedForResponse": "为模型回复预留",
     "failedFallback": "已使用滑动窗口回退",
     "noUsageYet": "暂无用量数据",

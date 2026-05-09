@@ -64,7 +64,8 @@
     "contextNearFull": "Context window nearly full"
   },
   "errors": {
-    "sessionBusy": "Session is busy: {reason}"
+    "sessionBusy": "Session is busy: {reason}",
+    "profileNotFound": "Unknown model profile: {alias}"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"
@@ -98,6 +99,10 @@
     "compactInProgress": "Compacting…",
     "compactionFailed": "Compaction failed: {error}",
     "switchModel": "Switch model…",
+    "switchModelChoose": "Choose a profile",
+    "switchModelCurrent": "Current",
+    "switchModelSuccess": "Switched to {profile}",
+    "switchModelFailed": "Failed to switch model: {error}",
     "reservedForResponse": "Reserved for response",
     "failedFallback": "Used sliding-window fallback",
     "noUsageYet": "No usage yet",
