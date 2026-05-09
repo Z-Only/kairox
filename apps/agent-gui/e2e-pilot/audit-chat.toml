@@ -34,8 +34,9 @@ timeout_ms = 15000
 
 [[step]]
 name = "empty state visible"
-action = "assert-visible"
-target = "[data-test='chat-empty-state']"
+action = "wait"
+selector = "[data-test='chat-empty-state']"
+timeout_ms = 15000
 
 [[step]]
 name = "send button visible"
