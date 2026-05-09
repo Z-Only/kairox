@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-05-09
+
+### 🚀 Features
+
+- **runtime**: per-model context window + budget-driven assembly (P1 of context-mgmt) (#105)
+- **runtime**: P2 context compaction (manual + auto + busy gate) (#106)
+- **gui**: P3 UI context meter (#107)
+- **runtime**: P4 mid-session model switch (#108)
+
+### 🐛 Bug Fixes
+
+- **gui**: p0/p1/p2 accessibility and selector fixes from tauri-pilot audit
+- **gui**: add wait step after rename confirm to prevent race on ubuntu CI
+
+### 📚 Documentation
+
+- add full-stack testing design spec (tauri-pilot + GitHub Models)
+- add full-stack testing implementation plan
+- **core**: add session context & model management design spec
+- **runtime**: add P1 implementation plan for model window metadata
+- remove author line from session context design doc
+- **superpowers**: add gui pilot audit plan
+
+### 🧪 Testing
+
+- full-stack testing — tauri-pilot E2E + GitHub Models live integration (#104)
+
+### 🔧 Miscellaneous Tasks
+
+- update gitignore for tauri gen path
+- untrack auto-generated files and refine .gitignore
+
+### 🏗 Build
+
+- add gen-types dependency to gui and tauri commands
+
 ## [0.17.0] - 2026-05-08
 
 ### 🚀 Features
