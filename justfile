@@ -43,19 +43,19 @@ tui:
     cargo run -p agent-tui
 
 # Run the GUI dev server (Vite hot-reload)
-gui-dev:
+gui-dev: gen-types
     pnpm --filter agent-gui run dev
 
 # Run the Tauri desktop app in dev mode (Vite + native window)
-tauri-dev:
+tauri-dev: gen-types
     pnpm --filter agent-gui run tauri:dev
 
 # Build GUI web assets
-gui-build:
+gui-build: gen-types
     pnpm --filter agent-gui run build
 
 # Build Tauri desktop app
-tauri-build:
+tauri-build: gen-types
     pnpm --filter agent-gui run tauri:build
 
 # ─── Release ───────────────────────────────────────────────────
@@ -116,15 +116,15 @@ gen-types:
 # ─── E2E / Integration tests ──────────────────────────────────
 
 # Run GUI frontend E2E tests with Playwright (requires dev server)
-test-e2e:
+test-e2e: gen-types
     pnpm --filter agent-gui run test:e2e
 
 # Run GUI frontend E2E tests with Playwright (headed mode for debugging)
-test-e2e-headed:
+test-e2e-headed: gen-types
     pnpm --filter agent-gui run test:e2e:headed
 
 # Run GUI frontend E2E tests with Playwright (UI mode)
-test-e2e-ui:
+test-e2e-ui: gen-types
     pnpm --filter agent-gui run test:e2e:ui
 
 # Run TUI app logic integration tests (no terminal required)
