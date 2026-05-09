@@ -140,6 +140,15 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
     },
+    /// P4: user typed `:model <alias>` in the chat panel; ask the runtime
+    /// to switch the active model profile mid-session. `workspace_id` is
+    /// carried for symmetry with sibling variants even though
+    /// `LocalRuntime::switch_model` only needs `(SessionId, alias)`.
+    SwitchModel {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        alias: String,
+    },
 }
 
 /// Read-only shared state passed to components on every event.

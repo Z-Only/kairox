@@ -73,6 +73,26 @@ impl ChatPanel {
                             session_id: session_id.clone(),
                         });
                     }
+                // P4: intercept `:model <alias>`. Requires a non-empty alias —
+                // bare `:model` falls through to SendMessage so the user gets
+                // visible feedback (the assistant replies "[unknown command]"
+                // or similar), rather than a silent no-op.
+                } else if let Some(alias) = trimmed
+                    .strip_prefix(":model ")
+                    .map(str::trim)
+                    .filter(|a| !a.is_empty())
+                {
+                    let alias = alias.to_string();
+                    self.input_content.clear();
+                    self.input_cursor = 0;
+                    self.input_history_index = None;
+                    if let Some(session_id) = ctx.current_session_id {
+                        commands.push(Command::SwitchModel {
+                            workspace_id: ctx.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            alias,
+                        });
+                    }
                 } else {
                     self.input_history.push(self.input_content.clone());
                     let content = std::mem::take(&mut self.input_content);

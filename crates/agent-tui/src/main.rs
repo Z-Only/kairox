@@ -154,6 +154,22 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::SwitchModel {
+                workspace_id: _,
+                session_id,
+                alias,
+            } => {
+                if let Err(e) = runtime.switch_model(session_id, alias).await {
+                    app.state.current_session.messages.push(
+                        agent_core::projection::ProjectedMessage {
+                            role: agent_core::projection::ProjectedRole::Assistant,
+                            content: format!("[switch_model error: {e}]"),
+                        },
+                    );
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
             Command::StartSession {
                 workspace_id: ws_id,
                 model_profile: mp,
