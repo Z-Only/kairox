@@ -153,6 +153,15 @@ export const useSessionStore = defineStore("session", () => {
         lastCompactionError.value = p.error;
         break;
       }
+      case "ModelProfileSwitched": {
+        currentProfile.value = p.to_profile;
+        modelLimits.value = {
+          context_window: p.context_window,
+          output_limit: p.output_limit,
+          source: p.limit_source
+        };
+        break;
+      }
       case "AgentSpawned":
       case "AgentIdle":
         break;
