@@ -161,6 +161,12 @@ pub fn run() {
             crate::commands::switch_model,
             crate::commands::get_permission_mode,
             crate::commands::get_build_info,
+            // Skill commands
+            crate::commands::list_skills,
+            crate::commands::get_skill_detail,
+            crate::commands::activate_skill,
+            crate::commands::deactivate_skill,
+            crate::commands::list_active_skills,
             // MCP commands
             crate::commands::list_mcp_servers,
             crate::commands::start_mcp_server,

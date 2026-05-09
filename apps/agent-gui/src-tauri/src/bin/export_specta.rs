@@ -5,6 +5,7 @@
 //! Output: apps/agent-gui/src/generated/commands.ts
 
 use agent_config::ProfileInfo;
+use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
     CatalogSourceViewResponse, InstallOutcomeResponse, InstallRequestPayload,
@@ -48,6 +49,12 @@ fn main() {
             agent_gui_tauri::commands::switch_model,
             agent_gui_tauri::commands::get_permission_mode,
             agent_gui_tauri::commands::get_build_info,
+            // Skill commands
+            agent_gui_tauri::commands::list_skills,
+            agent_gui_tauri::commands::get_skill_detail,
+            agent_gui_tauri::commands::activate_skill,
+            agent_gui_tauri::commands::deactivate_skill,
+            agent_gui_tauri::commands::list_active_skills,
             // MCP commands
             agent_gui_tauri::commands::list_mcp_servers,
             agent_gui_tauri::commands::start_mcp_server,
@@ -78,6 +85,10 @@ fn main() {
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
+        // Skill response types
+        .typ::<SkillView>()
+        .typ::<SkillDetail>()
+        .typ::<ActiveSkillView>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()
