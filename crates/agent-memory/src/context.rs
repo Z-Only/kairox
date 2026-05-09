@@ -228,14 +228,15 @@ impl ContextAssembler {
 
 /// Find the index of the lowest-priority section that can be dropped.
 /// Priority (highest first): System, Skill, ToolDefinitions, Request, Memory, History, ToolResult, SelectedFile.
-/// System, Skill, and Request are never dropped (and ToolDefinitions only as a last resort).
+/// System and Request are never dropped; Skill is dropped only after ToolDefinitions.
 fn find_lowest_priority_drop(sections: &[(ContextSource, String, u64)]) -> Option<usize> {
     let drop_order = [
         ContextSource::SelectedFile,
         ContextSource::ToolResult,
         ContextSource::History,
         ContextSource::Memory,
-        ContextSource::ToolDefinitions, // last resort: drop tool defs before failing
+        ContextSource::ToolDefinitions,
+        ContextSource::Skill,
     ];
     for category in &drop_order {
         for (i, (src, _, _)) in sections.iter().enumerate() {
@@ -360,6 +361,35 @@ mod tests {
 
         let combined = bundle.messages.join("\n");
         assert!(combined.contains("Important system prompt") || combined.contains("User query"));
+    }
+
+    #[test]
+    fn skill_drop_priority_is_below_system_and_above_tool_definitions() {
+        let with_tool_definitions = vec![
+            (ContextSource::System, String::from("system"), 1),
+            (ContextSource::Skill, String::from("skill"), 1),
+            (
+                ContextSource::ToolDefinitions,
+                String::from("tool definitions"),
+                1,
+            ),
+        ];
+        assert_eq!(find_lowest_priority_drop(&with_tool_definitions), Some(2));
+
+        let without_tool_definitions = vec![
+            (ContextSource::System, String::from("system"), 1),
+            (ContextSource::Skill, String::from("skill"), 1),
+        ];
+        assert_eq!(
+            find_lowest_priority_drop(&without_tool_definitions),
+            Some(1)
+        );
+
+        let protected_sources = vec![
+            (ContextSource::System, String::from("system"), 1),
+            (ContextSource::Request, String::from("request"), 1),
+        ];
+        assert_eq!(find_lowest_priority_drop(&protected_sources), None);
     }
 
     #[test]
