@@ -10,7 +10,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 </script>
 
 <template>
-  <section class="trace-timeline">
+  <section class="trace-timeline" data-test="trace-timeline">
     <header class="trace-header">
       <!-- Hand-rolled tab strip rather than NTabs because the existing
            unit tests assert against `.tab-group button` selectors and the
@@ -31,6 +31,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         <button
           class="btn btn-sm"
           :class="{ 'btn-primary': rightPanelTab === 'tasks', active: rightPanelTab === 'tasks' }"
+          data-test="trace-tab-tasks"
           @click="rightPanelTab = 'tasks'"
         >
           {{ t("trace.tabTasks") }}
@@ -38,6 +39,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         <button
           class="btn btn-sm"
           :class="{ 'btn-primary': rightPanelTab === 'memory', active: rightPanelTab === 'memory' }"
+          data-test="trace-tab-memory"
           @click="rightPanelTab = 'memory'"
         >
           {{ t("trace.tabMemory") }}
@@ -126,7 +128,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 }
 .density-btn--active {
   background: var(--app-primary-color);
-  color: #fff;
+  color: var(--app-primary-contrast-color);
   border-color: var(--app-primary-color);
 }
 .empty-hint {

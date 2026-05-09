@@ -125,4 +125,45 @@ describe("ChatPanel", () => {
     await wrapper.find('[data-test="cancel-button"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("cancel_session");
   });
+
+  it("audit anchors: exposes stable chat pilot selectors", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi" },
+        { role: "assistant", content: "[error] network failed" }
+      ];
+      session.projection.token_stream = "Streaming";
+      session.isStreaming = true;
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="chat-message"][data-role="user"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="chat-message"][data-role="assistant"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="stream-indicator"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="error-banner"]').exists()).toBe(true);
+  });
+
+  it("audit anchors: exposes stable empty chat pilot selector", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [];
+      session.projection.token_stream = "";
+      session.lastSendError = null;
+      session.isStreaming = false;
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="chat-empty-state"]').exists()).toBe(true);
+  });
+
+  it("P1-S3-send-error: shows a visible send error banner", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.lastSendError = "model unavailable";
+    });
+    await flushPromises();
+
+    const errorBanner = wrapper.find('[data-test="error-banner"]');
+    expect(errorBanner.exists()).toBe(true);
+    expect(errorBanner.text()).toContain("model unavailable");
+  });
 });

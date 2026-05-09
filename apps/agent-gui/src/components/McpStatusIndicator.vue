@@ -37,6 +37,7 @@ const textColorVar = computed(() => {
        Theme-aware colouring of the label is handled via CSS variables. -->
   <span
     class="mcp-status"
+    data-test="mcp-status-indicator"
     :class="indicatorClass"
     :style="{ color: textColorVar }"
     @click="emit('click')"

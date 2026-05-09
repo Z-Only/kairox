@@ -1,0 +1,98 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit sessions lifecycle"
+fail_fast = true
+global_timeout_ms = 60000
+
+[[step]]
+name = "wait for sidebar"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "new session button visible"
+action = "assert-visible"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "open new session dialog"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "new session dialog visible"
+action = "assert-visible"
+target = "[data-test='new-session-dialog']"
+
+[[step]]
+name = "create session button visible"
+action = "assert-visible"
+target = "[data-test='create-session-btn']"
+
+[[step]]
+name = "create a session"
+action = "click"
+target = "[data-test='create-session-btn']"
+
+[[step]]
+name = "session item visible"
+action = "assert-visible"
+target = "[data-test='session-item']"
+
+[[step]]
+name = "rename button visible"
+action = "assert-visible"
+target = "[data-test='session-rename-btn']"
+
+[[step]]
+name = "open rename controls"
+action = "click"
+target = "[data-test='session-rename-btn']"
+
+[[step]]
+name = "rename input visible"
+action = "assert-visible"
+target = "[data-test='session-rename-input']"
+
+[[step]]
+name = "rename confirm visible"
+action = "assert-visible"
+target = "[data-test='session-rename-confirm']"
+
+[[step]]
+name = "confirm unchanged rename"
+action = "click"
+target = "[data-test='session-rename-confirm']"
+
+[[step]]
+name = "delete button visible"
+action = "assert-visible"
+target = "[data-test='session-delete-btn']"
+
+[[step]]
+name = "open delete confirmation"
+action = "click"
+target = "[data-test='session-delete-btn']"
+
+[[step]]
+name = "confirm cancel visible"
+action = "assert-visible"
+target = "[data-test='confirm-cancel']"
+
+[[step]]
+name = "confirm ok visible"
+action = "assert-visible"
+target = "[data-test='confirm-ok']"
+
+[[step]]
+name = "confirm session delete"
+action = "click"
+target = "[data-test='confirm-ok']"
+
+[[step]]
+name = "sidebar restored after delete"
+action = "assert-visible"
+target = "[data-test='sessions-sidebar']"

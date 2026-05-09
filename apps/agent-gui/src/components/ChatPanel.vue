@@ -104,11 +104,21 @@ watch(
     </header>
 
     <div ref="scrollbar" class="message-list" data-test="message-list">
-      <div class="message-list-inner">
+      <div
+        class="message-list-inner"
+        :data-test="
+          session.projection.messages.length === 0 && !session.projection.token_stream
+            ? 'chat-empty-state'
+            : undefined
+        "
+      >
         <div
           v-for="(msg, i) in session.projection.messages"
           :key="i"
           :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
+          data-test="chat-message"
+          :data-role="roleClass[msg.role] || 'assistant'"
+          :data-error="msg.content.startsWith('[error]') ? 'true' : undefined"
         >
           <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
             messageLabel(msg)
@@ -122,12 +132,17 @@ watch(
               msg.role === 'reviewer'
             "
             class="message-content markdown-body"
+            :data-test="msg.content.startsWith('[error]') ? 'error-banner' : undefined"
             v-html="renderMarkdown(msg.content)"
           ></span>
           <!-- eslint-enable vue/no-v-html -->
           <span v-else class="message-content">{{ msg.content }}</span>
         </div>
-        <div v-if="session.projection.token_stream" class="message message-assistant streaming">
+        <div
+          v-if="session.projection.token_stream"
+          class="message message-assistant streaming"
+          data-test="stream-indicator"
+        >
           <span class="message-role">{{ t("chat.roleAgent") }}</span>
           <span class="message-content"
             >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
@@ -141,6 +156,15 @@ watch(
           {{ t("chat.cancelled") }}
         </span>
       </div>
+    </div>
+
+    <div
+      v-if="session.lastSendError"
+      class="send-error-banner"
+      data-test="error-banner"
+      role="alert"
+    >
+      {{ session.lastSendError }}
     </div>
 
     <div class="input-area">
@@ -311,6 +335,15 @@ watch(
 }
 .message-input:disabled {
   opacity: 0.5;
+}
+.send-error-banner {
+  margin: 8px 16px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--app-error-color, #d03050);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-error-color, #d03050) 10%, transparent);
+  color: var(--app-error-color, #d03050);
+  font-size: 13px;
 }
 .input-area {
   padding: 8px 16px;

@@ -22,11 +22,12 @@ const { t } = useI18n();
 const ui = useUiStore();
 const { locale, colorMode } = storeToRefs(ui);
 const activeTab = ref<"general" | "marketplace">("general");
+const isThemeSelectFocused = ref(false);
 </script>
 
 <template>
-  <section class="settings" data-test="view-settings">
-    <h2>{{ t("settings.title") }}</h2>
+  <main class="settings" data-test="view-settings">
+    <h1>{{ t("settings.title") }}</h1>
 
     <div class="tabs" role="tablist">
       <button
@@ -41,6 +42,7 @@ const activeTab = ref<"general" | "marketplace">("general");
         class="tab-btn"
         role="tab"
         :aria-selected="activeTab === 'marketplace'"
+        data-test="settings-tab-marketplace"
         @click="activeTab = 'marketplace'"
       >
         {{ t("nav.marketplace") }}
@@ -62,12 +64,15 @@ const activeTab = ref<"general" | "marketplace">("general");
         </select>
       </div>
 
-      <div class="settings__row">
+      <div class="settings__row" data-test="theme-toggle">
         <label for="settings-theme">{{ t("settings.theme") }}</label>
         <select
           id="settings-theme"
           :value="colorMode"
+          :class="{ 'settings__select--focused': isThemeSelectFocused }"
           data-test="settings-theme"
+          @focus="isThemeSelectFocused = true"
+          @blur="isThemeSelectFocused = false"
           @change="ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)"
         >
           <option v-for="opt in themes" :key="opt.value" :value="opt.value">
@@ -80,7 +85,7 @@ const activeTab = ref<"general" | "marketplace">("general");
     <div v-show="activeTab === 'marketplace'" role="tabpanel">
       <MarketplacePane />
     </div>
-  </section>
+  </main>
 </template>
 
 <style scoped>
@@ -100,6 +105,14 @@ const activeTab = ref<"general" | "marketplace">("general");
   min-width: 100px;
 }
 
+select:focus,
+.settings__select--focused {
+  outline: 2px solid var(--app-primary-color, #3b82f6);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 2px var(--app-primary-color, #3b82f6);
+  background-color: color-mix(in srgb, var(--app-primary-color, #3b82f6) 12%, transparent);
+}
+
 .tabs {
   display: flex;
   gap: 4px;
@@ -113,7 +126,7 @@ const activeTab = ref<"general" | "marketplace">("general");
   background: none;
   cursor: pointer;
   font-size: inherit;
-  color: var(--text-color-secondary, #666);
+  color: var(--app-text-color-2, #6b7280);
   border-bottom: 2px solid transparent;
   transition:
     color 0.2s,

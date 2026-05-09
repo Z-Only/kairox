@@ -1,0 +1,83 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit chat streaming"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "new session button visible"
+action = "assert-visible"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "open new session dialog"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "new session dialog visible"
+action = "assert-visible"
+target = "[data-test='new-session-dialog']"
+
+[[step]]
+name = "create empty chat session"
+action = "click"
+target = "[data-test='create-session-btn']"
+
+[[step]]
+name = "wait for chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "empty state visible"
+action = "assert-visible"
+target = "[data-test='chat-empty-state']"
+
+[[step]]
+name = "send button visible"
+action = "assert-visible"
+target = "[data-test='send-button']"
+
+[[step]]
+name = "chat action button visible"
+action = "assert-visible"
+target = "[data-test='send-button'], [data-test='cancel-button']"
+
+[[step]]
+name = "trace timeline visible"
+action = "assert-visible"
+target = "[data-test='trace-timeline']"
+
+[[step]]
+name = "open task steps tab"
+action = "click"
+target = "[data-test='trace-tab-tasks']"
+
+[[step]]
+name = "task steps visible"
+action = "assert-visible"
+target = "[data-test='task-steps']"
+
+[[step]]
+name = "message list visible"
+action = "assert-visible"
+target = "[data-test='message-list']"
+
+[[step]]
+name = "delete audit chat session"
+action = "click"
+target = ".session-item.active [data-test='session-delete-btn']"
+
+[[step]]
+name = "confirm audit chat cleanup"
+action = "click"
+target = "[data-test='confirm-ok']"
+
+[[step]]
+name = "sidebar restored after chat cleanup"
+action = "assert-visible"
+target = "[data-test='sessions-sidebar']"

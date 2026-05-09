@@ -3,7 +3,7 @@ import MarketplacePane from "@/components/MarketplacePane.vue";
 </script>
 
 <template>
-  <div class="marketplace card">
+  <div class="marketplace card" data-test="view-marketplace">
     <MarketplacePane />
   </div>
 </template>

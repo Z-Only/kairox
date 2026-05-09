@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useConfirm } from "@/composables/useConfirm";
-import type { ProfileDetail } from "../types";
+import type { ProfileInfo } from "../types";
 import { useSessionStore } from "@/stores/session";
 
 const { t } = useI18n();
@@ -22,7 +22,7 @@ const activeSessionId = computed<string | null>(() => {
 
 const showNewSession = ref(false);
 const selectedProfile = ref("fast");
-const availableProfiles = ref<ProfileDetail[]>([]);
+const availableProfiles = ref<ProfileInfo[]>([]);
 const editingSessionId = ref<string | null>(null);
 const editingTitle = ref("");
 const profileDropdownOpen = ref(false);
@@ -51,7 +51,7 @@ async function createSession() {
 
 async function loadProfiles() {
   try {
-    availableProfiles.value = (await invoke("get_profile_info")) as ProfileDetail[];
+    availableProfiles.value = (await invoke("get_profile_info")) as ProfileInfo[];
     if (availableProfiles.value.length > 0) {
       selectedProfile.value = availableProfiles.value[0].alias;
     }
@@ -137,7 +137,7 @@ function keyIcon(hasApiKey: boolean): string {
 </script>
 
 <template>
-  <aside class="sessions-sidebar" data-test="sessions-sidebar">
+  <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
     <header class="sidebar-header">
       <h2>{{ t("sessions.header") }}</h2>
       <button class="btn new-session-btn" data-test="new-session-btn" @click="openNewSessionDialog">
@@ -146,7 +146,7 @@ function keyIcon(hasApiKey: boolean): string {
     </header>
 
     <div v-if="session.sessions.length > 0" class="session-scroll">
-      <!-- Kept hand-rolled because hover-only .session-actions cannot be expressed via NListItem #suffix slot. -->
+      <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
       <ul class="session-list">
         <li
           v-for="item in session.sessions"
@@ -163,11 +163,22 @@ function keyIcon(hasApiKey: boolean): string {
               :ref="(el) => bindRenameInput(el as Element | null, item.id)"
               v-model="editingTitle"
               class="rename-input"
+              data-test="session-rename-input"
               @keydown.enter="confirmRename"
               @keydown.escape="cancelRename"
               @blur="confirmRename"
               @click.stop
             />
+            <button
+              class="action-btn"
+              type="button"
+              :aria-label="t('common.confirm')"
+              data-test="session-rename-confirm"
+              @mousedown.prevent
+              @click.stop="confirmRename"
+            >
+              ✓
+            </button>
           </template>
 
           <!-- Normal display mode -->
@@ -177,6 +188,8 @@ function keyIcon(hasApiKey: boolean): string {
               <button
                 class="action-btn"
                 :title="t('sessions.renameTitle')"
+                :aria-label="t('sessions.renameTitle')"
+                data-test="session-rename-btn"
                 @click.stop="startRename(item.id, item.title)"
               >
                 ✏️
@@ -184,6 +197,7 @@ function keyIcon(hasApiKey: boolean): string {
               <button
                 class="action-btn action-delete"
                 :title="t('sessions.deleteTitle')"
+                :aria-label="t('sessions.deleteTitle')"
                 data-test="session-delete-btn"
                 @click.stop="promptDelete(item.id, item.title)"
               >
@@ -200,7 +214,7 @@ function keyIcon(hasApiKey: boolean): string {
 
     <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
          scope for Task 7 spec §5.5 mapping). -->
-    <dialog v-if="showNewSession" class="new-session-dialog" open>
+    <dialog v-if="showNewSession" class="new-session-dialog" data-test="new-session-dialog" open>
       <h3>{{ t("sessions.newDialogTitle") }}</h3>
       <label>
         {{ t("sessions.profileLabel") }}
@@ -272,13 +286,16 @@ function keyIcon(hasApiKey: boolean): string {
   color: var(--app-text-color);
 }
 .new-session-btn {
+  --sessions-new-button-bg: #1d4ed8;
+  --sessions-new-button-fg: #fff;
+
   font-size: 12px;
   padding: 2px 8px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
+  background: var(--sessions-new-button-bg);
+  color: var(--sessions-new-button-fg);
 }
 .session-scroll {
   flex: 1;
@@ -325,12 +342,9 @@ function keyIcon(hasApiKey: boolean): string {
   white-space: nowrap;
 }
 .session-actions {
-  display: none;
+  display: flex;
   gap: 4px;
   flex-shrink: 0;
-}
-.session-item:hover .session-actions {
-  display: flex;
 }
 .action-btn {
   background: none;

@@ -147,4 +147,38 @@ describe("McpServerManager", () => {
       serverId: "slack"
     });
   });
+
+  it("audit anchors: exposes stable MCP empty-state pilot selectors", () => {
+    const wrapper = mount(McpServerManager);
+
+    expect(wrapper.find('[data-test="mcp-manager"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-empty-state"]').exists()).toBe(true);
+  });
+
+  it("audit anchors: exposes stable MCP server action pilot selectors", () => {
+    const mcp = useMcpStore();
+    mcp.servers = [
+      {
+        id: "broken",
+        status: "failed",
+        tool_count: null,
+        error: "connection refused"
+      },
+      { id: "slack", status: "stopped", tool_count: null },
+      { id: "github", status: "running", tool_count: 5 },
+      { id: "gitlab", status: "running", tool_count: 3 }
+    ];
+    mcp.trustedServerIds = ["github"];
+    const wrapper = mount(McpServerManager);
+
+    expect(wrapper.find('[data-test="mcp-server-item"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-name"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-status"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-error"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-start-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-stop-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-trust-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-revoke-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-close-btn"]').exists()).toBe(true);
+  });
 });

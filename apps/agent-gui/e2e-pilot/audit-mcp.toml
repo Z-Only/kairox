@@ -1,0 +1,33 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit MCP manager"
+fail_fast = true
+global_timeout_ms = 60000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "mcp status indicator exists"
+action = "assert-visible"
+target = "[data-test='mcp-status-indicator']"
+
+[[step]]
+name = "open mcp manager"
+action = "click"
+target = "[data-test='mcp-status-indicator']"
+
+[[step]]
+name = "mcp manager exists"
+action = "assert-visible"
+target = "[data-test='mcp-manager']"
+
+[[step]]
+name = "mcp empty state visible in the default fixture"
+action = "assert-visible"
+target = "[data-test='mcp-empty-state']"

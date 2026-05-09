@@ -76,4 +76,10 @@ describe("TaskSteps", () => {
     const wrapper = mount(TaskSteps);
     expect(wrapper.find(".task-status").text()).toBe("⏳");
   });
+
+  it("audit anchors: exposes stable task steps pilot selector", () => {
+    const wrapper = mount(TaskSteps);
+
+    expect(wrapper.find('[data-test="task-steps"]').exists()).toBe(true);
+  });
 });

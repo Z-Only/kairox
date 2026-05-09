@@ -1,0 +1,74 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit bootstrap"
+fail_fast = true
+global_timeout_ms = 45000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "app nav visible"
+action = "assert-visible"
+target = "[data-test='app-nav']"
+
+[[step]]
+name = "workbench nav visible"
+action = "assert-visible"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "settings nav visible"
+action = "assert-visible"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "sessions sidebar visible"
+action = "assert-visible"
+target = "[data-test='sessions-sidebar']"
+
+[[step]]
+name = "status bar visible"
+action = "assert-visible"
+target = "[data-test='status-bar']"
+
+[[step]]
+name = "workbench view visible"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 10000
+
+[[step]]
+name = "settings view visible"
+action = "assert-visible"
+target = "[data-test='view-settings']"
+
+[[step]]
+name = "theme toggle visible"
+action = "assert-visible"
+target = "[data-test='theme-toggle']"
+
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"

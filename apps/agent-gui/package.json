@@ -35,6 +35,7 @@
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/coverage-v8": "^4.1.5",
     "@vue/test-utils": "^2.4.10",
+    "axe-core": "^4.11.4",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "unplugin-auto-import": "^0.18.6",

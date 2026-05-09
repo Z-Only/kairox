@@ -57,25 +57,35 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
        the list renders the per-server rows. The .mcp-close-btn /
        .mcp-server-actions class hooks are also kept since the
        existing test suite drives the UI through them. -->
-  <div class="mcp-manager">
+  <div class="mcp-manager" data-test="mcp-manager">
     <div class="card mcp-manager-card">
       <div class="card-header">
         <span class="card-title"><strong>MCP Servers</strong></span>
-        <button class="btn mcp-close-btn" @click="emit('close')">✕</button>
+        <button class="btn mcp-close-btn" data-test="mcp-close-btn" @click="emit('close')">
+          ✕
+        </button>
       </div>
 
-      <div v-if="mcp.servers.length === 0" class="empty-state mcp-empty-wrap">
+      <div
+        v-if="mcp.servers.length === 0"
+        class="empty-state mcp-empty-wrap"
+        data-test="mcp-empty-state"
+      >
         <p class="mcp-empty">No MCP servers configured</p>
       </div>
 
       <ul v-else class="list mcp-manager-list">
         <li v-for="server in mcp.servers" :key="server.id" class="list-item">
-          <div class="mcp-server-item">
+          <div class="mcp-server-item" data-test="mcp-server-item">
             <div class="mcp-server-info">
-              <span class="mcp-server-name"
+              <span class="mcp-server-name" data-test="mcp-server-name"
                 ><strong>{{ server.id }}</strong></span
               >
-              <span class="tag mcp-server-status" :class="`tag-${statusTagType(server.status)}`">
+              <span
+                class="tag mcp-server-status"
+                :class="`tag-${statusTagType(server.status)}`"
+                data-test="mcp-server-status"
+              >
                 {{ statusEmoji(server.status) }} {{ statusText(server.status) }}
               </span>
               <span v-if="trustedSet.has(server.id)" class="tag tag-success mcp-trusted">
@@ -89,6 +99,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
             <span
               v-if="server.status === 'failed' && server.error"
               class="text-error mcp-server-error"
+              data-test="mcp-server-error"
             >
               {{ server.error }}
             </span>
@@ -101,6 +112,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="server.status === 'stopped'"
                 class="btn btn-sm"
+                data-test="mcp-start-btn"
                 @click="mcp.startServer(server.id)"
               >
                 Start
@@ -108,6 +120,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="server.status === 'running'"
                 class="btn btn-sm"
+                data-test="mcp-stop-btn"
                 @click="mcp.stopServer(server.id)"
               >
                 Stop
@@ -115,6 +128,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="server.status === 'failed'"
                 class="btn btn-sm"
+                data-test="mcp-restart-btn"
                 @click="mcp.startServer(server.id)"
               >
                 Restart
@@ -122,6 +136,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="server.status === 'running' && !trustedSet.has(server.id)"
                 class="btn btn-sm"
+                data-test="mcp-trust-btn"
                 @click="mcp.trustServer(server.id)"
               >
                 Trust
@@ -129,6 +144,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="trustedSet.has(server.id)"
                 class="btn btn-sm"
+                data-test="mcp-revoke-btn"
                 @click="mcp.revokeTrust(server.id)"
               >
                 Revoke
@@ -136,6 +152,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <button
                 v-if="server.status === 'running'"
                 class="btn btn-sm"
+                data-test="mcp-refresh-btn"
                 @click="mcp.refreshTools(server.id)"
               >
                 Refresh
@@ -145,6 +162,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
             <span
               v-if="server.status === 'running' && server.tool_count"
               class="text-muted mcp-server-meta"
+              data-test="mcp-tool-count"
             >
               {{ server.tool_count }} tools
             </span>

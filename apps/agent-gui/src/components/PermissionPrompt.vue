@@ -88,6 +88,7 @@ async function deny() {
        target them. -->
   <div
     :class="['permission-prompt', 'alert', `alert-${alertType}`, isMemory ? 'memory-prompt' : '']"
+    data-test="permission-prompt"
   >
     <div class="card permission-card">
       <div class="permission-layout">
@@ -138,10 +139,10 @@ async function deny() {
         <div class="permission-actions">
           <!-- NButton renders an inner <button>; the .btn-allow / .btn-deny
                wrapper classes preserve the existing test selectors. -->
-          <button class="btn btn-allow" @click="allow">
+          <button class="btn btn-allow" data-test="permission-allow" @click="allow">
             {{ allowLabel }}
           </button>
-          <button class="btn btn-deny" @click="deny">
+          <button class="btn btn-deny" data-test="permission-deny" @click="deny">
             {{ denyLabel }}
           </button>
         </div>

@@ -29,7 +29,10 @@ const kindIcon: Record<string, string> = {
 </script>
 
 <template>
-  <div :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]">
+  <div
+    :class="['trace-entry', `trace-entry--${entry.status}`, `trace-entry--${entry.kind}`]"
+    data-test="trace-entry"
+  >
     <!-- All entries show as a trace row; pending permission/memory
          interactions are handled exclusively by PermissionCenter. The
          row's bespoke class names are preserved because the unit tests

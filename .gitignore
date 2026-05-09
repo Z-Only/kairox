@@ -70,6 +70,11 @@ test-results/
 # tauri-pilot runner outputs (created by scripts/run-pilot-tests.sh)
 /pilot-results/
 /tauri-pilot-failures/
+
+# =============================================================================
+# Audit-driven UI/UX work
+# =============================================================================
+/audit-runs/
 # Test coverage reports (vitest, c8, istanbul, cargo-tarpaulin, etc.)
 coverage/
 **/coverage/

@@ -67,12 +67,13 @@ async function promptDelete(id: string, content: string) {
 </script>
 
 <template>
-  <div class="memory-browser">
+  <div class="memory-browser" data-test="memory-browser">
     <header class="memory-header">
       <h2>{{ t("memory.header") }}</h2>
       <button
         class="btn btn-icon refresh-btn"
         :title="t('common.refresh')"
+        data-test="memory-refresh-btn"
         @click="memory.loadMemories()"
       >
         ↻
@@ -83,7 +84,8 @@ async function promptDelete(id: string, content: string) {
       <div class="scope-row">
         <select
           :value="filter"
-          class="scope-select"
+          aria-label="Memory scope"
+          class="scope-select memory-control-field"
           data-test="memory-scope-select"
           @change="handleFilterChange(($event.target as HTMLSelectElement).value as typeof filter)"
         >
@@ -96,7 +98,7 @@ async function promptDelete(id: string, content: string) {
         v-model="searchQuery"
         type="text"
         :placeholder="t('memory.searchPlaceholder')"
-        class="search-input"
+        class="search-input memory-control-field"
         @keydown="handleSearchKeydown"
       />
     </div>
@@ -104,11 +106,15 @@ async function promptDelete(id: string, content: string) {
     <div v-if="loading" class="memory-empty">
       <span>{{ t("common.loading") }}</span>
     </div>
-    <div v-else-if="memories.length === 0" class="empty-state memory-empty">
+    <div
+      v-else-if="memories.length === 0"
+      class="empty-state memory-empty memory-empty-state"
+      data-test="memory-empty-state"
+    >
       {{ t("memory.emptyHint") }}
     </div>
-    <ul v-else class="memory-list">
-      <li v-for="mem in memories" :key="mem.id" class="memory-item">
+    <ul v-else class="memory-list" data-test="memory-list">
+      <li v-for="mem in memories" :key="mem.id" class="memory-item" data-test="memory-item">
         <div class="memory-meta">
           <span :class="['tag', `tag-${scopeTagType[mem.scope] ?? 'default'}`, 'memory-scope']">
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
@@ -123,6 +129,7 @@ async function promptDelete(id: string, content: string) {
           <button
             class="btn btn-icon memory-delete-btn"
             :title="t('common.delete')"
+            data-test="memory-delete-btn"
             @click="promptDelete(mem.id, mem.content)"
           >
             🗑️
@@ -203,8 +210,15 @@ async function promptDelete(id: string, content: string) {
 .search-input:focus {
   border-color: var(--app-primary-color, #2080f0);
 }
+.memory-control-field {
+  background: var(--app-card-color, #fff);
+  color: var(--app-text-color, #333);
+}
 .empty-state {
   color: var(--app-text-disabled-color, #999);
+}
+.memory-empty-state {
+  color: var(--app-text-color-2, #555);
 }
 .memory-empty {
   padding: 16px;

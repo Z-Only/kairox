@@ -90,4 +90,50 @@ describe("WorkbenchView (Pre-work A regression)", () => {
     expect(call[0]).toBe("error");
     expect(String(call[1])).toContain("badId");
   });
+
+  it("audit anchors: exposes stable workbench pilot selector", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          PermissionCenter: true
+        }
+      }
+    });
+
+    expect(wrapper.find('[data-test="view-workbench"]').exists()).toBe(true);
+  });
+
+  it("audit accessibility: provides a page-level heading for the workbench", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          PermissionCenter: true
+        }
+      }
+    });
+
+    const heading = wrapper.find('h1[data-test="workbench-heading"]');
+    expect(heading.exists()).toBe(true);
+    expect(heading.text()).toBe("Workbench");
+  });
 });

@@ -97,6 +97,7 @@ function handleToggle() {
           'task-interactive': hasChildren || isFailed || isBlocked
         }
       ]"
+      data-test="task-node"
       @click="handleToggle"
     >
       <div class="task-row">
@@ -105,7 +106,7 @@ function handleToggle() {
         </span>
         <span v-else :style="{ paddingLeft: depth > 0 ? '0' : '12px' }" class="task-expand"> </span>
         <span v-if="depth > 0" class="task-indent"> {{ "│ ".repeat(depth - 1) }}├─ </span>
-        <span class="task-status">
+        <span class="task-status" data-test="task-node-status">
           {{ statusIcon[node.task.state] || "•" }}
         </span>
         <!-- Inline `background-color` is preserved instead of using NTag's

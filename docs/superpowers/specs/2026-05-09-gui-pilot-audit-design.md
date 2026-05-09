@@ -576,8 +576,6 @@ This spec is complete if and only if:
 
 ## 11. Execution Results
 
-This section is intentionally a placeholder for the implementation phase.
-
-> This section will be filled by the §5.1.G5 commit `docs(gui): append audit report summary to spec` before PR closure.
-> At the spec stage, this is a placeholder heading and **is not considered a lingering TODO** because the implementation phase has not produced data yet.
-> Table columns: `Issue ID | Severity | One-sentence description | Fix commit | Regression test (Vitest file + TOML step)`
+| Issue ID | Severity | One-sentence description                                                                                                  | Fix commit                              | Regression test (Vitest file + TOML step)                                               |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| P2-G1    | P2       | Workbench routes now provide a page-level `<h1>`, closing the global axe `page-has-heading-one` violation found in S4/S5. | feat/gui-pilot-audit-fixes working tree | `WorkbenchView.test.ts`; `audit-mcp.toml` and `audit-marketplace-memory.toml` scenarios |

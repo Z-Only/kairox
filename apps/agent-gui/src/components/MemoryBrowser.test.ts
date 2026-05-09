@@ -103,4 +103,67 @@ describe("MemoryBrowser", () => {
       expect(memory.filter).toBe(scope);
     }
   });
+
+  it("audit anchors: exposes stable populated memory pilot selectors", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: true
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-browser"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-list"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-item"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-refresh-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-delete-btn"]').exists()).toBe(true);
+  });
+
+  it("audit anchors: exposes stable empty memory pilot selector", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-empty-state"]').exists()).toBe(true);
+  });
+
+  it("audit accessibility: names the memory scope selector for assistive tech", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="memory-scope-select"]').attributes("aria-label")).toBe(
+      "Memory scope"
+    );
+  });
+
+  it("audit accessibility: uses the high-contrast empty-state treatment", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-empty-state"]').classes()).toContain(
+      "memory-empty-state"
+    );
+  });
+
+  it("audit accessibility: uses high-contrast memory form controls", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="memory-scope-select"]').classes()).toContain(
+      "memory-control-field"
+    );
+    expect(wrapper.find(".search-input").classes()).toContain("memory-control-field");
+  });
 });

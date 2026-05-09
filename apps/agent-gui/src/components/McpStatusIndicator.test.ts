@@ -64,4 +64,10 @@ describe("McpStatusIndicator", () => {
     await wrapper.find(".mcp-status").trigger("click");
     expect(wrapper.emitted("click")).toHaveLength(1);
   });
+
+  it("audit anchors: exposes stable MCP status pilot selector", () => {
+    const wrapper = mount(McpStatusIndicator);
+
+    expect(wrapper.find('[data-test="mcp-status-indicator"]').exists()).toBe(true);
+  });
 });

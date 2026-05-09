@@ -35,7 +35,7 @@ function toggleExpand(taskId: string) {
 </script>
 
 <template>
-  <div class="task-steps">
+  <div class="task-steps" data-test="task-steps">
     <!-- The "No tasks yet" copy is preserved verbatim because the existing
          unit test asserts on its presence; switching to NEmpty's
          description prop keeps both the visual upgrade and the assertion. -->

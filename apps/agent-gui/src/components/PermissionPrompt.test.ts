@@ -181,4 +181,14 @@ describe("PermissionPrompt MCP trust UI", () => {
     });
     expect(mockedTrustServer).not.toHaveBeenCalled();
   });
+
+  it("audit anchors: exposes stable permission pilot selectors", () => {
+    const wrapper = mount(PermissionPrompt, {
+      props: { entry: permissionEntry }
+    });
+
+    expect(wrapper.find('[data-test="permission-prompt"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="permission-allow"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="permission-deny"]').exists()).toBe(true);
+  });
 });

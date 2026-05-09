@@ -327,4 +327,14 @@ describe("TaskNode", () => {
       expect(wrapper.find(".task-indent").exists()).toBe(false);
     });
   });
+
+  it("audit anchors: exposes stable task node pilot selectors", () => {
+    const node = makeNode({ id: "audit-task", state: "Running" });
+    const wrapper = mount(TaskNode, {
+      props: { node, expanded: new Set(), depth: 0 }
+    });
+
+    expect(wrapper.find('[data-test="task-node"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="task-node-status"]').exists()).toBe(true);
+  });
 });

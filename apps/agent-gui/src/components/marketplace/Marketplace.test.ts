@@ -270,4 +270,11 @@ describe("InstalledList.vue", () => {
     expect(btn.exists()).toBe(true);
     expect(btn.attributes("disabled")).toBeDefined();
   });
+
+  it("audit anchors: exposes stable marketplace view pilot selector", async () => {
+    const wrapper = mountMarketplace();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="view-marketplace"]').exists()).toBe(true);
+  });
 });

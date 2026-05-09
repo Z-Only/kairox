@@ -1,8 +1,52 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import TraceEntry from "./TraceEntry.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import type { TraceEntryData } from "../types/trace";
+
+const themeCss = readFileSync("src/styles/theme.css", "utf8");
+
+function getCustomProperties(css: string, selector: string) {
+  const ruleStartIndex = css.indexOf(`${selector} {`);
+  if (ruleStartIndex === -1) {
+    throw new Error(`Missing CSS rule for ${selector}`);
+  }
+
+  const ruleBodyStartIndex = css.indexOf("{", ruleStartIndex) + 1;
+  const ruleBodyEndIndex = css.indexOf("}", ruleBodyStartIndex);
+  const ruleBody = css.slice(ruleBodyStartIndex, ruleBodyEndIndex);
+
+  return Object.fromEntries(
+    [...ruleBody.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, propertyName, propertyValue]) => [
+      propertyName,
+      propertyValue.trim()
+    ])
+  );
+}
+
+function parseHexColor(hexColor: string) {
+  const normalizedHex = hexColor.replace("#", "");
+  return [0, 2, 4].map(
+    (startIndex) => Number.parseInt(normalizedHex.slice(startIndex, startIndex + 2), 16) / 255
+  );
+}
+
+function getRelativeLuminance(hexColor: string) {
+  const [red, green, blue] = parseHexColor(hexColor).map((channel) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function getContrastRatio(foregroundColor: string, backgroundColor: string) {
+  const foregroundLuminance = getRelativeLuminance(foregroundColor);
+  const backgroundLuminance = getRelativeLuminance(backgroundColor);
+  const lighterLuminance = Math.max(foregroundLuminance, backgroundLuminance);
+  const darkerLuminance = Math.min(foregroundLuminance, backgroundLuminance);
+
+  return (lighterLuminance + 0.05) / (darkerLuminance + 0.05);
+}
 
 const baseEntry: TraceEntryData = {
   id: "entry-1",
@@ -70,7 +114,9 @@ describe("TraceEntry", () => {
     const wrapper = mount(TraceEntry, {
       props: { entry: { ...baseEntry, durationMs: 2500 }, density: "L2" }
     });
-    expect(wrapper.find(".entry-duration").text()).toBe("2.5s");
+    const duration = wrapper.find(".entry-duration");
+    expect(duration.text()).toBe("2.5s");
+    expect(duration.attributes("style")).toContain("var(--app-text-color-3)");
   });
 
   it("applies kind CSS class for memory entries", () => {
@@ -78,5 +124,22 @@ describe("TraceEntry", () => {
       props: { entry: { ...baseEntry, kind: "memory" }, density: "L2" }
     });
     expect(wrapper.find(".trace-entry").classes()).toContain("trace-entry--memory");
+  });
+
+  it("audit contrast tokens: keeps entry duration readable in dark theme", () => {
+    const darkThemeProperties = getCustomProperties(themeCss, "html.dark");
+
+    expect(
+      getContrastRatio(
+        darkThemeProperties["--app-text-color-3"],
+        darkThemeProperties["--app-body-color"]
+      )
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      getContrastRatio(
+        darkThemeProperties["--app-text-color-3"],
+        darkThemeProperties["--app-card-color"]
+      )
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });

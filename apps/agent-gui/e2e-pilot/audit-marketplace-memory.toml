@@ -1,0 +1,80 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit marketplace and memory"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "settings view visible"
+action = "assert-visible"
+target = "[data-test='view-settings']"
+
+[[step]]
+name = "open marketplace settings tab"
+action = "click"
+target = "[data-test='settings-tab-marketplace']"
+
+[[step]]
+name = "browse tab visible"
+action = "assert-visible"
+target = "[data-test='tab-browse']"
+
+[[step]]
+name = "installed tab visible"
+action = "assert-visible"
+target = "[data-test='tab-installed']"
+
+[[step]]
+name = "catalog search visible"
+action = "assert-visible"
+target = "[data-test='catalog-search']"
+
+[[step]]
+name = "catalog refresh visible"
+action = "assert-visible"
+target = "[data-test='catalog-refresh']"
+
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "wait for workbench view"
+action = "wait"
+selector = "[data-test='view-workbench']"
+timeout_ms = 15000
+
+[[step]]
+name = "open memory tab in right panel"
+action = "click"
+target = "[data-test='trace-tab-memory']"
+
+[[step]]
+name = "memory browser visible"
+action = "assert-visible"
+target = "[data-test='memory-browser']"
+
+[[step]]
+name = "memory scope select visible"
+action = "assert-visible"
+target = "[data-test='memory-scope-select']"

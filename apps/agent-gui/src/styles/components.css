@@ -33,7 +33,7 @@
 .btn-primary {
   background: var(--app-primary-color);
   border-color: var(--app-primary-color);
-  color: #fff;
+  color: var(--app-primary-contrast-color);
 }
 
 .btn-primary:hover {
