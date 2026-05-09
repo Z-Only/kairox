@@ -283,7 +283,8 @@ async fn main() -> Result<()> {
     eprintln!("Using profile: {profile}");
 
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let data_dir = std::path::PathBuf::from(home).join(".kairox");
+    let home_dir = std::path::PathBuf::from(home);
+    let data_dir = home_dir.join(".kairox");
     tokio::fs::create_dir_all(&data_dir).await?;
     let db_path = data_dir.join("kairox.sqlite");
     let database_url = format!(
@@ -294,6 +295,8 @@ async fn main() -> Result<()> {
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
+    let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &workspace_path);
+    let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots).await?;
 
     let ollama_clients = agent_config::build_ollama_clients(&config);
     let config_arc = std::sync::Arc::new(config);
@@ -304,6 +307,7 @@ async fn main() -> Result<()> {
             .with_memory_store(mem_store)
             .with_config(config_arc)
             .with_ollama_clients(ollama_clients)
+            .with_skill_registry(Arc::new(skill_registry))
             .with_builtin_tools(workspace_path.clone())
             .await,
     );

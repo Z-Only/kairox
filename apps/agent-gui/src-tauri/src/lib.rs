@@ -39,7 +39,8 @@ pub fn run() {
                 // Use a file-backed SQLite database in the user's .kairox directory
                 // for persistent storage across app restarts.
                 let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                let db_dir = std::path::PathBuf::from(home).join(".kairox");
+                let home_dir = std::path::PathBuf::from(home);
+                let db_dir = home_dir.join(".kairox");
                 tokio::fs::create_dir_all(&db_dir).await.ok();
                 let db_path = db_dir.join("kairox-gui.sqlite");
                 let db_url = format!(
@@ -70,6 +71,10 @@ pub fn run() {
                 eprintln!("Permission mode: Interactive");
 
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
+                let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &cwd);
+                let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots)
+                    .await
+                    .expect("Failed to discover skills");
 
                 // Read catalog sources from disk so that remote providers
                 // (e.g. MCP Registry) configured in mcp_servers.toml are
@@ -102,6 +107,7 @@ pub fn run() {
                     .with_ollama_clients(ollama_clients)
                     .with_marketplace_loaded(db_dir.clone(), &catalog_sources)
                     .expect("Failed to initialize marketplace")
+                    .with_skill_registry(std::sync::Arc::new(skill_registry))
                     .with_builtin_tools(cwd)
                     .await;
 

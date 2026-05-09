@@ -1,5 +1,14 @@
+use std::path::Path;
+
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
-use agent_skills::{SkillActivationMode, SkillDocument, SkillMetadata, SkillSourceKind};
+use agent_skills::{SkillActivationMode, SkillDocument, SkillMetadata, SkillRoot, SkillSourceKind};
+
+pub fn build_default_skill_roots(home: &Path, workspace: &Path) -> Vec<SkillRoot> {
+    vec![
+        SkillRoot::new(SkillSourceKind::User, home.join(".config/kairox/skills")),
+        SkillRoot::new(SkillSourceKind::Workspace, workspace.join(".kairox/skills")),
+    ]
+}
 
 pub fn render_active_skill_block(name: &str, source: &str, body_markdown: &str) -> String {
     format!(
@@ -56,4 +65,25 @@ pub fn skill_activation_mode_to_string(mode: SkillActivationMode) -> String {
         SkillActivationMode::Auto => "auto",
     }
     .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::build_default_skill_roots;
+
+    #[test]
+    fn skill_roots_use_user_and_workspace_locations() {
+        let home = PathBuf::from("/home/user");
+        let workspace = PathBuf::from("/workspace/project");
+        let roots = build_default_skill_roots(&home, &workspace);
+
+        assert!(roots
+            .iter()
+            .any(|root| root.path.ends_with(".config/kairox/skills")));
+        assert!(roots
+            .iter()
+            .any(|root| root.path.ends_with(".kairox/skills")));
+    }
 }

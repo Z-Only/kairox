@@ -240,6 +240,7 @@ fn source_short_label(source: &ContextSource) -> &'static str {
         ContextSource::ToolResult => "tres",
         ContextSource::SelectedFile => "file",
         ContextSource::CompactionSummary => "csum",
+        ContextSource::Skill => "skill",
     }
 }
 
