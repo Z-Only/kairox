@@ -122,7 +122,7 @@ async function promptDelete(sessionId: string, title: string) {
     type: "warning"
   });
   if (confirmed) {
-    void session.deleteSession(sessionId);
+    await session.deleteSession(sessionId);
   }
 }
 

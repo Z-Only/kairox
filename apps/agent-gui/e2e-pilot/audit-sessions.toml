@@ -102,3 +102,9 @@ target = "[data-test='confirm-ok']"
 name = "sidebar restored after delete"
 action = "assert-visible"
 target = "[data-test='sessions-sidebar']"
+
+[[step]]
+name = "active session stable after delete"
+action = "wait"
+selector = ".session-item.active"
+timeout_ms = 10000
