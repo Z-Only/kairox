@@ -136,6 +136,24 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::CompactSession {
+                workspace_id: _,
+                session_id,
+            } => {
+                if let Err(e) = runtime
+                    .compact_session(session_id, agent_core::CompactionReason::UserRequested)
+                    .await
+                {
+                    app.state.current_session.messages.push(
+                        agent_core::projection::ProjectedMessage {
+                            role: agent_core::projection::ProjectedRole::Assistant,
+                            content: format!("[compact error: {e}]"),
+                        },
+                    );
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
             Command::StartSession {
                 workspace_id: ws_id,
                 model_profile: mp,

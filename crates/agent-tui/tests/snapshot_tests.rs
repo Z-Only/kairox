@@ -23,6 +23,9 @@ fn chat_panel_renders_user_and_assistant_messages() {
         task_graph: TaskGraphSnapshot::default(),
         token_stream: String::new(),
         cancelled: false,
+        last_context_usage: None,
+        model_limits: None,
+        compaction: agent_core::projection::CompactionStatus::Idle,
     };
 
     let backend = TestBackend::new(80, 24);
@@ -47,6 +50,9 @@ fn chat_panel_renders_streaming_token_with_cursor() {
         task_graph: TaskGraphSnapshot::default(),
         token_stream: "Once upon a time".to_string(),
         cancelled: false,
+        last_context_usage: None,
+        model_limits: None,
+        compaction: agent_core::projection::CompactionStatus::Idle,
     };
 
     let backend = TestBackend::new(80, 24);
@@ -79,6 +85,9 @@ fn chat_panel_renders_cancelled_marker() {
         task_graph: TaskGraphSnapshot::default(),
         token_stream: String::new(),
         cancelled: true,
+        last_context_usage: None,
+        model_limits: None,
+        compaction: agent_core::projection::CompactionStatus::Idle,
     };
 
     let backend = TestBackend::new(80, 24);

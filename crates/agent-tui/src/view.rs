@@ -42,6 +42,9 @@ mod tests {
             task_graph: TaskGraphSnapshot::default(),
             token_stream: String::new(),
             cancelled: false,
+            last_context_usage: None,
+            model_limits: None,
+            compaction: agent_core::projection::CompactionStatus::Idle,
         };
 
         assert_eq!(render_lines(&projection), vec!["You: hi", "Agent: hello"]);

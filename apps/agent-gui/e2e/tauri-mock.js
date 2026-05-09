@@ -268,6 +268,33 @@ function invoke(cmd, args) {
         })
       );
 
+    case "list_profiles_with_limits":
+      return Promise.resolve(
+        state.profiles.map(function (p) {
+          var window;
+          var output;
+          if (p.alias === "fast") {
+            window = 128000;
+            output = 16384;
+          } else if (p.alias === "smart") {
+            window = 200000;
+            output = 16384;
+          } else {
+            window = 4096;
+            output = 2048;
+          }
+          return {
+            alias: p.alias,
+            provider: p.provider,
+            model_id: p.model_id,
+            context_window: window,
+            output_limit: output,
+            limit_source: "builtin_registry",
+            has_api_key: p.has_api_key
+          };
+        })
+      );
+
     case "get_profile_info":
       return Promise.resolve(state.profiles);
 
@@ -523,6 +550,42 @@ function invoke(cmd, args) {
       });
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
+      return Promise.resolve(undefined);
+    }
+
+    case "compact_session": {
+      var sid = state.currentSessionId;
+      if (!sid) return Promise.reject(new Error("No active session"));
+      var startedEvent = makeEvent(sid, {
+        type: "ContextCompactionStarted",
+        reason: { type: "UserRequested" },
+        before_tokens: 12000,
+        candidate_event_count: 4
+      });
+      getTrace(sid).push(startedEvent);
+      emitEvent("session-event", startedEvent);
+      setTimeout(function () {
+        var summaryEvent = makeEvent(sid, {
+          type: "CompactionSummary",
+          summary_id: "sum_mock_1",
+          content: "## User goal\nMock summary content for E2E.",
+          replaces_event_range: [new Date().toISOString(), new Date().toISOString()],
+          reason: { type: "UserRequested" },
+          before_tokens: 12000,
+          after_tokens: 3000,
+          summarised_by_profile: state.currentProfile
+        });
+        getTrace(sid).push(summaryEvent);
+        emitEvent("session-event", summaryEvent);
+        var completedEvent = makeEvent(sid, {
+          type: "ContextCompactionCompleted",
+          summary_id: "sum_mock_1",
+          after_tokens: 3000,
+          fallback_used: false
+        });
+        getTrace(sid).push(completedEvent);
+        emitEvent("session-event", completedEvent);
+      }, 100);
       return Promise.resolve(undefined);
     }
 

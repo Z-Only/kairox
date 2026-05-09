@@ -57,7 +57,10 @@ const emptyProjection = {
   task_titles: [],
   task_graph: { tasks: [] },
   token_stream: "",
-  cancelled: false
+  cancelled: false,
+  last_context_usage: null,
+  model_limits: null,
+  compaction: { type: "Idle" }
 };
 
 beforeEach(() => {
