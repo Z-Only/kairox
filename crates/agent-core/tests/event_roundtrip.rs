@@ -22,6 +22,46 @@ fn roundtrip(event: &DomainEvent) -> DomainEvent {
 }
 
 #[test]
+fn skill_activated_roundtrips() {
+    let event = make_event(EventPayload::SkillActivated {
+        skill_id: "skill_docs".into(),
+        name: "Docs Writer".into(),
+        source: "filesystem".into(),
+        activation_mode: "manual".into(),
+    });
+    let decoded = roundtrip(&event);
+
+    assert_eq!(decoded.event_type, "SkillActivated");
+    assert_eq!(decoded, event);
+}
+
+#[test]
+fn skill_deactivated_roundtrips() {
+    let event = make_event(EventPayload::SkillDeactivated {
+        skill_id: "skill_docs".into(),
+        name: "Docs Writer".into(),
+        source: "filesystem".into(),
+    });
+    let decoded = roundtrip(&event);
+
+    assert_eq!(decoded.event_type, "SkillDeactivated");
+    assert_eq!(decoded, event);
+}
+
+#[test]
+fn skill_suggested_roundtrips() {
+    let event = make_event(EventPayload::SkillSuggested {
+        skill_id: "skill_docs".into(),
+        name: "Docs Writer".into(),
+        reason: "User asked for documentation help".into(),
+    });
+    let decoded = roundtrip(&event);
+
+    assert_eq!(decoded.event_type, "SkillSuggested");
+    assert_eq!(decoded, event);
+}
+
+#[test]
 fn workspace_opened_roundtrips() {
     let event = make_event(EventPayload::WorkspaceOpened {
         path: "/tmp/project".into(),

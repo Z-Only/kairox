@@ -141,6 +141,54 @@ pub struct AddCatalogSourceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillView {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub version: Option<String>,
+    pub source: String,
+    pub activation_mode: String,
+    pub keywords: Vec<String>,
+    pub tools: Vec<String>,
+    pub can_request_tools: Vec<String>,
+    pub valid: bool,
+    pub validation_error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillDetail {
+    pub view: SkillView,
+    pub body_markdown: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ActivateSkillRequest {
+    pub workspace_id: WorkspaceId,
+    pub session_id: SessionId,
+    pub skill_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct DeactivateSkillRequest {
+    pub workspace_id: WorkspaceId,
+    pub session_id: SessionId,
+    pub skill_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ActiveSkillView {
+    pub skill_id: String,
+    pub name: String,
+    pub source: String,
+    pub activation_mode: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
 pub struct WorkspaceInfo {
     pub workspace_id: WorkspaceId,
@@ -293,6 +341,47 @@ pub trait AppFacade: Send + Sync {
     ) -> crate::Result<()>;
     /// Get the status of all agents associated with a session's task graph.
     async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>>;
+
+    // -----------------------------------------------------------------------
+    // Skills (native skill registry and session activation).
+    // -----------------------------------------------------------------------
+
+    /// List all discovered skills.
+    async fn list_skills(&self) -> crate::Result<Vec<SkillView>> {
+        Ok(Vec::new())
+    }
+
+    /// Get a single skill by id.
+    async fn get_skill(&self, skill_id: String) -> crate::Result<Option<SkillDetail>> {
+        let _ = skill_id;
+        Ok(None)
+    }
+
+    /// Activate a skill for a session.
+    async fn activate_skill(
+        &self,
+        request: ActivateSkillRequest,
+    ) -> crate::Result<ActiveSkillView> {
+        let _ = request;
+        Err(crate::CoreError::InvalidState(
+            "skill activation not supported".into(),
+        ))
+    }
+
+    /// Deactivate a skill for a session.
+    async fn deactivate_skill(&self, request: DeactivateSkillRequest) -> crate::Result<()> {
+        let _ = request;
+        Ok(())
+    }
+
+    /// List active skills for a session.
+    async fn list_active_skills(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<Vec<ActiveSkillView>> {
+        let _ = session_id;
+        Ok(Vec::new())
+    }
 
     // -----------------------------------------------------------------------
     // Marketplace catalog (Phase 1: built-in catalog only).
