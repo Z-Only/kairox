@@ -38,21 +38,33 @@
 - ✅ GUI frontend engineering foundation: vue-router, vue-i18n, Pinia setup stores (#101)
 - ✅ Polish GUI display and fix marketplace issues (#102)
 - ✅ Use GitHub native auto-merge for Dependabot PRs (#82)
+- ✅ Add full-stack desktop testing with tauri-pilot scenarios and CI artifacts (#104)
+- ✅ Add live GitHub Models integration smoke test gated behind `live-model-tests` (#104)
+- ✅ Add per-model context windows and budget-driven prompt assembly (#105)
+- ✅ Add manual and automatic context compaction with busy-state protection (#106)
+- ✅ Add GUI context meter and context budget visibility (#107)
+- ✅ Add mid-session model switching support (#108)
+- ✅ Harden GUI accessibility selectors and tauri-pilot audit coverage
 
 ## Mid term
 
 - Support more model providers and profile policies
 - ✅ Add multi-agent orchestration UX in TUI and GUI
 - ✅ MCP server marketplace UX (Phase 1 + 2 shipped in v0.16.0)
-- Improve GUI UX with richer interaction patterns and accessibility
+- Improve GUI UX with richer interaction patterns, accessibility, and explainable agent state
 - Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
-- Improve extension and manifest discovery flows
-- Add better observability, tracing, and diagnostics tools
+- Design a first-class **Skills** system for reusable prompt/tool/workflow capabilities
+- Design a signed **Plugin** manifest and installation flow that composes with MCP and the tool registry
+- Improve extension and manifest discovery flows, including local development and marketplace publishing paths
+- Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles
+- Add better observability, tracing, diagnostics, and replay tools for long-running agent work
 - Continue runtime modularization (Phase 2+ extraction beyond `facade_runtime` split)
 
 ## Long term
 
-- More complete application shell for local-first agent operations
-- Stronger plugin ecosystem and extension story (built on top of MCP + tool registry)
+- Mature local-first AI agent workbench for planning, execution, review, and recovery
+- Strong **Skills** ecosystem with composable workflows, reusable instructions, and capability discovery
+- Strong **Plugin** ecosystem and extension story built on top of MCP, the tool registry, signed manifests, and marketplace governance
+- Rich subagent and multi-agent collaboration: delegation, arbitration, specialist teams, shared memory, and auditable handoffs
 - Cross-platform desktop distribution polish and auto-update support
 - Telemetry-free privacy story with `minimal_trace` defaults in production

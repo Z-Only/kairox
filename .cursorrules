@@ -9,6 +9,8 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Test: `just test` or `cargo test --workspace --all-targets`
 - Full CI gate: `just check`
 - Type sync check: `just check-types`
+- Desktop E2E: `just test-pilot`
+- Live model smoke: `just test-live`
 - Run TUI: `just tui`
 - Run GUI dev: `just gui-dev`
 - Bump version: `just bump-version X.Y.Z`
@@ -30,10 +32,11 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - Workspace version: all crates use `version.workspace = true` — never set version in individual crate Cargo.toml
 - Error handling: each crate has `XxxError` enum via `thiserror::Error` and `type Result<T>`
 - Trait boundaries: `AppFacade`, `ModelClient`, `MemoryStore`, `EventStore`, `Tool`, `Transport`, `AgentStrategy` — use `Arc<dyn Trait>` or generics
+- Context management: model metadata drives context windows; runtime budget assembly, compaction, and model switching must remain consistent across Rust and GUI state
 - Async: Tokio + `async_trait`
-- Testing: `FakeModelClient` for runtime, in-memory SQLite for stores
+- Testing: `FakeModelClient` for runtime, in-memory SQLite for stores, tauri-pilot for real desktop E2E, and `live-model-tests` for gated provider smoke coverage
 - Tauri IPC: `#[tauri::command]` in `commands.rs` → Vue `invoke()` → events via `event_forwarder.rs` + `useTauriEvents.ts` (filters by session)
-- When adding Rust `EventPayload` variants, also update `apps/agent-gui/src/types/index.ts`
+- When adding Rust `EventPayload` variants or command/domain types, run `just gen-types`; do not manually edit generated bindings
 
 ## Vue conventions
 - Vue 3 Composition API (`<script setup lang="ts">`)
@@ -55,7 +58,7 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 - Using `npm` instead of `pnpm`
 - Setting `version` in individual crate Cargo.toml
 - Hardcoding API keys (use agent-config's `api_key_env`)
-- Forgetting to update both Rust and TypeScript types when changing events
+- Forgetting to run `just gen-types` when changing Rust events, commands, or generated TypeScript bindings
 - Forgetting to register new Tauri commands in both `generate_handler!` (invocation) and `collect_commands!` (specta type-gen)
 - Skipping `pnpm install` after creating a git worktree
 - Editing `apps/agent-gui/src/generated/{commands,events}.ts` by hand — these are auto-generated, run `just gen-types`

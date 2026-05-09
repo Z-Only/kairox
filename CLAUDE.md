@@ -12,18 +12,18 @@
 
 ## Crate map (dependency direction →)
 
-| Crate         | Role                                              | Key trait/type                                      |
-| ------------- | ------------------------------------------------- | --------------------------------------------------- |
-| agent-core    | Domain types, events, facade, build info          | `AppFacade`, `EventPayload`, `TaskSnapshot`         |
-| agent-store   | SQLite event store + metadata                     | `EventStore`, `SqliteEventStore`                    |
-| agent-memory  | Memory & context assembly with tiktoken           | `MemoryStore`, `ContextAssembler`                   |
-| agent-models  | LLM adapters (OpenAI, Anthropic, Ollama, Fake)    | `ModelClient`, `ModelRouter`                        |
-| agent-tools   | Tool registry & permissions, built-in tools       | `ToolRegistry`, `PermissionEngine`, `Tool`          |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle     | `McpClient`, `Transport`, `ServerLifecycle`         |
-| agent-config  | TOML config, profile discovery, MCP server config | `ProfileDef`, `build_router`                        |
-| agent-runtime | Agent loop, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy` |
-| agent-tui     | Terminal UI (ratatui)                             | `App`                                               |
-| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI       | `commands.rs` → Pinia stores                        |
+| Crate         | Role                                                                                            | Key trait/type                                        |
+| ------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| agent-core    | Domain types, events, facade, build info                                                        | `AppFacade`, `EventPayload`, `TaskSnapshot`           |
+| agent-store   | SQLite event store + metadata                                                                   | `EventStore`, `SqliteEventStore`                      |
+| agent-memory  | Memory, context assembly, and compaction                                                        | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
+| agent-models  | LLM adapters + model metadata/context windows                                                   | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
+| agent-tools   | Tool registry & permissions, built-in tools                                                     | `ToolRegistry`, `PermissionEngine`, `Tool`            |
+| agent-mcp     | MCP client, transports (stdio/sse), lifecycle                                                   | `McpClient`, `Transport`, `ServerLifecycle`           |
+| agent-config  | TOML config, profile discovery, MCP server config                                               | `ProfileDef`, `build_router`                          |
+| agent-runtime | Agent loop, context budgets, compaction, model switching, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
+| agent-tui     | Terminal UI (ratatui)                                                                           | `App`                                                 |
+| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI                                                     | `commands.rs` → Pinia stores                          |
 
 > Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`). External tools come from MCP servers via `McpToolAdapter`.
 
@@ -39,8 +39,9 @@
 2. Follow dependency direction — never create reverse deps.
 3. Add tests first: use `FakeModelClient` for runtime, in-memory SQLite for stores.
 4. Wire to UIs last: Tauri commands for GUI, `app.rs` handlers for TUI.
-5. After changing any `#[tauri::command]` or `EventPayload`/domain type, run `just gen-types` to regenerate `apps/agent-gui/src/generated/{commands,events}.ts` (do not edit those files manually).
-6. If you add new IPC commands or events, also update the Playwright mock at `apps/agent-gui/e2e/tauri-mock.js`.
+5. If model/profile behavior changes, update model metadata/context-window tests and verify mid-session model switching still respects budget limits.
+6. After changing any `#[tauri::command]` or `EventPayload`/domain type, run `just gen-types` to regenerate `apps/agent-gui/src/generated/{commands,events}.ts` (do not edit those files manually).
+7. If you add new IPC commands or events, also update the Playwright mock at `apps/agent-gui/e2e/tauri-mock.js`.
 
 ## When bumping versions
 
@@ -59,6 +60,8 @@ Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps):
 - `just test-fullstack` — full-stack runtime integration tests
 - `just test-mcp` — MCP-focused tests across `agent-mcp`, `agent-tools`, `agent-config`, `agent-runtime`
 - `just test-e2e` — Playwright E2E tests for the GUI frontend (uses Tauri IPC mock)
+- `just test-pilot` — real Tauri desktop E2E scenarios (requires `tauri-pilot-cli`; use `xvfb-run -a` on Linux)
+- `just test-live` — live GitHub Models smoke test (self-skips without `GITHUB_TOKEN`)
 - `just test-all` — unit + integration + fullstack + GUI Vitest
 
 ## Common pitfalls
@@ -68,3 +71,4 @@ Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps):
 - Don't edit files under `apps/agent-gui/src/generated/` by hand.
 - After creating a worktree, always run `pnpm install` so husky hooks fire.
 - Register new Tauri commands in **both** `generate_handler!` (in `lib.rs`) **and** `collect_commands!` (in `src/specta.rs`).
+- Keep context-budget, compaction, and model-switching behavior in sync across `agent-core`, `agent-runtime`, `agent-memory`, `agent-models`, TUI, and GUI when touching session/model state.
