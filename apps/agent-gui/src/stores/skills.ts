@@ -2,12 +2,33 @@
 // are plain `.ts` modules and must import Vue and Pinia APIs explicitly.
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import {
-  commands,
-  type ActiveSkillView,
-  type SkillDetail,
-  type SkillView
-} from "@/generated/commands";
+import { invoke } from "@tauri-apps/api/core";
+
+export interface SkillView {
+  id: string;
+  name: string;
+  description: string;
+  version: string | null;
+  source: string;
+  activation_mode: string;
+  keywords: string[];
+  tools: string[];
+  can_request_tools: string[];
+  valid: boolean;
+  validation_error: string | null;
+}
+
+export interface SkillDetail {
+  view: SkillView;
+  body_markdown: string;
+}
+
+export interface ActiveSkillView {
+  skill_id: string;
+  name: string;
+  source: string;
+  activation_mode: string;
+}
 
 function formatError(caughtError: unknown): string {
   return caughtError instanceof Error ? caughtError.message : String(caughtError);
@@ -35,8 +56,8 @@ export const useSkillsStore = defineStore("skills", () => {
     error.value = null;
     try {
       const [discoveredSkills, activeSkillViews] = await Promise.all([
-        commands.listSkills(),
-        commands.listActiveSkills()
+        invoke<SkillView[]>("list_skills"),
+        invoke<ActiveSkillView[]>("list_active_skills")
       ]);
       skills.value = discoveredSkills;
       activeSkills.value = activeSkillViews;
@@ -50,7 +71,7 @@ export const useSkillsStore = defineStore("skills", () => {
   async function loadSkillDetail(skillId: string): Promise<void> {
     error.value = null;
     try {
-      selectedSkill.value = await commands.getSkillDetail(skillId);
+      selectedSkill.value = await invoke<SkillDetail>("get_skill_detail", { skillId });
     } catch (caughtError) {
       error.value = formatError(caughtError);
     }
@@ -60,7 +81,7 @@ export const useSkillsStore = defineStore("skills", () => {
     activatingSkillId.value = skillId;
     error.value = null;
     try {
-      const activeSkill = await commands.activateSkill(skillId);
+      const activeSkill = await invoke<ActiveSkillView>("activate_skill", { skillId });
       activeSkills.value = [
         ...activeSkills.value.filter((existingSkill) => existingSkill.skill_id !== skillId),
         activeSkill
@@ -76,7 +97,7 @@ export const useSkillsStore = defineStore("skills", () => {
     activatingSkillId.value = skillId;
     error.value = null;
     try {
-      await commands.deactivateSkill(skillId);
+      await invoke("deactivate_skill", { skillId });
       activeSkills.value = activeSkills.value.filter(
         (activeSkill) => activeSkill.skill_id !== skillId
       );

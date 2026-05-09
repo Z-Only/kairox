@@ -1,19 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { commands } from "@/generated/commands";
+import { invoke } from "@tauri-apps/api/core";
 import { useSkillsStore } from "@/stores/skills";
 
-vi.mock("@/generated/commands", () => ({
-  commands: {
-    listSkills: vi.fn(),
-    listActiveSkills: vi.fn(),
-    getSkillDetail: vi.fn(),
-    activateSkill: vi.fn(),
-    deactivateSkill: vi.fn()
-  }
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn()
 }));
 
-const mockedCommands = vi.mocked(commands);
+const mockedInvoke = vi.mocked(invoke);
 
 const discoveredSkill = {
   id: "test-driven-rust",
@@ -43,14 +37,13 @@ describe("skills store", () => {
   });
 
   it("loads discovered and active skills", async () => {
-    mockedCommands.listSkills.mockResolvedValueOnce([discoveredSkill]);
-    mockedCommands.listActiveSkills.mockResolvedValueOnce([activeSkill]);
+    mockedInvoke.mockResolvedValueOnce([discoveredSkill]).mockResolvedValueOnce([activeSkill]);
 
     const skills = useSkillsStore();
     await skills.loadSkills();
 
-    expect(mockedCommands.listSkills).toHaveBeenCalledTimes(1);
-    expect(mockedCommands.listActiveSkills).toHaveBeenCalledTimes(1);
+    expect(mockedInvoke).toHaveBeenCalledWith("list_skills");
+    expect(mockedInvoke).toHaveBeenCalledWith("list_active_skills");
     expect(skills.skills[0].name).toBe("test-driven-rust");
     expect(skills.activeSkills[0].skill_id).toBe("test-driven-rust");
     expect(skills.hasSkills).toBe(true);
@@ -59,7 +52,7 @@ describe("skills store", () => {
   });
 
   it("loads selected skill details", async () => {
-    mockedCommands.getSkillDetail.mockResolvedValueOnce({
+    mockedInvoke.mockResolvedValueOnce({
       view: discoveredSkill,
       body_markdown: "# Test Driven Rust"
     });
@@ -67,34 +60,40 @@ describe("skills store", () => {
     const skills = useSkillsStore();
     await skills.loadSkillDetail("test-driven-rust");
 
-    expect(mockedCommands.getSkillDetail).toHaveBeenCalledWith("test-driven-rust");
+    expect(mockedInvoke).toHaveBeenCalledWith("get_skill_detail", {
+      skillId: "test-driven-rust"
+    });
     expect(skills.selectedSkill?.body_markdown).toContain("Test Driven Rust");
   });
 
   it("activates a skill and records it as active", async () => {
-    mockedCommands.activateSkill.mockResolvedValueOnce(activeSkill);
+    mockedInvoke.mockResolvedValueOnce(activeSkill);
 
     const skills = useSkillsStore();
     await skills.activateSkill("test-driven-rust");
 
-    expect(mockedCommands.activateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(mockedInvoke).toHaveBeenCalledWith("activate_skill", {
+      skillId: "test-driven-rust"
+    });
     expect(skills.isSkillActive("test-driven-rust")).toBe(true);
   });
 
   it("deactivates a skill and removes it from active skills", async () => {
-    mockedCommands.deactivateSkill.mockResolvedValueOnce(null);
+    mockedInvoke.mockResolvedValueOnce(null);
 
     const skills = useSkillsStore();
     skills.activeSkills = [activeSkill];
 
     await skills.deactivateSkill("test-driven-rust");
 
-    expect(mockedCommands.deactivateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(mockedInvoke).toHaveBeenCalledWith("deactivate_skill", {
+      skillId: "test-driven-rust"
+    });
     expect(skills.isSkillActive("test-driven-rust")).toBe(false);
   });
 
   it("stores load errors and clears loading", async () => {
-    mockedCommands.listSkills.mockRejectedValueOnce(new Error("skills unavailable"));
+    mockedInvoke.mockRejectedValueOnce(new Error("skills unavailable"));
 
     const skills = useSkillsStore();
     await skills.loadSkills();
