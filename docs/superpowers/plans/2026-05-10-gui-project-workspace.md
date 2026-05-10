@@ -46,6 +46,7 @@
 ### Task 1: Core Project Domain Types
 
 **Files:**
+
 - Modify: `crates/agent-core/src/facade.rs`
 - Modify: `crates/agent-core/src/lib.rs`
 
@@ -307,6 +308,7 @@ git commit -m "feat(core): add project workspace domain types"
 ### Task 2: Store Project Metadata Repository
 
 **Files:**
+
 - Create: `crates/agent-store/migrations/0003_projects.sql`
 - Create: `crates/agent-store/src/project_meta.rs`
 - Modify: `crates/agent-store/src/event_store.rs`
@@ -499,6 +501,7 @@ git commit -m "feat(store): persist project workspace metadata"
 ### Task 3: Runtime Project Operations and Git Status
 
 **Files:**
+
 - Create: `crates/agent-runtime/src/project.rs`
 - Modify: `crates/agent-runtime/src/lib.rs`
 - Modify: `crates/agent-runtime/src/facade_runtime.rs`
@@ -665,6 +668,7 @@ git commit -m "feat(runtime): add project workspace lifecycle"
 ### Task 4: Tauri Project IPC and Generated Types
 
 **Files:**
+
 - Modify: `apps/agent-gui/src-tauri/src/commands.rs`
 - Modify: `apps/agent-gui/src-tauri/src/lib.rs`
 - Modify: `apps/agent-gui/src-tauri/src/specta.rs`
@@ -766,6 +770,7 @@ git commit -m "feat(gui): expose project workspace commands"
 ### Task 5: Frontend Project and Workspace UI Stores
 
 **Files:**
+
 - Create: `apps/agent-gui/src/stores/project.ts`
 - Create: `apps/agent-gui/src/stores/workspaceUi.ts`
 - Modify: `apps/agent-gui/src/stores/session.ts`
@@ -784,7 +789,16 @@ import { useProjectStore } from "./project";
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (command: string) => {
     if (command === "list_projects") {
-      return [{ project_id: "p1", display_name: "Demo", root_path: "/tmp/demo", removed_at: null, sort_order: 0, expanded: true }];
+      return [
+        {
+          project_id: "p1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        }
+      ];
     }
     if (command === "list_project_sessions") return [];
     return null;
@@ -878,7 +892,9 @@ async function loadArchivedSessions(): Promise<void>;
 async function getProjectGitStatus(projectId: string): Promise<ProjectGitStatusInfo>;
 async function getSessionGitStatus(sessionId: string): Promise<ProjectGitStatusInfo>;
 async function initProjectGit(projectId: string): Promise<ProjectGitStatusInfo>;
-async function getProjectInstructionSummary(projectId: string): Promise<ProjectInstructionSummaryInfo>;
+async function getProjectInstructionSummary(
+  projectId: string
+): Promise<ProjectInstructionSummaryInfo>;
 ```
 
 Each action should call the same snake_case Tauri command name, normalize snake_case response fields into camelCase store fields, and update local state before returning.
@@ -944,6 +960,7 @@ git commit -m "feat(gui): add project workspace stores"
 ### Task 6: Sidebar Project Navigation
 
 **Files:**
+
 - Modify: `apps/agent-gui/src/components/SessionsSidebar.vue`
 - Test: `apps/agent-gui/src/components/SessionsSidebar.test.ts`
 
@@ -957,10 +974,19 @@ import { mountWithPlugins } from "@/test-utils/mount";
 import SessionsSidebar from "./SessionsSidebar.vue";
 import { useProjectStore } from "@/stores/project";
 
- test("renders project section above normal sessions", async () => {
+test("renders project section above normal sessions", async () => {
   const wrapper = mountWithPlugins(SessionsSidebar);
   const projectStore = useProjectStore();
-  projectStore.projects = [{ projectId: "p1", displayName: "Demo", rootPath: "/tmp/demo", removedAt: null, sortOrder: 0, expanded: true }];
+  projectStore.projects = [
+    {
+      projectId: "p1",
+      displayName: "Demo",
+      rootPath: "/tmp/demo",
+      removedAt: null,
+      sortOrder: 0,
+      expanded: true
+    }
+  ];
 
   await wrapper.vm.$nextTick();
 
@@ -1015,6 +1041,7 @@ git commit -m "feat(gui): add project sidebar navigation"
 ### Task 7: Chat Message and Composer Polish
 
 **Files:**
+
 - Modify: `apps/agent-gui/src/components/ChatPanel.vue`
 - Test: `apps/agent-gui/src/components/ChatPanel.test.ts`
 
@@ -1028,7 +1055,7 @@ import { mountWithPlugins } from "@/test-utils/mount";
 import ChatPanel from "./ChatPanel.vue";
 import { useSessionStore } from "@/stores/session";
 
- test("does not render sender role labels in message bubbles", async () => {
+test("does not render sender role labels in message bubbles", async () => {
   const wrapper = mountWithPlugins(ChatPanel);
   const session = useSessionStore();
   session.projection.messages.push({ role: "user", content: "hello" });
@@ -1122,6 +1149,7 @@ git commit -m "feat(gui): polish project chat composer"
 ### Task 8: Context Meter Ring Mode
 
 **Files:**
+
 - Modify: `apps/agent-gui/src/components/ContextMeter.vue`
 - Modify: `apps/agent-gui/src/components/ChatPanel.vue`
 - Test: `apps/agent-gui/src/components/ContextMeter.test.ts`
@@ -1136,7 +1164,7 @@ import { mountWithPlugins } from "@/test-utils/mount";
 import ContextMeter from "./ContextMeter.vue";
 import { useSessionStore } from "@/stores/session";
 
- test("renders compact ring with accessible percentage", async () => {
+test("renders compact ring with accessible percentage", async () => {
   const wrapper = mountWithPlugins(ContextMeter, { props: { variant: "ring" } });
   const session = useSessionStore();
   session.lastContextUsage = {
@@ -1196,7 +1224,10 @@ When `props.variant === "ring"`, render a button with `data-test="context-meter-
   border: 0;
   border-radius: 999px;
   color: var(--app-text-color, #1f2937);
-  background: conic-gradient(var(--app-primary-color, #0077cc) var(--context-ratio), var(--app-border-color, #d7d7d7) 0deg);
+  background: conic-gradient(
+    var(--app-primary-color, #0077cc) var(--context-ratio),
+    var(--app-border-color, #d7d7d7) 0deg
+  );
   cursor: pointer;
 }
 
@@ -1235,6 +1266,7 @@ git commit -m "feat(gui): move context meter into composer"
 ### Task 9: Project Instruction Summary
 
 **Files:**
+
 - Modify: `crates/agent-runtime/src/project.rs`
 - Modify: `crates/agent-runtime/src/facade_runtime.rs`
 - Modify: `apps/agent-gui/src/stores/project.ts`
@@ -1322,6 +1354,7 @@ git commit -m "feat(runtime): summarize project instruction files"
 ### Task 10: E2E Mock and Project Workflows
 
 **Files:**
+
 - Modify: `apps/agent-gui/e2e/tauri-mock.js`
 - Create: `apps/agent-gui/e2e/project-workspace.spec.ts`
 
@@ -1337,13 +1370,17 @@ test("creates a blank project and sends first project message", async ({ page })
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("create-blank-project-btn").click();
-  await expect(page.getByTestId("project-item").filter({ hasText: "Untitled Project" })).toBeVisible();
+  await expect(
+    page.getByTestId("project-item").filter({ hasText: "Untitled Project" })
+  ).toBeVisible();
 
   await page.getByTestId("project-new-session-btn").first().click();
   await page.getByTestId("message-input").fill("Explain this project");
   await page.getByTestId("send-button").click();
 
-  await expect(page.getByTestId("chat-message").filter({ hasText: "Explain this project" })).toBeVisible();
+  await expect(
+    page.getByTestId("chat-message").filter({ hasText: "Explain this project" })
+  ).toBeVisible();
 });
 ```
 
@@ -1399,6 +1436,7 @@ git commit -m "test(gui): cover project workspace flows"
 ### Task 11: Final Verification
 
 **Files:**
+
 - All files changed in Tasks 1-10
 
 - [ ] **Step 1: Run Rust formatting check**
