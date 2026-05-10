@@ -108,6 +108,59 @@ Retain MCP and catalog capabilities that the consolidated UI still needs:
 - Catalog listing, source refresh, install, and install progress from `catalog.ts`.
 - Installed-only UI state may be removed or simplified when no longer rendered.
 
+## Tauri-Pilot Screenshot Audit
+
+A real desktop audit was run in dev mode with `tauri-pilot` on 2026-05-10. Because `tauri dev --features pilot` is a long-running command and the shell tool timeout killed the wrapper process, the stable audit setup used the same dev pieces separately:
+
+- Vite frontend: `pnpm --filter agent-gui run dev`
+- Tauri debug app with pilot enabled: `cargo run -p agent-gui-tauri --features pilot --`
+- Pilot connectivity check: `tauri-pilot ping` returned `✓ ok`
+- Viewport: `1200x768`
+- Error logs: `tauri-pilot logs --level error` reported `No logs captured`
+
+Temporary audit artifacts were captured during the run under `artifacts/tauri-pilot-audit/` and then cleaned up after the findings were recorded in this spec:
+
+- `workbench.png`
+- `settings-current.png`
+- `settings-mcp-current.png`
+- `snapshot-workbench-interactive.txt`
+- `snapshot-after-settings-click.txt`
+- `snapshot-settings-mcp.txt`
+
+### Workbench findings
+
+- The top `Sessions + New` header is still visible, so the sidebar has competing creation entry points and does not yet match the target Projects + Chats structure.
+- Project-level actions (`New`, `Remove`) are visible by default instead of appearing on hover/focus.
+- Session row actions are visible by default for every row, creating visual noise in dense lists.
+- Rename/delete icons are rendered as emoji-style glyphs (`✏️`, `🗑️`), which conflicts with the design rule to use a consistent SVG/text icon system.
+- The global `Cancel` and `Confirm` buttons appear in the accessibility tree even when no destructive action is pending, which confirms that the current global confirmation mechanism leaks into the page-level interaction model.
+- The right Trace/Tasks/Memory region and bottom Permissions card occupy significant persistent space; this is out of direct scope, but the implementation should avoid adding more persistent chrome to the workbench.
+- The composer still displays the profile alias (`deep`) instead of provider/model identity, confirming the model-display bug from the original request.
+- The status bar similarly shows `Active profile: deep`, confirming that composer and status metadata need the same provider/model display source.
+
+### Settings findings
+
+- Settings still exposes a top-level `Marketplace` tab next to `General`, `MCP`, and `Skills`.
+- This directly conflicts with the target architecture where marketplace/catalog browsing is embedded inside MCP settings and no longer has a separate active navigation entry.
+- The general settings page is mostly empty below the first two fields; no change is required for this feature, but new MCP consolidation should use the available width intentionally and avoid another sparse page.
+
+### MCP settings findings
+
+- MCP settings has both a top-level Settings `Marketplace` tab and an internal MCP `Marketplace` tab, creating duplicate navigation.
+- The internal `Servers` page shows `Search servers` before installed/configured server controls, while the target requires installed/configured servers to be the first visible content.
+- The `Add server` form is expanded by default and pushes installed server controls and marketplace content below the fold.
+- The add form only presents the manual server shape in the default flow; the target add experience needs explicit modes for `Git / Catalog install` and `Manual config`.
+- The accessibility snapshot still includes an `Installed (1)` entry inside marketplace content, confirming that the old Installed marketplace page/tab remains reachable and must be removed from rendered UI.
+- The MCP page uses a native page scrollbar with the primary form cut off below the fold at `1200x768`; the redesign should keep the default viewport focused on installed servers plus a single header-level add action.
+
+### Audit-driven additions to the design
+
+- Sidebar action buttons must use accessible labels plus consistent non-emoji SVG/text icons; hover/focus reveal should not remove keyboard discoverability.
+- Hidden row actions must not remain visually persistent across all rows, but may remain accessible to assistive technology through clear labels.
+- Global confirmation controls should not be present in the idle workbench accessibility tree for project/session deletion; destructive confirmation belongs to the row that initiated it.
+- MCP settings should be validated at `1200x768` so installed servers and the `Add server` entry point are visible without scrolling.
+- The implementation should include tauri-pilot screenshot checks after UI changes for Workbench, Settings General, and MCP Settings to confirm the visual regressions above are resolved.
+
 ## Testing and Verification
 
 Implementation should follow test-first changes where practical:
