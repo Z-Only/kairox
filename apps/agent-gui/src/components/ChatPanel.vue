@@ -1,34 +1,15 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
-import { useAgentsStore } from "@/stores/agents";
 import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProjectedRole } from "../types";
 
 const { t } = useI18n();
 const session = useSessionStore();
-const agents = useAgentsStore();
 const { notify } = useNotifications();
 const inputText = ref("");
 const scrollbar = ref<HTMLElement | null>(null);
-
-/**
- * Map role to display label. Uses the locale's translations for the two
- * user-facing roles (`user` → "You", `assistant` → "Agent"); the more
- * specific Planner/Worker/Reviewer/System labels are intentionally kept in
- * English because they refer to the agent-system role taxonomy and appear
- * verbatim in trace events / system logs (see Task 7b carry-over #6 — only
- * the user-facing greeting strings are translated here).
- */
-const roleDisplay = computed<Record<ProjectedRole, string>>(() => ({
-  user: t("chat.roleYou"),
-  assistant: t("chat.roleAgent"),
-  planner: "Planner",
-  worker: "Worker",
-  reviewer: "Reviewer",
-  system: "System"
-}));
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -40,15 +21,20 @@ const roleClass: Record<ProjectedRole, string> = {
   system: "system"
 };
 
-/** Get the display label for a message, including agent attribution if available. */
-function messageLabel(msg: (typeof session.projection.messages)[0]): string {
-  const base = roleDisplay.value[msg.role] || t("chat.roleAgent");
-  if (msg.sourceAgentId && msg.role !== "user" && msg.role !== "system") {
-    const label = agents.agentLabel(msg.sourceAgentId);
-    if (label) return `${base} (${label})`;
-  }
-  return base;
-}
+const currentSession = computed(() =>
+  session.sessions.find((sessionInfo) => sessionInfo.id === session.currentSessionId)
+);
+
+const sessionGitMeta = computed(() => {
+  const sessionInfo = currentSession.value;
+  if (!sessionInfo?.project_id && !sessionInfo?.worktree_path) return [];
+
+  const gitMetaParts = [];
+  if (sessionInfo.worktree_path) gitMetaParts.push(sessionInfo.worktree_path);
+  if (sessionInfo.branch) gitMetaParts.push(sessionInfo.branch);
+  if (!gitMetaParts.length && sessionInfo.project_id) gitMetaParts.push(sessionInfo.project_id);
+  return gitMetaParts;
+});
 
 const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
 
@@ -98,9 +84,6 @@ watch(
     <ContextMeter />
     <header class="chat-header">
       <h2>{{ t("chat.header") }}</h2>
-      <span class="tag" data-test="chat-profile-badge">
-        {{ session.currentProfile }}
-      </span>
     </header>
 
     <div ref="scrollbar" class="message-list" data-test="message-list">
@@ -120,9 +103,6 @@ watch(
           :data-role="roleClass[msg.role] || 'assistant'"
           :data-error="msg.content.startsWith('[error]') ? 'true' : undefined"
         >
-          <span :class="['message-role', `role-badge-${roleClass[msg.role] || 'assistant'}`]">{{
-            messageLabel(msg)
-          }}</span>
           <!-- eslint-disable vue/no-v-html -->
           <span
             v-if="
@@ -143,7 +123,6 @@ watch(
           class="message message-assistant streaming"
           data-test="stream-indicator"
         >
-          <span class="message-role">{{ t("chat.roleAgent") }}</span>
           <span class="message-content"
             >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
           >
@@ -168,6 +147,14 @@ watch(
     </div>
 
     <div class="input-area">
+      <div class="composer-meta">
+        <span class="tag" data-test="chat-profile-badge">
+          {{ session.currentProfile }}
+        </span>
+        <span v-if="sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
+          {{ sessionGitMeta.join(" · ") }}
+        </span>
+      </div>
       <div class="input-row">
         <textarea
           v-model="inputText"
@@ -227,46 +214,42 @@ watch(
   padding: 12px 16px;
 }
 .message {
+  display: flex;
   margin-bottom: 12px;
   line-height: 1.5;
 }
-.message-user .message-role {
-  color: var(--app-primary-color, #0077cc);
-  font-weight: 600;
-}
-.message-assistant .message-role {
-  color: var(--app-success-color, #22a06b);
-  font-weight: 600;
-}
-.message-planner .message-role {
-  color: var(--app-primary-color, #0077cc);
-  font-weight: 600;
-}
-.message-worker .message-role {
-  color: var(--app-success-color, #22a06b);
-  font-weight: 600;
-}
-.message-reviewer .message-role {
-  color: var(--app-info-color, #7c3aed);
-  font-weight: 600;
-}
-.message-system .message-role {
-  color: var(--app-text-color);
-  opacity: 0.6;
-  font-weight: 600;
-  font-style: italic;
-}
-.message-system .message-content {
-  color: var(--app-text-color);
-  opacity: 0.6;
-  font-style: italic;
-}
-.message-role {
-  margin-right: 6px;
-}
 .message-content {
+  max-width: min(760px, 82%);
+  border-radius: 16px;
+  padding: 10px 12px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
+}
+.message-user {
+  justify-content: flex-end;
+}
+.message-user .message-content {
+  color: var(--app-primary-contrast, #ffffff);
+  background: var(--app-primary-color, #0077cc);
+}
+.message-assistant,
+.message-planner,
+.message-worker,
+.message-reviewer,
+.message-system {
+  justify-content: flex-start;
+}
+.message-assistant .message-content,
+.message-planner .message-content,
+.message-worker .message-content,
+.message-reviewer .message-content,
+.message-system .message-content {
+  color: var(--app-muted-text-color, var(--app-text-color));
+  background: var(--app-muted-surface-color, var(--app-card-color));
+}
+.message-system .message-content {
+  opacity: 0.72;
+  font-style: italic;
 }
 .streaming .cursor {
   animation: blink 1s step-end infinite;
@@ -348,6 +331,21 @@ watch(
 .input-area {
   padding: 8px 16px;
   border-top: 1px solid var(--app-border-color, #d7d7d7);
+}
+.composer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  font-size: 12px;
+}
+.git-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.72;
 }
 .input-row {
   display: flex;

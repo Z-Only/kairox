@@ -48,32 +48,73 @@ beforeEach(() => {
 });
 
 describe("ChatPanel", () => {
-  it("renders user messages from projection", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.messages = [{ role: "user", content: "Hello" }];
+  it("renders message bubbles without visible role labels while preserving chat-message anchors", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there!" }
+      ];
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Hello");
-    expect(wrapper.text()).toContain("You");
+
+    expect(wrapper.findAll('[data-test="chat-message"]')).toHaveLength(2);
+    expect(wrapper.find('[data-test="chat-message"][data-role="user"]').text()).toBe("Hello");
+    expect(wrapper.find('[data-test="chat-message"][data-role="assistant"]').text()).toBe(
+      "Hi there!"
+    );
+    expect(wrapper.find(".message-role").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("You");
+    expect(wrapper.text()).not.toContain("Agent");
   });
 
-  it("renders assistant messages", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.messages = [{ role: "assistant", content: "Hi there!" }];
+  it("renders streaming text and cursor without visible assistant role labels", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.token_stream = "Loading...";
+      session.isStreaming = true;
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Hi there!");
-    expect(wrapper.text()).toContain("Agent");
+
+    const streamIndicator = wrapper.find('[data-test="stream-indicator"]');
+    expect(streamIndicator.exists()).toBe(true);
+    expect(streamIndicator.text()).toContain("Loading...");
+    expect(streamIndicator.find(".cursor").exists()).toBe(true);
+    expect(streamIndicator.find(".message-role").exists()).toBe(false);
+    expect(streamIndicator.text()).not.toContain("Agent");
   });
 
-  it("shows streaming text with cursor when isStreaming", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.token_stream = "Loading...";
-      s.isStreaming = true;
+  it("shows the current profile badge in the composer input area", async () => {
+    const wrapper = mountChatPanel();
+    await flushPromises();
+
+    const header = wrapper.find(".chat-header");
+    const inputArea = wrapper.find(".input-area");
+    const profileBadge = inputArea.find('[data-test="chat-profile-badge"]');
+
+    expect(profileBadge.exists()).toBe(true);
+    expect(profileBadge.text()).toBe("fast");
+    expect(header.find('[data-test="chat-profile-badge"]').exists()).toBe(false);
+  });
+
+  it("shows current session worktree and branch metadata in the composer", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo/.worktrees/project-chat",
+          branch: "feat/project-chat",
+          visibility: null
+        }
+      ];
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Loading...");
-    expect(wrapper.find(".cursor").exists()).toBe(true);
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toContain("/repo/.worktrees/project-chat");
+    expect(gitMeta.text()).toContain("feat/project-chat");
   });
 
   it("shows cancelled marker", async () => {
