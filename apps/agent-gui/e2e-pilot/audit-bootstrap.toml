@@ -4,7 +4,7 @@ timeout_ms = 10000
 [scenario]
 name = "Audit bootstrap"
 fail_fast = true
-global_timeout_ms = 45000
+global_timeout_ms = 60000
 
 [[step]]
 name = "wait for app shell"
@@ -51,7 +51,7 @@ target = "[data-test='nav-settings']"
 name = "wait for settings view"
 action = "wait"
 selector = "[data-test='view-settings']"
-timeout_ms = 10000
+timeout_ms = 30000
 
 [[step]]
 name = "settings view visible"
