@@ -11,6 +11,7 @@ use agent_gui_tauri::commands::{
     CatalogSourceViewResponse, InstallOutcomeResponse, InstallRequestPayload,
     InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
     McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse, ProfileDetailResponse,
+    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
     ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
@@ -35,6 +36,23 @@ fn main() {
             agent_gui_tauri::commands::start_session,
             agent_gui_tauri::commands::send_message,
             agent_gui_tauri::commands::list_sessions,
+            // Project workspace commands
+            agent_gui_tauri::commands::list_projects,
+            agent_gui_tauri::commands::create_blank_project,
+            agent_gui_tauri::commands::add_existing_project,
+            agent_gui_tauri::commands::rename_project,
+            agent_gui_tauri::commands::remove_project,
+            agent_gui_tauri::commands::restore_project_session,
+            agent_gui_tauri::commands::update_project_order,
+            agent_gui_tauri::commands::update_project_expanded,
+            agent_gui_tauri::commands::create_project_draft_session,
+            agent_gui_tauri::commands::list_project_sessions,
+            agent_gui_tauri::commands::list_archived_sessions,
+            agent_gui_tauri::commands::create_project_worktree_session,
+            agent_gui_tauri::commands::get_project_git_status,
+            agent_gui_tauri::commands::get_session_git_status,
+            agent_gui_tauri::commands::init_project_git,
+            agent_gui_tauri::commands::get_project_instruction_summary,
             agent_gui_tauri::commands::resolve_permission,
             agent_gui_tauri::commands::query_memories,
             agent_gui_tauri::commands::delete_memory,
@@ -80,6 +98,9 @@ fn main() {
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
+        .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitStatusResponse>()
+        .typ::<ProjectInstructionSummaryResponse>()
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileInfo>()
         .typ::<ProfileDetailResponse>()

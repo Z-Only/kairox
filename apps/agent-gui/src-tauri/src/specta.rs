@@ -24,6 +24,23 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             start_session,
             send_message,
             list_sessions,
+            // Project workspace commands
+            list_projects,
+            create_blank_project,
+            add_existing_project,
+            rename_project,
+            remove_project,
+            restore_project_session,
+            update_project_order,
+            update_project_expanded,
+            create_project_draft_session,
+            list_project_sessions,
+            list_archived_sessions,
+            create_project_worktree_session,
+            get_project_git_status,
+            get_session_git_status,
+            init_project_git,
+            get_project_instruction_summary,
             resolve_permission,
             query_memories,
             delete_memory,
@@ -69,6 +86,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         ])
         .typ::<WorkspaceInfoResponse>()
         .typ::<SessionInfoResponse>()
+        .typ::<ProjectInfoResponse>()
+        .typ::<ProjectGitStatusResponse>()
+        .typ::<ProjectInstructionSummaryResponse>()
         .typ::<MemoryEntryResponse>()
         .typ::<ProfileDetailResponse>()
         .typ::<ProfileWithLimits>()

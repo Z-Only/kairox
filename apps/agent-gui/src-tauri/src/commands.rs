@@ -3,8 +3,10 @@
 use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
-use agent_core::AppFacade;
-use agent_core::PermissionDecision;
+use agent_core::{
+    AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
+    ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta,
+};
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
@@ -21,6 +23,10 @@ pub struct SessionInfoResponse {
     pub id: String,
     pub title: String,
     pub profile: String,
+    pub project_id: Option<String>,
+    pub worktree_path: Option<String>,
+    pub branch: Option<String>,
+    pub visibility: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -56,6 +62,77 @@ pub struct BuildInfoResponse {
     pub version: String,
     pub git_hash: String,
     pub build_time: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProjectInfoResponse {
+    pub project_id: String,
+    pub display_name: String,
+    pub root_path: String,
+    pub removed_at: Option<String>,
+    pub sort_order: i64,
+    pub expanded: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProjectGitStatusResponse {
+    pub kind: String,
+    pub branch: Option<String>,
+    pub worktree_path: String,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ProjectInstructionSummaryResponse {
+    pub source_paths: Vec<String>,
+    pub warning: Option<String>,
+}
+
+impl From<ProjectMeta> for ProjectInfoResponse {
+    fn from(project: ProjectMeta) -> Self {
+        Self {
+            project_id: project.project_id.to_string(),
+            display_name: project.display_name,
+            root_path: project.root_path,
+            removed_at: project.removed_at,
+            sort_order: project.sort_order,
+            expanded: project.expanded,
+        }
+    }
+}
+
+impl From<ProjectGitStatus> for ProjectGitStatusResponse {
+    fn from(status: ProjectGitStatus) -> Self {
+        Self {
+            kind: project_git_status_kind_to_string(status.kind),
+            branch: status.branch,
+            worktree_path: status.worktree_path,
+            message: status.message,
+        }
+    }
+}
+
+impl From<ProjectInstructionSummary> for ProjectInstructionSummaryResponse {
+    fn from(summary: ProjectInstructionSummary) -> Self {
+        Self {
+            source_paths: summary.source_paths,
+            warning: summary.warning,
+        }
+    }
+}
+
+impl From<SessionMeta> for SessionInfoResponse {
+    fn from(session: SessionMeta) -> Self {
+        Self {
+            id: session.session_id.to_string(),
+            title: session.title,
+            profile: session.model_profile,
+            project_id: session.project_id.map(|project_id| project_id.to_string()),
+            worktree_path: session.worktree_path,
+            branch: None,
+            visibility: session.visibility.map(project_visibility_to_string),
+        }
+    }
 }
 
 impl From<MemoryEntry> for MemoryEntryResponse {
@@ -253,6 +330,10 @@ pub async fn start_session(
         id: session_id.to_string(),
         title,
         profile,
+        project_id: None,
+        worktree_path: None,
+        branch: None,
+        visibility: None,
     })
 }
 
@@ -352,11 +433,7 @@ pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfo
 
     let mut result: Vec<SessionInfoResponse> = sessions
         .into_iter()
-        .map(|s| SessionInfoResponse {
-            id: s.session_id.to_string(),
-            title: s.title.clone(),
-            profile: s.model_profile.clone(),
-        })
+        .map(SessionInfoResponse::from)
         .collect();
 
     // Sort: current session first
@@ -374,6 +451,267 @@ pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfo
     }
 
     Ok(result)
+}
+
+async fn current_workspace_id(
+    state: &State<'_, GuiState>,
+) -> Result<agent_core::WorkspaceId, String> {
+    let workspace_id = state.workspace_id.lock().await;
+    workspace_id
+        .clone()
+        .ok_or_else(|| "Workspace not initialized".to_string())
+}
+
+fn project_visibility_to_string(visibility: ProjectSessionVisibility) -> String {
+    match visibility {
+        ProjectSessionVisibility::DraftHidden => "draft_hidden".into(),
+        ProjectSessionVisibility::Visible => "visible".into(),
+        ProjectSessionVisibility::Archived => "archived".into(),
+    }
+}
+
+fn project_git_status_kind_to_string(kind: ProjectGitStatusKind) -> String {
+    match kind {
+        ProjectGitStatusKind::NotInitialized => "not_initialized".into(),
+        ProjectGitStatusKind::Clean => "clean".into(),
+        ProjectGitStatusKind::Dirty => "dirty".into(),
+        ProjectGitStatusKind::Detached => "detached".into(),
+        ProjectGitStatusKind::MissingPath => "missing_path".into(),
+        ProjectGitStatusKind::Error => "error".into(),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_projects(state: State<'_, GuiState>) -> Result<Vec<ProjectInfoResponse>, String> {
+    let workspace_id = current_workspace_id(&state).await?;
+    let projects = state
+        .runtime
+        .list_projects(&workspace_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(projects
+        .into_iter()
+        .map(ProjectInfoResponse::from)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_blank_project(
+    state: State<'_, GuiState>,
+    display_name: Option<String>,
+) -> Result<ProjectInfoResponse, String> {
+    let workspace_id = current_workspace_id(&state).await?;
+    let project = state
+        .runtime
+        .create_blank_project(workspace_id, display_name)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectInfoResponse::from(project))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn add_existing_project(
+    state: State<'_, GuiState>,
+    path: String,
+) -> Result<ProjectInfoResponse, String> {
+    let workspace_id = current_workspace_id(&state).await?;
+    let project = state
+        .runtime
+        .add_existing_project(workspace_id, path)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectInfoResponse::from(project))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_project(
+    state: State<'_, GuiState>,
+    project_id: String,
+    display_name: String,
+) -> Result<(), String> {
+    state
+        .runtime
+        .rename_project(ProjectId::from_string(project_id), display_name)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_project(state: State<'_, GuiState>, project_id: String) -> Result<(), String> {
+    state
+        .runtime
+        .remove_project(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_project_session(
+    state: State<'_, GuiState>,
+    session_id: String,
+) -> Result<ProjectInfoResponse, String> {
+    let project = state
+        .runtime
+        .restore_project_session(SessionId::from_string(session_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectInfoResponse::from(project))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_project_order(
+    state: State<'_, GuiState>,
+    project_ids: Vec<String>,
+) -> Result<(), String> {
+    let project_ids = project_ids
+        .into_iter()
+        .map(ProjectId::from_string)
+        .collect();
+    state
+        .runtime
+        .update_project_order(project_ids)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_project_expanded(
+    state: State<'_, GuiState>,
+    project_id: String,
+    expanded: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .update_project_expanded(ProjectId::from_string(project_id), expanded)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_project_draft_session(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<String, String> {
+    let session_id = state
+        .runtime
+        .create_project_draft_session(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(session_id.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_project_sessions(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<Vec<SessionInfoResponse>, String> {
+    let sessions = state
+        .runtime
+        .list_project_sessions(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(sessions
+        .into_iter()
+        .map(SessionInfoResponse::from)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_archived_sessions(
+    state: State<'_, GuiState>,
+) -> Result<Vec<SessionInfoResponse>, String> {
+    let workspace_id = current_workspace_id(&state).await?;
+    let sessions = state
+        .runtime
+        .list_archived_sessions(&workspace_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(sessions
+        .into_iter()
+        .map(SessionInfoResponse::from)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_project_worktree_session(
+    state: State<'_, GuiState>,
+    project_id: String,
+    branch_name: String,
+) -> Result<String, String> {
+    let session_id = state
+        .runtime
+        .create_project_worktree_session(ProjectId::from_string(project_id), branch_name)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(session_id.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_project_git_status(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<ProjectGitStatusResponse, String> {
+    let status = state
+        .runtime
+        .get_project_git_status(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectGitStatusResponse::from(status))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_session_git_status(
+    state: State<'_, GuiState>,
+    session_id: String,
+) -> Result<ProjectGitStatusResponse, String> {
+    let status = state
+        .runtime
+        .get_session_git_status(SessionId::from_string(session_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectGitStatusResponse::from(status))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn init_project_git(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<ProjectGitStatusResponse, String> {
+    let status = state
+        .runtime
+        .init_project_git(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectGitStatusResponse::from(status))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_project_instruction_summary(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<ProjectInstructionSummaryResponse, String> {
+    let summary = state
+        .runtime
+        .get_project_instruction_summary(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(ProjectInstructionSummaryResponse::from(summary))
 }
 
 #[tauri::command]
