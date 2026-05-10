@@ -19,6 +19,7 @@ const connectedDotType = computed<"success" | "error">(() =>
 );
 
 onMounted(async () => {
+  void session.loadProfileInfo();
   try {
     const mode: string = await invoke("get_permission_mode");
     permissionMode.value = mode.toLowerCase();
@@ -37,10 +38,9 @@ onMounted(async () => {
   <footer class="status-bar" data-test="status-bar">
     <div class="status-items">
       <!-- Profile -->
-      <div class="status-item">
-        <span class="status-label">{{ t("status.activeProfile") }}:</span>
-        <span class="status-value">{{ session.currentProfile }}</span>
-      </div>
+      <span class="status-item" data-test="status-profile">
+        Model: {{ session.activeProfileDisplay }}
+      </span>
 
       <!-- Sessions -->
       <div class="status-item">

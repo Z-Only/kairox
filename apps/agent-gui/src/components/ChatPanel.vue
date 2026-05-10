@@ -89,6 +89,10 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
+onMounted(() => {
+  void session.loadProfileInfo();
+});
+
 watch(
   () => currentProjectId.value,
   async (projectId) => {
@@ -185,7 +189,7 @@ watch(
     <div class="input-area">
       <div class="composer-meta">
         <span class="tag" data-test="chat-profile-badge">
-          {{ session.currentProfile }}
+          {{ session.activeProfileDisplay }}
         </span>
         <span v-if="sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
           {{ sessionGitMeta.join(" · ") }}
