@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
+
+use crate::skill_settings::SkillSettingsRoots;
 use agent_skills::{SkillActivationMode, SkillDocument, SkillMetadata, SkillRoot, SkillSourceKind};
 
 pub fn build_default_skill_roots(home: &Path, workspace: &Path) -> Vec<SkillRoot> {
@@ -8,6 +10,14 @@ pub fn build_default_skill_roots(home: &Path, workspace: &Path) -> Vec<SkillRoot
         SkillRoot::new(SkillSourceKind::User, home.join(".config/kairox/skills")),
         SkillRoot::new(SkillSourceKind::Workspace, workspace.join(".kairox/skills")),
     ]
+}
+
+pub fn build_default_skill_settings_roots(home: &Path, workspace: &Path) -> SkillSettingsRoots {
+    SkillSettingsRoots {
+        workspace_root: Some(workspace.join(".kairox/skills")),
+        user_root: Some(home.join(".config/kairox/skills")),
+        builtin_root: None,
+    }
 }
 
 pub fn render_active_skill_block(name: &str, source: &str, body_markdown: &str) -> String {

@@ -1,4 +1,5 @@
 use std::io;
+use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 
 use agent_core::facade::{
@@ -14,11 +15,13 @@ pub trait SkillPackageManager: Send + Sync {
 
     async fn install_from_registry(
         &self,
+        install_root: &Path,
         request: &InstallRemoteSkillRequest,
     ) -> agent_core::Result<()>;
 
     async fn install_from_github(
         &self,
+        install_root: &Path,
         request: &InstallGithubSkillRequest,
     ) -> agent_core::Result<()>;
 
@@ -37,7 +40,9 @@ pub struct FakeSkillPackageManager {
     pub update_error: tokio::sync::Mutex<Option<String>>,
     pub search_queries: tokio::sync::Mutex<Vec<String>>,
     pub registry_install_requests: tokio::sync::Mutex<Vec<InstallRemoteSkillRequest>>,
+    pub registry_install_roots: tokio::sync::Mutex<Vec<PathBuf>>,
     pub github_install_requests: tokio::sync::Mutex<Vec<InstallGithubSkillRequest>>,
+    pub github_install_roots: tokio::sync::Mutex<Vec<PathBuf>>,
     pub check_update_skill_ids: tokio::sync::Mutex<Vec<String>>,
     pub update_skill_ids: tokio::sync::Mutex<Vec<String>>,
 }
@@ -54,7 +59,9 @@ impl Default for FakeSkillPackageManager {
             update_error: tokio::sync::Mutex::new(None),
             search_queries: tokio::sync::Mutex::new(Vec::new()),
             registry_install_requests: tokio::sync::Mutex::new(Vec::new()),
+            registry_install_roots: tokio::sync::Mutex::new(Vec::new()),
             github_install_requests: tokio::sync::Mutex::new(Vec::new()),
+            github_install_roots: tokio::sync::Mutex::new(Vec::new()),
             check_update_skill_ids: tokio::sync::Mutex::new(Vec::new()),
             update_skill_ids: tokio::sync::Mutex::new(Vec::new()),
         }
@@ -75,12 +82,17 @@ impl SkillPackageManager for FakeSkillPackageManager {
 
     async fn install_from_registry(
         &self,
+        install_root: &Path,
         request: &InstallRemoteSkillRequest,
     ) -> agent_core::Result<()> {
         self.registry_install_requests
             .lock()
             .await
             .push(request.clone());
+        self.registry_install_roots
+            .lock()
+            .await
+            .push(install_root.to_path_buf());
 
         if let Some(message) = self.registry_install_error.lock().await.clone() {
             return Err(CoreError::InvalidState(message));
@@ -91,12 +103,17 @@ impl SkillPackageManager for FakeSkillPackageManager {
 
     async fn install_from_github(
         &self,
+        install_root: &Path,
         request: &InstallGithubSkillRequest,
     ) -> agent_core::Result<()> {
         self.github_install_requests
             .lock()
             .await
             .push(request.clone());
+        self.github_install_roots
+            .lock()
+            .await
+            .push(install_root.to_path_buf());
 
         if let Some(message) = self.github_install_error.lock().await.clone() {
             return Err(CoreError::InvalidState(message));
@@ -143,20 +160,32 @@ impl SkillPackageManager for NpxSkillsPackageManager {
 
     async fn install_from_registry(
         &self,
+        install_root: &Path,
         request: &InstallRemoteSkillRequest,
     ) -> agent_core::Result<()> {
         let mut args = vec!["skills", "add", request.package.as_str()];
         append_install_target_args(&mut args, request.target);
-        run_npx_skills_command(&args).await.map(|_| ())
+        run_npx_skills_command_in_directory(
+            &args,
+            install_working_directory(install_root, request.target),
+        )
+        .await
+        .map(|_| ())
     }
 
     async fn install_from_github(
         &self,
+        install_root: &Path,
         request: &InstallGithubSkillRequest,
     ) -> agent_core::Result<()> {
         let mut args = vec!["skills", "add", request.source.as_str()];
         append_install_target_args(&mut args, request.target);
-        run_npx_skills_command(&args).await.map(|_| ())
+        run_npx_skills_command_in_directory(
+            &args,
+            install_working_directory(install_root, request.target),
+        )
+        .await
+        .map(|_| ())
     }
 
     async fn check_updates(&self, skill_id: &str) -> agent_core::Result<SkillUpdateState> {
@@ -218,17 +247,33 @@ pub fn classify_npx_spawn_error(error: io::Error) -> CoreError {
 }
 
 async fn run_npx_skills_command(args: &[&str]) -> agent_core::Result<String> {
-    let output = Command::new("npx")
-        .args(args)
-        .output()
-        .await
-        .map_err(classify_npx_spawn_error)?;
+    run_npx_skills_command_in_directory(args, None).await
+}
+
+async fn run_npx_skills_command_in_directory(
+    args: &[&str],
+    working_directory: Option<PathBuf>,
+) -> agent_core::Result<String> {
+    let mut command = Command::new("npx");
+    command.args(args);
+    if let Some(working_directory) = working_directory {
+        command.current_dir(working_directory);
+    }
+
+    let output = command.output().await.map_err(classify_npx_spawn_error)?;
 
     if !output.status.success() {
         return Err(format_npx_exit_error(args, output.status, &output.stderr));
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn install_working_directory(install_root: &Path, target: SkillInstallTarget) -> Option<PathBuf> {
+    match target {
+        SkillInstallTarget::Project => install_root.parent().map(Path::to_path_buf),
+        SkillInstallTarget::User => None,
+    }
 }
 
 fn append_install_target_args(args: &mut Vec<&str>, target: SkillInstallTarget) {
@@ -353,12 +398,14 @@ mod tests {
             .search("review")
             .await
             .expect("search should succeed");
+        let project_install_root = tempfile::tempdir().expect("project install root");
+        let user_install_root = tempfile::tempdir().expect("user install root");
         manager
-            .install_from_registry(&registry_request)
+            .install_from_registry(project_install_root.path(), &registry_request)
             .await
             .expect("registry install should succeed");
         manager
-            .install_from_github(&github_request)
+            .install_from_github(user_install_root.path(), &github_request)
             .await
             .expect("github install should succeed");
         let update_state = manager
@@ -382,6 +429,14 @@ mod tests {
             [github_request]
         );
         assert_eq!(
+            manager.registry_install_roots.lock().await.as_slice(),
+            [project_install_root.path().to_path_buf()]
+        );
+        assert_eq!(
+            manager.github_install_roots.lock().await.as_slice(),
+            [user_install_root.path().to_path_buf()]
+        );
+        assert_eq!(
             manager.check_update_skill_ids.lock().await.as_slice(),
             ["code-review"]
         );
@@ -403,8 +458,9 @@ mod tests {
             target: SkillInstallTarget::Project,
         };
 
+        let project_install_root = tempfile::tempdir().expect("project install root");
         let install_error = manager
-            .install_from_registry(&registry_request)
+            .install_from_registry(project_install_root.path(), &registry_request)
             .await
             .expect_err("registry install should fail");
         let update_error = manager

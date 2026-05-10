@@ -1,10 +1,14 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
+use crate::skill_package::{NpxSkillsPackageManager, SkillPackageManager};
 use crate::skills::{
     skill_document_to_detail, skill_metadata_to_active_view, skill_metadata_to_view,
 };
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
-use agent_core::facade::{McpServerSettingsInput, McpServerSettingsView};
+use agent_core::facade::{
+    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
+    McpServerSettingsView, RemoteSkillSearchResult, SkillSettingsDetail, SkillSettingsView,
+};
 use agent_core::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentId, AgentStatusInfo,
     AppFacade, CatalogQuery as CoreCatalogQuery, CatalogSourceView, DeactivateSkillRequest,
@@ -86,6 +90,8 @@ where
     catalog_http: Option<SharedHttpClient>,
     catalog_cache: Option<Arc<HttpResponseCache>>,
     skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
+    skill_settings_roots: crate::skill_settings::SkillSettingsRoots,
+    skill_package_manager: Arc<dyn SkillPackageManager>,
     active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
     /// Per-session in-memory state. Inserted lazily on first access.
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
@@ -127,6 +133,8 @@ where
             catalog_http: None,
             catalog_cache: None,
             skill_registry: None,
+            skill_settings_roots: crate::skill_settings::SkillSettingsRoots::default(),
+            skill_package_manager: Arc::new(NpxSkillsPackageManager),
             active_skills: Arc::new(Mutex::new(HashMap::new())),
             session_states: Arc::new(Mutex::new(HashMap::new())),
             config: Arc::new(agent_config::Config {
@@ -238,6 +246,23 @@ where
         self
     }
 
+    pub fn with_skill_package_manager(mut self, manager: Arc<dyn SkillPackageManager>) -> Self {
+        self.skill_package_manager = manager;
+        self
+    }
+
+    pub fn with_skill_settings_roots(
+        mut self,
+        roots: crate::skill_settings::SkillSettingsRoots,
+    ) -> Self {
+        self.skill_settings_roots = roots;
+        self
+    }
+
+    fn skill_settings_roots(&self) -> crate::skill_settings::SkillSettingsRoots {
+        self.skill_settings_roots.clone()
+    }
+
     /// Legacy builder kept for compatibility. The `max_tokens` argument is
     /// ignored — Task 8 will replace this with per-session `ContextBudget`
     /// configuration. Until then call sites can keep passing their old value.
@@ -311,7 +336,16 @@ where
     }
 
     /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
-    pub async fn with_builtin_tools(self, workspace_root: PathBuf) -> Self {
+    pub async fn with_builtin_tools(mut self, workspace_root: PathBuf) -> Self {
+        if self.skill_settings_roots.workspace_root.is_none()
+            && self.skill_settings_roots.user_root.is_none()
+        {
+            let home_dir = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            self.skill_settings_roots =
+                crate::skills::build_default_skill_settings_roots(&home_dir, &workspace_root);
+        }
         let provider = BuiltinProvider::with_defaults(workspace_root);
         self.tool_registry
             .lock()
@@ -1137,6 +1171,67 @@ where
             crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
                 .map(|path| path.display().to_string()),
         )
+    }
+
+    async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {
+        crate::skill_settings::list_skill_settings(self.skill_settings_roots()).await
+    }
+
+    async fn get_skill_settings_detail(
+        &self,
+        skill_id: String,
+    ) -> agent_core::Result<Option<SkillSettingsDetail>> {
+        crate::skill_settings::get_skill_settings_detail(self.skill_settings_roots(), &skill_id)
+            .await
+    }
+
+    async fn set_skill_enabled(&self, skill_id: String, enabled: bool) -> agent_core::Result<()> {
+        crate::skill_settings::set_skill_enabled(self.skill_settings_roots(), &skill_id, enabled)
+            .await
+    }
+
+    async fn delete_skill_settings(&self, skill_id: String) -> agent_core::Result<()> {
+        crate::skill_settings::delete_skill(self.skill_settings_roots(), &skill_id).await
+    }
+
+    async fn search_remote_skills(
+        &self,
+        query: String,
+    ) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
+        self.skill_package_manager.search(&query).await
+    }
+
+    async fn install_remote_skill(
+        &self,
+        request: InstallRemoteSkillRequest,
+    ) -> agent_core::Result<SkillSettingsView> {
+        crate::skill_settings::install_remote_skill(
+            self.skill_settings_roots(),
+            self.skill_package_manager.as_ref(),
+            request,
+        )
+        .await
+    }
+
+    async fn install_github_skill(
+        &self,
+        request: InstallGithubSkillRequest,
+    ) -> agent_core::Result<SkillSettingsView> {
+        crate::skill_settings::install_github_skill(
+            self.skill_settings_roots(),
+            self.skill_package_manager.as_ref(),
+            request,
+        )
+        .await
+    }
+
+    async fn update_skill(&self, skill_id: String) -> agent_core::Result<SkillSettingsView> {
+        crate::skill_settings::update_skill(
+            self.skill_settings_roots(),
+            self.skill_package_manager.as_ref(),
+            &skill_id,
+        )
+        .await
     }
 
     // -----------------------------------------------------------------------
