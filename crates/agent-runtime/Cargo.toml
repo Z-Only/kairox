@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["test-helpers"]
+default = []
 test-helpers = []
 # Opt-in feature for integration tests that hit a live model API
 # (e.g. GitHub Models via GITHUB_TOKEN). Off by default so the regular
@@ -40,5 +40,6 @@ tempfile = { workspace = true }
 tiktoken-rs = "0.11"
 
 [dev-dependencies]
+agent-runtime = { path = ".", features = ["test-helpers"] }
 sqlx = { workspace = true }
 wiremock = { workspace = true }
