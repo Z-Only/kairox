@@ -122,8 +122,8 @@ check-types:
 
 # Regenerate TypeScript bindings from Tauri commands and event types via specta
 gen-types:
-    cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
-    cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
+    cargo run -p agent-gui-tauri --features typegen --bin export-specta -- apps/agent-gui/src/generated/commands.ts
+    cargo run -p agent-gui-tauri --features typegen --bin export-events -- apps/agent-gui/src/generated/events.ts
     npx oxfmt --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
 
