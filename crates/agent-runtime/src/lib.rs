@@ -12,6 +12,7 @@ pub mod memory_handler;
 pub mod permission;
 pub mod project;
 pub mod session;
+pub mod skill_package;
 pub mod skills;
 pub mod task_graph;
 
