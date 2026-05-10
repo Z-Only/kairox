@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useSessionStore } from "@/stores/session";
+import {
+  filterOrdinarySessions,
+  temporaryTitleFromFirstMessage,
+  useSessionStore
+} from "@/stores/session";
+import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
 import type { DomainEvent, AgentRole, EventPayload } from "@/types";
 
@@ -182,5 +187,44 @@ describe("resetProjection", () => {
     expect(session.projection.cancelled).toBe(false);
     expect(session.isStreaming).toBe(false);
     expect(session.streamsByTask.size).toBe(0);
+  });
+});
+
+describe("temporaryTitleFromFirstMessage", () => {
+  it("uses a fallback title for blank first messages", () => {
+    expect(temporaryTitleFromFirstMessage("   \n\t  ")).toBe("New conversation");
+  });
+
+  it("trims and truncates long first messages", () => {
+    const title = temporaryTitleFromFirstMessage(
+      "  Please help me implement project workspace navigation with archived sessions  "
+    );
+
+    expect(title).toBe("Please help me implement project workspace navig…");
+  });
+});
+
+describe("filterOrdinarySessions", () => {
+  it("excludes project-bound sessions from the ordinary session list", () => {
+    const ordinarySession: SessionInfoResponse = {
+      id: "s1",
+      title: "Regular",
+      profile: "fast",
+      project_id: null,
+      worktree_path: null,
+      branch: null,
+      visibility: null
+    };
+    const projectSession: SessionInfoResponse = {
+      id: "s2",
+      title: "Project Draft",
+      profile: "fast",
+      project_id: "p1",
+      worktree_path: "/tmp/demo",
+      branch: null,
+      visibility: "draft_hidden"
+    };
+
+    expect(filterOrdinarySessions([ordinarySession, projectSession])).toEqual([ordinarySession]);
   });
 });

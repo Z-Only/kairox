@@ -30,6 +30,25 @@ function emptyProjection(): SessionProjection {
   };
 }
 
+export function temporaryTitleFromFirstMessage(content: string): string {
+  const trimmedContent = content.trim();
+  if (!trimmedContent) return "New conversation";
+
+  const maxLength = 48;
+  return trimmedContent.length > maxLength
+    ? `${trimmedContent.slice(0, maxLength)}…`
+    : trimmedContent;
+}
+
+export function filterOrdinarySessions(sessionList: SessionInfoResponse[]): SessionInfoResponse[] {
+  return sessionList.filter((session) => !session.project_id);
+}
+
+async function listOrdinarySessions(): Promise<SessionInfoResponse[]> {
+  const sessionList = await invoke<SessionInfoResponse[]>("list_sessions");
+  return filterOrdinarySessions(sessionList);
+}
+
 export const useSessionStore = defineStore("session", () => {
   // ── state ────────────────────────────────────────────────────────
   const sessions = ref<SessionInfoResponse[]>([]);
@@ -256,7 +275,7 @@ export const useSessionStore = defineStore("session", () => {
     const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
       profile
     });
-    sessions.value = await invoke<SessionInfoResponse[]>("list_sessions");
+    sessions.value = await listOrdinarySessions();
     currentProfile.value = result.profile;
     resetProjection();
     clearTrace();
@@ -312,7 +331,7 @@ export const useSessionStore = defineStore("session", () => {
     try {
       const workspaceInfo: { workspace_id: string; path: string } =
         await invoke("initialize_workspace");
-      const sessionList = await invoke<SessionInfoResponse[]>("list_sessions");
+      const sessionList = await listOrdinarySessions();
       workspaceId.value = workspaceInfo.workspace_id;
       sessions.value = sessionList;
       initialized.value = true;
@@ -348,7 +367,7 @@ export const useSessionStore = defineStore("session", () => {
       const ws = workspaces[0];
       workspaceId.value = ws.workspace_id;
       await invoke("restore_workspace", { workspaceId: ws.workspace_id });
-      sessions.value = await invoke("list_sessions");
+      sessions.value = await listOrdinarySessions();
       if (sessions.value.length > 0) {
         await switchSession(sessions.value[0].id);
       }
