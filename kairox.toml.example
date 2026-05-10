@@ -2,11 +2,11 @@
 # Kairox Configuration Example
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Copy this file to `kairox.toml` (project root) or `~/.kairox/config.toml`
-# and fill in your profiles. The `kairox.toml` file is git-ignored.
+# Copy this file to `.kairox/config.toml` (project root) or `~/.kairox/config.toml`
+# and fill in your profiles. The `.kairox/config.toml` file is git-ignored.
 #
 # Discovery order:
-#   1. ./kairox.toml          (project-level, takes priority)
+#   1. ./.kairox/config.toml  (project-level, takes priority)
 #   2. ~/.kairox/config.toml  (user-level fallback)
 #   3. Built-in defaults      (fake + local-code, plus "fast" if OPENAI_API_KEY is set)
 #

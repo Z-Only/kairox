@@ -100,9 +100,10 @@ E2E specs live in `apps/agent-gui/e2e/` and use a browser-side Tauri IPC mock (`
 Copy the example config and set up API keys:
 
 ```bash
-cp kairox.toml.example kairox.toml
+mkdir -p .kairox
+cp kairox.toml.example .kairox/config.toml
 cp .env.example .env
-# Edit kairox.toml to choose model profiles
+# Edit .kairox/config.toml to choose model profiles
 # Edit .env to set OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
 ```
 
