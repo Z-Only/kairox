@@ -126,6 +126,7 @@ export const useProjectStore = defineStore("project", () => {
   const projects = ref<ProjectInfo[]>([]);
   const sessionsByProject = ref(new Map<string, ProjectSessionInfo[]>());
   const archivedSessions = ref<ProjectSessionInfo[]>([]);
+  const instructionSummariesByProject = ref(new Map<string, ProjectInstructionSummaryInfo>());
 
   const activeProjects = computed(() => projects.value.filter((project) => !project.removedAt));
 
@@ -238,17 +239,31 @@ export const useProjectStore = defineStore("project", () => {
   async function getProjectInstructionSummary(
     projectId: string
   ): Promise<ProjectInstructionSummaryInfo> {
-    const response = await invoke<ProjectInstructionSummaryResponse>(
-      "get_project_instruction_summary",
-      { projectId }
-    );
-    return normalizeInstructionSummary(response);
+    let instructionSummary: ProjectInstructionSummaryInfo;
+    try {
+      const response = await invoke<ProjectInstructionSummaryResponse>(
+        "get_project_instruction_summary",
+        { projectId }
+      );
+      instructionSummary = normalizeInstructionSummary(response);
+    } catch (error) {
+      instructionSummary = {
+        sourcePaths: [],
+        warning: String(error)
+      };
+    }
+
+    const nextInstructionSummaries = new Map(instructionSummariesByProject.value);
+    nextInstructionSummaries.set(projectId, instructionSummary);
+    instructionSummariesByProject.value = nextInstructionSummaries;
+    return instructionSummary;
   }
 
   return {
     projects,
     sessionsByProject,
     archivedSessions,
+    instructionSummariesByProject,
     activeProjects,
     loadProjects,
     createBlankProject,

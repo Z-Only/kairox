@@ -1660,9 +1660,12 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-        Ok(crate::project::read_project_instructions(
-            &project.root_path,
-        ))
+        Ok(
+            crate::project::read_project_instruction_summary(std::path::Path::new(
+                &project.root_path,
+            ))
+            .await,
+        )
     }
 }
 

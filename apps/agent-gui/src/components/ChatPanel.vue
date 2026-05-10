@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
 import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProjectedRole } from "../types";
 
 const { t } = useI18n();
 const session = useSessionStore();
+const projectStore = useProjectStore();
 const { notify } = useNotifications();
 const inputText = ref("");
 const scrollbar = ref<HTMLElement | null>(null);
@@ -34,6 +36,27 @@ const sessionGitMeta = computed(() => {
   if (sessionInfo.branch) gitMetaParts.push(sessionInfo.branch);
   if (!gitMetaParts.length && sessionInfo.project_id) gitMetaParts.push(sessionInfo.project_id);
   return gitMetaParts;
+});
+
+const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
+const isEmptyProjectChat = computed(
+  () =>
+    Boolean(currentProjectId.value) &&
+    session.projection.messages.length === 0 &&
+    !session.projection.token_stream
+);
+const projectInstructionSummaryText = computed(() => {
+  const projectId = currentProjectId.value;
+  if (!projectId || !isEmptyProjectChat.value) return null;
+
+  const instructionSummary = projectStore.instructionSummariesByProject.get(projectId);
+  const sourceFileNames =
+    instructionSummary?.sourcePaths
+      .map((sourcePath) => sourcePath.split(/[\\/]/).filter(Boolean).at(-1))
+      .filter((fileName): fileName is string => Boolean(fileName)) ?? [];
+  if (!sourceFileNames.length) return null;
+
+  return `Loaded ${sourceFileNames.join(", ")}`;
 });
 
 const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
@@ -67,6 +90,15 @@ function handleKeydown(e: KeyboardEvent) {
     sendMessage();
   }
 }
+
+watch(
+  () => currentProjectId.value,
+  async (projectId) => {
+    if (!projectId || projectStore.instructionSummariesByProject.has(projectId)) return;
+    await projectStore.getProjectInstructionSummary(projectId);
+  },
+  { immediate: true }
+);
 
 watch(
   () => [session.projection.messages.length, session.projection.token_stream],
@@ -116,6 +148,13 @@ watch(
           ></span>
           <!-- eslint-enable vue/no-v-html -->
           <span v-else class="message-content">{{ msg.content }}</span>
+        </div>
+        <div
+          v-if="projectInstructionSummaryText"
+          class="project-instruction-summary"
+          data-test="project-instruction-summary"
+        >
+          {{ projectInstructionSummaryText }}
         </div>
         <div
           v-if="session.projection.token_stream"
@@ -216,6 +255,12 @@ watch(
 .message {
   display: flex;
   margin-bottom: 12px;
+  line-height: 1.5;
+}
+.project-instruction-summary {
+  margin-bottom: 12px;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  font-size: 12px;
   line-height: 1.5;
 }
 .message-content {

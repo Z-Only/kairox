@@ -155,35 +155,23 @@ pub fn get_git_status(path: &str) -> ProjectGitStatus {
     }
 }
 
-pub fn read_project_instructions(root_path: &str) -> ProjectInstructionSummary {
-    let root_path = Path::new(root_path);
-    if !root_path.exists() {
-        return ProjectInstructionSummary {
-            source_paths: Vec::new(),
-            warning: None,
-        };
-    }
-
+pub async fn read_project_instruction_summary(root_path: &Path) -> ProjectInstructionSummary {
     let mut source_paths = Vec::new();
-    let mut warnings = Vec::new();
-    for file_name in INSTRUCTION_FILE_PRIORITY {
-        let source_path = root_path.join(file_name);
-        if !source_path.exists() {
-            continue;
-        }
-        match source_path.canonicalize() {
-            Ok(path) => source_paths.push(path.display().to_string()),
-            Err(error) => warnings.push(format!("{}: {}", source_path.display(), error)),
+    let mut warning = None;
+
+    for candidate in INSTRUCTION_FILE_PRIORITY {
+        let path = root_path.join(candidate);
+        match tokio::fs::metadata(&path).await {
+            Ok(metadata) if metadata.is_file() => source_paths.push(path.display().to_string()),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => warning = Some(error.to_string()),
         }
     }
 
     ProjectInstructionSummary {
         source_paths,
-        warning: if warnings.is_empty() {
-            None
-        } else {
-            Some(warnings.join("; "))
-        },
+        warning,
     }
 }
 
@@ -243,5 +231,33 @@ fn sanitize_directory_name(display_name: &str) -> String {
         "Untitled Project".into()
     } else {
         sanitized
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn reads_project_instructions_in_priority_order() {
+        let temp = tempfile::tempdir().unwrap();
+        tokio::fs::write(temp.path().join("README.md"), "readme")
+            .await
+            .unwrap();
+        tokio::fs::write(temp.path().join("AGENTS.md"), "agents")
+            .await
+            .unwrap();
+
+        let summary = read_project_instruction_summary(temp.path()).await;
+
+        assert_eq!(
+            summary.source_paths[0],
+            temp.path().join("AGENTS.md").display().to_string()
+        );
+        assert_eq!(
+            summary.source_paths[1],
+            temp.path().join("README.md").display().to_string()
+        );
+        assert!(summary.warning.is_none());
     }
 }

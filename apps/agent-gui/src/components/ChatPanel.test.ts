@@ -21,6 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
 import type { ContextUsage } from "@/types";
 
 /**
@@ -230,6 +231,44 @@ describe("ChatPanel", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="chat-empty-state"]').exists()).toBe(true);
+  });
+
+  it("renders project instruction source filenames in an empty project chat", async () => {
+    mockedInvoke.mockResolvedValueOnce({
+      source_paths: ["/repo/AGENTS.md", "/repo/README.md"],
+      warning: null
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [];
+      session.projection.token_stream = "";
+      session.lastSendError = null;
+      session.isStreaming = false;
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo",
+          branch: "main",
+          visibility: "draft_hidden"
+        }
+      ];
+    });
+    await flushPromises();
+
+    const projectStore = useProjectStore();
+    const summary = wrapper.find('[data-test="project-instruction-summary"]');
+    expect(mockedInvoke).toHaveBeenCalledWith("get_project_instruction_summary", {
+      projectId: "project_1"
+    });
+    expect(projectStore.instructionSummariesByProject.get("project_1")?.sourcePaths).toEqual([
+      "/repo/AGENTS.md",
+      "/repo/README.md"
+    ]);
+    expect(summary.exists()).toBe(true);
+    expect(summary.text()).toBe("Loaded AGENTS.md, README.md");
+    expect(summary.text()).not.toContain("/repo/");
   });
 
   it("P1-S3-send-error: shows a visible send error banner", async () => {
