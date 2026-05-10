@@ -50,6 +50,10 @@ pub async fn discover_skill_settings(roots: Vec<SkillRoot>) -> Result<SkillSetti
 
         let mut child_entries = tokio::fs::read_dir(&root.path).await?;
         while let Some(child_entry) = child_entries.next_entry().await? {
+            if !child_entry.file_type().await?.is_dir() {
+                continue;
+            }
+
             let skill_path = child_entry.path().join("SKILL.md");
             if !tokio::fs::try_exists(&skill_path).await? {
                 continue;
@@ -61,6 +65,7 @@ pub async fn discover_skill_settings(roots: Vec<SkillRoot>) -> Result<SkillSetti
     }
 
     apply_effective_skill_markers(&mut skills);
+    sort_skill_settings(&mut skills);
 
     Ok(SkillSettingsProjection {
         skills,
@@ -202,6 +207,16 @@ fn scope_label(scope: SkillSourceKind) -> &'static str {
     }
 }
 
+fn sort_skill_settings(skills: &mut [LocalSkillSettingsView]) {
+    skills.sort_by(|left, right| {
+        left.id
+            .as_str()
+            .cmp(right.id.as_str())
+            .then_with(|| scope_priority(right.scope).cmp(&scope_priority(left.scope)))
+            .then_with(|| left.path.cmp(&right.path))
+    });
+}
+
 fn default_install_source(scope: SkillSourceKind) -> &'static str {
     match scope {
         SkillSourceKind::Builtin => "builtin",
@@ -223,7 +238,9 @@ fn extract_frontmatter_name(raw_skill_markdown: &str) -> Option<String> {
     let (frontmatter_yaml, _) = frontmatter_block.split_once("\n---\n")?;
 
     for line in frontmatter_yaml.lines() {
-        let (key, value) = line.split_once(':')?;
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
         if key.trim() == "name" {
             return Some(value.trim().trim_matches('"').to_owned());
         }
@@ -301,5 +318,86 @@ mod tests {
             .iter()
             .any(|skill| skill.scope == SkillSourceKind::User
                 && skill.shadowed_by.as_deref() == Some("workspace")));
+    }
+
+    #[tokio::test]
+    async fn discover_skill_settings_returns_stably_sorted_skills() {
+        let builtin_root = tempfile::tempdir().expect("builtin root");
+        let workspace_root = tempfile::tempdir().expect("workspace root");
+        write_skill(
+            workspace_root.path(),
+            "zeta-workspace",
+            "zeta",
+            "Workspace zeta",
+            "Workspace body\n",
+        );
+        write_skill(
+            builtin_root.path(),
+            "alpha-builtin",
+            "alpha",
+            "Builtin alpha",
+            "Builtin body\n",
+        );
+
+        let projection = discover_skill_settings(vec![
+            SkillRoot::new(SkillSourceKind::Workspace, workspace_root.path()),
+            SkillRoot::new(SkillSourceKind::Builtin, builtin_root.path()),
+        ])
+        .await
+        .expect("settings should discover");
+
+        let ordered_ids: Vec<_> = projection
+            .skills
+            .iter()
+            .map(|skill| skill.id.as_str())
+            .collect();
+        assert_eq!(ordered_ids, vec!["alpha", "zeta"]);
+    }
+
+    #[tokio::test]
+    async fn invalid_skill_markdown_uses_frontmatter_name_after_invalid_lines() {
+        let root = tempfile::tempdir().expect("root");
+        let skill_directory = root.path().join("directory-name");
+        fs::create_dir_all(&skill_directory).expect("skill directory should exist");
+        fs::write(
+            skill_directory.join("SKILL.md"),
+            "---\ninvalid frontmatter line\nname: review\n---\nBody\n",
+        )
+        .expect("skill markdown should be written");
+
+        let projection =
+            discover_skill_settings(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+                .await
+                .expect("settings should discover degraded skill");
+
+        assert_eq!(projection.skills.len(), 1);
+        let skill = &projection.skills[0];
+        assert_eq!(skill.id.as_str(), "review");
+        assert!(!skill.valid);
+        assert!(skill.validation_error.is_some());
+    }
+
+    #[tokio::test]
+    async fn invalid_state_file_does_not_block_valid_skill_discovery() {
+        let root = tempfile::tempdir().expect("root");
+        write_skill(
+            root.path(),
+            "review",
+            "review",
+            "Review code",
+            "Review body\n",
+        );
+        fs::write(root.path().join("skills-state.toml"), "not valid toml")
+            .expect("invalid state should be written");
+
+        let projection =
+            discover_skill_settings(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+                .await
+                .expect("settings should discover despite invalid state");
+
+        assert_eq!(projection.skills.len(), 1);
+        assert!(projection.skills[0].valid);
+        assert_eq!(projection.skills[0].id.as_str(), "review");
+        assert_eq!(projection.state_errors.len(), 1);
     }
 }

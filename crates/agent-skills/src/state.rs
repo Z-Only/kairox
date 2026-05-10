@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
 use crate::types::SkillActivationMode;
 use crate::{Result, SkillError};
+
+static NEXT_TEMPORARY_FILE_SUFFIX: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SkillsStateFile {
@@ -51,143 +54,23 @@ pub async fn write_skills_state(path: &Path, state: &SkillsStateFile) -> Result<
         tokio::fs::create_dir_all(parent_directory).await?;
     }
 
-    let temporary_path = path.with_extension(format!("tmp-{}", std::process::id()));
-    tokio::fs::write(&temporary_path, format_skills_state(state)).await?;
+    let temporary_path = path.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        NEXT_TEMPORARY_FILE_SUFFIX.fetch_add(1, Ordering::Relaxed)
+    ));
+    tokio::fs::write(&temporary_path, format_skills_state(state)?).await?;
     tokio::fs::rename(temporary_path, path).await?;
 
     Ok(())
 }
 
 fn parse_skills_state(raw_state: &str) -> Result<SkillsStateFile> {
-    let mut state = SkillsStateFile::default();
-    let mut current_skill_id: Option<String> = None;
-
-    for raw_line in raw_state.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        if line.starts_with('[') && line.ends_with(']') {
-            current_skill_id = Some(parse_skill_table_header(line)?);
-            continue;
-        }
-
-        let skill_id = current_skill_id.as_deref().ok_or_else(|| {
-            SkillError::InvalidStateFile("state entries must be inside a skill table".to_owned())
-        })?;
-        let (key, value) = line
-            .split_once('=')
-            .ok_or_else(|| SkillError::InvalidStateFile(format!("invalid state entry: {line}")))?;
-        apply_state_value(state.skill_mut(skill_id), key.trim(), value.trim())?;
-    }
-
-    Ok(state)
+    toml::from_str(raw_state).map_err(|error| SkillError::InvalidStateFile(error.to_string()))
 }
 
-fn parse_skill_table_header(line: &str) -> Result<String> {
-    let table_name = &line[1..line.len() - 1];
-    let Some(skill_id) = table_name.strip_prefix("skills.") else {
-        return Err(SkillError::InvalidStateFile(format!(
-            "unsupported table: {table_name}"
-        )));
-    };
-
-    if skill_id.starts_with('"') && skill_id.ends_with('"') {
-        return unquote_string(skill_id);
-    }
-
-    Ok(skill_id.to_owned())
-}
-
-fn apply_state_value(entry: &mut SkillStateEntry, key: &str, value: &str) -> Result<()> {
-    match key {
-        "enabled" => entry.enabled = Some(parse_bool(value)?),
-        "activation_mode" => entry.activation_mode = Some(parse_activation_mode(value)?),
-        "install_source" => entry.install_source = Some(unquote_string(value)?),
-        "remote" => entry.remote = Some(unquote_string(value)?),
-        "version" => entry.version = Some(unquote_string(value)?),
-        "last_update_check" => entry.last_update_check = Some(unquote_string(value)?),
-        "update_available" => entry.update_available = Some(parse_bool(value)?),
-        _ => {}
-    }
-
-    Ok(())
-}
-
-fn parse_bool(value: &str) -> Result<bool> {
-    value.parse::<bool>().map_err(|error| {
-        SkillError::InvalidStateFile(format!("invalid boolean value `{value}`: {error}"))
-    })
-}
-
-fn parse_activation_mode(value: &str) -> Result<SkillActivationMode> {
-    match unquote_string(value)?.as_str() {
-        "manual" => Ok(SkillActivationMode::Manual),
-        "suggest" => Ok(SkillActivationMode::Suggest),
-        "auto" => Ok(SkillActivationMode::Auto),
-        mode => Err(SkillError::InvalidStateFile(format!(
-            "invalid activation mode: {mode}"
-        ))),
-    }
-}
-
-fn unquote_string(value: &str) -> Result<String> {
-    let Some(unquoted_value) = value
-        .strip_prefix('"')
-        .and_then(|text| text.strip_suffix('"'))
-    else {
-        return Err(SkillError::InvalidStateFile(format!(
-            "expected quoted string: {value}"
-        )));
-    };
-
-    Ok(unquoted_value.replace("\\\"", "\"").replace("\\\\", "\\"))
-}
-
-fn format_skills_state(state: &SkillsStateFile) -> String {
-    let mut output = String::new();
-
-    for (skill_id, entry) in &state.skills {
-        output.push_str(&format!("[skills.\"{}\"]\n", quote_string(skill_id)));
-        if let Some(enabled) = entry.enabled {
-            output.push_str(&format!("enabled = {enabled}\n"));
-        }
-        if let Some(activation_mode) = entry.activation_mode {
-            output.push_str(&format!(
-                "activation_mode = \"{}\"\n",
-                format_activation_mode(activation_mode)
-            ));
-        }
-        write_optional_string(&mut output, "install_source", &entry.install_source);
-        write_optional_string(&mut output, "remote", &entry.remote);
-        write_optional_string(&mut output, "version", &entry.version);
-        write_optional_string(&mut output, "last_update_check", &entry.last_update_check);
-        if let Some(update_available) = entry.update_available {
-            output.push_str(&format!("update_available = {update_available}\n"));
-        }
-        output.push('\n');
-    }
-
-    output
-}
-
-fn write_optional_string(output: &mut String, key: &str, value: &Option<String>) {
-    if let Some(value) = value {
-        output.push_str(&format!("{key} = \"{}\"\n", quote_string(value)));
-    }
-}
-
-fn format_activation_mode(activation_mode: SkillActivationMode) -> &'static str {
-    match activation_mode {
-        SkillActivationMode::Manual => "manual",
-        SkillActivationMode::Suggest => "suggest",
-        SkillActivationMode::Auto => "auto",
-    }
-}
-
-fn quote_string(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
+fn format_skills_state(state: &SkillsStateFile) -> Result<String> {
+    toml::to_string_pretty(state).map_err(|error| SkillError::InvalidStateFile(error.to_string()))
 }
 
 #[cfg(test)]
@@ -222,5 +105,59 @@ mod tests {
         );
         let markdown = std::fs::read_to_string(skill_path).expect("skill markdown should remain");
         assert!(markdown.contains("description: Review code"));
+    }
+
+    #[tokio::test]
+    async fn read_skills_state_accepts_standard_toml_comments_and_escapes() {
+        let root = tempfile::tempdir().expect("root should exist");
+        let state_path = root.path().join("skills-state.toml");
+        std::fs::write(
+            &state_path,
+            "[skills.\"review\"]\n\
+             enabled = true # inline comments are valid TOML\n\
+             activation_mode = \"suggest\"\n\
+             remote = \"line\\nvalue with \\\"quotes\\\" and \\\\ slash\"\n",
+        )
+        .expect("state should be written");
+
+        let reloaded = read_skills_state(&state_path)
+            .await
+            .expect("state should read standard TOML");
+        let entry = reloaded.skill("review").expect("review state should exist");
+
+        assert_eq!(entry.enabled, Some(true));
+        assert_eq!(entry.activation_mode, Some(SkillActivationMode::Suggest));
+        assert_eq!(
+            entry.remote.as_deref(),
+            Some("line\nvalue with \"quotes\" and \\ slash")
+        );
+    }
+
+    #[tokio::test]
+    async fn write_skills_state_round_trips_all_fields() {
+        let root = tempfile::tempdir().expect("root should exist");
+        let state_path = root.path().join("nested").join("skills-state.toml");
+        let mut state = SkillsStateFile::default();
+        state.skills.insert(
+            "review.skill".to_owned(),
+            SkillStateEntry {
+                enabled: Some(false),
+                activation_mode: Some(SkillActivationMode::Auto),
+                install_source: Some("git".to_owned()),
+                remote: Some("line\nvalue with \"quotes\" and \\ slash".to_owned()),
+                version: Some("1.2.3".to_owned()),
+                last_update_check: Some("2026-05-10T13:25:00Z".to_owned()),
+                update_available: Some(true),
+            },
+        );
+
+        write_skills_state(&state_path, &state)
+            .await
+            .expect("state should write");
+        let reloaded = read_skills_state(&state_path)
+            .await
+            .expect("state should read");
+
+        assert_eq!(reloaded, state);
     }
 }
