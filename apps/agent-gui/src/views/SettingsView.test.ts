@@ -1,53 +1,9 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { flushPromises } from "@vue/test-utils";
+import { describe, it, expect } from "vitest";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { useUiStore } from "@/stores/ui";
-import { invoke } from "@tauri-apps/api/core";
 import SettingsView from "./SettingsView.vue";
-
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn()
-}));
-
-const mockedInvoke = vi.mocked(invoke);
-
-const discoveredSkill = {
-  id: "test-driven-rust",
-  name: "test-driven-rust",
-  description: "Write Rust changes test-first.",
-  version: "1.0.0",
-  source: "builtin:/skills/test-driven-rust",
-  activation_mode: "manual",
-  keywords: ["rust", "tdd"],
-  tools: [],
-  can_request_tools: [],
-  valid: true,
-  validation_error: null
-};
-
-const invalidSkill = {
-  id: "broken-skill",
-  name: "broken-skill",
-  description: "Fixture for validation errors.",
-  version: null,
-  source: "workspace:/skills/broken-skill",
-  activation_mode: "manual",
-  keywords: [],
-  tools: [],
-  can_request_tools: [],
-  valid: false,
-  validation_error: "Missing required description"
-};
-
-const activeSkill = {
-  skill_id: "test-driven-rust",
-  name: "test-driven-rust",
-  source: "builtin:/skills/test-driven-rust",
-  activation_mode: "manual"
-};
-
 const settingsViewSource = readFileSync(
   fileURLToPath(import.meta.url).replace(/\.test\.ts$/, ".vue"),
   "utf8"
@@ -58,7 +14,13 @@ function mountSettings() {
     mount: {
       global: {
         stubs: {
-          RouterView: true
+          McpSettingsPane: {
+            template: '<section data-test="settings-mcp-pane-stub">MCP settings pane</section>'
+          },
+          RouterView: true,
+          SkillSettingsPane: {
+            template: '<section data-test="settings-skill-pane-stub">Skills settings pane</section>'
+          }
         }
       }
     }
@@ -66,29 +28,6 @@ function mountSettings() {
   const ui = useUiStore();
   return { wrapper, ui };
 }
-
-function countInvokeCalls(commandName: string): number {
-  return mockedInvoke.mock.calls.filter(([command]) => command === commandName).length;
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockedInvoke.mockImplementation(async (command) => {
-    if (command === "list_skills") {
-      return [discoveredSkill, invalidSkill];
-    }
-    if (command === "list_active_skills") {
-      return [];
-    }
-    if (command === "activate_skill") {
-      return activeSkill;
-    }
-    if (command === "deactivate_skill") {
-      return null;
-    }
-    throw new Error(`Unexpected command: ${command}`);
-  });
-});
 
 describe("SettingsView (Pre-work B regression)", () => {
   it("renders the locale select with the store value and routes writes through ui.setLocale", async () => {
@@ -120,12 +59,14 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(ui.isDark).toBe(true);
   });
 
-  it("renders tabs with General and Marketplace panes", () => {
+  it("shows General, MCP, and Skills tabs without a top-level Marketplace tab", () => {
     const { wrapper } = mountSettings();
-    // Verify the rendered output contains the expected tab labels.
-    const html = wrapper.html();
-    expect(html).toContain("General");
-    expect(html).toContain("Marketplace");
+
+    const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text());
+    expect(tabs).toContain("General");
+    expect(tabs).toContain("MCP");
+    expect(tabs).toContain("Skills");
+    expect(tabs).not.toContain("Marketplace");
   });
 
   it("audit anchors: exposes stable settings pilot selectors", () => {
@@ -134,7 +75,8 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(wrapper.find('[data-test="view-settings"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="theme-toggle"]').exists()).toBe(true);
     expect(wrapper.find('select[data-test="settings-theme"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="settings-tab-marketplace"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-tab-mcp"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-tab-skills"]').exists()).toBe(true);
   });
 
   it("P1-S1-settings-tab-contrast keeps inactive tabs on accessible theme text color", () => {
@@ -166,88 +108,22 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(themeSelect.classes()).not.toContain("settings__select--focused");
   });
 
-  it("loads and renders discovered skills when opening the Skills tab", async () => {
+  it("mounts the MCP settings pane from the MCP tab", async () => {
+    const { wrapper } = mountSettings();
+
+    await wrapper.find('[data-test="settings-tab-mcp"]').trigger("click");
+
+    expect(wrapper.find('[data-test="settings-mcp-pane-stub"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-skill-pane-stub"]').exists()).toBe(false);
+  });
+
+  it("mounts the Skills settings pane from the Skills tab", async () => {
     const { wrapper } = mountSettings();
 
     await wrapper.find('[data-test="settings-tab-skills"]').trigger("click");
-    await flushPromises();
 
-    expect(countInvokeCalls("list_skills")).toBe(1);
-    expect(countInvokeCalls("list_active_skills")).toBe(1);
-    expect(wrapper.find('[data-test="settings-skills-panel"]').isVisible()).toBe(true);
-    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
-      "Write Rust changes test-first."
-    );
-    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
-      "builtin:/skills/test-driven-rust"
-    );
-    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
-      "Mode: manual"
-    );
-    expect(wrapper.find('[data-test="skill-card-broken-skill"]').text()).toContain(
-      "Missing required description"
-    );
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-toggle-broken-skill"]').element.disabled
-    ).toBe(true);
-  });
-
-  it("toggles a valid skill between active and inactive states", async () => {
-    const { wrapper } = mountSettings();
-
-    await wrapper.find('[data-test="settings-tab-skills"]').trigger("click");
-    await flushPromises();
-
-    const toggleButton = wrapper.find('[data-test="skill-toggle-test-driven-rust"]');
-    expect(toggleButton.text()).toBe("Activate");
-
-    await toggleButton.trigger("click");
-    await flushPromises();
-
-    expect(mockedInvoke).toHaveBeenCalledWith("activate_skill", {
-      skillId: "test-driven-rust"
-    });
-    expect(toggleButton.text()).toBe("Deactivate");
-
-    await toggleButton.trigger("click");
-    await flushPromises();
-
-    expect(mockedInvoke).toHaveBeenCalledWith("deactivate_skill", {
-      skillId: "test-driven-rust"
-    });
-    expect(toggleButton.text()).toBe("Activate");
-  });
-
-  it("retries loading skills when the first tab load fails", async () => {
-    let rejectedInitialSkillList = false;
-    mockedInvoke.mockImplementation(async (command) => {
-      if (command === "list_skills" && !rejectedInitialSkillList) {
-        rejectedInitialSkillList = true;
-        throw new Error("skills unavailable");
-      }
-      if (command === "list_skills") {
-        return [discoveredSkill, invalidSkill];
-      }
-      if (command === "list_active_skills") {
-        return [];
-      }
-      throw new Error(`Unexpected command: ${command}`);
-    });
-
-    const { wrapper } = mountSettings();
-    const skillsTab = wrapper.find('[data-test="settings-tab-skills"]');
-
-    await skillsTab.trigger("click");
-    await flushPromises();
-
-    expect(wrapper.find('[role="alert"]').text()).toContain("skills unavailable");
-
-    await wrapper.findAll('[role="tab"]')[0].trigger("click");
-    await skillsTab.trigger("click");
-    await flushPromises();
-
-    expect(countInvokeCalls("list_skills")).toBe(2);
-    expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-skill-pane-stub"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-mcp-pane-stub"]').exists()).toBe(false);
   });
 
   it("P1-S1-settings-landmarks exposes the settings page as the main landmark with a level-one heading", () => {
