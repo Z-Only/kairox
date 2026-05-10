@@ -4,6 +4,13 @@ import { useSessionStore } from "@/stores/session";
 import { useToast } from "@/composables/useToast";
 import type { ContextSource, ProfileWithLimits } from "@/types";
 
+const props = withDefaults(
+  defineProps<{
+    variant?: "bar" | "ring";
+  }>(),
+  { variant: "bar" }
+);
+
 const { t } = useI18n();
 const session = useSessionStore();
 const toast = useToast();
@@ -108,11 +115,28 @@ async function onCompactClick() {
 </script>
 
 <template>
-  <div class="context-meter" data-test="context-meter">
+  <div
+    class="context-meter"
+    :class="{ 'context-meter-ring-mode': props.variant === 'ring' }"
+    data-test="context-meter"
+  >
     <div v-if="!session.lastContextUsage" class="empty" data-test="context-meter-empty">
       <span class="empty-bar" />
       <span class="empty-label">{{ t("context.noUsageYet") }}</span>
     </div>
+
+    <button
+      v-else-if="props.variant === 'ring'"
+      type="button"
+      class="ring"
+      data-test="context-meter-ring"
+      :aria-label="`${ratioPct}% context used`"
+      :title="t('context.popoverHeader')"
+      :style="{ '--context-ratio': `${ratioPct * 3.6}deg` }"
+      @click="togglePopover"
+    >
+      <span>{{ ratioPct }}%</span>
+    </button>
 
     <div v-else class="meter-row">
       <button
@@ -259,6 +283,12 @@ async function onCompactClick() {
   border-bottom: 1px solid var(--app-border-color, #d7d7d7);
   background: var(--app-card-color);
 }
+.context-meter-ring-mode {
+  flex: 0 0 auto;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
 .empty {
   display: flex;
   align-items: center;
@@ -290,6 +320,29 @@ async function onCompactClick() {
   border: none;
   padding: 0;
   cursor: pointer;
+}
+.ring {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--app-text-color, #1f2937);
+  background: conic-gradient(
+    var(--app-primary-color, #0077cc) var(--context-ratio),
+    var(--app-border-color, #d7d7d7) 0deg
+  );
+  cursor: pointer;
+}
+.ring span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  margin: auto;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--app-card-color, #ffffff);
+  font-size: 11px;
+  font-weight: 700;
 }
 .segment {
   height: 100%;
@@ -345,6 +398,11 @@ async function onCompactClick() {
   border-radius: 6px;
   padding: 8px 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.context-meter-ring-mode .popover {
+  left: auto;
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
 }
 .popover-header {
   font-weight: 600;

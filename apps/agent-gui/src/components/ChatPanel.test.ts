@@ -21,6 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
+import type { ContextUsage } from "@/types";
 
 /**
  * `mountWithPlugins` activates a fresh Pinia internally, so the per-test
@@ -30,6 +31,19 @@ import { useSessionStore } from "@/stores/session";
  * The `prepareSession` callback runs after mount and before assertions so
  * the Pinia instance the component sees is the same one the test mutates.
  */
+function makeUsage(overrides: Partial<ContextUsage> = {}): ContextUsage {
+  return {
+    total_tokens: 50,
+    budget_tokens: 100,
+    context_window: 120,
+    output_reservation: 20,
+    by_source: [["history", 50]],
+    estimator: "cl100k_base",
+    corrected_by_real_usage: false,
+    ...overrides
+  };
+}
+
 function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionStore>) => void) {
   const { wrapper } = mountWithPlugins(ChatPanel, {
     initialRoute: "/workbench"
@@ -115,6 +129,17 @@ describe("ChatPanel", () => {
     expect(gitMeta.exists()).toBe(true);
     expect(gitMeta.text()).toContain("/repo/.worktrees/project-chat");
     expect(gitMeta.text()).toContain("feat/project-chat");
+  });
+
+  it("renders context meter as a ring inside the composer input row", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.lastContextUsage = makeUsage();
+    });
+    await flushPromises();
+
+    const inputRow = wrapper.find(".input-row");
+    expect(inputRow.find('[data-test="context-meter-ring"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
   it("shows cancelled marker", async () => {
