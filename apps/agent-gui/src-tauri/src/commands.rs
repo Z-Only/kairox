@@ -3,6 +3,10 @@
 use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
+use agent_core::facade::{
+    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
+    McpServerSettingsView, RemoteSkillSearchResult, SkillSettingsDetail, SkillSettingsView,
+};
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
     ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta,
@@ -1027,6 +1031,173 @@ pub async fn list_active_skills(
     state
         .runtime
         .list_active_skills(session_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_mcp_server_settings(
+    state: State<'_, GuiState>,
+) -> Result<Vec<McpServerSettingsView>, String> {
+    state
+        .runtime
+        .list_mcp_server_settings()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn upsert_mcp_server_settings(
+    state: State<'_, GuiState>,
+    input: McpServerSettingsInput,
+) -> Result<McpServerSettingsView, String> {
+    state
+        .runtime
+        .upsert_mcp_server_settings(input)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_mcp_server_enabled(
+    state: State<'_, GuiState>,
+    server_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .set_mcp_server_enabled(server_id, enabled)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_mcp_server_settings(
+    state: State<'_, GuiState>,
+    server_id: String,
+) -> Result<(), String> {
+    state
+        .runtime
+        .delete_mcp_server_settings(server_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+    state
+        .runtime
+        .open_mcp_config_file()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_skill_settings(
+    state: State<'_, GuiState>,
+) -> Result<Vec<SkillSettingsView>, String> {
+    state
+        .runtime
+        .list_skill_settings()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_skill_settings_detail(
+    state: State<'_, GuiState>,
+    skill_id: String,
+) -> Result<SkillSettingsDetail, String> {
+    state
+        .runtime
+        .get_skill_settings_detail(skill_id.clone())
+        .await
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("Skill not found: {skill_id}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_skill_enabled(
+    state: State<'_, GuiState>,
+    skill_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .set_skill_enabled(skill_id, enabled)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_skill_settings(
+    state: State<'_, GuiState>,
+    skill_id: String,
+) -> Result<(), String> {
+    state
+        .runtime
+        .delete_skill_settings(skill_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn search_remote_skills(
+    state: State<'_, GuiState>,
+    query: String,
+) -> Result<Vec<RemoteSkillSearchResult>, String> {
+    state
+        .runtime
+        .search_remote_skills(query)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn install_remote_skill(
+    state: State<'_, GuiState>,
+    request: InstallRemoteSkillRequest,
+) -> Result<SkillSettingsView, String> {
+    state
+        .runtime
+        .install_remote_skill(request)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn install_github_skill(
+    state: State<'_, GuiState>,
+    request: InstallGithubSkillRequest,
+) -> Result<SkillSettingsView, String> {
+    state
+        .runtime
+        .install_github_skill(request)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_skill(
+    state: State<'_, GuiState>,
+    skill_id: String,
+) -> Result<SkillSettingsView, String> {
+    state
+        .runtime
+        .update_skill(skill_id)
         .await
         .map_err(|error| error.to_string())
 }

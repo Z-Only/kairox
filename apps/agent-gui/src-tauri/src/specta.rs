@@ -3,6 +3,12 @@
 //! Run `just gen-types` to regenerate the TypeScript bindings.
 
 use crate::commands::*;
+use agent_core::facade::{
+    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
+    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillInstallSource,
+    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
+    SkillUpdateState,
+};
 use agent_core::{
     ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage,
     DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits, SkillDetail, SkillView,
@@ -61,6 +67,20 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             activate_skill,
             deactivate_skill,
             list_active_skills,
+            // Settings commands
+            list_mcp_server_settings,
+            upsert_mcp_server_settings,
+            set_mcp_server_enabled,
+            delete_mcp_server_settings,
+            open_mcp_config_file,
+            list_skill_settings,
+            get_skill_settings_detail,
+            set_skill_enabled,
+            delete_skill_settings,
+            search_remote_skills,
+            install_remote_skill,
+            install_github_skill,
+            update_skill,
             // MCP commands
             list_mcp_servers,
             start_mcp_server,
@@ -98,6 +118,19 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Settings request/response types
+        .typ::<McpServerSettingsView>()
+        .typ::<McpServerSettingsInput>()
+        .typ::<McpServerSettingsTransport>()
+        .typ::<SkillSettingsView>()
+        .typ::<SkillSettingsDetail>()
+        .typ::<SkillSettingsScope>()
+        .typ::<SkillInstallSource>()
+        .typ::<SkillUpdateState>()
+        .typ::<RemoteSkillSearchResult>()
+        .typ::<SkillInstallTarget>()
+        .typ::<InstallRemoteSkillRequest>()
+        .typ::<InstallGithubSkillRequest>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()
