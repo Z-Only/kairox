@@ -217,6 +217,36 @@ export const useProjectStore = defineStore("project", () => {
     archivedSessions.value = responses.map(normalizeProjectSession);
   }
 
+  async function renameProjectSession(sessionId: string, title: string): Promise<void> {
+    await invoke("rename_session", { sessionId, title });
+    const nextSessionsByProject = new Map(sessionsByProject.value);
+
+    for (const [projectId, projectSessions] of nextSessionsByProject.entries()) {
+      nextSessionsByProject.set(
+        projectId,
+        projectSessions.map((projectSession) =>
+          projectSession.sessionId === sessionId ? { ...projectSession, title } : projectSession
+        )
+      );
+    }
+
+    sessionsByProject.value = nextSessionsByProject;
+  }
+
+  async function archiveProjectSession(sessionId: string): Promise<void> {
+    await invoke("delete_session", { sessionId });
+    const nextSessionsByProject = new Map(sessionsByProject.value);
+
+    for (const [projectId, projectSessions] of nextSessionsByProject.entries()) {
+      nextSessionsByProject.set(
+        projectId,
+        projectSessions.filter((projectSession) => projectSession.sessionId !== sessionId)
+      );
+    }
+
+    sessionsByProject.value = nextSessionsByProject;
+  }
+
   async function getProjectGitStatus(projectId: string): Promise<ProjectGitStatusInfo> {
     const response = await invoke<ProjectGitStatusResponse>("get_project_git_status", {
       projectId
@@ -276,6 +306,8 @@ export const useProjectStore = defineStore("project", () => {
     createProjectDraftSession,
     loadProjectSessions,
     loadArchivedSessions,
+    renameProjectSession,
+    archiveProjectSession,
     getProjectGitStatus,
     getSessionGitStatus,
     initProjectGit,

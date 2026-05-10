@@ -209,6 +209,36 @@ describe("project store", () => {
     expect(store.archivedSessions[0].sessionId).toBe("s2");
   });
 
+  it("updates nested project sessions through the regular session IPC paths", async () => {
+    const store = useProjectStore();
+    store.sessionsByProject = new Map([
+      [
+        "p1",
+        [
+          {
+            sessionId: "s1",
+            title: "Draft",
+            profile: "fast",
+            projectId: "p1",
+            worktreePath: "/tmp/demo",
+            branch: null,
+            visibility: "visible"
+          }
+        ]
+      ]
+    ]);
+
+    await store.renameProjectSession("s1", "Renamed Draft");
+    await store.archiveProjectSession("s1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("rename_session", {
+      sessionId: "s1",
+      title: "Renamed Draft"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+    expect(store.sessionsByProject.get("p1")?.map((entry) => entry.title)).toEqual([]);
+  });
+
   it("normalizes git status and project instruction summary responses", async () => {
     const store = useProjectStore();
 

@@ -41,7 +41,13 @@ const editingSessionId = ref<string | null>(null);
 const editingTitle = ref("");
 const profileDropdownOpen = ref(false);
 const renameInput = ref<HTMLInputElement | null>(null);
-const showProjectCreateActions = ref(false);
+const projectCreateMenuOpen = ref(false);
+const editingProjectId = ref<string | null>(null);
+const editingProjectName = ref("");
+const editingProjectSessionId = ref<string | null>(null);
+const editingProjectSessionTitle = ref("");
+const projectRenameInput = ref<HTMLInputElement | null>(null);
+const projectSessionRenameInput = ref<HTMLInputElement | null>(null);
 const pendingDeleteSessionId = ref<string | null>(null);
 const pendingDeleteProjectId = ref<string | null>(null);
 const importingProject = ref(false);
@@ -51,13 +57,18 @@ function resetDeleteConfirmation() {
   pendingDeleteProjectId.value = null;
 }
 
-function getIconLabel(action: "rename" | "delete" | "confirm" | "import" | "new") {
+function getIconLabel(
+  action: "rename" | "delete" | "confirm" | "import" | "new" | "archive" | "create" | "newProject"
+) {
   const labels = {
     rename: "Rename",
     delete: "Delete",
     confirm: "Confirm delete",
     import: "Import folder",
-    new: "New session"
+    new: "New session",
+    archive: "Archive",
+    create: "Create",
+    newProject: "New project"
   };
   return labels[action];
 }
@@ -196,7 +207,7 @@ async function createBlankProject() {
   resetDeleteConfirmation();
   try {
     await projects.createBlankProject();
-    showProjectCreateActions.value = false;
+    projectCreateMenuOpen.value = false;
   } catch (e) {
     console.error("Failed to create blank project:", e);
   }
@@ -211,9 +222,75 @@ async function importExistingProject() {
     if (!selectedPath || Array.isArray(selectedPath)) return;
     await projects.addExistingProject(selectedPath);
     await projects.loadProjects();
-    showProjectCreateActions.value = false;
+    projectCreateMenuOpen.value = false;
   } finally {
     importingProject.value = false;
+  }
+}
+
+function startProjectRename(project: ProjectInfo) {
+  resetDeleteConfirmation();
+  editingProjectId.value = project.projectId;
+  editingProjectName.value = project.displayName;
+  nextTick(() => {
+    projectRenameInput.value?.focus();
+    projectRenameInput.value?.select();
+  });
+}
+
+function bindProjectRenameInput(el: Element | null, projectId: string) {
+  if (editingProjectId.value === projectId) {
+    projectRenameInput.value = (el as HTMLInputElement) ?? null;
+  }
+}
+
+async function confirmProjectRename() {
+  if (editingProjectId.value && editingProjectName.value.trim()) {
+    await projects.renameProject(editingProjectId.value, editingProjectName.value.trim());
+  }
+  editingProjectId.value = null;
+}
+
+function cancelProjectRename() {
+  editingProjectId.value = null;
+}
+
+function startProjectSessionRename(projectSession: ProjectSessionInfo) {
+  resetDeleteConfirmation();
+  editingProjectSessionId.value = projectSession.sessionId;
+  editingProjectSessionTitle.value = projectSession.title;
+  nextTick(() => {
+    projectSessionRenameInput.value?.focus();
+    projectSessionRenameInput.value?.select();
+  });
+}
+
+function bindProjectSessionRenameInput(el: Element | null, sessionId: string) {
+  if (editingProjectSessionId.value === sessionId) {
+    projectSessionRenameInput.value = (el as HTMLInputElement) ?? null;
+  }
+}
+
+async function confirmProjectSessionRename() {
+  if (editingProjectSessionId.value && editingProjectSessionTitle.value.trim()) {
+    await projects.renameProjectSession(
+      editingProjectSessionId.value,
+      editingProjectSessionTitle.value.trim()
+    );
+  }
+  editingProjectSessionId.value = null;
+}
+
+function cancelProjectSessionRename() {
+  editingProjectSessionId.value = null;
+}
+
+async function archiveProjectSession(sessionId: string) {
+  resetDeleteConfirmation();
+  try {
+    await projects.archiveProjectSession(sessionId);
+  } catch (e) {
+    console.error("Failed to archive project session:", e);
   }
 }
 
@@ -280,62 +357,71 @@ onMounted(() => {
           <div class="section-heading">
             <h3>Projects</h3>
             <div class="section-actions">
-              <button
-                class="section-action-btn"
-                type="button"
-                data-test="new-project-btn"
-                :aria-expanded="showProjectCreateActions"
-                aria-controls="project-create-actions"
-                @click="showProjectCreateActions = !showProjectCreateActions"
+              <KxDropdownMenu
+                v-model:open="projectCreateMenuOpen"
+                content-data-test="project-create-menu"
+                align="end"
               >
-                New
-              </button>
-              <button
-                class="section-action-btn icon-btn"
-                type="button"
-                data-test="import-project-btn"
-                :aria-label="getIconLabel('import')"
-                :disabled="importingProject"
-                @click="importExistingProject"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path
-                    d="M3 5.5A2.5 2.5 0 0 1 5.5 3H8l2 2h4.5A2.5 2.5 0 0 1 17 7.5v1h-1.5v-1a1 1 0 0 0-1-1H9.38l-2-2H5.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3V16h-3A2.5 2.5 0 0 1 3 13.5v-8Z"
-                  />
-                  <path
-                    d="M13 8.75a.75.75 0 0 1 .75.75v3.19l1.22-1.22 1.06 1.06-2.5 2.5a.75.75 0 0 1-1.06 0l-2.5-2.5 1.06-1.06 1.22 1.22V9.5a.75.75 0 0 1 .75-.75Z"
-                  />
-                </svg>
-              </button>
-              <button
-                class="section-action-btn"
-                type="button"
-                data-test="project-archive-toggle"
-                :aria-label="
+                <template #trigger>
+                  <KxIconButton
+                    :label="getIconLabel('newProject')"
+                    :title="getIconLabel('newProject')"
+                    data-test="project-create-trigger"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path d="M9.25 3h1.5v6.25H17v1.5h-6.25V17h-1.5v-6.25H3v-1.5h6.25V3Z" />
+                    </svg>
+                  </KxIconButton>
+                </template>
+                <template #content>
+                  <button
+                    class="kx-dropdown-item project-create-menu-item"
+                    type="button"
+                    data-test="project-create-blank"
+                    @click="createBlankProject"
+                  >
+                    Create Blank Project
+                  </button>
+                  <button
+                    class="kx-dropdown-item project-create-menu-item"
+                    type="button"
+                    data-test="project-import-folder"
+                    :disabled="importingProject"
+                    @click="importExistingProject"
+                  >
+                    Import Folder
+                  </button>
+                </template>
+              </KxDropdownMenu>
+              <KxTooltip
+                :text="
                   workspaceUi.archiveOpen
                     ? 'Hide archived project sessions'
                     : 'Show archived project sessions'
                 "
-                @click="toggleArchiveOpen"
               >
-                Archive
-              </button>
+                <KxIconButton
+                  :label="
+                    workspaceUi.archiveOpen
+                      ? 'Hide archived project sessions'
+                      : 'Show archived project sessions'
+                  "
+                  :title="
+                    workspaceUi.archiveOpen
+                      ? 'Hide archived project sessions'
+                      : 'Show archived project sessions'
+                  "
+                  data-test="project-archive-toggle"
+                  @click="toggleArchiveOpen"
+                >
+                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path
+                      d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
+                    />
+                  </svg>
+                </KxIconButton>
+              </KxTooltip>
             </div>
-          </div>
-
-          <div
-            v-if="showProjectCreateActions"
-            id="project-create-actions"
-            class="project-create-actions"
-          >
-            <button
-              class="project-create-btn"
-              type="button"
-              data-test="create-blank-project-btn"
-              @click="createBlankProject"
-            >
-              Create Blank Project
-            </button>
           </div>
 
           <ul class="project-list">
@@ -359,78 +445,211 @@ onMounted(() => {
                 >
                   {{ project.expanded ? "▾" : "▸" }}
                 </button>
-                <button
-                  class="project-title-btn"
-                  type="button"
-                  :aria-label="`Toggle ${project.displayName}`"
-                  @click="toggleProjectExpanded(project)"
-                >
-                  <span class="project-name">{{ project.displayName }}</span>
-                  <span class="project-path">{{ project.rootPath }}</span>
-                </button>
-                <span class="row-actions project-actions">
+                <template v-if="editingProjectId === project.projectId">
+                  <input
+                    :ref="(el) => bindProjectRenameInput(el as Element | null, project.projectId)"
+                    v-model="editingProjectName"
+                    class="rename-input project-rename-input"
+                    :data-test="`project-rename-input-${project.projectId}`"
+                    @keydown.enter="confirmProjectRename"
+                    @keydown.escape="cancelProjectRename"
+                    @blur="confirmProjectRename"
+                    @click.stop
+                  />
+                  <KxTooltip :text="t('common.confirm')">
+                    <KxIconButton
+                      :label="t('common.confirm')"
+                      :title="t('common.confirm')"
+                      data-test="project-rename-confirm"
+                      @mousedown.prevent
+                      @click.stop="confirmProjectRename"
+                    >
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+                      </svg>
+                    </KxIconButton>
+                  </KxTooltip>
+                </template>
+                <template v-else>
                   <button
-                    class="project-action-btn"
+                    class="project-title-btn"
                     type="button"
-                    data-test="project-new-session-btn"
-                    :aria-label="`New session in ${project.displayName}`"
-                    @click.stop="createProjectSession(project.projectId)"
+                    :aria-label="`Toggle ${project.displayName}`"
+                    @click="toggleProjectExpanded(project)"
                   >
-                    New
+                    <span class="project-name truncate" :title="project.displayName">
+                      {{ project.displayName }}
+                    </span>
+                    <span class="project-path truncate" :title="project.rootPath">
+                      {{ project.rootPath }}
+                    </span>
                   </button>
-                  <button
-                    v-if="pendingDeleteProjectId !== project.projectId"
-                    class="project-action-btn icon-btn project-remove-btn"
-                    type="button"
-                    :aria-label="getIconLabel('delete')"
-                    data-test="project-delete-btn"
-                    @click.stop="requestDeleteProject(project.projectId)"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path
-                        d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
-                      />
-                      <path
-                        d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    v-else
-                    class="project-action-btn icon-btn project-remove-btn"
-                    type="button"
-                    :aria-label="getIconLabel('confirm')"
-                    data-test="project-delete-confirm"
-                    @click.stop="requestDeleteProject(project.projectId)"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                    </svg>
-                  </button>
-                </span>
+                  <span class="row-actions project-actions">
+                    <KxTooltip :text="`New session in ${project.displayName}`">
+                      <KxIconButton
+                        :label="`New session in ${project.displayName}`"
+                        :title="`New session in ${project.displayName}`"
+                        :data-test="'project-new-session-btn'"
+                        @click.stop="createProjectSession(project.projectId)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path d="M9.25 3h1.5v6.25H17v1.5h-6.25V17h-1.5v-6.25H3v-1.5h6.25V3Z" />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                    <KxTooltip :text="getIconLabel('rename')">
+                      <KxIconButton
+                        :label="getIconLabel('rename')"
+                        :title="getIconLabel('rename')"
+                        :data-test="`project-rename-action-${project.projectId}`"
+                        @click.stop="startProjectRename(project)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
+                          />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                    <KxTooltip
+                      :text="
+                        pendingDeleteProjectId === project.projectId
+                          ? getIconLabel('confirm')
+                          : getIconLabel('delete')
+                      "
+                    >
+                      <KxIconButton
+                        :label="
+                          pendingDeleteProjectId === project.projectId
+                            ? getIconLabel('confirm')
+                            : getIconLabel('delete')
+                        "
+                        :title="
+                          pendingDeleteProjectId === project.projectId
+                            ? getIconLabel('confirm')
+                            : getIconLabel('delete')
+                        "
+                        variant="danger"
+                        :data-test="
+                          pendingDeleteProjectId === project.projectId
+                            ? 'project-delete-confirm'
+                            : 'project-delete-btn'
+                        "
+                        @click.stop="requestDeleteProject(project.projectId)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            v-if="pendingDeleteProjectId === project.projectId"
+                            d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z"
+                          />
+                          <template v-else>
+                            <path
+                              d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
+                            />
+                            <path
+                              d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
+                            />
+                          </template>
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                  </span>
+                </template>
               </div>
 
               <ul v-if="project.expanded" class="project-session-list">
                 <li
                   v-for="projectSession in getProjectSessions(project.projectId)"
                   :key="projectSession.sessionId"
+                  class="project-session-row"
                 >
-                  <button
-                    type="button"
-                    :class="[
-                      'project-session-item',
-                      { active: projectSession.sessionId === activeSessionId }
-                    ]"
-                    data-test="project-session-btn"
-                    :aria-label="`Open ${projectSession.title}`"
-                    @click="switchToProjectSession(projectSession)"
-                  >
-                    <span class="session-indicator">●</span>
-                    <span class="session-title">{{ projectSession.title }}</span>
-                    <span v-if="projectSession.branch" class="project-session-branch">
-                      {{ projectSession.branch }}
+                  <template v-if="editingProjectSessionId === projectSession.sessionId">
+                    <input
+                      :ref="
+                        (el) =>
+                          bindProjectSessionRenameInput(
+                            el as Element | null,
+                            projectSession.sessionId
+                          )
+                      "
+                      v-model="editingProjectSessionTitle"
+                      class="rename-input project-session-rename-input"
+                      :data-test="`project-session-rename-input-${projectSession.sessionId}`"
+                      @keydown.enter="confirmProjectSessionRename"
+                      @keydown.escape="cancelProjectSessionRename"
+                      @blur="confirmProjectSessionRename"
+                      @click.stop
+                    />
+                    <KxTooltip :text="t('common.confirm')">
+                      <KxIconButton
+                        :label="t('common.confirm')"
+                        :title="t('common.confirm')"
+                        :data-test="`project-session-rename-confirm-${projectSession.sessionId}`"
+                        @mousedown.prevent
+                        @click.stop="confirmProjectSessionRename"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z"
+                          />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                  </template>
+                  <template v-else>
+                    <button
+                      type="button"
+                      :class="[
+                        'project-session-item',
+                        { active: projectSession.sessionId === activeSessionId }
+                      ]"
+                      data-test="project-session-btn"
+                      :aria-label="`Open ${projectSession.title}`"
+                      @click="switchToProjectSession(projectSession)"
+                    >
+                      <span class="session-indicator">●</span>
+                      <span class="session-title truncate" :title="projectSession.title">
+                        {{ projectSession.title }}
+                      </span>
+                      <span
+                        v-if="projectSession.branch"
+                        class="project-session-branch truncate"
+                        :title="projectSession.branch"
+                      >
+                        {{ projectSession.branch }}
+                      </span>
+                    </button>
+                    <span class="row-actions project-session-actions">
+                      <KxTooltip :text="getIconLabel('rename')">
+                        <KxIconButton
+                          :label="getIconLabel('rename')"
+                          :title="getIconLabel('rename')"
+                          :data-test="`project-session-rename-action-${projectSession.sessionId}`"
+                          @click.stop="startProjectSessionRename(projectSession)"
+                        >
+                          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                            <path
+                              d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
+                            />
+                          </svg>
+                        </KxIconButton>
+                      </KxTooltip>
+                      <KxTooltip :text="getIconLabel('archive')">
+                        <KxIconButton
+                          :label="getIconLabel('archive')"
+                          :title="getIconLabel('archive')"
+                          :data-test="`project-session-archive-action-${projectSession.sessionId}`"
+                          @click.stop="archiveProjectSession(projectSession.sessionId)"
+                        >
+                          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                            <path
+                              d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
+                            />
+                          </svg>
+                        </KxIconButton>
+                      </KxTooltip>
                     </span>
-                  </button>
+                  </template>
                 </li>
               </ul>
             </li>
@@ -452,7 +671,9 @@ onMounted(() => {
                 @click="switchToProjectSession(archivedSession)"
               >
                 <span class="session-indicator archived-indicator">●</span>
-                <span class="session-title">{{ archivedSession.title }}</span>
+                <span class="session-title truncate" :title="archivedSession.title">
+                  {{ archivedSession.title }}
+                </span>
               </button>
             </li>
           </ul>
@@ -495,66 +716,75 @@ onMounted(() => {
                     @blur="confirmRename"
                     @click.stop
                   />
-                  <button
-                    class="icon-btn"
-                    type="button"
-                    :aria-label="t('common.confirm')"
-                    data-test="session-rename-confirm"
-                    @mousedown.prevent
-                    @click.stop="confirmRename"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                    </svg>
-                  </button>
-                </template>
-
-                <!-- Normal display mode -->
-                <template v-else>
-                  <span class="session-title">{{ item.title }}</span>
-                  <span class="row-actions session-actions">
-                    <button
-                      class="icon-btn"
-                      :title="getIconLabel('rename')"
-                      :aria-label="getIconLabel('rename')"
-                      data-test="session-rename-btn"
-                      @click.stop="startRename(item.id, item.title)"
-                    >
-                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path
-                          d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      v-if="pendingDeleteSessionId !== item.id"
-                      class="icon-btn action-delete"
-                      :title="getIconLabel('delete')"
-                      :aria-label="getIconLabel('delete')"
-                      data-test="session-delete-btn"
-                      @click.stop="requestDeleteSession(item.id)"
-                    >
-                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                        <path
-                          d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
-                        />
-                        <path
-                          d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      v-else
-                      class="icon-btn action-delete"
-                      :title="getIconLabel('confirm')"
-                      :aria-label="getIconLabel('confirm')"
-                      data-test="session-delete-confirm"
-                      @click.stop="requestDeleteSession(item.id)"
+                  <KxTooltip :text="t('common.confirm')">
+                    <KxIconButton
+                      :label="t('common.confirm')"
+                      :title="t('common.confirm')"
+                      data-test="session-rename-confirm"
+                      @mousedown.prevent
+                      @click.stop="confirmRename"
                     >
                       <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                         <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
                       </svg>
-                    </button>
+                    </KxIconButton>
+                  </KxTooltip>
+                </template>
+
+                <!-- Normal display mode -->
+                <template v-else>
+                  <span class="session-title truncate" :title="item.title">{{ item.title }}</span>
+                  <span class="row-actions session-actions">
+                    <KxTooltip :text="getIconLabel('rename')">
+                      <KxIconButton
+                        :label="getIconLabel('rename')"
+                        :title="getIconLabel('rename')"
+                        data-test="session-rename-btn"
+                        @click.stop="startRename(item.id, item.title)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
+                          />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                    <KxTooltip
+                      v-if="pendingDeleteSessionId !== item.id"
+                      :text="getIconLabel('delete')"
+                    >
+                      <KxIconButton
+                        :label="getIconLabel('delete')"
+                        :title="getIconLabel('delete')"
+                        variant="danger"
+                        data-test="session-delete-btn"
+                        @click.stop="requestDeleteSession(item.id)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
+                          />
+                          <path
+                            d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
+                          />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
+                    <KxTooltip v-else :text="getIconLabel('confirm')">
+                      <KxIconButton
+                        :label="getIconLabel('confirm')"
+                        :title="getIconLabel('confirm')"
+                        variant="danger"
+                        data-test="session-delete-confirm"
+                        @click.stop="requestDeleteSession(item.id)"
+                      >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <path
+                            d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z"
+                          />
+                        </svg>
+                      </KxIconButton>
+                    </KxTooltip>
                   </span>
                 </template>
               </li>
@@ -657,31 +887,15 @@ onMounted(() => {
 }
 .section-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 4px;
 }
-.project-create-actions {
-  padding: 0 12px 8px;
-}
-.project-create-btn {
+.project-create-menu-item {
   width: 100%;
-  min-height: 32px;
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
+  border: none;
   font-family: inherit;
-  font-size: 12px;
   text-align: left;
-}
-.project-create-btn:hover {
-  background: var(--app-hover-color);
-}
-.project-create-btn:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
 }
 .section-action-btn,
 .project-action-btn,
@@ -763,11 +977,8 @@ onMounted(() => {
   font-size: 11px;
 }
 .project-actions {
-  flex-shrink: 0;
+  flex: none;
   gap: 2px;
-}
-.project-remove-btn:hover {
-  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
 }
 .project-session-list {
   padding: 0 8px 4px 40px;
@@ -775,11 +986,19 @@ onMounted(() => {
 .archived-session-list {
   padding: 0 8px 8px 16px;
 }
+.project-session-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .project-session-item {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 6px;
   width: 100%;
+  min-width: 0;
   min-height: 32px;
   padding: 6px 8px;
   border: none;
@@ -796,9 +1015,14 @@ onMounted(() => {
   font-weight: 600;
 }
 .project-session-branch {
-  flex-shrink: 0;
+  flex: none;
+  max-width: 72px;
   color: var(--app-text-color-3);
   font-size: 11px;
+}
+.project-session-actions {
+  flex: none;
+  gap: 2px;
 }
 .archived-indicator {
   color: var(--app-text-color-3);
@@ -838,13 +1062,14 @@ onMounted(() => {
 }
 .session-title {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .session-actions {
+  flex: none;
   gap: 4px;
-  flex-shrink: 0;
 }
 .row-actions {
   display: flex;
@@ -855,7 +1080,9 @@ onMounted(() => {
 .session-item:hover .row-actions,
 .session-item:focus-within .row-actions,
 .project-row:hover .row-actions,
-.project-row:focus-within .row-actions {
+.project-row:focus-within .row-actions,
+.project-session-row:hover .row-actions,
+.project-session-row:focus-within .row-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -896,6 +1123,7 @@ onMounted(() => {
 }
 .rename-input {
   flex: 1;
+  min-width: 0;
   border: 1px solid var(--app-primary-color);
   border-radius: 3px;
   padding: 2px 4px;
@@ -904,6 +1132,10 @@ onMounted(() => {
   font-family: inherit;
   background: var(--app-card-color);
   color: var(--app-text-color);
+}
+.project-rename-input,
+.project-session-rename-input {
+  min-height: 28px;
 }
 .empty-hint {
   padding: 12px;
