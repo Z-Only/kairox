@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
-import { mountWithPlugins } from "@/test-utils/mount";
+import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue([])
@@ -22,10 +22,11 @@ import InstalledList from "./InstalledList.vue";
 // that `useCatalogStore()` calls in the test body and inside the component
 // reference the same store instance.
 function mountMarketplace() {
-  return mountWithPlugins(Marketplace, {
+  const mountOptions: MountWithPluginsOptions<typeof Marketplace> = {
     reusePinia: true,
     initialRoute: "/marketplace"
-  }).wrapper;
+  };
+  return mountWithPlugins(Marketplace, mountOptions).wrapper;
 }
 
 const fixtureEntry = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -53,18 +54,18 @@ describe("Marketplace.vue", () => {
     vi.clearAllMocks();
   });
 
-  it("renders Browse and Installed tabs", async () => {
+  it("renders Browse tab without the Installed tab", async () => {
     const wrapper = mountMarketplace();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("Browse");
-    expect(wrapper.text()).toContain("Installed");
+    expect(wrapper.find("[data-test='tab-installed']").exists()).toBe(false);
   });
 
-  it("switches to Installed tab on click", async () => {
+  it("does not render the Installed tab or installed list from MarketplacePane", async () => {
     const wrapper = mountMarketplace();
-    await wrapper.find("[data-test='tab-installed']").trigger("click");
     await flushPromises();
-    expect(wrapper.find("[data-test='installed-list']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='tab-installed']").exists()).toBe(false);
+    expect(wrapper.find("[data-test='installed-list']").exists()).toBe(false);
   });
 
   // Task 9 carry-over from Task 8 review NIT-10: lock the existence
@@ -89,8 +90,8 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
   });
 
   // Helper: mock invoke by command name rather than call order.
-  // MarketplacePane uses `v-show` (not `v-if`) so InstalledList and
-  // CatalogList both mount eagerly, each calling invoke in onMounted.
+  // MarketplacePane loads sources and catalog entries during mount, and
+  // command-name routing keeps these tests stable if the component tree changes.
   // Using `mockResolvedValueOnce` is fragile because the consumption
   // order depends on Vue's component tree walk. This helper routes
   // responses by the first positional argument (the Tauri command name).
@@ -230,7 +231,10 @@ describe("InstalledList.vue", () => {
   // mutations done in each test before mounting are not wiped. Returns
   // the bare wrapper so the existing `wrapper.find` / `wrapper.text`
   // call-sites stay drop-in compatible.
-  const mountInstalled = () => mountWithPlugins(InstalledList, { reusePinia: true }).wrapper;
+  const mountInstalled = () => {
+    const mountOptions: MountWithPluginsOptions<typeof InstalledList> = { reusePinia: true };
+    return mountWithPlugins(InstalledList, mountOptions).wrapper;
+  };
 
   it("renders rows for each installed entry", async () => {
     const catalog = useCatalogStore();

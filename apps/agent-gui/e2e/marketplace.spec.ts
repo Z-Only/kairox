@@ -41,8 +41,8 @@ test.describe("Marketplace", () => {
     await page.getByTestId("install-close").click();
     // Close the CatalogDetail drawer that still overlays the page.
     await page.locator(".drawer-close-btn").click();
-    await page.getByTestId("tab-installed").click();
-    await expect(page.getByTestId("uninstall-filesystem")).toBeEnabled();
+    await expect(page.getByTestId("tab-installed")).toHaveCount(0);
+    await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toBeVisible();
   });
 
   test("runtime-missing path shows a missing npx hint", async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe("Marketplace", () => {
     await expect(page.getByTestId("install-progress")).toContainText("npx");
   });
 
-  test("uninstall removes the entry", async ({ page }) => {
+  test("keeps installed server management out of the marketplace tabs", async ({ page }) => {
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
@@ -68,9 +68,10 @@ test.describe("Marketplace", () => {
     await page.getByTestId("install-close").click();
     // Close the CatalogDetail drawer that still overlays the page.
     await page.locator(".drawer-close-btn").click();
-    await page.getByTestId("tab-installed").click();
-    await page.getByTestId("uninstall-filesystem").click();
-    await expect(page.getByTestId("uninstall-filesystem")).toHaveCount(0);
+
+    await expect(page.getByTestId("tab-installed")).toHaveCount(0);
+    await page.getByTestId("mcp-subtab-servers").click();
+    await expect(page.getByTestId("mcp-installed-servers")).toBeVisible();
   });
 });
 
@@ -140,6 +141,8 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await page.getByTestId("mcp-enable-github").click();
     await expect(page.getByTestId("mcp-server-row-github")).toContainText("Disabled");
 
+    await page.getByTestId("mcp-add-server-btn").click();
+    await page.getByTestId("mcp-install-mode-manual").click();
     await page.getByTestId("mcp-form-name").fill("Local Tools");
     await page.getByTestId("mcp-form-command").fill("node");
     await page.getByTestId("mcp-form-args").fill("server.js --stdio");

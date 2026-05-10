@@ -44,19 +44,25 @@ action = "assert-visible"
 target = "[data-test='view-settings']"
 
 [[step]]
-name = "open marketplace settings tab"
+name = "open mcp settings tab"
 action = "click"
-target = "[data-test='settings-tab-marketplace']"
+target = "[data-test='settings-tab-mcp']"
+
+[[step]]
+name = "wait for mcp settings"
+action = "wait"
+selector = "[data-test='mcp-installed-servers']"
+timeout_ms = 15000
+
+[[step]]
+name = "open embedded marketplace"
+action = "click"
+target = "[data-test='mcp-subtab-marketplace']"
 
 [[step]]
 name = "browse tab visible"
 action = "assert-visible"
 target = "[data-test='tab-browse']"
-
-[[step]]
-name = "installed tab visible"
-action = "assert-visible"
-target = "[data-test='tab-installed']"
 
 [[step]]
 name = "catalog search visible"

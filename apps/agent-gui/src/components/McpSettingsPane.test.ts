@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
-import { mountWithPlugins } from "@/test-utils/mount";
+import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { invoke } from "@tauri-apps/api/core";
-import { commands } from "@/generated/commands";
+import { commands, type McpServerSettingsView } from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
 
@@ -22,7 +22,7 @@ vi.mock("@/generated/commands", () => ({
 const mockedInvoke = vi.mocked(invoke);
 const mockedCommands = vi.mocked(commands);
 
-const githubServer = {
+const githubServer: McpServerSettingsView = {
   id: "github",
   name: "GitHub",
   transport: "stdio",
@@ -36,7 +36,7 @@ const githubServer = {
   description: "GitHub automation"
 };
 
-const readonlyServer = {
+const readonlyServer: McpServerSettingsView = {
   id: "builtin-docs",
   name: "Built-in docs",
   transport: "sse",
@@ -50,8 +50,12 @@ const readonlyServer = {
   description: "Read-only fixture"
 };
 
+function ok<T>(data: T): { status: "ok"; data: T } {
+  return { status: "ok", data };
+}
+
 function mountPane() {
-  return mountWithPlugins(McpSettingsPane, {
+  const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
     reusePinia: true,
     mount: {
       global: {
@@ -62,26 +66,39 @@ function mountPane() {
         }
       }
     }
-  }).wrapper;
+  };
+  return mountWithPlugins(McpSettingsPane, mountOptions).wrapper;
 }
 
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
-  mockedCommands.listMcpServerSettings.mockResolvedValue([githubServer, readonlyServer]);
-  mockedCommands.upsertMcpServerSettings.mockResolvedValue(githubServer);
-  mockedCommands.setMcpServerEnabled.mockResolvedValue(null);
-  mockedCommands.deleteMcpServerSettings.mockResolvedValue(null);
-  mockedCommands.openMcpConfigFile.mockResolvedValue("/tmp/kairox.toml");
+  mockedCommands.listMcpServerSettings.mockResolvedValue(ok([githubServer, readonlyServer]));
+  mockedCommands.upsertMcpServerSettings.mockResolvedValue(ok(githubServer));
+  mockedCommands.setMcpServerEnabled.mockResolvedValue(ok(null));
+  mockedCommands.deleteMcpServerSettings.mockResolvedValue(ok(null));
+  mockedCommands.openMcpConfigFile.mockResolvedValue(ok("/tmp/kairox.toml"));
   mockedInvoke.mockResolvedValue([]);
 });
 
 describe("McpSettingsPane", () => {
-  it("renders server rows with status, trust state, errors, and row actions", async () => {
+  it("renders installed servers first with status, trust state, errors, and row actions", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
+    const serversSection = wrapper.find('[data-test="mcp-installed-servers"]');
+    const addButton = serversSection.find('[data-test="mcp-add-server-btn"]');
+
     expect(mockedCommands.listMcpServerSettings).toHaveBeenCalledTimes(1);
+    expect(serversSection.exists()).toBe(true);
+    expect(addButton.exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-add-server-panel"]').exists()).toBe(false);
+    expect(
+      Boolean(
+        serversSection.element.compareDocumentPosition(addButton.element) &
+        Node.DOCUMENT_POSITION_CONTAINED_BY
+      )
+    ).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("GitHub");
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("running");
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("5 tools");
@@ -93,7 +110,7 @@ describe("McpSettingsPane", () => {
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
   });
 
-  it("filters servers and embeds Marketplace in a secondary sub-tab", async () => {
+  it("filters servers and embeds Marketplace without Installed tab in a secondary sub-tab", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
@@ -103,12 +120,17 @@ describe("McpSettingsPane", () => {
 
     await wrapper.find('[data-test="mcp-subtab-marketplace"]').trigger("click");
     expect(wrapper.find('[data-test="mcp-marketplace-embedded"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="tab-installed"]').exists()).toBe(false);
   });
 
-  it("saves stdio server settings through the MCP store action", async () => {
+  it("opens the add server panel and saves manual stdio settings through the MCP store action", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
+    await wrapper.find('[data-test="mcp-add-server-btn"]').trigger("click");
+    expect(wrapper.find('[data-test="mcp-add-server-panel"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="mcp-install-mode-manual"]').trigger("click");
     await wrapper.find('[data-test="mcp-form-name"]').setValue("GitHub");
     await wrapper.find('[data-test="mcp-form-command"]').setValue("npx");
     await wrapper
@@ -138,8 +160,8 @@ describe("McpSettingsPane", () => {
       tool_count: 6
     };
     mockedCommands.listMcpServerSettings
-      .mockResolvedValueOnce([githubServer])
-      .mockResolvedValueOnce([stoppedGithubServer]);
+      .mockResolvedValueOnce(ok([githubServer]))
+      .mockResolvedValueOnce(ok([stoppedGithubServer]));
 
     const wrapper = mountPane();
     await flushPromises();

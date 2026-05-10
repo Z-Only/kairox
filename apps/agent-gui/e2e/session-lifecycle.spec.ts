@@ -18,11 +18,9 @@ test.beforeEach(async ({ page }) => {
 //     class hooks; the New Session dialog is a native
 //     <dialog class="new-session-dialog">. The Create button exposes
 //     data-test="create-session-btn".
-//   - The destructive delete confirmation uses a native
-//     <dialog class="confirm-dialog"> opened via showModal(). The confirm
-//     button exposes data-test="confirm-ok".
-//   - Rename / delete row buttons use `.action-btn` / `.action-delete`
-//     classes.
+//   - The destructive delete confirmation is a row-level two-click flow:
+//     `session-delete-btn` changes to `session-delete-confirm` for the same row.
+//   - Rename / delete row buttons expose stable data-test attributes.
 
 test("initializes workspace on first load", async ({ page }) => {
   await page.goto("/");
@@ -84,11 +82,7 @@ test("renames a session", async ({ page }) => {
   const sessionItem = page.locator(".session-item").first();
   await sessionItem.hover();
 
-  // Click rename button. NButton forwards `.action-btn` to its root <button>
-  // but the rename button is the *non-destructive* one (the destructive one
-  // also carries `.action-delete`), so filtering by hasText pins the right
-  // NButton even though both expose `.action-btn`.
-  await sessionItem.locator(".action-btn", { hasText: "✏️" }).first().click();
+  await sessionItem.getByTestId("session-rename-btn").click();
 
   // Type new name
   const input = sessionItem.locator(".rename-input");
@@ -118,11 +112,9 @@ test("deletes a session with confirmation", async ({ page }) => {
   await sessionItem.hover();
   await sessionItem.getByTestId("session-delete-btn").click();
 
-  // The destructive confirmation uses a native <dialog class="confirm-dialog">
-  // opened via showModal(). The confirm button exposes data-test="confirm-ok".
-  const dialog = page.locator("dialog.confirm-dialog");
-  await expect(dialog).toBeVisible();
-  await page.getByTestId("confirm-ok").click();
+  const confirmDeleteButton = sessionItem.getByTestId("session-delete-confirm");
+  await expect(confirmDeleteButton).toBeVisible();
+  await confirmDeleteButton.click();
 
   // Should have 1 session remaining
   await expect(page.locator(".session-item")).toHaveCount(1);

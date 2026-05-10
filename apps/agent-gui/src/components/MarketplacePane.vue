@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "@/components/marketplace/CatalogList.vue";
-import InstalledList from "@/components/marketplace/InstalledList.vue";
 import InstallProgress from "@/components/marketplace/InstallProgress.vue";
 import CatalogSourcesSettings from "@/components/CatalogSourcesSettings.vue";
 
 const catalog = useCatalogStore();
 const { t } = useI18n();
-const installedCount = computed(() => catalog.installed.length);
 const settingsOpen = ref(false);
 
 const sourceChips = computed(() => {
@@ -20,20 +18,11 @@ const sourceChips = computed(() => {
   return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
 });
 
-// Re-fetch installed entries whenever the user switches to the "installed" tab.
-// The InstalledList component uses v-show (not v-if) so its onMounted fires only
-// once at initial render. Without this watcher, entries added after mount (e.g.
-// via installEntry) would not appear until a full page reload.
-watch(
-  () => catalog.tab,
-  (tab) => {
-    if (tab === "installed") {
-      catalog.fetchInstalled();
-    }
-  }
-);
-
 onMounted(async () => {
+  if (catalog.tab === "installed") {
+    catalog.tab = "browse";
+  }
+
   await catalog.fetchSources();
   const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
   if (hasEnabledRemote) {
@@ -53,24 +42,20 @@ onMounted(async () => {
     </header>
 
     <div class="marketplace-tabs">
-      <div class="tabs">
+      <div class="tabs" role="tablist" aria-label="Marketplace sections">
         <button
+          type="button"
+          role="tab"
+          aria-selected="true"
           data-test="tab-browse"
           :class="['tab-btn', { active: catalog.tab === 'browse' }]"
           @click="catalog.tab = 'browse'"
         >
           {{ t("marketplace.tabBrowse") }}
         </button>
-        <button
-          data-test="tab-installed"
-          :class="['tab-btn', { active: catalog.tab === 'installed' }]"
-          @click="catalog.tab = 'installed'"
-        >
-          {{ t("marketplace.tabInstalled", { count: installedCount }) }}
-        </button>
       </div>
 
-      <div v-show="catalog.tab === 'browse'">
+      <div>
         <div class="source-filter">
           <button
             v-for="chip in sourceChips"
@@ -108,10 +93,6 @@ onMounted(async () => {
         </div>
 
         <CatalogList />
-      </div>
-
-      <div v-show="catalog.tab === 'installed'">
-        <InstalledList />
       </div>
     </div>
 

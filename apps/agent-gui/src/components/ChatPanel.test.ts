@@ -60,6 +60,13 @@ function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionS
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedInvoke.mockImplementation(async (command) => {
+    if (command === "get_profile_info") return [];
+    if (command === "get_project_instruction_summary") {
+      return { source_paths: [], warning: null };
+    }
+    return undefined;
+  });
 });
 
 describe("ChatPanel", () => {
@@ -97,8 +104,36 @@ describe("ChatPanel", () => {
     expect(streamIndicator.text()).not.toContain("Agent");
   });
 
-  it("shows the current profile badge in the composer input area", async () => {
-    const wrapper = mountChatPanel();
+  it("shows the provider and model badge in the composer input area", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") {
+        return [
+          {
+            alias: "fast",
+            provider: "openai",
+            model_id: "gpt-4o",
+            local: false,
+            has_api_key: true
+          }
+        ];
+      }
+      if (command === "get_project_instruction_summary") {
+        return { source_paths: [], warning: null };
+      }
+      return undefined;
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.currentProfile = "fast";
+      session.profileInfos = [
+        {
+          alias: "fast",
+          provider: "openai",
+          model_id: "gpt-4o",
+          local: false,
+          has_api_key: true
+        }
+      ] as never;
+    });
     await flushPromises();
 
     const header = wrapper.find(".chat-header");
@@ -106,7 +141,7 @@ describe("ChatPanel", () => {
     const profileBadge = inputArea.find('[data-test="chat-profile-badge"]');
 
     expect(profileBadge.exists()).toBe(true);
-    expect(profileBadge.text()).toBe("fast");
+    expect(profileBadge.text()).toBe("openai / gpt-4o");
     expect(header.find('[data-test="chat-profile-badge"]').exists()).toBe(false);
   });
 
@@ -194,7 +229,6 @@ describe("ChatPanel", () => {
   });
 
   it("invokes cancel_session on Cancel click", async () => {
-    mockedInvoke.mockResolvedValueOnce(undefined);
     const wrapper = mountChatPanel((s) => {
       s.isStreaming = true;
     });
@@ -234,9 +268,15 @@ describe("ChatPanel", () => {
   });
 
   it("renders project instruction source filenames in an empty project chat", async () => {
-    mockedInvoke.mockResolvedValueOnce({
-      source_paths: ["/repo/AGENTS.md", "/repo/README.md"],
-      warning: null
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") return [];
+      if (command === "get_project_instruction_summary") {
+        return {
+          source_paths: ["/repo/AGENTS.md", "/repo/README.md"],
+          warning: null
+        };
+      }
+      return undefined;
     });
     const wrapper = mountChatPanel((session) => {
       session.projection.messages = [];

@@ -9,7 +9,8 @@ import type {
   SessionInfoResponse,
   DomainEvent,
   ContextUsage,
-  ProjectedModelLimits
+  ProjectedModelLimits,
+  ProfileInfo
 } from "@/types";
 import { agentRoleToProjectedRole } from "@/types";
 import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
@@ -77,6 +78,8 @@ export const useSessionStore = defineStore("session", () => {
   const connected = ref(false);
   const initialized = ref(false);
   const streamsByTask = ref(new Map<string, string>());
+  const profileInfos = ref<ProfileInfo[]>([]);
+  const loadingProfileInfo = ref(false);
 
   function findProjectSessionInfo(sessionId: string): SessionInfoResponse | undefined {
     const projectStore = useProjectStore();
@@ -101,6 +104,18 @@ export const useSessionStore = defineStore("session", () => {
   const currentSessionInfo = computed<SessionInfoResponse | null>(() => {
     if (!currentSessionId.value) return null;
     return findSessionInfo(currentSessionId.value) ?? null;
+  });
+
+  const activeProfileInfo = computed(() =>
+    profileInfos.value.find((profile) => profile.alias === currentProfile.value)
+  );
+
+  const activeProfileDisplay = computed(() => {
+    const profile = activeProfileInfo.value;
+    if (!profile) return currentProfile.value;
+    if (profile.provider && profile.model_id) return `${profile.provider} / ${profile.model_id}`;
+    if (profile.model_id) return profile.model_id;
+    return profile.alias;
   });
 
   // ── actions ──────────────────────────────────────────────────────
@@ -409,6 +424,18 @@ export const useSessionStore = defineStore("session", () => {
     connected.value = value;
   }
 
+  async function loadProfileInfo(): Promise<void> {
+    if (loadingProfileInfo.value) return;
+    loadingProfileInfo.value = true;
+    try {
+      profileInfos.value = await invoke<ProfileInfo[]>("get_profile_info");
+    } catch (error) {
+      console.error("Failed to load profile info:", error);
+    } finally {
+      loadingProfileInfo.value = false;
+    }
+  }
+
   async function recoverSessions(): Promise<boolean> {
     const ui = useUiStore();
     try {
@@ -447,7 +474,11 @@ export const useSessionStore = defineStore("session", () => {
     connected,
     initialized,
     streamsByTask,
+    profileInfos,
+    loadingProfileInfo,
     currentSessionInfo,
+    activeProfileInfo,
+    activeProfileDisplay,
     findSessionInfo,
     // actions
     reportSendError,
@@ -460,6 +491,7 @@ export const useSessionStore = defineStore("session", () => {
     deleteSession,
     renameSession,
     initializeWorkspace,
+    loadProfileInfo,
     recoverSessions,
     setConnected
   };
