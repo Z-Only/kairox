@@ -9,6 +9,9 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn()
+}));
 vi.mock("../composables/useTraceStore", () => ({
   applyTraceEvent: vi.fn(),
   clearTrace: vi.fn()
@@ -104,6 +107,15 @@ describe("SessionsSidebar", () => {
     expect(wrapper.text()).toContain("No sessions yet");
   });
 
+  it("removes the redundant sidebar header and keeps the new session action in the sessions section", async () => {
+    const { wrapper } = await mountSidebar();
+
+    expect(wrapper.find('[data-test="sessions-sidebar-header"]').exists()).toBe(false);
+    expect(
+      wrapper.find('[data-test="sessions-section"] [data-test="new-session-btn"]').exists()
+    ).toBe(true);
+  });
+
   it("navigates to the workbench route with the session id on click", async () => {
     const { wrapper, router } = await mountSidebar();
     const session = useSessionStore();
@@ -139,8 +151,17 @@ describe("SessionsSidebar", () => {
     expect(wrapper.text()).toContain("New Session");
   });
 
-  it("P1-S2-session-actions-visible-without-hover: keeps rename and delete actions visible for audit and keyboard discovery", () => {
-    expect(sessionsSidebarSource).not.toMatch(/\.session-actions\s*\{[^}]*display:\s*none/);
+  it("keeps row actions visually hidden until hover or keyboard focus", () => {
+    expect(sessionsSidebarSource).toMatch(/\.row-actions\s*\{[\s\S]*opacity:\s*0/);
+    expect(sessionsSidebarSource).toMatch(/\.session-item:hover\s+\.row-actions/);
+    expect(sessionsSidebarSource).toMatch(/\.project-row:hover\s+\.row-actions/);
+    expect(sessionsSidebarSource).toMatch(/:focus-within\s+\.row-actions/);
+  });
+
+  it("uses inline SVG icons rather than emoji action labels", () => {
+    expect(sessionsSidebarSource).toContain("<svg");
+    expect(sessionsSidebarSource).not.toContain("✏️");
+    expect(sessionsSidebarSource).not.toContain("🗑️");
   });
 
   it("P2-S2-sidebar-landmark-name: gives the sessions sidebar a unique accessible name", async () => {
@@ -172,9 +193,48 @@ describe("SessionsSidebar", () => {
     );
   });
 
+  it("requires a second click on the same session delete button before deleting", async () => {
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
+    await flushPromises();
+
+    await wrapper.find('[data-test="session-delete-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+    expect(wrapper.find('[data-test="session-delete-confirm"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="session-delete-confirm"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+  });
+
   it("waits for session deletion before continuing after confirmation", () => {
     expect(sessionsSidebarSource).not.toContain("void session.deleteSession");
     expect(sessionsSidebarSource).toContain("await session.deleteSession(sessionId)");
+  });
+
+  it("imports an existing project from the selected directory", async () => {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(open).mockResolvedValue("/tmp/existing-project");
+    mockInvokeCommandResponses({
+      add_existing_project: {
+        project_id: "project-imported",
+        display_name: "existing-project",
+        root_path: "/tmp/existing-project",
+        removed_at: null,
+        sort_order: 0,
+        expanded: false
+      }
+    });
+
+    const { wrapper } = await mountSidebar();
+    await wrapper.find('[data-test="import-project-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("add_existing_project", {
+      path: "/tmp/existing-project"
+    });
   });
 
   it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
@@ -378,6 +438,32 @@ describe("SessionsSidebar", () => {
     await flushPromises();
 
     expect(updateProjectExpanded).toHaveBeenCalledWith("project-1", true);
+  });
+
+  it("requires a second click on the same project delete button before removing", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: false
+        }
+      ]
+    });
+    const { wrapper } = await mountSidebar();
+    await flushPromises();
+
+    await wrapper.find('[data-test="project-delete-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("remove_project", { projectId: "project-1" });
+    expect(wrapper.find('[data-test="project-delete-confirm"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="project-delete-confirm"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).toHaveBeenCalledWith("remove_project", { projectId: "project-1" });
   });
 
   it("toggles the project archive section and displays archived sessions", async () => {

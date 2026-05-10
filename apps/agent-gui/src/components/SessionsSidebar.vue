@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { useConfirm } from "@/composables/useConfirm";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { ProfileInfo } from "../types";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore, type ProjectInfo, type ProjectSessionInfo } from "@/stores/project";
 import { useWorkspaceUiStore, type SidebarSection } from "@/stores/workspaceUi";
 
 const { t } = useI18n();
-const { confirm } = useConfirm();
 
 const session = useSessionStore();
 const projects = useProjectStore();
@@ -43,10 +42,30 @@ const editingTitle = ref("");
 const profileDropdownOpen = ref(false);
 const renameInput = ref<HTMLInputElement | null>(null);
 const showProjectCreateActions = ref(false);
+const pendingDeleteSessionId = ref<string | null>(null);
+const pendingDeleteProjectId = ref<string | null>(null);
+const importingProject = ref(false);
+
+function resetDeleteConfirmation() {
+  pendingDeleteSessionId.value = null;
+  pendingDeleteProjectId.value = null;
+}
+
+function getIconLabel(action: "rename" | "delete" | "confirm" | "import" | "new") {
+  const labels = {
+    rename: "Rename",
+    delete: "Delete",
+    confirm: "Confirm delete",
+    import: "Import folder",
+    new: "New session"
+  };
+  return labels[action];
+}
 
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
   if (sessionId === activeSessionId.value) return;
+  resetDeleteConfirmation();
   try {
     await router.push({ name: "workbench", params: { sessionId } });
   } catch (e) {
@@ -93,11 +112,13 @@ async function loadProfiles() {
 }
 
 function openNewSessionDialog() {
+  resetDeleteConfirmation();
   loadProfiles();
   showNewSession.value = true;
 }
 
 function startRename(sessionId: string, currentTitle: string) {
+  resetDeleteConfirmation();
   editingSessionId.value = sessionId;
   editingTitle.value = currentTitle;
   nextTick(() => {
@@ -129,17 +150,14 @@ function cancelRename() {
   editingSessionId.value = null;
 }
 
-async function promptDelete(sessionId: string, title: string) {
-  const confirmed = await confirm({
-    title: t("common.confirm"),
-    message: t("sessions.deleteConfirm", { title }),
-    confirmText: t("common.delete"),
-    cancelText: t("common.cancel"),
-    type: "warning"
-  });
-  if (confirmed) {
-    await session.deleteSession(sessionId);
+async function requestDeleteSession(sessionId: string) {
+  if (pendingDeleteSessionId.value !== sessionId) {
+    pendingDeleteSessionId.value = sessionId;
+    pendingDeleteProjectId.value = null;
+    return;
   }
+  await session.deleteSession(sessionId);
+  pendingDeleteSessionId.value = null;
 }
 
 function selectProfile(alias: string) {
@@ -152,6 +170,7 @@ function getProjectSessions(projectId: string): ProjectSessionInfo[] {
 }
 
 async function activateProjectSession(projectSession: ProjectSessionInfo) {
+  resetDeleteConfirmation();
   await session.switchProjectSession(projectSession);
   await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
 }
@@ -174,11 +193,27 @@ async function createProjectSession(projectId: string) {
 }
 
 async function createBlankProject() {
+  resetDeleteConfirmation();
   try {
     await projects.createBlankProject();
     showProjectCreateActions.value = false;
   } catch (e) {
     console.error("Failed to create blank project:", e);
+  }
+}
+
+async function importExistingProject() {
+  if (importingProject.value) return;
+  resetDeleteConfirmation();
+  importingProject.value = true;
+  try {
+    const selectedPath = await open({ directory: true, multiple: false });
+    if (!selectedPath || Array.isArray(selectedPath)) return;
+    await projects.addExistingProject(selectedPath);
+    await projects.loadProjects();
+    showProjectCreateActions.value = false;
+  } finally {
+    importingProject.value = false;
   }
 }
 
@@ -194,17 +229,14 @@ async function toggleProjectExpanded(project: ProjectInfo) {
   }
 }
 
-async function promptRemoveProject(project: ProjectInfo) {
-  const confirmed = await confirm({
-    title: t("common.confirm"),
-    message: `Remove project "${project.displayName}" from the sidebar?`,
-    confirmText: t("common.delete"),
-    cancelText: t("common.cancel"),
-    type: "warning"
-  });
-  if (confirmed) {
-    await projects.removeProject(project.projectId);
+async function requestDeleteProject(projectId: string) {
+  if (pendingDeleteProjectId.value !== projectId) {
+    pendingDeleteProjectId.value = projectId;
+    pendingDeleteSessionId.value = null;
+    return;
   }
+  await projects.removeProject(projectId);
+  pendingDeleteProjectId.value = null;
 }
 
 async function toggleArchiveOpen() {
@@ -238,13 +270,6 @@ onMounted(() => {
 
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
-    <header class="sidebar-header">
-      <h2>{{ t("sessions.header") }}</h2>
-      <button class="btn new-session-btn" data-test="new-session-btn" @click="openNewSessionDialog">
-        {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
-      </button>
-    </header>
-
     <div class="session-scroll">
       <template v-for="sectionName in orderedSidebarSections" :key="sectionName">
         <section
@@ -264,6 +289,23 @@ onMounted(() => {
                 @click="showProjectCreateActions = !showProjectCreateActions"
               >
                 New
+              </button>
+              <button
+                class="section-action-btn icon-btn"
+                type="button"
+                data-test="import-project-btn"
+                :aria-label="getIconLabel('import')"
+                :disabled="importingProject"
+                @click="importExistingProject"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path
+                    d="M3 5.5A2.5 2.5 0 0 1 5.5 3H8l2 2h4.5A2.5 2.5 0 0 1 17 7.5v1h-1.5v-1a1 1 0 0 0-1-1H9.38l-2-2H5.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3V16h-3A2.5 2.5 0 0 1 3 13.5v-8Z"
+                  />
+                  <path
+                    d="M13 8.75a.75.75 0 0 1 .75.75v3.19l1.22-1.22 1.06 1.06-2.5 2.5a.75.75 0 0 1-1.06 0l-2.5-2.5 1.06-1.06 1.22 1.22V9.5a.75.75 0 0 1 .75-.75Z"
+                  />
+                </svg>
               </button>
               <button
                 class="section-action-btn"
@@ -326,7 +368,7 @@ onMounted(() => {
                   <span class="project-name">{{ project.displayName }}</span>
                   <span class="project-path">{{ project.rootPath }}</span>
                 </button>
-                <span class="project-actions">
+                <span class="row-actions project-actions">
                   <button
                     class="project-action-btn"
                     type="button"
@@ -337,12 +379,33 @@ onMounted(() => {
                     New
                   </button>
                   <button
-                    class="project-action-btn project-remove-btn"
+                    v-if="pendingDeleteProjectId !== project.projectId"
+                    class="project-action-btn icon-btn project-remove-btn"
                     type="button"
-                    :aria-label="`Remove ${project.displayName}`"
-                    @click.stop="promptRemoveProject(project)"
+                    :aria-label="getIconLabel('delete')"
+                    data-test="project-delete-btn"
+                    @click.stop="requestDeleteProject(project.projectId)"
                   >
-                    Remove
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path
+                        d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
+                      />
+                      <path
+                        d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    v-else
+                    class="project-action-btn icon-btn project-remove-btn"
+                    type="button"
+                    :aria-label="getIconLabel('confirm')"
+                    data-test="project-delete-confirm"
+                    @click.stop="requestDeleteProject(project.projectId)"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+                    </svg>
                   </button>
                 </span>
               </div>
@@ -398,6 +461,15 @@ onMounted(() => {
         <section v-else class="sidebar-section" data-test="sessions-section">
           <div class="section-heading">
             <h3>Sessions</h3>
+            <button
+              class="new-session-btn"
+              type="button"
+              data-test="new-session-btn"
+              :aria-label="getIconLabel('new')"
+              @click="openNewSessionDialog"
+            >
+              {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
+            </button>
           </div>
           <template v-if="session.sessions.length > 0">
             <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
@@ -424,38 +496,64 @@ onMounted(() => {
                     @click.stop
                   />
                   <button
-                    class="action-btn"
+                    class="icon-btn"
                     type="button"
                     :aria-label="t('common.confirm')"
                     data-test="session-rename-confirm"
                     @mousedown.prevent
                     @click.stop="confirmRename"
                   >
-                    ✓
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+                    </svg>
                   </button>
                 </template>
 
                 <!-- Normal display mode -->
                 <template v-else>
                   <span class="session-title">{{ item.title }}</span>
-                  <span class="session-actions">
+                  <span class="row-actions session-actions">
                     <button
-                      class="action-btn"
-                      :title="t('sessions.renameTitle')"
-                      :aria-label="t('sessions.renameTitle')"
+                      class="icon-btn"
+                      :title="getIconLabel('rename')"
+                      :aria-label="getIconLabel('rename')"
                       data-test="session-rename-btn"
                       @click.stop="startRename(item.id, item.title)"
                     >
-                      ✏️
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path
+                          d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
+                        />
+                      </svg>
                     </button>
                     <button
-                      class="action-btn action-delete"
-                      :title="t('sessions.deleteTitle')"
-                      :aria-label="t('sessions.deleteTitle')"
+                      v-if="pendingDeleteSessionId !== item.id"
+                      class="icon-btn action-delete"
+                      :title="getIconLabel('delete')"
+                      :aria-label="getIconLabel('delete')"
                       data-test="session-delete-btn"
-                      @click.stop="promptDelete(item.id, item.title)"
+                      @click.stop="requestDeleteSession(item.id)"
                     >
-                      🗑️
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path
+                          d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
+                        />
+                        <path
+                          d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      v-else
+                      class="icon-btn action-delete"
+                      :title="getIconLabel('confirm')"
+                      :aria-label="getIconLabel('confirm')"
+                      data-test="session-delete-confirm"
+                      @click.stop="requestDeleteSession(item.id)"
+                    >
+                      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+                      </svg>
                     </button>
                   </span>
                 </template>
@@ -521,26 +619,6 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-}
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--app-border-color);
-}
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 14px;
-}
-.btn {
-  padding: 6px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
 }
 .new-session-btn {
   --sessions-new-button-bg: #1d4ed8;
@@ -685,7 +763,6 @@ onMounted(() => {
   font-size: 11px;
 }
 .project-actions {
-  display: flex;
   flex-shrink: 0;
   gap: 2px;
 }
@@ -766,21 +843,53 @@ onMounted(() => {
   white-space: nowrap;
 }
 .session-actions {
-  display: flex;
   gap: 4px;
   flex-shrink: 0;
 }
-.action-btn {
-  background: none;
+.row-actions {
+  display: flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.session-item:hover .row-actions,
+.session-item:focus-within .row-actions,
+.project-row:hover .row-actions,
+.project-row:focus-within .row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  padding: 2px;
-  border-radius: 3px;
+  background: transparent;
+  color: var(--app-text-color-2);
   line-height: 1;
 }
-.action-btn:hover {
+.icon-btn:hover {
   background: var(--app-hover-color);
+  color: var(--app-text-color);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 .action-delete:hover {
   background: color-mix(in srgb, var(--app-error-color) 10%, transparent);

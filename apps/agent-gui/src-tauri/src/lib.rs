@@ -24,8 +24,9 @@ pub fn run() {
     // `mut` is only used when the `pilot` feature is enabled in a debug build;
     // suppress the lint when the `#[cfg]` block below is compiled out.
     #[cfg_attr(not(all(debug_assertions, feature = "pilot")), allow(unused_mut))]
-    let mut builder =
-        tauri::Builder::default().plugin(tauri_plugin_updater::Builder::new().build());
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init());
 
     #[cfg(all(debug_assertions, feature = "pilot"))]
     {
