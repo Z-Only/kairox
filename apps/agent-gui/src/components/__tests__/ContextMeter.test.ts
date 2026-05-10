@@ -57,6 +57,20 @@ describe("ContextMeter.vue", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
+  it("renders compact empty ring when no usage is available yet", () => {
+    const { wrapper } = mountWithPlugins(ContextMeter, {
+      props: { variant: "ring" },
+      mount: { props: { variant: "ring" } },
+      reusePinia: true
+    });
+
+    const emptyRing = wrapper.find('[data-test="context-meter-ring-empty"]');
+    expect(emptyRing.exists()).toBe(true);
+    expect(emptyRing.attributes("aria-label")).toContain("No usage yet");
+    expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-ring"]').exists()).toBe(false);
+  });
+
   it("renders the segmented bar and a healthy badge under 70%", async () => {
     const session = useSessionStore();
     session.lastContextUsage = makeUsage({ total_tokens: 90_000 }); // 50%

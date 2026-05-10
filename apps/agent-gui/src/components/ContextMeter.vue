@@ -120,7 +120,18 @@ async function onCompactClick() {
     :class="{ 'context-meter-ring-mode': props.variant === 'ring' }"
     data-test="context-meter"
   >
-    <div v-if="!session.lastContextUsage" class="empty" data-test="context-meter-empty">
+    <span
+      v-if="props.variant === 'ring' && !session.lastContextUsage"
+      class="ring ring-empty"
+      data-test="context-meter-ring-empty"
+      role="img"
+      :aria-label="t('context.noUsageYet')"
+      :title="t('context.noUsageYet')"
+    >
+      <span aria-hidden="true">—</span>
+    </span>
+
+    <div v-else-if="!session.lastContextUsage" class="empty" data-test="context-meter-empty">
       <span class="empty-bar" />
       <span class="empty-label">{{ t("context.noUsageYet") }}</span>
     </div>
@@ -343,6 +354,11 @@ async function onCompactClick() {
   background: var(--app-card-color, #ffffff);
   font-size: 11px;
   font-weight: 700;
+}
+.ring-empty {
+  --context-ratio: 0deg;
+  display: inline-block;
+  cursor: default;
 }
 .segment {
   height: 100%;

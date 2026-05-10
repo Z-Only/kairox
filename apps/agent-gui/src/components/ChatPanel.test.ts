@@ -142,6 +142,16 @@ describe("ChatPanel", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
+  it("renders compact empty context meter ring inside the composer input row", async () => {
+    const wrapper = mountChatPanel();
+    await flushPromises();
+
+    const inputRow = wrapper.find(".input-row");
+    expect(inputRow.find('[data-test="context-meter-ring-empty"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
+  });
+
   it("shows cancelled marker", async () => {
     const wrapper = mountChatPanel((s) => {
       s.projection.cancelled = true;
