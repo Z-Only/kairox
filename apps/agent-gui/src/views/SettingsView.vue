@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
+import MarketplacePane from "@/components/MarketplacePane.vue";
 import McpSettingsPane from "@/components/McpSettingsPane.vue";
 import SkillSettingsPane from "@/components/SkillSettingsPane.vue";
 
@@ -22,7 +23,7 @@ const locales = [
 const { t } = useI18n();
 const ui = useUiStore();
 const { locale, colorMode } = storeToRefs(ui);
-const activeTab = ref<"general" | "mcp" | "skills">("general");
+const activeTab = ref<"general" | "mcp" | "skills" | "marketplace">("general");
 const isThemeSelectFocused = ref(false);
 </script>
 
@@ -57,6 +58,15 @@ const isThemeSelectFocused = ref(false);
         @click="activeTab = 'skills'"
       >
         Skills
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        :aria-selected="activeTab === 'marketplace'"
+        data-test="settings-tab-marketplace"
+        @click="activeTab = 'marketplace'"
+      >
+        {{ t("nav.marketplace") }}
       </button>
     </div>
 
@@ -95,6 +105,7 @@ const isThemeSelectFocused = ref(false);
 
     <McpSettingsPane v-if="activeTab === 'mcp'" />
     <SkillSettingsPane v-if="activeTab === 'skills'" />
+    <MarketplacePane v-if="activeTab === 'marketplace'" />
   </main>
 </template>
 
