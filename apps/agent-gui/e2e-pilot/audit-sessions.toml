@@ -84,19 +84,14 @@ action = "click"
 target = "[data-test='session-delete-btn']"
 
 [[step]]
-name = "confirm cancel visible"
+name = "confirm delete visible"
 action = "assert-visible"
-target = "[data-test='confirm-cancel']"
-
-[[step]]
-name = "confirm ok visible"
-action = "assert-visible"
-target = "[data-test='confirm-ok']"
+target = "[data-test='session-delete-confirm']"
 
 [[step]]
 name = "confirm session delete"
 action = "click"
-target = "[data-test='confirm-ok']"
+target = "[data-test='session-delete-confirm']"
 
 [[step]]
 name = "sidebar restored after delete"

@@ -110,5 +110,5 @@ test("chat panel shows profile badge", async ({ page }) => {
   await expect(page.getByTestId("chat-profile-badge")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.getByTestId("chat-profile-badge")).toContainText("fast");
+  await expect(page.getByTestId("chat-profile-badge")).toContainText("openai / gpt-4o-mini");
 });

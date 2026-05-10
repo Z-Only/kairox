@@ -76,7 +76,7 @@ target = ".session-item.active [data-test='session-delete-btn']"
 [[step]]
 name = "confirm audit chat cleanup"
 action = "click"
-target = "[data-test='confirm-ok']"
+target = ".session-item.active [data-test='session-delete-confirm']"
 
 [[step]]
 name = "sidebar restored after chat cleanup"
