@@ -4,6 +4,7 @@ use crate::skills::{
 };
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
+use agent_core::facade::{McpServerSettingsInput, McpServerSettingsView};
 use agent_core::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentId, AgentStatusInfo,
     AppFacade, CatalogQuery as CoreCatalogQuery, CatalogSourceView, DeactivateSkillRequest,
@@ -1067,6 +1068,75 @@ where
             .filter_map(|skill_id| registry.get(&agent_skills::SkillId::new(skill_id)))
             .map(|metadata| skill_metadata_to_active_view(&metadata))
             .collect())
+    }
+
+    async fn list_mcp_server_settings(&self) -> agent_core::Result<Vec<McpServerSettingsView>> {
+        let config_path =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?;
+        crate::mcp_settings::list_mcp_server_settings(
+            &self.config,
+            config_path.as_deref(),
+            self.mcp_manager(),
+        )
+        .await
+    }
+
+    async fn upsert_mcp_server_settings(
+        &self,
+        input: McpServerSettingsInput,
+    ) -> agent_core::Result<McpServerSettingsView> {
+        let config_path =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+                .ok_or_else(|| {
+                    agent_core::CoreError::InvalidState(
+                        "marketplace install dir not configured; cannot write MCP settings".into(),
+                    )
+                })?;
+        crate::mcp_settings::upsert_mcp_server_settings(&config_path, input).await
+    }
+
+    async fn delete_mcp_server_settings(&self, server_id: String) -> agent_core::Result<()> {
+        let config_path =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+                .ok_or_else(|| {
+                    agent_core::CoreError::InvalidState(
+                        "marketplace install dir not configured; cannot write MCP settings".into(),
+                    )
+                })?;
+        crate::mcp_settings::delete_mcp_server_settings(
+            &config_path,
+            self.mcp_manager(),
+            &server_id,
+        )
+        .await
+    }
+
+    async fn set_mcp_server_enabled(
+        &self,
+        server_id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        let config_path =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+                .ok_or_else(|| {
+                    agent_core::CoreError::InvalidState(
+                        "marketplace install dir not configured; cannot write MCP settings".into(),
+                    )
+                })?;
+        crate::mcp_settings::set_mcp_server_enabled(
+            &config_path,
+            self.mcp_manager(),
+            &server_id,
+            enabled,
+        )
+        .await
+    }
+
+    async fn open_mcp_config_file(&self) -> agent_core::Result<Option<String>> {
+        Ok(
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+                .map(|path| path.display().to_string()),
+        )
     }
 
     // -----------------------------------------------------------------------
