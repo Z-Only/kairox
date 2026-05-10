@@ -4,20 +4,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { useUiStore } from "@/stores/ui";
-import { commands } from "@/generated/commands";
+import { invoke } from "@tauri-apps/api/core";
 import SettingsView from "./SettingsView.vue";
 
-vi.mock("@/generated/commands", () => ({
-  commands: {
-    listSkills: vi.fn(),
-    listActiveSkills: vi.fn(),
-    getSkillDetail: vi.fn(),
-    activateSkill: vi.fn(),
-    deactivateSkill: vi.fn()
-  }
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn()
 }));
 
-const mockedCommands = vi.mocked(commands);
+const mockedInvoke = vi.mocked(invoke);
 
 const discoveredSkill = {
   id: "test-driven-rust",
@@ -73,12 +67,27 @@ function mountSettings() {
   return { wrapper, ui };
 }
 
+function countInvokeCalls(commandName: string): number {
+  return mockedInvoke.mock.calls.filter(([command]) => command === commandName).length;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedCommands.listSkills.mockResolvedValue([discoveredSkill, invalidSkill]);
-  mockedCommands.listActiveSkills.mockResolvedValue([]);
-  mockedCommands.activateSkill.mockResolvedValue(activeSkill);
-  mockedCommands.deactivateSkill.mockResolvedValue(null);
+  mockedInvoke.mockImplementation(async (command) => {
+    if (command === "list_skills") {
+      return [discoveredSkill, invalidSkill];
+    }
+    if (command === "list_active_skills") {
+      return [];
+    }
+    if (command === "activate_skill") {
+      return activeSkill;
+    }
+    if (command === "deactivate_skill") {
+      return null;
+    }
+    throw new Error(`Unexpected command: ${command}`);
+  });
 });
 
 describe("SettingsView (Pre-work B regression)", () => {
@@ -163,8 +172,8 @@ describe("SettingsView (Pre-work B regression)", () => {
     await wrapper.find('[data-test="settings-tab-skills"]').trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.listSkills).toHaveBeenCalledTimes(1);
-    expect(mockedCommands.listActiveSkills).toHaveBeenCalledTimes(1);
+    expect(countInvokeCalls("list_skills")).toBe(1);
+    expect(countInvokeCalls("list_active_skills")).toBe(1);
     expect(wrapper.find('[data-test="settings-skills-panel"]').isVisible()).toBe(true);
     expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').text()).toContain(
       "Write Rust changes test-first."
@@ -195,18 +204,35 @@ describe("SettingsView (Pre-work B regression)", () => {
     await toggleButton.trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.activateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(mockedInvoke).toHaveBeenCalledWith("activate_skill", {
+      skillId: "test-driven-rust"
+    });
     expect(toggleButton.text()).toBe("Deactivate");
 
     await toggleButton.trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.deactivateSkill).toHaveBeenCalledWith("test-driven-rust");
+    expect(mockedInvoke).toHaveBeenCalledWith("deactivate_skill", {
+      skillId: "test-driven-rust"
+    });
     expect(toggleButton.text()).toBe("Activate");
   });
 
   it("retries loading skills when the first tab load fails", async () => {
-    mockedCommands.listSkills.mockRejectedValueOnce(new Error("skills unavailable"));
+    let rejectedInitialSkillList = false;
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "list_skills" && !rejectedInitialSkillList) {
+        rejectedInitialSkillList = true;
+        throw new Error("skills unavailable");
+      }
+      if (command === "list_skills") {
+        return [discoveredSkill, invalidSkill];
+      }
+      if (command === "list_active_skills") {
+        return [];
+      }
+      throw new Error(`Unexpected command: ${command}`);
+    });
 
     const { wrapper } = mountSettings();
     const skillsTab = wrapper.find('[data-test="settings-tab-skills"]');
@@ -220,7 +246,7 @@ describe("SettingsView (Pre-work B regression)", () => {
     await skillsTab.trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.listSkills).toHaveBeenCalledTimes(2);
+    expect(countInvokeCalls("list_skills")).toBe(2);
     expect(wrapper.find('[data-test="skill-card-test-driven-rust"]').exists()).toBe(true);
   });
 

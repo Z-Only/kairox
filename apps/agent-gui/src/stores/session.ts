@@ -2,7 +2,7 @@
 // `dirs: []` per spec §3 Q7). Pinia stores are plain `.ts` modules and
 // must import `defineStore` and `ref` explicitly.
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   SessionProjection,
@@ -16,6 +16,7 @@ import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
 import { useUiStore } from "@/stores/ui";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
+import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
 
 function emptyProjection(): SessionProjection {
   return {
@@ -27,6 +28,37 @@ function emptyProjection(): SessionProjection {
     last_context_usage: null,
     model_limits: null,
     compaction: { type: "Idle" }
+  };
+}
+
+export function temporaryTitleFromFirstMessage(content: string): string {
+  const trimmedContent = content.trim();
+  if (!trimmedContent) return "New conversation";
+
+  const maxLength = 48;
+  return trimmedContent.length > maxLength
+    ? `${trimmedContent.slice(0, maxLength)}…`
+    : trimmedContent;
+}
+
+export function filterOrdinarySessions(sessionList: SessionInfoResponse[]): SessionInfoResponse[] {
+  return sessionList.filter((session) => !session.project_id);
+}
+
+async function listOrdinarySessions(): Promise<SessionInfoResponse[]> {
+  const sessionList = await invoke<SessionInfoResponse[]>("list_sessions");
+  return filterOrdinarySessions(sessionList);
+}
+
+function normalizeProjectSessionInfo(projectSession: ProjectSessionInfo): SessionInfoResponse {
+  return {
+    id: projectSession.sessionId,
+    title: projectSession.title,
+    profile: projectSession.profile,
+    project_id: projectSession.projectId,
+    worktree_path: projectSession.worktreePath,
+    branch: projectSession.branch,
+    visibility: projectSession.visibility
   };
 }
 
@@ -45,6 +77,31 @@ export const useSessionStore = defineStore("session", () => {
   const connected = ref(false);
   const initialized = ref(false);
   const streamsByTask = ref(new Map<string, string>());
+
+  function findProjectSessionInfo(sessionId: string): SessionInfoResponse | undefined {
+    const projectStore = useProjectStore();
+    for (const projectSessions of projectStore.sessionsByProject.values()) {
+      const projectSession = projectSessions.find((entry) => entry.sessionId === sessionId);
+      if (projectSession) return normalizeProjectSessionInfo(projectSession);
+    }
+
+    const archivedSession = projectStore.archivedSessions.find(
+      (entry) => entry.sessionId === sessionId
+    );
+    return archivedSession ? normalizeProjectSessionInfo(archivedSession) : undefined;
+  }
+
+  function findSessionInfo(sessionId: string): SessionInfoResponse | undefined {
+    return (
+      sessions.value.find((session) => session.id === sessionId) ??
+      findProjectSessionInfo(sessionId)
+    );
+  }
+
+  const currentSessionInfo = computed<SessionInfoResponse | null>(() => {
+    if (!currentSessionId.value) return null;
+    return findSessionInfo(currentSessionId.value) ?? null;
+  });
 
   // ── actions ──────────────────────────────────────────────────────
   function reportSendError(message: string) {
@@ -215,12 +272,11 @@ export const useSessionStore = defineStore("session", () => {
     lastCompactionError.value = null;
   }
 
-  async function switchSession(sessionId: string): Promise<void> {
+  async function switchToKnownSession(
+    sessionId: string,
+    target: SessionInfoResponse
+  ): Promise<void> {
     if (sessionId === currentSessionId.value) return;
-    const target = sessions.value.find((s) => s.id === sessionId);
-    if (!target) {
-      throw new Error(`Session not found: ${sessionId}`);
-    }
     resetProjection();
     clearTrace();
     useTaskGraphStore().clearTaskGraph();
@@ -240,6 +296,21 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  async function switchSession(sessionId: string): Promise<void> {
+    const target = findSessionInfo(sessionId);
+    if (!target) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    await switchToKnownSession(sessionId, target);
+  }
+
+  async function switchProjectSession(projectSession: ProjectSessionInfo): Promise<void> {
+    await switchToKnownSession(
+      projectSession.sessionId,
+      normalizeProjectSessionInfo(projectSession)
+    );
+  }
+
   /**
    * Start a new session via the Tauri backend and reset projection state so
    * the workbench is clean before the caller navigates to the new session.
@@ -256,7 +327,7 @@ export const useSessionStore = defineStore("session", () => {
     const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
       profile
     });
-    sessions.value = await invoke<SessionInfoResponse[]>("list_sessions");
+    sessions.value = await listOrdinarySessions();
     currentProfile.value = result.profile;
     resetProjection();
     clearTrace();
@@ -312,7 +383,7 @@ export const useSessionStore = defineStore("session", () => {
     try {
       const workspaceInfo: { workspace_id: string; path: string } =
         await invoke("initialize_workspace");
-      const sessionList = await invoke<SessionInfoResponse[]>("list_sessions");
+      const sessionList = await listOrdinarySessions();
       workspaceId.value = workspaceInfo.workspace_id;
       sessions.value = sessionList;
       initialized.value = true;
@@ -348,7 +419,7 @@ export const useSessionStore = defineStore("session", () => {
       const ws = workspaces[0];
       workspaceId.value = ws.workspace_id;
       await invoke("restore_workspace", { workspaceId: ws.workspace_id });
-      sessions.value = await invoke("list_sessions");
+      sessions.value = await listOrdinarySessions();
       if (sessions.value.length > 0) {
         await switchSession(sessions.value[0].id);
       }
@@ -376,12 +447,15 @@ export const useSessionStore = defineStore("session", () => {
     connected,
     initialized,
     streamsByTask,
+    currentSessionInfo,
+    findSessionInfo,
     // actions
     reportSendError,
     applyEvent,
     setProjection,
     resetProjection,
     switchSession,
+    switchProjectSession,
     createSession,
     deleteSession,
     renameSession,

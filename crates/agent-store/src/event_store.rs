@@ -11,6 +11,11 @@ use std::time::Duration;
 /// persistence for session recovery. The canonical implementation is
 /// [`SqliteEventStore`].
 pub trait EventStore: Send + Sync {
+    /// Return the underlying SQLite pool when this store is backed by SQLite.
+    fn sqlite_pool(&self) -> Option<SqlitePool> {
+        None
+    }
+
     /// Append a domain event to the store.
     async fn append(&self, event: &DomainEvent) -> crate::Result<()>;
     /// Load all events for a session in append order.
@@ -32,6 +37,32 @@ pub trait EventStore: Send + Sync {
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()>;
     /// Hard-delete sessions that were soft-deleted longer than the specified duration ago.
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize>;
+    /// List visible project-bound sessions.
+    async fn list_visible_project_sessions(
+        &self,
+        project_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+    /// List archived project-bound sessions for a workspace.
+    async fn list_archived_project_session_metas(
+        &self,
+        workspace_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ProjectSessionMetaRow {
+    pub session_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    pub model_profile: String,
+    pub model_id: Option<String>,
+    pub provider: Option<String>,
+    pub deleted_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub project_id: String,
+    pub worktree_path: String,
+    pub visibility: String,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -139,6 +170,9 @@ impl SqliteEventStore {
         sqlx::query(include_str!("../migrations/0002_metadata.sql"))
             .execute(&self.pool)
             .await?;
+        sqlx::query(include_str!("../migrations/0003_projects.sql"))
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -232,36 +266,50 @@ impl SqliteEventStore {
                 .unwrap_or_else(|_| chrono::Duration::seconds(0));
         let threshold_str = threshold.to_rfc3339();
 
+        let mut transaction = self.pool.begin().await?;
         let expired: Vec<String> = sqlx::query_scalar(
             "SELECT session_id FROM kairox_sessions WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
         )
         .bind(&threshold_str)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *transaction)
         .await?;
 
         let count = expired.len();
         if count == 0 {
+            transaction.commit().await?;
             return Ok(0);
         }
 
-        for sid in &expired {
+        for session_id in &expired {
             sqlx::query("DELETE FROM events WHERE session_id = ?1")
-                .bind(sid)
-                .execute(&self.pool)
+                .bind(session_id)
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM kairox_project_sessions WHERE session_id = ?1")
+                .bind(session_id)
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM kairox_session_visibility WHERE session_id = ?1")
+                .bind(session_id)
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM kairox_sessions WHERE session_id = ?1")
+                .bind(session_id)
+                .execute(&mut *transaction)
                 .await?;
         }
 
-        sqlx::query("DELETE FROM kairox_sessions WHERE deleted_at IS NOT NULL AND deleted_at < ?1")
-            .bind(&threshold_str)
-            .execute(&self.pool)
-            .await?;
-
+        transaction.commit().await?;
         Ok(count)
     }
 }
 
 #[async_trait]
 impl EventStore for SqliteEventStore {
+    fn sqlite_pool(&self) -> Option<SqlitePool> {
+        Some(self.pool.clone())
+    }
+
     async fn append(&self, event: &DomainEvent) -> crate::Result<()> {
         let payload_json = serde_json::to_string(event)?;
         sqlx::query(
@@ -327,6 +375,58 @@ impl EventStore for SqliteEventStore {
 
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize> {
         SqliteEventStore::cleanup_expired_sessions(self, older_than).await
+    }
+
+    async fn list_visible_project_sessions(
+        &self,
+        project_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>> {
+        let rows = sqlx::query_as::<_, ProjectSessionMetaRow>(
+            "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
+                    sessions.model_profile, sessions.model_id, sessions.provider,
+                    sessions.deleted_at, sessions.created_at, sessions.updated_at,
+                    bindings.project_id, bindings.worktree_path, visibility.visibility
+             FROM kairox_sessions AS sessions
+             INNER JOIN kairox_project_sessions AS bindings
+                ON bindings.session_id = sessions.session_id
+             INNER JOIN kairox_session_visibility AS visibility
+                ON visibility.session_id = sessions.session_id
+             WHERE bindings.project_id = ?1
+               AND sessions.deleted_at IS NULL
+               AND visibility.visibility = 'visible'
+             ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
+        )
+        .bind(project_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    async fn list_archived_project_session_metas(
+        &self,
+        workspace_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>> {
+        let rows = sqlx::query_as::<_, ProjectSessionMetaRow>(
+            "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
+                    sessions.model_profile, sessions.model_id, sessions.provider,
+                    sessions.deleted_at, sessions.created_at, sessions.updated_at,
+                    bindings.project_id, bindings.worktree_path, visibility.visibility
+             FROM kairox_sessions AS sessions
+             INNER JOIN kairox_project_sessions AS bindings
+                ON bindings.session_id = sessions.session_id
+             INNER JOIN kairox_projects AS projects
+                ON projects.project_id = bindings.project_id
+             INNER JOIN kairox_session_visibility AS visibility
+                ON visibility.session_id = sessions.session_id
+             WHERE projects.workspace_id = ?1
+               AND sessions.deleted_at IS NULL
+               AND visibility.visibility = 'archived'
+             ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
     }
 }
 
@@ -663,6 +763,174 @@ mod tests {
 
         let events_after = store.load_session(&session_id).await.unwrap();
         assert!(events_after.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_also_deletes_project_session_metadata() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let old_deleted = chrono::Utc::now() - chrono::Duration::days(10);
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_old".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old deleted".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(old_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let repository = crate::ProjectMetaRepository::new(store.pool().clone());
+        let project = repository
+            .create_project("wrk_1", "Project", "/tmp/project", 0)
+            .await
+            .unwrap();
+        repository
+            .bind_session("ses_old", &project.project_id, "/tmp/project")
+            .await
+            .unwrap();
+        repository
+            .set_session_visibility("ses_old", "archived")
+            .await
+            .unwrap();
+
+        let archived_before = repository.list_archived_sessions("wrk_1").await.unwrap();
+        assert_eq!(archived_before.len(), 1);
+
+        let deleted = store
+            .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+            .await
+            .unwrap();
+        assert_eq!(deleted, 1);
+
+        let archived_after = repository.list_archived_sessions("wrk_1").await.unwrap();
+        assert!(archived_after.is_empty());
+        assert!(repository
+            .get_session_binding("ses_old")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repository
+            .get_session_visibility("ses_old")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_deletes_only_sessions_selected_for_cleanup() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let old_deleted = chrono::Utc::now() - chrono::Duration::days(10);
+        let recent_deleted = chrono::Utc::now() - chrono::Duration::days(1);
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_selected".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Selected for cleanup".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(old_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_late".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Becomes old during cleanup".into(),
+                model_profile: "fake".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: Some(recent_deleted.to_rfc3339()),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+            .await
+            .unwrap();
+
+        let repository = crate::ProjectMetaRepository::new(store.pool().clone());
+        let project = repository
+            .create_project("wrk_1", "Project", "/tmp/project", 0)
+            .await
+            .unwrap();
+        repository
+            .bind_session("ses_selected", &project.project_id, "/tmp/project")
+            .await
+            .unwrap();
+        repository
+            .set_session_visibility("ses_selected", "archived")
+            .await
+            .unwrap();
+        repository
+            .bind_session("ses_late", &project.project_id, "/tmp/project")
+            .await
+            .unwrap();
+        repository
+            .set_session_visibility("ses_late", "archived")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "CREATE TRIGGER mark_late_session_old_after_selected_cleanup
+             AFTER DELETE ON kairox_project_sessions
+             WHEN OLD.session_id = 'ses_selected'
+             BEGIN
+               UPDATE kairox_sessions
+               SET deleted_at = '2000-01-01T00:00:00+00:00'
+               WHERE session_id = 'ses_late';
+             END",
+        )
+        .execute(store.pool())
+        .await
+        .unwrap();
+
+        let deleted = store
+            .cleanup_expired_sessions(std::time::Duration::from_secs(7 * 86400))
+            .await
+            .unwrap();
+        assert_eq!(deleted, 1);
+
+        assert!(repository
+            .get_session_binding("ses_selected")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(repository
+            .get_session_binding("ses_late")
+            .await
+            .unwrap()
+            .is_some());
+        assert_eq!(
+            repository.get_session_visibility("ses_late").await.unwrap(),
+            Some("archived".to_string())
+        );
+
+        let late_session_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kairox_sessions WHERE session_id = 'ses_late'",
+        )
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+        assert_eq!(late_session_count, 1);
     }
 
     #[tokio::test]

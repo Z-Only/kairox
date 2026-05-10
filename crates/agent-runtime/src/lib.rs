@@ -10,6 +10,7 @@ pub(crate) mod marketplace_toml;
 pub mod mcp_manager;
 pub mod memory_handler;
 pub mod permission;
+pub mod project;
 pub mod session;
 pub mod skills;
 pub mod task_graph;

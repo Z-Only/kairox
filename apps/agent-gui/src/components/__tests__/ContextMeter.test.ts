@@ -57,6 +57,20 @@ describe("ContextMeter.vue", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
+  it("renders compact empty ring when no usage is available yet", () => {
+    const { wrapper } = mountWithPlugins(ContextMeter, {
+      props: { variant: "ring" },
+      mount: { props: { variant: "ring" } },
+      reusePinia: true
+    });
+
+    const emptyRing = wrapper.find('[data-test="context-meter-ring-empty"]');
+    expect(emptyRing.exists()).toBe(true);
+    expect(emptyRing.attributes("aria-label")).toContain("No usage yet");
+    expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-ring"]').exists()).toBe(false);
+  });
+
   it("renders the segmented bar and a healthy badge under 70%", async () => {
     const session = useSessionStore();
     session.lastContextUsage = makeUsage({ total_tokens: 90_000 }); // 50%
@@ -65,6 +79,30 @@ describe("ContextMeter.vue", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="context-meter-badge-warn"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="context-meter-badge-err"]').exists()).toBe(false);
+  });
+
+  it("renders compact ring variant with percent label", async () => {
+    const session = useSessionStore();
+    session.lastContextUsage = makeUsage({
+      total_tokens: 50,
+      budget_tokens: 100,
+      context_window: 120,
+      output_reservation: 20,
+      by_source: [["history", 50]],
+      estimator: "cl100k_base",
+      corrected_by_real_usage: false
+    });
+    const { wrapper } = mountWithPlugins(ContextMeter, {
+      props: { variant: "ring" },
+      mount: { props: { variant: "ring" } },
+      reusePinia: true
+    });
+    await wrapper.vm.$nextTick();
+
+    const ring = wrapper.find('[data-test="context-meter-ring"]');
+    expect(ring.exists()).toBe(true);
+    expect(ring.attributes("aria-label")).toContain("50");
+    expect(ring.text()).toBe("50%");
   });
 
   it("shows the err badge above 85%", async () => {

@@ -41,6 +41,20 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
+pub fn temporary_title_from_first_message(content: &str) -> String {
+    const MAX_CHARS: usize = 48;
+    let trimmed = content.trim();
+    let mut title: String = trimmed.chars().take(MAX_CHARS).collect();
+    if trimmed.chars().count() > MAX_CHARS {
+        title.push('…');
+    }
+    if title.is_empty() {
+        "New conversation".into()
+    } else {
+        title
+    }
+}
+
 /// Open a workspace at the given filesystem path.
 pub async fn open_workspace<S: EventStore>(
     store: &S,
@@ -229,20 +243,37 @@ pub async fn list_sessions<S: EventStore>(
         .list_active_sessions(&workspace_id.to_string())
         .await
         .map_err(|e| CoreError::InvalidState(e.to_string()))?;
-    Ok(rows
-        .into_iter()
-        .map(|r| SessionMeta {
-            session_id: SessionId::from_string(r.session_id),
-            workspace_id: WorkspaceId::from_string(r.workspace_id),
-            title: r.title,
-            model_profile: r.model_profile,
-            model_id: r.model_id,
-            provider: r.provider,
-            deleted_at: r.deleted_at,
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-        })
-        .collect())
+    let project_repository = store
+        .sqlite_pool()
+        .map(agent_store::ProjectMetaRepository::new);
+    let mut session_metas = Vec::new();
+    for row in rows {
+        if let Some(repository) = &project_repository {
+            let binding = repository
+                .get_session_binding(&row.session_id)
+                .await
+                .map_err(|error| CoreError::InvalidState(error.to_string()))?;
+            if binding.is_some() {
+                continue;
+            }
+        }
+
+        session_metas.push(SessionMeta {
+            project_id: None,
+            worktree_path: None,
+            visibility: None,
+            session_id: SessionId::from_string(row.session_id),
+            workspace_id: WorkspaceId::from_string(row.workspace_id),
+            title: row.title,
+            model_profile: row.model_profile,
+            model_id: row.model_id,
+            provider: row.provider,
+            deleted_at: row.deleted_at,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        });
+    }
+    Ok(session_metas)
 }
 
 /// Rename a session.

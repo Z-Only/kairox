@@ -21,6 +21,8 @@ import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
+import type { ContextUsage } from "@/types";
 
 /**
  * `mountWithPlugins` activates a fresh Pinia internally, so the per-test
@@ -30,6 +32,19 @@ import { useSessionStore } from "@/stores/session";
  * The `prepareSession` callback runs after mount and before assertions so
  * the Pinia instance the component sees is the same one the test mutates.
  */
+function makeUsage(overrides: Partial<ContextUsage> = {}): ContextUsage {
+  return {
+    total_tokens: 50,
+    budget_tokens: 100,
+    context_window: 120,
+    output_reservation: 20,
+    by_source: [["history", 50]],
+    estimator: "cl100k_base",
+    corrected_by_real_usage: false,
+    ...overrides
+  };
+}
+
 function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionStore>) => void) {
   const { wrapper } = mountWithPlugins(ChatPanel, {
     initialRoute: "/workbench"
@@ -48,32 +63,94 @@ beforeEach(() => {
 });
 
 describe("ChatPanel", () => {
-  it("renders user messages from projection", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.messages = [{ role: "user", content: "Hello" }];
+  it("renders message bubbles without visible role labels while preserving chat-message anchors", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there!" }
+      ];
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Hello");
-    expect(wrapper.text()).toContain("You");
+
+    expect(wrapper.findAll('[data-test="chat-message"]')).toHaveLength(2);
+    expect(wrapper.find('[data-test="chat-message"][data-role="user"]').text()).toBe("Hello");
+    expect(wrapper.find('[data-test="chat-message"][data-role="assistant"]').text()).toBe(
+      "Hi there!"
+    );
+    expect(wrapper.find(".message-role").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("You");
+    expect(wrapper.text()).not.toContain("Agent");
   });
 
-  it("renders assistant messages", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.messages = [{ role: "assistant", content: "Hi there!" }];
+  it("renders streaming text and cursor without visible assistant role labels", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.projection.token_stream = "Loading...";
+      session.isStreaming = true;
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Hi there!");
-    expect(wrapper.text()).toContain("Agent");
+
+    const streamIndicator = wrapper.find('[data-test="stream-indicator"]');
+    expect(streamIndicator.exists()).toBe(true);
+    expect(streamIndicator.text()).toContain("Loading...");
+    expect(streamIndicator.find(".cursor").exists()).toBe(true);
+    expect(streamIndicator.find(".message-role").exists()).toBe(false);
+    expect(streamIndicator.text()).not.toContain("Agent");
   });
 
-  it("shows streaming text with cursor when isStreaming", async () => {
-    const wrapper = mountChatPanel((s) => {
-      s.projection.token_stream = "Loading...";
-      s.isStreaming = true;
+  it("shows the current profile badge in the composer input area", async () => {
+    const wrapper = mountChatPanel();
+    await flushPromises();
+
+    const header = wrapper.find(".chat-header");
+    const inputArea = wrapper.find(".input-area");
+    const profileBadge = inputArea.find('[data-test="chat-profile-badge"]');
+
+    expect(profileBadge.exists()).toBe(true);
+    expect(profileBadge.text()).toBe("fast");
+    expect(header.find('[data-test="chat-profile-badge"]').exists()).toBe(false);
+  });
+
+  it("shows current session worktree and branch metadata in the composer", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo/.worktrees/project-chat",
+          branch: "feat/project-chat",
+          visibility: null
+        }
+      ];
     });
     await flushPromises();
-    expect(wrapper.text()).toContain("Loading...");
-    expect(wrapper.find(".cursor").exists()).toBe(true);
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toContain("/repo/.worktrees/project-chat");
+    expect(gitMeta.text()).toContain("feat/project-chat");
+  });
+
+  it("renders context meter as a ring inside the composer input row", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.lastContextUsage = makeUsage();
+    });
+    await flushPromises();
+
+    const inputRow = wrapper.find(".input-row");
+    expect(inputRow.find('[data-test="context-meter-ring"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
+  });
+
+  it("renders compact empty context meter ring inside the composer input row", async () => {
+    const wrapper = mountChatPanel();
+    await flushPromises();
+
+    const inputRow = wrapper.find(".input-row");
+    expect(inputRow.find('[data-test="context-meter-ring-empty"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
   it("shows cancelled marker", async () => {
@@ -154,6 +231,44 @@ describe("ChatPanel", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="chat-empty-state"]').exists()).toBe(true);
+  });
+
+  it("renders project instruction source filenames in an empty project chat", async () => {
+    mockedInvoke.mockResolvedValueOnce({
+      source_paths: ["/repo/AGENTS.md", "/repo/README.md"],
+      warning: null
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.projection.messages = [];
+      session.projection.token_stream = "";
+      session.lastSendError = null;
+      session.isStreaming = false;
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo",
+          branch: "main",
+          visibility: "draft_hidden"
+        }
+      ];
+    });
+    await flushPromises();
+
+    const projectStore = useProjectStore();
+    const summary = wrapper.find('[data-test="project-instruction-summary"]');
+    expect(mockedInvoke).toHaveBeenCalledWith("get_project_instruction_summary", {
+      projectId: "project_1"
+    });
+    expect(projectStore.instructionSummariesByProject.get("project_1")?.sourcePaths).toEqual([
+      "/repo/AGENTS.md",
+      "/repo/README.md"
+    ]);
+    expect(summary.exists()).toBe(true);
+    expect(summary.text()).toBe("Loaded AGENTS.md, README.md");
+    expect(summary.text()).not.toContain("/repo/");
   });
 
   it("P1-S3-send-error: shows a visible send error banner", async () => {

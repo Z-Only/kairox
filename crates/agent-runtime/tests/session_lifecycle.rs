@@ -1,9 +1,77 @@
 //! Session lifecycle integration tests for CRUD, persistence, and cleanup.
 
-use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+use agent_core::{
+    AppFacade, CoreError, DomainEvent, ProjectId, SendMessageRequest, SessionId,
+    StartSessionRequest, WorkspaceId,
+};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
-use agent_store::SqliteEventStore;
+use agent_store::{
+    event_store::ProjectSessionMetaRow, EventStore, ProjectMetaRepository, SessionRow,
+    SqliteEventStore, WorkspaceRow,
+};
+use async_trait::async_trait;
+use std::time::Duration;
+
+static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+struct NonSqliteEventStore;
+
+#[async_trait]
+impl EventStore for NonSqliteEventStore {
+    async fn append(&self, _event: &DomainEvent) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn load_session(&self, _session_id: &SessionId) -> agent_store::Result<Vec<DomainEvent>> {
+        Ok(Vec::new())
+    }
+
+    async fn upsert_workspace(&self, _workspace_id: &str, _path: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn upsert_session(&self, _meta: &SessionRow) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn list_workspaces(&self) -> agent_store::Result<Vec<WorkspaceRow>> {
+        Ok(Vec::new())
+    }
+
+    async fn list_active_sessions(
+        &self,
+        _workspace_id: &str,
+    ) -> agent_store::Result<Vec<SessionRow>> {
+        Ok(Vec::new())
+    }
+
+    async fn rename_session(&self, _session_id: &str, _title: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn soft_delete_session(&self, _session_id: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn cleanup_expired_sessions(&self, _older_than: Duration) -> agent_store::Result<usize> {
+        Ok(0)
+    }
+
+    async fn list_visible_project_sessions(
+        &self,
+        _project_id: &str,
+    ) -> agent_store::Result<Vec<ProjectSessionMetaRow>> {
+        Ok(Vec::new())
+    }
+
+    async fn list_archived_project_session_metas(
+        &self,
+        _workspace_id: &str,
+    ) -> agent_store::Result<Vec<ProjectSessionMetaRow>> {
+        Ok(Vec::new())
+    }
+}
 
 /// Helper: create an in-memory runtime for quick tests.
 fn make_runtime(store: SqliteEventStore) -> LocalRuntime<SqliteEventStore, FakeModelClient> {
@@ -350,4 +418,166 @@ async fn cleanup_expired_removes_old_sessions_and_events() {
 
     // Clean up temp file
     let _ = std::fs::remove_file(&db_path);
+}
+
+#[tokio::test]
+async fn project_removal_archives_visible_project_sessions() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-workspace".into())
+        .await
+        .unwrap();
+
+    let project = runtime
+        .add_existing_project(workspace.workspace_id.clone(), "/tmp/kairox-project".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .create_project_draft_session(project.project_id.clone())
+        .await
+        .unwrap();
+
+    runtime
+        .mark_session_visible(&session_id, "hello project".into())
+        .await
+        .unwrap();
+    runtime
+        .remove_project(project.project_id.clone())
+        .await
+        .unwrap();
+
+    let visible = runtime
+        .list_project_sessions(project.project_id.clone())
+        .await
+        .unwrap();
+    let archived = runtime
+        .list_archived_sessions(&workspace.workspace_id)
+        .await
+        .unwrap();
+
+    assert!(visible.is_empty());
+    assert!(archived
+        .iter()
+        .any(|session| session.session_id == session_id));
+}
+
+#[tokio::test]
+async fn project_session_lists_require_sqlite_metadata_store() {
+    let runtime = LocalRuntime::new(
+        NonSqliteEventStore,
+        FakeModelClient::new(vec!["response".into()]),
+    );
+
+    let visible_error = runtime
+        .list_project_sessions(ProjectId::from_string("prj_non_sqlite".into()))
+        .await
+        .expect_err("non-SQLite project session listing should fail");
+    let archived_error = runtime
+        .list_archived_sessions(&WorkspaceId::from_string("wrk_non_sqlite".into()))
+        .await
+        .expect_err("non-SQLite archived session listing should fail");
+
+    for error in [visible_error, archived_error] {
+        match error {
+            CoreError::InvalidState(message) => {
+                assert_eq!(message, "project metadata requires sqlite event store")
+            }
+            other => panic!("expected InvalidState, got {other:?}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn create_blank_project_reports_git_init_failure() {
+    let _environment_guard = ENV_LOCK.lock().await;
+    let previous_home = std::env::var_os("HOME");
+    let previous_path = std::env::var_os("PATH");
+    let home_dir = tempfile::tempdir().expect("temp home");
+
+    std::env::set_var("HOME", home_dir.path());
+    std::env::set_var("PATH", "");
+
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-blank-project-git-failure".into())
+        .await
+        .unwrap();
+    let result = runtime
+        .create_blank_project(workspace.workspace_id, Some("No Git Available".into()))
+        .await;
+
+    match previous_home {
+        Some(value) => std::env::set_var("HOME", value),
+        None => std::env::remove_var("HOME"),
+    }
+    match previous_path {
+        Some(value) => std::env::set_var("PATH", value),
+        None => std::env::remove_var("PATH"),
+    }
+
+    let error = result.expect_err("missing git executable should fail blank project creation");
+    assert!(
+        matches!(error, CoreError::InvalidState(_)),
+        "expected InvalidState, got {error:?}"
+    );
+}
+
+#[tokio::test]
+async fn mark_session_visible_rejects_non_draft_sessions() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-non-draft-visible".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id,
+            model_profile: "fake".into(),
+        })
+        .await
+        .unwrap();
+
+    let error = runtime
+        .mark_session_visible(&session_id, "should not rename".into())
+        .await
+        .expect_err("normal sessions should not be promoted as project drafts");
+    assert!(
+        matches!(error, CoreError::InvalidState(_)),
+        "expected InvalidState, got {error:?}"
+    );
+}
+
+#[tokio::test]
+async fn mark_session_visible_rejects_draft_visibility_without_project_binding() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let repository = ProjectMetaRepository::new(store.pool().clone());
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-stray-draft-visible".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id,
+            model_profile: "fake".into(),
+        })
+        .await
+        .unwrap();
+
+    repository
+        .set_session_visibility(session_id.as_str(), "draft_hidden")
+        .await
+        .unwrap();
+
+    let error = runtime
+        .mark_session_visible(&session_id, "should still fail".into())
+        .await
+        .expect_err("draft visibility without project binding should not be promoted");
+    assert!(
+        matches!(error, CoreError::InvalidState(_)),
+        "expected InvalidState, got {error:?}"
+    );
 }

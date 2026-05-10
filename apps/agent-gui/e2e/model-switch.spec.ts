@@ -18,11 +18,11 @@ test.describe("Mid-session model switch (P4)", () => {
     // in context-meter.spec.ts).
     await page.fill('[data-test="message-input"]', "hello from e2e");
     await page.click('[data-test="send-button"]');
-    await page.waitForSelector('[data-test="context-meter-bar"]', { timeout: 5_000 });
+    await page.waitForSelector('[data-test="context-meter-ring"]', { timeout: 5_000 });
   });
 
   test("switch-model button is enabled and opens the profile picker", async ({ page }) => {
-    await page.click('[data-test="context-meter-bar"]');
+    await page.click('[data-test="context-meter-ring"]');
     await expect(page.locator('[data-test="context-meter-popover"]')).toBeVisible();
 
     const switchBtn = page.locator('[data-test="context-meter-switch-model"]');
@@ -43,7 +43,7 @@ test.describe("Mid-session model switch (P4)", () => {
   test("selecting a different profile emits ModelProfileSwitched and updates the meter", async ({
     page
   }) => {
-    await page.click('[data-test="context-meter-bar"]');
+    await page.click('[data-test="context-meter-ring"]');
     await page.click('[data-test="context-meter-switch-model"]');
 
     const smart = page.locator('[data-test="context-meter-profile-smart"]');
@@ -55,7 +55,7 @@ test.describe("Mid-session model switch (P4)", () => {
     await expect(page.locator('[data-test="context-meter-popover"]')).toBeHidden();
 
     // Re-open and confirm the "(Current)" marker now sits on `smart`.
-    await page.click('[data-test="context-meter-bar"]');
+    await page.click('[data-test="context-meter-ring"]');
     await page.click('[data-test="context-meter-switch-model"]');
     await expect(page.locator('[data-test="context-meter-profile-smart"]')).toContainText(
       /current|当前/i
@@ -66,7 +66,7 @@ test.describe("Mid-session model switch (P4)", () => {
   });
 
   test("selecting the already-current profile is a silent no-op", async ({ page }) => {
-    await page.click('[data-test="context-meter-bar"]');
+    await page.click('[data-test="context-meter-ring"]');
     await page.click('[data-test="context-meter-switch-model"]');
 
     // Clicking "fast" while "fast" is current must close the picker but
