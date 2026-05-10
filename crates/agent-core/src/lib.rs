@@ -18,10 +18,12 @@ pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassificat
 pub use facade::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
     CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView, InstallRequest,
-    InstalledEntry, PermissionDecision, SendMessageRequest, ServerEntry, SessionMeta, SkillDetail,
-    SkillView, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
+    InstalledEntry, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind,
+    ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
+    SendMessageRequest, ServerEntry, SessionMeta, SkillDetail, SkillView, StartSessionRequest,
+    TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
-pub use ids::{AgentId, SessionId, TaskId, WorkspaceId};
+pub use ids::{AgentId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};
 pub use projection::{
     CompactionStatus, ProjectedMessage, ProjectedModelLimits, ProjectedRole, SessionProjection,

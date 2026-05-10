@@ -232,6 +232,9 @@ pub async fn list_sessions<S: EventStore>(
     Ok(rows
         .into_iter()
         .map(|r| SessionMeta {
+            project_id: None,
+            worktree_path: None,
+            visibility: None,
             session_id: SessionId::from_string(r.session_id),
             workspace_id: WorkspaceId::from_string(r.workspace_id),
             title: r.title,
