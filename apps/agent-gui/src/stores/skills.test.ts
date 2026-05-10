@@ -32,13 +32,16 @@ const activeSkill = {
 };
 
 function createSkillSetting(overrides: Partial<SkillSettingsView> = {}): SkillSettingsView {
+  const id = overrides.id ?? "review";
+  const scope = overrides.scope ?? "user";
   return {
-    id: "review",
-    name: "review",
+    settings_id: `${scope}:${id}`,
+    id,
+    name: id,
     description: "Review code changes.",
     version: null,
-    scope: "user",
-    path: "/tmp/review/SKILL.md",
+    scope,
+    path: `/tmp/${id}/SKILL.md`,
     enabled: true,
     activation_mode: "manual",
     install_source: "local",
@@ -145,10 +148,31 @@ describe("skills store", () => {
     const store = useSkillsStore();
     store.skillSettings = [createSkillSetting({ enabled: false })];
 
-    await store.setSkillEnabled("review", true);
+    await store.setSkillEnabled("user:review", true);
 
     expect(store.skillSettings[0].enabled).toBe(false);
     expect(store.error).toContain("state file is read-only");
+  });
+
+  it("updates only the matching settings row when duplicate skill ids exist", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    const store = useSkillsStore();
+    store.skillSettings = [
+      createSkillSetting({ settings_id: "project:review", scope: "project", enabled: true }),
+      createSkillSetting({ settings_id: "user:review", scope: "user", enabled: true })
+    ];
+
+    await store.setSkillEnabled("project:review", false);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_skill_enabled", {
+      skillId: "project:review",
+      enabled: false
+    });
+    expect(store.skillSettings).toEqual([
+      createSkillSetting({ settings_id: "project:review", scope: "project", enabled: false }),
+      createSkillSetting({ settings_id: "user:review", scope: "user", enabled: true })
+    ]);
   });
 
   it("loads skill settings from generated command envelope", async () => {
@@ -173,10 +197,10 @@ describe("skills store", () => {
       createSkillSetting({ id: "planning" })
     ];
 
-    await store.deleteSkill("review");
+    await store.deleteSkill("user:review");
 
     expect(mockedInvoke).toHaveBeenCalledWith("delete_skill_settings", {
-      skillId: "review"
+      skillId: "user:review"
     });
     expect(store.skillSettings).toEqual([createSkillSetting({ id: "planning" })]);
   });
@@ -191,7 +215,7 @@ describe("skills store", () => {
     const store = useSkillsStore();
     store.skillSettings = existingSkillSettings;
 
-    await store.deleteSkill("review");
+    await store.deleteSkill("user:review");
 
     expect(store.error).toContain("delete failed");
     expect(store.skillSettings).toEqual(existingSkillSettings);
@@ -289,9 +313,9 @@ describe("skills store", () => {
     const store = useSkillsStore();
     store.skillSettings = [existingSkill];
 
-    const result = await store.updateSkill("review");
+    const result = await store.updateSkill("user:review");
 
-    expect(mockedInvoke).toHaveBeenCalledWith("update_skill", { skillId: "review" });
+    expect(mockedInvoke).toHaveBeenCalledWith("update_skill", { skillId: "user:review" });
     expect(result).toEqual(updatedSkill);
     expect(store.skillSettings).toEqual([updatedSkill]);
   });
@@ -304,7 +328,7 @@ describe("skills store", () => {
     const store = useSkillsStore();
     store.skillSettings = [existingSkill];
 
-    const result = await store.updateSkill("review");
+    const result = await store.updateSkill("user:review");
 
     expect(result).toEqual(updatedSkill);
     expect(store.skillSettings).toEqual([existingSkill, updatedSkill]);

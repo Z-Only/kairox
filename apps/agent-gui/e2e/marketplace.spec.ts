@@ -152,26 +152,102 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
   test("manages skill settings discovery, install, update, and delete", async ({ page }) => {
     await page.getByTestId("settings-tab-skills").click();
-    await expect(page.getByTestId("skill-row-project-review")).toContainText("Project Review");
-    await expect(page.getByTestId("skill-invalid-invalid-workspace-skill")).toContainText(
+    await expect(page.getByTestId("skill-row-project-project-review")).toContainText(
+      "Project Review"
+    );
+    await expect(page.getByTestId("skill-invalid-project-invalid-workspace-skill")).toContainText(
       "Missing required description"
     );
 
-    await page.getByTestId("skill-enabled-project-review").click();
-    await expect(page.getByTestId("skill-row-project-review")).toContainText("Disabled");
+    await page.getByTestId("skill-enabled-project-project-review").click();
+    await expect(page.getByTestId("skill-row-project-project-review")).toContainText("Disabled");
 
-    await page.getByTestId("skill-update-registry-review").click();
-    await expect(page.getByTestId("skill-row-registry-review")).toContainText("up to date");
+    await page.getByTestId("skill-update-project-registry-review").click();
+    await expect(page.getByTestId("skill-row-project-registry-review")).toContainText("up to date");
 
     await page.getByTestId("skill-discover-query").fill("review");
     await page.getByTestId("skill-discover-submit").click();
     await expect(page.getByTestId("skill-remote-code-review-assistant")).toBeVisible();
     await page.getByTestId("skill-install-code-review-assistant").click();
-    await expect(page.getByTestId("skill-row-code-review-assistant")).toContainText(
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toContainText(
       "Code Review Assistant"
     );
 
-    await page.getByTestId("skill-delete-code-review-assistant").click();
-    await expect(page.getByTestId("skill-row-code-review-assistant")).toHaveCount(0);
+    await page.getByTestId("skill-delete-project-code-review-assistant").click();
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
+  });
+
+  test("mock rejects ambiguous legacy skill ids without mutating rows", async ({ page }) => {
+    await page.getByTestId("settings-tab-skills").click();
+
+    const ambiguityResult = await page.evaluate(async () => {
+      const mockWindow = window as unknown as {
+        __KAIROX_MOCK__: {
+          state: {
+            skillSettings: Array<{
+              settings_id: string;
+              id: string;
+              name: string;
+              enabled: boolean;
+            }>;
+          };
+        };
+        __TAURI_INTERNALS__: {
+          invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+        };
+      };
+
+      const projectReview = mockWindow.__KAIROX_MOCK__.state.skillSettings.find(
+        (skill) => skill.settings_id === "project:project-review"
+      );
+      if (!projectReview) {
+        throw new Error("missing project review fixture");
+      }
+
+      mockWindow.__KAIROX_MOCK__.state.skillSettings.push({
+        ...projectReview,
+        settings_id: "user:project-review",
+        name: "User Project Review",
+        enabled: true
+      });
+
+      const captureRejection = async (
+        operation: () => Promise<unknown>
+      ): Promise<string | null> => {
+        try {
+          await operation();
+          return null;
+        } catch (error) {
+          return error instanceof Error ? error.message : String(error);
+        }
+      };
+
+      const enableError = await captureRejection(() =>
+        mockWindow.__TAURI_INTERNALS__.invoke("set_skill_enabled", {
+          skillId: "project-review",
+          enabled: false
+        })
+      );
+      const deleteError = await captureRejection(() =>
+        mockWindow.__TAURI_INTERNALS__.invoke("delete_skill_settings", {
+          skillId: "project-review"
+        })
+      );
+      const reviewRows = mockWindow.__KAIROX_MOCK__.state.skillSettings.filter(
+        (skill) => skill.id === "project-review"
+      );
+
+      return {
+        enableError,
+        deleteError,
+        rowCount: reviewRows.length,
+        enabledStates: reviewRows.map((skill) => skill.enabled)
+      };
+    });
+
+    expect(ambiguityResult.enableError).toContain("ambiguous skill id");
+    expect(ambiguityResult.deleteError).toContain("ambiguous skill id");
+    expect(ambiguityResult.rowCount).toBe(2);
+    expect(ambiguityResult.enabledStates).toEqual([true, true]);
   });
 });

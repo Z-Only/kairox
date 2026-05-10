@@ -65,11 +65,11 @@ export const useSkillsStore = defineStore("skills", () => {
 
   function upsertSkillSetting(skillSetting: SkillSettingsView): void {
     const existingSkillIndex = skillSettings.value.findIndex(
-      (existingSkill) => existingSkill.id === skillSetting.id
+      (existingSkill) => existingSkill.settings_id === skillSetting.settings_id
     );
     if (existingSkillIndex >= 0) {
       skillSettings.value = skillSettings.value.map((existingSkill) =>
-        existingSkill.id === skillSetting.id ? skillSetting : existingSkill
+        existingSkill.settings_id === skillSetting.settings_id ? skillSetting : existingSkill
       );
       return;
     }
@@ -145,24 +145,24 @@ export const useSkillsStore = defineStore("skills", () => {
     }
   }
 
-  async function setSkillEnabled(skillId: string, enabled: boolean): Promise<void> {
+  async function setSkillEnabled(skillSettingsId: string, enabled: boolean): Promise<void> {
     error.value = null;
     try {
-      await unwrapCommandResult(commands.setSkillEnabled(skillId, enabled));
+      await unwrapCommandResult(commands.setSkillEnabled(skillSettingsId, enabled));
       skillSettings.value = skillSettings.value.map((skillSetting) =>
-        skillSetting.id === skillId ? { ...skillSetting, enabled } : skillSetting
+        skillSetting.settings_id === skillSettingsId ? { ...skillSetting, enabled } : skillSetting
       );
     } catch (caughtError) {
       error.value = formatError(caughtError);
     }
   }
 
-  async function deleteSkill(skillId: string): Promise<void> {
+  async function deleteSkill(skillSettingsId: string): Promise<void> {
     error.value = null;
     try {
-      await unwrapCommandResult(commands.deleteSkillSettings(skillId));
+      await unwrapCommandResult(commands.deleteSkillSettings(skillSettingsId));
       skillSettings.value = skillSettings.value.filter(
-        (skillSetting) => skillSetting.id !== skillId
+        (skillSetting) => skillSetting.settings_id !== skillSettingsId
       );
     } catch (caughtError) {
       error.value = formatError(caughtError);

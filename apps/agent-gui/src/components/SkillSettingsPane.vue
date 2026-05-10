@@ -32,6 +32,10 @@ function canUpdateSkill(skill: SkillSettingsView): boolean {
   );
 }
 
+function skillSettingsTestId(skill: SkillSettingsView): string {
+  return slugify(skill.settings_id);
+}
+
 async function runSkillAction(skillId: string, action: () => Promise<unknown>): Promise<void> {
   busySkillId.value = skillId;
   try {
@@ -104,9 +108,9 @@ async function installFromGithub(): Promise<void> {
         <article
           v-for="skill in skillsStore.skillSettings"
           v-else
-          :key="skill.id"
+          :key="skill.settings_id"
           class="skill-settings__row"
-          :data-test="`skill-row-${skill.id}`"
+          :data-test="`skill-row-${skillSettingsTestId(skill)}`"
         >
           <div class="skill-settings__main">
             <div class="skill-settings__title-row">
@@ -145,7 +149,7 @@ async function installFromGithub(): Promise<void> {
               v-if="skill.validation_error"
               class="alert alert-error"
               role="alert"
-              :data-test="`skill-invalid-${skill.id}`"
+              :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
             >
               {{ skill.validation_error }}
             </p>
@@ -155,11 +159,11 @@ async function installFromGithub(): Promise<void> {
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="busySkillId === skill.id"
-              :data-test="`skill-enabled-${skill.id}`"
+              :disabled="busySkillId === skill.settings_id"
+              :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
               @click="
-                runSkillAction(skill.id, () =>
-                  skillsStore.setSkillEnabled(skill.id, !skill.enabled)
+                runSkillAction(skill.settings_id, () =>
+                  skillsStore.setSkillEnabled(skill.settings_id, !skill.enabled)
                 )
               "
             >
@@ -170,25 +174,29 @@ async function installFromGithub(): Promise<void> {
               type="button"
               disabled
               title="Skill editing is not available in this settings pane yet."
-              :data-test="`skill-edit-${skill.id}`"
+              :data-test="`skill-edit-${skillSettingsTestId(skill)}`"
             >
               Edit
             </button>
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="!canUpdateSkill(skill) || busySkillId === skill.id"
-              :data-test="`skill-update-${skill.id}`"
-              @click="runSkillAction(skill.id, () => skillsStore.updateSkill(skill.id))"
+              :disabled="!canUpdateSkill(skill) || busySkillId === skill.settings_id"
+              :data-test="`skill-update-${skillSettingsTestId(skill)}`"
+              @click="
+                runSkillAction(skill.settings_id, () => skillsStore.updateSkill(skill.settings_id))
+              "
             >
               Update
             </button>
             <button
               class="btn btn-danger btn-sm"
               type="button"
-              :disabled="!skill.deletable || busySkillId === skill.id"
-              :data-test="`skill-delete-${skill.id}`"
-              @click="runSkillAction(skill.id, () => skillsStore.deleteSkill(skill.id))"
+              :disabled="!skill.deletable || busySkillId === skill.settings_id"
+              :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
+              @click="
+                runSkillAction(skill.settings_id, () => skillsStore.deleteSkill(skill.settings_id))
+              "
             >
               Delete
             </button>

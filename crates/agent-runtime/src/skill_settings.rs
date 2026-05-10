@@ -46,13 +46,39 @@ pub async fn get_skill_settings_detail(
     skill_id: &str,
 ) -> agent_core::Result<Option<SkillSettingsDetail>> {
     let views = list_skill_settings_from_roots(roots).await?;
+    let matching_settings_id_views = views
+        .iter()
+        .filter(|view| view.settings_id == skill_id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let view = match matching_settings_id_views.as_slice() {
+        [view] => view.clone(),
+        [] => {
+            let matching_id_views = views
+                .iter()
+                .filter(|candidate| candidate.id == skill_id)
+                .cloned()
+                .collect::<Vec<_>>();
+            match matching_id_views.as_slice() {
+                [view] => view.clone(),
+                [] => return Ok(None),
+                _ => {
+                    return Err(CoreError::InvalidState(format!(
+                        "ambiguous skill id: {skill_id}"
+                    )));
+                }
+            }
+        }
+        _ => {
+            return Err(CoreError::InvalidState(format!(
+                "ambiguous skill settings id: {skill_id}"
+            )));
+        }
+    };
     let matching_views = views
         .into_iter()
-        .filter(|view| view.id == skill_id)
+        .filter(|candidate| candidate.id == view.id)
         .collect::<Vec<_>>();
-    let Some(view) = matching_views.first().cloned() else {
-        return Ok(None);
-    };
 
     let content = tokio::fs::read_to_string(&view.path)
         .await
@@ -80,7 +106,7 @@ pub async fn set_skill_enabled(
     })?;
     let state_path = root.join(SKILLS_STATE_FILE_NAME);
     let mut state = read_skills_state(&state_path).await.map_err(skill_error)?;
-    state.set_enabled(skill_id, enabled);
+    state.set_enabled(&view.id, enabled);
     write_skills_state(&state_path, &state)
         .await
         .map_err(skill_error)
@@ -102,7 +128,7 @@ pub async fn set_skill_activation_mode(
     })?;
     let state_path = root.join(SKILLS_STATE_FILE_NAME);
     let mut state = read_skills_state(&state_path).await.map_err(skill_error)?;
-    state.skill_mut(skill_id).activation_mode = Some(parsed_activation_mode);
+    state.skill_mut(&view.id).activation_mode = Some(parsed_activation_mode);
     write_skills_state(&state_path, &state)
         .await
         .map_err(skill_error)
@@ -178,8 +204,8 @@ pub async fn update_skill(
 ) -> agent_core::Result<SkillSettingsView> {
     let view = find_skill_settings_view(roots.clone(), skill_id).await?;
     reject_builtin_mutation(&view, "update")?;
-    package_manager.update(skill_id).await?;
-    let update_state = package_manager.check_updates(skill_id).await?;
+    package_manager.update(&view.id).await?;
+    let update_state = package_manager.check_updates(&view.id).await?;
     let root = root_for_scope(&roots, view.scope).ok_or_else(|| {
         CoreError::InvalidState(format!(
             "skill root not configured for {}",
@@ -188,7 +214,7 @@ pub async fn update_skill(
     })?;
     let state_path = root.join(SKILLS_STATE_FILE_NAME);
     let mut state = read_skills_state(&state_path).await.map_err(skill_error)?;
-    state.skill_mut(skill_id).update_available = match update_state {
+    state.skill_mut(&view.id).update_available = match update_state {
         SkillUpdateState::UpdateAvailable => Some(true),
         SkillUpdateState::UpToDate => Some(false),
         SkillUpdateState::Unknown | SkillUpdateState::CheckFailed => None,
@@ -197,7 +223,7 @@ pub async fn update_skill(
         .await
         .map_err(skill_error)?;
 
-    find_skill_settings_view(roots, skill_id).await
+    find_skill_settings_view(roots, &view.settings_id).await
 }
 
 fn skill_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
@@ -217,6 +243,7 @@ fn skill_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
 fn local_view_to_core_view(view: LocalSkillSettingsView) -> SkillSettingsView {
     let scope = skill_scope_to_settings_scope(view.scope);
     SkillSettingsView {
+        settings_id: skill_settings_id(scope, view.id.as_str()),
         id: view.id.as_str().to_string(),
         name: view.name,
         description: view.description,
@@ -278,20 +305,35 @@ fn parse_skill_activation_mode(
 
 async fn find_skill_settings_view(
     roots: SkillSettingsRoots,
-    skill_id: &str,
+    skill_identifier: &str,
 ) -> agent_core::Result<SkillSettingsView> {
-    let matching_views = list_skill_settings_from_roots(roots)
-        .await?
+    let views = list_skill_settings_from_roots(roots).await?;
+    let matching_settings_id_views = views
+        .iter()
+        .filter(|view| view.settings_id == skill_identifier)
+        .cloned()
+        .collect::<Vec<_>>();
+    match matching_settings_id_views.as_slice() {
+        [view] => return Ok(view.clone()),
+        [] => {}
+        _ => {
+            return Err(CoreError::InvalidState(format!(
+                "ambiguous skill settings id: {skill_identifier}"
+            )));
+        }
+    }
+
+    let matching_views = views
         .into_iter()
-        .filter(|view| view.id == skill_id)
+        .filter(|view| view.id == skill_identifier)
         .collect::<Vec<_>>();
     match matching_views.as_slice() {
         [view] => Ok(view.clone()),
         [] => Err(CoreError::InvalidState(format!(
-            "skill not found: {skill_id}"
+            "skill not found: {skill_identifier}"
         ))),
         views => Err(CoreError::InvalidState(format!(
-            "ambiguous skill id: {skill_id}; matching scopes: {}",
+            "ambiguous skill id: {skill_identifier}; matching scopes: {}",
             views
                 .iter()
                 .map(|view| scope_label(view.scope))
@@ -299,6 +341,10 @@ async fn find_skill_settings_view(
                 .join(", ")
         ))),
     }
+}
+
+fn skill_settings_id(scope: SkillSettingsScope, skill_id: &str) -> String {
+    format!("{}:{skill_id}", scope_label(scope))
 }
 
 fn reject_builtin_mutation(view: &SkillSettingsView, operation: &str) -> agent_core::Result<()> {
@@ -598,6 +644,50 @@ mod tests {
             "message was: {error}"
         );
         assert!(!workspace_root.path().join("skills-state.toml").exists());
+        assert!(!user_root.path().join("skills-state.toml").exists());
+    }
+
+    #[tokio::test]
+    async fn mutating_duplicate_skill_id_accepts_settings_id() {
+        let workspace_root = tempfile::tempdir().expect("workspace root");
+        let user_root = tempfile::tempdir().expect("user root");
+        write_skill(
+            workspace_root.path(),
+            "review-project",
+            "review",
+            "Review code",
+            "Project body\n",
+        );
+        write_skill(
+            user_root.path(),
+            "review-user",
+            "review",
+            "Review code",
+            "User body\n",
+        );
+
+        let roots = SkillSettingsRoots {
+            workspace_root: Some(workspace_root.path().to_path_buf()),
+            user_root: Some(user_root.path().to_path_buf()),
+            builtin_root: None,
+        };
+        let views = list_skill_settings_from_roots(roots.clone())
+            .await
+            .expect("settings should list");
+        assert!(views
+            .iter()
+            .any(|view| view.settings_id == "project:review"));
+        assert!(views.iter().any(|view| view.settings_id == "user:review"));
+
+        set_skill_enabled(roots, "project:review", false)
+            .await
+            .expect("project settings id should disambiguate mutation");
+
+        let workspace_state =
+            std::fs::read_to_string(workspace_root.path().join("skills-state.toml"))
+                .expect("workspace state should be written");
+        assert!(workspace_state.contains("[skills.review]"));
+        assert!(workspace_state.contains("enabled = false"));
         assert!(!user_root.path().join("skills-state.toml").exists());
     }
 

@@ -20,6 +20,7 @@ vi.mock("@/generated/commands", () => ({
 const mockedCommands = vi.mocked(commands);
 
 const projectSkill = {
+  settings_id: "project:code-review",
   id: "code-review",
   name: "Code Review",
   description: "Review implementation quality.",
@@ -39,6 +40,7 @@ const projectSkill = {
 };
 
 const shadowedSkill = {
+  settings_id: "user:test-driven-development",
   id: "test-driven-development",
   name: "TDD",
   description: "Test-first implementation.",
@@ -58,6 +60,7 @@ const shadowedSkill = {
 };
 
 const builtinSkill = {
+  settings_id: "builtin:builtin-planning",
   id: "builtin-planning",
   name: "Built-in Planning",
   description: "Plan work before editing.",
@@ -77,6 +80,7 @@ const builtinSkill = {
 };
 
 const invalidSkill = {
+  settings_id: "project:broken-skill",
   id: "broken-skill",
   name: "Broken Skill",
   description: "Invalid fixture.",
@@ -131,15 +135,15 @@ describe("SkillSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.listSkillSettings).toHaveBeenCalledTimes(1);
-    expect(wrapper.find('[data-test="skill-row-code-review"]').text()).toContain("project");
-    expect(wrapper.find('[data-test="skill-row-code-review"]').text()).toContain("manual");
-    expect(wrapper.find('[data-test="skill-row-code-review"]').text()).toContain(
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("project");
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("manual");
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain(
       "update available"
     );
-    expect(wrapper.find('[data-test="skill-row-test-driven-development"]').text()).toContain(
+    expect(wrapper.find('[data-test="skill-row-user-test-driven-development"]').text()).toContain(
       "shadowed by project"
     );
-    expect(wrapper.find('[data-test="skill-row-broken-skill"]').text()).toContain(
+    expect(wrapper.find('[data-test="skill-row-project-broken-skill"]').text()).toContain(
       "Missing SKILL.md frontmatter"
     );
   });
@@ -149,17 +153,19 @@ describe("SkillSettingsPane", () => {
     await flushPromises();
 
     expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-code-review"]').element.disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-builtin-planning"]').element.disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-delete-builtin-planning"]').element
+      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-project-code-review"]').element
         .disabled
     ).toBe(true);
     expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-update-builtin-planning"]').element
+      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-builtin-builtin-planning"]').element
+        .disabled
+    ).toBe(true);
+    expect(
+      wrapper.find<HTMLButtonElement>('[data-test="skill-delete-builtin-builtin-planning"]').element
+        .disabled
+    ).toBe(true);
+    expect(
+      wrapper.find<HTMLButtonElement>('[data-test="skill-update-builtin-builtin-planning"]').element
         .disabled
     ).toBe(true);
   });
@@ -168,10 +174,35 @@ describe("SkillSettingsPane", () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    await wrapper.find('[data-test="skill-enabled-code-review"]').trigger("click");
+    await wrapper.find('[data-test="skill-enabled-project-code-review"]').trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.setSkillEnabled).toHaveBeenCalledWith("code-review", false);
+    expect(mockedCommands.setSkillEnabled).toHaveBeenCalledWith("project:code-review", false);
+  });
+
+  it("uses unique settings selectors for shadowed duplicate skill ids", async () => {
+    mockedCommands.listSkillSettings.mockResolvedValue([
+      projectSkill,
+      {
+        ...projectSkill,
+        settings_id: "user:code-review",
+        scope: "user",
+        path: "/home/user/.kairox/skills/code-review",
+        effective: false,
+        shadowed_by: "project"
+      }
+    ]);
+
+    const wrapper = mountPane();
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-test="skill-row-project-code-review"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-test="skill-row-user-code-review"]')).toHaveLength(1);
+
+    await wrapper.find('[data-test="skill-enabled-user-code-review"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.setSkillEnabled).toHaveBeenCalledWith("user:code-review", false);
   });
 
   it("discovers remote skills and installs a selected result", async () => {

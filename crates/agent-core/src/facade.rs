@@ -261,6 +261,7 @@ pub enum SkillUpdateState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SkillSettingsView {
+    pub settings_id: String,
     pub id: String,
     pub name: String,
     pub description: String,
@@ -954,6 +955,7 @@ mod facade_settings_dtos {
     #[test]
     fn skill_settings_view_distinguishes_scope_and_update_state() {
         let view = SkillSettingsView {
+            settings_id: "project:review".to_string(),
             id: "review".to_string(),
             name: "review".to_string(),
             description: "Review code".to_string(),

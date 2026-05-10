@@ -161,6 +161,7 @@ const state = {
   ],
   skillSettings: [
     {
+      settings_id: "project:project-review",
       id: "project-review",
       name: "Project Review",
       description: "Project-scoped code review guidance.",
@@ -179,6 +180,7 @@ const state = {
       deletable: true
     },
     {
+      settings_id: "user:user-planning",
       id: "user-planning",
       name: "User Planning",
       description: "User-scoped planning defaults.",
@@ -197,6 +199,7 @@ const state = {
       deletable: true
     },
     {
+      settings_id: "builtin:builtin-brainstorming",
       id: "builtin-brainstorming",
       name: "Built-in Brainstorming",
       description: "Built-in ideation workflow.",
@@ -215,6 +218,7 @@ const state = {
       deletable: false
     },
     {
+      settings_id: "project:invalid-workspace-skill",
       id: "invalid-workspace-skill",
       name: "Invalid Workspace Skill",
       description: "Fixture for parse errors.",
@@ -233,6 +237,7 @@ const state = {
       deletable: true
     },
     {
+      settings_id: "project:registry-review",
       id: "registry-review",
       name: "Registry Review",
       description: "Registry-installed review helper.",
@@ -251,6 +256,7 @@ const state = {
       deletable: true
     },
     {
+      settings_id: "user:github-triage",
       id: "github-triage",
       name: "GitHub Triage",
       description: "GitHub-installed issue triage helper.",
@@ -353,9 +359,27 @@ function findMcpSettingsServer(serverId) {
 }
 
 function findSkillSetting(skillId) {
-  return state.skillSettings.find(function (skill) {
+  var settingsIdMatches = state.skillSettings.filter(function (skill) {
+    return skill.settings_id === skillId;
+  });
+  if (settingsIdMatches.length === 1) {
+    return settingsIdMatches[0];
+  }
+  if (settingsIdMatches.length > 1) {
+    throw new Error("ambiguous skill settings id: " + skillId);
+  }
+
+  var legacyIdMatches = state.skillSettings.filter(function (skill) {
     return skill.id === skillId;
   });
+  if (legacyIdMatches.length === 1) {
+    return legacyIdMatches[0];
+  }
+  if (legacyIdMatches.length > 1) {
+    throw new Error("ambiguous skill id: " + skillId);
+  }
+
+  return null;
 }
 
 function createMcpSettingsServer(input) {
@@ -380,6 +404,7 @@ function createMcpSettingsServer(input) {
 function createSkillSettingFromInstall(name, source, target, installSource) {
   var skillId = slugify(name);
   return {
+    settings_id: target + ":" + skillId,
     id: skillId,
     name: name,
     description: "Installed from " + source + ".",
@@ -1173,11 +1198,15 @@ function invoke(cmd, args) {
       return null;
     }
 
-    case "delete_skill_settings":
+    case "delete_skill_settings": {
+      var skillToDelete = findSkillSetting(args.skillId);
+      if (!skillToDelete)
+        return Promise.reject(new Error("Skill setting not found: " + args.skillId));
       state.skillSettings = state.skillSettings.filter(function (skill) {
-        return skill.id !== args.skillId;
+        return skill.settings_id !== skillToDelete.settings_id;
       });
       return null;
+    }
 
     case "search_remote_skills": {
       var query = String(args.query || "").toLowerCase();
@@ -1205,7 +1234,7 @@ function invoke(cmd, args) {
         "registry"
       );
       state.skillSettings = state.skillSettings.filter(function (skill) {
-        return skill.id !== remoteSkill.id;
+        return skill.settings_id !== remoteSkill.settings_id;
       });
       state.skillSettings.push(remoteSkill);
       return clone(remoteSkill);
@@ -1222,7 +1251,7 @@ function invoke(cmd, args) {
         "github"
       );
       state.skillSettings = state.skillSettings.filter(function (skill) {
-        return skill.id !== githubSkill.id;
+        return skill.settings_id !== githubSkill.settings_id;
       });
       state.skillSettings.push(githubSkill);
       return clone(githubSkill);
