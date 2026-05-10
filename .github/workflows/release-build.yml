@@ -174,6 +174,12 @@ jobs:
       - name: Install repo tooling deps
         run: pnpm install --frozen-lockfile
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Generate Tauri bindings
+        run: just gen-types
+
       - name: Build and upload Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -415,6 +421,8 @@ jobs:
       - name: Build TUI (release)
         run: cargo build -p agent-tui --release
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Build GUI web
-        working-directory: apps/agent-gui
-        run: pnpm run build
+        run: just gui-build

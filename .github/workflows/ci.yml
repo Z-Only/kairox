@@ -266,9 +266,11 @@ jobs:
       - name: Install repo tooling deps
         run: pnpm install --frozen-lockfile
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Build GUI web
-        working-directory: apps/agent-gui
-        run: pnpm run build
+        run: just gui-build
 
   live-model-tests:
     name: Live model tests (GitHub Models)
@@ -351,6 +353,12 @@ jobs:
       - name: Install tauri-pilot CLI
         if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
         run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Generate Tauri bindings
+        run: just gen-types
 
       - name: Build Tauri debug binary with pilot feature
         run: pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot
