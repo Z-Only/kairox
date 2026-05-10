@@ -11,6 +11,11 @@ use std::time::Duration;
 /// persistence for session recovery. The canonical implementation is
 /// [`SqliteEventStore`].
 pub trait EventStore: Send + Sync {
+    /// Return the underlying SQLite pool when this store is backed by SQLite.
+    fn sqlite_pool(&self) -> Option<SqlitePool> {
+        None
+    }
+
     /// Append a domain event to the store.
     async fn append(&self, event: &DomainEvent) -> crate::Result<()>;
     /// Load all events for a session in append order.
@@ -32,6 +37,32 @@ pub trait EventStore: Send + Sync {
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()>;
     /// Hard-delete sessions that were soft-deleted longer than the specified duration ago.
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize>;
+    /// List visible project-bound sessions.
+    async fn list_visible_project_sessions(
+        &self,
+        project_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+    /// List archived project-bound sessions for a workspace.
+    async fn list_archived_project_session_metas(
+        &self,
+        workspace_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ProjectSessionMetaRow {
+    pub session_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    pub model_profile: String,
+    pub model_id: Option<String>,
+    pub provider: Option<String>,
+    pub deleted_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub project_id: String,
+    pub worktree_path: String,
+    pub visibility: String,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -275,6 +306,10 @@ impl SqliteEventStore {
 
 #[async_trait]
 impl EventStore for SqliteEventStore {
+    fn sqlite_pool(&self) -> Option<SqlitePool> {
+        Some(self.pool.clone())
+    }
+
     async fn append(&self, event: &DomainEvent) -> crate::Result<()> {
         let payload_json = serde_json::to_string(event)?;
         sqlx::query(
@@ -340,6 +375,58 @@ impl EventStore for SqliteEventStore {
 
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize> {
         SqliteEventStore::cleanup_expired_sessions(self, older_than).await
+    }
+
+    async fn list_visible_project_sessions(
+        &self,
+        project_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>> {
+        let rows = sqlx::query_as::<_, ProjectSessionMetaRow>(
+            "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
+                    sessions.model_profile, sessions.model_id, sessions.provider,
+                    sessions.deleted_at, sessions.created_at, sessions.updated_at,
+                    bindings.project_id, bindings.worktree_path, visibility.visibility
+             FROM kairox_sessions AS sessions
+             INNER JOIN kairox_project_sessions AS bindings
+                ON bindings.session_id = sessions.session_id
+             INNER JOIN kairox_session_visibility AS visibility
+                ON visibility.session_id = sessions.session_id
+             WHERE bindings.project_id = ?1
+               AND sessions.deleted_at IS NULL
+               AND visibility.visibility = 'visible'
+             ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
+        )
+        .bind(project_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    async fn list_archived_project_session_metas(
+        &self,
+        workspace_id: &str,
+    ) -> crate::Result<Vec<ProjectSessionMetaRow>> {
+        let rows = sqlx::query_as::<_, ProjectSessionMetaRow>(
+            "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
+                    sessions.model_profile, sessions.model_id, sessions.provider,
+                    sessions.deleted_at, sessions.created_at, sessions.updated_at,
+                    bindings.project_id, bindings.worktree_path, visibility.visibility
+             FROM kairox_sessions AS sessions
+             INNER JOIN kairox_project_sessions AS bindings
+                ON bindings.session_id = sessions.session_id
+             INNER JOIN kairox_projects AS projects
+                ON projects.project_id = bindings.project_id
+             INNER JOIN kairox_session_visibility AS visibility
+                ON visibility.session_id = sessions.session_id
+             WHERE projects.workspace_id = ?1
+               AND sessions.deleted_at IS NULL
+               AND visibility.visibility = 'archived'
+             ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
     }
 }
 
