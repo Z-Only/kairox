@@ -33,6 +33,19 @@ function mockInvokeCommandResponses(responses: InvokeResponses = {}) {
       return Promise.resolve([]);
     }
 
+    if (command === "switch_session") {
+      return Promise.resolve({
+        messages: [],
+        task_titles: [],
+        task_graph: { tasks: [] },
+        token_stream: "",
+        cancelled: false,
+        last_context_usage: null,
+        model_limits: null,
+        compaction: { type: "Idle" }
+      });
+    }
+
     if (command === "get_profile_info" || command === "list_profiles") {
       return Promise.resolve([]);
     }
@@ -332,7 +345,7 @@ describe("SessionsSidebar", () => {
       });
     await flushPromises();
 
-    await wrapper.find('[data-test="project-draft-btn"]').trigger("click");
+    await wrapper.find('[data-test="project-new-session-btn"]').trigger("click");
     await flushPromises();
     await router.isReady();
 

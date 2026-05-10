@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useConfirm } from "@/composables/useConfirm";
-import type { ProfileInfo } from "../types";
+import type { ProfileInfo, SessionProjection } from "../types";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore, type ProjectInfo, type ProjectSessionInfo } from "@/stores/project";
 import { useWorkspaceUiStore, type SidebarSection } from "@/stores/workspaceUi";
@@ -42,6 +42,7 @@ const editingSessionId = ref<string | null>(null);
 const editingTitle = ref("");
 const profileDropdownOpen = ref(false);
 const renameInput = ref<HTMLInputElement | null>(null);
+const showProjectCreateActions = ref(false);
 
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
@@ -150,16 +151,39 @@ function getProjectSessions(projectId: string): ProjectSessionInfo[] {
   return projects.sessionsByProject.get(projectId) ?? [];
 }
 
+async function activateProjectSession(projectSession: ProjectSessionInfo) {
+  const projection = await invoke<SessionProjection>("switch_session", {
+    sessionId: projectSession.sessionId
+  });
+  session.currentSessionId = projectSession.sessionId;
+  session.currentProfile = projectSession.profile;
+  session.setProjection(projection);
+  await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
+}
+
 async function switchToProjectSession(projectSession: ProjectSessionInfo) {
-  await switchToSession(projectSession.sessionId);
+  try {
+    await activateProjectSession(projectSession);
+  } catch (e) {
+    console.error("Failed to open project session:", e);
+  }
 }
 
 async function createProjectSession(projectId: string) {
   try {
     const projectSession = await projects.createProjectDraftSession(projectId);
-    await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
+    await activateProjectSession(projectSession);
   } catch (e) {
     console.error("Failed to start project session:", e);
+  }
+}
+
+async function createBlankProject() {
+  try {
+    await projects.createBlankProject();
+    showProjectCreateActions.value = false;
+  } catch (e) {
+    console.error("Failed to create blank project:", e);
   }
 }
 
@@ -235,18 +259,45 @@ onMounted(() => {
         >
           <div class="section-heading">
             <h3>Projects</h3>
+            <div class="section-actions">
+              <button
+                class="section-action-btn"
+                type="button"
+                data-test="new-project-btn"
+                :aria-expanded="showProjectCreateActions"
+                aria-controls="project-create-actions"
+                @click="showProjectCreateActions = !showProjectCreateActions"
+              >
+                New
+              </button>
+              <button
+                class="section-action-btn"
+                type="button"
+                data-test="project-archive-toggle"
+                :aria-label="
+                  workspaceUi.archiveOpen
+                    ? 'Hide archived project sessions'
+                    : 'Show archived project sessions'
+                "
+                @click="toggleArchiveOpen"
+              >
+                Archive
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="showProjectCreateActions"
+            id="project-create-actions"
+            class="project-create-actions"
+          >
             <button
-              class="section-action-btn"
+              class="project-create-btn"
               type="button"
-              data-test="project-archive-toggle"
-              :aria-label="
-                workspaceUi.archiveOpen
-                  ? 'Hide archived project sessions'
-                  : 'Show archived project sessions'
-              "
-              @click="toggleArchiveOpen"
+              data-test="create-blank-project-btn"
+              @click="createBlankProject"
             >
-              Archive
+              Create Blank Project
             </button>
           </div>
 
@@ -255,6 +306,7 @@ onMounted(() => {
               v-for="project in projects.activeProjects"
               :key="project.projectId"
               class="project-item"
+              data-test="project-item"
             >
               <div class="project-row">
                 <button
@@ -283,7 +335,7 @@ onMounted(() => {
                   <button
                     class="project-action-btn"
                     type="button"
-                    data-test="project-draft-btn"
+                    data-test="project-new-session-btn"
                     :aria-label="`New session in ${project.displayName}`"
                     @click.stop="createProjectSession(project.projectId)"
                   >
@@ -529,6 +581,34 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.project-create-actions {
+  padding: 0 12px 8px;
+}
+.project-create-btn {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.project-create-btn:hover {
+  background: var(--app-hover-color);
+}
+.project-create-btn:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
 }
 .section-action-btn,
 .project-action-btn,
