@@ -58,7 +58,21 @@ gui-build: gen-types
 tauri-build: gen-types
     pnpm --filter agent-gui run tauri:build
 
-# ─── Release ───────────────────────────────────────────────────
+# Build Tauri desktop app without generating installer bundles
+tauri-build-fast: gen-types
+    pnpm --filter agent-gui exec -- tauri build --no-bundle
+
+# Build GUI web assets and print the largest generated files
+gui-size: gui-build
+    @du -sh apps/agent-gui/dist
+    @find apps/agent-gui/dist -type f -exec ls -lh {} \; | sort -k5 -hr | head -30 | cat
+
+# Print release binary sizes when the binaries have already been built
+rust-size:
+    @test -f target/release/agent-tui && ls -lh target/release/agent-tui || echo "target/release/agent-tui not built"
+    @test -f target/release/agent-gui-tauri && ls -lh target/release/agent-gui-tauri || echo "target/release/agent-gui-tauri not built"
+
+# ─── Release ────────────────────────────────────────────────────
 
 # Prepare a release (version required, e.g.: just release 0.8.0)
 release version *FLAGS:
@@ -108,8 +122,8 @@ check-types:
 
 # Regenerate TypeScript bindings from Tauri commands and event types via specta
 gen-types:
-    cargo run -p agent-gui-tauri --bin export-specta -- apps/agent-gui/src/generated/commands.ts
-    cargo run -p agent-gui-tauri --bin export-events -- apps/agent-gui/src/generated/events.ts
+    cargo run -p agent-gui-tauri --features typegen --bin export-specta -- apps/agent-gui/src/generated/commands.ts
+    cargo run -p agent-gui-tauri --features typegen --bin export-events -- apps/agent-gui/src/generated/events.ts
     npx oxfmt --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
 
