@@ -5,6 +5,8 @@ import type { McpServerSettingsView } from "@/generated/commands";
 
 const mcp = useMcpStore();
 const activeSubTab = ref<"servers" | "marketplace">("servers");
+const addServerOpen = ref(false);
+const installMode = ref<"catalog" | "manual">("catalog");
 const searchQuery = ref("");
 const serverName = ref("");
 const serverDescription = ref("");
@@ -45,6 +47,16 @@ function resetForm(): void {
   sseUrl.value = "";
 }
 
+function openAddServerPanel(): void {
+  installMode.value = "catalog";
+  addServerOpen.value = true;
+}
+
+function closeAddServerPanel(): void {
+  addServerOpen.value = false;
+  resetForm();
+}
+
 function parseArgs(argsText: string): string[] {
   return argsText
     .split(/\s+/)
@@ -78,7 +90,7 @@ async function saveServer(): Promise<void> {
   });
 
   if (savedServer) {
-    resetForm();
+    closeAddServerPanel();
   }
 }
 
@@ -138,180 +150,239 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
       {{ mcp.settingsError }}
     </p>
 
-    <div v-show="activeSubTab === 'servers'" role="tabpanel" aria-label="MCP servers">
-      <div class="card mcp-settings__controls">
-        <label for="mcp-server-search">Search servers</label>
-        <input
-          id="mcp-server-search"
-          v-model="searchQuery"
-          type="search"
-          data-test="mcp-search"
-          placeholder="Filter by name, id, transport, or description"
-        />
-      </div>
-
-      <form class="card mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
-        <div class="card-header">Add server</div>
-        <div class="card-body mcp-settings__form-body">
-          <label for="mcp-server-name">Server name</label>
-          <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
-
-          <label for="mcp-server-description">Description</label>
-          <input
-            id="mcp-server-description"
-            v-model="serverDescription"
-            data-test="mcp-form-description"
-          />
-
-          <fieldset class="mcp-settings__fieldset">
-            <legend>Transport</legend>
-            <label>
-              <input v-model="transport" type="radio" value="stdio" data-test="mcp-form-stdio" />
-              stdio
-            </label>
-            <label>
-              <input v-model="transport" type="radio" value="sse" data-test="mcp-form-sse" />
-              SSE
-            </label>
-          </fieldset>
-
-          <template v-if="transport === 'stdio'">
-            <label for="mcp-server-command">Command</label>
-            <input id="mcp-server-command" v-model="stdioCommand" data-test="mcp-form-command" />
-            <label for="mcp-server-args">Arguments</label>
-            <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
-          </template>
-          <template v-else>
-            <label for="mcp-server-url">SSE URL</label>
-            <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
-          </template>
-
-          <div class="mcp-settings__form-actions">
-            <button
-              class="btn btn-primary"
-              type="submit"
-              :disabled="mcp.settingsLoading || !serverName.trim()"
-              data-test="mcp-save-button"
-            >
-              {{ mcp.settingsLoading ? "Saving…" : "Save server" }}
-            </button>
-            <button class="btn" type="button" data-test="mcp-reset-form" @click="resetForm">
-              Reset
-            </button>
+    <div v-if="activeSubTab === 'servers'" role="tabpanel" aria-label="MCP servers">
+      <section class="card mcp-installed-servers" data-test="mcp-installed-servers">
+        <div class="mcp-section-header">
+          <div>
+            <h3>Configured servers</h3>
+            <p>Review installed MCP servers, runtime status, trust state, and row actions.</p>
           </div>
+          <button
+            class="btn btn-primary"
+            type="button"
+            data-test="mcp-add-server-btn"
+            @click="openAddServerPanel"
+          >
+            Add server
+          </button>
         </div>
-      </form>
 
-      <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">Loading MCP servers…</p>
-      <p v-else-if="filteredServers.length === 0" class="empty-state">No MCP servers match.</p>
+        <div class="mcp-settings__controls">
+          <label for="mcp-server-search">Search servers</label>
+          <input
+            id="mcp-server-search"
+            v-model="searchQuery"
+            type="search"
+            data-test="mcp-search"
+            placeholder="Filter by name, id, transport, or description"
+          />
+        </div>
 
-      <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
-        <article
-          v-for="server in filteredServers"
-          :key="server.id"
-          class="card mcp-settings__server"
-          role="listitem"
-          :data-test="`mcp-server-row-${server.id}`"
-        >
-          <div class="card-body mcp-settings__server-body">
-            <div class="mcp-settings__server-main">
-              <h3>{{ server.name }}</h3>
-              <p>{{ server.description || "No description provided." }}</p>
-              <div class="mcp-settings__tags" aria-label="Server metadata">
-                <span class="tag">{{ server.transport }}</span>
-                <span class="tag">{{ server.runtime_status }}</span>
-                <span class="tag">{{ formatTools(server) }}</span>
-                <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
-                  {{ server.enabled ? "Enabled" : "Disabled" }}
-                </span>
-                <span :class="['tag', server.trusted ? 'tag-success' : 'tag-warning']">
-                  {{ server.trusted ? "Trusted" : "Untrusted" }}
-                </span>
+        <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">
+          Loading MCP servers…
+        </p>
+        <p v-else-if="filteredServers.length === 0" class="empty-state">No MCP servers match.</p>
+
+        <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
+          <article
+            v-for="server in filteredServers"
+            :key="server.id"
+            class="card mcp-settings__server"
+            role="listitem"
+            :data-test="`mcp-server-row-${server.id}`"
+          >
+            <div class="card-body mcp-settings__server-body">
+              <div class="mcp-settings__server-main">
+                <h3>{{ server.name }}</h3>
+                <p>{{ server.description || "No description provided." }}</p>
+                <div class="mcp-settings__tags" aria-label="Server metadata">
+                  <span class="tag">{{ server.transport }}</span>
+                  <span class="tag">{{ server.runtime_status }}</span>
+                  <span class="tag">{{ formatTools(server) }}</span>
+                  <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
+                    {{ server.enabled ? "Enabled" : "Disabled" }}
+                  </span>
+                  <span :class="['tag', server.trusted ? 'tag-success' : 'tag-warning']">
+                    {{ server.trusted ? "Trusted" : "Untrusted" }}
+                  </span>
+                </div>
+                <p
+                  v-if="server.last_error"
+                  class="alert alert-error"
+                  role="alert"
+                  :data-test="`mcp-row-error-${server.id}`"
+                >
+                  {{ server.last_error }}
+                </p>
               </div>
-              <p
-                v-if="server.last_error"
-                class="alert alert-error"
-                role="alert"
-                :data-test="`mcp-row-error-${server.id}`"
-              >
-                {{ server.last_error }}
-              </p>
-            </div>
 
-            <div class="mcp-settings__actions" aria-label="Server actions">
+              <div class="mcp-settings__actions" aria-label="Server actions">
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-enable-${server.id}`"
+                  @click="
+                    runServerAction(server.id, () =>
+                      mcp.setServerEnabled(server.id, !server.enabled)
+                    )
+                  "
+                >
+                  {{ server.enabled ? "Disable" : "Enable" }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-start-stop-${server.id}`"
+                  @click="
+                    runServerAction(server.id, () =>
+                      server.runtime_status === 'running'
+                        ? mcp.stopServer(server.id)
+                        : mcp.startServer(server.id)
+                    )
+                  "
+                >
+                  {{ server.runtime_status === "running" ? "Stop" : "Start" }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-refresh-${server.id}`"
+                  @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
+                >
+                  Refresh tools
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-trust-${server.id}`"
+                  @click="
+                    runServerAction(server.id, () =>
+                      server.trusted ? mcp.revokeTrust(server.id) : mcp.trustServer(server.id)
+                    )
+                  "
+                >
+                  {{ server.trusted ? "Revoke trust" : "Trust" }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  disabled
+                  title="Editing existing MCP servers requires full transport details from the backend."
+                  :data-test="`mcp-edit-${server.id}`"
+                >
+                  Edit
+                </button>
+                <button
+                  class="btn btn-danger btn-sm"
+                  type="button"
+                  :disabled="!server.writable || busyServerId === server.id"
+                  :data-test="`mcp-delete-${server.id}`"
+                  @click="runServerAction(server.id, () => mcp.deleteServerSettings(server.id))"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section
+        v-if="addServerOpen"
+        class="card mcp-add-server-panel"
+        data-test="mcp-add-server-panel"
+      >
+        <div class="mcp-section-header">
+          <div>
+            <h3>Add server</h3>
+            <p>Install from the catalog or add a custom stdio/SSE server manually.</p>
+          </div>
+          <button class="btn btn-ghost" type="button" @click="closeAddServerPanel">Close</button>
+        </div>
+
+        <div class="segmented" role="tablist" aria-label="Add server mode">
+          <button
+            class="segmented-btn"
+            type="button"
+            role="tab"
+            :aria-selected="installMode === 'catalog'"
+            data-test="mcp-install-mode-catalog"
+            @click="installMode = 'catalog'"
+          >
+            Catalog / Git
+          </button>
+          <button
+            class="segmented-btn"
+            type="button"
+            role="tab"
+            :aria-selected="installMode === 'manual'"
+            data-test="mcp-install-mode-manual"
+            @click="installMode = 'manual'"
+          >
+            Manual
+          </button>
+        </div>
+
+        <MarketplacePane v-if="installMode === 'catalog'" />
+
+        <form v-else class="mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
+          <div class="card-body mcp-settings__form-body">
+            <label for="mcp-server-name">Server name</label>
+            <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
+
+            <label for="mcp-server-description">Description</label>
+            <input
+              id="mcp-server-description"
+              v-model="serverDescription"
+              data-test="mcp-form-description"
+            />
+
+            <fieldset class="mcp-settings__fieldset">
+              <legend>Transport</legend>
+              <label>
+                <input v-model="transport" type="radio" value="stdio" data-test="mcp-form-stdio" />
+                stdio
+              </label>
+              <label>
+                <input v-model="transport" type="radio" value="sse" data-test="mcp-form-sse" />
+                SSE
+              </label>
+            </fieldset>
+
+            <template v-if="transport === 'stdio'">
+              <label for="mcp-server-command">Command</label>
+              <input id="mcp-server-command" v-model="stdioCommand" data-test="mcp-form-command" />
+              <label for="mcp-server-args">Arguments</label>
+              <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
+            </template>
+            <template v-else>
+              <label for="mcp-server-url">SSE URL</label>
+              <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
+            </template>
+
+            <div class="mcp-settings__form-actions">
               <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-enable-${server.id}`"
-                @click="
-                  runServerAction(server.id, () => mcp.setServerEnabled(server.id, !server.enabled))
-                "
+                class="btn btn-primary"
+                type="submit"
+                :disabled="mcp.settingsLoading || !serverName.trim()"
+                data-test="mcp-save-button"
               >
-                {{ server.enabled ? "Disable" : "Enable" }}
+                {{ mcp.settingsLoading ? "Saving…" : "Save server" }}
               </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-start-stop-${server.id}`"
-                @click="
-                  runServerAction(server.id, () =>
-                    server.runtime_status === 'running'
-                      ? mcp.stopServer(server.id)
-                      : mcp.startServer(server.id)
-                  )
-                "
-              >
-                {{ server.runtime_status === "running" ? "Stop" : "Start" }}
-              </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-refresh-${server.id}`"
-                @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
-              >
-                Refresh tools
-              </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-trust-${server.id}`"
-                @click="
-                  runServerAction(server.id, () =>
-                    server.trusted ? mcp.revokeTrust(server.id) : mcp.trustServer(server.id)
-                  )
-                "
-              >
-                {{ server.trusted ? "Revoke trust" : "Trust" }}
-              </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                disabled
-                title="Editing existing MCP servers requires full transport details from the backend."
-                :data-test="`mcp-edit-${server.id}`"
-              >
-                Edit
-              </button>
-              <button
-                class="btn btn-danger btn-sm"
-                type="button"
-                :disabled="!server.writable || busyServerId === server.id"
-                :data-test="`mcp-delete-${server.id}`"
-                @click="runServerAction(server.id, () => mcp.deleteServerSettings(server.id))"
-              >
-                Delete
+              <button class="btn" type="button" data-test="mcp-reset-form" @click="resetForm">
+                Reset
               </button>
             </div>
           </div>
-        </article>
-      </div>
+        </form>
+      </section>
     </div>
 
-    <div v-show="activeSubTab === 'marketplace'" role="tabpanel" aria-label="MCP marketplace">
+    <div v-if="activeSubTab === 'marketplace'" role="tabpanel" aria-label="MCP marketplace">
       <MarketplacePane />
     </div>
   </section>
@@ -364,8 +435,56 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   margin-bottom: 16px;
 }
 
-.mcp-settings__controls {
+.mcp-installed-servers,
+.mcp-add-server-panel {
   padding: 12px;
+}
+
+.mcp-section-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mcp-section-header h3,
+.mcp-section-header p {
+  margin: 0;
+}
+
+.mcp-section-header p {
+  color: var(--app-text-color-2, #6b7280);
+}
+
+.mcp-settings__controls {
+  padding: 0;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 10px;
+  background: var(--app-color-fill-2, rgba(0, 0, 0, 0.04));
+}
+
+.segmented-btn {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--app-text-color-2, #6b7280);
+  cursor: pointer;
+}
+
+.segmented-btn[aria-selected="true"] {
+  background: var(--app-card-color, #fff);
+  color: var(--app-text-color, #111827);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .mcp-settings__form-body input,

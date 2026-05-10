@@ -1,25 +1,16 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { mountWithPlugins } from "@/test-utils/mount";
+import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { useUiStore } from "@/stores/ui";
 import SettingsView from "./SettingsView.vue";
-const settingsViewSource = readFileSync(
-  fileURLToPath(import.meta.url).replace(/\.test\.ts$/, ".vue"),
-  "utf8"
-);
+import settingsViewSource from "./SettingsView.vue?raw";
 
 function mountSettings() {
-  const { wrapper } = mountWithPlugins(SettingsView, {
+  const mountOptions: MountWithPluginsOptions<typeof SettingsView> = {
     mount: {
       global: {
         stubs: {
           McpSettingsPane: {
             template: '<section data-test="settings-mcp-pane-stub">MCP settings pane</section>'
-          },
-          MarketplacePane: {
-            template:
-              '<section data-test="settings-marketplace-pane-stub">Marketplace pane</section>'
           },
           RouterView: true,
           SkillSettingsPane: {
@@ -28,7 +19,8 @@ function mountSettings() {
         }
       }
     }
-  });
+  };
+  const { wrapper } = mountWithPlugins(SettingsView, mountOptions);
   const ui = useUiStore();
   return { wrapper, ui };
 }
@@ -63,14 +55,14 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(ui.isDark).toBe(true);
   });
 
-  it("shows General, MCP, Skills, and Marketplace tabs", () => {
+  it("shows General, MCP, and Skills tabs without a top-level Marketplace tab", () => {
     const { wrapper } = mountSettings();
 
     const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text());
     expect(tabs).toContain("General");
     expect(tabs).toContain("MCP");
     expect(tabs).toContain("Skills");
-    expect(tabs).toContain("Marketplace");
+    expect(tabs).not.toContain("Marketplace");
   });
 
   it("audit anchors: exposes stable settings pilot selectors", () => {
@@ -81,7 +73,7 @@ describe("SettingsView (Pre-work B regression)", () => {
     expect(wrapper.find('select[data-test="settings-theme"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="settings-tab-mcp"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="settings-tab-skills"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="settings-tab-marketplace"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="settings-tab-marketplace"]').exists()).toBe(false);
   });
 
   it("P1-S1-settings-tab-contrast keeps inactive tabs on accessible theme text color", () => {
@@ -129,17 +121,12 @@ describe("SettingsView (Pre-work B regression)", () => {
 
     expect(wrapper.find('[data-test="settings-skill-pane-stub"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="settings-mcp-pane-stub"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="settings-marketplace-pane-stub"]').exists()).toBe(false);
   });
 
-  it("mounts the Marketplace pane from the Marketplace tab", async () => {
+  it("does not expose a top-level MCP marketplace tab because marketplace lives under MCP", () => {
     const { wrapper } = mountSettings();
 
-    await wrapper.find('[data-test="settings-tab-marketplace"]').trigger("click");
-
-    expect(wrapper.find('[data-test="settings-marketplace-pane-stub"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="settings-mcp-pane-stub"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="settings-skill-pane-stub"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="settings-tab-marketplace"]').exists()).toBe(false);
   });
 
   it("P1-S1-settings-landmarks exposes the settings page as the main landmark with a level-one heading", () => {
