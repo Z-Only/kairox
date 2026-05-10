@@ -8,20 +8,21 @@ describe("renderMarkdown", () => {
     expect(result).toContain("Hello world");
   });
 
-  it("highlights code blocks with a known language using hljs", () => {
-    const result = renderMarkdown("```rust\nfn main() {}\n```");
+  it.each([
+    ["rust", "fn main() {}", "hljs-keyword"],
+    ["typescript", "const value: string = 'ok';", "hljs-keyword"],
+    ["json", '{"ok": true}', "hljs-attr"],
+    ["bash", "echo hello", "hljs-built_in"]
+  ])("highlights registered %s code blocks", (language, code, expectedClass) => {
+    const result = renderMarkdown(`\`\`\`${language}\n${code}\n\`\`\``);
     expect(result).toContain("hljs");
-    // hljs wraps tokens in spans, so check for keyword span and the identifier
-    expect(result).toContain("hljs-keyword");
-    expect(result).toContain("fn");
-    expect(result).toContain("main");
+    expect(result).toContain(expectedClass);
   });
 
   it("falls back to escaped HTML for code blocks with unknown language", () => {
-    const result = renderMarkdown("```foobar\nsome code\n```");
+    const result = renderMarkdown("```foobar\n<script>bad()</script>\n```");
     expect(result).toContain("<pre");
-    expect(result).toContain("some code");
-    // Should not have a language-specific hljs class like "language-foobar"
+    expect(result).toContain("&lt;script&gt;bad()&lt;/script&gt;");
     expect(result).not.toContain("language-foobar");
   });
 
