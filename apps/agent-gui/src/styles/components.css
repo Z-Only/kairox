@@ -345,3 +345,170 @@ textarea {
 .status-dot--idle {
   background: var(--app-text-color-3);
 }
+
+/* === Focus ring === */
+.focus-ring:focus-visible,
+.kx-icon-button:focus-visible,
+.kx-dropdown-item:focus-visible,
+.kx-popover-content:focus-visible,
+.kx-tooltip-content:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+
+/* === Kairox UI primitives === */
+.kx-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-color-2);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.kx-icon-button:hover:not(:disabled) {
+  background: var(--app-hover-color);
+  color: var(--app-text-color);
+}
+
+.kx-icon-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kx-icon-button--default {
+  border-color: var(--app-border-color);
+  background: var(--app-card-color);
+}
+
+.kx-icon-button--danger {
+  color: var(--app-error-color);
+}
+
+.kx-icon-button--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-error-color) 12%, transparent);
+  color: var(--app-error-color);
+}
+
+.kx-dropdown-content,
+.kx-popover-content,
+.kx-tooltip-content {
+  z-index: 50;
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.kx-dropdown-content {
+  min-width: 160px;
+  padding: 4px;
+}
+
+.kx-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--app-text-color);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kx-dropdown-item:hover,
+.kx-dropdown-item[data-highlighted] {
+  background: var(--app-hover-color);
+}
+
+.kx-dropdown-item[data-disabled],
+.kx-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kx-popover-content {
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 12px;
+}
+
+.kx-tooltip-content {
+  max-width: 260px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--app-text-color);
+  color: var(--app-body-color);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.kx-progress-ring {
+  --kx-progress-ring-color: var(--app-primary-color);
+
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--app-text-color);
+}
+
+.kx-progress-ring--success {
+  --kx-progress-ring-color: var(--app-success-color);
+}
+
+.kx-progress-ring--warning {
+  --kx-progress-ring-color: var(--app-warning-color);
+}
+
+.kx-progress-ring--danger {
+  --kx-progress-ring-color: var(--app-error-color);
+}
+
+.kx-progress-ring__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.kx-progress-ring__track,
+.kx-progress-ring__value {
+  fill: none;
+  stroke-width: 4;
+}
+
+.kx-progress-ring__track {
+  stroke: var(--app-border-color);
+}
+
+.kx-progress-ring__value {
+  stroke: var(--kx-progress-ring-color);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s ease;
+}
+
+.kx-progress-ring__label {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 600;
+}
