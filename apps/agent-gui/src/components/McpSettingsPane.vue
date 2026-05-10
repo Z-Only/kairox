@@ -382,7 +382,12 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
       </section>
     </div>
 
-    <div v-if="activeSubTab === 'marketplace'" role="tabpanel" aria-label="MCP marketplace">
+    <div
+      v-if="activeSubTab === 'marketplace'"
+      role="tabpanel"
+      aria-label="MCP marketplace"
+      data-test="mcp-marketplace-embedded"
+    >
       <MarketplacePane />
     </div>
   </section>
