@@ -3,11 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { useConfirm } from "@/composables/useConfirm";
 import type { ProfileInfo } from "../types";
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore, type ProjectInfo, type ProjectSessionInfo } from "@/stores/project";
+import { useWorkspaceUiStore, type SidebarSection } from "@/stores/workspaceUi";
 
 const { t } = useI18n();
 const { confirm } = useConfirm();
 
 const session = useSessionStore();
+const projects = useProjectStore();
+const workspaceUi = useWorkspaceUiStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -18,6 +22,17 @@ const activeSessionId = computed<string | null>(() => {
   const v = route.params.sessionId;
   const id = Array.isArray(v) ? v[0] : v;
   return id ?? session.currentSessionId;
+});
+
+const orderedSidebarSections = computed<SidebarSection[]>(() => {
+  const configuredSections = workspaceUi.sectionOrder.filter(
+    (section, index, sections) => sections.indexOf(section) === index
+  );
+  const requiredSections: SidebarSection[] = ["projects", "sessions"];
+  return [
+    ...configuredSections,
+    ...requiredSections.filter((section) => !configuredSections.includes(section))
+  ];
 });
 
 const showNewSession = ref(false);
@@ -131,9 +146,75 @@ function selectProfile(alias: string) {
   profileDropdownOpen.value = false;
 }
 
+function getProjectSessions(projectId: string): ProjectSessionInfo[] {
+  return projects.sessionsByProject.get(projectId) ?? [];
+}
+
+async function switchToProjectSession(projectSession: ProjectSessionInfo) {
+  await switchToSession(projectSession.sessionId);
+}
+
+async function createProjectSession(projectId: string) {
+  try {
+    const projectSession = await projects.createProjectDraftSession(projectId);
+    await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
+  } catch (e) {
+    console.error("Failed to start project session:", e);
+  }
+}
+
+async function toggleProjectExpanded(project: ProjectInfo) {
+  const expanded = !project.expanded;
+  try {
+    await projects.updateProjectExpanded(project.projectId, expanded);
+    if (expanded) {
+      await projects.loadProjectSessions(project.projectId);
+    }
+  } catch (e) {
+    console.error("Failed to update project expansion:", e);
+  }
+}
+
+async function promptRemoveProject(project: ProjectInfo) {
+  const confirmed = await confirm({
+    title: t("common.confirm"),
+    message: `Remove project "${project.displayName}" from the sidebar?`,
+    confirmText: t("common.delete"),
+    cancelText: t("common.cancel"),
+    type: "warning"
+  });
+  if (confirmed) {
+    await projects.removeProject(project.projectId);
+  }
+}
+
+async function toggleArchiveOpen() {
+  workspaceUi.archiveOpen = !workspaceUi.archiveOpen;
+  if (workspaceUi.archiveOpen && projects.archivedSessions.length === 0) {
+    await projects.loadArchivedSessions();
+  }
+}
+
+async function loadProjectsForSidebar() {
+  try {
+    await projects.loadProjects();
+    await Promise.all(
+      projects.activeProjects
+        .filter((project) => project.expanded)
+        .map((project) => projects.loadProjectSessions(project.projectId))
+    );
+  } catch (e) {
+    console.error("Failed to load projects:", e);
+  }
+}
+
 function keyIcon(hasApiKey: boolean): string {
   return hasApiKey ? "🔑" : "🚫";
 }
+
+onMounted(() => {
+  void loadProjectsForSidebar();
+});
 </script>
 
 <template>
@@ -145,71 +226,200 @@ function keyIcon(hasApiKey: boolean): string {
       </button>
     </header>
 
-    <div v-if="session.sessions.length > 0" class="session-scroll">
-      <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
-      <ul class="session-list">
-        <li
-          v-for="item in session.sessions"
-          :key="item.id"
-          :class="['session-item', { active: item.id === activeSessionId }]"
-          data-test="session-item"
-          @click="switchToSession(item.id)"
+    <div class="session-scroll">
+      <template v-for="sectionName in orderedSidebarSections" :key="sectionName">
+        <section
+          v-if="sectionName === 'projects'"
+          class="sidebar-section"
+          data-test="projects-section"
         >
-          <span class="session-indicator">●</span>
-
-          <!-- Inline rename mode -->
-          <template v-if="editingSessionId === item.id">
-            <input
-              :ref="(el) => bindRenameInput(el as Element | null, item.id)"
-              v-model="editingTitle"
-              class="rename-input"
-              data-test="session-rename-input"
-              @keydown.enter="confirmRename"
-              @keydown.escape="cancelRename"
-              @blur="confirmRename"
-              @click.stop
-            />
+          <div class="section-heading">
+            <h3>Projects</h3>
             <button
-              class="action-btn"
+              class="section-action-btn"
               type="button"
-              :aria-label="t('common.confirm')"
-              data-test="session-rename-confirm"
-              @mousedown.prevent
-              @click.stop="confirmRename"
+              data-test="project-archive-toggle"
+              :aria-label="
+                workspaceUi.archiveOpen
+                  ? 'Hide archived project sessions'
+                  : 'Show archived project sessions'
+              "
+              @click="toggleArchiveOpen"
             >
-              ✓
+              Archive
             </button>
-          </template>
+          </div>
 
-          <!-- Normal display mode -->
-          <template v-else>
-            <span class="session-title">{{ item.title }}</span>
-            <span class="session-actions">
+          <ul class="project-list">
+            <li
+              v-for="project in projects.activeProjects"
+              :key="project.projectId"
+              class="project-item"
+            >
+              <div class="project-row">
+                <button
+                  class="project-expand-btn"
+                  type="button"
+                  data-test="project-expand-btn"
+                  :aria-label="
+                    project.expanded
+                      ? `Collapse ${project.displayName}`
+                      : `Expand ${project.displayName}`
+                  "
+                  @click.stop="toggleProjectExpanded(project)"
+                >
+                  {{ project.expanded ? "▾" : "▸" }}
+                </button>
+                <button
+                  class="project-title-btn"
+                  type="button"
+                  :aria-label="`Toggle ${project.displayName}`"
+                  @click="toggleProjectExpanded(project)"
+                >
+                  <span class="project-name">{{ project.displayName }}</span>
+                  <span class="project-path">{{ project.rootPath }}</span>
+                </button>
+                <span class="project-actions">
+                  <button
+                    class="project-action-btn"
+                    type="button"
+                    data-test="project-draft-btn"
+                    :aria-label="`New session in ${project.displayName}`"
+                    @click.stop="createProjectSession(project.projectId)"
+                  >
+                    New
+                  </button>
+                  <button
+                    class="project-action-btn project-remove-btn"
+                    type="button"
+                    :aria-label="`Remove ${project.displayName}`"
+                    @click.stop="promptRemoveProject(project)"
+                  >
+                    Remove
+                  </button>
+                </span>
+              </div>
+
+              <ul v-if="project.expanded" class="project-session-list">
+                <li
+                  v-for="projectSession in getProjectSessions(project.projectId)"
+                  :key="projectSession.sessionId"
+                >
+                  <button
+                    type="button"
+                    :class="[
+                      'project-session-item',
+                      { active: projectSession.sessionId === activeSessionId }
+                    ]"
+                    data-test="project-session-btn"
+                    :aria-label="`Open ${projectSession.title}`"
+                    @click="switchToProjectSession(projectSession)"
+                  >
+                    <span class="session-indicator">●</span>
+                    <span class="session-title">{{ projectSession.title }}</span>
+                    <span v-if="projectSession.branch" class="project-session-branch">
+                      {{ projectSession.branch }}
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <ul v-if="workspaceUi.archiveOpen" class="project-session-list archived-session-list">
+            <li
+              v-for="archivedSession in projects.archivedSessions"
+              :key="archivedSession.sessionId"
+            >
               <button
-                class="action-btn"
-                :title="t('sessions.renameTitle')"
-                :aria-label="t('sessions.renameTitle')"
-                data-test="session-rename-btn"
-                @click.stop="startRename(item.id, item.title)"
+                type="button"
+                :class="[
+                  'project-session-item',
+                  { active: archivedSession.sessionId === activeSessionId }
+                ]"
+                data-test="project-session-btn"
+                :aria-label="`Open ${archivedSession.title}`"
+                @click="switchToProjectSession(archivedSession)"
               >
-                ✏️
+                <span class="session-indicator archived-indicator">●</span>
+                <span class="session-title">{{ archivedSession.title }}</span>
               </button>
-              <button
-                class="action-btn action-delete"
-                :title="t('sessions.deleteTitle')"
-                :aria-label="t('sessions.deleteTitle')"
-                data-test="session-delete-btn"
-                @click.stop="promptDelete(item.id, item.title)"
+            </li>
+          </ul>
+        </section>
+
+        <section v-else class="sidebar-section" data-test="sessions-section">
+          <div class="section-heading">
+            <h3>Sessions</h3>
+          </div>
+          <template v-if="session.sessions.length > 0">
+            <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
+            <ul class="session-list">
+              <li
+                v-for="item in session.sessions"
+                :key="item.id"
+                :class="['session-item', { active: item.id === activeSessionId }]"
+                data-test="session-item"
+                @click="switchToSession(item.id)"
               >
-                🗑️
-              </button>
-            </span>
+                <span class="session-indicator">●</span>
+
+                <!-- Inline rename mode -->
+                <template v-if="editingSessionId === item.id">
+                  <input
+                    :ref="(el) => bindRenameInput(el as Element | null, item.id)"
+                    v-model="editingTitle"
+                    class="rename-input"
+                    data-test="session-rename-input"
+                    @keydown.enter="confirmRename"
+                    @keydown.escape="cancelRename"
+                    @blur="confirmRename"
+                    @click.stop
+                  />
+                  <button
+                    class="action-btn"
+                    type="button"
+                    :aria-label="t('common.confirm')"
+                    data-test="session-rename-confirm"
+                    @mousedown.prevent
+                    @click.stop="confirmRename"
+                  >
+                    ✓
+                  </button>
+                </template>
+
+                <!-- Normal display mode -->
+                <template v-else>
+                  <span class="session-title">{{ item.title }}</span>
+                  <span class="session-actions">
+                    <button
+                      class="action-btn"
+                      :title="t('sessions.renameTitle')"
+                      :aria-label="t('sessions.renameTitle')"
+                      data-test="session-rename-btn"
+                      @click.stop="startRename(item.id, item.title)"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      class="action-btn action-delete"
+                      :title="t('sessions.deleteTitle')"
+                      :aria-label="t('sessions.deleteTitle')"
+                      data-test="session-delete-btn"
+                      @click.stop="promptDelete(item.id, item.title)"
+                    >
+                      🗑️
+                    </button>
+                  </span>
+                </template>
+              </li>
+            </ul>
           </template>
-        </li>
-      </ul>
-    </div>
-    <div v-else class="empty-state empty-hint" data-test="sessions-empty">
-      {{ t("sessions.emptyHint") }}
+          <div v-else class="empty-state empty-hint" data-test="sessions-empty">
+            {{ t("sessions.emptyHint") }}
+          </div>
+        </section>
+      </template>
     </div>
 
     <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
@@ -301,6 +511,145 @@ function keyIcon(hasApiKey: boolean): string {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+.sidebar-section {
+  border-bottom: 1px solid var(--app-border-color);
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+.section-heading h3 {
+  margin: 0;
+  color: var(--app-text-color-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.section-action-btn,
+.project-action-btn,
+.project-expand-btn,
+.project-title-btn {
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--app-text-color);
+  font-family: inherit;
+}
+.section-action-btn,
+.project-action-btn {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--app-text-color-2);
+  font-size: 12px;
+}
+.section-action-btn:hover,
+.project-action-btn:hover,
+.project-expand-btn:hover,
+.project-title-btn:hover,
+.project-session-item:hover {
+  background: var(--app-hover-color);
+}
+.section-action-btn:focus-visible,
+.project-action-btn:focus-visible,
+.project-expand-btn:focus-visible,
+.project-title-btn:focus-visible,
+.project-session-item:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+.project-list,
+.project-session-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 2px 8px;
+}
+.project-expand-btn {
+  flex-shrink: 0;
+  width: 28px;
+  min-height: 28px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.project-title-btn {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 4px;
+  text-align: left;
+}
+.project-name,
+.project-path {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.project-path {
+  color: var(--app-text-color-3);
+  font-size: 11px;
+}
+.project-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.project-remove-btn:hover {
+  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
+}
+.project-session-list {
+  padding: 0 8px 4px 40px;
+}
+.archived-session-list {
+  padding: 0 8px 8px 16px;
+}
+.project-session-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--app-text-color);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+.project-session-item.active {
+  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
+  font-weight: 600;
+}
+.project-session-branch {
+  flex-shrink: 0;
+  color: var(--app-text-color-3);
+  font-size: 11px;
+}
+.archived-indicator {
+  color: var(--app-text-color-3);
 }
 .empty-state {
   display: flex;
