@@ -23,9 +23,7 @@ const roleClass: Record<ProjectedRole, string> = {
   system: "system"
 };
 
-const currentSession = computed(() =>
-  session.sessions.find((sessionInfo) => sessionInfo.id === session.currentSessionId)
-);
+const currentSession = computed(() => session.currentSessionInfo);
 
 const sessionGitMeta = computed(() => {
   const sessionInfo = currentSession.value;

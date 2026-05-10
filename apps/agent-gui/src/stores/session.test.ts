@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import {
   filterOrdinarySessions,
@@ -7,10 +7,40 @@ import {
 } from "@/stores/session";
 import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
+import { useProjectStore } from "@/stores/project";
+import { invoke } from "@tauri-apps/api/core";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn()))
+}));
+
+const mockedInvoke = vi.mocked(invoke);
 import type { DomainEvent, AgentRole, EventPayload } from "@/types";
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  vi.clearAllMocks();
+  mockedInvoke.mockImplementation((command) => {
+    if (command === "switch_session") {
+      return Promise.resolve({
+        messages: [],
+        task_titles: [],
+        task_graph: { tasks: [] },
+        token_stream: "",
+        cancelled: false,
+        last_context_usage: null,
+        model_limits: null,
+        compaction: { type: "Idle" }
+      });
+    }
+
+    if (command === "get_trace") {
+      return Promise.resolve([]);
+    }
+
+    return Promise.resolve(null);
+  });
 });
 
 function makeEvent(payload: EventPayload, sourceAgentId = "agent_system"): DomainEvent {
@@ -226,5 +256,53 @@ describe("filterOrdinarySessions", () => {
     };
 
     expect(filterOrdinarySessions([ordinarySession, projectSession])).toEqual([ordinarySession]);
+  });
+});
+
+describe("project session metadata", () => {
+  it("switches to a project session through standard store side effects and exposes current session metadata", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    session.sessions = [
+      {
+        id: "regular-1",
+        title: "Regular",
+        profile: "fast",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        visibility: null
+      }
+    ];
+    projectStore.sessionsByProject = new Map([
+      [
+        "project-1",
+        [
+          {
+            sessionId: "project-session-1",
+            title: "Project task",
+            profile: "slow",
+            projectId: "project-1",
+            worktreePath: "/repo/.worktrees/project-task",
+            branch: "feat/project-task",
+            visibility: "draft_hidden"
+          }
+        ]
+      ]
+    ]);
+    session.projection.messages = [{ role: "user", content: "stale" }];
+
+    await session.switchSession("project-session-1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_session", {
+      sessionId: "project-session-1"
+    });
+    expect(session.currentSessionId).toBe("project-session-1");
+    expect(session.currentProfile).toBe("slow");
+    expect(session.projection.messages).toEqual([]);
+    expect(session.currentSessionInfo?.project_id).toBe("project-1");
+    expect(session.currentSessionInfo?.worktree_path).toBe("/repo/.worktrees/project-task");
+    expect(session.currentSessionInfo?.branch).toBe("feat/project-task");
+    expect(session.currentSessionInfo?.visibility).toBe("draft_hidden");
   });
 });

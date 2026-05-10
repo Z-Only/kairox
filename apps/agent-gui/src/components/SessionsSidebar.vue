@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useConfirm } from "@/composables/useConfirm";
-import type { ProfileInfo, SessionProjection } from "../types";
+import type { ProfileInfo } from "../types";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore, type ProjectInfo, type ProjectSessionInfo } from "@/stores/project";
 import { useWorkspaceUiStore, type SidebarSection } from "@/stores/workspaceUi";
@@ -152,12 +152,7 @@ function getProjectSessions(projectId: string): ProjectSessionInfo[] {
 }
 
 async function activateProjectSession(projectSession: ProjectSessionInfo) {
-  const projection = await invoke<SessionProjection>("switch_session", {
-    sessionId: projectSession.sessionId
-  });
-  session.currentSessionId = projectSession.sessionId;
-  session.currentProfile = projectSession.profile;
-  session.setProjection(projection);
+  await session.switchProjectSession(projectSession);
   await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
 }
 

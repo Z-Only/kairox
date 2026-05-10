@@ -46,7 +46,7 @@ function mockInvokeCommandResponses(responses: InvokeResponses = {}) {
       });
     }
 
-    if (command === "get_profile_info" || command === "list_profiles") {
+    if (command === "get_profile_info" || command === "list_profiles" || command === "get_trace") {
       return Promise.resolve([]);
     }
 
