@@ -12,14 +12,16 @@ const CONFIG_FILENAME: &str = "config.toml";
 ///
 /// Returns the path and which source it came from, or `None` if no config found.
 pub fn find_config() -> Option<(PathBuf, ConfigSource)> {
-    let cwd = std::env::current_dir().ok()?;
-    find_config_from(&cwd, dirs::home_dir().as_deref())
+    let cwd = std::env::current_dir().ok();
+    find_config_from(cwd.as_deref(), dirs::home_dir().as_deref())
 }
 
-fn find_config_from(cwd: &Path, home: Option<&Path>) -> Option<(PathBuf, ConfigSource)> {
-    let project_path = cwd.join(CONFIG_DIR).join(CONFIG_FILENAME);
-    if project_path.is_file() {
-        return Some((project_path, ConfigSource::ProjectFile));
+fn find_config_from(cwd: Option<&Path>, home: Option<&Path>) -> Option<(PathBuf, ConfigSource)> {
+    if let Some(project_dir) = cwd {
+        let project_path = project_dir.join(CONFIG_DIR).join(CONFIG_FILENAME);
+        if project_path.is_file() {
+            return Some((project_path, ConfigSource::ProjectFile));
+        }
     }
 
     if let Some(home_dir) = home {
@@ -56,7 +58,7 @@ mod tests {
         write_config(&project_config);
         write_config(&user_config);
 
-        let (path, source) = find_config_from(project_dir.path(), Some(home_dir.path()))
+        let (path, source) = find_config_from(Some(project_dir.path()), Some(home_dir.path()))
             .expect("project config is discovered");
 
         assert_eq!(path, project_config);
@@ -70,8 +72,21 @@ mod tests {
         let user_config = home_dir.path().join(".kairox/config.toml");
         write_config(&user_config);
 
-        let (path, source) = find_config_from(project_dir.path(), Some(home_dir.path()))
+        let (path, source) = find_config_from(Some(project_dir.path()), Some(home_dir.path()))
             .expect("user config is discovered");
+
+        assert_eq!(path, user_config);
+        assert_eq!(source, ConfigSource::UserFile);
+    }
+
+    #[test]
+    fn user_config_is_used_when_current_dir_is_unavailable() {
+        let home_dir = TempDir::new().expect("home temp dir");
+        let user_config = home_dir.path().join(".kairox/config.toml");
+        write_config(&user_config);
+
+        let (path, source) = find_config_from(None, Some(home_dir.path()))
+            .expect("user config is discovered without cwd");
 
         assert_eq!(path, user_config);
         assert_eq!(source, ConfigSource::UserFile);
@@ -87,7 +102,7 @@ mod tests {
         )
         .expect("write legacy config");
 
-        let result = find_config_from(project_dir.path(), None);
+        let result = find_config_from(Some(project_dir.path()), None);
 
         assert!(result.is_none());
     }
@@ -96,7 +111,7 @@ mod tests {
     fn no_config_returns_none() {
         let project_dir = TempDir::new().expect("project temp dir");
 
-        let result = find_config_from(project_dir.path(), None);
+        let result = find_config_from(Some(project_dir.path()), None);
 
         assert!(result.is_none());
     }
