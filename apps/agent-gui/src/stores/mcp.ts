@@ -4,17 +4,51 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import type { McpServerStatusResponse } from "@/generated/commands";
+import {
+  commands,
+  type McpServerSettingsInput,
+  type McpServerSettingsView,
+  type McpServerStatusResponse
+} from "@/generated/commands";
 import { useUiStore } from "@/stores/ui";
 
 export interface McpServerEntry extends McpServerStatusResponse {
   error?: string;
 }
 
+type CommandResult<T> = { status: "ok"; data: T } | { status: "error"; error: string };
+
+function formatError(caughtError: unknown): string {
+  return caughtError instanceof Error ? caughtError.message : String(caughtError);
+}
+
+function isCommandResult<T>(result: T | CommandResult<T>): result is CommandResult<T> {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "status" in result &&
+    (result.status === "ok" || result.status === "error")
+  );
+}
+
+async function unwrapCommandResult<T>(resultPromise: Promise<T | CommandResult<T>>): Promise<T> {
+  const result = await resultPromise;
+  if (!isCommandResult(result)) {
+    return result;
+  }
+  if (result.status === "error") {
+    throw new Error(result.error);
+  }
+  return result.data;
+}
+
 export const useMcpStore = defineStore("mcp", () => {
   const servers = ref<McpServerEntry[]>([]);
   const trustedServerIds = ref<string[]>([]);
   const loading = ref(false);
+  const settingsServers = ref<McpServerSettingsView[]>([]);
+  const settingsLoading = ref(false);
+  const settingsError = ref<string | null>(null);
 
   const runningServers = computed(() => servers.value.filter((s) => s.status === "running"));
 
@@ -36,6 +70,19 @@ export const useMcpStore = defineStore("mcp", () => {
         ...update
       });
     }
+  }
+
+  function upsertSettingsServer(server: McpServerSettingsView): void {
+    const existingServerIndex = settingsServers.value.findIndex(
+      (settingsServer) => settingsServer.id === server.id
+    );
+    if (existingServerIndex >= 0) {
+      settingsServers.value = settingsServers.value.map((settingsServer) =>
+        settingsServer.id === server.id ? server : settingsServer
+      );
+      return;
+    }
+    settingsServers.value = [...settingsServers.value, server];
   }
 
   async function fetchServers(): Promise<void> {
@@ -109,6 +156,69 @@ export const useMcpStore = defineStore("mcp", () => {
     }
   }
 
+  async function fetchSettingsServers(): Promise<void> {
+    settingsLoading.value = true;
+    settingsError.value = null;
+    try {
+      settingsServers.value = await unwrapCommandResult(commands.listMcpServerSettings());
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
+  async function saveServerSettings(
+    input: McpServerSettingsInput
+  ): Promise<McpServerSettingsView | null> {
+    settingsLoading.value = true;
+    settingsError.value = null;
+    try {
+      const savedServer = await unwrapCommandResult(commands.upsertMcpServerSettings(input));
+      upsertSettingsServer(savedServer);
+      return savedServer;
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+      return null;
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
+  async function setServerEnabled(serverId: string, enabled: boolean): Promise<void> {
+    settingsError.value = null;
+    try {
+      await unwrapCommandResult(commands.setMcpServerEnabled(serverId, enabled));
+      settingsServers.value = settingsServers.value.map((settingsServer) =>
+        settingsServer.id === serverId ? { ...settingsServer, enabled } : settingsServer
+      );
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    }
+  }
+
+  async function deleteServerSettings(serverId: string): Promise<void> {
+    settingsError.value = null;
+    try {
+      await unwrapCommandResult(commands.deleteMcpServerSettings(serverId));
+      settingsServers.value = settingsServers.value.filter(
+        (settingsServer) => settingsServer.id !== serverId
+      );
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    }
+  }
+
+  async function openConfigFile(): Promise<string | null> {
+    settingsError.value = null;
+    try {
+      return await unwrapCommandResult(commands.openMcpConfigFile());
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+      return null;
+    }
+  }
+
   /**
    * Apply an MCP-related DomainEvent to the local state.
    * Called from useTauriEvents for real-time updates.
@@ -153,6 +263,9 @@ export const useMcpStore = defineStore("mcp", () => {
     servers,
     trustedServerIds,
     loading,
+    settingsServers,
+    settingsLoading,
+    settingsError,
     runningServers,
     failedServers,
     runningCount,
@@ -163,6 +276,11 @@ export const useMcpStore = defineStore("mcp", () => {
     trustServer,
     revokeTrust,
     refreshTools,
+    fetchSettingsServers,
+    saveServerSettings,
+    setServerEnabled,
+    deleteServerSettings,
+    openConfigFile,
     handleMcpEvent
   };
 });

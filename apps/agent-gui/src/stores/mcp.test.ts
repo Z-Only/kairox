@@ -13,8 +13,45 @@ vi.mock("@/stores/ui", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { useMcpStore } from "@/stores/mcp";
+import type { McpServerSettingsInput, McpServerSettingsView } from "@/generated/commands";
 
 const mockedInvoke = vi.mocked(invoke);
+
+function createMcpServerSettings(
+  overrides: Partial<McpServerSettingsView> = {}
+): McpServerSettingsView {
+  return {
+    id: "files",
+    name: "files",
+    transport: "stdio",
+    enabled: true,
+    runtime_status: "stopped",
+    trusted: false,
+    tool_count: null,
+    last_error: null,
+    writable: true,
+    config_path: "/tmp/mcp.toml",
+    description: null,
+    ...overrides
+  };
+}
+
+function createMcpServerInput(
+  overrides: Partial<McpServerSettingsInput> = {}
+): McpServerSettingsInput {
+  return {
+    name: "files",
+    transport: {
+      transport: "stdio",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem"],
+      env: {}
+    },
+    enabled: true,
+    description: null,
+    ...overrides
+  };
+}
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -237,5 +274,132 @@ describe("handleMcpEvent", () => {
     expect(mcp.servers).toHaveLength(1);
     expect(mcp.servers[0].id).toBe("new_server");
     expect(mcp.servers[0].status).toBe("starting");
+  });
+});
+
+describe("settings servers", () => {
+  it("loads MCP settings servers from the settings command", async () => {
+    mockedInvoke.mockResolvedValueOnce([createMcpServerSettings()]);
+
+    const store = useMcpStore();
+    await store.fetchSettingsServers();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_server_settings");
+    expect(store.settingsServers[0].id).toBe("files");
+  });
+
+  it("saves new MCP server settings from generated command envelope", async () => {
+    const savedServer = createMcpServerSettings({ id: "github", name: "github" });
+    const input = createMcpServerInput({ name: "github" });
+    mockedInvoke.mockResolvedValueOnce(savedServer);
+
+    const store = useMcpStore();
+    const result = await store.saveServerSettings(input);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("upsert_mcp_server_settings", { input });
+    expect(result).toEqual(savedServer);
+    expect(store.settingsServers).toEqual([savedServer]);
+    expect(store.settingsError).toBeNull();
+    expect(store.settingsLoading).toBe(false);
+  });
+
+  it("overwrites existing MCP server settings on successful save", async () => {
+    const originalServer = createMcpServerSettings({ id: "files", enabled: false });
+    const savedServer = createMcpServerSettings({ id: "files", enabled: true });
+    const input = createMcpServerInput({ enabled: true });
+    mockedInvoke.mockResolvedValueOnce(savedServer);
+
+    const store = useMcpStore();
+    store.settingsServers = [originalServer, createMcpServerSettings({ id: "github" })];
+
+    const result = await store.saveServerSettings(input);
+
+    expect(result).toEqual(savedServer);
+    expect(store.settingsServers).toEqual([savedServer, createMcpServerSettings({ id: "github" })]);
+  });
+
+  it("returns null and preserves settings servers when saving fails", async () => {
+    const existingServers = [createMcpServerSettings({ id: "files" })];
+    mockedInvoke.mockRejectedValueOnce("state file is read-only");
+
+    const store = useMcpStore();
+    store.settingsServers = existingServers;
+
+    const result = await store.saveServerSettings(createMcpServerInput({ name: "blocked" }));
+
+    expect(result).toBeNull();
+    expect(store.settingsError).toContain("state file is read-only");
+    expect(store.settingsServers).toEqual(existingServers);
+    expect(store.settingsLoading).toBe(false);
+  });
+
+  it("updates only the target MCP server enabled flag", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    const store = useMcpStore();
+    store.settingsServers = [
+      createMcpServerSettings({ id: "files", enabled: false }),
+      createMcpServerSettings({ id: "github", enabled: false })
+    ];
+
+    await store.setServerEnabled("files", true);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_mcp_server_enabled", {
+      serverId: "files",
+      enabled: true
+    });
+    expect(store.settingsServers).toEqual([
+      createMcpServerSettings({ id: "files", enabled: true }),
+      createMcpServerSettings({ id: "github", enabled: false })
+    ]);
+  });
+
+  it("keeps enabled flags unchanged when enabling an MCP server fails", async () => {
+    const existingServers = [
+      createMcpServerSettings({ id: "files", enabled: false }),
+      createMcpServerSettings({ id: "github", enabled: true })
+    ];
+    mockedInvoke.mockRejectedValueOnce(new Error("permission denied"));
+
+    const store = useMcpStore();
+    store.settingsServers = existingServers;
+
+    await store.setServerEnabled("files", true);
+
+    expect(store.settingsError).toContain("permission denied");
+    expect(store.settingsServers).toEqual(existingServers);
+  });
+
+  it("deletes MCP server settings after successful command", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    const store = useMcpStore();
+    store.settingsServers = [
+      createMcpServerSettings({ id: "files" }),
+      createMcpServerSettings({ id: "github" })
+    ];
+
+    await store.deleteServerSettings("files");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_mcp_server_settings", {
+      serverId: "files"
+    });
+    expect(store.settingsServers).toEqual([createMcpServerSettings({ id: "github" })]);
+  });
+
+  it("keeps MCP server settings when delete command fails", async () => {
+    const existingServers = [
+      createMcpServerSettings({ id: "files" }),
+      createMcpServerSettings({ id: "github" })
+    ];
+    mockedInvoke.mockRejectedValueOnce("delete failed");
+
+    const store = useMcpStore();
+    store.settingsServers = existingServers;
+
+    await store.deleteServerSettings("files");
+
+    expect(store.settingsError).toContain("delete failed");
+    expect(store.settingsServers).toEqual(existingServers);
   });
 });

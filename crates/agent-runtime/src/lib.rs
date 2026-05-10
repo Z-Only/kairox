@@ -8,10 +8,13 @@ pub mod event_emitter;
 pub mod facade_runtime;
 pub(crate) mod marketplace_toml;
 pub mod mcp_manager;
+pub mod mcp_settings;
 pub mod memory_handler;
 pub mod permission;
 pub mod project;
 pub mod session;
+pub mod skill_package;
+pub mod skill_settings;
 pub mod skills;
 pub mod task_graph;
 

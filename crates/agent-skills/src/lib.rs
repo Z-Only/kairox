@@ -1,5 +1,7 @@
 pub mod frontmatter;
 pub mod registry;
+pub mod settings;
+pub mod state;
 pub mod types;
 
 pub use frontmatter::{parse_skill_markdown, ParsedSkillMarkdown};
@@ -14,6 +16,8 @@ pub enum SkillError {
     MissingRequiredField { field: &'static str },
     #[error("invalid SKILL.md frontmatter: {0}")]
     InvalidFrontmatter(String),
+    #[error("invalid skills state file: {0}")]
+    InvalidStateFile(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }

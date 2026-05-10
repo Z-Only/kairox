@@ -219,6 +219,11 @@ impl McpServerManager {
         engine.trusted_servers().contains(server_id)
     }
 
+    /// Return a clone of the permission engine handle for settings snapshots.
+    pub(crate) fn permission_engine(&self) -> Arc<Mutex<PermissionEngine>> {
+        Arc::clone(&self.permission_engine)
+    }
+
     /// Stop a specific server.
     pub async fn shutdown_server(&mut self, server_id: &str) -> Result<(), McpError> {
         let lifecycle = self

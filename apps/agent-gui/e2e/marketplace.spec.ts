@@ -2,7 +2,7 @@
  * E2E: MCP Marketplace — browse, filter, install (happy + runtime-missing),
  * uninstall flows backed by tauri-mock fixtures.
  *
- * Marketplace is accessed via the Settings page's "Marketplace" tab.
+ * Marketplace is accessed through the Settings page's MCP tab.
  */
 import { test, expect } from "@playwright/test";
 import { dirname, resolve } from "path";
@@ -15,7 +15,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
   await page.goto("/");
   await page.getByTestId("nav-settings").click();
-  await page.getByRole("tab", { name: /marketplace/i }).click();
+  await page.getByTestId("settings-tab-mcp").click();
+  await page.getByTestId("mcp-subtab-marketplace").click();
 });
 
 test.describe("Marketplace", () => {
@@ -44,15 +45,16 @@ test.describe("Marketplace", () => {
     await expect(page.getByTestId("uninstall-filesystem")).toBeEnabled();
   });
 
-  test("runtime-missing path shows a hint", async ({ page }) => {
+  test("runtime-missing path shows a missing npx hint", async ({ page }) => {
     await page.evaluate(() => {
       // @ts-expect-error injected on window for tauri-mock to read
-      window.__MARKETPLACE_FORCE_MISSING__ = ["node"];
+      window.__MARKETPLACE_FORCE_MISSING__ = ["npx"];
     });
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
     await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await expect(page.getByTestId("install-progress")).toContainText("Missing runtimes");
+    await expect(page.getByTestId("install-progress")).toContainText("npx");
   });
 
   test("uninstall removes the entry", async ({ page }) => {
@@ -126,5 +128,126 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     await expect(page.getByText(/url must start with http/i)).toBeVisible();
     // The chip should NOT have been created.
     await expect(page.getByTestId("source-chip-bad")).toHaveCount(0);
+  });
+});
+
+test.describe("Settings panes backed by tauri-mock", () => {
+  test("manages MCP settings server state", async ({ page }) => {
+    await page.getByTestId("mcp-subtab-servers").click();
+    await expect(page.getByTestId("mcp-server-row-github")).toContainText("GitHub");
+    await expect(page.getByTestId("mcp-server-row-github")).toContainText("Enabled");
+
+    await page.getByTestId("mcp-enable-github").click();
+    await expect(page.getByTestId("mcp-server-row-github")).toContainText("Disabled");
+
+    await page.getByTestId("mcp-form-name").fill("Local Tools");
+    await page.getByTestId("mcp-form-command").fill("node");
+    await page.getByTestId("mcp-form-args").fill("server.js --stdio");
+    await page.getByTestId("mcp-save-button").click();
+    await expect(page.getByTestId("mcp-server-row-local-tools")).toContainText("Local Tools");
+
+    await page.getByTestId("mcp-delete-local-tools").click();
+    await expect(page.getByTestId("mcp-server-row-local-tools")).toHaveCount(0);
+  });
+
+  test("manages skill settings discovery, install, update, and delete", async ({ page }) => {
+    await page.getByTestId("settings-tab-skills").click();
+    await expect(page.getByTestId("skill-row-project-project-review")).toContainText(
+      "Project Review"
+    );
+    await expect(page.getByTestId("skill-invalid-project-invalid-workspace-skill")).toContainText(
+      "Missing required description"
+    );
+
+    await page.getByTestId("skill-enabled-project-project-review").click();
+    await expect(page.getByTestId("skill-row-project-project-review")).toContainText("Disabled");
+
+    await page.getByTestId("skill-update-project-registry-review").click();
+    await expect(page.getByTestId("skill-row-project-registry-review")).toContainText("up to date");
+
+    await page.getByTestId("skill-discover-query").fill("review");
+    await page.getByTestId("skill-discover-submit").click();
+    await expect(page.getByTestId("skill-remote-code-review-assistant")).toBeVisible();
+    await page.getByTestId("skill-install-code-review-assistant").click();
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toContainText(
+      "Code Review Assistant"
+    );
+
+    await page.getByTestId("skill-delete-project-code-review-assistant").click();
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
+  });
+
+  test("mock rejects ambiguous legacy skill ids without mutating rows", async ({ page }) => {
+    await page.getByTestId("settings-tab-skills").click();
+
+    const ambiguityResult = await page.evaluate(async () => {
+      const mockWindow = window as unknown as {
+        __KAIROX_MOCK__: {
+          state: {
+            skillSettings: Array<{
+              settings_id: string;
+              id: string;
+              name: string;
+              enabled: boolean;
+            }>;
+          };
+        };
+        __TAURI_INTERNALS__: {
+          invoke: (command: string, args: Record<string, unknown>) => Promise<unknown>;
+        };
+      };
+
+      const projectReview = mockWindow.__KAIROX_MOCK__.state.skillSettings.find(
+        (skill) => skill.settings_id === "project:project-review"
+      );
+      if (!projectReview) {
+        throw new Error("missing project review fixture");
+      }
+
+      mockWindow.__KAIROX_MOCK__.state.skillSettings.push({
+        ...projectReview,
+        settings_id: "user:project-review",
+        name: "User Project Review",
+        enabled: true
+      });
+
+      const captureRejection = async (
+        operation: () => Promise<unknown>
+      ): Promise<string | null> => {
+        try {
+          await operation();
+          return null;
+        } catch (error) {
+          return error instanceof Error ? error.message : String(error);
+        }
+      };
+
+      const enableError = await captureRejection(() =>
+        mockWindow.__TAURI_INTERNALS__.invoke("set_skill_enabled", {
+          skillId: "project-review",
+          enabled: false
+        })
+      );
+      const deleteError = await captureRejection(() =>
+        mockWindow.__TAURI_INTERNALS__.invoke("delete_skill_settings", {
+          skillId: "project-review"
+        })
+      );
+      const reviewRows = mockWindow.__KAIROX_MOCK__.state.skillSettings.filter(
+        (skill) => skill.id === "project-review"
+      );
+
+      return {
+        enableError,
+        deleteError,
+        rowCount: reviewRows.length,
+        enabledStates: reviewRows.map((skill) => skill.enabled)
+      };
+    });
+
+    expect(ambiguityResult.enableError).toContain("ambiguous skill id");
+    expect(ambiguityResult.deleteError).toContain("ambiguous skill id");
+    expect(ambiguityResult.rowCount).toBe(2);
+    expect(ambiguityResult.enabledStates).toEqual([true, true]);
   });
 });

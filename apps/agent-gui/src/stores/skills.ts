@@ -2,36 +2,44 @@
 // are plain `.ts` modules and must import Vue and Pinia APIs explicitly.
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { invoke } from "@tauri-apps/api/core";
+import {
+  commands,
+  type ActiveSkillView,
+  type InstallGithubSkillRequest,
+  type InstallRemoteSkillRequest,
+  type RemoteSkillSearchResult,
+  type SkillDetail,
+  type SkillInstallTarget,
+  type SkillSettingsView,
+  type SkillView
+} from "@/generated/commands";
 
-export interface SkillView {
-  id: string;
-  name: string;
-  description: string;
-  version: string | null;
-  source: string;
-  activation_mode: string;
-  keywords: string[];
-  tools: string[];
-  can_request_tools: string[];
-  valid: boolean;
-  validation_error: string | null;
-}
+export type { ActiveSkillView, SkillDetail, SkillView } from "@/generated/commands";
 
-export interface SkillDetail {
-  view: SkillView;
-  body_markdown: string;
-}
-
-export interface ActiveSkillView {
-  skill_id: string;
-  name: string;
-  source: string;
-  activation_mode: string;
-}
+type CommandResult<T> = { status: "ok"; data: T } | { status: "error"; error: string };
 
 function formatError(caughtError: unknown): string {
   return caughtError instanceof Error ? caughtError.message : String(caughtError);
+}
+
+function isCommandResult<T>(result: T | CommandResult<T>): result is CommandResult<T> {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "status" in result &&
+    (result.status === "ok" || result.status === "error")
+  );
+}
+
+async function unwrapCommandResult<T>(resultPromise: Promise<T | CommandResult<T>>): Promise<T> {
+  const result = await resultPromise;
+  if (!isCommandResult(result)) {
+    return result;
+  }
+  if (result.status === "error") {
+    throw new Error(result.error);
+  }
+  return result.data;
 }
 
 export const useSkillsStore = defineStore("skills", () => {
@@ -41,6 +49,10 @@ export const useSkillsStore = defineStore("skills", () => {
   const loading = ref(false);
   const activatingSkillId = ref<string | null>(null);
   const error = ref<string | null>(null);
+  const skillSettings = ref<SkillSettingsView[]>([]);
+  const remoteResults = ref<RemoteSkillSearchResult[]>([]);
+  const settingsLoading = ref(false);
+  const remoteLoading = ref(false);
 
   const hasSkills = computed(() => skills.value.length > 0);
   const activeSkillIds = computed(() =>
@@ -51,13 +63,26 @@ export const useSkillsStore = defineStore("skills", () => {
     return activeSkillIds.value.includes(skillId);
   }
 
+  function upsertSkillSetting(skillSetting: SkillSettingsView): void {
+    const existingSkillIndex = skillSettings.value.findIndex(
+      (existingSkill) => existingSkill.settings_id === skillSetting.settings_id
+    );
+    if (existingSkillIndex >= 0) {
+      skillSettings.value = skillSettings.value.map((existingSkill) =>
+        existingSkill.settings_id === skillSetting.settings_id ? skillSetting : existingSkill
+      );
+      return;
+    }
+    skillSettings.value = [...skillSettings.value, skillSetting];
+  }
+
   async function loadSkills(): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
       const [discoveredSkills, activeSkillViews] = await Promise.all([
-        invoke<SkillView[]>("list_skills"),
-        invoke<ActiveSkillView[]>("list_active_skills")
+        unwrapCommandResult(commands.listSkills()),
+        unwrapCommandResult(commands.listActiveSkills())
       ]);
       skills.value = discoveredSkills;
       activeSkills.value = activeSkillViews;
@@ -71,7 +96,7 @@ export const useSkillsStore = defineStore("skills", () => {
   async function loadSkillDetail(skillId: string): Promise<void> {
     error.value = null;
     try {
-      selectedSkill.value = await invoke<SkillDetail>("get_skill_detail", { skillId });
+      selectedSkill.value = await unwrapCommandResult(commands.getSkillDetail(skillId));
     } catch (caughtError) {
       error.value = formatError(caughtError);
     }
@@ -81,7 +106,7 @@ export const useSkillsStore = defineStore("skills", () => {
     activatingSkillId.value = skillId;
     error.value = null;
     try {
-      const activeSkill = await invoke<ActiveSkillView>("activate_skill", { skillId });
+      const activeSkill = await unwrapCommandResult(commands.activateSkill(skillId));
       activeSkills.value = [
         ...activeSkills.value.filter((existingSkill) => existingSkill.skill_id !== skillId),
         activeSkill
@@ -97,7 +122,7 @@ export const useSkillsStore = defineStore("skills", () => {
     activatingSkillId.value = skillId;
     error.value = null;
     try {
-      await invoke("deactivate_skill", { skillId });
+      await unwrapCommandResult(commands.deactivateSkill(skillId));
       activeSkills.value = activeSkills.value.filter(
         (activeSkill) => activeSkill.skill_id !== skillId
       );
@@ -108,6 +133,111 @@ export const useSkillsStore = defineStore("skills", () => {
     }
   }
 
+  async function loadSkillSettings(): Promise<void> {
+    settingsLoading.value = true;
+    error.value = null;
+    try {
+      skillSettings.value = await unwrapCommandResult(commands.listSkillSettings());
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
+  async function setSkillEnabled(skillSettingsId: string, enabled: boolean): Promise<void> {
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.setSkillEnabled(skillSettingsId, enabled));
+      skillSettings.value = skillSettings.value.map((skillSetting) =>
+        skillSetting.settings_id === skillSettingsId ? { ...skillSetting, enabled } : skillSetting
+      );
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    }
+  }
+
+  async function deleteSkill(skillSettingsId: string): Promise<void> {
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.deleteSkillSettings(skillSettingsId));
+      skillSettings.value = skillSettings.value.filter(
+        (skillSetting) => skillSetting.settings_id !== skillSettingsId
+      );
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    }
+  }
+
+  async function searchRemoteSkills(query: string): Promise<void> {
+    remoteLoading.value = true;
+    error.value = null;
+    try {
+      remoteResults.value = await unwrapCommandResult(commands.searchRemoteSkills(query));
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    } finally {
+      remoteLoading.value = false;
+    }
+  }
+
+  async function installRemoteSkill(
+    packageName: string,
+    target: SkillInstallTarget
+  ): Promise<SkillSettingsView | null> {
+    settingsLoading.value = true;
+    error.value = null;
+    const request: InstallRemoteSkillRequest = {
+      package: packageName,
+      source: packageName,
+      target
+    };
+    try {
+      const installedSkill = await unwrapCommandResult(commands.installRemoteSkill(request));
+      upsertSkillSetting(installedSkill);
+      return installedSkill;
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+      return null;
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
+  async function installGithubSkill(
+    source: string,
+    target: SkillInstallTarget
+  ): Promise<SkillSettingsView | null> {
+    settingsLoading.value = true;
+    error.value = null;
+    const request: InstallGithubSkillRequest = { source, target };
+    try {
+      const installedSkill = await unwrapCommandResult(commands.installGithubSkill(request));
+      upsertSkillSetting(installedSkill);
+      return installedSkill;
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+      return null;
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
+  async function updateSkill(skillId: string): Promise<SkillSettingsView | null> {
+    settingsLoading.value = true;
+    error.value = null;
+    try {
+      const updatedSkill = await unwrapCommandResult(commands.updateSkill(skillId));
+      upsertSkillSetting(updatedSkill);
+      return updatedSkill;
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+      return null;
+    } finally {
+      settingsLoading.value = false;
+    }
+  }
+
   return {
     skills,
     activeSkills,
@@ -115,12 +245,23 @@ export const useSkillsStore = defineStore("skills", () => {
     loading,
     activatingSkillId,
     error,
+    skillSettings,
+    remoteResults,
+    settingsLoading,
+    remoteLoading,
     hasSkills,
     activeSkillIds,
     isSkillActive,
     loadSkills,
     loadSkillDetail,
     activateSkill,
-    deactivateSkill
+    deactivateSkill,
+    loadSkillSettings,
+    setSkillEnabled,
+    deleteSkill,
+    searchRemoteSkills,
+    installRemoteSkill,
+    installGithubSkill,
+    updateSkill
   };
 });

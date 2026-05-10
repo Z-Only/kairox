@@ -131,6 +131,168 @@ const state = {
     }
   ],
   activeSkills: [],
+  mcpSettingsServers: [
+    {
+      id: "github",
+      name: "GitHub",
+      transport: "stdio",
+      enabled: true,
+      runtime_status: "running",
+      trusted: true,
+      tool_count: 6,
+      last_error: null,
+      writable: true,
+      config_path: "/mock/workspace/kairox.toml",
+      description: "GitHub MCP server for repository automation."
+    },
+    {
+      id: "builtin-docs",
+      name: "Built-in Docs",
+      transport: "sse",
+      enabled: false,
+      runtime_status: "stopped",
+      trusted: false,
+      tool_count: null,
+      last_error: "Disabled by project policy",
+      writable: false,
+      config_path: null,
+      description: "Read-only built-in documentation server."
+    }
+  ],
+  skillSettings: [
+    {
+      settings_id: "project:project-review",
+      id: "project-review",
+      name: "Project Review",
+      description: "Project-scoped code review guidance.",
+      version: "1.0.0",
+      scope: "project",
+      path: "/mock/workspace/.kairox/skills/project-review/SKILL.md",
+      enabled: true,
+      activation_mode: "manual",
+      install_source: "local",
+      update_state: "up_to_date",
+      effective: true,
+      shadowed_by: null,
+      valid: true,
+      validation_error: null,
+      editable: true,
+      deletable: true
+    },
+    {
+      settings_id: "user:user-planning",
+      id: "user-planning",
+      name: "User Planning",
+      description: "User-scoped planning defaults.",
+      version: "2.1.0",
+      scope: "user",
+      path: "/Users/mock/.kairox/skills/user-planning/SKILL.md",
+      enabled: true,
+      activation_mode: "auto",
+      install_source: "local",
+      update_state: "up_to_date",
+      effective: true,
+      shadowed_by: null,
+      valid: true,
+      validation_error: null,
+      editable: true,
+      deletable: true
+    },
+    {
+      settings_id: "builtin:builtin-brainstorming",
+      id: "builtin-brainstorming",
+      name: "Built-in Brainstorming",
+      description: "Built-in ideation workflow.",
+      version: "5.1.0",
+      scope: "builtin",
+      path: "builtin:/skills/brainstorming/SKILL.md",
+      enabled: true,
+      activation_mode: "suggest",
+      install_source: "builtin",
+      update_state: "unknown",
+      effective: false,
+      shadowed_by: "project-review",
+      valid: true,
+      validation_error: null,
+      editable: false,
+      deletable: false
+    },
+    {
+      settings_id: "project:invalid-workspace-skill",
+      id: "invalid-workspace-skill",
+      name: "Invalid Workspace Skill",
+      description: "Fixture for parse errors.",
+      version: null,
+      scope: "project",
+      path: "/mock/workspace/.kairox/skills/invalid/SKILL.md",
+      enabled: false,
+      activation_mode: "manual",
+      install_source: "local",
+      update_state: "check_failed",
+      effective: false,
+      shadowed_by: null,
+      valid: false,
+      validation_error: "Missing required description",
+      editable: true,
+      deletable: true
+    },
+    {
+      settings_id: "project:registry-review",
+      id: "registry-review",
+      name: "Registry Review",
+      description: "Registry-installed review helper.",
+      version: "0.3.0",
+      scope: "project",
+      path: "/mock/workspace/.kairox/skills/registry-review/SKILL.md",
+      enabled: true,
+      activation_mode: "manual",
+      install_source: "registry",
+      update_state: "update_available",
+      effective: true,
+      shadowed_by: null,
+      valid: true,
+      validation_error: null,
+      editable: true,
+      deletable: true
+    },
+    {
+      settings_id: "user:github-triage",
+      id: "github-triage",
+      name: "GitHub Triage",
+      description: "GitHub-installed issue triage helper.",
+      version: "0.1.0",
+      scope: "user",
+      path: "/Users/mock/.kairox/skills/github-triage/SKILL.md",
+      enabled: true,
+      activation_mode: "manual",
+      install_source: "github",
+      update_state: "up_to_date",
+      effective: true,
+      shadowed_by: null,
+      valid: true,
+      validation_error: null,
+      editable: true,
+      deletable: true
+    }
+  ],
+  remoteSkillResults: [
+    {
+      name: "Code Review Assistant",
+      description: "Reviews changes before handoff.",
+      repository: "https://github.com/example/code-review-skill",
+      install_count: 1240,
+      source_url: "https://registry.example/skills/code-review-assistant",
+      package: "@kairox/skill-code-review"
+    },
+    {
+      name: "Planning Coach",
+      description: "Turns requirements into implementation plans.",
+      repository: "https://github.com/example/planning-coach",
+      install_count: 860,
+      source_url: "https://registry.example/skills/planning-coach",
+      package: "@kairox/skill-planning-coach"
+    }
+  ],
   catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true },
   // Phase 2: catalog sources — only user-configured remote sources are listed here.
   // The builtin source is implicit (the GUI's source chip bar always renders a
@@ -178,6 +340,92 @@ function getProjectSessionList(projectId) {
   return state.projectSessions.get(projectId) || [];
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function slugify(value) {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function findMcpSettingsServer(serverId) {
+  return state.mcpSettingsServers.find(function (server) {
+    return server.id === serverId;
+  });
+}
+
+function findSkillSetting(skillId) {
+  var settingsIdMatches = state.skillSettings.filter(function (skill) {
+    return skill.settings_id === skillId;
+  });
+  if (settingsIdMatches.length === 1) {
+    return settingsIdMatches[0];
+  }
+  if (settingsIdMatches.length > 1) {
+    throw new Error("ambiguous skill settings id: " + skillId);
+  }
+
+  var legacyIdMatches = state.skillSettings.filter(function (skill) {
+    return skill.id === skillId;
+  });
+  if (legacyIdMatches.length === 1) {
+    return legacyIdMatches[0];
+  }
+  if (legacyIdMatches.length > 1) {
+    throw new Error("ambiguous skill id: " + skillId);
+  }
+
+  return null;
+}
+
+function createMcpSettingsServer(input) {
+  var serverId = slugify(input.name || "mcp-server");
+  var transport =
+    input.transport && input.transport.transport ? input.transport.transport : "stdio";
+  return {
+    id: serverId,
+    name: input.name,
+    transport: transport,
+    enabled: input.enabled,
+    runtime_status: input.enabled ? "running" : "stopped",
+    trusted: false,
+    tool_count: transport === "stdio" ? 1 : null,
+    last_error: null,
+    writable: true,
+    config_path: "/mock/workspace/kairox.toml",
+    description: input.description || null
+  };
+}
+
+function createSkillSettingFromInstall(name, source, target, installSource) {
+  var skillId = slugify(name);
+  return {
+    settings_id: target + ":" + skillId,
+    id: skillId,
+    name: name,
+    description: "Installed from " + source + ".",
+    version: "0.1.0",
+    scope: target,
+    path:
+      target === "user"
+        ? "/Users/mock/.kairox/skills/" + skillId + "/SKILL.md"
+        : "/mock/workspace/.kairox/skills/" + skillId + "/SKILL.md",
+    enabled: true,
+    activation_mode: "manual",
+    install_source: installSource,
+    update_state: "up_to_date",
+    effective: true,
+    shadowed_by: null,
+    valid: true,
+    validation_error: null,
+    editable: true,
+    deletable: true
+  };
+}
 function getProjection(sessionId) {
   if (!state.projections.has(sessionId)) {
     state.projections.set(sessionId, {
@@ -898,21 +1146,158 @@ function invoke(cmd, args) {
     case "list_active_skills":
       return Promise.resolve(state.activeSkills);
 
+    case "list_mcp_server_settings":
+      return clone(state.mcpSettingsServers);
+
+    case "upsert_mcp_server_settings": {
+      var savedServer = createMcpSettingsServer(args.input);
+      state.mcpSettingsServers = state.mcpSettingsServers.filter(function (server) {
+        return server.id !== savedServer.id;
+      });
+      state.mcpSettingsServers.push(savedServer);
+      return clone(savedServer);
+    }
+
+    case "set_mcp_server_enabled": {
+      var serverToToggle = findMcpSettingsServer(args.serverId);
+      if (!serverToToggle)
+        return Promise.reject(new Error("MCP server not found: " + args.serverId));
+      serverToToggle.enabled = args.enabled;
+      serverToToggle.runtime_status = args.enabled ? "running" : "stopped";
+      return null;
+    }
+
+    case "delete_mcp_server_settings":
+      state.mcpSettingsServers = state.mcpSettingsServers.filter(function (server) {
+        return server.id !== args.serverId;
+      });
+      return null;
+
+    case "open_mcp_config_file":
+      return "/mock/workspace/kairox.toml";
+
+    case "list_skill_settings":
+      return clone(state.skillSettings);
+
+    case "get_skill_settings_detail": {
+      var detailSetting = findSkillSetting(args.skillId);
+      if (!detailSetting)
+        return Promise.reject(new Error("Skill setting not found: " + args.skillId));
+      return {
+        view: clone(detailSetting),
+        content: "# " + detailSetting.name + "\n\n" + detailSetting.description,
+        source_chain: [clone(detailSetting)]
+      };
+    }
+
+    case "set_skill_enabled": {
+      var skillToToggle = findSkillSetting(args.skillId);
+      if (!skillToToggle)
+        return Promise.reject(new Error("Skill setting not found: " + args.skillId));
+      skillToToggle.enabled = args.enabled;
+      return null;
+    }
+
+    case "delete_skill_settings": {
+      var skillToDelete = findSkillSetting(args.skillId);
+      if (!skillToDelete)
+        return Promise.reject(new Error("Skill setting not found: " + args.skillId));
+      state.skillSettings = state.skillSettings.filter(function (skill) {
+        return skill.settings_id !== skillToDelete.settings_id;
+      });
+      return null;
+    }
+
+    case "search_remote_skills": {
+      var query = String(args.query || "").toLowerCase();
+      return clone(
+        state.remoteSkillResults.filter(function (result) {
+          return (
+            result.name.toLowerCase().indexOf(query) !== -1 ||
+            result.description.toLowerCase().indexOf(query) !== -1 ||
+            result.package.toLowerCase().indexOf(query) !== -1
+          );
+        })
+      );
+    }
+
+    case "install_remote_skill": {
+      var remoteRequest = args.request;
+      var remoteResult = state.remoteSkillResults.find(function (result) {
+        return result.package === remoteRequest.package;
+      });
+      var remoteName = remoteResult ? remoteResult.name : remoteRequest.package;
+      var remoteSkill = createSkillSettingFromInstall(
+        remoteName,
+        remoteRequest.source,
+        remoteRequest.target,
+        "registry"
+      );
+      state.skillSettings = state.skillSettings.filter(function (skill) {
+        return skill.settings_id !== remoteSkill.settings_id;
+      });
+      state.skillSettings.push(remoteSkill);
+      return clone(remoteSkill);
+    }
+
+    case "install_github_skill": {
+      var githubRequest = args.request;
+      var githubName = githubRequest.source.split("/").pop() || "GitHub Skill";
+      githubName = githubName.replace(/\.git$/, "").replace(/[-_]+/g, " ");
+      var githubSkill = createSkillSettingFromInstall(
+        githubName,
+        githubRequest.source,
+        githubRequest.target,
+        "github"
+      );
+      state.skillSettings = state.skillSettings.filter(function (skill) {
+        return skill.settings_id !== githubSkill.settings_id;
+      });
+      state.skillSettings.push(githubSkill);
+      return clone(githubSkill);
+    }
+
+    case "update_skill": {
+      var skillToUpdate = findSkillSetting(args.skillId);
+      if (!skillToUpdate)
+        return Promise.reject(new Error("Skill setting not found: " + args.skillId));
+      skillToUpdate.update_state = "up_to_date";
+      return clone(skillToUpdate);
+    }
+
     case "list_mcp_servers":
-      return [
-        { id: "test-server", status: "running", tool_count: 3 },
-        { id: "stopped-server", status: "stopped", tool_count: 0 }
-      ];
-    case "start_mcp_server":
+      return state.mcpSettingsServers.map(function (server) {
+        return {
+          id: server.id,
+          status: server.runtime_status,
+          tool_count: server.tool_count
+        };
+      });
+    case "start_mcp_server": {
+      var serverToStart = findMcpSettingsServer(args.serverId);
+      if (serverToStart) serverToStart.runtime_status = "running";
       return null;
-    case "stop_mcp_server":
+    }
+    case "stop_mcp_server": {
+      var serverToStop = findMcpSettingsServer(args.serverId);
+      if (serverToStop) serverToStop.runtime_status = "stopped";
       return null;
-    case "trust_mcp_server":
+    }
+    case "trust_mcp_server": {
+      var serverToTrust = findMcpSettingsServer(args.serverId);
+      if (serverToTrust) serverToTrust.trusted = true;
       return null;
-    case "revoke_mcp_trust":
+    }
+    case "revoke_mcp_trust": {
+      var serverToRevoke = findMcpSettingsServer(args.serverId);
+      if (serverToRevoke) serverToRevoke.trusted = false;
       return null;
-    case "refresh_mcp_tools":
+    }
+    case "refresh_mcp_tools": {
+      var serverToRefresh = findMcpSettingsServer(args.serverId);
+      if (serverToRefresh) serverToRefresh.tool_count = (serverToRefresh.tool_count || 0) + 1;
       return [{ name: "echo", description: "Echo tool", input_schema: null }];
+    }
     case "list_mcp_resources":
       return [];
     case "list_mcp_prompts":

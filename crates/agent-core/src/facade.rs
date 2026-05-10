@@ -189,6 +189,140 @@ pub struct ActiveSkillView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "transport", rename_all = "snake_case")]
+pub enum McpServerSettingsTransport {
+    Stdio {
+        command: String,
+        args: Vec<String>,
+        env: BTreeMap<String, String>,
+    },
+    Sse {
+        url: String,
+        headers: BTreeMap<String, String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct McpServerSettingsInput {
+    pub name: String,
+    pub transport: McpServerSettingsTransport,
+    pub enabled: bool,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct McpServerSettingsView {
+    pub id: String,
+    pub name: String,
+    pub transport: String,
+    pub enabled: bool,
+    pub runtime_status: String,
+    pub trusted: bool,
+    pub tool_count: Option<usize>,
+    pub last_error: Option<String>,
+    pub writable: bool,
+    pub config_path: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum SkillSettingsScope {
+    Project,
+    User,
+    Builtin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum SkillInstallSource {
+    Local,
+    Registry,
+    Github,
+    Builtin,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum SkillUpdateState {
+    Unknown,
+    UpToDate,
+    UpdateAvailable,
+    CheckFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillSettingsView {
+    pub settings_id: String,
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub version: Option<String>,
+    pub scope: SkillSettingsScope,
+    pub path: String,
+    pub enabled: bool,
+    pub activation_mode: String,
+    pub install_source: SkillInstallSource,
+    pub update_state: SkillUpdateState,
+    pub effective: bool,
+    pub shadowed_by: Option<String>,
+    pub valid: bool,
+    pub validation_error: Option<String>,
+    pub editable: bool,
+    pub deletable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillSettingsDetail {
+    pub view: SkillSettingsView,
+    pub content: String,
+    pub source_chain: Vec<SkillSettingsView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct RemoteSkillSearchResult {
+    pub name: String,
+    pub description: String,
+    pub repository: Option<String>,
+    pub install_count: Option<u64>,
+    pub source_url: String,
+    pub package: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "snake_case")]
+pub enum SkillInstallTarget {
+    Project,
+    User,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstallRemoteSkillRequest {
+    pub package: String,
+    pub source: String,
+    pub target: SkillInstallTarget,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstallGithubSkillRequest {
+    pub source: String,
+    pub target: SkillInstallTarget,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
 pub struct WorkspaceInfo {
     pub workspace_id: WorkspaceId,
@@ -444,6 +578,112 @@ pub trait AppFacade: Send + Sync {
         Ok(Vec::new())
     }
 
+    /// List configured MCP servers for settings UI.
+    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
+        Ok(Vec::new())
+    }
+
+    /// Create or update an MCP server from settings UI.
+    async fn upsert_mcp_server_settings(
+        &self,
+        input: McpServerSettingsInput,
+    ) -> crate::Result<McpServerSettingsView> {
+        let _ = input;
+        Err(crate::CoreError::InvalidState(
+            "MCP settings mutation not supported".into(),
+        ))
+    }
+
+    /// Delete an MCP server from settings UI.
+    async fn delete_mcp_server_settings(&self, server_id: String) -> crate::Result<()> {
+        let _ = server_id;
+        Err(crate::CoreError::InvalidState(
+            "MCP settings deletion not supported".into(),
+        ))
+    }
+
+    /// Enable or disable an MCP server from settings UI.
+    async fn set_mcp_server_enabled(&self, server_id: String, enabled: bool) -> crate::Result<()> {
+        let _ = (server_id, enabled);
+        Err(crate::CoreError::InvalidState(
+            "MCP settings enablement not supported".into(),
+        ))
+    }
+
+    /// Open the MCP configuration file and return the path if available.
+    async fn open_mcp_config_file(&self) -> crate::Result<Option<String>> {
+        Ok(None)
+    }
+
+    /// List skills for settings UI.
+    async fn list_skill_settings(&self) -> crate::Result<Vec<SkillSettingsView>> {
+        Ok(Vec::new())
+    }
+
+    /// Get settings details for a single skill.
+    async fn get_skill_settings_detail(
+        &self,
+        skill_id: String,
+    ) -> crate::Result<Option<SkillSettingsDetail>> {
+        let _ = skill_id;
+        Ok(None)
+    }
+
+    /// Enable or disable a skill from settings UI.
+    async fn set_skill_enabled(&self, skill_id: String, enabled: bool) -> crate::Result<()> {
+        let _ = (skill_id, enabled);
+        Err(crate::CoreError::InvalidState(
+            "Skill settings enablement not supported".into(),
+        ))
+    }
+
+    /// Delete a skill from settings UI.
+    async fn delete_skill_settings(&self, skill_id: String) -> crate::Result<()> {
+        let _ = skill_id;
+        Err(crate::CoreError::InvalidState(
+            "Skill deletion not supported".into(),
+        ))
+    }
+
+    /// Search remote skills using the configured package source.
+    async fn search_remote_skills(
+        &self,
+        query: String,
+    ) -> crate::Result<Vec<RemoteSkillSearchResult>> {
+        let _ = query;
+        Ok(Vec::new())
+    }
+
+    /// Install a skill from a remote package source.
+    async fn install_remote_skill(
+        &self,
+        request: InstallRemoteSkillRequest,
+    ) -> crate::Result<SkillSettingsView> {
+        let _ = request;
+        Err(crate::CoreError::InvalidState(
+            "Skill install not supported".into(),
+        ))
+    }
+
+    /// Install a skill from a GitHub source.
+    async fn install_github_skill(
+        &self,
+        request: InstallGithubSkillRequest,
+    ) -> crate::Result<SkillSettingsView> {
+        let _ = request;
+        Err(crate::CoreError::InvalidState(
+            "GitHub Skill install not supported".into(),
+        ))
+    }
+
+    /// Update an installed skill.
+    async fn update_skill(&self, skill_id: String) -> crate::Result<SkillSettingsView> {
+        let _ = skill_id;
+        Err(crate::CoreError::InvalidState(
+            "Skill update not supported".into(),
+        ))
+    }
+
     // -----------------------------------------------------------------------
     // Marketplace catalog (Phase 1: built-in catalog only).
     // -----------------------------------------------------------------------
@@ -684,6 +924,59 @@ pub trait AppFacade: Send + Sync {
         Err(crate::CoreError::InvalidState(
             "project support is not implemented".into(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod facade_settings_dtos {
+    use super::*;
+
+    #[test]
+    fn mcp_settings_input_serializes_stdio_transport() {
+        let input = McpServerSettingsInput {
+            name: "filesystem".to_string(),
+            transport: McpServerSettingsTransport::Stdio {
+                command: "npx".to_string(),
+                args: vec![
+                    "-y".to_string(),
+                    "@modelcontextprotocol/server-filesystem".to_string(),
+                ],
+                env: BTreeMap::from([("ROOT".to_string(), "/tmp".to_string())]),
+            },
+            enabled: true,
+            description: Some("Local files".to_string()),
+        };
+
+        let encoded = serde_json::to_string(&input).expect("input should serialize");
+        assert!(encoded.contains("filesystem"));
+        assert!(encoded.contains("stdio"));
+    }
+
+    #[test]
+    fn skill_settings_view_distinguishes_scope_and_update_state() {
+        let view = SkillSettingsView {
+            settings_id: "project:review".to_string(),
+            id: "review".to_string(),
+            name: "review".to_string(),
+            description: "Review code".to_string(),
+            version: Some("1.2.3".to_string()),
+            scope: SkillSettingsScope::Project,
+            path: "/workspace/.kairox/skills/review/SKILL.md".to_string(),
+            enabled: true,
+            activation_mode: "suggest".to_string(),
+            install_source: SkillInstallSource::Registry,
+            update_state: SkillUpdateState::UpdateAvailable,
+            effective: true,
+            shadowed_by: None,
+            valid: true,
+            validation_error: None,
+            editable: true,
+            deletable: true,
+        };
+
+        assert_eq!(view.scope, SkillSettingsScope::Project);
+        assert_eq!(view.update_state, SkillUpdateState::UpdateAvailable);
+        assert!(view.editable);
     }
 }
 

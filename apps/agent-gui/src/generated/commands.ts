@@ -101,6 +101,38 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("deactivate_skill", { skillId })),
   listActiveSkills: () =>
     typedError<ActiveSkillView[], string>(__TAURI_INVOKE("list_active_skills")),
+  listMcpServerSettings: () =>
+    typedError<McpServerSettingsView[], string>(__TAURI_INVOKE("list_mcp_server_settings")),
+  upsertMcpServerSettings: (input: McpServerSettingsInput) =>
+    typedError<McpServerSettingsView, string>(
+      __TAURI_INVOKE("upsert_mcp_server_settings", { input })
+    ),
+  setMcpServerEnabled: (serverId: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_mcp_server_enabled", { serverId, enabled })),
+  deleteMcpServerSettings: (serverId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_mcp_server_settings", { serverId })),
+  openMcpConfigFile: () =>
+    typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
+  listSkillSettings: () =>
+    typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),
+  getSkillSettingsDetail: (skillId: string) =>
+    typedError<SkillSettingsDetail, string>(
+      __TAURI_INVOKE("get_skill_settings_detail", { skillId })
+    ),
+  setSkillEnabled: (skillId: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_skill_enabled", { skillId, enabled })),
+  deleteSkillSettings: (skillId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_skill_settings", { skillId })),
+  searchRemoteSkills: (query: string) =>
+    typedError<RemoteSkillSearchResult[], string>(
+      __TAURI_INVOKE("search_remote_skills", { query })
+    ),
+  installRemoteSkill: (request: InstallRemoteSkillRequest) =>
+    typedError<SkillSettingsView, string>(__TAURI_INVOKE("install_remote_skill", { request })),
+  installGithubSkill: (request: InstallGithubSkillRequest) =>
+    typedError<SkillSettingsView, string>(__TAURI_INVOKE("install_github_skill", { request })),
+  updateSkill: (skillId: string) =>
+    typedError<SkillSettingsView, string>(__TAURI_INVOKE("update_skill", { skillId })),
   listMcpServers: () =>
     typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
   startMcpServer: (serverId: string) =>
@@ -226,6 +258,11 @@ export type CatalogSourceViewResponse = {
   last_error: string | null;
 };
 
+export type InstallGithubSkillRequest = {
+  source: string;
+  target: SkillInstallTarget;
+};
+
 export type InstallOutcomeResponse = {
   // "installed" | "runtime_missing" | "already_installed" | "invalid_env"
   kind: string;
@@ -233,6 +270,12 @@ export type InstallOutcomeResponse = {
   started: boolean | null;
   missing_runtimes: string[];
   missing_env_keys: string[];
+};
+
+export type InstallRemoteSkillRequest = {
+  package: string;
+  source: string;
+  target: SkillInstallTarget;
 };
 
 export type InstallRequestPayload = {
@@ -269,6 +312,31 @@ export type McpResourceDefResponse = {
   name: string;
   description: string | null;
   mime_type: string | null;
+};
+
+export type McpServerSettingsInput = {
+  name: string;
+  transport: McpServerSettingsTransport;
+  enabled: boolean;
+  description: string | null;
+};
+
+export type McpServerSettingsTransport =
+  | { transport: "stdio"; command: string; args: string[]; env: { [key in string]: string } }
+  | { transport: "sse"; url: string; headers: { [key in string]: string } };
+
+export type McpServerSettingsView = {
+  id: string;
+  name: string;
+  transport: string;
+  enabled: boolean;
+  runtime_status: string;
+  trusted: boolean;
+  tool_count: number | null;
+  last_error: string | null;
+  writable: boolean;
+  config_path: string | null;
+  description: string | null;
 };
 
 // The lifecycle status of an MCP server connection.
@@ -351,6 +419,15 @@ export type ProjectInstructionSummaryResponse = {
   warning: string | null;
 };
 
+export type RemoteSkillSearchResult = {
+  name: string;
+  description: string;
+  repository: string | null;
+  install_count: number | null;
+  source_url: string;
+  package: string;
+};
+
 export type ServerEntryResponse = {
   id: string;
   source: string;
@@ -387,6 +464,40 @@ export type SkillDetail = {
   view: SkillView;
   body_markdown: string;
 };
+
+export type SkillInstallSource = "local" | "registry" | "github" | "builtin" | "unknown";
+
+export type SkillInstallTarget = "project" | "user";
+
+export type SkillSettingsDetail = {
+  view: SkillSettingsView;
+  content: string;
+  source_chain: SkillSettingsView[];
+};
+
+export type SkillSettingsScope = "project" | "user" | "builtin";
+
+export type SkillSettingsView = {
+  settings_id: string;
+  id: string;
+  name: string;
+  description: string;
+  version: string | null;
+  scope: SkillSettingsScope;
+  path: string;
+  enabled: boolean;
+  activation_mode: string;
+  install_source: SkillInstallSource;
+  update_state: SkillUpdateState;
+  effective: boolean;
+  shadowed_by: string | null;
+  valid: boolean;
+  validation_error: string | null;
+  editable: boolean;
+  deletable: boolean;
+};
+
+export type SkillUpdateState = "unknown" | "up_to_date" | "update_available" | "check_failed";
 
 export type SkillView = {
   id: string;

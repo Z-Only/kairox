@@ -5,6 +5,12 @@
 //! Output: apps/agent-gui/src/generated/commands.ts
 
 use agent_config::ProfileInfo;
+use agent_core::facade::{
+    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
+    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillInstallSource,
+    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
+    SkillUpdateState,
+};
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
@@ -73,6 +79,20 @@ fn main() {
             agent_gui_tauri::commands::activate_skill,
             agent_gui_tauri::commands::deactivate_skill,
             agent_gui_tauri::commands::list_active_skills,
+            // Settings commands
+            agent_gui_tauri::commands::list_mcp_server_settings,
+            agent_gui_tauri::commands::upsert_mcp_server_settings,
+            agent_gui_tauri::commands::set_mcp_server_enabled,
+            agent_gui_tauri::commands::delete_mcp_server_settings,
+            agent_gui_tauri::commands::open_mcp_config_file,
+            agent_gui_tauri::commands::list_skill_settings,
+            agent_gui_tauri::commands::get_skill_settings_detail,
+            agent_gui_tauri::commands::set_skill_enabled,
+            agent_gui_tauri::commands::delete_skill_settings,
+            agent_gui_tauri::commands::search_remote_skills,
+            agent_gui_tauri::commands::install_remote_skill,
+            agent_gui_tauri::commands::install_github_skill,
+            agent_gui_tauri::commands::update_skill,
             // MCP commands
             agent_gui_tauri::commands::list_mcp_servers,
             agent_gui_tauri::commands::start_mcp_server,
@@ -110,6 +130,19 @@ fn main() {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Settings request/response types
+        .typ::<McpServerSettingsView>()
+        .typ::<McpServerSettingsInput>()
+        .typ::<McpServerSettingsTransport>()
+        .typ::<SkillSettingsView>()
+        .typ::<SkillSettingsDetail>()
+        .typ::<SkillSettingsScope>()
+        .typ::<SkillInstallSource>()
+        .typ::<SkillUpdateState>()
+        .typ::<RemoteSkillSearchResult>()
+        .typ::<SkillInstallTarget>()
+        .typ::<InstallRemoteSkillRequest>()
+        .typ::<InstallGithubSkillRequest>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()
