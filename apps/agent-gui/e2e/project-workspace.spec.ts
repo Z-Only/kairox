@@ -14,9 +14,7 @@ test("creates a blank project and sends first project message", async ({ page })
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("create-blank-project-btn").click();
-  await expect(
-    page.getByTestId("project-item").filter({ hasText: "Untitled Project" })
-  ).toBeVisible();
+  await expect(page.getByTestId("project-item").filter({ hasText: "New Project" })).toBeVisible();
 
   await page.getByTestId("project-new-session-btn").first().click();
   await page.getByTestId("message-input").fill("Explain this project");

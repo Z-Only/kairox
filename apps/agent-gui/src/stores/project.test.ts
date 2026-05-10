@@ -10,71 +10,77 @@ vi.mock("@tauri-apps/api/core", () => ({
 const mockedInvoke = vi.mocked(invoke);
 
 function mockDefaultInvoke(): void {
-  mockedInvoke.mockImplementation(async (command: string) => {
-    if (command === "list_projects") {
-      return [
-        {
-          project_id: "p1",
-          display_name: "Demo",
-          root_path: "/tmp/demo",
+  mockedInvoke.mockImplementation(
+    async (
+      command: string,
+      args: { displayName?: string | null; display_name?: string | null } = {}
+    ) => {
+      if (command === "list_projects") {
+        return [
+          {
+            project_id: "p1",
+            display_name: "Demo",
+            root_path: "/tmp/demo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true
+          }
+        ];
+      }
+      if (command === "create_blank_project") {
+        const displayName = args.displayName ?? args.display_name ?? "New Project";
+        return {
+          project_id: "p2",
+          display_name: displayName,
+          root_path: "/tmp/scratch",
           removed_at: null,
-          sort_order: 0,
+          sort_order: 1,
           expanded: true
-        }
-      ];
-    }
-    if (command === "create_blank_project") {
-      return {
-        project_id: "p2",
-        display_name: "Scratch",
-        root_path: "/tmp/scratch",
-        removed_at: null,
-        sort_order: 1,
-        expanded: true
-      };
-    }
-    if (command === "list_project_sessions") {
-      return [
-        {
-          id: "s1",
-          title: "Draft",
-          profile: "fast",
-          project_id: "p1",
-          worktree_path: "/tmp/demo",
-          branch: null,
-          visibility: "draft_hidden"
-        }
-      ];
-    }
-    if (command === "list_archived_sessions") {
-      return [
-        {
-          id: "s2",
-          title: "Archived",
-          profile: "fast",
-          project_id: "p1",
-          worktree_path: "/tmp/demo",
+        };
+      }
+      if (command === "list_project_sessions") {
+        return [
+          {
+            id: "s1",
+            title: "Draft",
+            profile: "fast",
+            project_id: "p1",
+            worktree_path: "/tmp/demo",
+            branch: null,
+            visibility: "draft_hidden"
+          }
+        ];
+      }
+      if (command === "list_archived_sessions") {
+        return [
+          {
+            id: "s2",
+            title: "Archived",
+            profile: "fast",
+            project_id: "p1",
+            worktree_path: "/tmp/demo",
+            branch: "main",
+            visibility: "archived"
+          }
+        ];
+      }
+      if (command === "get_project_git_status") {
+        return {
+          kind: "Clean",
           branch: "main",
-          visibility: "archived"
-        }
-      ];
+          worktree_path: "/tmp/demo",
+          message: null
+        };
+      }
+      if (command === "get_project_instruction_summary") {
+        return {
+          source_paths: ["/tmp/demo/AGENTS.md"],
+          warning: null
+        };
+      }
+      return null;
     }
-    if (command === "get_project_git_status") {
-      return {
-        kind: "Clean",
-        branch: "main",
-        worktree_path: "/tmp/demo",
-        message: null
-      };
-    }
-    if (command === "get_project_instruction_summary") {
-      return {
-        source_paths: ["/tmp/demo/AGENTS.md"],
-        warning: null
-      };
-    }
-    return null;
-  });
+  );
 }
 
 beforeEach(() => {
@@ -102,6 +108,15 @@ describe("project store", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", { displayName: "Scratch" });
     expect(project.projectId).toBe("p2");
     expect(store.projects.map((entry) => entry.projectId)).toEqual(["p2"]);
+  });
+
+  it("uses New Project as the default blank project name", async () => {
+    const store = useProjectStore();
+
+    const project = await store.createBlankProject();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("create_blank_project", { displayName: null });
+    expect(project.displayName).toBe("New Project");
   });
 
   it("refreshes projects from backend after removing a project", async () => {

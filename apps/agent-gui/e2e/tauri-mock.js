@@ -753,7 +753,7 @@ function invoke(cmd, args) {
 
     case "create_blank_project": {
       var projectId = nextId("prj");
-      var displayName = args.displayName || args.display_name || "Untitled Project";
+      var displayName = args.displayName || args.display_name || "New Project";
       var project = {
         project_id: projectId,
         display_name: displayName,

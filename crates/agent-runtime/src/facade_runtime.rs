@@ -1575,7 +1575,7 @@ where
         display_name: Option<String>,
     ) -> agent_core::Result<ProjectMeta> {
         let repository = self.project_repository()?;
-        let display_name = display_name.unwrap_or_else(|| "Untitled Project".into());
+        let display_name = display_name.unwrap_or_else(|| "New Project".into());
         let root_path = crate::project::unique_blank_project_path(&display_name);
         tokio::fs::create_dir_all(&root_path)
             .await
