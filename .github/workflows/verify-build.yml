@@ -54,12 +54,6 @@ jobs:
       - name: Install repo tooling deps
         run: pnpm install --frozen-lockfile
 
-      - name: Install just
-        uses: taiki-e/install-action@just
-
-      - name: Generate Tauri bindings
-        run: just gen-types
-
       - name: Setup Tauri signing key
         run: |
           echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > /tmp/tauri.key
