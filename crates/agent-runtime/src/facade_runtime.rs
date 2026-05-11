@@ -1698,8 +1698,15 @@ where
             "default".into(),
         )
         .await?;
+        let git_status = crate::project::get_git_status(&project.root_path);
+        let branch = git_status.branch.as_deref();
         repository
-            .bind_session(session_id.as_str(), project_id.as_str(), &project.root_path)
+            .bind_session(
+                session_id.as_str(),
+                project_id.as_str(),
+                &project.root_path,
+                branch,
+            )
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
         repository
@@ -1719,6 +1726,7 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let branch = branch_name.clone();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
@@ -1727,7 +1735,12 @@ where
         )
         .await?;
         repository
-            .bind_session(session_id.as_str(), project_id.as_str(), &project.root_path)
+            .bind_session(
+                session_id.as_str(),
+                project_id.as_str(),
+                &project.root_path,
+                Some(&branch),
+            )
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
         Ok(session_id)

@@ -17,6 +17,8 @@
   --app-info-color: #3b82f6;
   --app-hover-color: #f3f4f6;
   --app-code-bg: #f1f5f9;
+  --app-muted-surface-color: #f3f4f6;
+  --app-muted-text-color: #6b7280;
 
   /* Context meter — per-source colours (light) */
   --src-system: #6b7280; /* slate-500 */
@@ -30,20 +32,22 @@
 }
 
 html.dark {
-  --app-body-color: #111827;
-  --app-card-color: #1f2937;
-  --app-border-color: #374151;
-  --app-text-color: #f9fafb;
-  --app-text-color-2: #9ca3af;
-  --app-text-color-3: #9ca3af;
+  --app-body-color: #0b0f19;
+  --app-card-color: #141b2d;
+  --app-border-color: #2a3040;
+  --app-text-color: #f0f4f8;
+  --app-text-color-2: #8896ab;
+  --app-text-color-3: #7c8da2;
   --app-primary-color: #60a5fa;
-  --app-primary-contrast-color: #111827;
+  --app-primary-contrast-color: #0b0f19;
   --app-success-color: #4ade80;
   --app-warning-color: #fbbf24;
   --app-error-color: #f87171;
   --app-info-color: #60a5fa;
-  --app-hover-color: #1f2937;
-  --app-code-bg: #1e293b;
+  --app-hover-color: #1a2235;
+  --app-code-bg: #111827;
+  --app-muted-surface-color: #1a2235;
+  --app-muted-text-color: #8896ab;
 
   /* Context meter — per-source colours (dark, higher contrast) */
   --src-system: #94a3b8;

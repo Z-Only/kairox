@@ -424,6 +424,7 @@ pub struct ProjectInstructionSummary {
 pub struct SessionMeta {
     pub project_id: Option<ProjectId>,
     pub worktree_path: Option<String>,
+    pub branch: Option<String>,
     pub visibility: Option<ProjectSessionVisibility>,
     pub session_id: SessionId,
     pub workspace_id: WorkspaceId,

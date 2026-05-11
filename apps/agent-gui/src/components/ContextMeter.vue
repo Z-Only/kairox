@@ -4,7 +4,7 @@ import { useSessionStore } from "@/stores/session";
 import { useToast } from "@/composables/useToast";
 import KxPopover from "@/components/ui/KxPopover.vue";
 import KxProgressRing from "@/components/ui/KxProgressRing.vue";
-import type { ContextSource, ProfileWithLimits } from "@/types";
+import type { ContextSource } from "@/types";
 
 const props = withDefaults(
   defineProps<{
@@ -17,44 +17,6 @@ const { t } = useI18n();
 const session = useSessionStore();
 const toast = useToast();
 const popoverOpen = ref(false);
-const profilePickerOpen = ref(false);
-const profiles = ref<ProfileWithLimits[]>([]);
-const switchingProfile = ref(false);
-
-async function openProfilePicker() {
-  if (!session.currentSessionId || session.compacting || switchingProfile.value) return;
-  if (profiles.value.length === 0) {
-    try {
-      profiles.value = await invoke<ProfileWithLimits[]>("list_profiles_with_limits");
-    } catch (e) {
-      toast.error(t("context.switchModelFailed", { error: String(e) }));
-      return;
-    }
-  }
-  profilePickerOpen.value = true;
-}
-
-async function onProfilePicked(alias: string) {
-  if (!session.currentSessionId || switchingProfile.value) return;
-  if (alias === session.currentProfile) {
-    profilePickerOpen.value = false;
-    return;
-  }
-  switchingProfile.value = true;
-  try {
-    await invoke("switch_model", {
-      sessionId: session.currentSessionId,
-      profileAlias: alias
-    });
-    toast.success(t("context.switchModelSuccess", { profile: alias }));
-    profilePickerOpen.value = false;
-    popoverOpen.value = false;
-  } catch (e) {
-    toast.error(t("context.switchModelFailed", { error: String(e) }));
-  } finally {
-    switchingProfile.value = false;
-  }
-}
 
 const ratio = computed(() => {
   const u = session.lastContextUsage;
@@ -87,14 +49,20 @@ const contextWindowSummary = computed(() => {
   }
   if (usageContextWindow) return formatTokens(usageContextWindow);
   if (currentModelWindow) return `${session.currentProfile}: ${formatTokens(currentModelWindow)}`;
-  return "Unavailable";
+  return t("context.unavailable");
 });
 
 const compactionStateLabel = computed(() => {
   if (session.compacting) return t("context.compactInProgress");
   if (session.lastCompactionError) return t("context.failedFallback");
-  return "Idle";
+  return t("context.idle");
 });
+
+const hasMessages = computed(() => session.projection.messages.length > 0);
+
+const compressionRatioTooLow = computed(() => ratio.value < 0.3);
+
+const needsAutoCompression = computed(() => ratio.value >= 0.85);
 
 // `ContextSource` is `#[serde(rename_all = "snake_case")]` on the Rust side
 // (see crates/agent-core/src/context_types.rs:5), so by_source tuples carry
@@ -151,6 +119,14 @@ function togglePopover() {
   popoverOpen.value = !popoverOpen.value;
 }
 
+function onHoverOpen() {
+  popoverOpen.value = true;
+}
+
+function onHoverClose() {
+  popoverOpen.value = false;
+}
+
 async function onCompactClick() {
   if (session.compacting) return;
   popoverOpen.value = false;
@@ -164,17 +140,18 @@ async function onCompactClick() {
 
 <template>
   <div
+    v-if="!(variant === 'ring' && !hasMessages)"
     class="context-meter"
     :class="{ 'context-meter-ring-mode': props.variant === 'ring' }"
     data-test="context-meter"
   >
     <KxPopover
-      v-if="props.variant === 'ring'"
+      v-if="props.variant === 'ring' && hasMessages"
       v-model:open="popoverOpen"
       content-data-test="context-meter-popover"
       side="top"
       align="end"
-      :side-offset="6"
+      :side-offset="0"
     >
       <template #trigger>
         <button
@@ -186,6 +163,7 @@ async function onCompactClick() {
             session.lastContextUsage ? `${ratioPct}% context used` : t('context.noUsageYet')
           "
           :title="t('context.popoverHeader')"
+          @mouseenter="onHoverOpen"
         >
           <KxProgressRing
             data-test="context-progress-ring"
@@ -202,15 +180,13 @@ async function onCompactClick() {
               role="img"
               :aria-label="t('context.noUsageYet')"
               :title="t('context.noUsageYet')"
-            >
-              —
-            </span>
+            />
           </KxProgressRing>
         </button>
       </template>
 
       <template #content>
-        <div class="ring-popover-body">
+        <div class="ring-popover-body" @mouseenter="onHoverOpen" @mouseleave="onHoverClose">
           <header class="popover-header">{{ t("context.popoverHeader") }}</header>
           <div v-if="!session.lastContextUsage" class="fallback-detail">
             {{ t("context.noUsageYet") }}
@@ -218,23 +194,23 @@ async function onCompactClick() {
           <template v-else>
             <dl class="detail-grid">
               <div>
-                <dt>Used tokens</dt>
+                <dt>{{ t("context.usedTokens") }}</dt>
                 <dd>{{ formatTokens(session.lastContextUsage.total_tokens) }}</dd>
               </div>
               <div>
-                <dt>Max tokens</dt>
+                <dt>{{ t("context.maxTokens") }}</dt>
                 <dd>{{ formatTokens(session.lastContextUsage.budget_tokens) }}</dd>
               </div>
               <div>
-                <dt>Percentage</dt>
+                <dt>{{ t("context.percentage") }}</dt>
                 <dd>{{ ratioPct }}%</dd>
               </div>
               <div>
-                <dt>Context window</dt>
+                <dt>{{ t("context.contextWindow") }}</dt>
                 <dd>{{ contextWindowSummary }}</dd>
               </div>
               <div>
-                <dt>Compaction state</dt>
+                <dt>{{ t("context.compactionState") }}</dt>
                 <dd>{{ compactionStateLabel }}</dd>
               </div>
             </dl>
@@ -265,6 +241,32 @@ async function onCompactClick() {
                 </tr>
               </tbody>
             </table>
+            <div class="popover-actions">
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-test="context-meter-compact"
+                :disabled="session.compacting || compressionRatioTooLow"
+                :title="
+                  compressionRatioTooLow
+                    ? t('context.notEnoughToCompact')
+                    : needsAutoCompression
+                      ? t('context.autoCompressionActive')
+                      : t('context.compactNow')
+                "
+                @click="onCompactClick"
+              >
+                <template v-if="session.compacting">
+                  {{ t("context.compactInProgress") }}
+                </template>
+                <template v-else-if="needsAutoCompression">
+                  {{ t("context.autoCompressing") }}
+                </template>
+                <template v-else>
+                  {{ t("context.compactNow") }}
+                </template>
+              </button>
+            </div>
           </template>
         </div>
       </template>
@@ -365,47 +367,26 @@ async function onCompactClick() {
       <div class="popover-actions">
         <button
           type="button"
-          class="btn btn-ghost"
-          data-test="context-meter-switch-model"
-          :disabled="!session.currentSessionId || session.compacting || switchingProfile"
-          :title="t('context.switchModel')"
-          @click="openProfilePicker"
-        >
-          {{ t("context.switchModel") }}
-        </button>
-        <button
-          type="button"
           class="btn btn-primary"
           data-test="context-meter-compact"
-          :disabled="session.compacting"
+          :disabled="session.compacting || compressionRatioTooLow"
+          :title="
+            compressionRatioTooLow
+              ? t('context.notEnoughToCompact')
+              : needsAutoCompression
+                ? t('context.autoCompressionActive')
+                : t('context.compactNow')
+          "
           @click="onCompactClick"
         >
-          {{ session.compacting ? t("context.compactInProgress") : t("context.compactNow") }}
+          <template v-if="session.compacting">
+            {{ t("context.compactInProgress") }}
+          </template>
+          <template v-else-if="needsAutoCompression"> {{ t("context.autoCompressing") }} </template>
+          <template v-else>
+            {{ t("context.compactNow") }}
+          </template>
         </button>
-      </div>
-      <div v-if="profilePickerOpen" class="profile-picker" data-test="context-meter-picker">
-        <header class="profile-picker-header">
-          {{ t("context.switchModelChoose") }}
-        </header>
-        <ul class="profile-list">
-          <li v-for="p in profiles" :key="p.alias">
-            <button
-              type="button"
-              class="profile-item"
-              :data-test="`context-meter-profile-${p.alias}`"
-              :disabled="switchingProfile"
-              @click="onProfilePicked(p.alias)"
-            >
-              <span class="profile-alias">{{ p.alias }}</span>
-              <span class="profile-meta">
-                {{ p.model_id }} · {{ Math.round(p.context_window / 1000) }}k
-                <span v-if="p.alias === session.currentProfile" class="profile-current">
-                  ({{ t("context.switchModelCurrent") }})
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
       </div>
     </div>
   </div>
@@ -469,10 +450,6 @@ async function onCompactClick() {
   color: var(--app-text-color, #1f2937);
   background: transparent;
   cursor: pointer;
-}
-.ring-trigger:focus-visible {
-  outline: 2px solid var(--app-primary-color, #0077cc);
-  outline-offset: 2px;
 }
 .segment {
   height: 100%;
@@ -612,61 +589,5 @@ async function onCompactClick() {
   background: var(--app-primary-color);
   color: var(--app-inverse-text-color, #fff);
   border-color: var(--app-primary-color);
-}
-.btn-ghost {
-  background: transparent;
-}
-.profile-picker {
-  margin-top: 8px;
-  border-top: 1px solid var(--app-border-color);
-  padding-top: 8px;
-}
-.profile-picker-header {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  opacity: 0.8;
-}
-.profile-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.profile-item {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--app-text-color);
-  cursor: pointer;
-  text-align: left;
-}
-.profile-item:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
-  border-color: var(--app-border-color);
-}
-.profile-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.profile-alias {
-  font-weight: 600;
-  font-size: 13px;
-}
-.profile-meta {
-  font-size: 11px;
-  opacity: 0.7;
-}
-.profile-current {
-  color: var(--app-primary-color);
-  font-weight: 600;
 }
 </style>

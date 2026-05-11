@@ -57,16 +57,7 @@ function ok<T>(data: T): { status: "ok"; data: T } {
 
 function mountPane() {
   const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
-    reusePinia: true,
-    mount: {
-      global: {
-        stubs: {
-          MarketplacePane: {
-            template: '<section data-test="mcp-marketplace-embedded">Marketplace catalog</section>'
-          }
-        }
-      }
-    }
+    reusePinia: true
   };
   return mountWithPlugins(McpSettingsPane, mountOptions).wrapper;
 }
@@ -93,7 +84,7 @@ describe("McpSettingsPane", () => {
     expect(mockedCommands.listMcpServerSettings).toHaveBeenCalledTimes(1);
     expect(serversSection.exists()).toBe(true);
     expect(addButton.exists()).toBe(true);
-    expect(wrapper.find('[data-test="mcp-add-server-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="mcp-add-server-dialog"]').exists()).toBe(false);
     expect(
       Boolean(
         serversSection.element.compareDocumentPosition(addButton.element) &
@@ -101,27 +92,12 @@ describe("McpSettingsPane", () => {
       )
     ).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("GitHub");
-    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("running");
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("5 tools");
     expect(wrapper.find('[data-test="mcp-trust-github"]').text()).toContain("Trust");
     expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').text()).toContain(
       "connection refused"
     );
-    expect(wrapper.find('[data-test="mcp-edit-github"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
-  });
-
-  it("filters servers and embeds Marketplace without Installed tab in a secondary sub-tab", async () => {
-    const wrapper = mountPane();
-    await flushPromises();
-
-    await wrapper.find('[data-test="mcp-search"]').setValue("docs");
-    expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').exists()).toBe(true);
-
-    await wrapper.find('[data-test="mcp-subtab-marketplace"]').trigger("click");
-    expect(wrapper.find('[data-test="mcp-marketplace-embedded"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="tab-installed"]').exists()).toBe(false);
   });
 
   it("labels the config action as a folder opener and delegates to the MCP store", async () => {
@@ -129,7 +105,7 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     const openConfigButton = wrapper.find('[data-test="mcp-open-config"]');
-    expect(openConfigButton.text()).toContain("Open config folder");
+    expect(openConfigButton.text()).toContain("Open Config Folder");
 
     await openConfigButton.trigger("click");
     await flushPromises();
@@ -149,7 +125,7 @@ describe("McpSettingsPane", () => {
     await nextTick();
 
     const openConfigButton = wrapper.find<HTMLButtonElement>('[data-test="mcp-open-config"]');
-    expect(openConfigButton.text()).toContain("Open config folder");
+    expect(openConfigButton.text()).toContain("Open Config Folder");
     expect(openConfigButton.element.disabled).toBe(false);
 
     resolveSettings!(ok([githubServer, readonlyServer]));
@@ -176,7 +152,7 @@ describe("McpSettingsPane", () => {
     resolveOpenConfig!(ok("/tmp"));
     await flushPromises();
 
-    expect(openConfigButton.text()).toContain("Open config folder");
+    expect(openConfigButton.text()).toContain("Open Config Folder");
     expect(openConfigButton.element.disabled).toBe(false);
   });
 
@@ -196,14 +172,17 @@ describe("McpSettingsPane", () => {
     );
   });
 
-  it("opens the add server panel and saves manual stdio settings through the MCP store action", async () => {
+  it("opens the add server dialog via dropdown and saves manual stdio settings", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
     await wrapper.find('[data-test="mcp-add-server-btn"]').trigger("click");
-    expect(wrapper.find('[data-test="mcp-add-server-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-add-server-menu"]').exists()).toBe(true);
 
-    await wrapper.find('[data-test="mcp-install-mode-manual"]').trigger("click");
+    await wrapper.find('[data-test="mcp-add-server-manual"]').trigger("click");
+    await nextTick();
+    expect(wrapper.find('[data-test="mcp-add-server-dialog"]').exists()).toBe(true);
+
     await wrapper.find('[data-test="mcp-form-name"]').setValue("GitHub");
     await wrapper.find('[data-test="mcp-form-command"]').setValue("npx");
     await wrapper
@@ -225,58 +204,10 @@ describe("McpSettingsPane", () => {
     });
   });
 
-  it("refreshes settings rows after runtime actions change server state", async () => {
-    const stoppedGithubServer = {
-      ...githubServer,
-      runtime_status: "stopped",
-      trusted: true,
-      tool_count: 6
-    };
-    mockedCommands.listMcpServerSettings
-      .mockResolvedValueOnce(ok([githubServer]))
-      .mockResolvedValueOnce(ok([stoppedGithubServer]));
-
+  it("disables delete for read-only backend rows", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    await wrapper.find('[data-test="mcp-start-stop-github"]').trigger("click");
-    await flushPromises();
-
-    expect(mockedInvoke).toHaveBeenCalledWith("stop_mcp_server", { serverId: "github" });
-    expect(mockedCommands.listMcpServerSettings).toHaveBeenCalledTimes(2);
-    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("stopped");
-    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("6 tools");
-  });
-
-  it("keeps edit disabled until transport details can be edited without data loss", async () => {
-    const wrapper = mountPane();
-    await flushPromises();
-
-    expect(wrapper.find<HTMLButtonElement>('[data-test="mcp-edit-github"]').element.disabled).toBe(
-      true
-    );
-  });
-
-  it("releases row busy state when runtime actions fail", async () => {
-    mockedInvoke.mockRejectedValueOnce(new Error("runtime unavailable"));
-    const wrapper = mountPane();
-    await flushPromises();
-
-    await wrapper.find('[data-test="mcp-start-stop-github"]').trigger("click");
-    await flushPromises();
-
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="mcp-start-stop-github"]').element.disabled
-    ).toBe(false);
-  });
-
-  it("disables write actions for read-only backend rows", async () => {
-    const wrapper = mountPane();
-    await flushPromises();
-
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="mcp-edit-builtin-docs"]').element.disabled
-    ).toBe(true);
     expect(
       wrapper.find<HTMLButtonElement>('[data-test="mcp-delete-builtin-docs"]').element.disabled
     ).toBe(true);

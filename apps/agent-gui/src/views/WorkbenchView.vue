@@ -5,7 +5,6 @@ import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
 import PermissionCenter from "@/components/PermissionCenter.vue";
-import StatusBar from "@/components/StatusBar.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -62,13 +61,12 @@ watch(currentSessionId, (next) => {
     <h1 class="workbench-heading" data-test="workbench-heading">
       {{ t("nav.workbench") }}
     </h1>
-    <SessionsSidebar />
+    <SessionsSidebar class="left-sidebar" />
     <ChatPanel />
     <aside class="right-sidebar">
       <TraceTimeline />
       <PermissionCenter />
     </aside>
-    <StatusBar />
   </main>
 </template>
 
@@ -76,7 +74,7 @@ watch(currentSessionId, (next) => {
 .workbench {
   display: grid;
   grid-template-columns: 220px 1fr 280px;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -92,13 +90,14 @@ watch(currentSessionId, (next) => {
   white-space: nowrap;
   border: 0;
 }
+/* 统一左侧面板与中间面板的分隔线 */
+.left-sidebar {
+  border-right: 1px solid var(--app-border-color);
+}
 .right-sidebar {
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--app-border-color);
   overflow: hidden;
-}
-:deep(.status-bar) {
-  grid-column: 1 / -1;
 }
 </style>

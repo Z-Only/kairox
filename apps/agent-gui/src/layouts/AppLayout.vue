@@ -48,14 +48,17 @@ const { t } = useI18n();
   border-radius: 4px;
   transition:
     color 0.2s,
-    background 0.2s;
+    background 0.2s,
+    transform 0.15s;
 }
 .app-nav a:hover {
   color: var(--app-text-color);
   background: var(--app-hover-color);
+  transform: translateY(-1px);
 }
 .app-nav a.router-link-active {
   color: var(--app-primary-color);
   font-weight: 600;
+  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
 }
 </style>

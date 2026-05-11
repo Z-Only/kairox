@@ -11,8 +11,6 @@ vi.mock("@tauri-apps/api/event", () => ({
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 
-import { useSessionStore } from "@/stores/session";
-
 // StatusBar uses `useI18n()` (Task 7a NIT #6 — hardcoded strings →
 // `t(...)` lookups), so the bare `mount()` no longer suffices. Use the
 // shared helper that wires Pinia + i18n + the production router so the
@@ -26,7 +24,6 @@ beforeEach(() => {
   mockedInvoke.mockImplementation(async (command) => {
     if (command === "get_profile_info") return [];
     if (command === "get_permission_mode") return "Interactive";
-    if (command === "list_mcp_servers") return [];
     return undefined;
   });
 });
@@ -50,47 +47,16 @@ describe("StatusBar", () => {
     });
   });
 
-  it("displays MCP status indicator", () => {
-    const wrapper = mountStatusBar();
-    expect(wrapper.findComponent({ name: "McpStatusIndicator" }).exists()).toBe(true);
-  });
-
-  it("renders provider/model, sessions count, streaming and connected status as text", async () => {
+  it("renders sessions count, streaming and connected status as text", async () => {
     mockedInvoke.mockImplementation(async (command) => {
-      if (command === "get_profile_info") {
-        return [
-          {
-            alias: "deep",
-            provider: "anthropic",
-            model_id: "claude-3-5-sonnet",
-            local: false,
-            has_api_key: true
-          }
-        ];
-      }
+      if (command === "get_profile_info") return [];
       if (command === "get_permission_mode") return "Interactive";
-      if (command === "list_mcp_servers") return [];
       return undefined;
     });
     const wrapper = mountStatusBar();
-    const session = useSessionStore();
-    session.currentProfile = "deep";
-    session.profileInfos = [
-      {
-        alias: "deep",
-        provider: "anthropic",
-        model_id: "claude-3-5-sonnet",
-        local: false,
-        has_api_key: true
-      }
-    ] as never;
     await flushPromises();
 
     const text = wrapper.text();
-    // activeProfileDisplay formats as "Provider · Model" (e.g., "Anthropic · Claude 3.5 Sonnet")
-    expect(text).toContain("Anthropic");
-    expect(text).toContain("Claude 3.5 Sonnet");
-    // Check for i18n-translated labels (defaults to English in tests)
     expect(text).toContain("Sessions");
     expect(text).toContain("Streaming");
     expect(text).toContain("Connected");

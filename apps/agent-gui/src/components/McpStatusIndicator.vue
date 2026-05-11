@@ -40,11 +40,7 @@ const textColorVar = computed(() => {
     data-test="mcp-status-indicator"
     :class="indicatorClass"
     :style="{ color: textColorVar }"
-    role="button"
-    tabindex="0"
     @click="emit('click')"
-    @keydown.enter="emit('click')"
-    @keydown.space.prevent="emit('click')"
   >
     {{ dot }} {{ label }}
   </span>

@@ -1,4 +1,3 @@
-## Here's my code: 
 [connect]
 timeout_ms = 10000
 
@@ -13,9 +12,19 @@ action = "assert-visible"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "create session via new session button"
+name = "open new session dialog"
 action = "click"
 target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "new session dialog visible"
+action = "assert-visible"
+target = "[data-test='new-session-dialog']"
+
+[[step]]
+name = "create empty chat session"
+action = "click"
+target = "[data-test='create-session-btn']"
 
 [[step]]
 name = "wait for chat input"

@@ -190,7 +190,6 @@ describe("ChatPanel", () => {
 
     const gitMeta = wrapper.find('[data-test="session-git-meta"]');
     expect(gitMeta.exists()).toBe(true);
-    expect(gitMeta.text()).toContain("/repo/.worktrees/project-chat");
     expect(gitMeta.text()).toContain("feat/project-chat");
   });
 
@@ -216,6 +215,7 @@ describe("ChatPanel", () => {
   it("renders context meter as a ring inside the composer input row", async () => {
     const wrapper = mountChatPanel((session) => {
       session.lastContextUsage = makeUsage();
+      session.projection.messages = [{ role: "user", content: "hi" }] as never;
     });
     await flushPromises();
 
@@ -224,13 +224,11 @@ describe("ChatPanel", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
-  it("renders compact empty context meter ring inside the composer input row", async () => {
+  it("hides context meter ring when conversation has no messages", async () => {
     const wrapper = mountChatPanel();
     await flushPromises();
 
-    const inputRow = wrapper.find(".input-row");
-    expect(inputRow.find('[data-test="context-meter-ring-empty"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-ring"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 

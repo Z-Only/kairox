@@ -77,7 +77,7 @@ describe("SettingsView (Pre-work B regression)", () => {
   });
 
   it("P1-S1-settings-tab-contrast keeps inactive tabs on accessible theme text color", () => {
-    expect(settingsViewSource).toContain("color: var(--app-text-color-2, #6b7280);");
+    expect(settingsViewSource).toContain("color: var(--app-text-color-2);");
   });
 
   it("P2-S1-focus-ring exposes a visible focus indicator on the native theme control", async () => {

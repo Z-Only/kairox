@@ -36,3 +36,31 @@ const isDisabled = computed(() => props.disabled || props.busy);
     <slot />
   </button>
 </template>
+
+<style scoped>
+.kx-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px;
+  border-radius: 4px;
+}
+.kx-icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.kx-icon-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.kx-icon-button--danger:hover {
+  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
+}
+</style>

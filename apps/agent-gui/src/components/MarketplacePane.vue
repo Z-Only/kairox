@@ -18,9 +18,21 @@ const sourceChips = computed(() => {
   return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
 });
 
+const hasCachedEntries = computed(() => catalog.entries.length > 0);
+
 onMounted(async () => {
   if (catalog.tab === "installed") {
     catalog.tab = "browse";
+  }
+
+  // If we have cached entries, show them immediately and refresh in background.
+  if (hasCachedEntries.value) {
+    catalog.fetchSources();
+    const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
+    if (hasEnabledRemote) {
+      catalog.refreshCatalogSource();
+    }
+    return;
   }
 
   await catalog.fetchSources();
@@ -35,12 +47,6 @@ onMounted(async () => {
 
 <template>
   <div class="marketplace-pane">
-    <header class="marketplace-pane__header">
-      <h1 class="marketplace-pane__title">
-        {{ t("marketplace.title") }}
-      </h1>
-    </header>
-
     <div>
       <div class="source-filter">
         <button
@@ -94,10 +100,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-.marketplace-pane__title {
-  margin: 0;
-  font-size: 20px;
 }
 .btn {
   padding: 4px 12px;

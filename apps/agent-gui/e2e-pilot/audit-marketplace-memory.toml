@@ -1,4 +1,3 @@
-## Here's my code: 
 [connect]
 timeout_ms = 10000
 
@@ -66,10 +65,9 @@ action = "click"
 target = "[data-test='mcp-subtab-marketplace']"
 
 [[step]]
-name = "wait for catalog"
-action = "wait"
-selector = "[data-test='catalog-search']"
-timeout_ms = 15000
+name = "browse tab visible"
+action = "assert-visible"
+target = "[data-test='tab-browse']"
 
 [[step]]
 name = "catalog search visible"

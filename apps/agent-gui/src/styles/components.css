@@ -23,6 +23,7 @@
 
 .btn:hover {
   background: var(--app-hover-color);
+  color: var(--app-text-color);
 }
 
 .btn:disabled {
@@ -37,7 +38,10 @@
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  background: color-mix(in srgb, var(--app-primary-color) 85%, #000);
+  border-color: color-mix(in srgb, var(--app-primary-color) 85%, #000);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--app-primary-color) 30%, transparent);
 }
 
 .btn-danger {
@@ -47,7 +51,10 @@
 }
 
 .btn-danger:hover {
-  opacity: 0.9;
+  background: color-mix(in srgb, var(--app-error-color) 85%, #000);
+  border-color: color-mix(in srgb, var(--app-error-color) 85%, #000);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--app-error-color) 30%, transparent);
 }
 
 .btn-ghost {
@@ -254,6 +261,7 @@
   color: var(--app-primary-color);
   border-bottom-color: var(--app-primary-color);
   font-weight: 600;
+  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
 }
 
 /* === Dialog (native <dialog>) === */
@@ -399,6 +407,13 @@ textarea {
 .kx-icon-button--danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--app-error-color) 12%, transparent);
   color: var(--app-error-color);
+}
+
+.kx-icon-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 
 .kx-dropdown-content,

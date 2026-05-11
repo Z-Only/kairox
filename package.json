@@ -48,6 +48,9 @@
   "pnpm": {
     "overrides": {
       "glob": ">=10.5.0"
-    }
+    },
+    "shamefullyHoist": true,
+    "strictPeerDependencies": false,
+    "autoInstallPeers": true
   }
 }

@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { commands } from "@/generated/commands";
 import type { SessionInfoResponse } from "@/types";
+import { useSessionStore } from "@/stores/session";
 
 export interface ProjectInfo {
   projectId: string;
@@ -109,7 +111,8 @@ function upsertProject(projects: ProjectInfo[], project: ProjectInfo): ProjectIn
 
 function createDraftSessionPlaceholder(
   sessionId: string,
-  project: ProjectInfo | undefined
+  project: ProjectInfo | undefined,
+  branch?: string | null
 ): ProjectSessionInfo {
   return {
     sessionId,
@@ -117,9 +120,19 @@ function createDraftSessionPlaceholder(
     profile: "default",
     projectId: project?.projectId ?? null,
     worktreePath: project?.rootPath ?? null,
-    branch: null,
+    branch: branch ?? null,
     visibility: "draft_hidden"
   };
+}
+
+async function refreshConfigForProject(rootPath: string): Promise<void> {
+  try {
+    await commands.refreshConfigForProject(rootPath);
+    const sessionStore = useSessionStore();
+    await sessionStore.loadProfileInfo();
+  } catch (error) {
+    console.error("Failed to refresh config for project:", error);
+  }
 }
 
 export const useProjectStore = defineStore("project", () => {
@@ -192,9 +205,21 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   async function createProjectDraftSession(projectId: string): Promise<ProjectSessionInfo> {
-    const sessionId = await invoke<string>("create_project_draft_session", { projectId });
     const project = projects.value.find((entry) => entry.projectId === projectId);
-    const draftSession = createDraftSessionPlaceholder(sessionId, project);
+    if (project?.rootPath) {
+      await refreshConfigForProject(project.rootPath);
+    }
+    const sessionId = await invoke<string>("create_project_draft_session", { projectId });
+    let branch: string | null = null;
+    if (project?.rootPath) {
+      try {
+        const gitStatus = await getProjectGitStatus(projectId);
+        branch = gitStatus.branch;
+      } catch {
+        // git status may fail — non-critical
+      }
+    }
+    const draftSession = createDraftSessionPlaceholder(sessionId, project, branch);
     const currentSessions = sessionsByProject.value.get(projectId) ?? [];
     const nextSessionsByProject = new Map(sessionsByProject.value);
     nextSessionsByProject.set(projectId, [
@@ -206,6 +231,10 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   async function loadProjectSessions(projectId: string): Promise<void> {
+    const project = projects.value.find((entry) => entry.projectId === projectId);
+    if (project?.rootPath) {
+      await refreshConfigForProject(project.rootPath);
+    }
     const responses = await invoke<SessionInfoResponse[]>("list_project_sessions", { projectId });
     const nextSessionsByProject = new Map(sessionsByProject.value);
     nextSessionsByProject.set(projectId, responses.map(normalizeProjectSession));

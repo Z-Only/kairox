@@ -162,7 +162,11 @@ export const useSessionStore = defineStore("session", () => {
 
   const activeProfileDisplay = computed(() => {
     const profile = activeProfileInfo.value;
-    if (!profile) return currentProfile.value;
+    if (!profile) {
+      const firstProfile = profileInfos.value[0];
+      if (firstProfile) return formatProfileDisplay(firstProfile);
+      return currentProfile.value;
+    }
     return formatProfileDisplay(profile);
   });
 
@@ -348,6 +352,9 @@ export const useSessionStore = defineStore("session", () => {
     });
     currentSessionId.value = sessionId;
     currentProfile.value = target.profile;
+    if (currentProfile.value === "default" && profileInfos.value.length > 0) {
+      currentProfile.value = profileInfos.value[0].alias;
+    }
     setProjection(next);
     const traceStrings = await invoke<string[]>("get_trace", { sessionId });
     for (const jsonStr of traceStrings) {
