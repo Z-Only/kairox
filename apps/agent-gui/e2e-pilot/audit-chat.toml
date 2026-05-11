@@ -39,6 +39,16 @@ selector = "[data-test='chat-empty-state']"
 timeout_ms = 15000
 
 [[step]]
+name = "chat model trigger visible"
+action = "assert-visible"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "context meter ring visible"
+action = "assert-visible"
+target = "[data-test='context-meter-ring']"
+
+[[step]]
 name = "send button visible"
 action = "assert-visible"
 target = "[data-test='send-button']"

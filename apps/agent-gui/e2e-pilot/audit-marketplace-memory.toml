@@ -55,6 +55,11 @@ selector = "[data-test='mcp-installed-servers']"
 timeout_ms = 15000
 
 [[step]]
+name = "mcp open config action visible"
+action = "assert-visible"
+target = "[data-test='mcp-open-config']"
+
+[[step]]
 name = "open embedded marketplace"
 action = "click"
 target = "[data-test='mcp-subtab-marketplace']"

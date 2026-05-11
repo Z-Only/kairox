@@ -13,6 +13,26 @@ selector = "[data-test='sessions-sidebar']"
 timeout_ms = 15000
 
 [[step]]
+name = "project create trigger visible"
+action = "assert-visible"
+target = "[data-test='project-create-trigger']"
+
+[[step]]
+name = "open project create menu"
+action = "click"
+target = "[data-test='project-create-trigger']"
+
+[[step]]
+name = "blank project action visible"
+action = "assert-visible"
+target = "[data-test='project-create-blank']"
+
+[[step]]
+name = "import folder action visible"
+action = "assert-visible"
+target = "[data-test='project-import-folder']"
+
+[[step]]
 name = "new session button visible"
 action = "assert-visible"
 target = "[data-test='new-session-btn']"
