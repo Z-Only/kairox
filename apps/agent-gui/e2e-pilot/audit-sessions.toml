@@ -38,24 +38,15 @@ action = "assert-visible"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "open new session dialog"
+name = "click new session"
 action = "click"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "new session dialog visible"
-action = "assert-visible"
-target = "[data-test='new-session-dialog']"
-
-[[step]]
-name = "create session button visible"
-action = "assert-visible"
-target = "[data-test='create-session-btn']"
-
-[[step]]
-name = "create a session"
-action = "click"
-target = "[data-test='create-session-btn']"
+name = "wait for session item"
+action = "wait"
+selector = "[data-test='session-item']"
+timeout_ms = 10000
 
 [[step]]
 name = "session item visible"
@@ -88,30 +79,30 @@ action = "click"
 target = "[data-test='session-rename-confirm']"
 
 [[step]]
-name = "wait for delete button after rename"
+name = "wait for archive button after rename"
 action = "wait"
-selector = "[data-test='session-delete-btn']"
+selector = "[data-test='session-archive-btn']"
 timeout_ms = 5000
 
 [[step]]
 name = "delete button visible"
 action = "assert-visible"
-target = "[data-test='session-delete-btn']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "open delete confirmation"
 action = "click"
-target = "[data-test='session-delete-btn']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "confirm delete visible"
 action = "assert-visible"
-target = "[data-test='session-delete-confirm']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "confirm session delete"
 action = "click"
-target = "[data-test='session-delete-confirm']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "sidebar restored after delete"

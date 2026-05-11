@@ -12,19 +12,9 @@ action = "assert-visible"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "open new session dialog"
+name = "click new session"
 action = "click"
 target = "[data-test='new-session-btn']"
-
-[[step]]
-name = "new session dialog visible"
-action = "assert-visible"
-target = "[data-test='new-session-dialog']"
-
-[[step]]
-name = "create empty chat session"
-action = "click"
-target = "[data-test='create-session-btn']"
 
 [[step]]
 name = "wait for chat input"
@@ -81,12 +71,12 @@ target = "[data-test='message-list']"
 [[step]]
 name = "delete audit chat session"
 action = "click"
-target = ".session-item.active [data-test='session-delete-btn']"
+target = ".session-item.active [data-test='session-archive-btn']"
 
 [[step]]
 name = "confirm audit chat cleanup"
 action = "click"
-target = ".session-item.active [data-test='session-delete-confirm']"
+target = ".session-item.active [data-test='session-archive-btn']"
 
 [[step]]
 name = "sidebar restored after chat cleanup"

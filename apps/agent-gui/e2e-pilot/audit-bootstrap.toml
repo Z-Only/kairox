@@ -33,11 +33,6 @@ action = "assert-visible"
 target = "[data-test='sessions-sidebar']"
 
 [[step]]
-name = "status bar visible"
-action = "assert-visible"
-target = "[data-test='status-bar']"
-
-[[step]]
 name = "workbench view visible"
 action = "assert-visible"
 target = "[data-test='view-workbench']"

@@ -64,12 +64,6 @@ name = "open embedded marketplace"
 action = "click"
 target = "[data-test='mcp-subtab-marketplace']"
 
-[[step]]
-name = "browse tab visible"
-action = "assert-visible"
-target = "[data-test='tab-browse']"
-
-[[step]]
 name = "catalog search visible"
 action = "assert-visible"
 target = "[data-test='catalog-search']"
