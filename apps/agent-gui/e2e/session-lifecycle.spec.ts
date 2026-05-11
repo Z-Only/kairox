@@ -15,9 +15,9 @@ test.beforeEach(async ({ page }) => {
 
 // Selector notes:
 //   - SessionsSidebar renders `.session-item` (per-row) and `.session-title`
-//     class hooks; the New Session dialog is a native
-//     <dialog class="new-session-dialog">. The Create button exposes
-//     data-test="create-session-btn".
+//     class hooks.
+//   - The + New Session button (data-test="new-session-btn") directly creates
+//     a session without a dialog (no more new-session-dialog or create-session-btn).
 //   - The destructive delete confirmation is a row-level two-click flow:
 //     `session-delete-btn` changes to `session-delete-confirm` for the same row.
 //   - Rename / delete row buttons expose stable data-test attributes.
@@ -36,14 +36,8 @@ test("creates a new session", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Click + New button (NButton with data-test forwarded)
+  // Click + New button — now directly creates a session (no dialog).
   await page.getByTestId("new-session-btn").click();
-
-  // Dialog should appear
-  await expect(page.locator(".new-session-dialog")).toBeVisible();
-
-  // Click Create (the SFC tags it with data-test="create-session-btn")
-  await page.getByTestId("create-session-btn").click();
 
   // Should now have 2 sessions
   await expect(page.locator(".session-item")).toHaveCount(2);
@@ -55,10 +49,8 @@ test("switches between sessions", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Create a second session
+  // Create a second session (direct create, no dialog).
   await page.getByTestId("new-session-btn").click();
-  await expect(page.locator(".new-session-dialog")).toBeVisible();
-  await page.getByTestId("create-session-btn").click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
   // Second session should be active (last created)
@@ -101,28 +93,20 @@ test("deletes a session with confirmation", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Create a second session so we still have one after deletion
+  // Create a second session (direct create, no dialog).
   await page.getByTestId("new-session-btn").click();
-  await expect(page.locator(".new-session-dialog")).toBeVisible();
-  await page.getByTestId("create-session-btn").click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
-  // Hover over first session, click delete
+  // Delete the first session via two-click archive flow:
+  // first click sets pending delete, second click confirms.
   const sessionItem = page.locator(".session-item").first();
   await sessionItem.hover();
-  await sessionItem.getByTestId("session-delete-btn").click();
-
-  const confirmDeleteButton = sessionItem.getByTestId("session-delete-confirm");
-  await expect(confirmDeleteButton).toBeVisible();
-  await confirmDeleteButton.click();
+  await sessionItem.getByTestId("session-archive-btn").click();
+  await sessionItem.getByTestId("session-archive-btn").click();
 
   // Should have 1 session remaining
   await expect(page.locator(".session-item")).toHaveCount(1);
 });
 
-test("status bar shows session count and mode", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("status-bar")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId("status-bar")).toContainText(/Sessions/i);
-  await expect(page.getByTestId("status-bar")).toContainText(/interactive/i);
-});
+// The status bar test was removed because StatusBar was moved out of the
+// workbench layout as part of UI polish (PR #120).

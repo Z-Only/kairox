@@ -70,7 +70,7 @@ test.describe("Marketplace", () => {
     await page.locator(".drawer-close-btn").click();
 
     await expect(page.getByTestId("tab-installed")).toHaveCount(0);
-    await page.getByTestId("mcp-subtab-servers").click();
+    await page.getByTestId("mcp-subtab-installed").click();
     await expect(page.getByTestId("mcp-installed-servers")).toBeVisible();
   });
 });
@@ -134,15 +134,16 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
 
 test.describe("Settings panes backed by tauri-mock", () => {
   test("manages MCP settings server state", async ({ page }) => {
-    await page.getByTestId("mcp-subtab-servers").click();
+    await page.getByTestId("mcp-subtab-installed").click();
     await expect(page.getByTestId("mcp-server-row-github")).toContainText("GitHub");
     await expect(page.getByTestId("mcp-server-row-github")).toContainText("Enabled");
 
     await page.getByTestId("mcp-enable-github").click();
     await expect(page.getByTestId("mcp-server-row-github")).toContainText("Disabled");
 
+    // Add server via icon-button → dropdown → manual dialog
     await page.getByTestId("mcp-add-server-btn").click();
-    await page.getByTestId("mcp-install-mode-manual").click();
+    await page.getByTestId("mcp-add-server-manual").click();
     await page.getByTestId("mcp-form-name").fill("Local Tools");
     await page.getByTestId("mcp-form-command").fill("node");
     await page.getByTestId("mcp-form-args").fill("server.js --stdio");
@@ -168,10 +169,14 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await page.getByTestId("skill-update-project-registry-review").click();
     await expect(page.getByTestId("skill-row-project-registry-review")).toContainText("up to date");
 
+    // Switch to Discover sub-tab to search remote skills
+    await page.getByTestId("skill-subtab-discover").click();
     await page.getByTestId("skill-discover-query").fill("review");
     await page.getByTestId("skill-discover-submit").click();
     await expect(page.getByTestId("skill-remote-code-review-assistant")).toBeVisible();
     await page.getByTestId("skill-install-code-review-assistant").click();
+    // Switch back to Installed tab to verify the skill was added
+    await page.getByTestId("skill-subtab-installed").click();
     await expect(page.getByTestId("skill-row-project-code-review-assistant")).toContainText(
       "Code Review Assistant"
     );

@@ -671,13 +671,13 @@ function invoke(cmd, args) {
         var ctxEvent = makeEvent(sessionId, {
           type: "ContextAssembled",
           usage: {
-            total_tokens: 256,
+            total_tokens: 50000,
             budget_tokens: 100000,
             context_window: 128000,
             output_reservation: 28000,
             by_source: [
-              ["system", 128],
-              ["history", 128]
+              ["system", 25000],
+              ["history", 25000]
             ],
             estimator: "cl100k_base",
             corrected_by_real_usage: false
