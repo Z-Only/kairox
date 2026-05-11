@@ -38,6 +38,7 @@
     "title": "设置",
     "general": "通用",
     "locale": "语言",
+    "localeSystem": "跟随系统",
     "localeEn": "English",
     "localeZh": "中文（简体）",
     "theme": "主题",

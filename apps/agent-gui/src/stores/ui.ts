@@ -16,7 +16,7 @@ export interface NotificationItem {
   timestamp: number;
 }
 export type ThemeMode = "auto" | "light" | "dark";
-export type SupportedLocale = "en" | "zh-CN";
+export type SupportedLocale = "system" | "en" | "zh-CN";
 
 export interface ToastItem {
   id: string;
@@ -52,10 +52,10 @@ export const useUiStore = defineStore("ui", () => {
   // ── Locale ──────────────────────────────────────────────
   // `flush: "sync"` so that `setLocale(...)` reflects in localStorage in the
   // same tick — the surrounding test suite asserts persistence synchronously.
-  const locale = useStorage<SupportedLocale>("kairox.locale", "en", undefined, {
+  const locale = useStorage<SupportedLocale>("kairox.locale", "system", undefined, {
     flush: "sync",
     serializer: {
-      read: (v) => (v === "zh-CN" || v === "en" ? v : "en"),
+      read: (v) => (v === "system" || v === "zh-CN" || v === "en" ? v : "system"),
       write: (v) => v
     }
   });
