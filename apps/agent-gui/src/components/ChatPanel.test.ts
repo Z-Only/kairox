@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
+import chatPanelSource from "./ChatPanel.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 // jsdom does not implement `Element.prototype.scrollTo`. The scrollbar
@@ -104,7 +105,7 @@ describe("ChatPanel", () => {
     expect(streamIndicator.text()).not.toContain("Agent");
   });
 
-  it("shows the provider and model badge in the composer input area", async () => {
+  it("opens a model selector from the composer badge and marks the current model", async () => {
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "get_profile_info") {
         return [
@@ -112,6 +113,13 @@ describe("ChatPanel", () => {
             alias: "fast",
             provider: "openai",
             model_id: "gpt-4o",
+            local: false,
+            has_api_key: true
+          },
+          {
+            alias: "smart",
+            provider: "anthropic",
+            model_id: "claude-3-5-sonnet",
             local: false,
             has_api_key: true
           }
@@ -131,6 +139,13 @@ describe("ChatPanel", () => {
           model_id: "gpt-4o",
           local: false,
           has_api_key: true
+        },
+        {
+          alias: "smart",
+          provider: "anthropic",
+          model_id: "claude-3-5-sonnet",
+          local: false,
+          has_api_key: true
         }
       ] as never;
     });
@@ -138,11 +153,23 @@ describe("ChatPanel", () => {
 
     const header = wrapper.find(".chat-header");
     const inputArea = wrapper.find(".input-area");
-    const profileBadge = inputArea.find('[data-test="chat-profile-badge"]');
+    const modelTrigger = inputArea.find('[data-test="chat-model-trigger"]');
 
-    expect(profileBadge.exists()).toBe(true);
-    expect(profileBadge.text()).toBe("openai / gpt-4o");
-    expect(header.find('[data-test="chat-profile-badge"]').exists()).toBe(false);
+    expect(modelTrigger.exists()).toBe(true);
+    expect(modelTrigger.text()).toContain("OpenAI · GPT-4o");
+    expect(header.find('[data-test="chat-model-trigger"]').exists()).toBe(false);
+
+    await modelTrigger.trigger("click");
+    await flushPromises();
+
+    const popover = wrapper.find('[data-test="chat-model-popover"]');
+    const currentOption = wrapper.find('[data-test="chat-model-option-fast"]');
+
+    expect(popover.exists()).toBe(true);
+    expect(popover.text()).toContain("OpenAI · GPT-4o");
+    expect(popover.text()).toContain("Anthropic · Claude 3.5 Sonnet");
+    expect(currentOption.attributes("aria-current")).toBe("true");
+    expect(currentOption.text()).toContain("Current");
   });
 
   it("shows current session worktree and branch metadata in the composer", async () => {
@@ -165,6 +192,25 @@ describe("ChatPanel", () => {
     expect(gitMeta.exists()).toBe(true);
     expect(gitMeta.text()).toContain("/repo/.worktrees/project-chat");
     expect(gitMeta.text()).toContain("feat/project-chat");
+  });
+
+  it("keeps model selector and git metadata stable with long labels", () => {
+    expect(chatPanelSource).toMatch(/\.composer-meta\s*\{[\s\S]*min-width:\s*0/);
+    expect(chatPanelSource).toMatch(/\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatPanelSource).toMatch(
+      /\.chat-model-trigger\s*\{[\s\S]*max-width:\s*min\(100%,\s*280px\)/
+    );
+    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/);
+    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/);
+    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/);
+    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatPanelSource).toMatch(
+      /\.chat-model-option-label\s*\{[\s\S]*text-overflow:\s*ellipsis/
+    );
+    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*white-space:\s*nowrap/);
+    expect(chatPanelSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
+    expect(chatPanelSource).toMatch(/\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/);
   });
 
   it("renders context meter as a ring inside the composer input row", async () => {

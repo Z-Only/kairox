@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { useSessionStore } from "@/stores/session";
+import { formatProfileDisplay, useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
 import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
-import type { ProjectedRole } from "../types";
+import type { ProfileInfo, ProjectedRole } from "../types";
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -12,6 +12,8 @@ const projectStore = useProjectStore();
 const { notify } = useNotifications();
 const inputText = ref("");
 const scrollbar = ref<HTMLElement | null>(null);
+const modelPopoverOpen = ref(false);
+const switchingModel = ref(false);
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -57,7 +59,36 @@ const projectInstructionSummaryText = computed(() => {
   return `Loaded ${sourceFileNames.join(", ")}`;
 });
 
+const modelOptions = computed<ProfileInfo[]>(() => session.profileInfos);
 const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
+
+function getModelOptionDisplay(profile: ProfileInfo): string {
+  return formatProfileDisplay(profile);
+}
+
+async function selectModelProfile(alias: string) {
+  if (switchingModel.value) return;
+  if (alias === session.currentProfile) {
+    modelPopoverOpen.value = false;
+    return;
+  }
+  if (!session.currentSessionId) return;
+
+  switchingModel.value = true;
+  try {
+    await invoke("switch_model", {
+      sessionId: session.currentSessionId,
+      profileAlias: alias
+    });
+    session.currentProfile = alias;
+    modelPopoverOpen.value = false;
+  } catch (e) {
+    console.error("Failed to switch model:", e);
+    notify("error", String(e));
+  } finally {
+    switchingModel.value = false;
+  }
+}
 
 async function sendMessage() {
   const content = inputText.value.trim();
@@ -188,9 +219,51 @@ watch(
 
     <div class="input-area">
       <div class="composer-meta">
-        <span class="tag" data-test="chat-profile-badge">
-          {{ session.activeProfileDisplay }}
-        </span>
+        <KxPopover
+          v-model:open="modelPopoverOpen"
+          content-data-test="chat-model-popover"
+          side="top"
+          align="start"
+        >
+          <template #trigger>
+            <button
+              class="chat-model-trigger"
+              type="button"
+              data-test="chat-model-trigger"
+              :aria-label="`Select model. Current model: ${session.activeProfileDisplay}`"
+            >
+              {{ session.activeProfileDisplay }}
+            </button>
+          </template>
+          <template #content>
+            <div class="chat-model-popover-panel">
+              <header class="chat-model-popover-header">Model</header>
+              <ul class="chat-model-list">
+                <li v-for="profile in modelOptions" :key="profile.alias">
+                  <button
+                    type="button"
+                    :class="[
+                      'chat-model-option',
+                      { selected: profile.alias === session.currentProfile }
+                    ]"
+                    :data-test="`chat-model-option-${profile.alias}`"
+                    :aria-current="profile.alias === session.currentProfile ? 'true' : undefined"
+                    :disabled="switchingModel"
+                    @click="selectModelProfile(profile.alias)"
+                  >
+                    <span class="chat-model-option-label">
+                      {{ getModelOptionDisplay(profile) }}
+                    </span>
+                    <span class="chat-model-option-meta">
+                      {{ profile.alias }}
+                      <span v-if="profile.alias === session.currentProfile"> · Current</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </KxPopover>
         <span v-if="sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
           {{ sessionGitMeta.join(" · ") }}
         </span>
@@ -318,6 +391,88 @@ watch(
   background: var(--app-tag-color, color-mix(in srgb, var(--app-primary-color) 10%, transparent));
   color: var(--app-text-color);
 }
+.chat-model-trigger {
+  max-width: min(100%, 280px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--app-primary-color) 22%, var(--app-border-color));
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--app-primary-color) 10%, var(--app-card-color));
+  color: var(--app-text-color);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-model-trigger:hover {
+  border-color: var(--app-primary-color);
+  background: color-mix(in srgb, var(--app-primary-color) 16%, var(--app-card-color));
+}
+.chat-model-trigger:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+.chat-model-popover-panel {
+  min-width: 240px;
+}
+.chat-model-popover-header {
+  margin-bottom: 8px;
+  color: var(--app-text-color-2, var(--app-muted-text-color));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.chat-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.chat-model-option {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--app-text-color);
+  font: inherit;
+  text-align: left;
+}
+.chat-model-option:hover:not(:disabled) {
+  border-color: var(--app-border-color);
+  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
+}
+.chat-model-option.selected {
+  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
+}
+.chat-model-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.chat-model-option-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-model-option-meta {
+  color: var(--app-text-color-3, var(--app-muted-text-color));
+  font-size: 11px;
+}
 .cancelled-marker.tag {
   background: color-mix(in srgb, var(--app-warning-color, #faad14) 15%, transparent);
   color: var(--app-warning-color, #faad14);
@@ -381,6 +536,8 @@ watch(
 }
 .composer-meta {
   display: flex;
+  min-width: 0;
+  overflow: hidden;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
@@ -389,6 +546,8 @@ watch(
   font-size: 12px;
 }
 .git-meta {
+  min-width: 0;
+  max-width: min(100%, 420px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

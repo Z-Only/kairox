@@ -228,7 +228,7 @@ fn sanitize_directory_name(display_name: &str) -> String {
         .join(" ");
 
     if sanitized.is_empty() {
-        "Untitled Project".into()
+        "New Project".into()
     } else {
         sanitized
     }

@@ -753,7 +753,7 @@ function invoke(cmd, args) {
 
     case "create_blank_project": {
       var projectId = nextId("prj");
-      var displayName = args.displayName || args.display_name || "Untitled Project";
+      var displayName = args.displayName || args.display_name || "New Project";
       var project = {
         project_id: projectId,
         display_name: displayName,
@@ -1174,7 +1174,10 @@ function invoke(cmd, args) {
       return null;
 
     case "open_mcp_config_file":
-      return "/mock/workspace/kairox.toml";
+      if (window.__MCP_OPEN_CONFIG_SHOULD_FAIL__) {
+        return Promise.reject(new Error("mock failure"));
+      }
+      return "/mock/workspace";
 
     case "list_skill_settings":
       return clone(state.skillSettings);

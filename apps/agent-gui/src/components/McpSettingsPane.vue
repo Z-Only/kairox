@@ -115,11 +115,11 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
       <button
         class="btn"
         type="button"
-        :disabled="mcp.settingsLoading"
+        :disabled="mcp.configFolderOpening"
         data-test="mcp-open-config"
         @click="mcp.openConfigFile()"
       >
-        {{ mcp.settingsLoading ? "Opening…" : "Open config file" }}
+        {{ mcp.configFolderOpening ? "Opening…" : "Open config folder" }}
       </button>
     </header>
 

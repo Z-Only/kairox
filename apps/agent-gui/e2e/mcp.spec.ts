@@ -12,6 +12,44 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript({ path: mockPath });
 });
 
+test.describe("MCP Settings", () => {
+  test("opens the MCP settings page with a config folder action", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+
+    const openConfigButton = page.getByTestId("mcp-open-config");
+    await expect(openConfigButton).toContainText("Open config folder");
+    await openConfigButton.click();
+    await expect(page.getByTestId("mcp-page-error")).toHaveCount(0);
+  });
+
+  test("shows a settings error when opening the config folder fails", async ({ page }) => {
+    await page.addInitScript(() => {
+      // @ts-expect-error injected for tauri-mock to read
+      window.__MCP_OPEN_CONFIG_SHOULD_FAIL__ = true;
+    });
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+
+    await page.getByTestId("mcp-open-config").click();
+    await expect(page.getByTestId("mcp-page-error")).toContainText(
+      "Unable to open MCP config folder"
+    );
+  });
+
+  test("shows Marketplace browse content without an inner Browse tab", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+    await page.getByTestId("mcp-subtab-marketplace").click();
+
+    await expect(page.getByTestId("catalog-search")).toBeVisible();
+    await expect(page.getByTestId("tab-browse")).toHaveCount(0);
+  });
+});
+
 test.describe("MCP Server Management", () => {
   test("MCP status indicator shows in status bar", async ({ page }) => {
     await page.goto("/");

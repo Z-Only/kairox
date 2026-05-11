@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 //   - The message input is a plain <textarea data-test="message-input">.
 //   - `.send-button` / `.cancel-button` / `.cancelled-marker` are driven
 //     via their data-test attributes.
-//   - The profile badge uses data-test="chat-profile-badge".
+//   - The profile badge uses data-test="chat-model-trigger".
 
 test("sends a message and sees user message immediately", async ({ page }) => {
   await page.goto("/");
@@ -107,8 +107,8 @@ test("cancels a streaming session", async ({ page }) => {
 
 test("chat panel shows profile badge", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("chat-profile-badge")).toBeVisible({
+  await expect(page.getByTestId("chat-model-trigger")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.getByTestId("chat-profile-badge")).toContainText("openai / gpt-4o-mini");
+  await expect(page.getByTestId("chat-model-trigger")).toContainText("OpenAI · GPT-4o Mini");
 });

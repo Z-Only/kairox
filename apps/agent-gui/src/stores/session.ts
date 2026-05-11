@@ -42,6 +42,52 @@ export function temporaryTitleFromFirstMessage(content: string): string {
     : trimmedContent;
 }
 
+function titleCaseWords(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLowerCase();
+      if (lower === "gpt") return "GPT";
+      if (lower === "ai") return "AI";
+      if (lower === "openai") return "OpenAI";
+      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+    })
+    .join(" ");
+}
+
+function formatModelIdForDisplay(modelId: string): string {
+  const parts = modelId.split("-").filter(Boolean);
+  if (parts.length === 0) return modelId;
+
+  const [family, ...restParts] = parts;
+  const lowerFamily = family.toLowerCase();
+  if (lowerFamily === "gpt" && restParts.length > 0) {
+    const [version, ...suffixParts] = restParts;
+    return [`GPT-${version}`, ...suffixParts.map(titleCaseWords)].join(" ");
+  }
+
+  if (
+    lowerFamily === "claude" &&
+    restParts.length >= 3 &&
+    /^\d+$/.test(restParts[0]) &&
+    /^\d+$/.test(restParts[1])
+  ) {
+    const [majorVersion, minorVersion, ...suffixParts] = restParts;
+    return [`Claude ${majorVersion}.${minorVersion}`, ...suffixParts.map(titleCaseWords)].join(" ");
+  }
+
+  return parts.map(titleCaseWords).join(" ");
+}
+
+export function formatProfileDisplay(profile: ProfileInfo): string {
+  if (profile.provider && profile.model_id) {
+    return `${titleCaseWords(profile.provider)} · ${formatModelIdForDisplay(profile.model_id)}`;
+  }
+  if (profile.model_id) return formatModelIdForDisplay(profile.model_id);
+  return profile.alias;
+}
+
 export function filterOrdinarySessions(sessionList: SessionInfoResponse[]): SessionInfoResponse[] {
   return sessionList.filter((session) => !session.project_id);
 }
@@ -81,6 +127,10 @@ export const useSessionStore = defineStore("session", () => {
   const profileInfos = ref<ProfileInfo[]>([]);
   const loadingProfileInfo = ref(false);
 
+  function resolveSessionProfile(profile?: string): string {
+    return profile ?? currentProfile.value;
+  }
+
   function findProjectSessionInfo(sessionId: string): SessionInfoResponse | undefined {
     const projectStore = useProjectStore();
     for (const projectSessions of projectStore.sessionsByProject.values()) {
@@ -113,9 +163,7 @@ export const useSessionStore = defineStore("session", () => {
   const activeProfileDisplay = computed(() => {
     const profile = activeProfileInfo.value;
     if (!profile) return currentProfile.value;
-    if (profile.provider && profile.model_id) return `${profile.provider} / ${profile.model_id}`;
-    if (profile.model_id) return profile.model_id;
-    return profile.alias;
+    return formatProfileDisplay(profile);
   });
 
   // ── actions ──────────────────────────────────────────────────────
@@ -337,10 +385,10 @@ export const useSessionStore = defineStore("session", () => {
    * directly. Throws on backend failure so the view can surface it.
    */
   async function createSession(
-    profile: string
+    profile?: string
   ): Promise<{ id: string; title: string; profile: string }> {
     const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
-      profile
+      profile: resolveSessionProfile(profile)
     });
     sessions.value = await listOrdinarySessions();
     currentProfile.value = result.profile;

@@ -54,16 +54,21 @@ describe("Marketplace.vue", () => {
     vi.clearAllMocks();
   });
 
-  it("renders Browse tab without the Installed tab", async () => {
+  it("renders Browse content without Marketplace-level tabs", async () => {
     const wrapper = mountMarketplace();
     await wrapper.vm.$nextTick();
-    expect(wrapper.text()).toContain("Browse");
+
+    expect(wrapper.find("[data-test='catalog-search']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='tab-browse']").exists()).toBe(false);
     expect(wrapper.find("[data-test='tab-installed']").exists()).toBe(false);
   });
 
-  it("does not render the Installed tab or installed list from MarketplacePane", async () => {
+  it("renders Browse content without the redundant MarketplacePane tab wrapper", async () => {
     const wrapper = mountMarketplace();
     await flushPromises();
+
+    expect(wrapper.find("[data-test='catalog-search']").exists()).toBe(true);
+    expect(wrapper.find("[data-test='tab-browse']").exists()).toBe(false);
     expect(wrapper.find("[data-test='tab-installed']").exists()).toBe(false);
     expect(wrapper.find("[data-test='installed-list']").exists()).toBe(false);
   });

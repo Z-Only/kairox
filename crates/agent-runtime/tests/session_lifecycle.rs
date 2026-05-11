@@ -489,6 +489,33 @@ async fn project_session_lists_require_sqlite_metadata_store() {
 }
 
 #[tokio::test]
+async fn create_blank_project_uses_new_project_default_name() {
+    let _environment_guard = ENV_LOCK.lock().await;
+    let previous_home = std::env::var_os("HOME");
+    let home_dir = tempfile::tempdir().expect("temp home");
+
+    std::env::set_var("HOME", home_dir.path());
+
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-blank-project-default-name".into())
+        .await
+        .unwrap();
+    let project = runtime
+        .create_blank_project(workspace.workspace_id, None)
+        .await
+        .unwrap();
+
+    match previous_home {
+        Some(value) => std::env::set_var("HOME", value),
+        None => std::env::remove_var("HOME"),
+    }
+
+    assert_eq!(project.display_name, "New Project");
+}
+
+#[tokio::test]
 async fn create_blank_project_reports_git_init_failure() {
     let _environment_guard = ENV_LOCK.lock().await;
     let previous_home = std::env::var_os("HOME");

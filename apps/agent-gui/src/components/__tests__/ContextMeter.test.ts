@@ -57,7 +57,7 @@ describe("ContextMeter.vue", () => {
     expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
   });
 
-  it("renders compact empty ring when no usage is available yet", () => {
+  it("renders compact empty ring trigger and fallback details when no usage is available yet", async () => {
     const { wrapper } = mountWithPlugins(ContextMeter, {
       props: { variant: "ring" },
       mount: { props: { variant: "ring" } },
@@ -65,10 +65,19 @@ describe("ContextMeter.vue", () => {
     });
 
     const emptyRing = wrapper.find('[data-test="context-meter-ring-empty"]');
+    const ringTrigger = wrapper.find('[data-test="context-meter-ring"]');
+
     expect(emptyRing.exists()).toBe(true);
     expect(emptyRing.attributes("aria-label")).toContain("No usage yet");
+    expect(ringTrigger.exists()).toBe(true);
+    expect(ringTrigger.attributes("aria-label")).toContain("No usage yet");
     expect(wrapper.find('[data-test="context-meter-empty"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="context-meter-ring"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
+
+    await ringTrigger.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="context-meter-popover"]').text()).toContain("No usage yet");
   });
 
   it("renders the segmented bar and a healthy badge under 70%", async () => {

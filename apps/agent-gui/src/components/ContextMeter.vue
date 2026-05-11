@@ -2,6 +2,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
 import { useToast } from "@/composables/useToast";
+import KxPopover from "@/components/ui/KxPopover.vue";
+import KxProgressRing from "@/components/ui/KxProgressRing.vue";
 import type { ContextSource, ProfileWithLimits } from "@/types";
 
 const props = withDefaults(
@@ -68,6 +70,32 @@ const badgeKind = computed<"healthy" | "warn" | "err">(() => {
   return "healthy";
 });
 
+const progressRingState = computed<"normal" | "warning" | "danger">(() => {
+  if (badgeKind.value === "err") return "danger";
+  if (badgeKind.value === "warn") return "warning";
+  return "normal";
+});
+
+const currentModelContextWindow = computed(() => session.modelLimits?.context_window ?? null);
+
+const contextWindowSummary = computed(() => {
+  const usageContextWindow = session.lastContextUsage?.context_window;
+  const currentModelWindow = currentModelContextWindow.value;
+
+  if (usageContextWindow && currentModelWindow) {
+    return `${formatTokens(usageContextWindow)} · ${session.currentProfile}: ${formatTokens(currentModelWindow)}`;
+  }
+  if (usageContextWindow) return formatTokens(usageContextWindow);
+  if (currentModelWindow) return `${session.currentProfile}: ${formatTokens(currentModelWindow)}`;
+  return "Unavailable";
+});
+
+const compactionStateLabel = computed(() => {
+  if (session.compacting) return t("context.compactInProgress");
+  if (session.lastCompactionError) return t("context.failedFallback");
+  return "Idle";
+});
+
 // `ContextSource` is `#[serde(rename_all = "snake_case")]` on the Rust side
 // (see crates/agent-core/src/context_types.rs:5), so by_source tuples carry
 // snake_case strings — these maps must use the same casing.
@@ -98,8 +126,28 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+function formatSourceColor(source: string): string {
+  if (Object.prototype.hasOwnProperty.call(sourceColorVar, source)) {
+    return sourceColorVar[source as ContextSource];
+  }
+  return "var(--app-border-color, #d7d7d7)";
+}
+
+function formatSourceLabel(source: string): string {
+  if (Object.prototype.hasOwnProperty.call(sourceLabel, source)) {
+    return t(sourceLabel[source as ContextSource]);
+  }
+  return source || "Unknown source";
+}
+
+function formatSourcePercent(tokens: number, budgetTokens: number): number {
+  if (budgetTokens <= 0) return 0;
+  const percentage = (tokens / budgetTokens) * 100;
+  if (!Number.isFinite(percentage)) return 0;
+  return Math.round(percentage);
+}
+
 function togglePopover() {
-  if (!session.lastContextUsage) return;
   popoverOpen.value = !popoverOpen.value;
 }
 
@@ -120,34 +168,112 @@ async function onCompactClick() {
     :class="{ 'context-meter-ring-mode': props.variant === 'ring' }"
     data-test="context-meter"
   >
-    <span
-      v-if="props.variant === 'ring' && !session.lastContextUsage"
-      class="ring ring-empty"
-      data-test="context-meter-ring-empty"
-      role="img"
-      :aria-label="t('context.noUsageYet')"
-      :title="t('context.noUsageYet')"
+    <KxPopover
+      v-if="props.variant === 'ring'"
+      v-model:open="popoverOpen"
+      content-data-test="context-meter-popover"
+      side="top"
+      align="end"
+      :side-offset="6"
     >
-      <span aria-hidden="true">—</span>
-    </span>
+      <template #trigger>
+        <button
+          type="button"
+          class="ring-trigger"
+          data-test="context-meter-ring"
+          :class="[`ring-trigger--${progressRingState}`]"
+          :aria-label="
+            session.lastContextUsage ? `${ratioPct}% context used` : t('context.noUsageYet')
+          "
+          :title="t('context.popoverHeader')"
+        >
+          <KxProgressRing
+            data-test="context-progress-ring"
+            :ratio="ratio"
+            :label="
+              session.lastContextUsage ? `${ratioPct}% context used` : t('context.noUsageYet')
+            "
+            :state="progressRingState"
+          >
+            <span v-if="session.lastContextUsage">{{ ratioPct }}%</span>
+            <span
+              v-else
+              data-test="context-meter-ring-empty"
+              role="img"
+              :aria-label="t('context.noUsageYet')"
+              :title="t('context.noUsageYet')"
+            >
+              —
+            </span>
+          </KxProgressRing>
+        </button>
+      </template>
+
+      <template #content>
+        <div class="ring-popover-body">
+          <header class="popover-header">{{ t("context.popoverHeader") }}</header>
+          <div v-if="!session.lastContextUsage" class="fallback-detail">
+            {{ t("context.noUsageYet") }}
+          </div>
+          <template v-else>
+            <dl class="detail-grid">
+              <div>
+                <dt>Used tokens</dt>
+                <dd>{{ formatTokens(session.lastContextUsage.total_tokens) }}</dd>
+              </div>
+              <div>
+                <dt>Max tokens</dt>
+                <dd>{{ formatTokens(session.lastContextUsage.budget_tokens) }}</dd>
+              </div>
+              <div>
+                <dt>Percentage</dt>
+                <dd>{{ ratioPct }}%</dd>
+              </div>
+              <div>
+                <dt>Context window</dt>
+                <dd>{{ contextWindowSummary }}</dd>
+              </div>
+              <div>
+                <dt>Compaction state</dt>
+                <dd>{{ compactionStateLabel }}</dd>
+              </div>
+            </dl>
+            <table class="popover-table by-source-table">
+              <tbody>
+                <tr
+                  v-for="[source, tokens] in session.lastContextUsage.by_source"
+                  :key="source"
+                  :data-test="`context-meter-row-${source}`"
+                >
+                  <td>
+                    <span class="swatch" :style="{ background: formatSourceColor(source) }" />
+                    {{ formatSourceLabel(source) }}
+                  </td>
+                  <td>{{ formatTokens(tokens) }}</td>
+                  <td>
+                    {{
+                      t("context.percentOfBudget", {
+                        pct: formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)
+                      })
+                    }}
+                  </td>
+                </tr>
+                <tr data-test="context-meter-reserved">
+                  <td>{{ t("context.reservedForResponse") }}</td>
+                  <td>{{ formatTokens(session.lastContextUsage.output_reservation) }}</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </div>
+      </template>
+    </KxPopover>
 
     <div v-else-if="!session.lastContextUsage" class="empty" data-test="context-meter-empty">
       <span class="empty-bar" />
       <span class="empty-label">{{ t("context.noUsageYet") }}</span>
     </div>
-
-    <button
-      v-else-if="props.variant === 'ring'"
-      type="button"
-      class="ring"
-      data-test="context-meter-ring"
-      :aria-label="`${ratioPct}% context used`"
-      :title="t('context.popoverHeader')"
-      :style="{ '--context-ratio': `${ratioPct * 3.6}deg` }"
-      @click="togglePopover"
-    >
-      <span>{{ ratioPct }}%</span>
-    </button>
 
     <div v-else class="meter-row">
       <button
@@ -162,8 +288,8 @@ async function onCompactClick() {
           :key="source"
           class="segment"
           :style="{
-            width: `${(tokens / session.lastContextUsage.budget_tokens) * 100}%`,
-            background: sourceColorVar[source]
+            width: `${formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)}%`,
+            background: formatSourceColor(source)
           }"
         />
       </button>
@@ -204,7 +330,7 @@ async function onCompactClick() {
     </div>
 
     <div
-      v-if="popoverOpen && session.lastContextUsage"
+      v-if="props.variant === 'bar' && popoverOpen && session.lastContextUsage"
       class="popover"
       data-test="context-meter-popover"
     >
@@ -217,14 +343,14 @@ async function onCompactClick() {
             :data-test="`context-meter-row-${source}`"
           >
             <td>
-              <span class="swatch" :style="{ background: sourceColorVar[source] }" />
-              {{ t(sourceLabel[source]) }}
+              <span class="swatch" :style="{ background: formatSourceColor(source) }" />
+              {{ formatSourceLabel(source) }}
             </td>
             <td>{{ formatTokens(tokens) }}</td>
             <td>
               {{
                 t("context.percentOfBudget", {
-                  pct: Math.round((tokens / session.lastContextUsage.budget_tokens) * 100)
+                  pct: formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)
                 })
               }}
             </td>
@@ -332,33 +458,21 @@ async function onCompactClick() {
   padding: 0;
   cursor: pointer;
 }
-.ring {
+.ring-trigger {
+  display: inline-grid;
   width: 40px;
   height: 40px;
+  place-items: center;
   border: 0;
   border-radius: 999px;
+  padding: 0;
   color: var(--app-text-color, #1f2937);
-  background: conic-gradient(
-    var(--app-primary-color, #0077cc) var(--context-ratio),
-    var(--app-border-color, #d7d7d7) 0deg
-  );
+  background: transparent;
   cursor: pointer;
 }
-.ring span {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  margin: auto;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--app-card-color, #ffffff);
-  font-size: 11px;
-  font-weight: 700;
-}
-.ring-empty {
-  --context-ratio: 0deg;
-  display: inline-block;
-  cursor: default;
+.ring-trigger:focus-visible {
+  outline: 2px solid var(--app-primary-color, #0077cc);
+  outline-offset: 2px;
 }
 .segment {
   height: 100%;
@@ -424,6 +538,36 @@ async function onCompactClick() {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 6px;
+}
+.ring-popover-body {
+  width: min(320px, calc(100vw - 32px));
+}
+.fallback-detail {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.detail-grid div {
+  min-width: 0;
+}
+.detail-grid dt {
+  margin: 0;
+  color: color-mix(in srgb, var(--app-text-color) 65%, transparent);
+}
+.detail-grid dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+.by-source-table {
+  border-top: 1px solid var(--app-border-color);
+  padding-top: 6px;
 }
 .popover-table {
   width: 100%;

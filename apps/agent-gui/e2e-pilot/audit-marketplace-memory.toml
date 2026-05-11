@@ -1,3 +1,4 @@
+## Here's my code: 
 [connect]
 timeout_ms = 10000
 
@@ -55,14 +56,20 @@ selector = "[data-test='mcp-installed-servers']"
 timeout_ms = 15000
 
 [[step]]
+name = "mcp open config action visible"
+action = "assert-visible"
+target = "[data-test='mcp-open-config']"
+
+[[step]]
 name = "open embedded marketplace"
 action = "click"
 target = "[data-test='mcp-subtab-marketplace']"
 
 [[step]]
-name = "browse tab visible"
-action = "assert-visible"
-target = "[data-test='tab-browse']"
+name = "wait for catalog"
+action = "wait"
+selector = "[data-test='catalog-search']"
+timeout_ms = 15000
 
 [[step]]
 name = "catalog search visible"

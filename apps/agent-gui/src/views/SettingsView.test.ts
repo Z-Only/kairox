@@ -31,7 +31,7 @@ describe("SettingsView (Pre-work B regression)", () => {
 
     const localeSelect = wrapper.find('[data-test="settings-locale"]');
     expect(localeSelect.exists()).toBe(true);
-    expect(ui.locale).toBe("en");
+    expect(ui.locale).toBe("system");
 
     await ui.setLocale("zh-CN");
 

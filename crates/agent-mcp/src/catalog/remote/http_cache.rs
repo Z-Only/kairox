@@ -30,6 +30,15 @@ pub struct HttpResponseCache {
 
 impl HttpResponseCache {
     pub fn new(cache_dir: PathBuf) -> Self {
+        // Ensure cache directory exists at initialization time to avoid
+        // "No such file or directory" errors on first access.
+        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+            tracing::warn!(
+                error = %e,
+                path = ?cache_dir,
+                "failed to create catalog cache directory"
+            );
+        }
         Self {
             cache_dir,
             in_memory: Mutex::new(HashMap::new()),

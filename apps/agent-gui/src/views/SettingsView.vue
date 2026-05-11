@@ -12,6 +12,7 @@ const themes = [
 ] as const satisfies ReadonlyArray<{ value: ThemeMode; labelKey: string }>;
 
 const locales = [
+  { value: "system", labelKey: "settings.localeSystem" },
   { value: "en", labelKey: "settings.localeEn" },
   { value: "zh-CN", labelKey: "settings.localeZh" }
 ] as const satisfies ReadonlyArray<{

@@ -38,6 +38,7 @@
     "title": "Settings",
     "general": "General",
     "locale": "Language",
+    "localeSystem": "System",
     "localeEn": "English",
     "localeZh": "中文（简体）",
     "theme": "Theme",

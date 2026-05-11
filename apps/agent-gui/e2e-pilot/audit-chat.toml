@@ -1,3 +1,4 @@
+## Here's my code: 
 [connect]
 timeout_ms = 10000
 
@@ -12,19 +13,9 @@ action = "assert-visible"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "open new session dialog"
+name = "create session via new session button"
 action = "click"
 target = "[data-test='new-session-btn']"
-
-[[step]]
-name = "new session dialog visible"
-action = "assert-visible"
-target = "[data-test='new-session-dialog']"
-
-[[step]]
-name = "create empty chat session"
-action = "click"
-target = "[data-test='create-session-btn']"
 
 [[step]]
 name = "wait for chat input"
@@ -37,6 +28,16 @@ name = "empty state visible"
 action = "wait"
 selector = "[data-test='chat-empty-state']"
 timeout_ms = 15000
+
+[[step]]
+name = "chat model trigger visible"
+action = "assert-visible"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "context meter ring visible"
+action = "assert-visible"
+target = "[data-test='context-meter-ring']"
 
 [[step]]
 name = "send button visible"

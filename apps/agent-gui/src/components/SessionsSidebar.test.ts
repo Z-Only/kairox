@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { flushPromises } from "@vue/test-utils";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { enableAutoUnmount, flushPromises } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
 import sessionsSidebarSource from "./SessionsSidebar.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
@@ -64,12 +64,18 @@ import { useWorkspaceUiStore } from "@/stores/workspaceUi";
 // `mountWithPlugins({ initialRoute })` wires Pinia + i18n + the production
 // router so the Sidebar's dependencies resolve cleanly.
 async function mountSidebar() {
+  const hostElement = document.createElement("div");
+  document.body.appendChild(hostElement);
   const { wrapper, router } = mountWithPlugins(SessionsSidebar, {
     initialRoute: "/workbench",
     mount: {
+      attachTo: hostElement,
       global: {
         provide: {
           [confirmDialogKey as symbol]: { confirm: vi.fn().mockResolvedValue(true) }
+        },
+        stubs: {
+          Teleport: true
         }
       }
     }
@@ -77,6 +83,12 @@ async function mountSidebar() {
   await router.isReady();
   return { wrapper, router };
 }
+
+enableAutoUnmount(afterEach);
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
 
 beforeEach(() => {
   // `mountWithPlugins` activates a fresh Pinia internally; we just reset
@@ -133,22 +145,30 @@ describe("SessionsSidebar", () => {
     expect(router.currentRoute.value.params.sessionId).toBe("s1");
   });
 
-  it("opens new session dialog on + New click", async () => {
-    mockInvokeCommandResponses({
-      get_profile_info: [
-        {
-          alias: "fast",
-          provider: "openai",
-          model_id: "gpt-4o",
-          local: false,
-          has_api_key: true
-        }
-      ]
+  it("creates a default session directly without opening the profile dialog", async () => {
+    const { wrapper, router } = await mountSidebar();
+    const session = useSessionStore();
+    const createSessionSpy = vi.spyOn(session, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
     });
-    const { wrapper } = await mountSidebar();
+
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
-    expect(wrapper.text()).toContain("New Session");
+    await router.isReady();
+
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
+    expect(createSessionSpy).toHaveBeenCalledWith(undefined);
+    expect(router.currentRoute.value.params.sessionId).toBe("ses_default");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("get_profile_info");
+  });
+
+  it("removes obsolete profile dialog and dropdown CSS", () => {
+    expect(sessionsSidebarSource).not.toContain(".new-session-dialog");
+    expect(sessionsSidebarSource).not.toContain(".profile-dropdown");
+    expect(sessionsSidebarSource).not.toContain(".profile-option");
+    expect(sessionsSidebarSource).not.toContain(".dialog-actions");
   });
 
   it("keeps row actions visually hidden until hover or keyboard focus", () => {
@@ -183,6 +203,34 @@ describe("SessionsSidebar", () => {
     );
     expect(wrapper.find('[data-test="session-delete-btn"]').attributes("aria-label")).toBe(
       "Delete"
+    );
+  });
+
+  it("uses Kairox icon buttons and title-backed truncation for regular session rows", async () => {
+    const longTitle = "A very long regular session title that should remain discoverable";
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [{ id: "s1", title: longTitle, profile: "fast" } as never];
+    await flushPromises();
+
+    const sessionTitle = wrapper.find('[data-test="session-item"] .session-title');
+    expect(sessionTitle.attributes("title")).toBe(longTitle);
+    expect(sessionTitle.classes()).toContain("truncate");
+    expect(wrapper.find('[data-test="session-rename-btn"]').classes()).toContain("kx-icon-button");
+    expect(wrapper.find('[data-test="session-delete-btn"]').classes()).toContain("kx-icon-button");
+
+    await wrapper.find('[data-test="session-rename-btn"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-test="session-rename-confirm"]').classes()).toContain(
+      "kx-icon-button"
+    );
+
+    await wrapper.find('[data-test="session-rename-input"]').trigger("keydown.escape");
+    await flushPromises();
+    await wrapper.find('[data-test="session-delete-btn"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-test="session-delete-confirm"]').classes()).toContain(
+      "kx-icon-button"
     );
   });
 
@@ -229,7 +277,9 @@ describe("SessionsSidebar", () => {
     });
 
     const { wrapper } = await mountSidebar();
-    await wrapper.find('[data-test="import-project-btn"]').trigger("click");
+    await wrapper.find('[data-test="project-create-trigger"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="project-import-folder"]').trigger("click");
     await flushPromises();
 
     expect(mockedInvoke).toHaveBeenCalledWith("add_existing_project", {
@@ -238,22 +288,17 @@ describe("SessionsSidebar", () => {
   });
 
   it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
-    mockInvokeCommandResponses({
-      get_profile_info: [
-        {
-          alias: "fast",
-          provider: "openai",
-          model_id: "gpt-4o",
-          local: false,
-          has_api_key: true
-        }
-      ]
-    });
     const { wrapper } = await mountSidebar();
+    const sessionStore = useSessionStore();
+    vi.spyOn(sessionStore, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
+    });
 
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
 
     const session = useSessionStore();
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
@@ -491,6 +536,85 @@ describe("SessionsSidebar", () => {
     expect(workspaceUi.archiveOpen).toBe(true);
     expect(wrapper.find('[data-test="projects-section"]').text()).toContain(
       "Archived project task"
+    );
+
+    const archivedSessionTitle = wrapper.find(
+      '[data-test="projects-section"] .archived-session-list .session-title'
+    );
+    expect(archivedSessionTitle.attributes("title")).toBe("Archived project task");
+    expect(archivedSessionTitle.classes()).toContain("truncate");
+  });
+
+  it("opens the project create menu without creating a project", async () => {
+    const { wrapper } = await mountSidebar();
+    const projectStore = useProjectStore();
+    const createBlankProject = vi.spyOn(projectStore, "createBlankProject");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="project-create-menu"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="project-create-trigger"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="project-create-blank"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="project-import-folder"]').exists()).toBe(true);
+    expect(createBlankProject).not.toHaveBeenCalled();
+  });
+
+  it("opens an inline project rename input from the project action", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: false
+        }
+      ]
+    });
+    const { wrapper } = await mountSidebar();
+    await flushPromises();
+
+    await wrapper.find('[data-test="project-rename-action-project-1"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="project-rename-input-project-1"]').exists()).toBe(true);
+  });
+
+  it("exposes rename and archive actions for project sessions", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Demo",
+          root_path: "/tmp/demo",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        }
+      ],
+      list_project_sessions: [
+        {
+          id: "session-1",
+          title: "Project task",
+          profile: "fast",
+          project_id: "project-1",
+          worktree_path: "/tmp/demo",
+          branch: "main",
+          visibility: null
+        }
+      ]
+    });
+    const { wrapper } = await mountSidebar();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="project-session-rename-action-session-1"]').exists()).toBe(
+      true
+    );
+    expect(wrapper.find('[data-test="project-session-archive-action-session-1"]').exists()).toBe(
+      true
     );
   });
 });

@@ -87,7 +87,10 @@ describe("StatusBar", () => {
     await flushPromises();
 
     const text = wrapper.text();
-    expect(text).toContain("anthropic / claude-3-5-sonnet");
+    // activeProfileDisplay formats as "Provider · Model" (e.g., "Anthropic · Claude 3.5 Sonnet")
+    expect(text).toContain("Anthropic");
+    expect(text).toContain("Claude 3.5 Sonnet");
+    // Check for i18n-translated labels (defaults to English in tests)
     expect(text).toContain("Sessions");
     expect(text).toContain("Streaming");
     expect(text).toContain("Connected");
