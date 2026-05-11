@@ -163,7 +163,6 @@ async function onCompactClick() {
             session.lastContextUsage ? `${ratioPct}% context used` : t('context.noUsageYet')
           "
           :title="t('context.popoverHeader')"
-          @mouseenter="onHoverOpen"
         >
           <KxProgressRing
             data-test="context-progress-ring"

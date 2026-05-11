@@ -110,5 +110,5 @@ test("chat panel shows profile badge", async ({ page }) => {
   await expect(page.getByTestId("chat-model-trigger")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.getByTestId("chat-model-trigger")).toContainText("openai / gpt-4o-mini");
+  await expect(page.getByTestId("chat-model-trigger")).toContainText("OpenAI");
 });
