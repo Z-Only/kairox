@@ -60,6 +60,7 @@ describe("ContextMeter ring mode", () => {
   it("renders KxProgressRing inside the interactive ring trigger", async () => {
     const session = useSessionStore();
     session.lastContextUsage = makeUsage({ total_tokens: 50, budget_tokens: 100 });
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
 
     const wrapper = mountRingMeter();
     await wrapper.vm.$nextTick();
@@ -77,6 +78,7 @@ describe("ContextMeter ring mode", () => {
   it("opens details in a KxPopover with stable content selector", async () => {
     const session = useSessionStore();
     session.lastContextUsage = makeUsage({ total_tokens: 50, budget_tokens: 100 });
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
 
     const wrapper = mountRingMeter();
     await wrapper.vm.$nextTick();
@@ -94,6 +96,7 @@ describe("ContextMeter ring mode", () => {
   it("distinguishes warning and danger ring states at existing thresholds", async () => {
     const session = useSessionStore();
     session.lastContextUsage = makeUsage({ total_tokens: 70, budget_tokens: 100 });
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
 
     const warningWrapper = mountRingMeter();
     await warningWrapper.vm.$nextTick();
@@ -111,6 +114,9 @@ describe("ContextMeter ring mode", () => {
   });
 
   it("shows fallback details without rendering the old bar when usage is unavailable", async () => {
+    const session = useSessionStore();
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
+
     const wrapper = mountRingMeter();
     await wrapper.vm.$nextTick();
     await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
@@ -129,6 +135,7 @@ describe("ContextMeter ring mode", () => {
       budget_tokens: 0,
       by_source: [["history", 50]]
     });
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
 
     const ringWrapper = mountRingMeter();
     await ringWrapper.vm.$nextTick();
@@ -159,6 +166,7 @@ describe("ContextMeter ring mode", () => {
       budget_tokens: 100,
       by_source: [["future_source", 12] as never]
     });
+    session.projection.messages.push({ role: "user", content: "hi" } as never);
 
     const wrapper = mountRingMeter();
     await wrapper.vm.$nextTick();

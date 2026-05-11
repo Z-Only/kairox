@@ -19,6 +19,7 @@ pub struct ProjectSessionBindingRow {
     pub session_id: String,
     pub project_id: String,
     pub worktree_path: String,
+    pub branch: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -226,23 +227,26 @@ impl ProjectMetaRepository {
         session_id: &str,
         project_id: &str,
         worktree_path: &str,
+        branch: Option<&str>,
     ) -> crate::Result<ProjectSessionBindingRow> {
         let now = chrono::Utc::now().to_rfc3339();
         let mut transaction = self.pool.begin().await?;
 
         sqlx::query(
             "INSERT INTO kairox_project_sessions (
-                session_id, project_id, worktree_path, created_at, updated_at
+                session_id, project_id, worktree_path, branch, created_at, updated_at
              )
-             VALUES (?1, ?2, ?3, ?4, ?5)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(session_id) DO UPDATE SET
                 project_id = ?2,
                 worktree_path = ?3,
-                updated_at = ?5",
+                branch = ?4,
+                updated_at = ?6",
         )
         .bind(session_id)
         .bind(project_id)
         .bind(worktree_path)
+        .bind(branch)
         .bind(&now)
         .bind(&now)
         .execute(&mut *transaction)
@@ -269,7 +273,7 @@ impl ProjectMetaRepository {
         session_id: &str,
     ) -> crate::Result<Option<ProjectSessionBindingRow>> {
         let row = sqlx::query_as::<_, ProjectSessionBindingRow>(
-            "SELECT session_id, project_id, worktree_path, created_at, updated_at
+            "SELECT session_id, project_id, worktree_path, branch, created_at, updated_at
              FROM kairox_project_sessions
              WHERE session_id = ?1",
         )
@@ -319,7 +323,7 @@ impl ProjectMetaRepository {
     ) -> crate::Result<Vec<ProjectSessionBindingRow>> {
         let rows = sqlx::query_as::<_, ProjectSessionBindingRow>(
             "SELECT bindings.session_id, bindings.project_id, bindings.worktree_path,
-                    bindings.created_at, bindings.updated_at
+                    bindings.branch, bindings.created_at, bindings.updated_at
              FROM kairox_project_sessions AS bindings
              INNER JOIN kairox_projects AS projects
                 ON projects.project_id = bindings.project_id

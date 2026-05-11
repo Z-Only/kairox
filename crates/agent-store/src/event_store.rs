@@ -62,6 +62,7 @@ pub struct ProjectSessionMetaRow {
     pub updated_at: String,
     pub project_id: String,
     pub worktree_path: String,
+    pub branch: Option<String>,
     pub visibility: String,
 }
 
@@ -173,6 +174,20 @@ impl SqliteEventStore {
         sqlx::query(include_str!("../migrations/0003_projects.sql"))
             .execute(&self.pool)
             .await?;
+        // 0004 adds a column that may already exist on re-connect; tolerate
+        // the duplicate so `connect()` is idempotent for tests that drop and
+        // re-open the same database file.
+        if let Err(e) = sqlx::query(include_str!(
+            "../migrations/0004_project_session_branch.sql"
+        ))
+        .execute(&self.pool)
+        .await
+        {
+            let msg = e.to_string();
+            if !msg.contains("duplicate column name") {
+                return Err(crate::StoreError::Sqlx(e));
+            }
+        }
         Ok(())
     }
 
@@ -385,7 +400,7 @@ impl EventStore for SqliteEventStore {
             "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
                     sessions.model_profile, sessions.model_id, sessions.provider,
                     sessions.deleted_at, sessions.created_at, sessions.updated_at,
-                    bindings.project_id, bindings.worktree_path, visibility.visibility
+                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility
              FROM kairox_sessions AS sessions
              INNER JOIN kairox_project_sessions AS bindings
                 ON bindings.session_id = sessions.session_id
@@ -393,7 +408,7 @@ impl EventStore for SqliteEventStore {
                 ON visibility.session_id = sessions.session_id
              WHERE bindings.project_id = ?1
                AND sessions.deleted_at IS NULL
-               AND visibility.visibility = 'visible'
+               AND visibility.visibility IN ('visible', 'draft_hidden')
              ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
         )
         .bind(project_id)
@@ -410,7 +425,7 @@ impl EventStore for SqliteEventStore {
             "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
                     sessions.model_profile, sessions.model_id, sessions.provider,
                     sessions.deleted_at, sessions.created_at, sessions.updated_at,
-                    bindings.project_id, bindings.worktree_path, visibility.visibility
+                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility
              FROM kairox_sessions AS sessions
              INNER JOIN kairox_project_sessions AS bindings
                 ON bindings.session_id = sessions.session_id
@@ -796,7 +811,7 @@ mod tests {
             .await
             .unwrap();
         repository
-            .bind_session("ses_old", &project.project_id, "/tmp/project")
+            .bind_session("ses_old", &project.project_id, "/tmp/project", None)
             .await
             .unwrap();
         repository
@@ -873,7 +888,7 @@ mod tests {
             .await
             .unwrap();
         repository
-            .bind_session("ses_selected", &project.project_id, "/tmp/project")
+            .bind_session("ses_selected", &project.project_id, "/tmp/project", None)
             .await
             .unwrap();
         repository
@@ -881,7 +896,7 @@ mod tests {
             .await
             .unwrap();
         repository
-            .bind_session("ses_late", &project.project_id, "/tmp/project")
+            .bind_session("ses_late", &project.project_id, "/tmp/project", None)
             .await
             .unwrap();
         repository

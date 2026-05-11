@@ -104,6 +104,13 @@ const isThemeSelectFocused = ref(false);
   padding: 16px;
   max-width: 960px;
   flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.settings > :not(.tabs):not(h1) {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 .settings__row {
@@ -127,34 +134,38 @@ select:focus,
 .tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: 1px solid var(--app-border-color);
   margin-bottom: 12px;
 }
 
 .tab-btn {
   padding: 8px 16px;
   border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
   background: none;
   cursor: pointer;
   font-size: inherit;
-  color: var(--app-text-color-2, #6b7280);
-  border-bottom: 2px solid transparent;
+  color: var(--app-text-color-2);
   transition:
     color 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    background 0.15s;
 }
 
 .tab-btn[aria-selected="true"] {
-  color: var(--primary-color, #18a058);
-  border-bottom-color: var(--primary-color, #18a058);
+  color: var(--app-primary-color);
+  border-bottom-color: var(--app-primary-color);
+  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
 }
 
 .tab-btn:hover {
-  color: var(--primary-color, #18a058);
+  color: var(--app-text-color);
+  background: var(--app-hover-color);
 }
 
 .tab-btn:focus-visible {
-  outline: 2px solid var(--app-primary-color, #3b82f6);
+  outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
 }
 </style>

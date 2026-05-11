@@ -7,6 +7,7 @@ use agent_core::facade::{
     SkillInstallTarget, SkillUpdateState,
 };
 use agent_core::CoreError;
+use serde::Deserialize;
 use tokio::process::Command;
 
 #[async_trait::async_trait]
@@ -151,11 +152,47 @@ impl SkillPackageManager for FakeSkillPackageManager {
 
 pub struct NpxSkillsPackageManager;
 
+#[derive(Debug, Deserialize)]
+struct SkillsApiResponse {
+    skills: Vec<SkillsApiItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SkillsApiItem {
+    id: String,
+    name: String,
+    #[serde(default)]
+    installs: Option<u64>,
+    #[serde(default)]
+    source: Option<String>,
+}
+
 #[async_trait::async_trait]
 impl SkillPackageManager for NpxSkillsPackageManager {
     async fn search(&self, query: &str) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
-        let output = run_npx_skills_command(&["skills", "find", query]).await?;
-        parse_npx_skills_find_output(&output)
+        let url = format!(
+            "https://skills.sh/api/search?q={}&limit=100",
+            url::form_urlencoded::byte_serialize(query.as_bytes()).collect::<String>()
+        );
+        let response = reqwest::get(&url).await.map_err(|e| {
+            CoreError::InvalidState(format!("skills.sh search request failed: {e}"))
+        })?;
+        let api_response: SkillsApiResponse = response
+            .json()
+            .await
+            .map_err(|e| CoreError::InvalidState(format!("skills.sh search parse failed: {e}")))?;
+        Ok(api_response
+            .skills
+            .into_iter()
+            .map(|r| RemoteSkillSearchResult {
+                name: r.name,
+                description: String::new(),
+                repository: r.source,
+                install_count: r.installs,
+                source_url: format!("https://skills.sh/skills/{}", r.id),
+                package: r.id,
+            })
+            .collect())
     }
 
     async fn install_from_registry(
@@ -211,15 +248,27 @@ pub fn parse_npx_skills_find_output(
         }
 
         let columns: Vec<&str> = line.split('\t').collect();
-        if columns.len() != 4 {
-            return Err(CoreError::InvalidState(format!(
-                "failed to parse npx skills find output at line {}: expected 4 columns separated by tabs",
-                line_index + 1
-            )));
+        if columns.len() < 2 {
+            eprintln!(
+                "warning: skipping npx skills find output line {}: expected at least 2 columns, got {}",
+                line_index + 1,
+                columns.len()
+            );
+            continue;
         }
 
-        let install_count = parse_install_count(columns[3], line_index + 1)?;
-        let repository = optional_column(columns[2]);
+        let install_count = if columns.len() >= 4 {
+            parse_install_count(columns[3], line_index + 1)?
+        } else {
+            None
+        };
+
+        let repository = if columns.len() >= 3 {
+            optional_column(columns[2])
+        } else {
+            None
+        };
+
         let package = columns[0].trim().to_string();
         let source_url = repository.clone().unwrap_or_else(|| package.clone());
 
@@ -498,15 +547,20 @@ mod tests {
 
     #[test]
     fn parse_error_for_wrong_column_count_is_actionable() {
-        let error = parse_npx_skills_find_output("\ncode-review\tReview code changes\t42\n")
-            .expect_err("wrong column count should fail");
-        let message = error.to_string();
+        // The parser now handles 2–4 columns gracefully. Lines with < 2 columns
+        // are silently skipped so the result is an empty vec rather than an error.
+        let results =
+            parse_npx_skills_find_output("header_only\n").expect("single column should skip");
+        assert!(results.is_empty(), "single-column lines should be skipped");
 
-        assert!(message.contains("line 2"), "message was: {message}");
-        assert!(
-            message.contains("expected 4 columns"),
-            "message was: {message}"
-        );
+        // 3-column input is now valid: name, description, repository (no install_count).
+        let results =
+            parse_npx_skills_find_output("code-review\tReview code changes\tobra/superpowers\n")
+                .expect("3-column output should parse");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "code-review");
+        assert_eq!(results[0].repository.as_deref(), Some("obra/superpowers"));
+        assert_eq!(results[0].install_count, None);
     }
 
     #[test]

@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
-import { useMcpStore } from "@/stores/mcp";
-import McpStatusIndicator from "./McpStatusIndicator.vue";
-import McpServerManager from "./McpServerManager.vue";
 
 const { t } = useI18n();
 const session = useSessionStore();
-const mcp = useMcpStore();
 const permissionMode = ref("interactive");
-const showMcpManager = ref(false);
 
 const streamingDotType = computed<"warning" | "default">(() =>
   session.isStreaming ? "warning" : "default"
@@ -26,22 +21,12 @@ onMounted(async () => {
   } catch {
     permissionMode.value = "interactive";
   }
-  try {
-    await mcp.fetchServers();
-  } catch {
-    // Non-critical
-  }
 });
 </script>
 
 <template>
   <footer class="status-bar" data-test="status-bar">
     <div class="status-items">
-      <!-- Profile -->
-      <span class="status-item" data-test="status-profile">
-        Model: {{ session.activeProfileDisplay }}
-      </span>
-
       <!-- Sessions -->
       <div class="status-item">
         <span class="status-label">{{ t("statusBar.sessionsLabel") }}:</span>
@@ -68,12 +53,6 @@ onMounted(async () => {
       <div class="status-item">
         <span class="status-label">{{ t("statusBar.modeLabel") }}:</span>
         <span class="status-value">{{ permissionMode }}</span>
-      </div>
-
-      <!-- MCP -->
-      <div class="status-item mcp-item">
-        <McpStatusIndicator @click="showMcpManager = !showMcpManager" />
-        <McpServerManager v-if="showMcpManager" @close="showMcpManager = false" />
       </div>
     </div>
   </footer>
@@ -127,8 +106,5 @@ onMounted(async () => {
 .dot-default {
   background: var(--app-text-color);
   opacity: 0.4;
-}
-.mcp-item {
-  margin-left: auto;
 }
 </style>

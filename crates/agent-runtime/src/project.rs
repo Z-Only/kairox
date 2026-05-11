@@ -34,6 +34,7 @@ pub fn project_session_row_to_meta(row: ProjectSessionMetaRow) -> SessionMeta {
     SessionMeta {
         project_id: Some(ProjectId::from_string(row.project_id)),
         worktree_path: Some(row.worktree_path),
+        branch: row.branch,
         visibility: Some(visibility_from_storage(&row.visibility)),
         session_id: SessionId::from_string(row.session_id),
         workspace_id: WorkspaceId::from_string(row.workspace_id),

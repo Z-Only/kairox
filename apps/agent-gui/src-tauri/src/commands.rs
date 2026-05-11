@@ -133,7 +133,7 @@ impl From<SessionMeta> for SessionInfoResponse {
             profile: session.model_profile,
             project_id: session.project_id.map(|project_id| project_id.to_string()),
             worktree_path: session.worktree_path,
-            branch: None,
+            branch: session.branch,
             visibility: session.visibility.map(project_visibility_to_string),
         }
     }
@@ -212,13 +212,13 @@ pub enum McpContentBlockResponse {
 #[tauri::command]
 #[specta::specta]
 pub async fn list_profiles(state: State<'_, GuiState>) -> Result<Vec<String>, String> {
-    Ok(state.config.profile_names())
+    Ok(state.config.read().unwrap().profile_names())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub async fn get_profile_info(state: State<'_, GuiState>) -> Result<Vec<ProfileInfo>, String> {
-    Ok(state.config.profile_info())
+    Ok(state.config.read().unwrap().profile_info())
 }
 
 #[tauri::command]
@@ -259,7 +259,7 @@ pub async fn initialize_workspace(
     };
 
     let workspace_id = workspace.workspace_id.clone();
-    let profile = state.config.default_profile();
+    let profile = state.config.read().unwrap().default_profile();
 
     // Try to restore an existing session, or create a new one
     let session_id = {
@@ -860,6 +860,8 @@ pub async fn get_profile_detail(
 ) -> Result<ProfileDetailResponse, String> {
     let info = state
         .config
+        .read()
+        .unwrap()
         .profile_info()
         .into_iter()
         .find(|p| p.alias == profile)
@@ -1878,11 +1880,27 @@ pub struct ProfileWithLimits {
 
 #[tauri::command]
 #[specta::specta]
+pub async fn refresh_config_for_project(
+    project_root: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let path = std::path::Path::new(&project_root);
+    state.refresh_config_for_project(path)?;
+    eprintln!(
+        "Config refreshed for project: profiles={:?}",
+        state.config.read().unwrap().profile_names()
+    );
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn list_profiles_with_limits(
     state: State<'_, GuiState>,
 ) -> Result<Vec<ProfileWithLimits>, String> {
-    let mut out = Vec::with_capacity(state.config.profiles.len());
-    for (alias, profile) in &state.config.profiles {
+    let config = state.config.read().unwrap();
+    let mut out = Vec::with_capacity(config.profiles.len());
+    for (alias, profile) in &config.profiles {
         let limits = agent_config::resolve_limits(profile);
         let limit_source = match limits.source {
             agent_models::LimitSource::UserConfig => "user_config",

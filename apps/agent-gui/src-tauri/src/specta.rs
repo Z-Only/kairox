@@ -26,6 +26,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_profiles,
             list_profiles_with_limits,
             get_profile_info,
+            refresh_config_for_project,
             initialize_workspace,
             start_session,
             send_message,

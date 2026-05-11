@@ -164,6 +164,16 @@ fn default_auto_compact_threshold() -> f32 {
     0.85
 }
 
+/// Assigns a sort key to profile aliases so "fake" and "fast" always
+/// appear first in the profile list, with other profiles following.
+fn profile_order_key(alias: &str) -> u8 {
+    match alias {
+        "fake" => 0,
+        "fast" => 1,
+        _ => 2,
+    }
+}
+
 impl Default for ContextPolicy {
     fn default() -> Self {
         Self {
@@ -196,20 +206,84 @@ pub enum ConfigError {
 }
 
 impl Config {
-    /// Load configuration from a discovered file, or generate defaults.
+    /// Load configuration with layered merging: defaults → user-level → project-level.
+    /// Profiles and MCP servers from higher-priority layers override those from lower layers
+    /// with the same name; new entries are appended.
+    /// When `project_root` is `Some`, that directory is used to discover
+    /// `.kairox/config.toml` instead of `std::env::current_dir()`.
     pub fn load() -> Result<Self, ConfigError> {
-        match find_config() {
-            Some((path, source)) => {
-                let content = std::fs::read_to_string(&path)?;
-                let mut config = load_from_str(&content, &path.display().to_string())?;
-                config.source = source;
-                resolve_api_keys(&mut config);
-                resolve_mcp_env(&mut config);
-                validate(&config)?;
-                Ok(config)
+        let project_root = std::env::current_dir().ok();
+        Self::load_inner(project_root.as_deref())
+    }
+
+    /// Load configuration with an explicit project root for project-level
+    /// `.kairox/config.toml` discovery. Pass `None` to skip project-level config.
+    pub fn load_with_project_root(
+        project_root: Option<&std::path::Path>,
+    ) -> Result<Self, ConfigError> {
+        Self::load_inner(project_root)
+    }
+
+    fn load_inner(project_root: Option<&std::path::Path>) -> Result<Self, ConfigError> {
+        let mut base = Self::defaults();
+
+        // Layer 1: merge user-level config if present
+        if let Some(home_dir) = dirs::home_dir() {
+            let user_path = home_dir.join(".kairox").join("config.toml");
+            if user_path.is_file() {
+                base = Self::merge_config(base, &user_path)?;
             }
-            None => Ok(Self::defaults()),
         }
+
+        // Layer 2: merge project-level config if present (highest priority)
+        if let Some(root) = project_root {
+            let project_path = root.join(".kairox").join("config.toml");
+            if project_path.is_file() {
+                base = Self::merge_config(base, &project_path)?;
+                base.source = ConfigSource::ProjectFile;
+            }
+        }
+
+        Ok(base)
+    }
+
+    /// Merge configuration from `path` into `base`, with profiles and MCP servers
+    /// from the loaded config overriding or appending to the base.
+    fn merge_config(base: Self, path: &std::path::Path) -> Result<Self, ConfigError> {
+        let content = std::fs::read_to_string(path)?;
+        let mut overlay = load_from_str(&content, &path.display().to_string())?;
+        resolve_api_keys(&mut overlay);
+        resolve_mcp_env(&mut overlay);
+
+        // Merge profiles: overlay profiles replace base profiles with the same alias
+        let mut profile_map: std::collections::HashMap<String, ProfileDef> =
+            base.profiles.into_iter().collect();
+        for (alias, def) in overlay.profiles {
+            profile_map.insert(alias, def);
+        }
+        let mut merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
+        // Stable sort: keep "fake" first, then "fast", then others
+        merged_profiles.sort_by(|a, b| {
+            let ap = profile_order_key(&a.0);
+            let bp = profile_order_key(&b.0);
+            ap.cmp(&bp)
+        });
+
+        // Merge MCP servers: overlay entries replace base entries with the same name
+        let mut mcp_map: std::collections::HashMap<String, McpServerConfig> =
+            base.mcp_servers.into_iter().collect();
+        for (name, config) in overlay.mcp_servers {
+            mcp_map.insert(name, config);
+        }
+        let mut merged_mcp: Vec<(String, McpServerConfig)> = mcp_map.into_iter().collect();
+        merged_mcp.sort_by(|a, b| a.0.cmp(&b.0));
+
+        Ok(Config {
+            profiles: merged_profiles,
+            mcp_servers: merged_mcp,
+            source: overlay.source,
+            context: overlay.context,
+        })
     }
 
     /// Generate default configuration from environment variables.

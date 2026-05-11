@@ -261,6 +261,7 @@ pub async fn list_sessions<S: EventStore>(
         session_metas.push(SessionMeta {
             project_id: None,
             worktree_path: None,
+            branch: None,
             visibility: None,
             session_id: SessionId::from_string(row.session_id),
             workspace_id: WorkspaceId::from_string(row.workspace_id),

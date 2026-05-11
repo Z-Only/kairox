@@ -51,22 +51,6 @@ function resetDeleteConfirmation() {
   pendingDeleteProjectId.value = null;
 }
 
-function getIconLabel(
-  action: "rename" | "delete" | "confirm" | "import" | "new" | "archive" | "create" | "newProject"
-) {
-  const labels = {
-    rename: "Rename",
-    delete: "Delete",
-    confirm: "Confirm delete",
-    import: "Import folder",
-    new: "New session",
-    archive: "Archive",
-    create: "Create",
-    newProject: "New project"
-  };
-  return labels[action];
-}
-
 async function switchToSession(sessionId: string) {
   if (editingSessionId.value) return;
   if (sessionId === activeSessionId.value) return;
@@ -271,13 +255,6 @@ async function requestDeleteProject(projectId: string) {
   pendingDeleteProjectId.value = null;
 }
 
-async function toggleArchiveOpen() {
-  workspaceUi.archiveOpen = !workspaceUi.archiveOpen;
-  if (workspaceUi.archiveOpen && projects.archivedSessions.length === 0) {
-    await projects.loadArchivedSessions();
-  }
-}
-
 async function loadProjectsForSidebar() {
   try {
     await projects.loadProjects();
@@ -306,7 +283,7 @@ onMounted(() => {
           data-test="projects-section"
         >
           <div class="section-heading">
-            <h3>Projects</h3>
+            <h3>{{ t("sessions.projectHeader") }}</h3>
             <div class="section-actions">
               <KxDropdownMenu
                 v-model:open="projectCreateMenuOpen"
@@ -315,8 +292,8 @@ onMounted(() => {
               >
                 <template #trigger>
                   <KxIconButton
-                    :label="getIconLabel('newProject')"
-                    :title="getIconLabel('newProject')"
+                    :label="t('sessions.newProject')"
+                    :title="t('sessions.newProject')"
                     data-test="project-create-trigger"
                   >
                     <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -331,7 +308,7 @@ onMounted(() => {
                     data-test="project-create-blank"
                     @click="createBlankProject"
                   >
-                    Create Blank Project
+                    {{ t("sessions.createBlankProject") }}
                   </button>
                   <button
                     class="kx-dropdown-item project-create-menu-item"
@@ -340,38 +317,10 @@ onMounted(() => {
                     :disabled="importingProject"
                     @click="importExistingProject"
                   >
-                    Import Folder
+                    {{ t("sessions.importFolder") }}
                   </button>
                 </template>
               </KxDropdownMenu>
-              <KxTooltip
-                :text="
-                  workspaceUi.archiveOpen
-                    ? 'Hide archived project sessions'
-                    : 'Show archived project sessions'
-                "
-              >
-                <KxIconButton
-                  :label="
-                    workspaceUi.archiveOpen
-                      ? 'Hide archived project sessions'
-                      : 'Show archived project sessions'
-                  "
-                  :title="
-                    workspaceUi.archiveOpen
-                      ? 'Hide archived project sessions'
-                      : 'Show archived project sessions'
-                  "
-                  data-test="project-archive-toggle"
-                  @click="toggleArchiveOpen"
-                >
-                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path
-                      d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
-                    />
-                  </svg>
-                </KxIconButton>
-              </KxTooltip>
             </div>
           </div>
 
@@ -389,8 +338,8 @@ onMounted(() => {
                   data-test="project-expand-btn"
                   :aria-label="
                     project.expanded
-                      ? `Collapse ${project.displayName}`
-                      : `Expand ${project.displayName}`
+                      ? t('sessions.collapseProject', { name: project.displayName })
+                      : t('sessions.expandProject', { name: project.displayName })
                   "
                   @click.stop="toggleProjectExpanded(project)"
                 >
@@ -425,21 +374,22 @@ onMounted(() => {
                   <button
                     class="project-title-btn"
                     type="button"
-                    :aria-label="`Toggle ${project.displayName}`"
+                    :aria-label="t('sessions.toggleProject', { name: project.displayName })"
                     @click="toggleProjectExpanded(project)"
                   >
                     <span class="project-name truncate" :title="project.displayName">
                       {{ project.displayName }}
                     </span>
-                    <span class="project-path truncate" :title="project.rootPath">
-                      {{ project.rootPath }}
+                    <span class="project-path truncate" :title="project.branch || project.rootPath">
+                      {{ project.branch || project.rootPath }}
                     </span>
                   </button>
                   <span class="row-actions project-actions">
-                    <KxTooltip :text="`New session in ${project.displayName}`">
+                    <KxTooltip
+                      :text="t('sessions.newSessionInProject', { name: project.displayName })"
+                    >
                       <KxIconButton
-                        :label="`New session in ${project.displayName}`"
-                        :title="`New session in ${project.displayName}`"
+                        :label="t('sessions.newSessionInProject', { name: project.displayName })"
                         :data-test="'project-new-session-btn'"
                         @click.stop="createProjectSession(project.projectId)"
                       >
@@ -448,10 +398,9 @@ onMounted(() => {
                         </svg>
                       </KxIconButton>
                     </KxTooltip>
-                    <KxTooltip :text="getIconLabel('rename')">
+                    <KxTooltip :text="t('sessions.renameTitle')">
                       <KxIconButton
-                        :label="getIconLabel('rename')"
-                        :title="getIconLabel('rename')"
+                        :label="t('sessions.renameTitle')"
                         :data-test="`project-rename-action-${project.projectId}`"
                         @click.stop="startProjectRename(project)"
                       >
@@ -465,20 +414,20 @@ onMounted(() => {
                     <KxTooltip
                       :text="
                         pendingDeleteProjectId === project.projectId
-                          ? getIconLabel('confirm')
-                          : getIconLabel('delete')
+                          ? t('sessions.confirmDeleteTitle')
+                          : t('common.delete')
                       "
                     >
                       <KxIconButton
                         :label="
                           pendingDeleteProjectId === project.projectId
-                            ? getIconLabel('confirm')
-                            : getIconLabel('delete')
+                            ? t('sessions.confirmDeleteTitle')
+                            : t('common.delete')
                         "
                         :title="
                           pendingDeleteProjectId === project.projectId
-                            ? getIconLabel('confirm')
-                            : getIconLabel('delete')
+                            ? t('sessions.confirmDeleteTitle')
+                            : t('common.delete')
                         "
                         variant="danger"
                         :data-test="
@@ -555,7 +504,9 @@ onMounted(() => {
                         { active: projectSession.sessionId === activeSessionId }
                       ]"
                       data-test="project-session-btn"
-                      :aria-label="`Open ${projectSession.title}`"
+                      :aria-label="
+                        t('sessions.openProjectSession', { title: projectSession.title })
+                      "
                       @click="switchToProjectSession(projectSession)"
                     >
                       <span class="session-indicator">●</span>
@@ -563,7 +514,7 @@ onMounted(() => {
                         {{ projectSession.title }}
                       </span>
                       <span
-                        v-if="projectSession.branch"
+                        v-if="projectSession.branch && projectSession.branch !== 'main'"
                         class="project-session-branch truncate"
                         :title="projectSession.branch"
                       >
@@ -571,10 +522,9 @@ onMounted(() => {
                       </span>
                     </button>
                     <span class="row-actions project-session-actions">
-                      <KxTooltip :text="getIconLabel('rename')">
+                      <KxTooltip :text="t('sessions.renameTitle')">
                         <KxIconButton
-                          :label="getIconLabel('rename')"
-                          :title="getIconLabel('rename')"
+                          :label="t('sessions.renameTitle')"
                           :data-test="`project-session-rename-action-${projectSession.sessionId}`"
                           @click.stop="startProjectSessionRename(projectSession)"
                         >
@@ -585,10 +535,9 @@ onMounted(() => {
                           </svg>
                         </KxIconButton>
                       </KxTooltip>
-                      <KxTooltip :text="getIconLabel('archive')">
+                      <KxTooltip :text="t('sessions.archive')">
                         <KxIconButton
-                          :label="getIconLabel('archive')"
-                          :title="getIconLabel('archive')"
+                          :label="t('sessions.archive')"
                           :data-test="`project-session-archive-action-${projectSession.sessionId}`"
                           @click.stop="archiveProjectSession(projectSession.sessionId)"
                         >
@@ -618,7 +567,7 @@ onMounted(() => {
                   { active: archivedSession.sessionId === activeSessionId }
                 ]"
                 data-test="project-session-btn"
-                :aria-label="`Open ${archivedSession.title}`"
+                :aria-label="t('sessions.openProjectSession', { title: archivedSession.title })"
                 @click="switchToProjectSession(archivedSession)"
               >
                 <span class="session-indicator archived-indicator">●</span>
@@ -632,16 +581,21 @@ onMounted(() => {
 
         <section v-else class="sidebar-section" data-test="sessions-section">
           <div class="section-heading">
-            <h3>Sessions</h3>
-            <button
-              class="new-session-btn"
-              type="button"
-              data-test="new-session-btn"
-              :aria-label="getIconLabel('new')"
-              @click="createSession"
-            >
-              {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
-            </button>
+            <h3>{{ t("sessions.header") }}</h3>
+            <div class="section-actions">
+              <KxTooltip :text="t('sessions.newButton')">
+                <KxIconButton
+                  :label="t('sessions.newButton')"
+                  :title="t('sessions.newButton')"
+                  data-test="new-session-btn"
+                  @click="createSession"
+                >
+                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <path d="M9.25 3h1.5v6.25H17v1.5h-6.25V17h-1.5v-6.25H3v-1.5h6.25V3Z" />
+                  </svg>
+                </KxIconButton>
+              </KxTooltip>
+            </div>
           </div>
           <template v-if="session.sessions.length > 0">
             <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
@@ -686,10 +640,9 @@ onMounted(() => {
                 <template v-else>
                   <span class="session-title truncate" :title="item.title">{{ item.title }}</span>
                   <span class="row-actions session-actions">
-                    <KxTooltip :text="getIconLabel('rename')">
+                    <KxTooltip :text="t('sessions.renameTitle')">
                       <KxIconButton
-                        :label="getIconLabel('rename')"
-                        :title="getIconLabel('rename')"
+                        :label="t('sessions.renameTitle')"
                         data-test="session-rename-btn"
                         @click.stop="startRename(item.id, item.title)"
                       >
@@ -700,38 +653,15 @@ onMounted(() => {
                         </svg>
                       </KxIconButton>
                     </KxTooltip>
-                    <KxTooltip
-                      v-if="pendingDeleteSessionId !== item.id"
-                      :text="getIconLabel('delete')"
-                    >
+                    <KxTooltip :text="t('sessions.archive')">
                       <KxIconButton
-                        :label="getIconLabel('delete')"
-                        :title="getIconLabel('delete')"
-                        variant="danger"
-                        data-test="session-delete-btn"
+                        :label="t('sessions.archive')"
+                        data-test="session-archive-btn"
                         @click.stop="requestDeleteSession(item.id)"
                       >
                         <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                           <path
-                            d="M7.5 3.5A1.5 1.5 0 0 1 9 2h2a1.5 1.5 0 0 1 1.5 1.5V4H16v1.5H4V4h3.5v-.5ZM9 4h2v-.5H9V4Z"
-                          />
-                          <path
-                            d="M5.5 7h9l-.55 8.25A2.5 2.5 0 0 1 11.45 17h-2.9a2.5 2.5 0 0 1-2.5-1.75L5.5 7Zm2.25 1.5.43 6.25a1 1 0 0 0 .99.75h1.66a1 1 0 0 0 .99-.75l.43-6.25h-4.5Z"
-                          />
-                        </svg>
-                      </KxIconButton>
-                    </KxTooltip>
-                    <KxTooltip v-else :text="getIconLabel('confirm')">
-                      <KxIconButton
-                        :label="getIconLabel('confirm')"
-                        :title="getIconLabel('confirm')"
-                        variant="danger"
-                        data-test="session-delete-confirm"
-                        @click.stop="requestDeleteSession(item.id)"
-                      >
-                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                          <path
-                            d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z"
+                            d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
                           />
                         </svg>
                       </KxIconButton>
@@ -757,18 +687,6 @@ onMounted(() => {
   height: 100%;
   overflow: hidden;
 }
-.new-session-btn {
-  --sessions-new-button-bg: #1d4ed8;
-  --sessions-new-button-fg: #fff;
-
-  font-size: 12px;
-  padding: 2px 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: var(--sessions-new-button-bg);
-  color: var(--sessions-new-button-fg);
-}
 .session-scroll {
   flex: 1;
   min-height: 0;
@@ -786,11 +704,9 @@ onMounted(() => {
 }
 .section-heading h3 {
   margin: 0;
-  color: var(--app-text-color-2);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--app-text-color);
+  font-size: 12px;
+  font-weight: 600;
 }
 .section-actions {
   display: flex;
@@ -983,6 +899,22 @@ onMounted(() => {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
+}
+.row-actions :deep(.kx-icon-button) {
+  color: var(--app-text-color) !important;
+  background: transparent !important;
+  border: none !important;
+}
+.row-actions :deep(.kx-icon-button) svg {
+  fill: currentColor !important;
+}
+html.dark .row-actions :deep(.kx-icon-button) {
+  color: var(--app-text-color) !important;
+  background: transparent !important;
+  border: none !important;
+}
+html.dark .row-actions :deep(.kx-icon-button) svg {
+  fill: currentColor !important;
 }
 .session-item:hover .row-actions,
 .session-item:focus-within .row-actions,

@@ -1,4 +1,3 @@
-## Here's my code: 
 [connect]
 timeout_ms = 10000
 
@@ -39,7 +38,7 @@ action = "assert-visible"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "create a session via new session button"
+name = "click new session"
 action = "click"
 target = "[data-test='new-session-btn']"
 
@@ -47,7 +46,7 @@ target = "[data-test='new-session-btn']"
 name = "wait for session item"
 action = "wait"
 selector = "[data-test='session-item']"
-timeout_ms = 15000
+timeout_ms = 10000
 
 [[step]]
 name = "session item visible"
@@ -80,30 +79,30 @@ action = "click"
 target = "[data-test='session-rename-confirm']"
 
 [[step]]
-name = "wait for delete button after rename"
+name = "wait for archive button after rename"
 action = "wait"
-selector = "[data-test='session-delete-btn']"
+selector = "[data-test='session-archive-btn']"
 timeout_ms = 5000
 
 [[step]]
 name = "delete button visible"
 action = "assert-visible"
-target = "[data-test='session-delete-btn']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "open delete confirmation"
 action = "click"
-target = "[data-test='session-delete-btn']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "confirm delete visible"
 action = "assert-visible"
-target = "[data-test='session-delete-confirm']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "confirm session delete"
 action = "click"
-target = "[data-test='session-delete-confirm']"
+target = "[data-test='session-archive-btn']"
 
 [[step]]
 name = "sidebar restored after delete"

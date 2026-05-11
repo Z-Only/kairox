@@ -201,8 +201,8 @@ describe("SessionsSidebar", () => {
     expect(wrapper.find('[data-test="session-rename-btn"]').attributes("aria-label")).toBe(
       "Rename"
     );
-    expect(wrapper.find('[data-test="session-delete-btn"]').attributes("aria-label")).toBe(
-      "Delete"
+    expect(wrapper.find('[data-test="session-archive-btn"]').attributes("aria-label")).toBe(
+      "Archive"
     );
   });
 
@@ -217,7 +217,7 @@ describe("SessionsSidebar", () => {
     expect(sessionTitle.attributes("title")).toBe(longTitle);
     expect(sessionTitle.classes()).toContain("truncate");
     expect(wrapper.find('[data-test="session-rename-btn"]').classes()).toContain("kx-icon-button");
-    expect(wrapper.find('[data-test="session-delete-btn"]').classes()).toContain("kx-icon-button");
+    expect(wrapper.find('[data-test="session-archive-btn"]').classes()).toContain("kx-icon-button");
 
     await wrapper.find('[data-test="session-rename-btn"]').trigger("click");
     await flushPromises();
@@ -227,32 +227,29 @@ describe("SessionsSidebar", () => {
 
     await wrapper.find('[data-test="session-rename-input"]').trigger("keydown.escape");
     await flushPromises();
-    await wrapper.find('[data-test="session-delete-btn"]').trigger("click");
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-test="session-delete-confirm"]').classes()).toContain(
-      "kx-icon-button"
-    );
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
   });
 
-  it("P2-S2-new-session-contrast: uses dedicated high-contrast colors for the new session button", () => {
-    expect(sessionsSidebarSource).toContain("--sessions-new-button-bg");
-    expect(sessionsSidebarSource).not.toMatch(
-      /\.new-session-btn\s*\{[^}]*background:\s*var\(--app-primary-color\)/
-    );
+  it("P2-S2-new-session-contrast: uses kx-icon-button for the new session action", () => {
+    expect(sessionsSidebarSource).toContain('data-test="new-session-btn"');
+    expect(sessionsSidebarSource).toContain("<KxIconButton");
   });
 
-  it("requires a second click on the same session delete button before deleting", async () => {
+  it("requires a second click on the same session archive button before deleting", async () => {
     const { wrapper } = await mountSidebar();
     const session = useSessionStore();
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
     await flushPromises();
 
-    await wrapper.find('[data-test="session-delete-btn"]').trigger("click");
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
     await flushPromises();
     expect(mockedInvoke).not.toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
-    expect(wrapper.find('[data-test="session-delete-confirm"]').exists()).toBe(true);
 
-    await wrapper.find('[data-test="session-delete-confirm"]').trigger("click");
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
     await flushPromises();
     expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
   });
@@ -527,13 +524,13 @@ describe("SessionsSidebar", () => {
     });
     const { wrapper } = await mountSidebar();
     const workspaceUi = useWorkspaceUiStore();
+    const projectStore = useProjectStore();
     await flushPromises();
 
-    expect(workspaceUi.archiveOpen).toBe(false);
-    await wrapper.find('[data-test="project-archive-toggle"]').trigger("click");
+    await projectStore.loadArchivedSessions();
+    workspaceUi.archiveOpen = true;
     await flushPromises();
 
-    expect(workspaceUi.archiveOpen).toBe(true);
     expect(wrapper.find('[data-test="projects-section"]').text()).toContain(
       "Archived project task"
     );

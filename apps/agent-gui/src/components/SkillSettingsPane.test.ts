@@ -209,6 +209,9 @@ describe("SkillSettingsPane", () => {
     const wrapper = mountPane();
     await flushPromises();
 
+    await wrapper.find('[data-test="skill-subtab-discover"]').trigger("click");
+    await flushPromises();
+
     await wrapper.find('[data-test="skill-discover-query"]').setValue("docs");
     await wrapper.find('[data-test="skill-discover-form"]').trigger("submit");
     await flushPromises();

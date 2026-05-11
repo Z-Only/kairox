@@ -32,8 +32,8 @@ const sessionGitMeta = computed(() => {
   if (!sessionInfo?.project_id && !sessionInfo?.worktree_path) return [];
 
   const gitMetaParts = [];
-  if (sessionInfo.worktree_path) gitMetaParts.push(sessionInfo.worktree_path);
   if (sessionInfo.branch) gitMetaParts.push(sessionInfo.branch);
+  else if (sessionInfo.worktree_path) gitMetaParts.push(sessionInfo.worktree_path);
   if (!gitMetaParts.length && sessionInfo.project_id) gitMetaParts.push(sessionInfo.project_id);
   return gitMetaParts;
 });
@@ -230,14 +230,14 @@ watch(
               class="chat-model-trigger"
               type="button"
               data-test="chat-model-trigger"
-              :aria-label="`Select model. Current model: ${session.activeProfileDisplay}`"
+              :aria-label="t('chat.selectModelAria', { model: session.activeProfileDisplay })"
             >
               {{ session.activeProfileDisplay }}
             </button>
           </template>
           <template #content>
             <div class="chat-model-popover-panel">
-              <header class="chat-model-popover-header">Model</header>
+              <header class="chat-model-popover-header">{{ t("chat.model") }}</header>
               <ul class="chat-model-list">
                 <li v-for="profile in modelOptions" :key="profile.alias">
                   <button
@@ -256,7 +256,9 @@ watch(
                     </span>
                     <span class="chat-model-option-meta">
                       {{ profile.alias }}
-                      <span v-if="profile.alias === session.currentProfile"> · Current</span>
+                      <span v-if="profile.alias === session.currentProfile">
+                        · {{ t("chat.currentModel") }}</span
+                      >
                     </span>
                   </button>
                 </li>

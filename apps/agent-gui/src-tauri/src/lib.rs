@@ -142,6 +142,7 @@ pub fn run() {
             crate::commands::list_profiles,
             crate::commands::list_profiles_with_limits,
             crate::commands::get_profile_info,
+            crate::commands::refresh_config_for_project,
             crate::commands::initialize_workspace,
             crate::commands::start_session,
             crate::commands::send_message,
