@@ -170,7 +170,7 @@ jobs:
 
       - name: Run E2E tests
         working-directory: apps/agent-gui
-        run: pnpm run test:e2e -- --workers=2
+        run: pnpm run test:e2e
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
