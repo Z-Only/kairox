@@ -66,9 +66,9 @@ describe("ui store", () => {
   });
 
   describe("locale", () => {
-    it("defaults to en when storage is empty", () => {
+    it("defaults to system when storage is empty", () => {
       const ui = useUiStore();
-      expect(ui.locale).toBe("en");
+      expect(ui.locale).toBe("system");
     });
 
     it("setLocale persists to localStorage", () => {
@@ -82,7 +82,7 @@ describe("ui store", () => {
       window.localStorage.setItem("kairox.locale", "fr-FR");
       setActivePinia(createPinia());
       const ui = useUiStore();
-      expect(ui.locale).toBe("en");
+      expect(ui.locale).toBe("system");
     });
   });
 });
