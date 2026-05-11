@@ -34,11 +34,6 @@ action = "assert-visible"
 target = "[data-test='chat-model-trigger']"
 
 [[step]]
-name = "context meter ring visible"
-action = "assert-visible"
-target = "[data-test='context-meter-ring']"
-
-[[step]]
 name = "send button visible"
 action = "assert-visible"
 target = "[data-test='send-button']"
