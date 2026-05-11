@@ -1174,7 +1174,10 @@ function invoke(cmd, args) {
       return null;
 
     case "open_mcp_config_file":
-      return "/mock/workspace/kairox.toml";
+      if (window.__MCP_OPEN_CONFIG_SHOULD_FAIL__) {
+        return Promise.reject(new Error("mock failure"));
+      }
+      return "/mock/workspace";
 
     case "list_skill_settings":
       return clone(state.skillSettings);

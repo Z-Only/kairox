@@ -1090,11 +1090,60 @@ pub async fn delete_mcp_server_settings(
 #[tauri::command]
 #[specta::specta]
 pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<String>, String> {
-    state
+    let Some(config_file_path) = state
         .runtime
         .open_mcp_config_file()
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+
+    let config_file_path = std::path::PathBuf::from(config_file_path);
+    let config_folder_path = config_file_path
+        .parent()
+        .unwrap_or(config_file_path.as_path())
+        .to_path_buf();
+
+    open_path_in_system_file_manager(&config_folder_path)?;
+    Ok(Some(config_folder_path.display().to_string()))
+}
+
+fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
+    let mut command = system_file_manager_command(path);
+    let status = command
+        .status()
+        .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "failed to open {}: system opener exited with {status}",
+        path.display()
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("open");
+    command.arg(path);
+    command
+}
+
+#[cfg(target_os = "windows")]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("explorer");
+    command.arg(path);
+    command
+}
+
+#[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("xdg-open");
+    command.arg(path);
+    command
 }
 
 #[tauri::command]

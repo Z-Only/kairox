@@ -41,59 +41,44 @@ onMounted(async () => {
       </h1>
     </header>
 
-    <div class="marketplace-tabs">
-      <div class="tabs" role="tablist" aria-label="Marketplace sections">
+    <div>
+      <div class="source-filter">
         <button
-          type="button"
-          role="tab"
-          aria-selected="true"
-          data-test="tab-browse"
-          :class="['tab-btn', { active: catalog.tab === 'browse' }]"
-          @click="catalog.tab = 'browse'"
+          v-for="chip in sourceChips"
+          :key="chip.id"
+          :data-test="`source-chip-${chip.id}`"
+          :class="['btn', 'chip', { active: catalog.isSourceEnabled(chip.id) }]"
+          @click="catalog.toggleSource(chip.id)"
         >
-          {{ t("marketplace.tabBrowse") }}
+          {{ chip.display_name }}
+          <span
+            v-if="catalog.sourceFailures[chip.id]"
+            :data-test="`src-warn-${chip.id}`"
+            :title="catalog.sourceFailures[chip.id]"
+            class="tag tag-error warn"
+          >
+            ⚠
+          </span>
+        </button>
+        <button
+          class="btn settings-icon"
+          data-test="catalog-source-settings"
+          :aria-label="t('marketplace.sourceSettingsAria')"
+          @click="settingsOpen = !settingsOpen"
+        >
+          <span aria-hidden="true">⚙</span>
         </button>
       </div>
 
-      <div>
-        <div class="source-filter">
-          <button
-            v-for="chip in sourceChips"
-            :key="chip.id"
-            :data-test="`source-chip-${chip.id}`"
-            :class="['btn', 'chip', { active: catalog.isSourceEnabled(chip.id) }]"
-            @click="catalog.toggleSource(chip.id)"
-          >
-            {{ chip.display_name }}
-            <span
-              v-if="catalog.sourceFailures[chip.id]"
-              :data-test="`src-warn-${chip.id}`"
-              :title="catalog.sourceFailures[chip.id]"
-              class="tag tag-error warn"
-            >
-              ⚠
-            </span>
-          </button>
-          <button
-            class="btn settings-icon"
-            data-test="catalog-source-settings"
-            :aria-label="t('marketplace.sourceSettingsAria')"
-            @click="settingsOpen = !settingsOpen"
-          >
-            <span aria-hidden="true">⚙</span>
-          </button>
-        </div>
-
-        <div
-          v-if="settingsOpen"
-          class="card settings-drawer"
-          data-test="catalog-source-settings-drawer"
-        >
-          <CatalogSourcesSettings />
-        </div>
-
-        <CatalogList />
+      <div
+        v-if="settingsOpen"
+        class="card settings-drawer"
+        data-test="catalog-source-settings-drawer"
+      >
+        <CatalogSourcesSettings />
       </div>
+
+      <CatalogList />
     </div>
 
     <InstallProgress
@@ -113,31 +98,6 @@ onMounted(async () => {
 .marketplace-pane__title {
   margin: 0;
   font-size: 20px;
-}
-.tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
-  margin-bottom: 12px;
-}
-.tab-btn {
-  padding: 6px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--app-text-color, inherit);
-  border-bottom: 2px solid transparent;
-  transition:
-    border-color 0.2s,
-    color 0.2s;
-}
-.tab-btn:hover {
-  color: var(--app-primary-color, #18a058);
-}
-.tab-btn.active {
-  color: var(--app-primary-color, #18a058);
-  border-bottom-color: var(--app-primary-color, #18a058);
 }
 .btn {
   padding: 4px 12px;

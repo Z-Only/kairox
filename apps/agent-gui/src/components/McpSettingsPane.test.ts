@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
+import { nextTick } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { invoke } from "@tauri-apps/api/core";
 import { commands, type McpServerSettingsView } from "@/generated/commands";
@@ -121,6 +122,78 @@ describe("McpSettingsPane", () => {
     await wrapper.find('[data-test="mcp-subtab-marketplace"]').trigger("click");
     expect(wrapper.find('[data-test="mcp-marketplace-embedded"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="tab-installed"]').exists()).toBe(false);
+  });
+
+  it("labels the config action as a folder opener and delegates to the MCP store", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const openConfigButton = wrapper.find('[data-test="mcp-open-config"]');
+    expect(openConfigButton.text()).toContain("Open config folder");
+
+    await openConfigButton.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.openMcpConfigFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show the config folder action as opening while settings are loading", async () => {
+    let resolveSettings: (value: { status: "ok"; data: McpServerSettingsView[] }) => void;
+    mockedCommands.listMcpServerSettings.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSettings = resolve;
+      })
+    );
+
+    const wrapper = mountPane();
+    await nextTick();
+
+    const openConfigButton = wrapper.find<HTMLButtonElement>('[data-test="mcp-open-config"]');
+    expect(openConfigButton.text()).toContain("Open config folder");
+    expect(openConfigButton.element.disabled).toBe(false);
+
+    resolveSettings!(ok([githubServer, readonlyServer]));
+    await flushPromises();
+  });
+
+  it("disables the config folder action while the folder is opening", async () => {
+    let resolveOpenConfig: (value: { status: "ok"; data: string }) => void;
+    mockedCommands.openMcpConfigFile.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOpenConfig = resolve;
+      })
+    );
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const openConfigButton = wrapper.find<HTMLButtonElement>('[data-test="mcp-open-config"]');
+    await openConfigButton.trigger("click");
+    await nextTick();
+
+    expect(openConfigButton.text()).toContain("Opening…");
+    expect(openConfigButton.element.disabled).toBe(true);
+
+    resolveOpenConfig!(ok("/tmp"));
+    await flushPromises();
+
+    expect(openConfigButton.text()).toContain("Open config folder");
+    expect(openConfigButton.element.disabled).toBe(false);
+  });
+
+  it("shows a page-level error when opening the config folder fails", async () => {
+    mockedCommands.openMcpConfigFile.mockRejectedValueOnce(new Error("folder open denied"));
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-open-config"]').trigger("click");
+    await flushPromises();
+
+    expect(useMcpStore().settingsError).toBe(
+      "Unable to open MCP config folder: folder open denied"
+    );
+    expect(wrapper.find('[data-test="mcp-page-error"]').text()).toContain(
+      "Unable to open MCP config folder: folder open denied"
+    );
   });
 
   it("opens the add server panel and saves manual stdio settings through the MCP store action", async () => {
