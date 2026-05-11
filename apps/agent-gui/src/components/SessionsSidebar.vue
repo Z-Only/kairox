@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { ProfileInfo } from "../types";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore, type ProjectInfo, type ProjectSessionInfo } from "@/stores/project";
 import { useWorkspaceUiStore, type SidebarSection } from "@/stores/workspaceUi";
@@ -34,12 +32,8 @@ const orderedSidebarSections = computed<SidebarSection[]>(() => {
   ];
 });
 
-const showNewSession = ref(false);
-const selectedProfile = ref("fast");
-const availableProfiles = ref<ProfileInfo[]>([]);
 const editingSessionId = ref<string | null>(null);
 const editingTitle = ref("");
-const profileDropdownOpen = ref(false);
 const renameInput = ref<HTMLInputElement | null>(null);
 const projectCreateMenuOpen = ref(false);
 const editingProjectId = ref<string | null>(null);
@@ -85,47 +79,13 @@ async function switchToSession(sessionId: string) {
 }
 
 async function createSession() {
+  resetDeleteConfirmation();
   try {
-    const result = await session.createSession(selectedProfile.value);
-    showNewSession.value = false;
-    profileDropdownOpen.value = false;
+    const result = await session.createSession(undefined);
     await router.push({ name: "workbench", params: { sessionId: result.id } });
   } catch (e) {
     console.error("Failed to start session:", e);
   }
-}
-
-async function loadProfiles() {
-  try {
-    availableProfiles.value = (await invoke("get_profile_info")) as ProfileInfo[];
-    if (availableProfiles.value.length > 0) {
-      selectedProfile.value = availableProfiles.value[0].alias;
-    }
-  } catch (e) {
-    console.error("Failed to load profiles:", e);
-    // Fallback: try to get just profile names
-    try {
-      const names: string[] = await invoke("list_profiles");
-      availableProfiles.value = names.map((name) => ({
-        alias: name,
-        provider: "unknown",
-        model_id: "unknown",
-        local: false,
-        has_api_key: false
-      }));
-      if (names.length > 0) {
-        selectedProfile.value = names[0];
-      }
-    } catch {
-      // Ignore fallback failure
-    }
-  }
-}
-
-function openNewSessionDialog() {
-  resetDeleteConfirmation();
-  loadProfiles();
-  showNewSession.value = true;
 }
 
 function startRename(sessionId: string, currentTitle: string) {
@@ -169,11 +129,6 @@ async function requestDeleteSession(sessionId: string) {
   }
   await session.deleteSession(sessionId);
   pendingDeleteSessionId.value = null;
-}
-
-function selectProfile(alias: string) {
-  selectedProfile.value = alias;
-  profileDropdownOpen.value = false;
 }
 
 function getProjectSessions(projectId: string): ProjectSessionInfo[] {
@@ -334,10 +289,6 @@ async function loadProjectsForSidebar() {
   } catch (e) {
     console.error("Failed to load projects:", e);
   }
-}
-
-function keyIcon(hasApiKey: boolean): string {
-  return hasApiKey ? "🔑" : "🚫";
 }
 
 onMounted(() => {
@@ -687,7 +638,7 @@ onMounted(() => {
               type="button"
               data-test="new-session-btn"
               :aria-label="getIconLabel('new')"
-              @click="openNewSessionDialog"
+              @click="createSession"
             >
               {{ t("sessions.newButtonPrefix") }}{{ t("sessions.newButton") }}
             </button>
@@ -796,50 +747,6 @@ onMounted(() => {
         </section>
       </template>
     </div>
-
-    <!-- New Session Dialog (kept as native <dialog> per Task 5 NIT #8 — out of
-         scope for Task 7 spec §5.5 mapping). -->
-    <dialog v-if="showNewSession" class="new-session-dialog" data-test="new-session-dialog" open>
-      <h3>{{ t("sessions.newDialogTitle") }}</h3>
-      <label>
-        {{ t("sessions.profileLabel") }}
-        <div class="profile-dropdown">
-          <button class="profile-trigger" @click="profileDropdownOpen = !profileDropdownOpen">
-            {{ selectedProfile }}
-            <span class="caret">▼</span>
-          </button>
-          <div v-if="profileDropdownOpen" class="profile-menu">
-            <div
-              v-for="p in availableProfiles"
-              :key="p.alias"
-              :class="['profile-option', { selected: p.alias === selectedProfile }]"
-              @click="selectProfile(p.alias)"
-            >
-              <div class="profile-info">
-                <span class="profile-alias">{{ p.alias }}</span>
-                <span class="profile-detail" :title="`${p.provider} · ${p.model_id}`">
-                  {{ p.provider }} · {{ p.model_id }}
-                </span>
-              </div>
-              <span class="profile-key">{{ keyIcon(p.has_api_key) }}</span>
-            </div>
-          </div>
-        </div>
-      </label>
-      <div class="dialog-actions">
-        <button data-test="create-session-btn" @click="createSession">
-          {{ t("sessions.createButton") }}
-        </button>
-        <button
-          @click="
-            showNewSession = false;
-            profileDropdownOpen = false;
-          "
-        >
-          {{ t("sessions.cancelButton") }}
-        </button>
-      </div>
-    </dialog>
   </aside>
 </template>
 
@@ -1141,122 +1048,5 @@ onMounted(() => {
   padding: 12px;
   color: var(--app-text-color-3);
   font-size: 13px;
-}
-
-/* New Session Dialog */
-.new-session-dialog {
-  min-width: 340px;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--app-card-color);
-  border: 1px solid var(--app-border-color);
-  border-radius: 8px;
-  padding: 20px;
-  z-index: 100;
-  box-shadow: var(--app-shadow-2, 0 4px 16px rgba(0, 0, 0, 0.15));
-}
-.new-session-dialog h3 {
-  margin: 0 0 12px;
-}
-.new-session-dialog label {
-  display: block;
-  margin-bottom: 12px;
-  font-size: 13px;
-}
-
-/* Profile Dropdown */
-.profile-dropdown {
-  position: relative;
-  margin-top: 6px;
-}
-.profile-trigger {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  cursor: pointer;
-  font-size: 13px;
-  text-align: left;
-  color: var(--app-text-color);
-}
-.caret {
-  font-size: 10px;
-  color: var(--app-text-color-3);
-}
-.profile-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  min-width: 320px;
-  background: var(--app-card-color);
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  box-shadow: var(--app-shadow-1, 0 4px 12px rgba(0, 0, 0, 0.1));
-  z-index: 10;
-  max-height: 200px;
-  overflow-y: auto;
-}
-.profile-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.profile-option:hover {
-  background: var(--app-hover-color);
-}
-.profile-option.selected {
-  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
-  font-weight: 600;
-}
-.profile-alias {
-  font-weight: 600;
-  font-size: 13px;
-}
-.profile-detail {
-  color: var(--app-text-color-2);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.profile-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.profile-key {
-  flex-shrink: 0;
-  font-size: 11px;
-}
-
-.dialog-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-.dialog-actions button {
-  padding: 6px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  background: var(--app-card-color);
-  font-size: 13px;
-}
-.dialog-actions button:first-child {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
-  border-color: var(--app-primary-color);
 }
 </style>

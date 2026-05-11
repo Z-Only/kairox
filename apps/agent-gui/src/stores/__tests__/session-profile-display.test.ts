@@ -28,7 +28,7 @@ describe("session profile display", () => {
     await session.loadProfileInfo();
 
     expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
-    expect(session.activeProfileDisplay).toBe("anthropic / claude-3-5-sonnet");
+    expect(session.activeProfileDisplay).toBe("Anthropic · Claude 3.5 Sonnet");
   });
 
   it("falls back to the alias when profile details are unavailable", () => {
@@ -36,6 +36,23 @@ describe("session profile display", () => {
     session.currentProfile = "deep";
 
     expect(session.activeProfileDisplay).toBe("deep");
+  });
+
+  it("maps default profile aliases to provider and model display labels", () => {
+    const session = useSessionStore();
+    session.currentProfile = "default";
+    session.profileInfos = [
+      {
+        alias: "default",
+        provider: "openai",
+        model_id: "gpt-4o",
+        local: false,
+        has_api_key: true
+      }
+    ];
+
+    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-4o");
+    expect(session.activeProfileDisplay).not.toBe("default");
   });
 
   it("keeps alias fallback and allows retry when profile loading fails", async () => {
@@ -63,7 +80,7 @@ describe("session profile display", () => {
       await session.loadProfileInfo();
 
       expect(mockedInvoke).toHaveBeenCalledTimes(2);
-      expect(session.activeProfileDisplay).toBe("openai / gpt-4o");
+      expect(session.activeProfileDisplay).toBe("OpenAI · GPT-4o");
     } finally {
       consoleErrorSpy.mockRestore();
     }

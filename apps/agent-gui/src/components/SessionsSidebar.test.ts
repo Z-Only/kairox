@@ -145,22 +145,30 @@ describe("SessionsSidebar", () => {
     expect(router.currentRoute.value.params.sessionId).toBe("s1");
   });
 
-  it("opens new session dialog on + New click", async () => {
-    mockInvokeCommandResponses({
-      get_profile_info: [
-        {
-          alias: "fast",
-          provider: "openai",
-          model_id: "gpt-4o",
-          local: false,
-          has_api_key: true
-        }
-      ]
+  it("creates a default session directly without opening the profile dialog", async () => {
+    const { wrapper, router } = await mountSidebar();
+    const session = useSessionStore();
+    const createSessionSpy = vi.spyOn(session, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
     });
-    const { wrapper } = await mountSidebar();
+
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
-    expect(wrapper.text()).toContain("New Session");
+    await router.isReady();
+
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
+    expect(createSessionSpy).toHaveBeenCalledWith(undefined);
+    expect(router.currentRoute.value.params.sessionId).toBe("ses_default");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("get_profile_info");
+  });
+
+  it("removes obsolete profile dialog and dropdown CSS", () => {
+    expect(sessionsSidebarSource).not.toContain(".new-session-dialog");
+    expect(sessionsSidebarSource).not.toContain(".profile-dropdown");
+    expect(sessionsSidebarSource).not.toContain(".profile-option");
+    expect(sessionsSidebarSource).not.toContain(".dialog-actions");
   });
 
   it("keeps row actions visually hidden until hover or keyboard focus", () => {
@@ -280,22 +288,17 @@ describe("SessionsSidebar", () => {
   });
 
   it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
-    mockInvokeCommandResponses({
-      get_profile_info: [
-        {
-          alias: "fast",
-          provider: "openai",
-          model_id: "gpt-4o",
-          local: false,
-          has_api_key: true
-        }
-      ]
-    });
     const { wrapper } = await mountSidebar();
+    const sessionStore = useSessionStore();
+    vi.spyOn(sessionStore, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
+    });
 
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
-    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
 
     const session = useSessionStore();
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
