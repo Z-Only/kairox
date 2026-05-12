@@ -168,15 +168,26 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
             let api_key_env = resolve_api_key_env(alias, def);
 
+            let headers: Vec<(String, String)> = def
+                .headers
+                .as_ref()
+                .map(|h| h.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                .unwrap_or_default();
+
+            let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
+                let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());
+                serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null)
+            });
+
             let config = OpenAiCompatibleConfig {
                 base_url,
                 api_key_env,
                 default_model: def.model_id.clone(),
-                headers: Vec::new(),
+                headers,
                 capability_overrides: None,
-                temperature: None,
-                top_p: None,
-                extra_params: None,
+                temperature: def.temperature,
+                top_p: def.top_p,
+                extra_params,
             };
             Box::new(OpenAiCompatibleClient::new(config))
         }
@@ -187,6 +198,17 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .unwrap_or_else(|| "https://api.anthropic.com".to_string());
             let api_key_env = resolve_api_key_env(alias, def);
 
+            let headers: Vec<(String, String)> = def
+                .headers
+                .as_ref()
+                .map(|h| h.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                .unwrap_or_default();
+
+            let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
+                let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());
+                serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null)
+            });
+
             let config = AnthropicConfig {
                 base_url,
                 api_key_env,
@@ -194,12 +216,12 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 max_tokens: def
                     .output_limit
                     .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
-                headers: Vec::new(),
+                headers,
                 capability_overrides: None,
-                temperature: None,
-                top_p: None,
-                top_k: None,
-                extra_params: None,
+                temperature: def.temperature,
+                top_p: def.top_p,
+                top_k: def.top_k,
+                extra_params,
             };
             Box::new(AnthropicClient::new(config))
         }
