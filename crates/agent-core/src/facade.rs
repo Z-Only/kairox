@@ -4,9 +4,17 @@
 //! This trait provides a stable, object-safe interface for workspace management,
 //! session lifecycle, messaging, permissions, and event streaming.
 
+mod mcp;
+mod project;
+mod session;
+mod skills;
+
+pub use mcp::McpFacade;
+pub use project::ProjectFacade;
+pub use session::SessionFacade;
+pub use skills::SkillsFacade;
+
 use crate::{DomainEvent, ProjectId, SessionId, TaskId, WorkspaceId};
-use async_trait::async_trait;
-use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -595,551 +603,357 @@ pub struct AgentStatusInfo {
     pub status: String,
 }
 
-#[async_trait]
-/// The primary integration point for Kairox.
+/// AppFacade is the complete application facade, combining all sub-traits.
 ///
-/// All user interfaces (TUI, GUI) interact with the runtime through this trait.
-/// The canonical implementation is [`crate::LocalRuntime`](agent_runtime::LocalRuntime),
+/// All UIs (TUI, GUI) interact with the runtime through this trait.
+/// The canonical implementation is [`agent_runtime::LocalRuntime`],
 /// but any mock or test implementation can substitute.
 ///
 /// # Object Safety
 ///
 /// This trait is object-safe and can be used as `dyn AppFacade`.
-pub trait AppFacade: Send + Sync {
-    /// Open a workspace at the given filesystem path. Returns workspace metadata.
-    async fn open_workspace(&self, path: String) -> crate::Result<WorkspaceInfo>;
-    /// Start a new agent session within a workspace using the specified model profile.
-    async fn start_session(&self, request: StartSessionRequest) -> crate::Result<SessionId>;
-    /// Send a user message to an active session. The agent loop runs in the background.
-    async fn send_message(&self, request: SendMessageRequest) -> crate::Result<()>;
-    /// Submit a user decision on a pending permission request.
-    async fn decide_permission(&self, decision: PermissionDecision) -> crate::Result<()>;
-    /// Cancel a running session.
+/// Every method has a default implementation that delegates to the
+/// corresponding sub-trait, so implementors only need to implement
+/// the sub-traits and write `impl AppFacade for T {}`.
+#[async_trait::async_trait]
+pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
+    // ── Session ─────────────────────────────────────────────────────────
+
+    async fn open_workspace(&self, path: String) -> crate::Result<WorkspaceInfo> {
+        SessionFacade::open_workspace(self, path).await
+    }
+    async fn start_session(&self, request: StartSessionRequest) -> crate::Result<SessionId> {
+        SessionFacade::start_session(self, request).await
+    }
+    async fn send_message(&self, request: SendMessageRequest) -> crate::Result<()> {
+        SessionFacade::send_message(self, request).await
+    }
+    async fn decide_permission(&self, decision: PermissionDecision) -> crate::Result<()> {
+        SessionFacade::decide_permission(self, decision).await
+    }
     async fn cancel_session(
         &self,
         workspace_id: WorkspaceId,
         session_id: SessionId,
-    ) -> crate::Result<()>;
-    /// Get the projected (rolled-up) state of a session, including messages and task titles.
+    ) -> crate::Result<()> {
+        SessionFacade::cancel_session(self, workspace_id, session_id).await
+    }
     async fn get_session_projection(
         &self,
         session_id: SessionId,
-    ) -> crate::Result<crate::projection::SessionProjection>;
-    /// Get the full trace of domain events for a session.
-    async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>>;
-    /// Subscribe to a real-time stream of domain events for a session.
-    fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent>;
-    /// Subscribe to a real-time stream of all domain events across all sessions.
-    fn subscribe_all(&self) -> BoxStream<'static, DomainEvent>;
-    /// List all workspaces known to the runtime.
-    async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>>;
-    /// List all sessions in a workspace, including soft-deleted ones.
-    async fn list_sessions(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<SessionMeta>>;
-    /// Rename a session.
-    async fn rename_session(&self, session_id: &SessionId, title: String) -> crate::Result<()>;
-    /// Soft-delete a session (marks as deleted without removing data).
-    async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()>;
-    /// Clean up sessions that were soft-deleted longer than the specified duration ago.
+    ) -> crate::Result<crate::projection::SessionProjection> {
+        SessionFacade::get_session_projection(self, session_id).await
+    }
+    async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>> {
+        SessionFacade::get_trace(self, session_id).await
+    }
+    fn subscribe_session(
+        &self,
+        session_id: SessionId,
+    ) -> futures::stream::BoxStream<'static, crate::DomainEvent> {
+        SessionFacade::subscribe_session(self, session_id)
+    }
+    fn subscribe_all(&self) -> futures::stream::BoxStream<'static, crate::DomainEvent> {
+        SessionFacade::subscribe_all(self)
+    }
+    async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>> {
+        SessionFacade::list_workspaces(self).await
+    }
+    async fn list_sessions(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<SessionMeta>> {
+        SessionFacade::list_sessions(self, workspace_id).await
+    }
+    async fn rename_session(&self, session_id: &SessionId, title: String) -> crate::Result<()> {
+        SessionFacade::rename_session(self, session_id, title).await
+    }
+    async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        SessionFacade::soft_delete_session(self, session_id).await
+    }
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,
-    ) -> crate::Result<usize>;
-    /// Get the current task graph snapshot for a session.
-    async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot>;
-    /// Retry a failed or blocked task, resetting it to pending and unblocking dependents.
+    ) -> crate::Result<usize> {
+        SessionFacade::cleanup_expired_sessions(self, older_than).await
+    }
+    async fn get_task_graph(&self, session_id: SessionId) -> crate::Result<TaskGraphSnapshot> {
+        SessionFacade::get_task_graph(self, session_id).await
+    }
     async fn retry_task(
         &self,
         workspace_id: WorkspaceId,
         session_id: SessionId,
         task_id: TaskId,
-    ) -> crate::Result<()>;
-    /// Cancel a specific task in the session's task graph.
+    ) -> crate::Result<()> {
+        SessionFacade::retry_task(self, workspace_id, session_id, task_id).await
+    }
     async fn cancel_task(
         &self,
         workspace_id: WorkspaceId,
         session_id: SessionId,
         task_id: TaskId,
-    ) -> crate::Result<()>;
-    /// Get the status of all agents associated with a session's task graph.
-    async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>>;
+    ) -> crate::Result<()> {
+        SessionFacade::cancel_task(self, workspace_id, session_id, task_id).await
+    }
+    async fn get_agent_status(&self, session_id: SessionId) -> crate::Result<Vec<AgentStatusInfo>> {
+        SessionFacade::get_agent_status(self, session_id).await
+    }
 
-    // -----------------------------------------------------------------------
-    // Skills (native skill registry and session activation).
-    // -----------------------------------------------------------------------
+    // ── Skills ──────────────────────────────────────────────────────────
 
-    /// List all discovered skills.
     async fn list_skills(&self) -> crate::Result<Vec<SkillView>> {
-        Ok(Vec::new())
+        SkillsFacade::list_skills(self).await
     }
-
-    /// Get a single skill by id.
     async fn get_skill(&self, skill_id: String) -> crate::Result<Option<SkillDetail>> {
-        let _ = skill_id;
-        Ok(None)
+        SkillsFacade::get_skill(self, skill_id).await
     }
-
-    /// Activate a skill for a session.
     async fn activate_skill(
         &self,
         request: ActivateSkillRequest,
     ) -> crate::Result<ActiveSkillView> {
-        let _ = request;
-        Err(crate::CoreError::InvalidState(
-            "skill activation not supported".into(),
-        ))
+        SkillsFacade::activate_skill(self, request).await
     }
-
-    /// Deactivate a skill for a session.
     async fn deactivate_skill(&self, request: DeactivateSkillRequest) -> crate::Result<()> {
-        let _ = request;
-        Ok(())
+        SkillsFacade::deactivate_skill(self, request).await
     }
-
-    /// List active skills for a session.
     async fn list_active_skills(
         &self,
         session_id: SessionId,
     ) -> crate::Result<Vec<ActiveSkillView>> {
-        let _ = session_id;
-        Ok(Vec::new())
+        SkillsFacade::list_active_skills(self, session_id).await
     }
-
-    /// List configured MCP servers for settings UI.
-    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
-        Ok(Vec::new())
-    }
-
-    /// Create or update an MCP server from settings UI.
-    async fn upsert_mcp_server_settings(
-        &self,
-        input: McpServerSettingsInput,
-    ) -> crate::Result<McpServerSettingsView> {
-        let _ = input;
-        Err(crate::CoreError::InvalidState(
-            "MCP settings mutation not supported".into(),
-        ))
-    }
-
-    /// Delete an MCP server from settings UI.
-    async fn delete_mcp_server_settings(&self, server_id: String) -> crate::Result<()> {
-        let _ = server_id;
-        Err(crate::CoreError::InvalidState(
-            "MCP settings deletion not supported".into(),
-        ))
-    }
-
-    /// Enable or disable an MCP server from settings UI.
-    async fn set_mcp_server_enabled(&self, server_id: String, enabled: bool) -> crate::Result<()> {
-        let _ = (server_id, enabled);
-        Err(crate::CoreError::InvalidState(
-            "MCP settings enablement not supported".into(),
-        ))
-    }
-
-    /// Open the MCP configuration file and return the path if available.
-    async fn open_mcp_config_file(&self) -> crate::Result<Option<String>> {
-        Ok(None)
-    }
-
     /// List all configured model profiles for settings UI.
     async fn list_profile_settings(
         &self,
         source_filter: Option<String>,
     ) -> crate::Result<Vec<ProfileSettingsView>> {
-        let _ = source_filter;
-        Ok(Vec::new())
-    }
-
-    /// Create or update a model profile from settings UI.
-    async fn upsert_profile_settings(
-        &self,
-        input: ProfileSettingsInput,
-    ) -> crate::Result<ProfileSettingsView> {
-        let _ = input;
-        Err(crate::CoreError::InvalidState(
-            "profile settings mutation not supported".into(),
-        ))
-    }
-
-    /// Enable or disable a model profile from settings UI.
-    async fn set_profile_enabled(&self, alias: String, enabled: bool) -> crate::Result<()> {
-        let _ = (alias, enabled);
-        Err(crate::CoreError::InvalidState(
-            "profile settings enablement not supported".into(),
-        ))
-    }
-
-    /// Delete a model profile from settings UI.
-    async fn delete_profile_settings(&self, alias: String) -> crate::Result<()> {
-        let _ = alias;
-        Err(crate::CoreError::InvalidState(
-            "profile settings deletion not supported".into(),
-        ))
+        McpFacade::list_profile_settings(self, source_filter).await
     }
 
     /// Move a profile up or down in display order.
     async fn move_profile_in_order(&self, alias: String, direction: i32) -> crate::Result<()> {
-        let _ = (alias, direction);
-        Err(crate::CoreError::InvalidState(
-            "profile ordering not supported".into(),
-        ))
+        McpFacade::move_profile_in_order(self, alias, direction).await
     }
 
     /// Open the config directory in the system file manager.
     async fn open_config_dir(&self) -> crate::Result<Option<String>> {
-        Ok(None)
+        McpFacade::open_config_dir(self).await
     }
 
     /// List skills for settings UI.
     async fn list_skill_settings(&self) -> crate::Result<Vec<SkillSettingsView>> {
-        Ok(Vec::new())
+        SkillsFacade::list_skill_settings(self).await
     }
-
-    /// Get settings details for a single skill.
     async fn get_skill_settings_detail(
         &self,
         skill_id: String,
     ) -> crate::Result<Option<SkillSettingsDetail>> {
-        let _ = skill_id;
-        Ok(None)
+        SkillsFacade::get_skill_settings_detail(self, skill_id).await
     }
-
-    /// Enable or disable a skill from settings UI.
     async fn set_skill_enabled(&self, skill_id: String, enabled: bool) -> crate::Result<()> {
-        let _ = (skill_id, enabled);
-        Err(crate::CoreError::InvalidState(
-            "Skill settings enablement not supported".into(),
-        ))
+        SkillsFacade::set_skill_enabled(self, skill_id, enabled).await
     }
-
-    /// Delete a skill from settings UI.
     async fn delete_skill_settings(&self, skill_id: String) -> crate::Result<()> {
-        let _ = skill_id;
-        Err(crate::CoreError::InvalidState(
-            "Skill deletion not supported".into(),
-        ))
+        SkillsFacade::delete_skill_settings(self, skill_id).await
     }
-
-    /// Search remote skills using the configured package source.
     async fn search_remote_skills(
         &self,
         query: String,
     ) -> crate::Result<Vec<RemoteSkillSearchResult>> {
-        let _ = query;
-        Ok(Vec::new())
+        SkillsFacade::search_remote_skills(self, query).await
     }
-
-    /// Install a skill from a remote package source.
     async fn install_remote_skill(
         &self,
         request: InstallRemoteSkillRequest,
     ) -> crate::Result<SkillSettingsView> {
-        let _ = request;
-        Err(crate::CoreError::InvalidState(
-            "Skill install not supported".into(),
-        ))
+        SkillsFacade::install_remote_skill(self, request).await
     }
-
-    /// Install a skill from a GitHub source.
     async fn install_github_skill(
         &self,
         request: InstallGithubSkillRequest,
     ) -> crate::Result<SkillSettingsView> {
-        let _ = request;
-        Err(crate::CoreError::InvalidState(
-            "GitHub Skill install not supported".into(),
-        ))
+        SkillsFacade::install_github_skill(self, request).await
     }
-
-    /// Update an installed skill.
     async fn update_skill(&self, skill_id: String) -> crate::Result<SkillSettingsView> {
-        let _ = skill_id;
-        Err(crate::CoreError::InvalidState(
-            "Skill update not supported".into(),
-        ))
+        SkillsFacade::update_skill(self, skill_id).await
     }
-
-    // ── Skills catalog / marketplace ─────────────────────────────────
-
-    /// List skill catalog entries, optionally filtered by query.
     async fn list_skill_catalog(
         &self,
-        _query: SkillCatalogQuery,
+        query: SkillCatalogQuery,
     ) -> crate::Result<Vec<SkillCatalogEntry>> {
-        Ok(Vec::new())
+        SkillsFacade::list_skill_catalog(self, query).await
     }
-
-    /// List configured skill catalog sources (includes builtins).
     async fn list_skill_sources(&self) -> crate::Result<Vec<SkillSourceView>> {
-        Ok(Vec::new())
+        SkillsFacade::list_skill_sources(self).await
     }
-
-    /// Add a new skill catalog source.
-    async fn add_skill_source(&self, _config: SkillSourceView) -> crate::Result<()> {
-        Err(crate::CoreError::InvalidState(
-            "skill sources not configured".into(),
-        ))
+    async fn add_skill_source(&self, config: SkillSourceView) -> crate::Result<()> {
+        SkillsFacade::add_skill_source(self, config).await
     }
-
-    /// Remove a skill catalog source.
-    async fn remove_skill_source(&self, _id: String) -> crate::Result<()> {
-        Err(crate::CoreError::InvalidState(
-            "skill sources not configured".into(),
-        ))
+    async fn remove_skill_source(&self, id: String) -> crate::Result<()> {
+        SkillsFacade::remove_skill_source(self, id).await
     }
-
-    /// Enable or disable a skill catalog source.
-    async fn set_skill_source_enabled(&self, _id: String, _enabled: bool) -> crate::Result<()> {
-        Err(crate::CoreError::InvalidState(
-            "skill sources not configured".into(),
-        ))
+    async fn set_skill_source_enabled(&self, id: String, enabled: bool) -> crate::Result<()> {
+        SkillsFacade::set_skill_source_enabled(self, id, enabled).await
     }
-
-    /// Refresh skill catalog data from all sources.
     async fn refresh_skill_catalog(&self) -> crate::Result<()> {
-        Ok(())
+        SkillsFacade::refresh_skill_catalog(self).await
     }
 
-    // -----------------------------------------------------------------------
-    // Marketplace catalog (Phase 1: built-in catalog only).
-    // -----------------------------------------------------------------------
+    // ── MCP / Marketplace / Profile ─────────────────────────────────────
 
-    /// List catalog entries, optionally filtered by `query`.
+    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
+        McpFacade::list_mcp_server_settings(self).await
+    }
+    async fn upsert_mcp_server_settings(
+        &self,
+        input: McpServerSettingsInput,
+    ) -> crate::Result<McpServerSettingsView> {
+        McpFacade::upsert_mcp_server_settings(self, input).await
+    }
+    async fn delete_mcp_server_settings(&self, server_id: String) -> crate::Result<()> {
+        McpFacade::delete_mcp_server_settings(self, server_id).await
+    }
+    async fn set_mcp_server_enabled(&self, server_id: String, enabled: bool) -> crate::Result<()> {
+        McpFacade::set_mcp_server_enabled(self, server_id, enabled).await
+    }
+    async fn open_mcp_config_file(&self) -> crate::Result<Option<String>> {
+        McpFacade::open_mcp_config_file(self).await
+    }
+    async fn upsert_profile_settings(
+        &self,
+        input: ProfileSettingsInput,
+    ) -> crate::Result<ProfileSettingsView> {
+        McpFacade::upsert_profile_settings(self, input).await
+    }
+    async fn set_profile_enabled(&self, alias: String, enabled: bool) -> crate::Result<()> {
+        McpFacade::set_profile_enabled(self, alias, enabled).await
+    }
+    async fn delete_profile_settings(&self, alias: String) -> crate::Result<()> {
+        McpFacade::delete_profile_settings(self, alias).await
+    }
     async fn list_catalog(&self, query: CatalogQuery) -> crate::Result<Vec<ServerEntry>> {
-        let _ = query;
-        Ok(Vec::new())
+        McpFacade::list_catalog(self, query).await
     }
-
-    /// Get a single catalog entry by id (and optional source filter).
     async fn get_catalog_entry(
         &self,
         id: String,
         source: Option<String>,
     ) -> crate::Result<Option<ServerEntry>> {
-        let _ = (id, source);
-        Ok(None)
+        McpFacade::get_catalog_entry(self, id, source).await
     }
-
-    /// Refresh catalog data from all (or one named) source.
     async fn refresh_catalog(&self, source: Option<String>) -> crate::Result<()> {
-        let _ = source;
-        Ok(())
+        McpFacade::refresh_catalog(self, source).await
     }
-
-    /// Install a catalog entry, returning a structured outcome.
     async fn install_catalog_entry(
         &self,
         request: InstallRequest,
     ) -> crate::Result<InstallOutcomeView> {
-        let _ = request;
-        Ok(InstallOutcomeView {
-            kind: "runtime_missing".into(),
-            server_id: None,
-            started: None,
-            missing_runtimes: Vec::new(),
-            missing_env_keys: Vec::new(),
-        })
+        McpFacade::install_catalog_entry(self, request).await
     }
-
-    /// Uninstall a previously installed entry.
     async fn uninstall_catalog_entry(&self, server_id: String) -> crate::Result<()> {
-        let _ = server_id;
-        Ok(())
+        McpFacade::uninstall_catalog_entry(self, server_id).await
     }
-
-    /// List entries currently installed (marketplace + hand-edited).
     async fn list_installed_entries(&self) -> crate::Result<Vec<InstalledEntry>> {
-        Ok(Vec::new())
+        McpFacade::list_installed_entries(self).await
     }
-
-    // -----------------------------------------------------------------------
-    // Marketplace catalog sources (Phase 2: remote sources).
-    // -----------------------------------------------------------------------
-
-    /// List all configured catalog sources, including the implicit builtin
-    /// source. Always includes `last_error` if the most recent fetch failed.
     async fn list_catalog_sources(&self) -> crate::Result<Vec<CatalogSourceView>> {
-        Ok(vec![CatalogSourceView {
-            id: "builtin".into(),
-            display_name: "Built-in".into(),
-            kind: "builtin".into(),
-            url: String::new(),
-            api_key_env: None,
-            priority: 0,
-            default_trust: "verified".into(),
-            enabled: true,
-            cache_ttl_seconds: None,
-            last_error: None,
-        }])
+        McpFacade::list_catalog_sources(self).await
     }
-
-    /// Add a new remote catalog source. Persists to the marketplace TOML
-    /// and registers the provider with the runtime.
     async fn add_catalog_source(&self, request: AddCatalogSourceRequest) -> crate::Result<()> {
-        let _ = request;
-        Ok(())
+        McpFacade::add_catalog_source(self, request).await
     }
-
-    /// Remove a remote catalog source by id. Removing the builtin source
-    /// is a no-op (it cannot be removed).
     async fn remove_catalog_source(&self, id: String) -> crate::Result<()> {
-        let _ = id;
-        Ok(())
+        McpFacade::remove_catalog_source(self, id).await
+    }
+    async fn set_catalog_source_enabled(&self, id: String, enabled: bool) -> crate::Result<()> {
+        McpFacade::set_catalog_source_enabled(self, id, enabled).await
     }
 
-    /// Enable or disable a catalog source without removing it.
-    async fn set_catalog_source_enabled(&self, id: String, enabled: bool) -> crate::Result<()> {
-        let _ = (id, enabled);
-        Ok(())
-    }
+    // ── Projects ────────────────────────────────────────────────────────
 
     async fn list_projects(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<ProjectMeta>> {
-        let _ = workspace_id;
-        Ok(Vec::new())
+        ProjectFacade::list_projects(self, workspace_id).await
     }
-
     async fn create_blank_project(
         &self,
         workspace_id: WorkspaceId,
         display_name: Option<String>,
     ) -> crate::Result<ProjectMeta> {
-        let _ = workspace_id;
-        let _ = display_name;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::create_blank_project(self, workspace_id, display_name).await
     }
-
     async fn add_existing_project(
         &self,
         workspace_id: WorkspaceId,
         path: String,
     ) -> crate::Result<ProjectMeta> {
-        let _ = workspace_id;
-        let _ = path;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::add_existing_project(self, workspace_id, path).await
     }
-
     async fn rename_project(
         &self,
         project_id: ProjectId,
         display_name: String,
     ) -> crate::Result<()> {
-        let _ = project_id;
-        let _ = display_name;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::rename_project(self, project_id, display_name).await
     }
-
     async fn remove_project(&self, project_id: ProjectId) -> crate::Result<()> {
-        let _ = project_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::remove_project(self, project_id).await
     }
-
     async fn restore_project_session(&self, session_id: SessionId) -> crate::Result<ProjectMeta> {
-        let _ = session_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::restore_project_session(self, session_id).await
     }
-
     async fn update_project_order(&self, project_ids: Vec<ProjectId>) -> crate::Result<()> {
-        let _ = project_ids;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::update_project_order(self, project_ids).await
     }
-
     async fn update_project_expanded(
         &self,
         project_id: ProjectId,
         expanded: bool,
     ) -> crate::Result<()> {
-        let _ = project_id;
-        let _ = expanded;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::update_project_expanded(self, project_id, expanded).await
     }
-
     async fn create_project_draft_session(
         &self,
         project_id: ProjectId,
     ) -> crate::Result<SessionId> {
-        let _ = project_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::create_project_draft_session(self, project_id).await
     }
-
     async fn create_project_worktree_session(
         &self,
         project_id: ProjectId,
         branch_name: String,
     ) -> crate::Result<SessionId> {
-        let _ = project_id;
-        let _ = branch_name;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::create_project_worktree_session(self, project_id, branch_name).await
     }
-
     async fn list_project_sessions(
         &self,
         project_id: ProjectId,
     ) -> crate::Result<Vec<SessionMeta>> {
-        let _ = project_id;
-        Ok(Vec::new())
+        ProjectFacade::list_project_sessions(self, project_id).await
     }
-
     async fn list_archived_sessions(
         &self,
         workspace_id: &WorkspaceId,
     ) -> crate::Result<Vec<SessionMeta>> {
-        let _ = workspace_id;
-        Ok(Vec::new())
+        ProjectFacade::list_archived_sessions(self, workspace_id).await
     }
-
     async fn get_project_git_status(
         &self,
         project_id: ProjectId,
     ) -> crate::Result<ProjectGitStatus> {
-        let _ = project_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::get_project_git_status(self, project_id).await
     }
-
     async fn get_session_git_status(
         &self,
         session_id: SessionId,
     ) -> crate::Result<ProjectGitStatus> {
-        let _ = session_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::get_session_git_status(self, session_id).await
     }
-
     async fn init_project_git(&self, project_id: ProjectId) -> crate::Result<ProjectGitStatus> {
-        let _ = project_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::init_project_git(self, project_id).await
     }
-
     async fn get_project_instruction_summary(
         &self,
         project_id: ProjectId,
     ) -> crate::Result<ProjectInstructionSummary> {
-        let _ = project_id;
-        Err(crate::CoreError::InvalidState(
-            "project support is not implemented".into(),
-        ))
+        ProjectFacade::get_project_instruction_summary(self, project_id).await
     }
 }
 
@@ -1199,13 +1013,15 @@ mod facade_settings_dtos {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use futures::stream::BoxStream;
 
     fn assert_facade_is_object_safe(_: &dyn AppFacade) {}
 
     struct NoopFacade;
 
     #[async_trait]
-    impl AppFacade for NoopFacade {
+    impl SessionFacade for NoopFacade {
         async fn open_workspace(&self, path: String) -> crate::Result<WorkspaceInfo> {
             Ok(WorkspaceInfo {
                 workspace_id: WorkspaceId::new(),
@@ -1228,7 +1044,6 @@ mod tests {
             Ok(())
         }
 
-        /// Cancel a running session.
         async fn cancel_session(
             &self,
             workspace_id: WorkspaceId,
@@ -1238,7 +1053,6 @@ mod tests {
             Ok(())
         }
 
-        /// Get the projected (rolled-up) state of a session, including messages and task titles.
         async fn get_session_projection(
             &self,
             session_id: SessionId,
@@ -1324,6 +1138,17 @@ mod tests {
             Ok(Vec::new())
         }
     }
+
+    #[async_trait]
+    impl SkillsFacade for NoopFacade {}
+
+    #[async_trait]
+    impl McpFacade for NoopFacade {}
+
+    #[async_trait]
+    impl ProjectFacade for NoopFacade {}
+
+    impl AppFacade for NoopFacade {}
 
     #[test]
     fn facade_is_object_safe() {

@@ -38,7 +38,7 @@ pub async fn dispatch_commands<F>(
 {
     for command in commands {
         match command {
-            Command::ListSkills => match runtime.list_skills().await {
+            Command::ListSkills => match AppFacade::list_skills(runtime.as_ref()).await {
                 Ok(skills) if skills.is_empty() => {
                     push_status_message(app, "No skills discovered".to_string());
                 }
@@ -54,23 +54,25 @@ pub async fn dispatch_commands<F>(
                     push_status_message(app, format!("[skills error: {error}]"));
                 }
             },
-            Command::ShowSkill { skill_id } => match runtime.get_skill(skill_id.clone()).await {
-                Ok(Some(skill)) => {
-                    push_status_message(
-                        app,
-                        format!(
-                            "Skill {}\n{}\n\n{}",
-                            skill.view.id, skill.view.description, skill.body_markdown
-                        ),
-                    );
+            Command::ShowSkill { skill_id } => {
+                match AppFacade::get_skill(runtime.as_ref(), skill_id.clone()).await {
+                    Ok(Some(skill)) => {
+                        push_status_message(
+                            app,
+                            format!(
+                                "Skill {}\n{}\n\n{}",
+                                skill.view.id, skill.view.description, skill.body_markdown
+                            ),
+                        );
+                    }
+                    Ok(None) => {
+                        push_status_message(app, format!("[skill not found: {skill_id}]"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill show error: {error}]"));
+                    }
                 }
-                Ok(None) => {
-                    push_status_message(app, format!("[skill not found: {skill_id}]"));
-                }
-                Err(error) => {
-                    push_status_message(app, format!("[skill show error: {error}]"));
-                }
-            },
+            }
             Command::ActivateSkill {
                 workspace_id,
                 session_id,
@@ -81,7 +83,7 @@ pub async fn dispatch_commands<F>(
                     session_id,
                     skill_id: skill_id.clone(),
                 };
-                match runtime.activate_skill(request).await {
+                match AppFacade::activate_skill(runtime.as_ref(), request).await {
                     Ok(active_skill) => {
                         push_status_message(app, format!("activated {}", active_skill.skill_id));
                     }
@@ -100,7 +102,7 @@ pub async fn dispatch_commands<F>(
                     session_id,
                     skill_id: skill_id.clone(),
                 };
-                match runtime.deactivate_skill(request).await {
+                match AppFacade::deactivate_skill(runtime.as_ref(), request).await {
                     Ok(()) => {
                         push_status_message(app, format!("deactivated {skill_id}"));
                     }
