@@ -12,7 +12,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnthropicConfig {
     pub base_url: String,
     pub api_key_env: String,
@@ -22,6 +22,14 @@ pub struct AnthropicConfig {
     pub headers: Vec<(String, String)>,
     #[serde(default)]
     pub capability_overrides: Option<crate::ModelCapabilities>,
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    #[serde(default)]
+    pub top_p: Option<f32>,
+    #[serde(default)]
+    pub top_k: Option<u32>,
+    #[serde(default)]
+    pub extra_params: Option<serde_json::Value>,
 }
 
 impl Default for AnthropicConfig {
@@ -33,6 +41,10 @@ impl Default for AnthropicConfig {
             max_tokens: 16_384,
             headers: Vec::new(),
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
         }
     }
 }
@@ -208,6 +220,23 @@ impl AnthropicClient {
                 })
                 .collect();
             body["tools"] = serde_json::json!(tools);
+        }
+
+        if let Some(temperature) = self.config.temperature {
+            body["temperature"] = serde_json::json!(temperature);
+        }
+        if let Some(top_p) = self.config.top_p {
+            body["top_p"] = serde_json::json!(top_p);
+        }
+        if let Some(top_k) = self.config.top_k {
+            body["top_k"] = serde_json::json!(top_k);
+        }
+        if let Some(ref extra) = self.config.extra_params {
+            if let Some(obj) = extra.as_object() {
+                for (key, value) in obj {
+                    body[key] = value.clone();
+                }
+            }
         }
 
         body
@@ -634,6 +663,10 @@ mod tests {
             max_tokens: 4096,
             headers: Vec::new(),
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
         };
         let client = AnthropicClient::new(config);
         let request = ModelRequest::user_text("fast", "hello")
@@ -1000,6 +1033,10 @@ file2.rs",
             max_tokens: 4096,
             headers: Vec::new(),
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
         };
 
         std::env::set_var("KAIROX_ANTHROPIC_KEY", "test-key");
@@ -1046,6 +1083,10 @@ file2.rs",
             max_tokens: 4096,
             headers: Vec::new(),
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
         };
 
         std::env::set_var("KAIROX_ANTHROPIC_WIREMOCK_KEY", "test-key");
@@ -1130,6 +1171,10 @@ file2.rs",
             max_tokens: 4096,
             headers: Vec::new(),
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
         };
 
         std::env::set_var("KAIROX_ANTHROPIC_MULTI_KEY", "test-key");

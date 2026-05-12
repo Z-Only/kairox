@@ -30,6 +30,25 @@ struct ProfileToml {
     output_limit: Option<u64>,
     #[serde(default)]
     response: Option<String>,
+    // -- new fields --
+    #[serde(default)]
+    max_tokens: Option<u64>,
+    #[serde(default)]
+    temperature: Option<f32>,
+    #[serde(default)]
+    top_p: Option<f32>,
+    #[serde(default)]
+    top_k: Option<u32>,
+    #[serde(default)]
+    headers: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    supports_tools: Option<bool>,
+    #[serde(default)]
+    supports_vision: Option<bool>,
+    #[serde(default)]
+    supports_reasoning: Option<bool>,
+    #[serde(default)]
+    extra_params: Option<toml::Value>,
 }
 
 /// Parse a TOML string into a Config.
@@ -57,6 +76,15 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
             context_window: profile_toml.context_window,
             output_limit: profile_toml.output_limit,
             response: profile_toml.response,
+            max_tokens: profile_toml.max_tokens,
+            temperature: profile_toml.temperature,
+            top_p: profile_toml.top_p,
+            top_k: profile_toml.top_k,
+            headers: profile_toml.headers,
+            supports_tools: profile_toml.supports_tools,
+            supports_vision: profile_toml.supports_vision,
+            supports_reasoning: profile_toml.supports_reasoning,
+            extra_params: profile_toml.extra_params,
         };
 
         profiles.push((alias.clone(), profile_def));
@@ -181,18 +209,9 @@ pub(crate) fn expand_env_vars(input: &str) -> String {
     .to_string()
 }
 
-/// Validate the configuration: check for unknown providers, missing fields, etc.
+/// Validate the configuration: check for missing required fields, etc.
 pub fn validate(config: &Config) -> Result<(), ConfigError> {
-    let known_providers = ["openai_compatible", "anthropic", "ollama", "fake"];
-
     for (alias, profile) in &config.profiles {
-        if !known_providers.contains(&profile.provider.as_str()) {
-            return Err(ConfigError::UnknownProvider {
-                profile: alias.clone(),
-                provider: profile.provider.clone(),
-            });
-        }
-
         // openai_compatible requires base_url
         if profile.provider == "openai_compatible" && profile.base_url.is_none() {
             return Err(ConfigError::Parse {
@@ -203,9 +222,6 @@ pub fn validate(config: &Config) -> Result<(), ConfigError> {
                 ),
             });
         }
-
-        // fake provider doesn't need base_url or api_key
-        // ollama is fine without api_key
     }
 
     Ok(())
@@ -310,22 +326,16 @@ response = "hello from Kairox"
     }
 
     #[test]
-    fn rejects_unknown_provider() {
+    fn accepts_any_provider_name() {
         let toml = r#"
-[profiles.bad]
-provider = "unknown_provider"
-model_id = "test"
+[profiles.custom]
+provider = "deepseek"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
 "#;
         let config = load_from_str(toml, "test.toml").unwrap();
         let result = validate(&config);
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ConfigError::UnknownProvider { profile, provider } => {
-                assert_eq!(profile, "bad");
-                assert_eq!(provider, "unknown_provider");
-            }
-            _ => panic!("expected UnknownProvider error"),
-        }
+        assert!(result.is_ok(), "any provider name should be accepted");
     }
 
     #[test]

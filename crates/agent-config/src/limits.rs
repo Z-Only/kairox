@@ -49,6 +49,15 @@ mod tests {
             context_window: ctx,
             output_limit: out,
             response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
         }
     }
 

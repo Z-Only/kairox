@@ -6,7 +6,7 @@ pub mod loader;
 use serde::{Deserialize, Serialize};
 
 pub use builder::{build_ollama_clients, build_router};
-pub use discovery::find_config;
+pub use discovery::{find_config, find_config_upward};
 pub use limits::resolve_limits;
 pub use loader::{
     default_catalog_sources, load_from_str, load_with_marketplace_loaded,
@@ -38,6 +38,25 @@ pub struct ProfileDef {
     /// Response text for the fake provider.
     #[serde(default)]
     pub response: Option<String>,
+    // -- new fields --
+    #[serde(default)]
+    pub max_tokens: Option<u64>,
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    #[serde(default)]
+    pub top_p: Option<f32>,
+    #[serde(default)]
+    pub top_k: Option<u32>,
+    #[serde(default)]
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub supports_tools: Option<bool>,
+    #[serde(default)]
+    pub supports_vision: Option<bool>,
+    #[serde(default)]
+    pub supports_reasoning: Option<bool>,
+    #[serde(default)]
+    pub extra_params: Option<toml::Value>,
 }
 
 /// Metadata about a profile for UI display.
@@ -48,6 +67,10 @@ pub struct ProfileInfo {
     pub model_id: String,
     pub local: bool,
     pub has_api_key: bool,
+    #[serde(default)]
+    pub provider_display: String,
+    #[serde(default)]
+    pub model_display: String,
 }
 
 /// Where the configuration was loaded from.
@@ -164,16 +187,6 @@ fn default_auto_compact_threshold() -> f32 {
     0.85
 }
 
-/// Assigns a sort key to profile aliases so "fake" and "fast" always
-/// appear first in the profile list, with other profiles following.
-fn profile_order_key(alias: &str) -> u8 {
-    match alias {
-        "fake" => 0,
-        "fast" => 1,
-        _ => 2,
-    }
-}
-
 impl Default for ContextPolicy {
     fn default() -> Self {
         Self {
@@ -199,8 +212,6 @@ pub struct Config {
 pub enum ConfigError {
     #[error("config parse error in {path}: {message}")]
     Parse { path: String, message: String },
-    #[error("profile '{profile}' has unknown provider '{provider}'")]
-    UnknownProvider { profile: String, provider: String },
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -241,6 +252,12 @@ impl Config {
             if project_path.is_file() {
                 base = Self::merge_config(base, &project_path)?;
                 base.source = ConfigSource::ProjectFile;
+            } else {
+                // Fallback: walk up from project_root looking for .kairox/config.toml
+                if let Some((found_path, _)) = discovery::find_config_upward(root) {
+                    base = Self::merge_config(base, &found_path)?;
+                    base.source = ConfigSource::ProjectFile;
+                }
             }
         }
 
@@ -261,13 +278,7 @@ impl Config {
         for (alias, def) in overlay.profiles {
             profile_map.insert(alias, def);
         }
-        let mut merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
-        // Stable sort: keep "fake" first, then "fast", then others
-        merged_profiles.sort_by(|a, b| {
-            let ap = profile_order_key(&a.0);
-            let bp = profile_order_key(&b.0);
-            ap.cmp(&bp)
-        });
+        let merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
 
         // Merge MCP servers: overlay entries replace base entries with the same name
         let mut mcp_map: std::collections::HashMap<String, McpServerConfig> =
@@ -300,6 +311,15 @@ impl Config {
                     context_window: Some(4096),
                     output_limit: Some(2048),
                     response: Some("hello from Kairox".into()),
+                    max_tokens: None,
+                    temperature: None,
+                    top_p: None,
+                    top_k: None,
+                    headers: None,
+                    supports_tools: None,
+                    supports_vision: None,
+                    supports_reasoning: None,
+                    extra_params: None,
                 },
             ),
             (
@@ -313,6 +333,15 @@ impl Config {
                     context_window: Some(128_000),
                     output_limit: Some(16_384),
                     response: None,
+                    max_tokens: None,
+                    temperature: None,
+                    top_p: None,
+                    top_k: None,
+                    headers: None,
+                    supports_tools: None,
+                    supports_vision: None,
+                    supports_reasoning: None,
+                    extra_params: None,
                 },
             ),
         ];
@@ -331,6 +360,15 @@ impl Config {
                         context_window: Some(128_000),
                         output_limit: Some(16_384),
                         response: None,
+                        max_tokens: None,
+                        temperature: None,
+                        top_p: None,
+                        top_k: None,
+                        headers: None,
+                        supports_tools: None,
+                        supports_vision: None,
+                        supports_reasoning: None,
+                        extra_params: None,
                     },
                 ),
             );
@@ -384,6 +422,8 @@ impl Config {
                     model_id: def.model_id.clone(),
                     local,
                     has_api_key,
+                    provider_display: def.provider.clone(),
+                    model_display: def.model_id.clone(),
                 }
             })
             .collect()
