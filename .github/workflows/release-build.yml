@@ -65,10 +65,14 @@ jobs:
             echo ""
             echo "| Platform | Download |"
             echo "|----------|----------|"
-            echo "| macOS (Apple Silicon) | \`Kairox-${TAG}-macos-aarch64.dmg\` |"
-            echo "| Linux (x86_64) | \`Kairox-${TAG}-linux-x86_64.AppImage\` or \`.deb\` |"
-            echo "| Windows (x86_64) | \`Kairox-${TAG}-windows-x86_64.msi\` or setup \`.exe\` |"
-            echo "| Terminal (any) | \`Kairox-TUI-${TAG}-<os>-<arch>.tar.gz\` |"
+            echo "| macOS (Apple Silicon) | \`Kairox_${TAG}_darwin_aarch64.dmg\` |"
+            echo "| macOS (Apple Silicon) | \`Kairox_${TAG}_darwin_aarch64.app.tar.gz\` (updater) |"
+            echo "| Linux (x86_64) | \`Kairox_${TAG}_linux_amd64.AppImage\` or \`.deb\` |"
+            echo "| Windows (x86_64) | \`Kairox_${TAG}_windows_x64.msi\` or \`.exe\` |"
+            echo "| Terminal (macOS ARM) | \`Kairox-TUI-${TAG}-macos-aarch64.tar.gz\` |"
+            echo "| Terminal (macOS Intel) | \`Kairox-TUI-${TAG}-macos-x86_64.tar.gz\` |"
+            echo "| Terminal (Linux) | \`Kairox-TUI-${TAG}-linux-x86_64.tar.gz\` |"
+            echo "| Terminal (Windows) | \`Kairox-TUI-${TAG}-windows-x86_64.zip\` |"
             echo ""
             echo "Checksums: see the \`SHA256SUMS.txt\` asset."
             echo "EOF"
@@ -89,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -139,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
