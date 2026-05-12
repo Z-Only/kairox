@@ -222,6 +222,23 @@ impl AnthropicClient {
             body["tools"] = serde_json::json!(tools);
         }
 
+        if let Some(temperature) = self.config.temperature {
+            body["temperature"] = serde_json::json!(temperature);
+        }
+        if let Some(top_p) = self.config.top_p {
+            body["top_p"] = serde_json::json!(top_p);
+        }
+        if let Some(top_k) = self.config.top_k {
+            body["top_k"] = serde_json::json!(top_k);
+        }
+        if let Some(ref extra) = self.config.extra_params {
+            if let Some(obj) = extra.as_object() {
+                for (key, value) in obj {
+                    body[key] = value.clone();
+                }
+            }
+        }
+
         body
     }
 
