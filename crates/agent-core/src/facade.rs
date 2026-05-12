@@ -767,6 +767,47 @@ pub trait AppFacade: Send + Sync {
         ))
     }
 
+    // ── Skills catalog / marketplace ─────────────────────────────────
+
+    /// List skill catalog entries, optionally filtered by query.
+    async fn list_skill_catalog(
+        &self,
+        _query: SkillCatalogQuery,
+    ) -> crate::Result<Vec<SkillCatalogEntry>> {
+        Ok(Vec::new())
+    }
+
+    /// List configured skill catalog sources (includes builtins).
+    async fn list_skill_sources(&self) -> crate::Result<Vec<SkillSourceView>> {
+        Ok(Vec::new())
+    }
+
+    /// Add a new skill catalog source.
+    async fn add_skill_source(&self, _config: SkillSourceView) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Remove a skill catalog source.
+    async fn remove_skill_source(&self, _id: String) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Enable or disable a skill catalog source.
+    async fn set_skill_source_enabled(&self, _id: String, _enabled: bool) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Refresh skill catalog data from all sources.
+    async fn refresh_skill_catalog(&self) -> crate::Result<()> {
+        Ok(())
+    }
+
     // -----------------------------------------------------------------------
     // Marketplace catalog (Phase 1: built-in catalog only).
     // -----------------------------------------------------------------------
