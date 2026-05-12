@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use agent_config::Config;
+use agent_config::{Config, ProfileDef};
 use agent_core::facade::{ProfileSettingsInput, ProfileSettingsView};
 use agent_core::CoreError;
 use toml_edit::{value, DocumentMut, Item, Table};
@@ -226,13 +226,61 @@ pub async fn set_profile_enabled_in_file(
     config_path: &Path,
     alias: &str,
     enabled: bool,
+    config: &Config,
 ) -> agent_core::Result<()> {
     mutate_profiles_config(config_path, |document| {
+        // If the profile doesn't exist yet in profiles.toml, seed it with
+        // the full definition from the merged Config so we don't override
+        // defaults with an empty table.
+        let exists_in_file = document["profiles"]
+            .as_table()
+            .map(|t| t.contains_key(alias))
+            .unwrap_or(false);
+        if !exists_in_file {
+            if let Some(def) = config.get_profile(alias) {
+                let table = ensure_profile_table(document, alias);
+                seed_profile_table(table, def);
+            }
+        }
         let profile_table = ensure_profile_table(document, alias);
         profile_table["enabled"] = value(enabled);
         Ok(())
     })
     .await
+}
+
+fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
+    table["provider"] = value(def.provider.clone());
+    table["model_id"] = value(def.model_id.clone());
+    table["enabled"] = value(def.enabled);
+    if let Some(v) = def.context_window {
+        table["context_window"] = value(v as i64);
+    }
+    if let Some(v) = def.output_limit {
+        table["output_limit"] = value(v as i64);
+    }
+    if let Some(v) = def.temperature {
+        table["temperature"] = value(v as f64);
+    }
+    if let Some(v) = def.top_p {
+        table["top_p"] = value(v as f64);
+    }
+    if let Some(v) = def.top_k {
+        table["top_k"] = value(v as i64);
+    }
+    if let Some(v) = def.max_tokens {
+        table["max_tokens"] = value(v as i64);
+    }
+    if let Some(ref v) = def.base_url {
+        if !v.is_empty() {
+            table["base_url"] = value(v.clone());
+        }
+    }
+    if let Some(ref v) = def.api_key_env {
+        if !v.is_empty() {
+            table["api_key_env"] = value(v.clone());
+        }
+    }
 }
 
 pub async fn delete_profile_in_file(config_path: &Path, alias: &str) -> agent_core::Result<()> {
@@ -442,8 +490,9 @@ mod tests {
         let config_path = write_profiles_config_fixture(
             "[profiles.fast]\nprovider = \"openai_compatible\"\nmodel_id = \"gpt-4.1-mini\"\nenabled = true\n",
         );
+        let config = Config::defaults();
 
-        set_profile_enabled_in_file(&config_path, "fast", false)
+        set_profile_enabled_in_file(&config_path, "fast", false, &config)
             .await
             .expect("profile should be disabled");
 

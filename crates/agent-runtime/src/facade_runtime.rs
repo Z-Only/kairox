@@ -1294,7 +1294,13 @@ where
                 "config dir not configured; cannot write profile settings".into(),
             )
         })?;
-        crate::profile_settings::set_profile_enabled_in_file(&config_path, &alias, enabled).await
+        crate::profile_settings::set_profile_enabled_in_file(
+            &config_path,
+            &alias,
+            enabled,
+            &self.config,
+        )
+        .await
     }
 
     async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {
