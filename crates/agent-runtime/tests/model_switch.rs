@@ -101,6 +101,7 @@ async fn model_switch_takes_effect_on_next_send_message() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "turn 1".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -115,6 +116,7 @@ async fn model_switch_takes_effect_on_next_send_message() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "turn 2".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

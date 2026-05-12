@@ -245,6 +245,7 @@ async fn full_stack_send_message_text_only() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello world".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -281,6 +282,7 @@ async fn full_stack_tool_call_with_permission_grant() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "echo something".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -346,6 +348,7 @@ async fn full_stack_task_graph_populated() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "do something".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -472,6 +475,7 @@ async fn full_stack_event_stream_matches_trace() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -553,6 +557,7 @@ async fn full_stack_data_persists_across_reconnection() {
                 workspace_id: ws.workspace_id.clone(),
                 session_id: sid,
                 content: "persist this".into(),
+                attachments: vec![],
             })
             .await
             .unwrap();
@@ -607,6 +612,7 @@ async fn full_stack_agent_mode_completes_without_prompt() {
             workspace_id: ws.workspace_id,
             session_id: sid.clone(),
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -690,6 +696,7 @@ async fn cancellation_stops_agent_loop_mid_stream() {
             workspace_id: ws_id,
             session_id: sid_clone,
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
     });

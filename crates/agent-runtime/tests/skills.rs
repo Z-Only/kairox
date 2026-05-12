@@ -230,6 +230,7 @@ async fn send_message_skips_missing_active_skills_documents() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "continue despite missing skill document".into(),
+            attachments: vec![],
         })
         .await
         .expect("missing active skill documents should not block send_message");
@@ -282,6 +283,7 @@ async fn send_message_includes_active_skill_block_in_model_request() {
             workspace_id: workspace.workspace_id,
             session_id,
             content: "review this patch".into(),
+            attachments: vec![],
         })
         .await
         .expect("send_message should complete");
