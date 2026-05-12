@@ -174,6 +174,9 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 default_model: def.model_id.clone(),
                 headers: Vec::new(),
                 capability_overrides: None,
+                temperature: None,
+                top_p: None,
+                extra_params: None,
             };
             Box::new(OpenAiCompatibleClient::new(config))
         }
@@ -193,6 +196,10 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                     .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
                 headers: Vec::new(),
                 capability_overrides: None,
+                temperature: None,
+                top_p: None,
+                top_k: None,
+                extra_params: None,
             };
             Box::new(AnthropicClient::new(config))
         }

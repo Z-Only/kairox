@@ -7,13 +7,19 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpenAiCompatibleConfig {
     pub base_url: String,
     pub api_key_env: String,
     pub default_model: String,
     pub headers: Vec<(String, String)>,
     pub capability_overrides: Option<crate::ModelCapabilities>,
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    #[serde(default)]
+    pub top_p: Option<f32>,
+    #[serde(default)]
+    pub extra_params: Option<serde_json::Value>,
 }
 
 impl OpenAiCompatibleConfig {
@@ -418,6 +424,9 @@ mod tests {
             default_model: "gpt-4.1".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
         let client = OpenAiCompatibleClient::new(config);
         let request = ModelRequest::user_text("fast", "hello")
@@ -443,6 +452,9 @@ mod tests {
             default_model: "gpt-4.1".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
         let client = OpenAiCompatibleClient::new(config);
         let request = ModelRequest::user_text("fast", "read README")
@@ -466,6 +478,9 @@ mod tests {
             default_model: "gpt-4.1".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
         let client = OpenAiCompatibleClient::new(config);
 
@@ -520,6 +535,9 @@ file2.rs",
             default_model: "gpt-4.1".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
         let client = OpenAiCompatibleClient::new(config);
 
@@ -753,6 +771,9 @@ file2.rs",
             default_model: "test-model".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
         let client = OpenAiCompatibleClient::new(config);
         let stream: BoxStream<'static, Result<ModelEvent>> = client
@@ -796,6 +817,9 @@ file2.rs",
             default_model: "test-model".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
 
         std::env::set_var("TEST_KEY_OAI_TC", "test-key");
@@ -868,6 +892,9 @@ file2.rs",
             default_model: "test-model".into(),
             headers: vec![],
             capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
         };
 
         std::env::set_var("TEST_KEY_OAI_MC", "test-key");
