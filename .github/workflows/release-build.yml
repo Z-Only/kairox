@@ -101,6 +101,10 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install macOS cross-compilation target
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
@@ -109,15 +113,30 @@ jobs:
       - name: Build TUI
         run: cargo build -p agent-tui --release
 
-      - name: Package TUI (Linux/macOS)
-        if: runner.os != 'Windows'
-        env:
-          KAIROX_OS: ${{ runner.os == 'macOS' && 'macos' || 'linux' }}
-          KAIROX_ARCH: ${{ runner.arch == 'ARM64' && 'aarch64' || 'x86_64' }}
+      - name: Build TUI (macOS x86_64)
+        if: runner.os == 'macOS'
+        run: cargo build -p agent-tui --release --target x86_64-apple-darwin
+
+      - name: Package TUI (Linux)
+        if: runner.os == 'Linux'
         run: |
           mkdir -p dist
-          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-${KAIROX_OS}-${KAIROX_ARCH}.tar.gz" \
+          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-linux-x86_64.tar.gz" \
             -C target/release agent-tui
+
+      - name: Package TUI (macOS – aarch64)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-macos-aarch64.tar.gz" \
+            -C target/release agent-tui
+
+      - name: Package TUI (macOS – x86_64)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          tar -czf "dist/Kairox-TUI-${GITHUB_REF_NAME}-macos-x86_64.tar.gz" \
+            -C target/x86_64-apple-darwin/release agent-tui
 
       - name: Package TUI (Windows)
         if: runner.os == 'Windows'
