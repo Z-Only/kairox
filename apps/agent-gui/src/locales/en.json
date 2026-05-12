@@ -224,7 +224,15 @@
     "accept": "Accept",
     "reject": "Reject",
     "titlePermissionRequired": "Permission Required",
-    "titleMemoryProposed": "Memory Proposed"
+    "titleMemoryProposed": "Memory Proposed",
+    "panelTitle": "Permissions",
+    "emptyState": "No pending requests",
+    "scopePrefix": "Scope",
+    "storeLabel": "Store",
+    "toolLabel": "Tool",
+    "mcpServerPrefix": "MCP Server",
+    "mcpTrustedBadge": "Trusted",
+    "mcpTrustCheckbox": "Trust this server for future requests"
   },
   "skills": {
     "title": "Skills Settings",

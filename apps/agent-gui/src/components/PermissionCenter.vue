@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import { traceState } from "../composables/useTraceStore";
 import PermissionPrompt from "./PermissionPrompt.vue";
+
+const { t } = useI18n();
 
 // Memoise the pending-entries filter so the template doesn't recompute it
 // on every render and so the `v-if`/`v-for` agree on the same source.
@@ -14,10 +17,12 @@ const pendingEntries = computed(() =>
 <template>
   <div class="card permission-center">
     <div class="card-header">
-      <h2>Permissions</h2>
+      <h2>{{ t("permission.panelTitle") }}</h2>
     </div>
     <div class="card-content">
-      <div v-if="pendingEntries.length === 0" class="empty-state">No pending requests</div>
+      <div v-if="pendingEntries.length === 0" class="empty-state">
+        {{ t("permission.emptyState") }}
+      </div>
       <ul v-else class="permission-list">
         <li v-for="entry in pendingEntries" :key="entry.id" class="permission-list-item">
           <PermissionPrompt :entry="entry" />
