@@ -358,7 +358,7 @@ pub async fn send_message(
         current.clone().ok_or("No active session")?
     };
 
-    let enriched = enrich_content_with_attachments(&content, &attachments).await;
+    let enriched = enrich_content_with_attachments(&content, &attachments);
 
     let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
@@ -386,12 +386,15 @@ pub async fn send_message(
     Ok(())
 }
 
+const MAX_TEXT_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+const MAX_IMAGE_BYTES: u64 = 50 * 1024 * 1024; // 50 MB
+
 /// Read attachment files and format their content into the message.
 ///
 /// - Images: base64-encoded data URIs appended to the content.
 /// - Text files: content wrapped in markdown code blocks with filename headers.
 /// - Other binaries: filename reference only.
-async fn enrich_content_with_attachments(
+fn enrich_content_with_attachments(
     content: &str,
     attachments: &[agent_core::AttachmentInfo],
 ) -> String {
@@ -400,6 +403,18 @@ async fn enrich_content_with_attachments(
     for att in attachments {
         let mime = att.mime_type.as_str();
         if mime.starts_with("image/") {
+            match std::fs::metadata(&att.path) {
+                Ok(meta) if meta.len() > MAX_IMAGE_BYTES => {
+                    parts.push(format!("[image: {} (file too large, >50MB)]", att.name));
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("[commands] failed to stat image {}: {e}", att.path);
+                    parts.push(format!("[image: {} (read error)]", att.name));
+                    continue;
+                }
+                _ => {}
+            }
             match std::fs::read(&att.path) {
                 Ok(bytes) => {
                     use base64::Engine;
@@ -412,9 +427,21 @@ async fn enrich_content_with_attachments(
                 }
             }
         } else if is_text_mime(mime) {
+            match std::fs::metadata(&att.path) {
+                Ok(meta) if meta.len() > MAX_TEXT_BYTES => {
+                    parts.push(format!("[file: {} (file too large, >10MB)]", att.name));
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("[commands] failed to stat file {}: {e}", att.path);
+                    parts.push(format!("[file: {} (read error)]", att.name));
+                    continue;
+                }
+                _ => {}
+            }
             match std::fs::read_to_string(&att.path) {
                 Ok(text) => {
-                    let ext = std::path::Path::new(&att.name)
+                    let ext = std::path::Path::new(&att.path)
                         .extension()
                         .and_then(|e| e.to_str())
                         .unwrap_or("");
@@ -441,13 +468,17 @@ async fn enrich_content_with_attachments(
 
 fn is_text_mime(mime: &str) -> bool {
     mime.starts_with("text/")
-        || mime.contains("json")
-        || mime.contains("xml")
-        || mime.contains("javascript")
-        || mime.contains("yaml")
-        || mime.contains("toml")
-        || mime == "application/x-sh"
-        || mime == "application/x-shellscript"
+        || matches!(
+            mime,
+            "application/json"
+                | "application/xml"
+                | "application/xhtml+xml"
+                | "application/javascript"
+                | "application/x-yaml"
+                | "application/toml"
+                | "application/x-sh"
+                | "application/x-shellscript"
+        )
 }
 
 #[tauri::command]
