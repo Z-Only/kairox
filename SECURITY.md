@@ -6,9 +6,9 @@ Kairox is in active pre-1.0 development. Only the latest minor release line rece
 
 | Version  | Supported |
 | -------- | --------- |
-| 0.15.x   | Yes       |
-| 0.14.x   | No        |
-| < 0.14.0 | No        |
+| 0.19.x   | Yes       |
+| 0.18.x   | No        |
+| < 0.18.0 | No        |
 
 ## Reporting a vulnerability
 

@@ -45,15 +45,21 @@
 - ✅ Add GUI context meter and context budget visibility (#107)
 - ✅ Add mid-session model switching support (#108)
 - ✅ Harden GUI accessibility selectors and tauri-pilot audit coverage
+- ✅ Add native skills system for reusable prompt/tool/workflow capabilities
+- ✅ Add per-project `.kairox/` config discovery
+- ✅ Add project workspace flows in GUI
+- ✅ Add MCP and skills settings UI in GUI
+- ✅ Optimize build and package pipeline
+- ✅ GUI interaction polish and UI primitives improvements
 
 ## Mid term
 
 - Support more model providers and profile policies
 - ✅ Add multi-agent orchestration UX in TUI and GUI
 - ✅ MCP server marketplace UX (Phase 1 + 2 shipped in v0.16.0)
-- Improve GUI UX with richer interaction patterns, accessibility, and explainable agent state
+- ✅ Improve GUI UX with richer interaction patterns, accessibility, and explainable agent state
 - Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
-- Design a first-class **Skills** system for reusable prompt/tool/workflow capabilities
+- ✅ Design a first-class **Skills** system for reusable prompt/tool/workflow capabilities
 - Design a signed **Plugin** manifest and installation flow that composes with MCP and the tool registry
 - Improve extension and manifest discovery flows, including local development and marketplace publishing paths
 - Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles

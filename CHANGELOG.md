@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-05-11
+
+### 🚀 Features
+
+- **skills**: add native skills system for reusable prompt/tool/workflow capabilities
+- **config**: discover project config under `.kairox/` directories (#113)
+- **gui**: add project workspace flows (#115)
+- **gui**: add mcp and skills settings (#114)
+- **gui**: interaction polish (#117)
+- **gui**: UI primitives polish and interaction improvements (#119)
+
+### 🐛 Bug Fixes
+
+- **gui**: UI polish round 2 — contrast, hover, and context-meter cleanup (#120)
+- **gui**: fail fast when dev port is occupied (#118)
+- **gui**: pin tauri-pilot v0.5.1
+
+### ⚡ Performance
+
+- **build**: optimize build and package pipeline (#116)
+
 ## [0.18.0] - 2026-05-09
 
 ### 🚀 Features

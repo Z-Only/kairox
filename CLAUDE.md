@@ -19,11 +19,11 @@
 | agent-memory  | Memory, context assembly, and compaction                                                        | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
 | agent-models  | LLM adapters + model metadata/context windows                                                   | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
 | agent-tools   | Tool registry & permissions, built-in tools                                                     | `ToolRegistry`, `PermissionEngine`, `Tool`            |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle                                                   | `McpClient`, `Transport`, `ServerLifecycle`           |
-| agent-config  | TOML config, profile discovery, MCP server config                                               | `ProfileDef`, `build_router`                          |
+| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, skills system                                    | `McpClient`, `Transport`, `ServerLifecycle`           |
+| agent-config  | TOML config, profile discovery, `.kairox/` discovery, skills/MCP config                         | `ProfileDef`, `build_router`                          |
 | agent-runtime | Agent loop, context budgets, compaction, model switching, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
 | agent-tui     | Terminal UI (ratatui)                                                                           | `App`                                                 |
-| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI                                                     | `commands.rs` → Pinia stores                          |
+| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, skills, workspaces                                 | `commands.rs` → Pinia stores                          |
 
 > Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`). External tools come from MCP servers via `McpToolAdapter`.
 
