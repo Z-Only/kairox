@@ -6,40 +6,56 @@
 # and fill in your profiles. The `.kairox/config.toml` file is git-ignored.
 #
 # Discovery order:
-#   1. ./.kairox/config.toml  (project-level, takes priority)
+#   1. ./.kairox/config.toml  (project-level, takes priority; walks up 5 parents)
 #   2. ~/.kairox/config.toml  (user-level fallback)
 #   3. Built-in defaults      (fake + local-code, plus "fast" if OPENAI_API_KEY is set)
 #
-# Supported providers: openai_compatible, anthropic, ollama, fake
+# Provider auto-detection:
+#   Any provider name is accepted. Known providers (anthropic, ollama, fake) map
+#   to their native clients; everything else (deepseek, groq, xai, openai, ...)
+#   uses the OpenAI-compatible client. Use `provider = "deepseek"` directly —
+#   no need to pretend it's "openai_compatible".
 #
 # Profile fields:
-#   provider        — (required) one of the supported providers above
-#   model_id        — (required) model identifier sent to the API
-#   base_url        — API base URL (required for openai_compatible, optional for others)
-#   api_key         — direct API key string (takes priority over api_key_env)
-#   api_key_env     — environment variable name holding the API key
-#   context_window  — (optional) max context tokens. When omitted, Kairox resolves it via:
-#                       1. built-in model registry (matches "gpt-4o", "claude-sonnet-4", ...)
-#                       2. Ollama runtime probe (POST /api/show) — only for ollama profiles
-#                       3. conservative provider-specific fallback
-#                     Override this field to pin a value (e.g. for self-hosted deployments).
-#   output_limit    — (optional) max output tokens. Same three-layer resolution as above.
-#   response        — static response text (only used by the "fake" provider)
+#   provider          — (required) any provider name; auto-detected client type
+#   model_id          — (required) model identifier sent to the API
+#   base_url          — API base URL (optional; defaults depend on provider)
+#   api_key           — direct API key string (takes priority over api_key_env)
+#   api_key_env       — environment variable name holding the API key
+#   context_window    — (optional) max context tokens, resolved via 3-layer fallback
+#   output_limit      — (optional) max output tokens, resolved via 3-layer fallback
+#   max_tokens        — (optional) max tokens for the response (Anthropic: overrides output_limit)
+#   temperature       — (optional) sampling temperature (0.0–2.0)
+#   top_p             — (optional) nucleus sampling parameter (0.0–1.0)
+#   top_k             — (optional) top-k sampling (Anthropic only)
+#   headers           — (optional) custom HTTP headers sent with every request
+#   supports_tools    — (optional) override auto-detected tool calling capability
+#   supports_vision   — (optional) override auto-detected vision capability
+#   supports_reasoning — (optional) override auto-detected reasoning capability
+#   extra_params      — (optional) provider-specific parameters passed through to the API
+#   response          — static response text (only used by the "fake" provider)
 # ═══════════════════════════════════════════════════════════════════════════
 
 # ---------------------------------------------------------------------------
-# OpenAI-compatible providers (OpenAI, DeepSeek, Groq, etc.)
+# DeepSeek (auto-detected as OpenAI-compatible)
 # ---------------------------------------------------------------------------
-# NOTE: `base_url` is REQUIRED for openai_compatible profiles.
 
-# OpenAI GPT-4.1 Mini
+[profiles.deepseek]
+provider = "deepseek"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+
+# ---------------------------------------------------------------------------
+# OpenAI-compatible providers (OpenAI, Groq, xAI, etc.)
+# ---------------------------------------------------------------------------
+
 [profiles.fast]
 provider = "openai_compatible"
 model_id = "gpt-4.1-mini"
 base_url = "https://api.openai.com/v1"
 api_key_env = "OPENAI_API_KEY"
 
-# OpenAI GPT-4.1
 [profiles.gpt4]
 provider = "openai_compatible"
 model_id = "gpt-4.1"
@@ -48,42 +64,38 @@ api_key_env = "OPENAI_API_KEY"
 context_window = 1_047_576
 output_limit = 32_768
 
-# DeepSeek Chat
-[profiles.deepseek]
-provider = "openai_compatible"
-model_id = "deepseek-chat"
-base_url = "https://api.deepseek.com/v1"
-api_key_env = "DEEPSEEK_API_KEY"
-
 # ---------------------------------------------------------------------------
 # Anthropic Claude
 # ---------------------------------------------------------------------------
 # If api_key and api_key_env are both unset, the Anthropic provider will
 # auto-resolve the API key from ~/.claude/settings.json (ANTHROPIC_AUTH_TOKEN).
-# You can override the base_url to point to a gateway/proxy.
 
 [profiles.claude]
 provider = "anthropic"
 model_id = "claude-sonnet-4-20250514"
-# base_url      = "https://api.anthropic.com"          # default
-# api_key_env   = "ANTHROPIC_API_KEY"                   # optional; auto-fallback to ~/.claude/settings.json
+# temperature = 0.7
+# top_p = 0.9
+# top_k = 50
 
-# Anthropic with custom gateway (corporate proxy / API relay)
-[profiles.claude-proxy]
+# Anthropic with extended thinking (provider-specific extra_params)
+[profiles.claude-thinking]
 provider = "anthropic"
-model_id = "anthropic/claude-sonnet-4.6"
-base_url = "https://your-gateway.example.com/api/anthropic"
-api_key_env = "ANTHROPIC_AUTH_TOKEN"
+model_id = "claude-sonnet-4-20250514"
+temperature = 1.0
+max_tokens = 32_768
+
+[profiles.claude-thinking.extra_params]
+thinking = { type = "enabled", budget_tokens = 16_000 }
 
 # ---------------------------------------------------------------------------
 # Local Ollama
 # ---------------------------------------------------------------------------
-# No API key needed. Make sure Ollama is running on the configured base_url.
 
 [profiles.local]
 provider = "ollama"
 model_id = "devstral"
 base_url = "http://localhost:11434"
+# temperature = 0.7
 
 [profiles.local-qwen]
 provider = "ollama"
@@ -98,6 +110,29 @@ base_url = "http://localhost:11434"
 provider = "fake"
 model_id = "fake"
 response = "Hello from the Kairox fake provider!"
+
+# ---------------------------------------------------------------------------
+# Example with capability overrides
+# ---------------------------------------------------------------------------
+# Use this when the auto-detected capabilities for a provider are wrong.
+# [profiles.custom-vision]
+# provider = "custom-provider"
+# model_id = "vision-model-v1"
+# base_url = "https://api.example.com/v1"
+# supports_tools = false
+# supports_vision = true
+
+# ---------------------------------------------------------------------------
+# Example with custom headers
+# ---------------------------------------------------------------------------
+# [profiles.enterprise]
+# provider = "openai_compatible"
+# model_id = "enterprise-model"
+# base_url = "https://internal-gateway.example.com/v1"
+# api_key_env = "ENTERPRISE_KEY"
+# [profiles.enterprise.headers]
+# X-Organization = "my-org"
+# X-Project = "kairox"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MCP Server Configuration
@@ -120,7 +155,7 @@ response = "Hello from the Kairox fake provider!"
 #   command           — The command to execute (required for stdio)
 #   args              — Command-line arguments (array of strings)
 #   env               — Environment variables to set (table of key=value)
-#                        Empty values (""} are resolved from the env var of the same name
+#                        Empty values ("") are resolved from the env var of the same name
 #   cwd               — Working directory for the child process
 #
 # SSE-specific fields:
