@@ -18,6 +18,7 @@ use tokio::sync::Mutex;
 const DEFAULT_TTL_SECONDS: u64 = 900;
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct SkillHubResponse {
     #[serde(default)]
     skills: Vec<SkillHubItem>,
@@ -26,12 +27,14 @@ struct SkillHubResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct SkillHubPagination {
     #[serde(default)]
     total: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct SkillHubItem {
     id: String,
     name: String,

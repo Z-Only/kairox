@@ -14,6 +14,7 @@ pub enum SkillSourceKind {
 }
 
 impl SkillSourceKind {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "skills-sh" | "skills_sh" => Some(Self::SkillsSh),

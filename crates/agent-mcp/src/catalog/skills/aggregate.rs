@@ -2,9 +2,11 @@
 //! parallel querying, and failure isolation.
 
 use crate::catalog::skills::{
-    SkillCatalogEntry, SkillCatalogError, SkillCatalogProvider, SkillCatalogQuery,
-    SkillCatalogResult,
+    SkillCatalogEntry, SkillCatalogProvider, SkillCatalogQuery, SkillCatalogResult,
 };
+
+#[cfg(test)]
+use crate::catalog::skills::SkillCatalogError;
 use async_trait::async_trait;
 use futures::future::join_all;
 use std::collections::HashSet;
@@ -254,8 +256,10 @@ mod tests {
             ],
         });
         let agg = AggregateSkillCatalogProvider::new(vec![(10, p)]);
-        let mut q = SkillCatalogQuery::default();
-        q.limit = Some(2);
+        let q = SkillCatalogQuery {
+            limit: Some(2),
+            ..SkillCatalogQuery::default()
+        };
         let results = agg.search(&q).await.unwrap();
         assert_eq!(results.len(), 2);
     }
@@ -271,8 +275,10 @@ mod tests {
             entries: vec![make_entry("y", "b")],
         });
         let agg = AggregateSkillCatalogProvider::new(vec![(10, a), (20, b)]);
-        let mut q = SkillCatalogQuery::default();
-        q.sources = Some(vec!["a".into()]);
+        let q = SkillCatalogQuery {
+            sources: Some(vec!["a".into()]),
+            ..SkillCatalogQuery::default()
+        };
         let results = agg.search(&q).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].source, "a");

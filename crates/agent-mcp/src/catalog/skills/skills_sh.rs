@@ -23,6 +23,7 @@ struct SkillsShResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct SkillsShItem {
     id: String,
     name: String,
