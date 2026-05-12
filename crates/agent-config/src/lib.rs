@@ -218,8 +218,6 @@ pub struct Config {
 pub enum ConfigError {
     #[error("config parse error in {path}: {message}")]
     Parse { path: String, message: String },
-    #[error("profile '{profile}' has unknown provider '{provider}'")]
-    UnknownProvider { profile: String, provider: String },
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 }

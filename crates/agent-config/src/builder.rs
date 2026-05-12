@@ -49,8 +49,23 @@ pub fn build_ollama_clients(
     clients
 }
 
+/// Map a provider name to a client family.
+/// Known providers map to their specific client; everything else maps to
+/// `openai_compatible` since most third-party APIs follow the OpenAI protocol.
+fn provider_family(provider: &str) -> &str {
+    match provider {
+        "anthropic" => "anthropic",
+        "ollama" => "ollama",
+        "fake" => "fake",
+        "openai_compatible" => "openai_compatible",
+        _ => "openai_compatible",
+    }
+}
+
 fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
-    let capabilities = match def.provider.as_str() {
+    let family = provider_family(&def.provider);
+
+    let mut capabilities = match family {
         "openai_compatible" => ModelCapabilities {
             streaming: true,
             tool_calling: true,
@@ -107,21 +122,19 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
                 .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
             local_model: true,
         },
-        _ => ModelCapabilities {
-            streaming: true,
-            tool_calling: false,
-            json_schema: false,
-            vision: false,
-            reasoning_controls: false,
-            context_window: def
-                .context_window
-                .unwrap_or_else(|| crate::resolve_limits(def).context_window),
-            output_limit: def
-                .output_limit
-                .unwrap_or_else(|| crate::resolve_limits(def).output_limit),
-            local_model: false,
-        },
+        _ => unreachable!("provider_family always returns a known family"),
     };
+
+    // Apply capability overrides from ProfileDef
+    if let Some(v) = def.supports_tools {
+        capabilities.tool_calling = v;
+    }
+    if let Some(v) = def.supports_vision {
+        capabilities.vision = v;
+    }
+    if let Some(v) = def.supports_reasoning {
+        capabilities.reasoning_controls = v;
+    }
 
     ModelProfile {
         alias: alias.to_string(),
@@ -147,7 +160,7 @@ fn resolve_api_key_env(alias: &str, def: &ProfileDef) -> String {
 }
 
 fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
-    match def.provider.as_str() {
+    match provider_family(&def.provider) {
         "openai_compatible" => {
             let base_url = def
                 .base_url
@@ -203,16 +216,7 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .unwrap_or_else(|| "hello from Kairox".to_string());
             Box::new(FakeModelClient::new(vec![response]))
         }
-        _ => {
-            tracing::warn!(
-                "Unknown provider '{}' for profile '{}', using fake client",
-                def.provider,
-                alias
-            );
-            Box::new(FakeModelClient::new(vec![
-                "unknown provider fallback".into()
-            ]))
-        }
+        _ => unreachable!("provider_family always returns a known family"),
     }
 }
 
@@ -317,5 +321,46 @@ mod tests {
         let profile = build_profile("local-code", &ollama_def);
         assert!(!profile.capabilities.tool_calling);
         assert!(profile.capabilities.local_model);
+    }
+
+    #[test]
+    fn provider_family_maps_correctly() {
+        assert_eq!(provider_family("anthropic"), "anthropic");
+        assert_eq!(provider_family("ollama"), "ollama");
+        assert_eq!(provider_family("fake"), "fake");
+        assert_eq!(provider_family("openai_compatible"), "openai_compatible");
+        assert_eq!(provider_family("deepseek"), "openai_compatible");
+        assert_eq!(provider_family("groq"), "openai_compatible");
+        assert_eq!(provider_family("xai"), "openai_compatible");
+        assert_eq!(provider_family("unknown-thing"), "openai_compatible");
+    }
+
+    #[test]
+    fn capability_overrides_from_profile_def() {
+        let def = ProfileDef {
+            provider: "deepseek".into(),
+            model_id: "deepseek-chat".into(),
+            base_url: Some("https://api.deepseek.com/v1".into()),
+            api_key: None,
+            api_key_env: Some("DEEPSEEK_API_KEY".into()),
+            context_window: Some(128_000),
+            output_limit: Some(32_768),
+            response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: Some(false),
+            supports_vision: Some(true),
+            supports_reasoning: None,
+            extra_params: None,
+        };
+        let profile = build_profile("deepseek", &def);
+        // Overridden
+        assert!(!profile.capabilities.tool_calling);
+        assert!(profile.capabilities.vision);
+        // Not overridden -- uses provider default (openai_compatible defaults)
+        assert!(!profile.capabilities.reasoning_controls);
     }
 }

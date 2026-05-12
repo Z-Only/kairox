@@ -209,18 +209,9 @@ pub(crate) fn expand_env_vars(input: &str) -> String {
     .to_string()
 }
 
-/// Validate the configuration: check for unknown providers, missing fields, etc.
+/// Validate the configuration: check for missing required fields, etc.
 pub fn validate(config: &Config) -> Result<(), ConfigError> {
-    let known_providers = ["openai_compatible", "anthropic", "ollama", "fake"];
-
     for (alias, profile) in &config.profiles {
-        if !known_providers.contains(&profile.provider.as_str()) {
-            return Err(ConfigError::UnknownProvider {
-                profile: alias.clone(),
-                provider: profile.provider.clone(),
-            });
-        }
-
         // openai_compatible requires base_url
         if profile.provider == "openai_compatible" && profile.base_url.is_none() {
             return Err(ConfigError::Parse {
@@ -231,9 +222,6 @@ pub fn validate(config: &Config) -> Result<(), ConfigError> {
                 ),
             });
         }
-
-        // fake provider doesn't need base_url or api_key
-        // ollama is fine without api_key
     }
 
     Ok(())
@@ -338,22 +326,16 @@ response = "hello from Kairox"
     }
 
     #[test]
-    fn rejects_unknown_provider() {
+    fn accepts_any_provider_name() {
         let toml = r#"
-[profiles.bad]
-provider = "unknown_provider"
-model_id = "test"
+[profiles.custom]
+provider = "deepseek"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
 "#;
         let config = load_from_str(toml, "test.toml").unwrap();
         let result = validate(&config);
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ConfigError::UnknownProvider { profile, provider } => {
-                assert_eq!(profile, "bad");
-                assert_eq!(provider, "unknown_provider");
-            }
-            _ => panic!("expected UnknownProvider error"),
-        }
+        assert!(result.is_ok(), "any provider name should be accepted");
     }
 
     #[test]
