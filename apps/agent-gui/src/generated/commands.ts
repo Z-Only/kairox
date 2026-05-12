@@ -115,14 +115,19 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("delete_mcp_server_settings", { serverId })),
   openMcpConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
-  listProfileSettings: () =>
-    typedError<ProfileSettingsView[], string>(__TAURI_INVOKE("list_profile_settings")),
+  listProfileSettings: (sourceFilter: string | null) =>
+    typedError<ProfileSettingsView[], string>(
+      __TAURI_INVOKE("list_profile_settings", { sourceFilter })
+    ),
   upsertProfileSettings: (input: ProfileSettingsInput) =>
     typedError<ProfileSettingsView, string>(__TAURI_INVOKE("upsert_profile_settings", { input })),
   setProfileEnabled: (alias: string, enabled: boolean) =>
     typedError<null, string>(__TAURI_INVOKE("set_profile_enabled", { alias, enabled })),
   deleteProfileSettings: (alias: string) =>
     typedError<null, string>(__TAURI_INVOKE("delete_profile_settings", { alias })),
+  moveProfileInOrder: (alias: string, direction: number) =>
+    typedError<null, string>(__TAURI_INVOKE("move_profile_in_order", { alias, direction })),
+  openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   listSkillSettings: () =>
     typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),
   getSkillSettingsDetail: (skillId: string) =>

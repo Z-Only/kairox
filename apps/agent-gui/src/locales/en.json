@@ -247,7 +247,16 @@
     "sourceDefaults": "Defaults",
     "sourceProfilesToml": "profiles.toml",
     "sourceUserConfig": "User config",
-    "sourceProjectConfig": "Project config"
+    "sourceProjectConfig": "Project config",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "sortAlpha": "Sort A-Z",
+    "showUserConfig": "User Config",
+    "showProjectConfig": "Project Config",
+    "openConfigDir": "Open Config Dir",
+    "advancedOptions": "Advanced",
+    "basicOptions": "Basic",
+    "connectionOptions": "Connection"
   },
   "trace": {
     "tabTrace": "Trace",

@@ -1661,6 +1661,69 @@ function invoke(cmd, args) {
       return null;
     }
 
+    case "list_profile_settings": {
+      return state.profiles.map(function (p) {
+        return {
+          alias: p.alias,
+          provider: p.provider,
+          model_id: p.model_id,
+          enabled: p.enabled !== false,
+          context_window: p.context_window ?? null,
+          output_limit: p.output_limit ?? null,
+          temperature: p.temperature ?? null,
+          top_p: p.top_p ?? null,
+          top_k: p.top_k ?? null,
+          max_tokens: p.max_tokens ?? null,
+          base_url: p.base_url ?? null,
+          api_key_env: p.api_key_env ?? null,
+          has_api_key: p.has_api_key !== false,
+          writable: p.writable !== false,
+          config_path: p.config_path ?? null,
+          source: p.source ?? "profiles_toml"
+        };
+      });
+    }
+
+    case "upsert_profile_settings": {
+      var upsertInput = args && (args.input || args);
+      var existing = state.profiles.find(function (p) {
+        return p.alias === upsertInput.alias;
+      });
+      if (existing) {
+        Object.assign(existing, upsertInput);
+      } else {
+        state.profiles.push(
+          Object.assign({ writable: true, source: "profiles_toml" }, upsertInput)
+        );
+      }
+      return state.profiles.find(function (p) {
+        return p.alias === upsertInput.alias;
+      });
+    }
+
+    case "set_profile_enabled": {
+      var target = state.profiles.find(function (p) {
+        return p.alias === args.alias;
+      });
+      if (target) target.enabled = args.enabled;
+      return null;
+    }
+
+    case "delete_profile_settings": {
+      state.profiles = state.profiles.filter(function (p) {
+        return p.alias !== args.alias;
+      });
+      return null;
+    }
+
+    case "move_profile_in_order": {
+      return null;
+    }
+
+    case "open_config_dir": {
+      return "/mock/path/to/config";
+    }
+
     default:
       console.warn("[tauri-mock] Unknown invoke: " + cmd, args);
       return Promise.resolve(undefined);
