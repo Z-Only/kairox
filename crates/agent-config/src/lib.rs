@@ -67,6 +67,10 @@ pub struct ProfileInfo {
     pub model_id: String,
     pub local: bool,
     pub has_api_key: bool,
+    #[serde(default)]
+    pub provider_display: String,
+    #[serde(default)]
+    pub model_display: String,
 }
 
 /// Where the configuration was loaded from.
@@ -183,16 +187,6 @@ fn default_auto_compact_threshold() -> f32 {
     0.85
 }
 
-/// Assigns a sort key to profile aliases so "fake" and "fast" always
-/// appear first in the profile list, with other profiles following.
-fn profile_order_key(alias: &str) -> u8 {
-    match alias {
-        "fake" => 0,
-        "fast" => 1,
-        _ => 2,
-    }
-}
-
 impl Default for ContextPolicy {
     fn default() -> Self {
         Self {
@@ -284,13 +278,7 @@ impl Config {
         for (alias, def) in overlay.profiles {
             profile_map.insert(alias, def);
         }
-        let mut merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
-        // Stable sort: keep "fake" first, then "fast", then others
-        merged_profiles.sort_by(|a, b| {
-            let ap = profile_order_key(&a.0);
-            let bp = profile_order_key(&b.0);
-            ap.cmp(&bp)
-        });
+        let merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
 
         // Merge MCP servers: overlay entries replace base entries with the same name
         let mut mcp_map: std::collections::HashMap<String, McpServerConfig> =
@@ -434,6 +422,8 @@ impl Config {
                     model_id: def.model_id.clone(),
                     local,
                     has_api_key,
+                    provider_display: def.provider.clone(),
+                    model_display: def.model_id.clone(),
                 }
             })
             .collect()
