@@ -7,7 +7,9 @@ use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, RemoteSkillSearchResult, SkillSettingsDetail, SkillSettingsView,
+    McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry as CoreSkillCatalogEntry,
+    SkillCatalogQuery as CoreSkillCatalogQuery, SkillSettingsDetail, SkillSettingsView,
+    SkillSourceView as CoreSkillSourceView,
 };
 use agent_core::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentId, AgentStatusInfo,
@@ -18,6 +20,11 @@ use agent_core::{
     ProjectSessionVisibility, SendMessageRequest, ServerEntry as CoreServerEntry, SessionId,
     SessionMeta, SkillDetail, SkillView, StartSessionRequest, TaskId, TraceEntry, WorkspaceId,
     WorkspaceInfo,
+};
+use agent_mcp::catalog::skills::{
+    aggregate::AggregateSkillCatalogProvider,
+    remote::{build_skill_provider, RemoteSkillSourceConfig, SkillSourceKind},
+    SkillCatalogProvider, SkillCatalogQuery,
 };
 use agent_mcp::catalog::{
     AggregateCatalogProvider, BuiltinCatalogProvider, CatalogProvider, CatalogQuery,
@@ -103,6 +110,11 @@ where
     /// at wiring time so Task 10 can fire `probe_context_window`. Empty when
     /// no Ollama profiles are configured.
     ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
+    // Skill catalog
+    skill_catalog: std::sync::OnceLock<Arc<AggregateSkillCatalogProvider>>,
+    skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
+    skill_catalog_http: Option<SharedHttpClient>,
+    skill_catalog_cache_dir: Option<PathBuf>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -144,6 +156,10 @@ where
                 context: agent_config::ContextPolicy::default(),
             }),
             ollama_clients: HashMap::new(),
+            skill_catalog: std::sync::OnceLock::new(),
+            skill_sources_toml: None,
+            skill_catalog_http: None,
+            skill_catalog_cache_dir: None,
         }
     }
 
@@ -163,6 +179,17 @@ where
         clients: HashMap<String, Arc<agent_models::OllamaClient>>,
     ) -> Self {
         self.ollama_clients = clients;
+        self
+    }
+
+    /// Configure the skill catalog with a cache directory and shared HTTP client.
+    #[allow(dead_code)]
+    pub fn with_skill_catalog(mut self, dir: Option<PathBuf>, http: SharedHttpClient) -> Self {
+        if let Some(ref d) = dir {
+            self.skill_sources_toml = Some(crate::skill_sources_toml::SkillSourcesToml::new(d));
+        }
+        self.skill_catalog_http = Some(http);
+        self.skill_catalog_cache_dir = dir;
         self
     }
 
@@ -691,6 +718,55 @@ where
         }
         aggregate.reload(providers);
         Ok(())
+    }
+
+    /// Rebuild the skill catalog aggregate from `skill_sources.toml` and
+    /// re-create providers. Called after every toml mutation so the runtime
+    /// always reflects the latest persisted configuration.
+    fn rebuild_skill_aggregate(&self) -> agent_core::Result<()> {
+        let Some(toml) = &self.skill_sources_toml else {
+            return Ok(());
+        };
+        let http = self.skill_catalog_http.clone().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill catalog http not configured".into())
+        })?;
+        let sources = toml.merge_with_defaults(&toml.read());
+        let providers: Vec<(u32, Arc<dyn SkillCatalogProvider>)> = sources
+            .into_iter()
+            .filter(|s| s.enabled)
+            .filter_map(|s| {
+                let kind = SkillSourceKind::from_str(&s.kind)?;
+                let cfg = RemoteSkillSourceConfig {
+                    id: s.id.clone(),
+                    display_name: s.display_name.clone(),
+                    kind,
+                    url: s.url.clone(),
+                    search_template: s.search_template.clone(),
+                    list_template: s.list_template.clone(),
+                    enabled: s.enabled,
+                    priority: s.priority,
+                    cache_ttl_seconds: s.cache_ttl_seconds,
+                };
+                Some((s.priority, build_skill_provider(cfg, http.clone())))
+            })
+            .collect();
+        if let Some(catalog) = self.skill_catalog.get() {
+            catalog.reload(providers);
+        } else {
+            let agg = Arc::new(AggregateSkillCatalogProvider::new(providers));
+            let _ = self.skill_catalog.set(agg);
+        }
+        Ok(())
+    }
+
+    /// Get (or lazily build) the skill catalog aggregate. Returns `None`
+    /// only when the catalog has never been configured.
+    fn ensure_skill_catalog(&self) -> Option<Arc<AggregateSkillCatalogProvider>> {
+        if let Some(c) = self.skill_catalog.get() {
+            return Some(c.clone());
+        }
+        let _ = self.rebuild_skill_aggregate();
+        self.skill_catalog.get().cloned()
     }
 }
 
@@ -1232,6 +1308,101 @@ where
             &skill_id,
         )
         .await
+    }
+
+    // ── Skills catalog / marketplace ─────────────────────────────────
+
+    async fn list_skill_catalog(
+        &self,
+        query: CoreSkillCatalogQuery,
+    ) -> agent_core::Result<Vec<CoreSkillCatalogEntry>> {
+        let catalog = self.ensure_skill_catalog().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill catalog not configured".into())
+        })?;
+
+        let inner_query = SkillCatalogQuery {
+            keyword: query.keyword,
+            sources: query.sources,
+            limit: query.limit,
+        };
+
+        let entries = catalog
+            .search(&inner_query)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("skill catalog: {e}")))?;
+
+        Ok(entries
+            .into_iter()
+            .map(|e| CoreSkillCatalogEntry {
+                catalog_id: e.catalog_id,
+                name: e.name,
+                description: e.description,
+                source: e.source,
+                source_url: e.source_url,
+                install_count: e.install_count,
+                github_stars: e.github_stars,
+                security_score: e.security_score,
+                rating: e.rating,
+                package: e.package,
+            })
+            .collect())
+    }
+
+    async fn list_skill_sources(&self) -> agent_core::Result<Vec<CoreSkillSourceView>> {
+        let sources = match &self.skill_sources_toml {
+            Some(toml) => toml.merge_with_defaults(&toml.read()),
+            None => crate::skill_sources_toml::default_skill_sources(),
+        };
+        Ok(sources)
+    }
+
+    async fn add_skill_source(&self, config: CoreSkillSourceView) -> agent_core::Result<()> {
+        let toml = self.skill_sources_toml.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill sources not configured".into())
+        })?;
+        let mut sources = toml.read();
+        sources.retain(|s| s.id != config.id);
+        sources.push(config);
+        toml.write(&sources)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("write: {e}")))?;
+        self.rebuild_skill_aggregate()?;
+        Ok(())
+    }
+
+    async fn remove_skill_source(&self, id: String) -> agent_core::Result<()> {
+        let toml = self.skill_sources_toml.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill sources not configured".into())
+        })?;
+        let mut sources = toml.read();
+        sources.retain(|s| s.id != id);
+        toml.write(&sources)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("write: {e}")))?;
+        self.rebuild_skill_aggregate()?;
+        Ok(())
+    }
+
+    async fn set_skill_source_enabled(&self, id: String, enabled: bool) -> agent_core::Result<()> {
+        let toml = self.skill_sources_toml.as_ref().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill sources not configured".into())
+        })?;
+        let mut sources = toml.read();
+        if let Some(s) = sources.iter_mut().find(|s| s.id == id) {
+            s.enabled = enabled;
+        }
+        toml.write(&sources)
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("write: {e}")))?;
+        self.rebuild_skill_aggregate()?;
+        Ok(())
+    }
+
+    async fn refresh_skill_catalog(&self) -> agent_core::Result<()> {
+        let catalog = self.ensure_skill_catalog().ok_or_else(|| {
+            agent_core::CoreError::InvalidState("skill catalog not configured".into())
+        })?;
+        catalog.refresh().await.map_err(|e| {
+            agent_core::CoreError::InvalidState(format!("skill catalog refresh: {e}"))
+        })?;
+        Ok(())
     }
 
     // -----------------------------------------------------------------------

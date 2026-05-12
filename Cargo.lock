@@ -97,6 +97,7 @@ dependencies = [
  "toml 1.1.2+spec-1.1.0",
  "toml_edit 0.25.11+spec-1.1.0",
  "tracing",
+ "url",
  "which",
  "wiremock",
 ]
