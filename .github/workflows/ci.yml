@@ -156,7 +156,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -327,7 +327,7 @@ jobs:
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/tauri-pilot
           key: tauri-pilot-${{ matrix.os }}-v0.5.1
