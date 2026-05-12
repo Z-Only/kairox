@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v3
         with:
           tool: git-cliff
 
@@ -403,7 +403,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v3
         with:
           tool: git-cliff
 
