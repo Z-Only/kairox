@@ -392,4 +392,28 @@ mod tests {
         // Not overridden -- uses provider default (openai_compatible defaults)
         assert!(!profile.capabilities.reasoning_controls);
     }
+
+    #[test]
+    fn deepseek_profile_builds_as_openai_compatible_client() {
+        let toml = r#"
+[profiles.deepseek]
+provider = "deepseek"
+model_id = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+temperature = 0.6
+top_p = 0.95
+
+[profiles.deepseek.extra_params]
+frequency_penalty = 0.1
+"#;
+        let config = crate::loader::load_from_str(toml, "test.toml").unwrap();
+        let router = build_router(&config);
+        let profiles = router.list_profiles();
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0].alias, "deepseek");
+        assert_eq!(profiles[0].provider, "deepseek");
+        // Should have openai_compatible default capabilities (tool_calling = true)
+        assert!(profiles[0].capabilities.tool_calling);
+    }
 }
