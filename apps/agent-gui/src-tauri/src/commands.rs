@@ -1215,10 +1215,11 @@ pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<S
 #[specta::specta]
 pub async fn list_profile_settings(
     state: State<'_, GuiState>,
+    source_filter: Option<String>,
 ) -> Result<Vec<ProfileSettingsView>, String> {
     state
         .runtime
-        .list_profile_settings()
+        .list_profile_settings(source_filter)
         .await
         .map_err(|error| error.to_string())
 }

@@ -1249,7 +1249,10 @@ where
         )
     }
 
-    async fn list_profile_settings(&self) -> agent_core::Result<Vec<ProfileSettingsView>> {
+    async fn list_profile_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> agent_core::Result<Vec<ProfileSettingsView>> {
         let profiles_toml_path = crate::profile_settings::writable_profiles_config_path(
             self.marketplace_dir.as_deref(),
         )?;
@@ -1266,6 +1269,7 @@ where
             profiles_toml_path.as_deref(),
             user_config_path.as_deref(),
             project_config_path.as_deref(),
+            source_filter.as_deref(),
         )
         .await
     }

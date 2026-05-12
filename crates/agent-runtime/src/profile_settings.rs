@@ -37,6 +37,7 @@ pub async fn list_profile_settings(
     profiles_toml_path: Option<&Path>,
     user_config_path: Option<&Path>,
     project_config_path: Option<&Path>,
+    source_filter: Option<&str>,
 ) -> agent_core::Result<Vec<ProfileSettingsView>> {
     let mut rows: BTreeMap<String, ProfileSettingsRow> = BTreeMap::new();
 
@@ -80,22 +81,30 @@ pub async fn list_profile_settings(
     }
 
     // Layer 3: user config.toml overrides profiles.toml
-    if let Some(path) = user_config_path {
-        if path.exists() {
-            if let Some(file_rows) = rows_from_config_toml(path, "user_config", false).await? {
-                for (alias, row) in file_rows {
-                    rows.insert(alias, row);
+    // (skip when source_filter == "project")
+    if source_filter != Some("project") {
+        if let Some(path) = user_config_path {
+            if path.exists() {
+                if let Some(file_rows) = rows_from_config_toml(path, "user_config", false).await? {
+                    for (alias, row) in file_rows {
+                        rows.insert(alias, row);
+                    }
                 }
             }
         }
     }
 
     // Layer 4: project config.toml overrides everything (highest priority)
-    if let Some(path) = project_config_path {
-        if path.exists() {
-            if let Some(file_rows) = rows_from_config_toml(path, "project_config", false).await? {
-                for (alias, row) in file_rows {
-                    rows.insert(alias, row);
+    // (skip when source_filter == "user")
+    if source_filter != Some("user") {
+        if let Some(path) = project_config_path {
+            if path.exists() {
+                if let Some(file_rows) =
+                    rows_from_config_toml(path, "project_config", false).await?
+                {
+                    for (alias, row) in file_rows {
+                        rows.insert(alias, row);
+                    }
                 }
             }
         }

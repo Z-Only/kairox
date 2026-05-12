@@ -742,7 +742,11 @@ pub trait AppFacade: Send + Sync {
     }
 
     /// List all configured model profiles for settings UI.
-    async fn list_profile_settings(&self) -> crate::Result<Vec<ProfileSettingsView>> {
+    async fn list_profile_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> crate::Result<Vec<ProfileSettingsView>> {
+        let _ = source_filter;
         Ok(Vec::new())
     }
 
