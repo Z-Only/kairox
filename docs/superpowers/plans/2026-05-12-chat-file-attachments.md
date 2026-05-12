@@ -837,3 +837,127 @@ Expected: passes both.
 - [ ] **Step 4: Report ready**
 
 Report: "All checks pass. Ready for manual GUI smoke test: click + button → select files → verify thumbnails/chips → send message → verify files reach the model."
+
+---
+
+### Task 6: Fix permission panel i18n
+
+**Files:**
+
+- Modify: `apps/agent-gui/src/components/PermissionCenter.vue:1-28`
+- Modify: `apps/agent-gui/src/components/PermissionPrompt.vue:1-152`
+- Modify: `apps/agent-gui/src/locales/en.json`
+
+- [ ] **Step 1: Add i18n keys to en.json**
+
+Add the following to the `permission` section in `apps/agent-gui/src/locales/en.json`:
+
+```json
+"permission": {
+  "allow": "Allow",
+  "deny": "Deny",
+  "accept": "Accept",
+  "reject": "Reject",
+  "titlePermissionRequired": "Permission Required",
+  "titleMemoryProposed": "Memory Proposed",
+  "panelTitle": "Permissions",
+  "emptyState": "No pending requests",
+  "scopePrefix": "Scope",
+  "storeLabel": "Store",
+  "toolLabel": "Tool",
+  "mcpServerPrefix": "MCP Server",
+  "mcpTrustedBadge": "Trusted",
+  "mcpTrustCheckbox": "Trust this server for future requests"
+}
+```
+
+- [ ] **Step 2: Update PermissionCenter.vue to use i18n**
+
+Replace lines 1-28 with:
+
+```vue
+<script setup lang="ts">
+import { useI18n } from "vue-i18n";
+import { traceState } from "../composables/useTraceStore";
+import PermissionPrompt from "./PermissionPrompt.vue";
+
+const { t } = useI18n();
+
+const pendingEntries = computed(() =>
+  traceState.entries.filter(
+    (e) => (e.kind === "permission" || e.kind === "memory") && e.status === "pending"
+  )
+);
+</script>
+
+<template>
+  <div class="card permission-center">
+    <div class="card-header">
+      <h2>{{ t("permission.panelTitle") }}</h2>
+    </div>
+    <div class="card-content">
+      <div v-if="pendingEntries.length === 0" class="empty-state">
+        {{ t("permission.emptyState") }}
+      </div>
+      <ul v-else class="permission-list">
+        <li v-for="entry in pendingEntries" :key="entry.id" class="permission-list-item">
+          <PermissionPrompt :entry="entry" />
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+```
+
+- [ ] **Step 3: Update PermissionPrompt.vue hardcoded strings**
+
+Replace the 5 hardcoded text locations in the template:
+
+**Line 106** — `Scope: {{ entry.scope }}` becomes:
+
+```html
+<div v-if="entry.scope" class="permission-meta">
+  {{ t("permission.scopePrefix") }}: {{ entry.scope }}
+</div>
+```
+
+**Line 110** — `{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}` becomes:
+
+```html
+<div class="permission-meta">
+  {{ isMemory ? t("permission.storeLabel") : t("permission.toolLabel") }}: {{ entry.toolId }}
+</div>
+```
+
+**Line 116** — `MCP Server: ` becomes:
+
+```html
+{{ t("permission.mcpServerPrefix") }}: <strong>{{ mcpServerId }}</strong>
+```
+
+**Line 118** — `✅ Trusted` becomes:
+
+```html
+✅ {{ t("permission.mcpTrustedBadge") }}
+```
+
+**Line 134** — `Trust this server for future requests` becomes:
+
+```html
+{{ t("permission.mcpTrustCheckbox") }}
+```
+
+- [ ] **Step 4: Verify tests pass**
+
+```bash
+pnpm --filter agent-gui run test 2>&1 | tail -10
+```
+
+Expected: 401+ tests passing.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/agent-gui/src/components/PermissionCenter.vue apps/agent-gui/src/components/PermissionPrompt.vue apps/agent-gui/src/locales/en.json
+git commit -m "fix(gui): add i18n support to permission panel"
+```
