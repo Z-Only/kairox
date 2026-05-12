@@ -1,9 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { commands } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal ??= vi.fn();
+  HTMLDialogElement.prototype.close ??= vi.fn();
+});
 
 vi.mock("@/generated/commands", () => ({
   commands: {
