@@ -64,6 +64,7 @@ dependencies = [
  "agent-skills",
  "agent-store",
  "agent-tools",
+ "base64 0.22.1",
  "futures",
  "serde",
  "serde_json",
