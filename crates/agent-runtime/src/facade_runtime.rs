@@ -7,9 +7,9 @@ use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry as CoreSkillCatalogEntry,
-    SkillCatalogQuery as CoreSkillCatalogQuery, SkillSettingsDetail, SkillSettingsView,
-    SkillSourceView as CoreSkillSourceView,
+    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
+    SkillCatalogEntry as CoreSkillCatalogEntry, SkillCatalogQuery as CoreSkillCatalogQuery,
+    SkillSettingsDetail, SkillSettingsView, SkillSourceView as CoreSkillSourceView,
 };
 use agent_core::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentId, AgentStatusInfo,
@@ -182,13 +182,13 @@ where
         self
     }
 
-    /// Configure the skill catalog with a cache directory and shared HTTP client.
-    #[allow(dead_code)]
-    pub fn with_skill_catalog(mut self, dir: Option<PathBuf>, http: SharedHttpClient) -> Self {
+    /// Configure the skill catalog with a cache directory. Creates an internal
+    /// HTTP client automatically.
+    pub fn with_skill_catalog(mut self, dir: Option<PathBuf>) -> Self {
         if let Some(ref d) = dir {
             self.skill_sources_toml = Some(crate::skill_sources_toml::SkillSourcesToml::new(d));
         }
-        self.skill_catalog_http = Some(http);
+        self.skill_catalog_http = SharedHttpClient::new().ok();
         self.skill_catalog_cache_dir = dir;
         self
     }
@@ -562,7 +562,7 @@ where
             .config
             .profiles
             .iter()
-            .find(|(alias, _)| alias == &profile_alias)
+            .find(|(alias, def)| alias == &profile_alias && def.enabled)
             .map(|(_, def)| def.clone())
             .ok_or_else(|| {
                 agent_core::CoreError::InvalidState(format!(
@@ -1247,6 +1247,66 @@ where
             crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
                 .map(|path| path.display().to_string()),
         )
+    }
+
+    async fn list_profile_settings(&self) -> agent_core::Result<Vec<ProfileSettingsView>> {
+        let profiles_toml_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?;
+        let user_config_path = std::env::var("HOME").ok().map(|h| {
+            std::path::PathBuf::from(h)
+                .join(".kairox")
+                .join("config.toml")
+        });
+        let project_config_path = std::env::current_dir()
+            .ok()
+            .map(|d| d.join(".kairox").join("config.toml"));
+        crate::profile_settings::list_profile_settings(
+            &self.config,
+            profiles_toml_path.as_deref(),
+            user_config_path.as_deref(),
+            project_config_path.as_deref(),
+        )
+        .await
+    }
+
+    async fn upsert_profile_settings(
+        &self,
+        input: ProfileSettingsInput,
+    ) -> agent_core::Result<ProfileSettingsView> {
+        let config_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(
+                "config dir not configured; cannot write profile settings".into(),
+            )
+        })?;
+        crate::profile_settings::upsert_profile_settings_in_file(&config_path, &input).await
+    }
+
+    async fn set_profile_enabled(&self, alias: String, enabled: bool) -> agent_core::Result<()> {
+        let config_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(
+                "config dir not configured; cannot write profile settings".into(),
+            )
+        })?;
+        crate::profile_settings::set_profile_enabled_in_file(&config_path, &alias, enabled).await
+    }
+
+    async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {
+        let config_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(
+                "config dir not configured; cannot write profile settings".into(),
+            )
+        })?;
+        crate::profile_settings::delete_profile_in_file(&config_path, &alias).await
     }
 
     async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {
@@ -2565,6 +2625,7 @@ mod tests {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         };
         let opus = ProfileDef {
             provider: "fake".into(),
@@ -2584,6 +2645,7 @@ mod tests {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         };
         Arc::new(agent_config::Config {
             profiles: vec![("fast".into(), fast), ("opus".into(), opus)],

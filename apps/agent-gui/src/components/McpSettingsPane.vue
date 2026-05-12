@@ -16,7 +16,6 @@ const stdioCommand = ref("");
 const stdioArgs = ref("");
 const sseUrl = ref("");
 const busyServerId = ref<string | null>(null);
-const addServerDialog = ref<HTMLDialogElement | null>(null);
 
 onMounted(() => {
   void mcp.fetchSettingsServers();
@@ -42,13 +41,9 @@ function openAddServerDialog(mode: "git" | "manual"): void {
   addServerDropdownOpen.value = false;
   resetForm();
   addServerDialogOpen.value = true;
-  nextTick(() => {
-    addServerDialog.value?.showModal?.();
-  });
 }
 
 function closeAddServerDialog(): void {
-  addServerDialog.value?.close?.();
   addServerDialogOpen.value = false;
   resetForm();
 }
@@ -139,6 +134,15 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
         >
           {{ mcp.configFolderOpening ? t("mcp.opening") : t("mcp.openConfigFolder") }}
         </button>
+        <button
+          class="btn"
+          type="button"
+          :disabled="mcp.settingsLoading"
+          data-test="mcp-refresh-all"
+          @click="mcp.fetchSettingsServers()"
+        >
+          {{ mcp.settingsLoading ? t("common.loading") : t("mcp.refreshAll") }}
+        </button>
         <KxDropdownMenu
           v-model:open="addServerDropdownOpen"
           content-data-test="mcp-add-server-menu"
@@ -220,6 +224,15 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
                 class="btn btn-sm"
                 type="button"
                 :disabled="busyServerId === server.id"
+                :data-test="`mcp-refresh-tools-${server.id}`"
+                @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
+              >
+                {{ busyServerId === server.id ? t("common.loading") : t("mcp.refreshTools") }}
+              </button>
+              <button
+                class="btn btn-sm"
+                type="button"
+                :disabled="busyServerId === server.id"
                 :data-test="`mcp-enable-${server.id}`"
                 @click="
                   runServerAction(server.id, () => mcp.setServerEnabled(server.id, !server.enabled))
@@ -257,101 +270,75 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
 
     <MarketplacePane v-if="activeSubTab === 'marketplace'" />
 
-    <dialog
-      v-if="addServerDialogOpen"
-      ref="addServerDialog"
-      class="add-server-dialog"
+    <ModalDialog
+      :open="addServerDialogOpen"
+      :title="addServerMode === 'git' ? t('mcp.dialogGitTitle') : t('mcp.dialogManualTitle')"
+      :description="addServerMode === 'git' ? t('mcp.dialogGitDesc') : t('mcp.dialogManualDesc')"
       data-test="mcp-add-server-dialog"
       @close="closeAddServerDialog"
     >
-      <div class="dialog-inner">
-        <header class="mcp-section-header">
-          <div>
-            <h3>
-              {{ addServerMode === "git" ? t("mcp.dialogGitTitle") : t("mcp.dialogManualTitle") }}
-            </h3>
-            <p>
-              {{ addServerMode === "git" ? t("mcp.dialogGitDesc") : t("mcp.dialogManualDesc") }}
-            </p>
-          </div>
-          <button class="btn btn-ghost" type="button" @click="closeAddServerDialog">
-            {{ t("common.cancel") }}
-          </button>
-        </header>
+      <form class="mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
+        <label for="mcp-server-name">{{ t("mcp.serverName") }}</label>
+        <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
 
-        <form class="mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
-          <div class="card-body mcp-settings__form-body">
-            <label for="mcp-server-name">{{ t("mcp.serverName") }}</label>
-            <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
+        <template v-if="addServerMode === 'git'">
+          <label for="mcp-server-git-url">{{ t("mcp.gitUrl") }}</label>
+          <input
+            id="mcp-server-git-url"
+            v-model="stdioCommand"
+            data-test="mcp-form-git-url"
+            placeholder="https://github.com/..."
+          />
+        </template>
 
-            <template v-if="addServerMode === 'git'">
-              <label for="mcp-server-git-url">{{ t("mcp.gitUrl") }}</label>
-              <input
-                id="mcp-server-git-url"
-                v-model="stdioCommand"
-                data-test="mcp-form-git-url"
-                placeholder="https://github.com/..."
-              />
-            </template>
+        <template v-if="addServerMode === 'manual'">
+          <label for="mcp-server-description">{{ t("mcp.description") }}</label>
+          <input
+            id="mcp-server-description"
+            v-model="serverDescription"
+            data-test="mcp-form-description"
+          />
 
-            <template v-if="addServerMode === 'manual'">
-              <label for="mcp-server-description">{{ t("mcp.description") }}</label>
-              <input
-                id="mcp-server-description"
-                v-model="serverDescription"
-                data-test="mcp-form-description"
-              />
+          <fieldset class="mcp-settings__fieldset">
+            <legend>{{ t("mcp.transport") }}</legend>
+            <label>
+              <input v-model="transport" type="radio" value="stdio" data-test="mcp-form-stdio" />
+              stdio
+            </label>
+            <label>
+              <input v-model="transport" type="radio" value="sse" data-test="mcp-form-sse" />
+              SSE
+            </label>
+          </fieldset>
 
-              <fieldset class="mcp-settings__fieldset">
-                <legend>{{ t("mcp.transport") }}</legend>
-                <label>
-                  <input
-                    v-model="transport"
-                    type="radio"
-                    value="stdio"
-                    data-test="mcp-form-stdio"
-                  />
-                  stdio
-                </label>
-                <label>
-                  <input v-model="transport" type="radio" value="sse" data-test="mcp-form-sse" />
-                  SSE
-                </label>
-              </fieldset>
+          <template v-if="transport === 'stdio'">
+            <label for="mcp-server-command">{{ t("mcp.command") }}</label>
+            <input id="mcp-server-command" v-model="stdioCommand" data-test="mcp-form-command" />
+            <label for="mcp-server-args">{{ t("mcp.arguments") }}</label>
+            <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
+          </template>
+          <template v-else>
+            <label for="mcp-server-url">{{ t("mcp.sseUrl") }}</label>
+            <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
+          </template>
+        </template>
+      </form>
 
-              <template v-if="transport === 'stdio'">
-                <label for="mcp-server-command">{{ t("mcp.command") }}</label>
-                <input
-                  id="mcp-server-command"
-                  v-model="stdioCommand"
-                  data-test="mcp-form-command"
-                />
-                <label for="mcp-server-args">{{ t("mcp.arguments") }}</label>
-                <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
-              </template>
-              <template v-else>
-                <label for="mcp-server-url">{{ t("mcp.sseUrl") }}</label>
-                <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
-              </template>
-            </template>
-
-            <div class="mcp-settings__form-actions">
-              <button
-                class="btn btn-primary"
-                type="submit"
-                :disabled="mcp.settingsLoading || !serverName.trim()"
-                data-test="mcp-save-button"
-              >
-                {{ mcp.settingsLoading ? t("mcp.saving") : t("mcp.saveServer") }}
-              </button>
-              <button class="btn" type="button" @click="closeAddServerDialog">
-                {{ t("common.cancel") }}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </dialog>
+      <template #footer>
+        <button class="btn" type="button" @click="closeAddServerDialog">
+          {{ t("common.cancel") }}
+        </button>
+        <button
+          class="btn btn-primary"
+          type="submit"
+          :disabled="mcp.settingsLoading || !serverName.trim()"
+          data-test="mcp-save-button"
+          @click="saveServer"
+        >
+          {{ mcp.settingsLoading ? t("mcp.saving") : t("mcp.saveServer") }}
+        </button>
+      </template>
+    </ModalDialog>
   </section>
 </template>
 
@@ -363,8 +350,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
 }
 
 .mcp-settings__header,
-.mcp-settings__server-body,
-.mcp-settings__form-actions {
+.mcp-settings__server-body {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -422,43 +408,30 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   gap: 8px;
 }
 
-.mcp-settings__form-body,
 .mcp-settings__list {
   display: grid;
   gap: 12px;
 }
 
 .mcp-settings__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 0;
 }
 
-.mcp-section-header {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.mcp-section-header h3,
-.mcp-section-header p {
-  margin: 0;
-}
-
-.mcp-section-header p {
-  color: var(--app-text-color-2, #6b7280);
-}
-
-.mcp-settings__form-body input {
+.mcp-settings__form label + input {
   min-height: 36px;
   padding: 6px 10px;
   border: 1px solid var(--app-border-color, #d7d7d7);
   border-radius: 6px;
   background: var(--app-card-color, #fff);
   color: var(--app-text-color, #111827);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.mcp-settings__form-body input:focus,
+.mcp-settings__form label + input:focus,
 .mcp-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color, #3b82f6);
   outline-offset: 2px;
@@ -479,22 +452,5 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
 
 .mcp-settings__actions {
   justify-content: flex-end;
-}
-
-.add-server-dialog {
-  width: min(480px, 90vw);
-  padding: 0;
-  border: 1px solid var(--app-border-color);
-  border-radius: 10px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-}
-
-.add-server-dialog::backdrop {
-  background: rgb(0 0 0 / 40%);
-}
-
-.dialog-inner {
-  padding: 16px;
 }
 </style>

@@ -377,15 +377,15 @@ fn replace_optional_table(server_table: &mut Table, key: &str, values: &BTreeMap
         return;
     }
 
-    server_table[key] = Item::Table(string_map_table(values));
+    server_table[key] = string_map_to_inline(values);
 }
 
-fn string_map_table(values: &BTreeMap<String, String>) -> Table {
-    let mut table = Table::new();
+fn string_map_to_inline(values: &BTreeMap<String, String>) -> Item {
+    let mut inline = toml_edit::InlineTable::new();
     for (key, value_text) in values {
-        table[key] = value(value_text.clone());
+        inline.insert(key, value_text.clone().into());
     }
-    table
+    Item::Value(toml_edit::Value::InlineTable(inline))
 }
 
 fn string_array(values: &[String]) -> Array {
@@ -549,11 +549,11 @@ mod tests {
         assert!(raw.contains("[mcp_servers.files]"));
         assert!(raw.contains("type = \"stdio\""));
         assert!(raw.contains("command = \"npx\""));
-        assert!(raw.contains("[mcp_servers.files.env]"));
+        assert!(raw.contains("env = {"));
         assert!(raw.contains("[mcp_servers.remote]"));
         assert!(raw.contains("type = \"sse\""));
         assert!(raw.contains("url = \"https://example.test/sse\""));
-        assert!(raw.contains("[mcp_servers.remote.headers]"));
+        assert!(raw.contains("headers = {"));
     }
 
     #[tokio::test]

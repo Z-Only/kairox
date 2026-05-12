@@ -5,8 +5,8 @@ use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
-    SkillSettingsDetail, SkillSettingsView, SkillSourceView,
+    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
+    SkillCatalogEntry, SkillCatalogQuery, SkillSettingsDetail, SkillSettingsView, SkillSourceView,
 };
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
@@ -1209,6 +1209,64 @@ pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<S
 
     open_path_in_system_file_manager(&config_folder_path)?;
     Ok(Some(config_folder_path.display().to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_profile_settings(
+    state: State<'_, GuiState>,
+) -> Result<Vec<ProfileSettingsView>, String> {
+    state
+        .runtime
+        .list_profile_settings()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn upsert_profile_settings(
+    state: State<'_, GuiState>,
+    input: ProfileSettingsInput,
+) -> Result<ProfileSettingsView, String> {
+    let view = state
+        .runtime
+        .upsert_profile_settings(input)
+        .await
+        .map_err(|error| error.to_string())?;
+    state.refresh_config()?;
+    Ok(view)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_profile_enabled(
+    state: State<'_, GuiState>,
+    alias: String,
+    enabled: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .set_profile_enabled(alias, enabled)
+        .await
+        .map_err(|error| error.to_string())?;
+    state.refresh_config()?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_profile_settings(
+    state: State<'_, GuiState>,
+    alias: String,
+) -> Result<(), String> {
+    state
+        .runtime
+        .delete_profile_settings(alias)
+        .await
+        .map_err(|error| error.to_string())?;
+    state.refresh_config()?;
+    Ok(())
 }
 
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {

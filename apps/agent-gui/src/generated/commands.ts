@@ -115,6 +115,14 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("delete_mcp_server_settings", { serverId })),
   openMcpConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
+  listProfileSettings: () =>
+    typedError<ProfileSettingsView[], string>(__TAURI_INVOKE("list_profile_settings")),
+  upsertProfileSettings: (input: ProfileSettingsInput) =>
+    typedError<ProfileSettingsView, string>(__TAURI_INVOKE("upsert_profile_settings", { input })),
+  setProfileEnabled: (alias: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_profile_enabled", { alias, enabled })),
+  deleteProfileSettings: (alias: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_profile_settings", { alias })),
   listSkillSettings: () =>
     typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),
   getSkillSettingsDetail: (skillId: string) =>
@@ -410,6 +418,40 @@ export type ProfileInfo = {
   has_api_key: boolean;
   provider_display?: string;
   model_display?: string;
+};
+
+export type ProfileSettingsInput = {
+  alias: string;
+  provider: string;
+  model_id: string;
+  enabled?: boolean;
+  context_window: number | null;
+  output_limit: number | null;
+  temperature: number | null;
+  top_p: number | null;
+  top_k: number | null;
+  max_tokens: number | null;
+  base_url: string | null;
+  api_key_env: string | null;
+};
+
+export type ProfileSettingsView = {
+  alias: string;
+  provider: string;
+  model_id: string;
+  enabled: boolean;
+  context_window: number | null;
+  output_limit: number | null;
+  temperature: number | null;
+  top_p: number | null;
+  top_k: number | null;
+  max_tokens: number | null;
+  base_url: string | null;
+  api_key_env: string | null;
+  has_api_key: boolean;
+  writable: boolean;
+  config_path: string | null;
+  source: string;
 };
 
 export type ProfileWithLimits = {

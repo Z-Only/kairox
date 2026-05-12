@@ -17,6 +17,8 @@ pub struct GuiState {
     pub workspace_id: Mutex<Option<WorkspaceId>>,
     pub current_session_id: Mutex<Option<SessionId>>,
     pub forwarder_handle: Mutex<Option<JoinHandle<()>>>,
+    pub profiles_config_path: Option<std::path::PathBuf>,
+    pub home_dir: std::path::PathBuf,
 }
 
 impl GuiState {
@@ -33,6 +35,8 @@ impl GuiState {
             workspace_id: Mutex::new(None),
             current_session_id: Mutex::new(None),
             forwarder_handle: Mutex::new(None),
+            profiles_config_path: None,
+            home_dir: std::path::PathBuf::from("."),
         }
     }
 
@@ -41,6 +45,14 @@ impl GuiState {
     pub fn refresh_config_for_project(&self, project_root: &std::path::Path) -> Result<(), String> {
         let new_config =
             Config::load_with_project_root(Some(project_root)).map_err(|e| e.to_string())?;
+        let mut cfg = self.config.write().map_err(|e| e.to_string())?;
+        *cfg = new_config;
+        Ok(())
+    }
+
+    /// Reload the full config, including profiles.toml overlay.
+    pub fn refresh_config(&self) -> Result<(), String> {
+        let new_config = Config::load().map_err(|e| e.to_string())?;
         let mut cfg = self.config.write().map_err(|e| e.to_string())?;
         *cfg = new_config;
         Ok(())

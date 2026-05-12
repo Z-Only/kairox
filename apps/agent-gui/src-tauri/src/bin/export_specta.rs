@@ -7,9 +7,10 @@
 use agent_config::ProfileInfo;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry,
-    SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource, SkillInstallTarget,
-    SkillSettingsDetail, SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
+    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
+    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
+    SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
@@ -86,6 +87,11 @@ fn main() {
             agent_gui_tauri::commands::set_mcp_server_enabled,
             agent_gui_tauri::commands::delete_mcp_server_settings,
             agent_gui_tauri::commands::open_mcp_config_file,
+            // Profile settings commands
+            agent_gui_tauri::commands::list_profile_settings,
+            agent_gui_tauri::commands::upsert_profile_settings,
+            agent_gui_tauri::commands::set_profile_enabled,
+            agent_gui_tauri::commands::delete_profile_settings,
             agent_gui_tauri::commands::list_skill_settings,
             agent_gui_tauri::commands::get_skill_settings_detail,
             agent_gui_tauri::commands::set_skill_enabled,
@@ -142,6 +148,8 @@ fn main() {
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()
         .typ::<McpServerSettingsTransport>()
+        .typ::<ProfileSettingsView>()
+        .typ::<ProfileSettingsInput>()
         .typ::<SkillSettingsView>()
         .typ::<SkillSettingsDetail>()
         .typ::<SkillSettingsScope>()

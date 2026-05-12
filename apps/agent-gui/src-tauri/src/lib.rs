@@ -61,10 +61,27 @@ pub fn run() {
                         .expect("Failed to create memory store"),
                 ) as std::sync::Arc<dyn agent_memory::MemoryStore>;
 
-                let config = Config::load().unwrap_or_else(|e| {
+                let mut config = Config::load().unwrap_or_else(|e| {
                     eprintln!("Config warning: {e}, using defaults");
                     Config::defaults()
                 });
+
+                // Layer: merge profiles from profiles.toml into config
+                let profiles_toml_path = db_dir.join("profiles.toml");
+                if profiles_toml_path.exists() {
+                    if let Ok(raw) = std::fs::read_to_string(&profiles_toml_path) {
+                        if let Ok(overlay) =
+                            agent_config::load_from_str(&raw, &profiles_toml_path.display().to_string())
+                        {
+                            let mut profile_map: std::collections::HashMap<String, agent_config::ProfileDef> =
+                                config.profiles.iter().map(|(a, d)| (a.clone(), d.clone())).collect();
+                            for (alias, def) in overlay.profiles {
+                                profile_map.entry(alias).or_insert(def);
+                            }
+                            config.profiles = profile_map.into_iter().collect();
+                        }
+                    }
+                }
                 let router = config.build_router();
 
                 eprintln!("Available model profiles: {:?}", config.profile_names());
@@ -98,6 +115,40 @@ pub fn run() {
                     catalog_sources.iter().filter(|s| s.enabled).count()
                 );
 
+                // Load MCP server definitions from both config.toml and
+                // mcp_servers.toml so the McpServerManager can start them
+                // on demand. config.toml entries take priority on id conflict.
+                let mcp_server_defs = {
+                    let toml_path = db_dir.join("mcp_servers.toml");
+                    let marketplace_defs = match std::fs::read_to_string(&toml_path) {
+                        Ok(raw) => {
+                            match agent_config::load_from_str(
+                                &raw,
+                                &toml_path.display().to_string(),
+                            ) {
+                                Ok(market_config) => market_config.mcp_server_defs(),
+                                Err(e) => {
+                                    eprintln!(
+                                        "MCP servers parse warning: {e}, skipping marketplace servers"
+                                    );
+                                    Vec::new()
+                                }
+                            }
+                        }
+                        Err(_) => Vec::new(),
+                    };
+                    let mut all_defs: std::collections::HashMap<String, agent_mcp::types::McpServerDef> =
+                        std::collections::HashMap::new();
+                    for def in marketplace_defs {
+                        all_defs.insert(def.name.clone(), def);
+                    }
+                    for def in config.mcp_server_defs() {
+                        all_defs.insert(def.name.clone(), def);
+                    }
+                    all_defs.into_values().collect::<Vec<_>>()
+                };
+                eprintln!("MCP server definitions: {}", mcp_server_defs.len());
+
                 let ollama_clients = agent_config::build_ollama_clients(&config);
                 let config_arc = std::sync::Arc::new(config.clone());
                 let runtime = LocalRuntime::new(store, router)
@@ -108,11 +159,17 @@ pub fn run() {
                     .with_ollama_clients(ollama_clients)
                     .with_marketplace_loaded(db_dir.clone(), &catalog_sources)
                     .expect("Failed to initialize marketplace")
+                    .with_skill_catalog(Some(db_dir.clone()))
                     .with_skill_registry(std::sync::Arc::new(skill_registry))
                     .with_builtin_tools(cwd)
+                    .await
+                    .with_mcp_servers(mcp_server_defs)
                     .await;
 
-                handle.manage(GuiState::new(runtime, config, mem_store));
+                let mut gui_state = GuiState::new(runtime, config, mem_store);
+                gui_state.profiles_config_path = Some(profiles_toml_path);
+                gui_state.home_dir = db_dir.clone();
+                handle.manage(gui_state);
 
                 // Background task: cleanup expired soft-deleted sessions (hourly, 7-day threshold)
                 {
@@ -192,6 +249,10 @@ pub fn run() {
             crate::commands::set_mcp_server_enabled,
             crate::commands::delete_mcp_server_settings,
             crate::commands::open_mcp_config_file,
+            crate::commands::list_profile_settings,
+            crate::commands::upsert_profile_settings,
+            crate::commands::set_profile_enabled,
+            crate::commands::delete_profile_settings,
             crate::commands::list_skill_settings,
             crate::commands::get_skill_settings_detail,
             crate::commands::set_skill_enabled,
