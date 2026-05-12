@@ -322,6 +322,75 @@ pub struct InstallGithubSkillRequest {
     pub target: SkillInstallTarget,
 }
 
+// ── Skills catalog / marketplace ───────────────────────────────────────
+
+/// A single skill entry returned by the skills catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillCatalogEntry {
+    pub catalog_id: String,
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub source_url: String,
+    pub install_count: Option<u64>,
+    pub github_stars: Option<u64>,
+    pub security_score: Option<u32>,
+    pub rating: Option<f64>,
+    pub package: String,
+}
+
+/// Query against the skills catalog.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillCatalogQuery {
+    pub keyword: Option<String>,
+    pub sources: Option<Vec<String>>,
+    pub limit: Option<usize>,
+}
+
+/// JSON field mapping for a skill source API response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillFieldMappingView {
+    pub name_path: String,
+    pub description_path: String,
+    pub install_count_path: Option<String>,
+    pub github_stars_path: Option<String>,
+    pub package_path: String,
+    pub source_url_path: Option<String>,
+}
+
+impl Default for SkillFieldMappingView {
+    fn default() -> Self {
+        Self {
+            name_path: "name".into(),
+            description_path: "description".into(),
+            install_count_path: Some("installs".into()),
+            github_stars_path: None,
+            package_path: "id".into(),
+            source_url_path: None,
+        }
+    }
+}
+
+/// A configured skill catalog source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillSourceView {
+    pub id: String,
+    pub display_name: String,
+    pub kind: String,
+    pub url: String,
+    pub search_template: String,
+    pub list_template: Option<String>,
+    pub field_mapping: SkillFieldMappingView,
+    pub enabled: bool,
+    pub priority: u32,
+    pub cache_ttl_seconds: u64,
+    pub last_error: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
 pub struct WorkspaceInfo {
