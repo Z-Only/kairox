@@ -136,7 +136,7 @@ pub async fn list_profile_settings(
                 source: row.source,
             }
         })
-        .filter(|view| !(view.source == "defaults" && !view.enabled))
+        .filter(|view| view.source != "defaults" || view.enabled)
         .collect();
 
     let mut display_order: Vec<String> = Vec::new();
@@ -322,7 +322,7 @@ fn save_display_order(document: &mut DocumentMut, order: &[String]) {
     document["display_order"] = toml_edit::Item::Value(toml_edit::Value::Array(array));
 }
 
-fn sort_by_display_order(views: &mut Vec<ProfileSettingsView>, display_order: &[String]) {
+fn sort_by_display_order(views: &mut [ProfileSettingsView], display_order: &[String]) {
     views.sort_by(|a, b| {
         let pos_a = display_order.iter().position(|s| s == &a.alias);
         let pos_b = display_order.iter().position(|s| s == &b.alias);
