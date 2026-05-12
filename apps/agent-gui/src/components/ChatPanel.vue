@@ -32,12 +32,41 @@ function attachmentThumbnailSrc(att: Attachment): string {
   return convertFileSrc(att.path);
 }
 
-function attachmentTypeLabel(mimeType: string): string {
+function onThumbnailError(e: Event) {
+  const img = e.target as HTMLImageElement;
+  img.style.display = "none";
+  const badge = img.nextElementSibling as HTMLElement | null;
+  if (badge) badge.style.display = "";
+}
+
+const FILE_ICON_MAP: Record<string, string> = {
+  pdf: "pdf",
+  txt: "text",
+  md: "text",
+  csv: "text",
+  log: "text",
+  rs: "code",
+  py: "code",
+  ts: "code",
+  js: "code",
+  json: "data",
+  yaml: "data",
+  yml: "data",
+  toml: "data",
+  xml: "data",
+  html: "web",
+  css: "web",
+  sh: "script",
+  bash: "script",
+  zsh: "script"
+};
+
+function fileIconClass(mimeType: string): string {
   const parts = mimeType.split("/");
-  if (parts.length < 2) return "FILE";
-  const subtype = parts[1].toUpperCase();
-  if (subtype.length <= 4) return subtype;
-  return subtype.slice(0, 4);
+  const subtype = parts[1] || "";
+  const ext = subtype.split("+")[0];
+  const category = FILE_ICON_MAP[ext] || FILE_ICON_MAP[subtype] || "generic";
+  return `fi-${category}`;
 }
 
 function truncateFilename(name: string, maxLen = 18): string {
@@ -403,8 +432,44 @@ watch(
             :src="attachmentThumbnailSrc(att)"
             class="attachment-thumbnail"
             :alt="att.name"
+            @error="onThumbnailError"
           />
-          <span v-else class="attachment-type-badge">{{ attachmentTypeLabel(att.mimeType) }}</span>
+          <span
+            v-show="!isImageMime(att.mimeType)"
+            :class="['attachment-type-icon', fileIconClass(att.mimeType)]"
+            :aria-label="att.mimeType"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                v-if="fileIconClass(att.mimeType) === 'fi-pdf'"
+                d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5zM7 12h10v1.5H7V12zm0 3h8v1.5H7V15zm0 3h10v1.5H7V18z"
+              />
+              <path
+                v-else-if="fileIconClass(att.mimeType) === 'fi-code'"
+                d="M14.6 16.6l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4zm-5.2 0L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4z"
+              />
+              <path
+                v-else-if="fileIconClass(att.mimeType) === 'fi-data'"
+                d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v2h2V5H5zm4 0v2h2V5H9zm4 0v2h2V5h-2zm4 0v2h2V5h-2zM3 9h18v2H3V9zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"
+              />
+              <path
+                v-else-if="fileIconClass(att.mimeType) === 'fi-web'"
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+              />
+              <path
+                v-else-if="fileIconClass(att.mimeType) === 'fi-text'"
+                d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 4v2h10V7H7zm0 4v2h10v-2H7zm0 4v2h7v-2H7z"
+              />
+              <path
+                v-else-if="fileIconClass(att.mimeType) === 'fi-script'"
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6zm2-6h8v2H8v-2zm0-4h4v2H8v-2z"
+              />
+              <path
+                v-else
+                d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"
+              />
+            </svg>
+          </span>
           <span class="attachment-name" :title="att.name">{{ truncateFilename(att.name) }}</span>
           <button
             class="attachment-remove"
@@ -770,7 +835,7 @@ watch(
   object-fit: cover;
   flex-shrink: 0;
 }
-.attachment-type-badge {
+.attachment-type-icon {
   width: 36px;
   height: 36px;
   border-radius: 4px;
@@ -778,12 +843,13 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  background: color-mix(in srgb, var(--app-primary-color) 16%, transparent);
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
   color: var(--app-primary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+}
+.attachment-type-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 .attachment-name {
   font-size: 12px;

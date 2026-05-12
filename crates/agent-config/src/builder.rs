@@ -14,6 +14,9 @@ pub fn build_router(config: &Config) -> ModelRouter {
     let mut router = ModelRouter::new();
 
     for (alias, def) in &config.profiles {
+        if !def.enabled {
+            continue;
+        }
         let profile = build_profile(alias, def);
         let client = build_client(alias, def);
         router.register(profile, Arc::from(client));
@@ -31,7 +34,7 @@ pub fn build_ollama_clients(
 ) -> std::collections::HashMap<String, Arc<OllamaClient>> {
     let mut clients = std::collections::HashMap::new();
     for (alias, def) in &config.profiles {
-        if def.provider != "ollama" {
+        if !def.enabled || def.provider != "ollama" {
             continue;
         }
         let ollama_config = OllamaConfig {
@@ -260,9 +263,10 @@ mod tests {
         let config = Config::defaults();
         let router = build_router(&config);
         let profiles = router.list_profiles();
-        assert!(profiles.len() >= 2);
+        assert!(!profiles.is_empty());
         assert!(profiles.iter().any(|p| p.alias == "fake"));
-        assert!(profiles.iter().any(|p| p.alias == "local-code"));
+        // local-code is disabled by default and should be excluded.
+        assert!(!profiles.iter().any(|p| p.alias == "local-code"));
     }
 
     #[tokio::test]
@@ -322,6 +326,7 @@ mod tests {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         };
         let profile = build_profile("fast", &fast_def);
         assert_eq!(profile.alias, "fast");
@@ -346,6 +351,7 @@ mod tests {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         };
         let profile = build_profile("local-code", &ollama_def);
         assert!(!profile.capabilities.tool_calling);
@@ -384,6 +390,7 @@ mod tests {
             supports_vision: Some(true),
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         };
         let profile = build_profile("deepseek", &def);
         // Overridden

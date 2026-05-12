@@ -1,15 +1,36 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
-import type { SkillSettingsView } from "@/generated/commands";
+import type { SkillSettingsView, SkillCatalogQuery } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
 const activeSubTab = ref<"installed" | "discover">("installed");
+const sourceSettingsOpen = ref(false);
+const discoverKeyword = ref("");
 const githubSource = ref("");
 const installTarget = ref<"project" | "user">("project");
 const busySkillId = ref<string | null>(null);
+
+const discoverSourceChips = computed(() => {
+  const remoteSources = skillsStore.catalogSources
+    .filter((s) => s.id !== "builtin")
+    .map((s) => ({
+      id: s.id,
+      display_name: s.display_name
+    }));
+  return [{ id: "builtin", display_name: t("skills.builtinSource") }, ...remoteSources];
+});
+
+async function searchSkillsCatalog(): Promise<void> {
+  const query: SkillCatalogQuery = {
+    keyword: discoverKeyword.value.trim() || null,
+    sources: null,
+    limit: 50
+  };
+  await skillsStore.searchCatalog(query);
+}
 
 onMounted(() => {
   void skillsStore.loadSkillSettings();
@@ -252,56 +273,54 @@ async function installFromGithub(): Promise<void> {
     </template>
 
     <template v-if="activeSubTab === 'discover'">
+      <div class="source-filter">
+        <button
+          v-for="chip in discoverSourceChips"
+          :key="chip.id"
+          :class="['btn', 'chip', { active: skillsStore.isCatalogSourceEnabled(chip.id) }]"
+          data-test="skill-source-chip"
+          @click="skillsStore.toggleCatalogSource(chip.id)"
+        >
+          {{ chip.display_name }}
+        </button>
+        <button
+          class="btn settings-icon"
+          data-test="skill-source-settings-btn"
+          :aria-label="t('marketplace.sourceSettingsAria')"
+          @click="sourceSettingsOpen = !sourceSettingsOpen"
+        >
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </div>
+
+      <div
+        v-if="sourceSettingsOpen"
+        class="card settings-drawer"
+        data-test="skill-source-settings-drawer"
+      >
+        <SkillSourcesSettings />
+      </div>
+
+      <div class="discover-search-row">
+        <input
+          v-model="discoverKeyword"
+          class="discover-search-input"
+          type="search"
+          :placeholder="t('skills.searchPlaceholder')"
+          data-test="skill-catalog-search"
+          @keyup.enter="searchSkillsCatalog()"
+        />
+        <button
+          class="btn btn-primary btn-sm"
+          type="button"
+          data-test="skill-catalog-search-btn"
+          @click="searchSkillsCatalog()"
+        >
+          {{ t("common.search") }}
+        </button>
+      </div>
+
       <SkillDiscoverList />
-
-      <section class="card skill-settings__section" aria-labelledby="catalog-sources-title">
-        <div class="card-header">
-          <h3 id="catalog-sources-title">{{ t("skills.catalogSourcesTitle") }}</h3>
-        </div>
-        <div class="card-body">
-          <SkillSourcesSettings />
-        </div>
-      </section>
-
-      <section class="card skill-settings__section" aria-labelledby="github-skills-title-discover">
-        <div class="card-header">
-          <h3 id="github-skills-title-discover">{{ t("skills.installFromGithub") }}</h3>
-        </div>
-        <div class="card-body skill-settings__body">
-          <form
-            class="skill-settings__inline-form"
-            data-test="skill-github-form"
-            @submit.prevent="installFromGithub"
-          >
-            <label for="skill-install-target-discover">{{ t("skills.target") }}</label>
-            <select
-              id="skill-install-target-discover"
-              v-model="installTarget"
-              data-test="skill-install-target"
-            >
-              <option value="project">{{ t("skills.targetProject") }}</option>
-              <option value="user">{{ t("skills.targetUser") }}</option>
-            </select>
-
-            <label for="skill-github-source-discover">{{ t("skills.githubUrl") }}</label>
-            <input
-              id="skill-github-source-discover"
-              v-model="githubSource"
-              type="url"
-              data-test="skill-github-source"
-              placeholder="https://github.com/org/skill.git"
-            />
-            <button
-              class="btn btn-primary"
-              type="submit"
-              :disabled="skillsStore.settingsLoading || !githubSource.trim()"
-              data-test="skill-github-submit"
-            >
-              {{ skillsStore.settingsLoading ? t("skills.installing") : t("skills.installButton") }}
-            </button>
-          </form>
-        </div>
-      </section>
     </template>
   </section>
 </template>
@@ -469,5 +488,59 @@ async function installFromGithub(): Promise<void> {
 .skill-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color, #3b82f6);
   outline-offset: 2px;
+}
+
+.source-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.source-filter .chip {
+  padding: 4px 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 14px;
+  background: var(--app-card-color);
+  cursor: pointer;
+  color: var(--app-text-color);
+  font-size: 13px;
+}
+
+.source-filter .chip.active {
+  background: var(--app-primary-color, #18a058);
+  color: #fff;
+  border-color: var(--app-primary-color, #18a058);
+}
+
+.source-filter .settings-icon {
+  padding: 4px 8px;
+  font-size: 16px;
+  margin-left: auto;
+}
+
+.discover-search-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.discover-search-input {
+  flex: 1;
+  max-width: 320px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+}
+
+.settings-drawer {
+  margin-top: 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  padding: 12px;
 }
 </style>

@@ -49,6 +49,8 @@ struct ProfileToml {
     supports_reasoning: Option<bool>,
     #[serde(default)]
     extra_params: Option<toml::Value>,
+    #[serde(default = "crate::default_true")]
+    enabled: bool,
 }
 
 /// Parse a TOML string into a Config.
@@ -85,6 +87,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
             supports_vision: profile_toml.supports_vision,
             supports_reasoning: profile_toml.supports_reasoning,
             extra_params: profile_toml.extra_params,
+            enabled: profile_toml.enabled,
         };
 
         profiles.push((alias.clone(), profile_def));

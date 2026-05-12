@@ -58,6 +58,7 @@ mod tests {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            enabled: true,
         }
     }
 

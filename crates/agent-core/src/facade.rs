@@ -228,6 +228,49 @@ pub struct McpServerSettingsView {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProfileSettingsInput {
+    pub alias: String,
+    pub provider: String,
+    pub model_id: String,
+    #[serde(default = "crate::facade::default_true")]
+    pub enabled: bool,
+    pub context_window: Option<u64>,
+    pub output_limit: Option<u64>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub top_k: Option<u32>,
+    pub max_tokens: Option<u64>,
+    pub base_url: Option<String>,
+    pub api_key_env: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProfileSettingsView {
+    pub alias: String,
+    pub provider: String,
+    pub model_id: String,
+    pub enabled: bool,
+    pub context_window: Option<u64>,
+    pub output_limit: Option<u64>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub top_k: Option<u32>,
+    pub max_tokens: Option<u64>,
+    pub base_url: Option<String>,
+    pub api_key_env: Option<String>,
+    pub has_api_key: bool,
+    pub writable: bool,
+    pub config_path: Option<String>,
+    pub source: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "snake_case")]
@@ -696,6 +739,38 @@ pub trait AppFacade: Send + Sync {
     /// Open the MCP configuration file and return the path if available.
     async fn open_mcp_config_file(&self) -> crate::Result<Option<String>> {
         Ok(None)
+    }
+
+    /// List all configured model profiles for settings UI.
+    async fn list_profile_settings(&self) -> crate::Result<Vec<ProfileSettingsView>> {
+        Ok(Vec::new())
+    }
+
+    /// Create or update a model profile from settings UI.
+    async fn upsert_profile_settings(
+        &self,
+        input: ProfileSettingsInput,
+    ) -> crate::Result<ProfileSettingsView> {
+        let _ = input;
+        Err(crate::CoreError::InvalidState(
+            "profile settings mutation not supported".into(),
+        ))
+    }
+
+    /// Enable or disable a model profile from settings UI.
+    async fn set_profile_enabled(&self, alias: String, enabled: bool) -> crate::Result<()> {
+        let _ = (alias, enabled);
+        Err(crate::CoreError::InvalidState(
+            "profile settings enablement not supported".into(),
+        ))
+    }
+
+    /// Delete a model profile from settings UI.
+    async fn delete_profile_settings(&self, alias: String) -> crate::Result<()> {
+        let _ = alias;
+        Err(crate::CoreError::InvalidState(
+            "profile settings deletion not supported".into(),
+        ))
     }
 
     /// List skills for settings UI.

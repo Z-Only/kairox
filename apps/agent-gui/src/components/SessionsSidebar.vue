@@ -44,11 +44,13 @@ const projectRenameInput = ref<HTMLInputElement | null>(null);
 const projectSessionRenameInput = ref<HTMLInputElement | null>(null);
 const pendingDeleteSessionId = ref<string | null>(null);
 const pendingDeleteProjectId = ref<string | null>(null);
+const pendingArchiveProjectSessionId = ref<string | null>(null);
 const importingProject = ref(false);
 
 function resetDeleteConfirmation() {
   pendingDeleteSessionId.value = null;
   pendingDeleteProjectId.value = null;
+  pendingArchiveProjectSessionId.value = null;
 }
 
 async function switchToSession(sessionId: string) {
@@ -224,13 +226,19 @@ function cancelProjectSessionRename() {
   editingProjectSessionId.value = null;
 }
 
-async function archiveProjectSession(sessionId: string) {
-  resetDeleteConfirmation();
+async function requestArchiveProjectSession(sessionId: string) {
+  if (pendingArchiveProjectSessionId.value !== sessionId) {
+    pendingArchiveProjectSessionId.value = sessionId;
+    pendingDeleteSessionId.value = null;
+    pendingDeleteProjectId.value = null;
+    return;
+  }
   try {
     await projects.archiveProjectSession(sessionId);
   } catch (e) {
     console.error("Failed to archive project session:", e);
   }
+  pendingArchiveProjectSessionId.value = null;
 }
 
 async function toggleProjectExpanded(project: ProjectInfo) {
@@ -535,13 +543,37 @@ onMounted(() => {
                           </svg>
                         </KxIconButton>
                       </KxTooltip>
-                      <KxTooltip :text="t('sessions.archive')">
+                      <KxTooltip
+                        :text="
+                          pendingArchiveProjectSessionId === projectSession.sessionId
+                            ? t('sessions.confirmArchive')
+                            : t('sessions.archive')
+                        "
+                      >
                         <KxIconButton
-                          :label="t('sessions.archive')"
+                          :label="
+                            pendingArchiveProjectSessionId === projectSession.sessionId
+                              ? t('sessions.confirmArchive')
+                              : t('sessions.archive')
+                          "
+                          :class="{
+                            'confirm-action':
+                              pendingArchiveProjectSessionId === projectSession.sessionId
+                          }"
                           :data-test="`project-session-archive-action-${projectSession.sessionId}`"
-                          @click.stop="archiveProjectSession(projectSession.sessionId)"
+                          @click.stop="requestArchiveProjectSession(projectSession.sessionId)"
                         >
-                          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                          <svg
+                            v-if="pendingArchiveProjectSessionId === projectSession.sessionId"
+                            viewBox="0 0 20 20"
+                            aria-hidden="true"
+                            focusable="false"
+                          >
+                            <path
+                              d="M8.5 3.5a.5.5 0 0 0-1 0v1.44a3.5 3.5 0 0 0-3.06 3.5c0 1.7 1.23 3.18 2.95 3.45l.02.01a.5.5 0 0 0 .52-.85A2.51 2.51 0 0 1 5.56 8.44a2.5 2.5 0 0 1 1.94-2.44v3.5a1 1 0 1 0 1.5 0V3.5zM13.06 8.44a2.51 2.51 0 0 1-2.37 2.61.5.5 0 0 0 .52.85h.02a3.51 3.51 0 0 0 2.95-3.46 3.5 3.5 0 0 0-3.06-3.5V9.5a1 1 0 0 1-1.5 0V4.94a3.51 3.51 0 0 0-3.06 3.5c0 1.7 1.23 3.18 2.95 3.45a.5.5 0 0 0 .54-.85 2.51 2.51 0 0 1-2.37-2.61 2.5 2.5 0 0 1 1.94-2.44v7.51a1 1 0 1 0 2 0v-5c.17.03.35.05.53.05a3.5 3.5 0 0 0 3.5-3.5A3.5 3.5 0 0 0 8.5 4.94V3.5a.5.5 0 0 0-1 0v1.44a2.5 2.5 0 0 0-1.94 2.44c0 .36.08.7.22 1.01a.5.5 0 0 0 .5.27.5.5 0 0 0 .38-.43A1.5 1.5 0 0 1 8 6.94v7.07a2 2 0 0 0 4 0v-5c.15.03.3.05.46.05a.5.5 0 0 0 .5-.5.5.5 0 0 0-.46-.5c-.17-.02-.33-.05-.5-.05z"
+                            />
+                          </svg>
+                          <svg v-else viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                             <path
                               d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
                             />
@@ -653,13 +685,34 @@ onMounted(() => {
                         </svg>
                       </KxIconButton>
                     </KxTooltip>
-                    <KxTooltip :text="t('sessions.archive')">
+                    <KxTooltip
+                      :text="
+                        pendingDeleteSessionId === item.id
+                          ? t('sessions.confirmArchive')
+                          : t('sessions.archive')
+                      "
+                    >
                       <KxIconButton
-                        :label="t('sessions.archive')"
+                        :label="
+                          pendingDeleteSessionId === item.id
+                            ? t('sessions.confirmArchive')
+                            : t('sessions.archive')
+                        "
+                        :class="{ 'confirm-action': pendingDeleteSessionId === item.id }"
                         data-test="session-archive-btn"
                         @click.stop="requestDeleteSession(item.id)"
                       >
-                        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <svg
+                          v-if="pendingDeleteSessionId === item.id"
+                          viewBox="0 0 20 20"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M7.5 3a.5.5 0 0 1 .5.5v7.87a.5.5 0 0 1-.87.33L4.81 9.36a.75.75 0 1 1 1.02-1.1l.67.62V3.5a.5.5 0 0 1 .5-.5zM4.5 5a.5.5 0 0 1 .5.5v4.13a.5.5 0 0 1-.87.33L1.81 7.36a.75.75 0 0 1 1.02-1.1l.67.62V5.5a.5.5 0 0 1 .5-.5zM10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm0-1.5a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zm2.36-3.97a.75.75 0 0 1-1.06 1.06L9.74 12.03l-1.57 1.56a.75.75 0 1 1-1.06-1.06l1.56-1.57-1.56-1.56a.75.75 0 0 1 1.06-1.06l1.57 1.56 1.56-1.56a.75.75 0 1 1 1.06 1.06l-1.56 1.57 1.56 1.56z"
+                          />
+                        </svg>
+                        <svg v-else viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                           <path
                             d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
                           />
@@ -980,5 +1033,12 @@ html.dark .row-actions :deep(.kx-icon-button) svg {
   padding: 12px;
   color: var(--app-text-color-3);
   font-size: 13px;
+}
+
+.confirm-action {
+  color: var(--app-error-color, #d03050) !important;
+}
+.confirm-action:hover {
+  background: color-mix(in srgb, var(--app-error-color, #d03050) 16%, transparent) !important;
 }
 </style>

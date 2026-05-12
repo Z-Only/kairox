@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useUiStore, type ThemeMode, type SupportedLocale } from "@/stores/ui";
 import McpSettingsPane from "@/components/McpSettingsPane.vue";
+import ModelSettingsPane from "@/components/ModelSettingsPane.vue";
 import SkillSettingsPane from "@/components/SkillSettingsPane.vue";
 
 // Hoisted to module scope + `as const` so the option arrays are not rebuilt
@@ -23,7 +24,7 @@ const locales = [
 const { t } = useI18n();
 const ui = useUiStore();
 const { locale, colorMode } = storeToRefs(ui);
-const activeTab = ref<"general" | "mcp" | "skills">("general");
+const activeTab = ref<"general" | "mcp" | "skills" | "models">("general");
 const isThemeSelectFocused = ref(false);
 </script>
 
@@ -58,6 +59,15 @@ const isThemeSelectFocused = ref(false);
         @click="activeTab = 'skills'"
       >
         Skills
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
+        :aria-selected="activeTab === 'models'"
+        data-test="settings-tab-models"
+        @click="activeTab = 'models'"
+      >
+        {{ t("models.tabModels") }}
       </button>
     </div>
 
@@ -96,6 +106,7 @@ const isThemeSelectFocused = ref(false);
 
     <McpSettingsPane v-if="activeTab === 'mcp'" />
     <SkillSettingsPane v-if="activeTab === 'skills'" />
+    <ModelSettingsPane v-if="activeTab === 'models'" />
   </main>
 </template>
 

@@ -57,6 +57,8 @@ pub struct ProfileDef {
     pub supports_reasoning: Option<bool>,
     #[serde(default)]
     pub extra_params: Option<toml::Value>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
 }
 
 /// Metadata about a profile for UI display.
@@ -320,6 +322,7 @@ impl Config {
                     supports_vision: None,
                     supports_reasoning: None,
                     extra_params: None,
+                    enabled: true,
                 },
             ),
             (
@@ -342,6 +345,7 @@ impl Config {
                     supports_vision: None,
                     supports_reasoning: None,
                     extra_params: None,
+                    enabled: false,
                 },
             ),
         ];
@@ -369,6 +373,7 @@ impl Config {
                         supports_vision: None,
                         supports_reasoning: None,
                         extra_params: None,
+                        enabled: true,
                     },
                 ),
             );
@@ -389,7 +394,11 @@ impl Config {
 
     /// Get profile names in order.
     pub fn profile_names(&self) -> Vec<String> {
-        self.profiles.iter().map(|(name, _)| name.clone()).collect()
+        self.profiles
+            .iter()
+            .filter(|(_, def)| def.enabled)
+            .map(|(name, _)| name.clone())
+            .collect()
     }
 
     /// Get the default profile name (fast > local-code > first available).
@@ -409,6 +418,7 @@ impl Config {
     pub fn profile_info(&self) -> Vec<ProfileInfo> {
         self.profiles
             .iter()
+            .filter(|(_, def)| def.enabled)
             .map(|(alias, def)| {
                 let local = def.provider == "ollama" || def.provider == "fake";
                 let has_api_key = def.api_key.is_some()
@@ -455,7 +465,11 @@ mod tests {
         let config = Config::defaults();
         let names = config.profile_names();
         assert!(names.contains(&"fake".to_string()));
-        assert!(names.contains(&"local-code".to_string()));
+        // local-code is disabled by default; it is present in the raw
+        // profiles vec but hidden from profile_names().
+        assert!(!names.contains(&"local-code".to_string()));
+        let all_names: Vec<_> = config.profiles.iter().map(|(n, _)| n.clone()).collect();
+        assert!(all_names.contains(&"local-code".to_string()));
     }
 
     #[test]
@@ -476,7 +490,8 @@ mod tests {
     fn profile_names_returns_ordered_list() {
         let config = Config::defaults();
         let names = config.profile_names();
-        assert_eq!(names.len(), config.profiles.len());
+        let enabled_count = config.profiles.iter().filter(|(_, d)| d.enabled).count();
+        assert_eq!(names.len(), enabled_count);
     }
 
     #[test]
@@ -484,7 +499,8 @@ mod tests {
         let config = Config::defaults();
         let info = config.profile_info();
         assert!(info.iter().any(|p| p.alias == "fake" && p.local));
-        assert!(info.iter().any(|p| p.alias == "local-code" && p.local));
+        // local-code is disabled by default, so it's excluded from profile_info.
+        assert!(!info.iter().any(|p| p.alias == "local-code"));
     }
 
     #[test]

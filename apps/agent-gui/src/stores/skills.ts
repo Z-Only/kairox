@@ -317,6 +317,16 @@ export const useSkillsStore = defineStore("skills", () => {
     }
   }
 
+  function isCatalogSourceEnabled(id: string): boolean {
+    return catalogSources.value.some((s) => s.id === id && s.enabled);
+  }
+
+  async function toggleCatalogSource(id: string): Promise<void> {
+    const source = catalogSources.value.find((s) => s.id === id);
+    if (!source) return;
+    await setCatalogSourceEnabled(id, !source.enabled);
+  }
+
   async function setCatalogSourceEnabled(id: string, enabled: boolean): Promise<void> {
     error.value = null;
     try {
@@ -372,6 +382,8 @@ export const useSkillsStore = defineStore("skills", () => {
     loadCatalogSources,
     addCatalogSource,
     removeCatalogSource,
+    isCatalogSourceEnabled,
+    toggleCatalogSource,
     setCatalogSourceEnabled,
     refreshCatalog
   };

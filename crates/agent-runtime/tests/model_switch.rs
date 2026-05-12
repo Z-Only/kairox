@@ -59,6 +59,7 @@ fn two_profile_config() -> Arc<Config> {
         supports_vision: None,
         supports_reasoning: None,
         extra_params: None,
+        enabled: true,
     };
     let opus = ProfileDef {
         provider: "fake".into(),
@@ -78,6 +79,7 @@ fn two_profile_config() -> Arc<Config> {
         supports_vision: None,
         supports_reasoning: None,
         extra_params: None,
+        enabled: true,
     };
     Arc::new(Config {
         profiles: vec![("fast".into(), fast), ("opus".into(), opus)],

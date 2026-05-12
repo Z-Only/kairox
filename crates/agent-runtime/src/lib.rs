@@ -11,6 +11,7 @@ pub mod mcp_manager;
 pub mod mcp_settings;
 pub mod memory_handler;
 pub mod permission;
+pub mod profile_settings;
 pub mod project;
 pub mod session;
 pub mod skill_package;
