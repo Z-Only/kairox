@@ -105,7 +105,9 @@
     "cancelFailed": "取消失败：{error}",
     "model": "模型",
     "currentModel": "当前",
-    "selectModelAria": "选择模型。当前模型：{model}"
+    "selectModelAria": "选择模型。当前模型：{model}",
+    "attachFileAria": "附加文件",
+    "removeFileAria": "移除 {name}"
   },
   "context": {
     "title": "上下文",

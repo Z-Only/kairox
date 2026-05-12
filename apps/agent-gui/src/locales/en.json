@@ -105,7 +105,9 @@
     "cancelFailed": "Cancel failed: {error}",
     "model": "Model",
     "currentModel": "Current",
-    "selectModelAria": "Select model. Current model: {model}"
+    "selectModelAria": "Select model. Current model: {model}",
+    "attachFileAria": "Attach file",
+    "removeFileAria": "Remove {name}"
   },
   "context": {
     "title": "Context",

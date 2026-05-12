@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { formatProfileDisplay, useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
 import { useNotifications } from "@/composables/useNotifications";
@@ -14,6 +15,100 @@ const inputText = ref("");
 const scrollbar = ref<HTMLElement | null>(null);
 const modelPopoverOpen = ref(false);
 const switchingModel = ref(false);
+
+interface Attachment {
+  id: string;
+  path: string;
+  name: string;
+  mimeType: string;
+}
+const attachments = ref<Attachment[]>([]);
+
+function isImageMime(mimeType: string): boolean {
+  return mimeType.startsWith("image/");
+}
+
+function attachmentThumbnailSrc(att: Attachment): string {
+  return convertFileSrc(att.path);
+}
+
+function attachmentTypeLabel(mimeType: string): string {
+  const parts = mimeType.split("/");
+  if (parts.length < 2) return "FILE";
+  const subtype = parts[1].toUpperCase();
+  if (subtype.length <= 4) return subtype;
+  return subtype.slice(0, 4);
+}
+
+function truncateFilename(name: string, maxLen = 18): string {
+  if (name.length <= maxLen) return name;
+  const ext = name.lastIndexOf(".");
+  if (ext > 0) {
+    const base = name.slice(0, ext);
+    const suffix = name.slice(ext);
+    const available = maxLen - suffix.length - 1;
+    if (available > 4) return base.slice(0, available) + "…" + suffix;
+  }
+  return name.slice(0, maxLen - 1) + "…";
+}
+
+async function pickFiles() {
+  try {
+    const selected = await open({ multiple: true });
+    if (!selected) return;
+    const paths = Array.isArray(selected) ? selected : [selected];
+    for (const filePath of paths) {
+      if (!filePath) continue;
+      const name = (filePath as string).split(/[\\/]/).pop() || (filePath as string);
+      const ext = name.split(".").pop()?.toLowerCase() || "";
+      const mimeType = mimeFromExtension(ext);
+      attachments.value.push({
+        id: crypto.randomUUID(),
+        path: filePath as string,
+        name,
+        mimeType
+      });
+    }
+  } catch (e) {
+    console.error("File picker error:", e);
+  }
+}
+
+function mimeFromExtension(ext: string): string {
+  const map: Record<string, string> = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    bmp: "image/bmp",
+    pdf: "application/pdf",
+    txt: "text/plain",
+    md: "text/markdown",
+    rs: "text/x-rust",
+    py: "text/x-python",
+    ts: "text/typescript",
+    js: "text/javascript",
+    json: "application/json",
+    yaml: "application/x-yaml",
+    yml: "application/x-yaml",
+    toml: "application/toml",
+    html: "text/html",
+    css: "text/css",
+    csv: "text/csv",
+    xml: "application/xml",
+    sh: "application/x-sh",
+    bash: "application/x-sh",
+    zsh: "application/x-sh",
+    log: "text/plain"
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+function removeAttachment(id: string) {
+  attachments.value = attachments.value.filter((a) => a.id !== id);
+}
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -60,7 +155,9 @@ const projectInstructionSummaryText = computed(() => {
 });
 
 const modelOptions = computed<ProfileInfo[]>(() => session.profileInfos);
-const sendDisabled = computed(() => session.isStreaming || !inputText.value.trim());
+const sendDisabled = computed(
+  () => session.isStreaming || (!inputText.value.trim() && attachments.value.length === 0)
+);
 
 function getModelOptionDisplay(profile: ProfileInfo): string {
   return formatProfileDisplay(profile);
@@ -92,11 +189,24 @@ async function selectModelProfile(alias: string) {
 
 async function sendMessage() {
   const content = inputText.value.trim();
-  if (!content || session.isStreaming) return;
+  if ((!content && attachments.value.length === 0) || session.isStreaming) return;
+
+  const payload: {
+    content: string;
+    attachments: { path: string; name: string; mime_type: string }[];
+  } = {
+    content,
+    attachments: attachments.value.map((a) => ({
+      path: a.path,
+      name: a.name,
+      mime_type: a.mimeType
+    }))
+  };
 
   inputText.value = "";
+  attachments.value = [];
   try {
-    await invoke("send_message", { content });
+    await invoke("send_message", payload);
   } catch (e) {
     console.error("Failed to send message:", e);
     session.reportSendError(String(e));
@@ -270,7 +380,55 @@ watch(
           {{ sessionGitMeta.join(" · ") }}
         </span>
       </div>
+      <div v-if="attachments.length > 0" class="attachment-row" data-test="attachment-row">
+        <button
+          class="attach-btn attach-btn-inline"
+          type="button"
+          data-test="attach-file-btn"
+          :aria-label="t('chat.attachFileAria')"
+          :disabled="session.isStreaming"
+          @click="pickFiles"
+        >
+          +
+        </button>
+        <div
+          v-for="att in attachments"
+          :key="att.id"
+          class="attachment-chip"
+          data-test="attachment-chip"
+          :data-filename="att.name"
+        >
+          <img
+            v-if="isImageMime(att.mimeType)"
+            :src="attachmentThumbnailSrc(att)"
+            class="attachment-thumbnail"
+            :alt="att.name"
+          />
+          <span v-else class="attachment-type-badge">{{ attachmentTypeLabel(att.mimeType) }}</span>
+          <span class="attachment-name" :title="att.name">{{ truncateFilename(att.name) }}</span>
+          <button
+            class="attachment-remove"
+            type="button"
+            :aria-label="t('chat.removeFileAria', { name: att.name })"
+            data-test="attachment-remove"
+            @click="removeAttachment(att.id)"
+          >
+            &times;
+          </button>
+        </div>
+      </div>
       <div class="input-row">
+        <button
+          v-if="attachments.length === 0"
+          class="attach-btn"
+          type="button"
+          data-test="attach-file-btn"
+          :aria-label="t('chat.attachFileAria')"
+          :disabled="session.isStreaming"
+          @click="pickFiles"
+        >
+          +
+        </button>
         <textarea
           v-model="inputText"
           class="message-input"
@@ -583,5 +741,106 @@ watch(
 }
 .markdown-body :deep(p) {
   margin: 6px 0;
+}
+.attachment-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  background: var(--app-muted-surface-color, var(--app-card-color));
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 6px;
+  padding: 3px 6px 3px 3px;
+  max-width: 200px;
+}
+.attachment-thumbnail {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.attachment-type-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--app-primary-color) 16%, transparent);
+  color: var(--app-primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.attachment-name {
+  font-size: 12px;
+  color: var(--app-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.attachment-remove {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.attachment-remove:hover {
+  background: color-mix(in srgb, var(--app-error-color, #d03050) 16%, transparent);
+  color: var(--app-error-color, #d03050);
+}
+.attach-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px dashed var(--app-border-color, #d7d7d7);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.attach-btn:hover:not(:disabled) {
+  border-color: var(--app-primary-color);
+  color: var(--app-primary-color);
+  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+}
+.attach-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.attach-btn-inline {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
 }
 </style>
