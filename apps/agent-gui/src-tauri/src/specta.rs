@@ -5,9 +5,9 @@
 use crate::commands::*;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillInstallSource,
-    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
-    SkillUpdateState,
+    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry,
+    SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource, SkillInstallTarget,
+    SkillSettingsDetail, SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{
     ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage,
@@ -82,6 +82,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             install_remote_skill,
             install_github_skill,
             update_skill,
+            // Skill catalog commands
+            list_skill_catalog,
+            list_skill_sources,
+            add_skill_source,
+            remove_skill_source,
+            set_skill_source_enabled,
+            refresh_skill_catalog,
             // MCP commands
             list_mcp_servers,
             start_mcp_server,
@@ -145,6 +152,11 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<InstallRequestPayload>()
         .typ::<InstallOutcomeResponse>()
         .typ::<InstalledEntryResponse>()
+        // Skill catalog types
+        .typ::<SkillCatalogEntry>()
+        .typ::<SkillCatalogQuery>()
+        .typ::<SkillSourceView>()
+        .typ::<SkillFieldMappingView>()
         // Phase 2: catalog source types
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()

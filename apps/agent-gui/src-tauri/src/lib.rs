@@ -200,6 +200,13 @@ pub fn run() {
             crate::commands::install_remote_skill,
             crate::commands::install_github_skill,
             crate::commands::update_skill,
+            // Skill catalog commands
+            crate::commands::list_skill_catalog,
+            crate::commands::list_skill_sources,
+            crate::commands::add_skill_source,
+            crate::commands::remove_skill_source,
+            crate::commands::set_skill_source_enabled,
+            crate::commands::refresh_skill_catalog,
             // MCP commands
             crate::commands::list_mcp_servers,
             crate::commands::start_mcp_server,
