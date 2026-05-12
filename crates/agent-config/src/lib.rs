@@ -6,7 +6,7 @@ pub mod loader;
 use serde::{Deserialize, Serialize};
 
 pub use builder::{build_ollama_clients, build_router};
-pub use discovery::find_config;
+pub use discovery::{find_config, find_config_upward};
 pub use limits::resolve_limits;
 pub use loader::{
     default_catalog_sources, load_from_str, load_with_marketplace_loaded,
