@@ -7,9 +7,9 @@
 use agent_config::ProfileInfo;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillInstallSource,
-    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
-    SkillUpdateState,
+    McpServerSettingsTransport, McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry,
+    SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource, SkillInstallTarget,
+    SkillSettingsDetail, SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
@@ -94,6 +94,13 @@ fn main() {
             agent_gui_tauri::commands::install_remote_skill,
             agent_gui_tauri::commands::install_github_skill,
             agent_gui_tauri::commands::update_skill,
+            // Skill catalog commands
+            agent_gui_tauri::commands::list_skill_catalog,
+            agent_gui_tauri::commands::list_skill_sources,
+            agent_gui_tauri::commands::add_skill_source,
+            agent_gui_tauri::commands::remove_skill_source,
+            agent_gui_tauri::commands::set_skill_source_enabled,
+            agent_gui_tauri::commands::refresh_skill_catalog,
             // MCP commands
             agent_gui_tauri::commands::list_mcp_servers,
             agent_gui_tauri::commands::start_mcp_server,
@@ -144,6 +151,11 @@ fn main() {
         .typ::<SkillInstallTarget>()
         .typ::<InstallRemoteSkillRequest>()
         .typ::<InstallGithubSkillRequest>()
+        // Skill catalog types
+        .typ::<SkillCatalogEntry>()
+        .typ::<SkillCatalogQuery>()
+        .typ::<SkillSourceView>()
+        .typ::<SkillFieldMappingView>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()
