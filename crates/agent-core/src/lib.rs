@@ -17,8 +17,8 @@ pub use error::CoreError;
 pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassification};
 pub use facade::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
-    CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView, InstallRequest,
-    InstalledEntry, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind,
+    AttachmentInfo, CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView,
+    InstallRequest, InstalledEntry, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind,
     ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
     SendMessageRequest, ServerEntry, SessionMeta, SkillDetail, SkillView, StartSessionRequest,
     TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
