@@ -397,6 +397,8 @@ export type ProfileInfo = {
   model_id: string;
   local: boolean;
   has_api_key: boolean;
+  provider_display?: string;
+  model_display?: string;
 };
 
 export type ProfileWithLimits = {
