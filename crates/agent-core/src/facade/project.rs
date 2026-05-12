@@ -1,0 +1,159 @@
+//! Project management sub-trait — all methods provide default (no-op / error) implementations.
+
+use crate::{
+    ProjectGitStatus, ProjectId, ProjectInstructionSummary, ProjectMeta, SessionId, SessionMeta,
+    WorkspaceId,
+};
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait ProjectFacade: Send + Sync {
+    async fn list_projects(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<ProjectMeta>> {
+        let _ = workspace_id;
+        Ok(Vec::new())
+    }
+
+    async fn create_blank_project(
+        &self,
+        workspace_id: WorkspaceId,
+        display_name: Option<String>,
+    ) -> crate::Result<ProjectMeta> {
+        let _ = workspace_id;
+        let _ = display_name;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn add_existing_project(
+        &self,
+        workspace_id: WorkspaceId,
+        path: String,
+    ) -> crate::Result<ProjectMeta> {
+        let _ = workspace_id;
+        let _ = path;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn rename_project(
+        &self,
+        project_id: ProjectId,
+        display_name: String,
+    ) -> crate::Result<()> {
+        let _ = project_id;
+        let _ = display_name;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn remove_project(&self, project_id: ProjectId) -> crate::Result<()> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn restore_project_session(&self, session_id: SessionId) -> crate::Result<ProjectMeta> {
+        let _ = session_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn update_project_order(&self, project_ids: Vec<ProjectId>) -> crate::Result<()> {
+        let _ = project_ids;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn update_project_expanded(
+        &self,
+        project_id: ProjectId,
+        expanded: bool,
+    ) -> crate::Result<()> {
+        let _ = project_id;
+        let _ = expanded;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn create_project_draft_session(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<SessionId> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn create_project_worktree_session(
+        &self,
+        project_id: ProjectId,
+        branch_name: String,
+    ) -> crate::Result<SessionId> {
+        let _ = project_id;
+        let _ = branch_name;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn list_project_sessions(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<Vec<SessionMeta>> {
+        let _ = project_id;
+        Ok(Vec::new())
+    }
+
+    async fn list_archived_sessions(
+        &self,
+        workspace_id: &WorkspaceId,
+    ) -> crate::Result<Vec<SessionMeta>> {
+        let _ = workspace_id;
+        Ok(Vec::new())
+    }
+
+    async fn get_project_git_status(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<ProjectGitStatus> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn get_session_git_status(
+        &self,
+        session_id: SessionId,
+    ) -> crate::Result<ProjectGitStatus> {
+        let _ = session_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn init_project_git(&self, project_id: ProjectId) -> crate::Result<ProjectGitStatus> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+
+    async fn get_project_instruction_summary(
+        &self,
+        project_id: ProjectId,
+    ) -> crate::Result<ProjectInstructionSummary> {
+        let _ = project_id;
+        Err(crate::CoreError::InvalidState(
+            "project support is not implemented".into(),
+        ))
+    }
+}
