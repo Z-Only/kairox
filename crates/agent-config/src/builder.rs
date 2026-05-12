@@ -280,6 +280,15 @@ mod tests {
             context_window: Some(200_000),
             output_limit: Some(16_384),
             response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
         };
         let profile = build_profile("fast", &fast_def);
         assert_eq!(profile.alias, "fast");
@@ -295,6 +304,15 @@ mod tests {
             context_window: Some(128_000),
             output_limit: Some(16_384),
             response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
         };
         let profile = build_profile("local-code", &ollama_def);
         assert!(!profile.capabilities.tool_calling);

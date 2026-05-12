@@ -38,6 +38,25 @@ pub struct ProfileDef {
     /// Response text for the fake provider.
     #[serde(default)]
     pub response: Option<String>,
+    // -- new fields --
+    #[serde(default)]
+    pub max_tokens: Option<u64>,
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    #[serde(default)]
+    pub top_p: Option<f32>,
+    #[serde(default)]
+    pub top_k: Option<u32>,
+    #[serde(default)]
+    pub headers: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub supports_tools: Option<bool>,
+    #[serde(default)]
+    pub supports_vision: Option<bool>,
+    #[serde(default)]
+    pub supports_reasoning: Option<bool>,
+    #[serde(default)]
+    pub extra_params: Option<toml::Value>,
 }
 
 /// Metadata about a profile for UI display.
@@ -300,6 +319,15 @@ impl Config {
                     context_window: Some(4096),
                     output_limit: Some(2048),
                     response: Some("hello from Kairox".into()),
+                    max_tokens: None,
+                    temperature: None,
+                    top_p: None,
+                    top_k: None,
+                    headers: None,
+                    supports_tools: None,
+                    supports_vision: None,
+                    supports_reasoning: None,
+                    extra_params: None,
                 },
             ),
             (
@@ -313,6 +341,15 @@ impl Config {
                     context_window: Some(128_000),
                     output_limit: Some(16_384),
                     response: None,
+                    max_tokens: None,
+                    temperature: None,
+                    top_p: None,
+                    top_k: None,
+                    headers: None,
+                    supports_tools: None,
+                    supports_vision: None,
+                    supports_reasoning: None,
+                    extra_params: None,
                 },
             ),
         ];
@@ -331,6 +368,15 @@ impl Config {
                         context_window: Some(128_000),
                         output_limit: Some(16_384),
                         response: None,
+                        max_tokens: None,
+                        temperature: None,
+                        top_p: None,
+                        top_k: None,
+                        headers: None,
+                        supports_tools: None,
+                        supports_vision: None,
+                        supports_reasoning: None,
+                        extra_params: None,
                     },
                 ),
             );

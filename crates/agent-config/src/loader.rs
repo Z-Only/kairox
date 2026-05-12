@@ -30,6 +30,25 @@ struct ProfileToml {
     output_limit: Option<u64>,
     #[serde(default)]
     response: Option<String>,
+    // -- new fields --
+    #[serde(default)]
+    max_tokens: Option<u64>,
+    #[serde(default)]
+    temperature: Option<f32>,
+    #[serde(default)]
+    top_p: Option<f32>,
+    #[serde(default)]
+    top_k: Option<u32>,
+    #[serde(default)]
+    headers: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    supports_tools: Option<bool>,
+    #[serde(default)]
+    supports_vision: Option<bool>,
+    #[serde(default)]
+    supports_reasoning: Option<bool>,
+    #[serde(default)]
+    extra_params: Option<toml::Value>,
 }
 
 /// Parse a TOML string into a Config.
@@ -57,6 +76,15 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
             context_window: profile_toml.context_window,
             output_limit: profile_toml.output_limit,
             response: profile_toml.response,
+            max_tokens: profile_toml.max_tokens,
+            temperature: profile_toml.temperature,
+            top_p: profile_toml.top_p,
+            top_k: profile_toml.top_k,
+            headers: profile_toml.headers,
+            supports_tools: profile_toml.supports_tools,
+            supports_vision: profile_toml.supports_vision,
+            supports_reasoning: profile_toml.supports_reasoning,
+            extra_params: profile_toml.extra_params,
         };
 
         profiles.push((alias.clone(), profile_def));

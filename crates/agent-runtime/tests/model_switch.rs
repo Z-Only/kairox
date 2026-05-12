@@ -50,6 +50,15 @@ fn two_profile_config() -> Arc<Config> {
         context_window: None,
         output_limit: None,
         response: None,
+        max_tokens: None,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        headers: None,
+        supports_tools: None,
+        supports_vision: None,
+        supports_reasoning: None,
+        extra_params: None,
     };
     let opus = ProfileDef {
         provider: "fake".into(),
@@ -60,6 +69,15 @@ fn two_profile_config() -> Arc<Config> {
         context_window: None,
         output_limit: None,
         response: None,
+        max_tokens: None,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        headers: None,
+        supports_tools: None,
+        supports_vision: None,
+        supports_reasoning: None,
+        extra_params: None,
     };
     Arc::new(Config {
         profiles: vec![("fast".into(), fast), ("opus".into(), opus)],
