@@ -10,6 +10,9 @@ const busyAlias = ref<string | null>(null);
 const addDialogOpen = ref(false);
 const editDialogOpen = ref(false);
 const editingProfile = ref<ProfileSettingsView | null>(null);
+const sourceFilter = ref<string | null>(null);
+const advancedOpen = ref(false);
+const editAdvancedOpen = ref(false);
 const formAlias = ref("");
 const formProvider = ref("");
 const formModelId = ref("");
@@ -56,7 +59,7 @@ async function fetchProfiles(): Promise<void> {
   loading.value = true;
   error.value = null;
   try {
-    profiles.value = await unwrapCommandResult(commands.listProfileSettings());
+    profiles.value = await unwrapCommandResult(commands.listProfileSettings(sourceFilter.value));
   } catch (caughtError) {
     error.value = formatError(caughtError);
   } finally {
@@ -76,6 +79,8 @@ function resetForm(): void {
   formMaxTokens.value = "";
   formBaseUrl.value = "";
   formApiKeyEnv.value = "";
+  advancedOpen.value = false;
+  editAdvancedOpen.value = false;
 }
 
 function openAddDialog(): void {
@@ -101,6 +106,7 @@ function openEditDialog(profile: ProfileSettingsView): void {
   formMaxTokens.value = profile.max_tokens?.toString() ?? "";
   formBaseUrl.value = profile.base_url ?? "";
   formApiKeyEnv.value = profile.api_key_env ?? "";
+  editAdvancedOpen.value = false;
   editDialogOpen.value = true;
 }
 
@@ -215,18 +221,29 @@ async function deleteProfile(profile: ProfileSettingsView): Promise<void> {
   }
 }
 
-function sourceLabel(source: string): string {
-  switch (source) {
-    case "defaults":
-      return t("models.sourceDefaults");
-    case "profiles_toml":
-      return t("models.sourceProfilesToml");
-    case "user_config":
-      return t("models.sourceUserConfig");
-    case "project_config":
-      return t("models.sourceProjectConfig");
-    default:
-      return source;
+function changeSourceFilter(value: string): void {
+  sourceFilter.value = value || null;
+  void fetchProfiles();
+}
+
+async function moveProfile(alias: string, direction: number): Promise<void> {
+  busyAlias.value = alias;
+  error.value = null;
+  try {
+    await unwrapCommandResult(commands.moveProfileInOrder(alias, direction));
+    await fetchProfiles();
+  } catch (caughtError) {
+    error.value = formatError(caughtError);
+  } finally {
+    busyAlias.value = null;
+  }
+}
+
+async function openConfigDir(): Promise<void> {
+  try {
+    await unwrapCommandResult(commands.openConfigDir());
+  } catch (caughtError) {
+    error.value = formatError(caughtError);
   }
 }
 </script>
@@ -237,24 +254,45 @@ function sourceLabel(source: string): string {
       {{ error }}
     </p>
 
-    <div class="mcp-toolbar">
-      <button
-        class="btn"
-        type="button"
-        :disabled="loading"
-        data-test="model-refresh"
-        @click="fetchProfiles()"
-      >
-        {{ loading ? t("common.loading") : t("common.refresh") }}
-      </button>
-      <button
-        class="btn btn-primary"
-        type="button"
-        data-test="model-add-profile"
-        @click="openAddDialog()"
-      >
-        {{ t("models.addProfile") }}
-      </button>
+    <div class="model-toolbar">
+      <div class="model-toolbar__left">
+        <select
+          v-model="sourceFilter"
+          class="model-source-select"
+          data-test="model-source-filter"
+          @change="changeSourceFilter(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">{{ t("models.showUserConfig") }}</option>
+          <option value="project">{{ t("models.showProjectConfig") }}</option>
+        </select>
+      </div>
+      <div class="model-toolbar__actions">
+        <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="loading"
+          data-test="model-refresh"
+          @click="fetchProfiles()"
+        >
+          {{ loading ? t("common.loading") : t("common.refresh") }}
+        </button>
+        <button
+          class="btn btn-sm btn-primary"
+          type="button"
+          data-test="model-add-profile"
+          @click="openAddDialog()"
+        >
+          {{ t("models.addProfile") }}
+        </button>
+        <button
+          class="btn btn-sm"
+          type="button"
+          data-test="model-open-config-dir"
+          @click="openConfigDir()"
+        >
+          {{ t("models.openConfigDir") }}
+        </button>
+      </div>
     </div>
 
     <p v-if="loading" class="alert alert-info" role="status">
@@ -266,7 +304,7 @@ function sourceLabel(source: string): string {
 
     <div v-else class="model-settings__list" role="list" aria-label="Configured model profiles">
       <article
-        v-for="profile in profiles"
+        v-for="(profile, index) in profiles"
         :key="profile.alias"
         class="card model-settings__profile"
         role="listitem"
@@ -292,11 +330,32 @@ function sourceLabel(source: string): string {
               <span v-if="profile.temperature != null" class="tag">
                 {{ t("models.temperature") }}: {{ profile.temperature }}
               </span>
-              <span class="tag tag-muted">{{ sourceLabel(profile.source) }}</span>
             </div>
           </div>
 
-          <div class="mcp-settings__actions" aria-label="Profile actions">
+          <div class="model-settings__actions" aria-label="Profile actions">
+            <div class="model-settings__reorder">
+              <button
+                class="btn btn-sm btn-icon"
+                type="button"
+                :disabled="busyAlias === profile.alias || index === 0"
+                :data-test="`model-move-up-${profile.alias}`"
+                :title="t('models.moveUp')"
+                @click="moveProfile(profile.alias, -1)"
+              >
+                ▲
+              </button>
+              <button
+                class="btn btn-sm btn-icon"
+                type="button"
+                :disabled="busyAlias === profile.alias || index === profiles.length - 1"
+                :data-test="`model-move-down-${profile.alias}`"
+                :title="t('models.moveDown')"
+                @click="moveProfile(profile.alias, 1)"
+              >
+                ▼
+              </button>
+            </div>
             <button
               class="btn btn-sm"
               type="button"
@@ -338,90 +397,126 @@ function sourceLabel(source: string): string {
       data-test="model-add-dialog"
       @close="closeAddDialog"
     >
-      <form class="mcp-settings__form" data-test="model-add-form" @submit.prevent="saveNewProfile">
-        <label for="model-add-alias">{{ t("models.alias") }}</label>
-        <input id="model-add-alias" v-model="formAlias" data-test="model-form-alias" required />
+      <form class="model-form" data-test="model-add-form" @submit.prevent="saveNewProfile">
+        <fieldset class="model-form__section">
+          <legend>{{ t("models.basicOptions") }}</legend>
+          <div class="model-form__grid model-form__grid--2col">
+            <label>
+              <span>{{ t("models.alias") }} *</span>
+              <input
+                id="model-add-alias"
+                v-model="formAlias"
+                data-test="model-form-alias"
+                required
+              />
+            </label>
+            <label>
+              <span>{{ t("models.provider") }} *</span>
+              <input
+                id="model-add-provider"
+                v-model="formProvider"
+                data-test="model-form-provider"
+                required
+              />
+            </label>
+          </div>
+          <label>
+            <span>{{ t("models.modelId") }} *</span>
+            <input
+              id="model-add-model-id"
+              v-model="formModelId"
+              data-test="model-form-model-id"
+              required
+            />
+          </label>
+        </fieldset>
 
-        <label for="model-add-provider">{{ t("models.provider") }}</label>
-        <input
-          id="model-add-provider"
-          v-model="formProvider"
-          data-test="model-form-provider"
-          required
-        />
+        <fieldset class="model-form__section">
+          <legend>{{ t("models.connectionOptions") }}</legend>
+          <label>
+            <span>{{ t("models.baseUrl") }}</span>
+            <input id="model-add-base-url" v-model="formBaseUrl" data-test="model-form-base-url" />
+          </label>
+          <label>
+            <span>{{ t("models.apiKeyEnv") }}</span>
+            <input
+              id="model-add-api-key-env"
+              v-model="formApiKeyEnv"
+              data-test="model-form-api-key-env"
+            />
+          </label>
+        </fieldset>
 
-        <label for="model-add-model-id">{{ t("models.modelId") }}</label>
-        <input
-          id="model-add-model-id"
-          v-model="formModelId"
-          data-test="model-form-model-id"
-          required
-        />
-
-        <label for="model-add-base-url">{{ t("models.baseUrl") }}</label>
-        <input id="model-add-base-url" v-model="formBaseUrl" data-test="model-form-base-url" />
-
-        <label for="model-add-api-key-env">{{ t("models.apiKeyEnv") }}</label>
-        <input
-          id="model-add-api-key-env"
-          v-model="formApiKeyEnv"
-          data-test="model-form-api-key-env"
-        />
-
-        <label for="model-add-ctx">{{ t("models.contextWindow") }}</label>
-        <input
-          id="model-add-ctx"
-          v-model="formContextWindow"
-          type="number"
-          data-test="model-form-ctx"
-        />
-
-        <label for="model-add-out">{{ t("models.outputLimit") }}</label>
-        <input
-          id="model-add-out"
-          v-model="formOutputLimit"
-          type="number"
-          data-test="model-form-out"
-        />
-
-        <label for="model-add-temp">{{ t("models.temperature") }}</label>
-        <input
-          id="model-add-temp"
-          v-model="formTemperature"
-          type="number"
-          step="0.1"
-          min="0"
-          max="2"
-          data-test="model-form-temp"
-        />
-
-        <label for="model-add-top-p">{{ t("models.topP") }}</label>
-        <input
-          id="model-add-top-p"
-          v-model="formTopP"
-          type="number"
-          step="0.1"
-          min="0"
-          max="1"
-          data-test="model-form-top-p"
-        />
-
-        <label for="model-add-top-k">{{ t("models.topK") }}</label>
-        <input
-          id="model-add-top-k"
-          v-model="formTopK"
-          type="number"
-          min="0"
-          data-test="model-form-top-k"
-        />
-
-        <label for="model-add-max-tokens">{{ t("models.maxTokens") }}</label>
-        <input
-          id="model-add-max-tokens"
-          v-model="formMaxTokens"
-          type="number"
-          data-test="model-form-max-tokens"
-        />
+        <fieldset class="model-form__section">
+          <legend>
+            <button type="button" class="model-form__toggle" @click="advancedOpen = !advancedOpen">
+              {{ advancedOpen ? "▾" : "▸" }} {{ t("models.advancedOptions") }}
+            </button>
+          </legend>
+          <div v-if="advancedOpen" class="model-form__grid model-form__grid--3col">
+            <label>
+              <span>{{ t("models.contextWindow") }}</span>
+              <input
+                id="model-add-ctx"
+                v-model="formContextWindow"
+                type="number"
+                data-test="model-form-ctx"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.outputLimit") }}</span>
+              <input
+                id="model-add-out"
+                v-model="formOutputLimit"
+                type="number"
+                data-test="model-form-out"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.temperature") }}</span>
+              <input
+                id="model-add-temp"
+                v-model="formTemperature"
+                type="number"
+                step="0.1"
+                min="0"
+                max="2"
+                data-test="model-form-temp"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.topP") }}</span>
+              <input
+                id="model-add-top-p"
+                v-model="formTopP"
+                type="number"
+                step="0.1"
+                min="0"
+                max="1"
+                data-test="model-form-top-p"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.topK") }}</span>
+              <input
+                id="model-add-top-k"
+                v-model="formTopK"
+                type="number"
+                min="0"
+                data-test="model-form-top-k"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.maxTokens") }}</span>
+              <input
+                id="model-add-max-tokens"
+                v-model="formMaxTokens"
+                type="number"
+                data-test="model-form-max-tokens"
+              />
+            </label>
+          </div>
+        </fieldset>
       </form>
 
       <template #footer>
@@ -448,94 +543,130 @@ function sourceLabel(source: string): string {
       data-test="model-edit-dialog"
       @close="closeEditDialog"
     >
-      <form
-        class="mcp-settings__form"
-        data-test="model-edit-form"
-        @submit.prevent="saveEditProfile"
-      >
-        <label for="model-edit-alias">{{ t("models.alias") }}</label>
-        <input id="model-edit-alias" v-model="formAlias" data-test="model-edit-alias" readonly />
+      <form class="model-form" data-test="model-edit-form" @submit.prevent="saveEditProfile">
+        <fieldset class="model-form__section">
+          <legend>{{ t("models.basicOptions") }}</legend>
+          <div class="model-form__grid model-form__grid--2col">
+            <label>
+              <span>{{ t("models.alias") }}</span>
+              <input
+                id="model-edit-alias"
+                v-model="formAlias"
+                data-test="model-edit-alias"
+                readonly
+              />
+            </label>
+            <label>
+              <span>{{ t("models.provider") }} *</span>
+              <input
+                id="model-edit-provider"
+                v-model="formProvider"
+                data-test="model-edit-provider"
+                required
+              />
+            </label>
+          </div>
+          <label>
+            <span>{{ t("models.modelId") }} *</span>
+            <input
+              id="model-edit-model-id"
+              v-model="formModelId"
+              data-test="model-edit-model-id"
+              required
+            />
+          </label>
+        </fieldset>
 
-        <label for="model-edit-provider">{{ t("models.provider") }}</label>
-        <input
-          id="model-edit-provider"
-          v-model="formProvider"
-          data-test="model-edit-provider"
-          required
-        />
+        <fieldset class="model-form__section">
+          <legend>{{ t("models.connectionOptions") }}</legend>
+          <label>
+            <span>{{ t("models.baseUrl") }}</span>
+            <input id="model-edit-base-url" v-model="formBaseUrl" data-test="model-edit-base-url" />
+          </label>
+          <label>
+            <span>{{ t("models.apiKeyEnv") }}</span>
+            <input
+              id="model-edit-api-key-env"
+              v-model="formApiKeyEnv"
+              data-test="model-edit-api-key-env"
+            />
+          </label>
+        </fieldset>
 
-        <label for="model-edit-model-id">{{ t("models.modelId") }}</label>
-        <input
-          id="model-edit-model-id"
-          v-model="formModelId"
-          data-test="model-edit-model-id"
-          required
-        />
-
-        <label for="model-edit-base-url">{{ t("models.baseUrl") }}</label>
-        <input id="model-edit-base-url" v-model="formBaseUrl" data-test="model-edit-base-url" />
-
-        <label for="model-edit-api-key-env">{{ t("models.apiKeyEnv") }}</label>
-        <input
-          id="model-edit-api-key-env"
-          v-model="formApiKeyEnv"
-          data-test="model-edit-api-key-env"
-        />
-
-        <label for="model-edit-ctx">{{ t("models.contextWindow") }}</label>
-        <input
-          id="model-edit-ctx"
-          v-model="formContextWindow"
-          type="number"
-          data-test="model-edit-ctx"
-        />
-
-        <label for="model-edit-out">{{ t("models.outputLimit") }}</label>
-        <input
-          id="model-edit-out"
-          v-model="formOutputLimit"
-          type="number"
-          data-test="model-edit-out"
-        />
-
-        <label for="model-edit-temp">{{ t("models.temperature") }}</label>
-        <input
-          id="model-edit-temp"
-          v-model="formTemperature"
-          type="number"
-          step="0.1"
-          min="0"
-          max="2"
-          data-test="model-edit-temp"
-        />
-
-        <label for="model-edit-top-p">{{ t("models.topP") }}</label>
-        <input
-          id="model-edit-top-p"
-          v-model="formTopP"
-          type="number"
-          step="0.1"
-          min="0"
-          max="1"
-          data-test="model-edit-top-p"
-        />
-
-        <label for="model-edit-top-k">{{ t("models.topK") }}</label>
-        <input
-          id="model-edit-top-k"
-          v-model="formTopK"
-          type="number"
-          min="0"
-          data-test="model-edit-top-k"
-        />
-
-        <label for="model-edit-max-tokens">{{ t("models.maxTokens") }}</label>
-        <input
-          id="model-edit-max-tokens"
-          v-model="formMaxTokens"
-          type="number"
-          data-test="model-edit-max-tokens"
-        />
+        <fieldset class="model-form__section">
+          <legend>
+            <button
+              type="button"
+              class="model-form__toggle"
+              @click="editAdvancedOpen = !editAdvancedOpen"
+            >
+              {{ editAdvancedOpen ? "▾" : "▸" }} {{ t("models.advancedOptions") }}
+            </button>
+          </legend>
+          <div v-if="editAdvancedOpen" class="model-form__grid model-form__grid--3col">
+            <label>
+              <span>{{ t("models.contextWindow") }}</span>
+              <input
+                id="model-edit-ctx"
+                v-model="formContextWindow"
+                type="number"
+                data-test="model-edit-ctx"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.outputLimit") }}</span>
+              <input
+                id="model-edit-out"
+                v-model="formOutputLimit"
+                type="number"
+                data-test="model-edit-out"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.temperature") }}</span>
+              <input
+                id="model-edit-temp"
+                v-model="formTemperature"
+                type="number"
+                step="0.1"
+                min="0"
+                max="2"
+                data-test="model-edit-temp"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.topP") }}</span>
+              <input
+                id="model-edit-top-p"
+                v-model="formTopP"
+                type="number"
+                step="0.1"
+                min="0"
+                max="1"
+                data-test="model-edit-top-p"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.topK") }}</span>
+              <input
+                id="model-edit-top-k"
+                v-model="formTopK"
+                type="number"
+                min="0"
+                data-test="model-edit-top-k"
+              />
+            </label>
+            <label>
+              <span>{{ t("models.maxTokens") }}</span>
+              <input
+                id="model-edit-max-tokens"
+                v-model="formMaxTokens"
+                type="number"
+                data-test="model-edit-max-tokens"
+              />
+            </label>
+          </div>
+        </fieldset>
       </form>
 
       <template #footer>
@@ -563,6 +694,34 @@ function sourceLabel(source: string): string {
   gap: 16px;
 }
 
+.model-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.model-toolbar__left {
+  display: flex;
+  align-items: center;
+}
+
+.model-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-source-select {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
 .model-settings__list {
   display: grid;
   gap: 12px;
@@ -579,13 +738,102 @@ function sourceLabel(source: string): string {
   min-width: 0;
   display: grid;
   gap: 8px;
+  flex: 1;
 }
 
 .model-settings__profile h3 {
   margin: 0 0 4px;
 }
 
-.tag-muted {
-  opacity: 0.65;
+.model-settings__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.model-settings__reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.btn-icon {
+  padding: 2px 6px;
+  line-height: 1;
+  font-size: 0.7rem;
+}
+
+/* Form styles */
+.model-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.model-form__section {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.model-form__section legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  width: 100%;
+}
+
+.model-form__toggle {
+  all: unset;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.model-form__toggle:hover {
+  color: var(--color-text);
+}
+
+.model-form__grid {
+  display: grid;
+  gap: 8px;
+}
+
+.model-form__grid--2col {
+  grid-template-columns: 1fr 1fr;
+}
+
+.model-form__grid--3col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.model-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-form label > span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.model-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
+.model-form input:focus {
+  border-color: var(--color-primary);
+  outline: none;
 }
 </style>

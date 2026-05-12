@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use agent_config::Config;
+use agent_config::{Config, ProfileDef};
 use agent_core::facade::{ProfileSettingsInput, ProfileSettingsView};
 use agent_core::CoreError;
 use toml_edit::{value, DocumentMut, Item, Table};
@@ -37,6 +37,7 @@ pub async fn list_profile_settings(
     profiles_toml_path: Option<&Path>,
     user_config_path: Option<&Path>,
     project_config_path: Option<&Path>,
+    source_filter: Option<&str>,
 ) -> agent_core::Result<Vec<ProfileSettingsView>> {
     let mut rows: BTreeMap<String, ProfileSettingsRow> = BTreeMap::new();
 
@@ -80,22 +81,30 @@ pub async fn list_profile_settings(
     }
 
     // Layer 3: user config.toml overrides profiles.toml
-    if let Some(path) = user_config_path {
-        if path.exists() {
-            if let Some(file_rows) = rows_from_config_toml(path, "user_config", false).await? {
-                for (alias, row) in file_rows {
-                    rows.insert(alias, row);
+    // (skip when source_filter == "project")
+    if source_filter != Some("project") {
+        if let Some(path) = user_config_path {
+            if path.exists() {
+                if let Some(file_rows) = rows_from_config_toml(path, "user_config", false).await? {
+                    for (alias, row) in file_rows {
+                        rows.insert(alias, row);
+                    }
                 }
             }
         }
     }
 
     // Layer 4: project config.toml overrides everything (highest priority)
-    if let Some(path) = project_config_path {
-        if path.exists() {
-            if let Some(file_rows) = rows_from_config_toml(path, "project_config", false).await? {
-                for (alias, row) in file_rows {
-                    rows.insert(alias, row);
+    // (skip when source_filter == "user")
+    if source_filter != Some("user") {
+        if let Some(path) = project_config_path {
+            if path.exists() {
+                if let Some(file_rows) =
+                    rows_from_config_toml(path, "project_config", false).await?
+                {
+                    for (alias, row) in file_rows {
+                        rows.insert(alias, row);
+                    }
                 }
             }
         }
@@ -104,16 +113,10 @@ pub async fn list_profile_settings(
     let mut views: Vec<ProfileSettingsView> = rows
         .into_iter()
         .map(|(alias, row)| {
-            let has_api_key = config
-                .get_profile(&alias)
-                .map(|def| {
-                    def.api_key.is_some()
-                        || def
-                            .api_key_env
-                            .as_ref()
-                            .is_some_and(|v| std::env::var(v).is_ok())
-                })
-                .unwrap_or(false);
+            let has_api_key = row
+                .api_key_env
+                .as_ref()
+                .is_some_and(|v| std::env::var(v).is_ok());
             ProfileSettingsView {
                 alias: alias.clone(),
                 provider: row.provider,
@@ -133,9 +136,20 @@ pub async fn list_profile_settings(
                 source: row.source,
             }
         })
+        .filter(|view| view.source != "defaults" || view.enabled)
         .collect();
 
-    views.sort_by(|a, b| a.alias.cmp(&b.alias));
+    let mut display_order: Vec<String> = Vec::new();
+    if let Some(path) = profiles_toml_path {
+        if path.exists() {
+            if let Ok(raw) = tokio::fs::read_to_string(path).await {
+                if let Ok(doc) = raw.parse::<DocumentMut>() {
+                    display_order = load_display_order(&doc);
+                }
+            }
+        }
+    }
+    sort_by_display_order(&mut views, &display_order);
     Ok(views)
 }
 
@@ -231,10 +245,118 @@ pub async fn set_profile_enabled_in_file(
     config_path: &Path,
     alias: &str,
     enabled: bool,
+    config: &Config,
 ) -> agent_core::Result<()> {
     mutate_profiles_config(config_path, |document| {
+        // If the profile doesn't exist yet in profiles.toml, seed it with
+        // the full definition from the merged Config so we don't override
+        // defaults with an empty table.
+        let exists_in_file = document["profiles"]
+            .as_table()
+            .map(|t| t.contains_key(alias))
+            .unwrap_or(false);
+        if !exists_in_file {
+            if let Some(def) = config.get_profile(alias) {
+                let table = ensure_profile_table(document, alias);
+                seed_profile_table(table, def);
+            }
+        }
         let profile_table = ensure_profile_table(document, alias);
         profile_table["enabled"] = value(enabled);
+        Ok(())
+    })
+    .await
+}
+
+fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
+    table["provider"] = value(def.provider.clone());
+    table["model_id"] = value(def.model_id.clone());
+    table["enabled"] = value(def.enabled);
+    if let Some(v) = def.context_window {
+        table["context_window"] = value(v as i64);
+    }
+    if let Some(v) = def.output_limit {
+        table["output_limit"] = value(v as i64);
+    }
+    if let Some(v) = def.temperature {
+        table["temperature"] = value(v as f64);
+    }
+    if let Some(v) = def.top_p {
+        table["top_p"] = value(v as f64);
+    }
+    if let Some(v) = def.top_k {
+        table["top_k"] = value(v as i64);
+    }
+    if let Some(v) = def.max_tokens {
+        table["max_tokens"] = value(v as i64);
+    }
+    if let Some(ref v) = def.base_url {
+        if !v.is_empty() {
+            table["base_url"] = value(v.clone());
+        }
+    }
+    if let Some(ref v) = def.api_key_env {
+        if !v.is_empty() {
+            table["api_key_env"] = value(v.clone());
+        }
+    }
+}
+
+// -- display ordering helpers --
+
+fn load_display_order(document: &DocumentMut) -> Vec<String> {
+    document
+        .get("display_order")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn save_display_order(document: &mut DocumentMut, order: &[String]) {
+    let array =
+        toml_edit::Array::from_iter(order.iter().map(|s| toml_edit::Value::from(s.clone())));
+    document["display_order"] = toml_edit::Item::Value(toml_edit::Value::Array(array));
+}
+
+fn sort_by_display_order(views: &mut [ProfileSettingsView], display_order: &[String]) {
+    views.sort_by(|a, b| {
+        let pos_a = display_order.iter().position(|s| s == &a.alias);
+        let pos_b = display_order.iter().position(|s| s == &b.alias);
+        match (pos_a, pos_b) {
+            (Some(pa), Some(pb)) => pa.cmp(&pb),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.alias.cmp(&b.alias),
+        }
+    });
+}
+
+pub async fn move_profile_in_order(
+    config_path: &Path,
+    alias: &str,
+    direction: i32, // -1 for up, +1 for down
+) -> agent_core::Result<()> {
+    mutate_profiles_config(config_path, |document| {
+        let mut order = load_display_order(document);
+        if let Some(pos) = order.iter().position(|s| s == alias) {
+            let new_pos = if direction < 0 {
+                pos.saturating_sub(1)
+            } else {
+                (pos + 1).min(order.len().saturating_sub(1))
+            };
+            if new_pos != pos {
+                order.swap(pos, new_pos);
+                save_display_order(document, &order);
+            }
+        } else {
+            // Profile not in order yet — add it at the end
+            order.push(alias.to_string());
+            save_display_order(document, &order);
+        }
         Ok(())
     })
     .await
@@ -447,8 +569,9 @@ mod tests {
         let config_path = write_profiles_config_fixture(
             "[profiles.fast]\nprovider = \"openai_compatible\"\nmodel_id = \"gpt-4.1-mini\"\nenabled = true\n",
         );
+        let config = Config::defaults();
 
-        set_profile_enabled_in_file(&config_path, "fast", false)
+        set_profile_enabled_in_file(&config_path, "fast", false, &config)
             .await
             .expect("profile should be disabled");
 

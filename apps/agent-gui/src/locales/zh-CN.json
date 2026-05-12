@@ -291,7 +291,16 @@
     "sourceDefaults": "默认",
     "sourceProfilesToml": "profiles.toml",
     "sourceUserConfig": "用户配置",
-    "sourceProjectConfig": "项目配置"
+    "sourceProjectConfig": "项目配置",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "sortAlpha": "按字母排序",
+    "showUserConfig": "用户配置",
+    "showProjectConfig": "项目配置",
+    "openConfigDir": "打开配置目录",
+    "advancedOptions": "高级选项",
+    "basicOptions": "基本",
+    "connectionOptions": "连接"
   },
   "trace": {
     "tabTrace": "追踪",

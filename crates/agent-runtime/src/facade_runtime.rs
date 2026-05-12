@@ -1249,7 +1249,10 @@ where
         )
     }
 
-    async fn list_profile_settings(&self) -> agent_core::Result<Vec<ProfileSettingsView>> {
+    async fn list_profile_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> agent_core::Result<Vec<ProfileSettingsView>> {
         let profiles_toml_path = crate::profile_settings::writable_profiles_config_path(
             self.marketplace_dir.as_deref(),
         )?;
@@ -1266,6 +1269,7 @@ where
             profiles_toml_path.as_deref(),
             user_config_path.as_deref(),
             project_config_path.as_deref(),
+            source_filter.as_deref(),
         )
         .await
     }
@@ -1294,7 +1298,13 @@ where
                 "config dir not configured; cannot write profile settings".into(),
             )
         })?;
-        crate::profile_settings::set_profile_enabled_in_file(&config_path, &alias, enabled).await
+        crate::profile_settings::set_profile_enabled_in_file(
+            &config_path,
+            &alias,
+            enabled,
+            &self.config,
+        )
+        .await
     }
 
     async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {
@@ -1307,6 +1317,25 @@ where
             )
         })?;
         crate::profile_settings::delete_profile_in_file(&config_path, &alias).await
+    }
+
+    async fn move_profile_in_order(&self, alias: String, direction: i32) -> agent_core::Result<()> {
+        let config_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(
+                "config dir not configured; cannot reorder profiles".into(),
+            )
+        })?;
+        crate::profile_settings::move_profile_in_order(&config_path, &alias, direction).await
+    }
+
+    async fn open_config_dir(&self) -> agent_core::Result<Option<String>> {
+        Ok(self
+            .marketplace_dir
+            .as_ref()
+            .map(|p| p.display().to_string()))
     }
 
     async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {

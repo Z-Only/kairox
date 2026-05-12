@@ -92,6 +92,8 @@ fn main() {
             agent_gui_tauri::commands::upsert_profile_settings,
             agent_gui_tauri::commands::set_profile_enabled,
             agent_gui_tauri::commands::delete_profile_settings,
+            agent_gui_tauri::commands::move_profile_in_order,
+            agent_gui_tauri::commands::open_config_dir,
             agent_gui_tauri::commands::list_skill_settings,
             agent_gui_tauri::commands::get_skill_settings_detail,
             agent_gui_tauri::commands::set_skill_enabled,

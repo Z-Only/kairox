@@ -1215,10 +1215,11 @@ pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<S
 #[specta::specta]
 pub async fn list_profile_settings(
     state: State<'_, GuiState>,
+    source_filter: Option<String>,
 ) -> Result<Vec<ProfileSettingsView>, String> {
     state
         .runtime
-        .list_profile_settings()
+        .list_profile_settings(source_filter)
         .await
         .map_err(|error| error.to_string())
 }
@@ -1267,6 +1268,37 @@ pub async fn delete_profile_settings(
         .map_err(|error| error.to_string())?;
     state.refresh_config()?;
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn move_profile_in_order(
+    state: State<'_, GuiState>,
+    alias: String,
+    direction: i32,
+) -> Result<(), String> {
+    state
+        .runtime
+        .move_profile_in_order(alias, direction)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_config_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+    let Some(config_dir) = state
+        .runtime
+        .open_config_dir()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    let config_dir = std::path::PathBuf::from(config_dir);
+    open_path_in_system_file_manager(&config_dir)?;
+    Ok(Some(config_dir.display().to_string()))
 }
 
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
