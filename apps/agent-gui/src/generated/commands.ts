@@ -14,8 +14,8 @@ export const commands = {
     typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
   startSession: (profile: string) =>
     typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
-  sendMessage: (content: string) =>
-    typedError<null, string>(__TAURI_INVOKE("send_message", { content })),
+  sendMessage: (content: string, attachments: AttachmentInfo[]) =>
+    typedError<null, string>(__TAURI_INVOKE("send_message", { content, attachments })),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
   listProjects: () => typedError<ProjectInfoResponse[], string>(__TAURI_INVOKE("list_projects")),
   createBlankProject: (displayName: string | null) =>
@@ -230,6 +230,16 @@ export type AddCatalogSourceRequestPayload = {
   default_trust: string | null;
   enabled: boolean | null;
   cache_ttl_seconds: number | null;
+};
+
+// Metadata for a file attached to a user message.
+export type AttachmentInfo = {
+  // Absolute filesystem path.
+  path: string;
+  // Display filename.
+  name: string;
+  // MIME type (e.g. "image/png", "application/pdf").
+  mime_type: string;
 };
 
 export type BuildInfoResponse = {

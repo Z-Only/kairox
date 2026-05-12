@@ -35,7 +35,15 @@
     "*.{json,md}": [
       "oxfmt --write"
     ],
-    "apps/agent-gui/**/*.{ts,tsx,js,jsx,vue}": [
+    "apps/agent-gui/*.{ts,tsx,js,jsx,vue}": [
+      "oxfmt --write",
+      "oxlint --fix"
+    ],
+    "apps/agent-gui/e2e/**/*.{ts,tsx,js,jsx,vue}": [
+      "oxfmt --write",
+      "oxlint --fix"
+    ],
+    "apps/agent-gui/src/!(generated)/**/*.{ts,tsx,js,jsx,vue}": [
       "oxfmt --write",
       "oxlint --fix"
     ],
