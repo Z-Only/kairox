@@ -2,7 +2,6 @@
 //!
 //! Adapts the skills.sh API (`/api/search`) to [`SkillCatalogEntry`].
 
-use crate::catalog::remote::http_cache::{CachedResponse, HttpResponseCache};
 use crate::catalog::remote::http_client::{GetOpts, SharedHttpClient};
 use crate::catalog::skills::remote::RemoteSkillSourceConfig;
 use crate::catalog::skills::{
@@ -11,8 +10,9 @@ use crate::catalog::skills::{
 };
 use async_trait::async_trait;
 use serde::Deserialize;
-use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::time::Instant;
+use tokio::sync::Mutex;
 
 const DEFAULT_TTL_SECONDS: u64 = 900;
 
@@ -34,19 +34,24 @@ struct SkillsShItem {
     skill_id: Option<String>,
 }
 
+struct CacheEntry {
+    entries: Vec<SkillCatalogEntry>,
+    fetched_at: Instant,
+}
+
 pub struct SkillsShProvider {
     cfg: RemoteSkillSourceConfig,
     http: SharedHttpClient,
-    cache: Arc<HttpResponseCache>,
+    cache: Mutex<HashMap<String, CacheEntry>>,
 }
 
 impl SkillsShProvider {
-    pub fn new(
-        cfg: RemoteSkillSourceConfig,
-        http: SharedHttpClient,
-        cache: Arc<HttpResponseCache>,
-    ) -> Self {
-        Self { cfg, http, cache }
+    pub fn new(cfg: RemoteSkillSourceConfig, http: SharedHttpClient) -> Self {
+        Self {
+            cfg,
+            http,
+            cache: Mutex::new(HashMap::new()),
+        }
     }
 
     fn ttl(&self) -> u64 {
@@ -60,12 +65,24 @@ impl SkillsShProvider {
     fn build_search_url(&self, query: &str, limit: usize) -> String {
         let base = self.cfg.url.trim_end_matches('/');
         let encoded = url::form_urlencoded::byte_serialize(query.as_bytes()).collect::<String>();
-        self.cfg
-            .search_template
+        format!("{base}{}", self.cfg.search_template)
             .replace("{{query}}", &encoded)
             .replace("{{limit}}", &limit.to_string())
-            .replacen("{{query}}", &encoded, 1)
-            .replacen("{{limit}}", &limit.to_string(), 1)
+    }
+
+    fn map_entry(&self, item: SkillsShItem) -> SkillCatalogEntry {
+        SkillCatalogEntry {
+            catalog_id: item.id.clone(),
+            name: item.name,
+            description: String::new(),
+            source: self.cfg.id.clone(),
+            source_url: format!("https://skills.sh/skills/{}", item.id),
+            install_count: item.installs,
+            github_stars: None,
+            security_score: None,
+            rating: None,
+            package: item.id,
+        }
     }
 
     async fn fetch_search(
@@ -73,15 +90,7 @@ impl SkillsShProvider {
         keyword: &str,
         limit: usize,
     ) -> Result<Vec<SkillCatalogEntry>, SkillCatalogError> {
-        let url = if self.cfg.search_template.contains("{{query}}") {
-            self.build_search_url(keyword, limit)
-        } else {
-            format!(
-                "{}{}",
-                self.cfg.url.trim_end_matches('/'),
-                self.cfg.search_template
-            )
-        };
+        let url = self.build_search_url(keyword, limit);
 
         let response = self
             .http
@@ -108,32 +117,16 @@ impl SkillsShProvider {
         let entries: Vec<SkillCatalogEntry> = parsed
             .skills
             .into_iter()
-            .map(|item| SkillCatalogEntry {
-                catalog_id: item.id.clone(),
-                name: item.name,
-                description: String::new(),
-                source: self.cfg.id.clone(),
-                source_url: format!("https://skills.sh/skills/{}", item.id),
-                install_count: item.installs,
-                github_stars: None,
-                security_score: None,
-                rating: None,
-                package: item.id,
-            })
+            .map(|item| self.map_entry(item))
             .collect();
 
-        // Cache the result under a search-scoped key.
-        let cache_key = format!("{}:search:{}", self.cfg.id, keyword);
-        let cached = CachedResponse {
-            fetched_at_unix: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
-            etag: None,
-            last_modified: None,
-            entries: entries.clone(),
-        };
-        let _ = self.cache.put(&cache_key, cached).await;
+        self.cache.lock().await.insert(
+            format!("search:{keyword}"),
+            CacheEntry {
+                entries: entries.clone(),
+                fetched_at: Instant::now(),
+            },
+        );
 
         Ok(entries)
     }
@@ -143,23 +136,25 @@ impl SkillsShProvider {
         keyword: &str,
         limit: usize,
     ) -> SkillCatalogResult<Vec<SkillCatalogEntry>> {
-        let cache_key = format!("{}:search:{}", self.cfg.id, keyword);
-        let lock = self.cache.lock_for(&cache_key).await;
-        let _guard = lock.lock().await;
-
-        if let Some(cached) = self.cache.get(&cache_key).await {
-            if HttpResponseCache::is_fresh(&cached, self.ttl()) {
-                return Ok(cached.entries);
-            }
-            match self.fetch_search(keyword, limit).await {
-                Ok(entries) => Ok(entries),
-                Err(e) => {
-                    tracing::warn!(error=%e, "skills.sh refetch failed, serving stale");
-                    Ok(cached.entries)
+        let cache_key = format!("search:{keyword}");
+        {
+            let cache = self.cache.lock().await;
+            if let Some(entry) = cache.get(&cache_key) {
+                if entry.fetched_at.elapsed().as_secs() < self.ttl() {
+                    return Ok(entry.entries.clone());
                 }
             }
-        } else {
-            self.fetch_search(keyword, limit).await
+        }
+
+        match self.fetch_search(keyword, limit).await {
+            Ok(entries) => Ok(entries),
+            Err(e) => {
+                if let Some(entry) = self.cache.lock().await.get(&cache_key) {
+                    tracing::warn!(error=%e, "skills.sh refetch failed, serving stale");
+                    return Ok(entry.entries.clone());
+                }
+                Err(e)
+            }
         }
     }
 }
@@ -180,6 +175,7 @@ impl SkillCatalogProvider for SkillsShProvider {
     }
 
     async fn refresh(&self) -> SkillCatalogResult<()> {
+        self.cache.lock().await.clear();
         Ok(())
     }
 }
@@ -203,10 +199,7 @@ mod tests {
             cache_ttl_seconds: 900,
         };
         let http = SharedHttpClient::new().unwrap();
-        let cache = Arc::new(HttpResponseCache::new(
-            std::env::temp_dir().join("kairox-test-sh-cache"),
-        ));
-        let provider = SkillsShProvider::new(cfg, http, cache);
+        let provider = SkillsShProvider::new(cfg, http);
         let url = provider.build_search_url("code review", 10);
         assert!(url.contains("q=code+review"));
         assert!(url.contains("limit=10"));

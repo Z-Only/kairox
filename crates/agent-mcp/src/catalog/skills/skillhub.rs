@@ -3,7 +3,6 @@
 //! Adapts the SkillHub API (`https://skills.palebluedot.live/api/skills`)
 //! to [`SkillCatalogEntry`].
 
-use crate::catalog::remote::http_cache::{CachedResponse, HttpResponseCache};
 use crate::catalog::remote::http_client::{GetOpts, SharedHttpClient};
 use crate::catalog::skills::remote::RemoteSkillSourceConfig;
 use crate::catalog::skills::{
@@ -12,8 +11,9 @@ use crate::catalog::skills::{
 };
 use async_trait::async_trait;
 use serde::Deserialize;
-use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::time::Instant;
+use tokio::sync::Mutex;
 
 const DEFAULT_TTL_SECONDS: u64 = 900;
 
@@ -56,19 +56,24 @@ struct SkillHubItem {
     rating: Option<f64>,
 }
 
+struct CacheEntry {
+    entries: Vec<SkillCatalogEntry>,
+    fetched_at: Instant,
+}
+
 pub struct SkillHubProvider {
     cfg: RemoteSkillSourceConfig,
     http: SharedHttpClient,
-    cache: Arc<HttpResponseCache>,
+    cache: Mutex<HashMap<String, CacheEntry>>,
 }
 
 impl SkillHubProvider {
-    pub fn new(
-        cfg: RemoteSkillSourceConfig,
-        http: SharedHttpClient,
-        cache: Arc<HttpResponseCache>,
-    ) -> Self {
-        Self { cfg, http, cache }
+    pub fn new(cfg: RemoteSkillSourceConfig, http: SharedHttpClient) -> Self {
+        Self {
+            cfg,
+            http,
+            cache: Mutex::new(HashMap::new()),
+        }
     }
 
     fn ttl(&self) -> u64 {
@@ -87,20 +92,12 @@ impl SkillHubProvider {
             (None, None) => &self.cfg.search_template,
         };
 
-        let mut url = template.replace("{{limit}}", &limit.to_string()).replacen(
-            "{{limit}}",
-            &limit.to_string(),
-            1,
-        );
+        let mut url = template.replace("{{limit}}", &limit.to_string());
 
         if let Some(kw) = keyword {
             let encoded = url::form_urlencoded::byte_serialize(kw.as_bytes()).collect::<String>();
-            url = url
-                .replace("{{query}}", &encoded)
-                .replacen("{{query}}", &encoded, 1);
+            url = url.replace("{{query}}", &encoded);
         } else {
-            // Remove the query param if no keyword — the API will return
-            // full listing.
             url = url
                 .replace("?q={{query}}&", "?")
                 .replace("&q={{query}}", "");
@@ -110,6 +107,21 @@ impl SkillHubProvider {
             format!("{base}{url}")
         } else {
             url
+        }
+    }
+
+    fn map_entry(&self, item: SkillHubItem) -> SkillCatalogEntry {
+        SkillCatalogEntry {
+            catalog_id: item.id.clone(),
+            name: item.name,
+            description: item.description.unwrap_or_default(),
+            source: self.cfg.id.clone(),
+            source_url: format!("https://skills.palebluedot.live/skills/{}", item.id),
+            install_count: item.download_count,
+            github_stars: item.github_stars,
+            security_score: item.security_score,
+            rating: item.rating,
+            package: item.id,
         }
     }
 
@@ -145,34 +157,20 @@ impl SkillHubProvider {
         let entries: Vec<SkillCatalogEntry> = parsed
             .skills
             .into_iter()
-            .map(|item| SkillCatalogEntry {
-                catalog_id: item.id.clone(),
-                name: item.name,
-                description: item.description.unwrap_or_default(),
-                source: self.cfg.id.clone(),
-                source_url: format!("https://skills.palebluedot.live/skills/{}", item.id),
-                install_count: item.download_count,
-                github_stars: item.github_stars,
-                security_score: item.security_score,
-                rating: item.rating,
-                package: item.id,
-            })
+            .map(|item| self.map_entry(item))
             .collect();
 
         let cache_key = match keyword {
-            Some(kw) => format!("{}:search:{}", self.cfg.id, kw),
-            None => format!("{}:list:{}", self.cfg.id, limit),
+            Some(kw) => format!("search:{kw}"),
+            None => format!("list:{limit}"),
         };
-        let cached = CachedResponse {
-            fetched_at_unix: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
-            etag: None,
-            last_modified: None,
-            entries: entries.clone(),
-        };
-        let _ = self.cache.put(&cache_key, cached).await;
+        self.cache.lock().await.insert(
+            cache_key,
+            CacheEntry {
+                entries: entries.clone(),
+                fetched_at: Instant::now(),
+            },
+        );
 
         Ok(entries)
     }
@@ -183,25 +181,27 @@ impl SkillHubProvider {
         limit: usize,
     ) -> SkillCatalogResult<Vec<SkillCatalogEntry>> {
         let cache_key = match keyword {
-            Some(kw) => format!("{}:search:{}", self.cfg.id, kw),
-            None => format!("{}:list:{}", self.cfg.id, limit),
+            Some(kw) => format!("search:{kw}"),
+            None => format!("list:{limit}"),
         };
-        let lock = self.cache.lock_for(&cache_key).await;
-        let _guard = lock.lock().await;
-
-        if let Some(cached) = self.cache.get(&cache_key).await {
-            if HttpResponseCache::is_fresh(&cached, self.ttl()) {
-                return Ok(cached.entries);
-            }
-            match self.fetch(keyword, limit).await {
-                Ok(entries) => Ok(entries),
-                Err(e) => {
-                    tracing::warn!(error=%e, "SkillHub refetch failed, serving stale");
-                    Ok(cached.entries)
+        {
+            let cache = self.cache.lock().await;
+            if let Some(entry) = cache.get(&cache_key) {
+                if entry.fetched_at.elapsed().as_secs() < self.ttl() {
+                    return Ok(entry.entries.clone());
                 }
             }
-        } else {
-            self.fetch(keyword, limit).await
+        }
+
+        match self.fetch(keyword, limit).await {
+            Ok(entries) => Ok(entries),
+            Err(e) => {
+                if let Some(entry) = self.cache.lock().await.get(&cache_key) {
+                    tracing::warn!(error=%e, "SkillHub refetch failed, serving stale");
+                    return Ok(entry.entries.clone());
+                }
+                Err(e)
+            }
         }
     }
 }
@@ -227,8 +227,7 @@ impl SkillCatalogProvider for SkillHubProvider {
     }
 
     async fn refresh(&self) -> SkillCatalogResult<()> {
-        // Bust cache by re-fetching.
-        let _ = self.fetch(None, 50).await;
+        self.cache.lock().await.clear();
         Ok(())
     }
 }
@@ -255,10 +254,7 @@ mod tests {
     #[test]
     fn build_search_url_with_keyword() {
         let http = SharedHttpClient::new().unwrap();
-        let cache = Arc::new(HttpResponseCache::new(
-            std::env::temp_dir().join("kairox-test-hub-cache"),
-        ));
-        let provider = SkillHubProvider::new(test_cfg(), http, cache);
+        let provider = SkillHubProvider::new(test_cfg(), http);
         let url = provider.build_url(Some("code review"), 10);
         assert!(url.contains("q=code+review"));
         assert!(url.contains("limit=10"));
@@ -268,10 +264,7 @@ mod tests {
     #[test]
     fn build_list_url_without_keyword() {
         let http = SharedHttpClient::new().unwrap();
-        let cache = Arc::new(HttpResponseCache::new(
-            std::env::temp_dir().join("kairox-test-hub-list-cache"),
-        ));
-        let provider = SkillHubProvider::new(test_cfg(), http, cache);
+        let provider = SkillHubProvider::new(test_cfg(), http);
         let url = provider.build_url(None, 20);
         assert!(!url.contains("q="));
         assert!(url.contains("limit=20"));

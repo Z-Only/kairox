@@ -1,6 +1,5 @@
 //! Remote skill catalog source configuration and provider construction.
 
-use crate::catalog::remote::http_cache::HttpResponseCache;
 use crate::catalog::remote::http_client::SharedHttpClient;
 use crate::catalog::skills::SkillCatalogProvider;
 use std::sync::Arc;
@@ -51,14 +50,13 @@ pub struct RemoteSkillSourceConfig {
 pub fn build_skill_provider(
     cfg: RemoteSkillSourceConfig,
     http: SharedHttpClient,
-    cache: Arc<HttpResponseCache>,
 ) -> Arc<dyn SkillCatalogProvider> {
     match cfg.kind {
         SkillSourceKind::SkillsSh => Arc::new(
-            crate::catalog::skills::skills_sh::SkillsShProvider::new(cfg, http, cache),
+            crate::catalog::skills::skills_sh::SkillsShProvider::new(cfg, http),
         ),
         SkillSourceKind::SkillHub => Arc::new(
-            crate::catalog::skills::skillhub::SkillHubProvider::new(cfg, http, cache),
+            crate::catalog::skills::skillhub::SkillHubProvider::new(cfg, http),
         ),
     }
 }
@@ -89,9 +87,6 @@ mod tests {
     #[test]
     fn build_skill_provider_returns_correct_kind() {
         let http = SharedHttpClient::new().unwrap();
-        let cache = Arc::new(HttpResponseCache::new(
-            std::env::temp_dir().join("kairox-test-skill-cache"),
-        ));
         let provider = build_skill_provider(
             RemoteSkillSourceConfig {
                 id: "skills-sh".into(),
@@ -105,7 +100,6 @@ mod tests {
                 cache_ttl_seconds: 900,
             },
             http,
-            cache,
         );
         assert_eq!(provider.source_id(), "skills-sh");
     }

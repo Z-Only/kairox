@@ -32,6 +32,7 @@ eventsource-stream = { workspace = true, optional = true }
 which.workspace = true
 toml_edit.workspace = true
 tempfile.workspace = true
+url = "2"
 
 [dev-dependencies]
 toml.workspace = true
