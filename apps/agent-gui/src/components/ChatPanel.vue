@@ -183,7 +183,9 @@ const projectInstructionSummaryText = computed(() => {
   return `Loaded ${sourceFileNames.join(", ")}`;
 });
 
-const modelOptions = computed<ProfileInfo[]>(() => session.profileInfos);
+const modelOptions = computed<ProfileInfo[]>(() =>
+  [...session.profileInfos].sort((a, b) => a.alias.localeCompare(b.alias))
+);
 const sendDisabled = computed(
   () => session.isStreaming || (!inputText.value.trim() && attachments.value.length === 0)
 );
