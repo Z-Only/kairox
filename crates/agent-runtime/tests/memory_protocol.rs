@@ -66,6 +66,7 @@ async fn session_scope_memory_auto_accepted() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I prefer dark mode".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -132,6 +133,7 @@ async fn user_scope_memory_requires_approval_in_suggest_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "I like Rust".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -190,6 +192,7 @@ async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
             workspace_id,
             session_id: session_id.clone(),
             content: "Use cargo nextest for testing".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -231,6 +234,7 @@ async fn memory_markers_stripped_from_display() {
             workspace_id,
             session_id: session_id.clone(),
             content: "tell me something".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -307,6 +311,7 @@ async fn stored_memories_injected_into_subsequent_request() {
             workspace_id,
             session_id: session_id.clone(),
             content: "What theme do I like?".into(),
+            attachments: vec![],
         })
         .await;
 

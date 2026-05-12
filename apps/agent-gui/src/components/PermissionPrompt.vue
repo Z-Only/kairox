@@ -103,19 +103,24 @@ async function deny() {
           <span :style="{ color: 'var(--app-text-color-2)' }" class="permission-description">
             {{ entry.title }}
           </span>
-          <div v-if="entry.scope" class="permission-meta">Scope: {{ entry.scope }}</div>
+          <div v-if="entry.scope" class="permission-meta">
+            {{ t("permission.scopePrefix") }}: {{ entry.scope }}
+          </div>
           <div v-if="entry.content" class="permission-meta">
             {{ entry.content }}
           </div>
-          <div class="permission-meta">{{ isMemory ? "Store" : "Tool" }}: {{ entry.toolId }}</div>
+          <div class="permission-meta">
+            {{ isMemory ? t("permission.storeLabel") : t("permission.toolLabel") }}:
+            {{ entry.toolId }}
+          </div>
           <!-- MCP-specific UI. The wrapper classes (.mcp-permission-info,
                .mcp-trust-check, .mcp-trusted-badge) are kept verbatim so
                permission-prompt tests can still query them. -->
           <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
             <div class="mcp-server-label">
-              MCP Server: <strong>{{ mcpServerId }}</strong>
+              {{ t("permission.mcpServerPrefix") }}: <strong>{{ mcpServerId }}</strong>
               <span v-if="isServerTrusted" class="tag tag-success mcp-trusted-badge">
-                ✅ Trusted
+                ✅ {{ t("permission.mcpTrustedBadge") }}
               </span>
             </div>
             <!-- The .mcp-trust-check wrapper class is preserved so layout
@@ -131,7 +136,7 @@ async function deny() {
                   data-test="trust-server-checkbox"
                   @change="trustChecked = $event.target.checked"
                 />
-                Trust this server for future requests
+                {{ t("permission.mcpTrustCheckbox") }}
               </label>
             </div>
           </div>

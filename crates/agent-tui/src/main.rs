@@ -60,6 +60,7 @@ async fn dispatch_commands(
                         workspace_id,
                         session_id,
                         content,
+                        attachments: vec![],
                     })
                     .await
                 {

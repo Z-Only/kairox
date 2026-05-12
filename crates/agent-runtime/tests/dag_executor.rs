@@ -382,6 +382,7 @@ async fn dag_executor_execute_respond_directly() {
             workspace_id,
             session_id: session_id.clone(),
             content: "/plan do something simple".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

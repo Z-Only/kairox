@@ -105,6 +105,7 @@ async fn agent_loop_processes_tool_call_and_continues() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "read something".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -172,6 +173,7 @@ async fn agent_loop_stops_when_no_tool_calls() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -207,6 +209,7 @@ async fn subscribe_session_receives_events() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

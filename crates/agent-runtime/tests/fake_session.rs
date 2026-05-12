@@ -26,6 +26,7 @@ async fn fake_model_completes_full_session_and_trace_replays() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "complete this".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

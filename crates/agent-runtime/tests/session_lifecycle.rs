@@ -121,6 +121,7 @@ async fn full_workspace_session_round_trip() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello agent".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -374,6 +375,7 @@ async fn cleanup_expired_removes_old_sessions_and_events() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: session_id.clone(),
             content: "hello".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

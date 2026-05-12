@@ -105,7 +105,9 @@
     "cancelFailed": "Cancel failed: {error}",
     "model": "Model",
     "currentModel": "Current",
-    "selectModelAria": "Select model. Current model: {model}"
+    "selectModelAria": "Select model. Current model: {model}",
+    "attachFileAria": "Attach file",
+    "removeFileAria": "Remove {name}"
   },
   "context": {
     "title": "Context",
@@ -222,7 +224,15 @@
     "accept": "Accept",
     "reject": "Reject",
     "titlePermissionRequired": "Permission Required",
-    "titleMemoryProposed": "Memory Proposed"
+    "titleMemoryProposed": "Memory Proposed",
+    "panelTitle": "Permissions",
+    "emptyState": "No pending requests",
+    "scopePrefix": "Scope",
+    "storeLabel": "Store",
+    "toolLabel": "Tool",
+    "mcpServerPrefix": "MCP Server",
+    "mcpTrustedBadge": "Trusted",
+    "mcpTrustCheckbox": "Trust this server for future requests"
   },
   "skills": {
     "title": "Skills Settings",

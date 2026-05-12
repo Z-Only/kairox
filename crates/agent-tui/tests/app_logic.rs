@@ -48,6 +48,7 @@ async fn tui_send_message_produces_user_and_assistant_messages() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "hello from TUI".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -92,6 +93,7 @@ async fn tui_event_stream_matches_projection() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "test events".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -167,6 +169,7 @@ async fn tui_multiple_sessions_have_isolated_projections() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: s1.clone(),
             content: "message for s1".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -239,6 +242,7 @@ async fn tui_trace_entries_populated_after_message() {
             workspace_id: workspace.workspace_id,
             session_id: session_id.clone(),
             content: "trace me".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -330,6 +334,7 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
             workspace_id: workspace.workspace_id.clone(),
             session_id: s1.clone(),
             content: "msg1".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();
@@ -338,6 +343,7 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
             workspace_id: workspace.workspace_id,
             session_id: s2.clone(),
             content: "msg2".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

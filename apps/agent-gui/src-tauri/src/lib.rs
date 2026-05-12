@@ -300,6 +300,7 @@ mod integration_tests {
                 workspace_id: workspace.workspace_id,
                 session_id: session_id.clone(),
                 content: "hello".into(),
+                attachments: vec![],
             })
             .await
             .unwrap();
@@ -326,6 +327,7 @@ mod integration_tests {
                 workspace_id: workspace.workspace_id,
                 session_id: session_id.clone(),
                 content: "hi".into(),
+                attachments: vec![],
             })
             .await
             .unwrap();
@@ -356,6 +358,7 @@ mod integration_tests {
                 workspace_id: workspace.workspace_id,
                 session_id,
                 content: "test".into(),
+                attachments: vec![],
             })
             .await
             .unwrap();

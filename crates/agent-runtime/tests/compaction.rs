@@ -51,6 +51,7 @@ async fn fixture_runtime_with_history(
                 workspace_id: workspace.workspace_id.clone(),
                 session_id: session_id.clone(),
                 content: format!("turn {i}"),
+                attachments: vec![],
             })
             .await
             .unwrap();
@@ -120,6 +121,7 @@ async fn send_message_rejected_with_session_busy_during_compaction() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: "should be rejected".into(),
+            attachments: vec![],
         })
         .await;
     match result {
@@ -144,6 +146,7 @@ async fn send_message_succeeds_after_compaction_with_summary_substituted() {
             workspace_id: ws,
             session_id: session_id.clone(),
             content: "post-compaction turn".into(),
+            attachments: vec![],
         })
         .await
         .unwrap();

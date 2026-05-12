@@ -2187,6 +2187,7 @@ mod tests {
                 workspace_id: workspace.workspace_id,
                 session_id: session_id.clone(),
                 content: "hi".into(),
+                attachments: vec![],
             })
             .await
             .unwrap();
@@ -2296,6 +2297,7 @@ mod tests {
             workspace_id: WorkspaceId::new(),
             session_id: SessionId::new(),
             content: "hello".into(),
+            attachments: vec![],
         };
         assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
     }
@@ -2310,6 +2312,7 @@ mod tests {
             workspace_id: WorkspaceId::new(),
             session_id: SessionId::new(),
             content: "/plan implement feature X".into(),
+            attachments: vec![],
         };
         assert_eq!(
             runtime.execution_mode(&request),
@@ -2349,6 +2352,7 @@ mod tests {
                 workspace_id: workspace.workspace_id,
                 session_id: session_id.clone(),
                 content: "hello".into(),
+                attachments: vec![],
             })
             .await;
         match result {
@@ -2558,6 +2562,7 @@ mod tests {
             workspace_id: WorkspaceId::new(),
             session_id: SessionId::new(),
             content: "just a question".into(),
+            attachments: vec![],
         };
         assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
     }
