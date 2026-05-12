@@ -291,13 +291,77 @@ const state = {
       install_count: 860,
       source_url: "https://registry.example/skills/planning-coach",
       package: "@kairox/skill-planning-coach"
+    },
+    {
+      name: "Code Review Assistant",
+      description: "Reviews changes before handoff.",
+      repository: "https://github.com/example/code-review-skill",
+      install_count: 1240,
+      source_url: "https://registry.example/skills/code-review-assistant",
+      package: "skillhub/code-review-assistant"
+    },
+    {
+      name: "Planning Coach",
+      description: "Turns requirements into implementation plans.",
+      repository: "https://github.com/example/planning-coach",
+      install_count: 860,
+      source_url: "https://registry.example/skills/planning-coach",
+      package: "skillhub/planning-coach"
+    }
+  ],
+  skillCatalog: [
+    {
+      catalog_id: "skillhub/code-review-assistant",
+      name: "Code Review Assistant",
+      description: "Reviews changes before handoff.",
+      source: "skillhub",
+      source_url: "https://registry.example/skills/code-review-assistant",
+      install_count: 1240,
+      github_stars: 450,
+      security_score: 92,
+      rating: 4.7,
+      package: "skillhub/code-review-assistant"
+    },
+    {
+      catalog_id: "skillhub/planning-coach",
+      name: "Planning Coach",
+      description: "Turns requirements into implementation plans.",
+      source: "skillhub",
+      source_url: "https://registry.example/skills/planning-coach",
+      install_count: 860,
+      github_stars: 220,
+      security_score: 88,
+      rating: 4.3,
+      package: "skillhub/planning-coach"
     }
   ],
   catalogRuntimePresent: { node: true, python: true, uvx: true, docker: true },
   // Phase 2: catalog sources — only user-configured remote sources are listed here.
   // The builtin source is implicit (the GUI's source chip bar always renders a
   // "Built-in" chip in addition to whatever list_catalog_sources returns).
-  catalogSources: []
+  catalogSources: [],
+  skillCatalogSources: [
+    {
+      id: "skillhub",
+      display_name: "SkillHub",
+      kind: "skillhub",
+      url: "https://skills.palebluedot.live",
+      search_template: "/api/skills?q={{query}}&limit={{limit}}",
+      list_template: "/api/skills?limit={{limit}}",
+      field_mapping: {
+        name_path: "name",
+        description_path: "description",
+        install_count_path: "downloadCount",
+        github_stars_path: "githubStars",
+        package_path: "id",
+        source_url_path: null
+      },
+      enabled: true,
+      priority: 20,
+      cache_ttl_seconds: 900,
+      last_error: null
+    }
+  ]
 };
 
 /* ---- Helpers ---- */
@@ -1548,6 +1612,52 @@ function invoke(cmd, args) {
       state.catalogSources = state.catalogSources.map(function (s) {
         return s.id === setId ? Object.assign({}, s, { enabled: setEnabled }) : s;
       });
+      return null;
+    }
+
+    /* ─── Phase 3: skill catalog commands ──────────────────────── */
+
+    case "list_skill_catalog": {
+      var sq = args.query;
+      var entries = state.skillCatalog;
+      if (sq && sq.keyword) {
+        var kw = sq.keyword.toLowerCase();
+        entries = entries.filter(function (e) {
+          return (
+            e.name.toLowerCase().indexOf(kw) !== -1 ||
+            e.description.toLowerCase().indexOf(kw) !== -1 ||
+            e.package.toLowerCase().indexOf(kw) !== -1
+          );
+        });
+      }
+      return clone(entries);
+    }
+
+    case "list_skill_sources": {
+      return state.skillCatalogSources.slice();
+    }
+
+    case "add_skill_source": {
+      var addCfg = args.config;
+      state.skillCatalogSources.push(Object.assign({}, addCfg, { last_error: null }));
+      return null;
+    }
+
+    case "remove_skill_source": {
+      state.skillCatalogSources = state.skillCatalogSources.filter(function (s) {
+        return s.id !== args.id;
+      });
+      return null;
+    }
+
+    case "set_skill_source_enabled": {
+      state.skillCatalogSources = state.skillCatalogSources.map(function (s) {
+        return s.id === args.id ? Object.assign({}, s, { enabled: args.enabled }) : s;
+      });
+      return null;
+    }
+
+    case "refresh_skill_catalog": {
       return null;
     }
 
