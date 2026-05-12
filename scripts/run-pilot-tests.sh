@@ -92,6 +92,25 @@ shopt -s nullglob
 scenarios=("$SCENARIO_DIR"/*.toml)
 shopt -u nullglob
 
+# In CI, skip scenarios that require a live LLM backend.
+# chat-flow.toml sends a real message and waits for the response;
+# without a configured model the app fails with an HTTP error
+# and the user-message element never appears.
+if [ "${CI:-}" = "true" ]; then
+    filtered=()
+    for sc in "${scenarios[@]}"; do
+        case "$(basename "$sc")" in
+            chat-flow.toml)
+                echo "SKIP chat-flow.toml (CI: no LLM backend available)" >&2
+                ;;
+            *)
+                filtered+=("$sc")
+                ;;
+        esac
+    done
+    scenarios=("${filtered[@]}")
+fi
+
 if [[ ${#scenarios[@]} -eq 0 ]]; then
     echo "ERROR: no scenario .toml files under $SCENARIO_DIR" >&2
     exit 1
