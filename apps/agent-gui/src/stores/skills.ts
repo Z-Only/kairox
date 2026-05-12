@@ -8,9 +8,12 @@ import {
   type InstallGithubSkillRequest,
   type InstallRemoteSkillRequest,
   type RemoteSkillSearchResult,
+  type SkillCatalogEntry,
+  type SkillCatalogQuery,
   type SkillDetail,
   type SkillInstallTarget,
   type SkillSettingsView,
+  type SkillSourceView,
   type SkillView
 } from "@/generated/commands";
 
@@ -53,6 +56,13 @@ export const useSkillsStore = defineStore("skills", () => {
   const remoteResults = ref<RemoteSkillSearchResult[]>([]);
   const settingsLoading = ref(false);
   const remoteLoading = ref(false);
+
+  // Skill catalog / marketplace
+  const catalogEntries = ref<SkillCatalogEntry[]>([]);
+  const catalogSources = ref<SkillSourceView[]>([]);
+  const catalogLoading = ref(false);
+  const searchCache = new Map<string, { entries: SkillCatalogEntry[]; timestamp: number }>();
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   const hasSkills = computed(() => skills.value.length > 0);
   const activeSkillIds = computed(() =>
@@ -238,6 +248,98 @@ export const useSkillsStore = defineStore("skills", () => {
     }
   }
 
+  function cacheKeyForQuery(query: SkillCatalogQuery): string {
+    const keyword = query.keyword ?? "";
+    const sources = query.sources?.join(",") ?? "";
+    return `${keyword}|${sources}|${query.limit ?? 50}`;
+  }
+
+  async function searchCatalog(query: SkillCatalogQuery): Promise<void> {
+    catalogLoading.value = true;
+    error.value = null;
+    try {
+      const cacheKey = cacheKeyForQuery(query);
+      const cached = searchCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        catalogEntries.value = cached.entries;
+        catalogLoading.value = false;
+        return;
+      }
+      catalogEntries.value = await unwrapCommandResult(commands.listSkillCatalog(query));
+      searchCache.set(cacheKey, {
+        entries: catalogEntries.value,
+        timestamp: Date.now()
+      });
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
+  async function loadCatalogSources(): Promise<void> {
+    catalogLoading.value = true;
+    error.value = null;
+    try {
+      catalogSources.value = await unwrapCommandResult(commands.listSkillSources());
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
+  async function addCatalogSource(config: SkillSourceView): Promise<void> {
+    catalogLoading.value = true;
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.addSkillSource(config));
+      await loadCatalogSources();
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+      throw caughtError;
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
+  async function removeCatalogSource(id: string): Promise<void> {
+    catalogLoading.value = true;
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.removeSkillSource(id));
+      catalogSources.value = catalogSources.value.filter((s) => s.id !== id);
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+      throw caughtError;
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
+  async function setCatalogSourceEnabled(id: string, enabled: boolean): Promise<void> {
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.setSkillSourceEnabled(id, enabled));
+      catalogSources.value = catalogSources.value.map((s) => (s.id === id ? { ...s, enabled } : s));
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    }
+  }
+
+  async function refreshCatalog(): Promise<void> {
+    catalogLoading.value = true;
+    error.value = null;
+    try {
+      await unwrapCommandResult(commands.refreshSkillCatalog());
+      searchCache.clear();
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
+    } finally {
+      catalogLoading.value = false;
+    }
+  }
+
   return {
     skills,
     activeSkills,
@@ -262,6 +364,15 @@ export const useSkillsStore = defineStore("skills", () => {
     searchRemoteSkills,
     installRemoteSkill,
     installGithubSkill,
-    updateSkill
+    updateSkill,
+    catalogEntries,
+    catalogSources,
+    catalogLoading,
+    searchCatalog,
+    loadCatalogSources,
+    addCatalogSource,
+    removeCatalogSource,
+    setCatalogSourceEnabled,
+    refreshCatalog
   };
 });
