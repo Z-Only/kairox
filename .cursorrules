@@ -25,6 +25,8 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 - agent-core ← agent-runtime ← agent-tui / agent-gui
 - agent-core ← agent-store, agent-memory, agent-models, agent-tools, agent-config, agent-mcp
 - agent-tools → agent-mcp (re-exports `McpServerDef`, `McpTransportDef`; provides `McpToolAdapter`)
+- agent-mcp includes the native skills system for reusable prompt/tool/workflow capabilities
+- agent-config supports `.kairox/` project-level config discovery
 - agent-runtime → agent-memory, agent-store, agent-models, agent-tools, agent-config, agent-mcp
 - Never create reverse dependencies. New domain types/events go in agent-core first.
 
