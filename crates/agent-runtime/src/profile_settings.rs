@@ -104,16 +104,10 @@ pub async fn list_profile_settings(
     let mut views: Vec<ProfileSettingsView> = rows
         .into_iter()
         .map(|(alias, row)| {
-            let has_api_key = config
-                .get_profile(&alias)
-                .map(|def| {
-                    def.api_key.is_some()
-                        || def
-                            .api_key_env
-                            .as_ref()
-                            .is_some_and(|v| std::env::var(v).is_ok())
-                })
-                .unwrap_or(false);
+            let has_api_key = row
+                .api_key_env
+                .as_ref()
+                .is_some_and(|v| std::env::var(v).is_ok());
             ProfileSettingsView {
                 alias: alias.clone(),
                 provider: row.provider,
@@ -133,6 +127,7 @@ pub async fn list_profile_settings(
                 source: row.source,
             }
         })
+        .filter(|view| !(view.source == "defaults" && !view.enabled))
         .collect();
 
     views.sort_by(|a, b| a.alias.cmp(&b.alias));
