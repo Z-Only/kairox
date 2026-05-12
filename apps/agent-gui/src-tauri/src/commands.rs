@@ -5,7 +5,8 @@ use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::facade::{
     InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, RemoteSkillSearchResult, SkillSettingsDetail, SkillSettingsView,
+    McpServerSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
+    SkillSettingsDetail, SkillSettingsView, SkillSourceView,
 };
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
@@ -1350,6 +1351,80 @@ pub async fn update_skill(
         .update_skill(skill_id)
         .await
         .map_err(|error| error.to_string())
+}
+
+// ── Skill catalog ────────────────────────────────────────────────────
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_skill_catalog(
+    state: State<'_, GuiState>,
+    query: SkillCatalogQuery,
+) -> Result<Vec<SkillCatalogEntry>, String> {
+    state
+        .runtime
+        .list_skill_catalog(query)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_skill_sources(
+    state: State<'_, GuiState>,
+) -> Result<Vec<SkillSourceView>, String> {
+    state
+        .runtime
+        .list_skill_sources()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn add_skill_source(
+    state: State<'_, GuiState>,
+    config: SkillSourceView,
+) -> Result<(), String> {
+    state
+        .runtime
+        .add_skill_source(config)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_skill_source(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    state
+        .runtime
+        .remove_skill_source(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_skill_source_enabled(
+    state: State<'_, GuiState>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    state
+        .runtime
+        .set_skill_source_enabled(id, enabled)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn refresh_skill_catalog(state: State<'_, GuiState>) -> Result<(), String> {
+    state
+        .runtime
+        .refresh_skill_catalog()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------

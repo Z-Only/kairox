@@ -246,7 +246,14 @@
     "search": "搜索",
     "searching": "搜索中…",
     "install": "安装",
-    "installs": "{count} 次安装"
+    "installs": "{count} 次安装",
+    "catalogEmpty": "目录中没有找到 skill。",
+    "catalogSourcesTitle": "Skill 目录源",
+    "sourcesEmpty": "尚未配置 skill 目录源。",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id 和 display_name 必填",
+      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
+    }
   },
   "trace": {
     "tabTrace": "追踪",

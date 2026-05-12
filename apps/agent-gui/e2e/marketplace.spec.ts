@@ -171,18 +171,17 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
     // Switch to Discover sub-tab to search remote skills
     await page.getByTestId("skill-subtab-discover").click();
-    await page.getByTestId("skill-discover-query").fill("review");
-    await page.getByTestId("skill-discover-submit").click();
-    await expect(page.getByTestId("skill-remote-code-review-assistant")).toBeVisible();
-    await page.getByTestId("skill-install-code-review-assistant").click();
+    await page.getByTestId("skill-catalog-search").fill("review");
+    await expect(page.getByTestId("skill-catalog-card")).toBeVisible();
+    await page.getByTestId("skill-catalog-install-skillhub/code-review-assistant").click();
     // Switch back to Installed tab to verify the skill was added
     await page.getByTestId("skill-subtab-installed").click();
-    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toContainText(
+    await expect(page.getByTestId("skill-row-user-code-review-assistant")).toContainText(
       "Code Review Assistant"
     );
 
-    await page.getByTestId("skill-delete-project-code-review-assistant").click();
-    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
+    await page.getByTestId("skill-delete-user-code-review-assistant").click();
+    await expect(page.getByTestId("skill-row-user-code-review-assistant")).toHaveCount(0);
   });
 
   test("mock rejects ambiguous legacy skill ids without mutating rows", async ({ page }) => {

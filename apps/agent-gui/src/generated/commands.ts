@@ -135,6 +135,17 @@ export const commands = {
     typedError<SkillSettingsView, string>(__TAURI_INVOKE("install_github_skill", { request })),
   updateSkill: (skillId: string) =>
     typedError<SkillSettingsView, string>(__TAURI_INVOKE("update_skill", { skillId })),
+  listSkillCatalog: (query: SkillCatalogQuery) =>
+    typedError<SkillCatalogEntry[], string>(__TAURI_INVOKE("list_skill_catalog", { query })),
+  listSkillSources: () =>
+    typedError<SkillSourceView[], string>(__TAURI_INVOKE("list_skill_sources")),
+  addSkillSource: (config: SkillSourceView) =>
+    typedError<null, string>(__TAURI_INVOKE("add_skill_source", { config })),
+  removeSkillSource: (id: string) =>
+    typedError<null, string>(__TAURI_INVOKE("remove_skill_source", { id })),
+  setSkillSourceEnabled: (id: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_skill_source_enabled", { id, enabled })),
+  refreshSkillCatalog: () => typedError<null, string>(__TAURI_INVOKE("refresh_skill_catalog")),
   listMcpServers: () =>
     typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
   startMcpServer: (serverId: string) =>
@@ -474,9 +485,40 @@ export type SessionInfoResponse = {
   visibility: string | null;
 };
 
+// A single skill entry returned by the skills catalog.
+export type SkillCatalogEntry = {
+  catalog_id: string;
+  name: string;
+  description: string;
+  source: string;
+  source_url: string;
+  install_count: number | null;
+  github_stars: number | null;
+  security_score: number | null;
+  rating: number | null;
+  package: string;
+};
+
+// Query against the skills catalog.
+export type SkillCatalogQuery = {
+  keyword: string | null;
+  sources: string[] | null;
+  limit: number | null;
+};
+
 export type SkillDetail = {
   view: SkillView;
   body_markdown: string;
+};
+
+// JSON field mapping for a skill source API response.
+export type SkillFieldMappingView = {
+  name_path: string;
+  description_path: string;
+  install_count_path: string | null;
+  github_stars_path: string | null;
+  package_path: string;
+  source_url_path: string | null;
 };
 
 export type SkillInstallSource = "local" | "registry" | "github" | "builtin" | "unknown";
@@ -509,6 +551,21 @@ export type SkillSettingsView = {
   validation_error: string | null;
   editable: boolean;
   deletable: boolean;
+};
+
+// A configured skill catalog source.
+export type SkillSourceView = {
+  id: string;
+  display_name: string;
+  kind: string;
+  url: string;
+  search_template: string;
+  list_template: string | null;
+  field_mapping: SkillFieldMappingView;
+  enabled: boolean;
+  priority: number;
+  cache_ttl_seconds: number;
+  last_error: string | null;
 };
 
 export type SkillUpdateState = "unknown" | "up_to_date" | "update_available" | "check_failed";

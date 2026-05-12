@@ -170,7 +170,9 @@ pub trait CatalogProvider: Send + Sync {
 }
 
 pub mod aggregate;
-pub mod builtin; // added in Task 3 // added in Task 4
+pub mod builtin;
+#[cfg(feature = "remote-catalog")]
+pub mod skills;
 
 #[cfg(feature = "remote-catalog")]
 pub mod remote;

@@ -322,6 +322,75 @@ pub struct InstallGithubSkillRequest {
     pub target: SkillInstallTarget,
 }
 
+// ── Skills catalog / marketplace ───────────────────────────────────────
+
+/// A single skill entry returned by the skills catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillCatalogEntry {
+    pub catalog_id: String,
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub source_url: String,
+    pub install_count: Option<u64>,
+    pub github_stars: Option<u64>,
+    pub security_score: Option<u32>,
+    pub rating: Option<f64>,
+    pub package: String,
+}
+
+/// Query against the skills catalog.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillCatalogQuery {
+    pub keyword: Option<String>,
+    pub sources: Option<Vec<String>>,
+    pub limit: Option<usize>,
+}
+
+/// JSON field mapping for a skill source API response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillFieldMappingView {
+    pub name_path: String,
+    pub description_path: String,
+    pub install_count_path: Option<String>,
+    pub github_stars_path: Option<String>,
+    pub package_path: String,
+    pub source_url_path: Option<String>,
+}
+
+impl Default for SkillFieldMappingView {
+    fn default() -> Self {
+        Self {
+            name_path: "name".into(),
+            description_path: "description".into(),
+            install_count_path: Some("installs".into()),
+            github_stars_path: None,
+            package_path: "id".into(),
+            source_url_path: None,
+        }
+    }
+}
+
+/// A configured skill catalog source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct SkillSourceView {
+    pub id: String,
+    pub display_name: String,
+    pub kind: String,
+    pub url: String,
+    pub search_template: String,
+    pub list_template: Option<String>,
+    pub field_mapping: SkillFieldMappingView,
+    pub enabled: bool,
+    pub priority: u32,
+    pub cache_ttl_seconds: u64,
+    pub last_error: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Workspace metadata returned after opening a workspace.
 pub struct WorkspaceInfo {
@@ -696,6 +765,47 @@ pub trait AppFacade: Send + Sync {
         Err(crate::CoreError::InvalidState(
             "Skill update not supported".into(),
         ))
+    }
+
+    // ── Skills catalog / marketplace ─────────────────────────────────
+
+    /// List skill catalog entries, optionally filtered by query.
+    async fn list_skill_catalog(
+        &self,
+        _query: SkillCatalogQuery,
+    ) -> crate::Result<Vec<SkillCatalogEntry>> {
+        Ok(Vec::new())
+    }
+
+    /// List configured skill catalog sources (includes builtins).
+    async fn list_skill_sources(&self) -> crate::Result<Vec<SkillSourceView>> {
+        Ok(Vec::new())
+    }
+
+    /// Add a new skill catalog source.
+    async fn add_skill_source(&self, _config: SkillSourceView) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Remove a skill catalog source.
+    async fn remove_skill_source(&self, _id: String) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Enable or disable a skill catalog source.
+    async fn set_skill_source_enabled(&self, _id: String, _enabled: bool) -> crate::Result<()> {
+        Err(crate::CoreError::InvalidState(
+            "skill sources not configured".into(),
+        ))
+    }
+
+    /// Refresh skill catalog data from all sources.
+    async fn refresh_skill_catalog(&self) -> crate::Result<()> {
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
