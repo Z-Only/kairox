@@ -260,6 +260,12 @@ impl Config {
             if project_path.is_file() {
                 base = Self::merge_config(base, &project_path)?;
                 base.source = ConfigSource::ProjectFile;
+            } else {
+                // Fallback: walk up from project_root looking for .kairox/config.toml
+                if let Some((found_path, _)) = discovery::find_config_upward(root) {
+                    base = Self::merge_config(base, &found_path)?;
+                    base.source = ConfigSource::ProjectFile;
+                }
             }
         }
 
