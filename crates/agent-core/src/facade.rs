@@ -337,11 +337,24 @@ pub struct StartSessionRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+/// Metadata for a file attached to a user message.
+pub struct AttachmentInfo {
+    /// Absolute filesystem path.
+    pub path: String,
+    /// Display filename.
+    pub name: String,
+    /// MIME type (e.g. "image/png", "application/pdf").
+    pub mime_type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Request to send a user message to an active session.
 pub struct SendMessageRequest {
     pub workspace_id: WorkspaceId,
     pub session_id: SessionId,
     pub content: String,
+    pub attachments: Vec<AttachmentInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
