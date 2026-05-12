@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
 import type { SkillSettingsView } from "@/generated/commands";
+import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
+import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
 const activeSubTab = ref<"installed" | "discover">("installed");
-const discoverQuery = ref("");
 const githubSource = ref("");
 const installTarget = ref<"project" | "user">("project");
 const busySkillId = ref<string | null>(null);
@@ -45,15 +46,6 @@ async function runSkillAction(skillId: string, action: () => Promise<unknown>): 
   } finally {
     busySkillId.value = null;
   }
-}
-
-async function searchRemoteSkills(): Promise<void> {
-  const trimmedQuery = discoverQuery.value.trim();
-  if (!trimmedQuery) {
-    return;
-  }
-
-  await skillsStore.searchRemoteSkills(trimmedQuery);
 }
 
 async function installFromGithub(): Promise<void> {
@@ -260,53 +252,56 @@ async function installFromGithub(): Promise<void> {
     </template>
 
     <template v-if="activeSubTab === 'discover'">
-      <form
-        class="skill-settings__search-form"
-        data-test="skill-discover-form"
-        @submit.prevent="searchRemoteSkills"
-      >
-        <input
-          id="skill-discover-query"
-          v-model="discoverQuery"
-          type="search"
-          data-test="skill-discover-query"
-          :placeholder="t('skills.searchPlaceholder')"
-        />
-        <button
-          class="btn btn-primary"
-          type="submit"
-          :disabled="skillsStore.remoteLoading || !discoverQuery.trim()"
-          data-test="skill-discover-submit"
-        >
-          {{ skillsStore.remoteLoading ? t("skills.searching") : t("skills.search") }}
-        </button>
-      </form>
+      <SkillDiscoverList />
 
-      <div class="skill-settings__remote-list" aria-label="Remote skill results">
-        <article
-          v-for="result in skillsStore.remoteResults"
-          :key="result.package"
-          class="card skill-settings__remote"
-          :data-test="`skill-remote-${slugify(result.name)}`"
-        >
-          <div>
-            <h4>{{ result.name }}</h4>
-            <p>{{ result.description }}</p>
-            <span class="tag">{{
-              t("skills.installs", { count: result.install_count ?? 0 })
-            }}</span>
-          </div>
-          <button
-            class="btn btn-sm"
-            type="button"
-            :disabled="skillsStore.settingsLoading"
-            :data-test="`skill-install-${slugify(result.name)}`"
-            @click="skillsStore.installRemoteSkill(result.package, installTarget)"
+      <section class="card skill-settings__section" aria-labelledby="catalog-sources-title">
+        <div class="card-header">
+          <h3 id="catalog-sources-title">{{ t("skills.catalogSourcesTitle") }}</h3>
+        </div>
+        <div class="card-body">
+          <SkillSourcesSettings />
+        </div>
+      </section>
+
+      <section class="card skill-settings__section" aria-labelledby="github-skills-title-discover">
+        <div class="card-header">
+          <h3 id="github-skills-title-discover">{{ t("skills.installFromGithub") }}</h3>
+        </div>
+        <div class="card-body skill-settings__body">
+          <form
+            class="skill-settings__inline-form"
+            data-test="skill-github-form"
+            @submit.prevent="installFromGithub"
           >
-            {{ skillsStore.settingsLoading ? t("skills.installing") : t("skills.install") }}
-          </button>
-        </article>
-      </div>
+            <label for="skill-install-target-discover">{{ t("skills.target") }}</label>
+            <select
+              id="skill-install-target-discover"
+              v-model="installTarget"
+              data-test="skill-install-target"
+            >
+              <option value="project">{{ t("skills.targetProject") }}</option>
+              <option value="user">{{ t("skills.targetUser") }}</option>
+            </select>
+
+            <label for="skill-github-source-discover">{{ t("skills.githubUrl") }}</label>
+            <input
+              id="skill-github-source-discover"
+              v-model="githubSource"
+              type="url"
+              data-test="skill-github-source"
+              placeholder="https://github.com/org/skill.git"
+            />
+            <button
+              class="btn btn-primary"
+              type="submit"
+              :disabled="skillsStore.settingsLoading || !githubSource.trim()"
+              data-test="skill-github-submit"
+            >
+              {{ skillsStore.settingsLoading ? t("skills.installing") : t("skills.installButton") }}
+            </button>
+          </form>
+        </div>
+      </section>
     </template>
   </section>
 </template>

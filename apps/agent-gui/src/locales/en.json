@@ -268,7 +268,14 @@
     "search": "Search",
     "searching": "Searching…",
     "install": "Install",
-    "installs": "{count} installs"
+    "installs": "{count} installs",
+    "catalogEmpty": "No skills found in catalog.",
+    "catalogSourcesTitle": "Skill Catalog Sources",
+    "sourcesEmpty": "No skill catalog sources configured.",
+    "sourceFormError": {
+      "idAndDisplayNameRequired": "id and display_name are required",
+      "urlMustStartWithHttp": "URL must start with http:// or https://"
+    }
   },
   "statusBar": {
     "profile": "profile: {profile}",
