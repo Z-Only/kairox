@@ -172,6 +172,7 @@ test.describe("Settings panes backed by tauri-mock", () => {
     // Switch to Discover sub-tab to search remote skills
     await page.getByTestId("skill-subtab-discover").click();
     await page.getByTestId("skill-catalog-search").fill("review");
+    await page.getByTestId("skill-catalog-search").press("Enter");
     await expect(page.getByTestId("skill-catalog-card")).toBeVisible();
     await page.getByTestId("skill-catalog-install-skillhub/code-review-assistant").click();
     // Switch back to Installed tab to verify the skill was added
