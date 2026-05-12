@@ -130,7 +130,17 @@ pub async fn list_profile_settings(
         .filter(|view| !(view.source == "defaults" && !view.enabled))
         .collect();
 
-    views.sort_by(|a, b| a.alias.cmp(&b.alias));
+    let mut display_order: Vec<String> = Vec::new();
+    if let Some(path) = profiles_toml_path {
+        if path.exists() {
+            if let Ok(raw) = tokio::fs::read_to_string(path).await {
+                if let Ok(doc) = raw.parse::<DocumentMut>() {
+                    display_order = load_display_order(&doc);
+                }
+            }
+        }
+    }
+    sort_by_display_order(&mut views, &display_order);
     Ok(views)
 }
 
@@ -281,6 +291,66 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
             table["api_key_env"] = value(v.clone());
         }
     }
+}
+
+// -- display ordering helpers --
+
+fn load_display_order(document: &DocumentMut) -> Vec<String> {
+    document
+        .get("display_order")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn save_display_order(document: &mut DocumentMut, order: &[String]) {
+    let array =
+        toml_edit::Array::from_iter(order.iter().map(|s| toml_edit::Value::from(s.clone())));
+    document["display_order"] = toml_edit::Item::Value(toml_edit::Value::Array(array));
+}
+
+fn sort_by_display_order(views: &mut Vec<ProfileSettingsView>, display_order: &[String]) {
+    views.sort_by(|a, b| {
+        let pos_a = display_order.iter().position(|s| s == &a.alias);
+        let pos_b = display_order.iter().position(|s| s == &b.alias);
+        match (pos_a, pos_b) {
+            (Some(pa), Some(pb)) => pa.cmp(&pb),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => a.alias.cmp(&b.alias),
+        }
+    });
+}
+
+pub async fn move_profile_in_order(
+    config_path: &Path,
+    alias: &str,
+    direction: i32, // -1 for up, +1 for down
+) -> agent_core::Result<()> {
+    mutate_profiles_config(config_path, |document| {
+        let mut order = load_display_order(document);
+        if let Some(pos) = order.iter().position(|s| s == alias) {
+            let new_pos = if direction < 0 {
+                pos.saturating_sub(1)
+            } else {
+                (pos + 1).min(order.len().saturating_sub(1))
+            };
+            if new_pos != pos {
+                order.swap(pos, new_pos);
+                save_display_order(document, &order);
+            }
+        } else {
+            // Profile not in order yet — add it at the end
+            order.push(alias.to_string());
+            save_display_order(document, &order);
+        }
+        Ok(())
+    })
+    .await
 }
 
 pub async fn delete_profile_in_file(config_path: &Path, alias: &str) -> agent_core::Result<()> {

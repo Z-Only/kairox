@@ -1269,6 +1269,37 @@ pub async fn delete_profile_settings(
     Ok(())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn move_profile_in_order(
+    state: State<'_, GuiState>,
+    alias: String,
+    direction: i32,
+) -> Result<(), String> {
+    state
+        .runtime
+        .move_profile_in_order(alias, direction)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_config_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+    let Some(config_dir) = state
+        .runtime
+        .open_config_dir()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    let config_dir = std::path::PathBuf::from(config_dir);
+    open_path_in_system_file_manager(&config_dir)?;
+    Ok(Some(config_dir.display().to_string()))
+}
+
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
     let mut command = system_file_manager_command(path);
     let status = command

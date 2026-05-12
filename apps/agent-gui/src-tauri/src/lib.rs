@@ -253,6 +253,8 @@ pub fn run() {
             crate::commands::upsert_profile_settings,
             crate::commands::set_profile_enabled,
             crate::commands::delete_profile_settings,
+            crate::commands::move_profile_in_order,
+            crate::commands::open_config_dir,
             crate::commands::list_skill_settings,
             crate::commands::get_skill_settings_detail,
             crate::commands::set_skill_enabled,

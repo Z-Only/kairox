@@ -773,6 +773,19 @@ pub trait AppFacade: Send + Sync {
         ))
     }
 
+    /// Move a profile up or down in display order.
+    async fn move_profile_in_order(&self, alias: String, direction: i32) -> crate::Result<()> {
+        let _ = (alias, direction);
+        Err(crate::CoreError::InvalidState(
+            "profile ordering not supported".into(),
+        ))
+    }
+
+    /// Open the config directory in the system file manager.
+    async fn open_config_dir(&self) -> crate::Result<Option<String>> {
+        Ok(None)
+    }
+
     /// List skills for settings UI.
     async fn list_skill_settings(&self) -> crate::Result<Vec<SkillSettingsView>> {
         Ok(Vec::new())

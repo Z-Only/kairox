@@ -1315,6 +1315,25 @@ where
         crate::profile_settings::delete_profile_in_file(&config_path, &alias).await
     }
 
+    async fn move_profile_in_order(&self, alias: String, direction: i32) -> agent_core::Result<()> {
+        let config_path = crate::profile_settings::writable_profiles_config_path(
+            self.marketplace_dir.as_deref(),
+        )?
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(
+                "config dir not configured; cannot reorder profiles".into(),
+            )
+        })?;
+        crate::profile_settings::move_profile_in_order(&config_path, &alias, direction).await
+    }
+
+    async fn open_config_dir(&self) -> agent_core::Result<Option<String>> {
+        Ok(self
+            .marketplace_dir
+            .as_ref()
+            .map(|p| p.display().to_string()))
+    }
+
     async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {
         crate::skill_settings::list_skill_settings(self.skill_settings_roots()).await
     }
