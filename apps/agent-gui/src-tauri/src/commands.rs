@@ -77,6 +77,7 @@ pub struct ProjectInfoResponse {
     pub removed_at: Option<String>,
     pub sort_order: i64,
     pub expanded: bool,
+    pub path_exists: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -95,6 +96,7 @@ pub struct ProjectInstructionSummaryResponse {
 
 impl From<ProjectMeta> for ProjectInfoResponse {
     fn from(project: ProjectMeta) -> Self {
+        let path_exists = std::path::Path::new(&project.root_path).exists();
         Self {
             project_id: project.project_id.to_string(),
             display_name: project.display_name,
@@ -102,6 +104,7 @@ impl From<ProjectMeta> for ProjectInfoResponse {
             removed_at: project.removed_at,
             sort_order: project.sort_order,
             expanded: project.expanded,
+            path_exists,
         }
     }
 }
