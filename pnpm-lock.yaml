@@ -131,8 +131,8 @@ importers:
         specifier: 1.0.0-rc.17
         version: 1.0.0-rc.17
       '@rolldown/binding-win32-x64-msvc':
-        specifier: 1.0.0-rc.17
-        version: 1.0.0-rc.17
+        specifier: 1.0.1
+        version: 1.0.1
 
 packages:
 
@@ -770,6 +770,12 @@ packages:
 
   '@rolldown/binding-win32-x64-msvc@1.0.0-rc.17':
     resolution: {integrity: sha512-3hkiolcUAvPB9FLb3UZdfjVVNWherN1f/skkGWJP/fgSQhYUZpSIRr0/I8ZK9TkF3F7kxvJAk0+IcKvPHk9qQg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
+  '@rolldown/binding-win32-x64-msvc@1.0.1':
+    resolution: {integrity: sha512-INAycaWuhlOK3wk4mRHGsdgwYWmd9cChdPdE9bwWmy6rn9VqVNYNFGhOdXrofXUxwHIncSiPNb8tNm8knDVIeQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -2882,6 +2888,9 @@ snapshots:
     optional: true
 
   '@rolldown/binding-win32-x64-msvc@1.0.0-rc.17':
+    optional: true
+
+  '@rolldown/binding-win32-x64-msvc@1.0.1':
     optional: true
 
   '@rolldown/pluginutils@1.0.0-rc.13': {}
