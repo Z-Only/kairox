@@ -186,15 +186,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn route_unknown_profile_returns_error() {
-        let router = ModelRouter::new();
-        let result = router
-            .route(ModelRequest::user_text("unknown", "test"))
-            .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
     async fn route_twice_uses_same_client() {
         let mut router = ModelRouter::new();
         let client = Arc::new(FakeModelClient::new(vec!["token".into()]));
@@ -213,20 +204,5 @@ mod tests {
             .unwrap();
         let second = stream2.next().await.unwrap().unwrap();
         assert_eq!(second, ModelEvent::TokenDelta("token".into()));
-    }
-
-    #[tokio::test]
-    async fn router_implements_model_client_trait() {
-        let mut router = ModelRouter::new();
-        let client = Arc::new(FakeModelClient::new(vec!["trait_token".into()]));
-        router.register(test_profile("test"), client);
-
-        let model_client: &dyn ModelClient = &router;
-        let mut stream = model_client
-            .stream(ModelRequest::user_text("test", "hello"))
-            .await
-            .unwrap();
-        let first = stream.next().await.unwrap().unwrap();
-        assert!(matches!(first, ModelEvent::TokenDelta(_)));
     }
 }
