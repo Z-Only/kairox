@@ -284,7 +284,7 @@ describe("settings servers", () => {
     const store = useMcpStore();
     await store.fetchSettingsServers();
 
-    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_server_settings");
+    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_server_settings", { sourceFilter: null });
     expect(store.settingsServers[0].id).toBe("files");
   });
 

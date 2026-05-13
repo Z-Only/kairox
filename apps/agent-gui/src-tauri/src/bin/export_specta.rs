@@ -67,6 +67,8 @@ fn main() {
             agent_gui_tauri::commands::list_workspaces,
             agent_gui_tauri::commands::rename_session,
             agent_gui_tauri::commands::delete_session,
+            agent_gui_tauri::commands::permanently_delete_session,
+            agent_gui_tauri::commands::restore_archived_session,
             agent_gui_tauri::commands::get_profile_detail,
             agent_gui_tauri::commands::restore_workspace,
             agent_gui_tauri::commands::get_task_graph,

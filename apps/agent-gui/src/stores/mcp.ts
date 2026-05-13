@@ -157,11 +157,13 @@ export const useMcpStore = defineStore("mcp", () => {
     }
   }
 
-  async function fetchSettingsServers(): Promise<void> {
+  async function fetchSettingsServers(sourceFilter?: string | null): Promise<void> {
     settingsLoading.value = true;
     settingsError.value = null;
     try {
-      settingsServers.value = await unwrapCommandResult(commands.listMcpServerSettings());
+      settingsServers.value = await unwrapCommandResult(
+        commands.listMcpServerSettings(sourceFilter ?? null)
+      );
     } catch (caughtError) {
       settingsError.value = formatError(caughtError);
     } finally {

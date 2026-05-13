@@ -1,556 +1,661 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Settings Panel Mockup — ConfigSourceBar</title>
-<style>
-  :root {
-    --bg: #1e1e2e;
-    --surface: #282840;
-    --border: #3a3a5c;
-    --text: #e0e0f0;
-    --text-muted: #a0a0c0;
-    --primary: #7c3aed;
-    --primary-muted: #7c3aed33;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --radius: 8px;
-    --font: system-ui, -apple-system, sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    padding: 40px;
-    line-height: 1.6;
-  }
-  h2 { margin: 32px 0 16px; font-size: 1.25rem; color: #c0c0e0; }
-  h3 { margin: 24px 0 12px; font-size: 1rem; color: #b0b0d0; }
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-  }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Settings Panel Mockup — ConfigSourceBar</title>
+    <style>
+      :root {
+        --bg: #1e1e2e;
+        --surface: #282840;
+        --border: #3a3a5c;
+        --text: #e0e0f0;
+        --text-muted: #a0a0c0;
+        --primary: #7c3aed;
+        --primary-muted: #7c3aed33;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --radius: 8px;
+        --font: system-ui, -apple-system, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        padding: 40px;
+        line-height: 1.6;
+      }
+      h2 {
+        margin: 32px 0 16px;
+        font-size: 1.25rem;
+        color: #c0c0e0;
+      }
+      h3 {
+        margin: 24px 0 12px;
+        font-size: 1rem;
+        color: #b0b0d0;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
 
-  /* ---- Tab Bar ---- */
-  .tabs {
-    display: flex; gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 16px;
-  }
-  .tab-btn {
-    padding: 8px 16px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 6px 6px 0 0;
-    background: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    transition: color .2s, border-color .2s, background .15s;
-  }
-  .tab-btn:hover { color: var(--text); background: #ffffff08; }
-  .tab-btn.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-    background: var(--primary-muted);
-  }
+      /* ---- Tab Bar ---- */
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+      .tab-btn {
+        padding: 8px 16px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        border-radius: 6px 6px 0 0;
+        background: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        transition:
+          color 0.2s,
+          border-color 0.2s,
+          background 0.15s;
+      }
+      .tab-btn:hover {
+        color: var(--text);
+        background: #ffffff08;
+      }
+      .tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        background: var(--primary-muted);
+      }
 
-  /* ---- Config Source Bar ---- */
-  .config-source-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-  .config-source-bar .label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
+      /* ---- Config Source Bar ---- */
+      .config-source-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      .config-source-bar .label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
 
-  /* Segmented buttons */
-  .segmented {
-    display: inline-flex;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-  .segmented button {
-    padding: 5px 14px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: all .15s;
-    border-right: 1px solid var(--border);
-  }
-  .segmented button:last-child { border-right: none; }
-  .segmented button:hover { background: #ffffff08; }
-  .segmented button.active {
-    background: var(--primary);
-    color: #fff;
-  }
+      /* Segmented buttons */
+      .segmented {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .segmented button {
+        padding: 5px 14px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        border-right: 1px solid var(--border);
+      }
+      .segmented button:last-child {
+        border-right: none;
+      }
+      .segmented button:hover {
+        background: #ffffff08;
+      }
+      .segmented button.active {
+        background: var(--primary);
+        color: #fff;
+      }
 
-  /* Project selector */
-  .select-wrapper {
-    position: relative;
-  }
-  .select-wrapper select {
-    padding: 5px 28px 5px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 0.82rem;
-    cursor: pointer;
-    appearance: none;
-    min-width: 160px;
-  }
-  .select-wrapper select:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-  .select-wrapper::after {
-    content: "▾";
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-  }
-  .select-wrapper select option.warn {
-    color: var(--warning);
-  }
+      /* Project selector */
+      .select-wrapper {
+        position: relative;
+      }
+      .select-wrapper select {
+        padding: 5px 28px 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.82rem;
+        cursor: pointer;
+        appearance: none;
+        min-width: 160px;
+      }
+      .select-wrapper select:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      .select-wrapper::after {
+        content: "▾";
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+      }
+      .select-wrapper select option.warn {
+        color: var(--warning);
+      }
 
-  /* Warning badge */
-  .warn-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    background: #f59e0b22;
-    color: var(--warning);
-    cursor: help;
-  }
-  .warn-badge .tooltip {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 6px 10px;
-    background: #333;
-    color: #fff;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    white-space: nowrap;
-    z-index: 10;
-  }
-  .warn-badge:hover .tooltip { display: block; }
+      /* Warning badge */
+      .warn-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        background: #f59e0b22;
+        color: var(--warning);
+        cursor: help;
+      }
+      .warn-badge .tooltip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 10px;
+        background: #333;
+        color: #fff;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        z-index: 10;
+      }
+      .warn-badge:hover .tooltip {
+        display: block;
+      }
 
-  /* Open button */
-  .open-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: all .15s;
-    margin-left: auto;
-  }
-  .open-btn:hover { color: var(--text); background: #ffffff08; }
+      /* Open button */
+      .open-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-left: auto;
+      }
+      .open-btn:hover {
+        color: var(--text);
+        background: #ffffff08;
+      }
 
-  /* ---- Source Tags ---- */
-  .source-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-size: 0.72rem;
-    font-weight: 600;
-  }
-  .source-tag.project { background: #7c3aed22; color: #a78bfa; }
-  .source-tag.user    { background: #3b82f622; color: #60a5fa; }
-  .source-tag.builtin { background: #6b728022; color: #9ca3af; }
+      /* ---- Source Tags ---- */
+      .source-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+      .source-tag.project {
+        background: #7c3aed22;
+        color: #a78bfa;
+      }
+      .source-tag.user {
+        background: #3b82f622;
+        color: #60a5fa;
+      }
+      .source-tag.builtin {
+        background: #6b728022;
+        color: #9ca3af;
+      }
 
-  /* ---- Card List ---- */
-  .card-list { display: grid; gap: 8px; }
-  .card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .card-body { flex: 1; min-width: 0; }
-  .card-title { font-weight: 600; font-size: 0.92rem; }
-  .card-sub  { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-  .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+      /* ---- Card List ---- */
+      .card-list {
+        display: grid;
+        gap: 8px;
+      }
+      .card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      .card-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .card-title {
+        font-weight: 600;
+        font-size: 0.92rem;
+      }
+      .card-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .card-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+      }
+      .card-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
 
-  .tag {
-    display: inline-flex;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    background: #ffffff10;
-  }
-  .tag-success { background: #22c55e22; color: #4ade80; }
-  .tag-warning { background: #f59e0b22; color: #fbbf24; }
+      .tag {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        background: #ffffff10;
+      }
+      .tag-success {
+        background: #22c55e22;
+        color: #4ade80;
+      }
+      .tag-warning {
+        background: #f59e0b22;
+        color: #fbbf24;
+      }
 
-  .btn {
-    padding: 5px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--text);
-    font-size: 0.78rem;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .btn:hover { background: #ffffff08; }
-  .btn-danger { color: var(--danger); border-color: #ef444444; }
-  .btn-danger:hover { background: #ef444418; }
-  .btn-sm { padding: 3px 8px; font-size: 0.72rem; }
-  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .btn-primary:hover { background: #6d28d9; }
+      .btn {
+        padding: 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--text);
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn:hover {
+        background: #ffffff08;
+      }
+      .btn-danger {
+        color: var(--danger);
+        border-color: #ef444444;
+      }
+      .btn-danger:hover {
+        background: #ef444418;
+      }
+      .btn-sm {
+        padding: 3px 8px;
+        font-size: 0.72rem;
+      }
+      .btn-primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #6d28d9;
+      }
 
-  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+      hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 24px 0;
+      }
 
-  /* ---- Archive Stats ---- */
-  .stats-bar {
-    display: flex;
-    gap: 16px;
-    padding: 12px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 16px;
-  }
-  .stat-item { display: flex; flex-direction: column; }
-  .stat-value { font-size: 1.4rem; font-weight: 700; }
-  .stat-label { font-size: 0.75rem; color: var(--text-muted); }
+      /* ---- Archive Stats ---- */
+      .stats-bar {
+        display: flex;
+        gap: 16px;
+        padding: 12px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+      }
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+      }
+      .stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+      }
+      .stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
 
-  .path-missing {
-    color: var(--warning);
-    font-size: 0.75rem;
-    margin-top: 2px;
-  }
-  .path-missing::before { content: "⚠️ "; }
+      .path-missing {
+        color: var(--warning);
+        font-size: 0.75rem;
+        margin-top: 2px;
+      }
+      .path-missing::before {
+        content: "⚠️ ";
+      }
 
-  /* ---- Banner ---- */
-  .banner {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: #f59e0b15;
-    border: 1px solid #f59e0b44;
-    border-radius: var(--radius);
-    margin-bottom: 12px;
-    font-size: 0.82rem;
-  }
-  .banner .count { font-weight: 700; color: var(--warning); }
-  .banner .detail { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; cursor: pointer; }
-</style>
-</head>
-<body>
-<div class="container">
+      /* ---- Banner ---- */
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: #f59e0b15;
+        border: 1px solid #f59e0b44;
+        border-radius: var(--radius);
+        margin-bottom: 12px;
+        font-size: 0.82rem;
+      }
+      .banner .count {
+        font-weight: 700;
+        color: var(--warning);
+      }
+      .banner .detail {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-left: auto;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 style="font-size: 1.5rem; margin-bottom: 8px">Settings Panel — Design Mockup</h1>
 
-<h1 style="font-size:1.5rem;margin-bottom:8px;">Settings Panel — Design Mockup</h1>
+      <!-- ============================================================ -->
+      <!-- TAB BAR -->
+      <!-- ============================================================ -->
+      <h2>1. Settings Tab Bar (新增 Archive tab)</h2>
 
-<!-- ============================================================ -->
-<!-- TAB BAR -->
-<!-- ============================================================ -->
-<h2>1. Settings Tab Bar (新增 Archive tab)</h2>
+      <div class="tabs" role="tablist">
+        <button class="tab-btn" role="tab">General</button>
+        <button class="tab-btn" role="tab">MCP</button>
+        <button class="tab-btn" role="tab">Skills</button>
+        <button class="tab-btn active" role="tab">Models</button>
+        <button class="tab-btn" role="tab">Archive</button>
+      </div>
 
-<div class="tabs" role="tablist">
-  <button class="tab-btn" role="tab">General</button>
-  <button class="tab-btn" role="tab">MCP</button>
-  <button class="tab-btn" role="tab">Skills</button>
-  <button class="tab-btn active" role="tab">Models</button>
-  <button class="tab-btn" role="tab">Archive</button>
-</div>
+      <!-- ============================================================ -->
+      <!-- CONFIG SOURCE BAR — User mode -->
+      <!-- ============================================================ -->
+      <h2>2. ConfigSourceBar — 用户配置模式</h2>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px">
+        当前 tab = Models | 显示在 MCP / Skills / Models 路由下
+      </p>
 
-<!-- ============================================================ -->
-<!-- CONFIG SOURCE BAR — User mode -->
-<!-- ============================================================ -->
-<h2>2. ConfigSourceBar — 用户配置模式</h2>
-<p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">
-  当前 tab = Models | 显示在 MCP / Skills / Models 路由下
-</p>
+      <div class="config-source-bar">
+        <span class="label">配置来源：</span>
+        <div class="segmented">
+          <button class="active">用户配置</button>
+          <button>项目配置</button>
+        </div>
 
-<div class="config-source-bar">
-  <span class="label">配置来源：</span>
-  <div class="segmented">
-    <button class="active">用户配置</button>
-    <button>项目配置</button>
-  </div>
+        <!-- 用户模式：无项目选择器 -->
+        <!-- 打开按钮：跳转到 ~/.kairox/ 目录 -->
+        <button class="open-btn" title="在文件管理器中打开">📂 打开配置目录</button>
+      </div>
 
-  <!-- 用户模式：无项目选择器 -->
-  <!-- 打开按钮：跳转到 ~/.kairox/ 目录 -->
-  <button class="open-btn" title="在文件管理器中打开">
-    📂 打开配置目录
-  </button>
-</div>
+      <!-- 用户模式下各条目标记来源为"用户级" -->
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px">
+        → 列表项显示来源标记：
+      </p>
+      <div class="card-list">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">openai-gpt4o</div>
+            <div class="card-sub">openai / gpt-4o</div>
+            <div class="card-tags">
+              <span class="source-tag user">用户级</span>
+              <span class="tag tag-success">API Key 已配置</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">local-deepseek</div>
+            <div class="card-sub">deepseek / deepseek-v4-pro</div>
+            <div class="card-tags">
+              <span class="source-tag user">用户级</span>
+              <span class="tag tag-success">API Key 已配置</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<!-- 用户模式下各条目标记来源为"用户级" -->
-<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">→ 列表项显示来源标记：</p>
-<div class="card-list">
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">openai-gpt4o</div>
-      <div class="card-sub">openai / gpt-4o</div>
-      <div class="card-tags">
-        <span class="source-tag user">用户级</span>
-        <span class="tag tag-success">API Key 已配置</span>
+      <hr />
+
+      <!-- ============================================================ -->
+      <!-- CONFIG SOURCE BAR — Project mode -->
+      <!-- ============================================================ -->
+      <h2>3. ConfigSourceBar — 项目配置模式</h2>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px">
+        切换到"项目配置"后，出现项目选择器
+      </p>
+
+      <div class="config-source-bar">
+        <span class="label">配置来源：</span>
+        <div class="segmented">
+          <button>用户配置</button>
+          <button class="active">项目配置</button>
+        </div>
+
+        <span class="label">项目：</span>
+        <div class="select-wrapper" style="position: relative">
+          <select>
+            <option>kairox</option>
+            <option>my-app</option>
+            <option class="warn">⚠ old-project</option>
+            <option class="warn">⚠ deleted-repo</option>
+          </select>
+        </div>
+
+        <button class="open-btn" title="在文件管理器中打开项目 .kairox/ 目录">
+          📂 打开项目配置
+        </button>
+      </div>
+
+      <!-- 项目不存在时 banner -->
+      <div class="banner">
+        ⚠️ 有 <span class="count">2</span> 个项目路径不存在
+        <span class="detail" title="详情">查看详情 ▸</span>
+      </div>
+
+      <!-- 项目模式下显示合并结果，条目标记来源 -->
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px">
+        → 显示合并结果（项目级覆盖 + 用户级补充），标记各自来源：
+      </p>
+      <div class="card-list">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">openai-gpt4o</div>
+            <div class="card-sub">openai / gpt-4o</div>
+            <div class="card-tags">
+              <span class="source-tag project">项目级</span>
+              <span class="tag tag-success">API Key 已配置</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">local-deepseek</div>
+            <div class="card-sub">deepseek / deepseek-v4-pro</div>
+            <div class="card-tags">
+              <span class="source-tag user">用户级</span>
+              <span class="tag tag-success">API Key 已配置</span>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px">
+              未被项目覆盖，来自用户配置
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============================================================ -->
+      <!-- Project missing — hover detail -->
+      <!-- ============================================================ -->
+      <h2>4. 项目路径不存在 —— 标记 + Tooltip 详情</h2>
+
+      <div class="config-source-bar">
+        <span class="label">配置来源：</span>
+        <div class="segmented">
+          <button>用户配置</button>
+          <button class="active">项目配置</button>
+        </div>
+        <span class="label">项目：</span>
+        <div class="select-wrapper" style="position: relative">
+          <select>
+            <option class="warn" selected>⚠ old-project</option>
+          </select>
+        </div>
+
+        <div class="warn-badge" style="position: relative">
+          ⚠ 路径不存在
+          <span class="tooltip">原路径: /Users/chanyu/old-project<br />移除时间: 2026-04-15</span>
+        </div>
+
+        <button class="open-btn">📂 打开项目配置</button>
+      </div>
+
+      <hr />
+
+      <!-- ============================================================ -->
+      <!-- Archive tab -->
+      <!-- ============================================================ -->
+      <h2>5. 归档 Tab</h2>
+
+      <!-- 点击 Archive tab 锚点 -->
+      <div class="tabs" role="tablist">
+        <button class="tab-btn" role="tab">General</button>
+        <button class="tab-btn" role="tab">MCP</button>
+        <button class="tab-btn" role="tab">Skills</button>
+        <button class="tab-btn" role="tab">Models</button>
+        <button class="tab-btn active" role="tab">Archive</button>
+      </div>
+
+      <!-- 统计条 -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-value">12</span>
+          <span class="stat-label">已归档会话</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">2026-05-10</span>
+          <span class="stat-label">最近归档</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">3</span>
+          <span class="stat-label">涉及项目</span>
+        </div>
+      </div>
+
+      <!-- 归档列表 -->
+      <div class="card-list">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">调试 token 计算逻辑</div>
+            <div class="card-sub">项目: kairox · 分支: fix/token-calc · 归档: 2026-05-10</div>
+            <div class="card-tags">
+              <span class="source-tag project">archived</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-sm">恢复</button>
+            <button class="btn btn-sm btn-danger">永久删除</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">重构 event store 接口</div>
+            <div class="card-sub">项目: kairox · 分支: refactor/events · 归档: 2026-05-08</div>
+            <div class="card-tags">
+              <span class="source-tag project">archived</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-sm">恢复</button>
+            <button class="btn btn-sm btn-danger">永久删除</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="card-title">测试 MCP 连接稳定性</div>
+            <div class="card-sub">项目: my-app · 分支: test/mcp · 归档: 2026-05-05</div>
+            <div class="card-tags">
+              <span class="source-tag project">archived</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-sm">恢复</button>
+            <button class="btn btn-sm btn-danger">永久删除</button>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============================================================ -->
+      <!-- API Key fix -->
+      <!-- ============================================================ -->
+      <h2>6. API Key 显示修复</h2>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px">
+        问题：profile_settings.rs 只检查 <code>api_key_env</code> 环境变量，未检查直接配置的
+        <code>api_key</code> 值。<br />
+        修复：对齐 <code>list_profiles_with_limits</code> 和
+        <code>Config::profile_info()</code> 的逻辑，同时检查 <code>api_key</code> 和
+        <code>api_key_env</code>。
+      </p>
+
+      <!-- Before -->
+      <div style="display: flex; gap: 24px">
+        <div style="flex: 1">
+          <strong style="color: var(--danger)">修复前 ❌</strong>
+          <div class="card" style="margin-top: 6px">
+            <div class="card-body">
+              <div class="card-title">openai-gpt4o</div>
+              <div class="card-sub">openai / gpt-4o</div>
+              <div class="card-tags">
+                <span class="tag tag-warning">未配置 API Key</span>
+              </div>
+              <div class="path-missing">实际有 api_key = "sk-xxx" 但未被检测</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex: 1">
+          <strong style="color: var(--success)">修复后 ✅</strong>
+          <div class="card" style="margin-top: 6px">
+            <div class="card-body">
+              <div class="card-title">openai-gpt4o</div>
+              <div class="card-sub">openai / gpt-4o</div>
+              <div class="card-tags">
+                <span class="tag tag-success">API Key 已配置</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">local-deepseek</div>
-      <div class="card-sub">deepseek / deepseek-v4-pro</div>
-      <div class="card-tags">
-        <span class="source-tag user">用户级</span>
-        <span class="tag tag-success">API Key 已配置</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<hr>
-
-<!-- ============================================================ -->
-<!-- CONFIG SOURCE BAR — Project mode -->
-<!-- ============================================================ -->
-<h2>3. ConfigSourceBar — 项目配置模式</h2>
-<p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">
-  切换到"项目配置"后，出现项目选择器
-</p>
-
-<div class="config-source-bar">
-  <span class="label">配置来源：</span>
-  <div class="segmented">
-    <button>用户配置</button>
-    <button class="active">项目配置</button>
-  </div>
-
-  <span class="label">项目：</span>
-  <div class="select-wrapper" style="position:relative;">
-    <select>
-      <option>kairox</option>
-      <option>my-app</option>
-      <option class="warn">⚠ old-project</option>
-      <option class="warn">⚠ deleted-repo</option>
-    </select>
-  </div>
-
-  <button class="open-btn" title="在文件管理器中打开项目 .kairox/ 目录">
-    📂 打开项目配置
-  </button>
-</div>
-
-<!-- 项目不存在时 banner -->
-<div class="banner">
-  ⚠️ 有 <span class="count">2</span> 个项目路径不存在
-  <span class="detail" title="详情">查看详情 ▸</span>
-</div>
-
-<!-- 项目模式下显示合并结果，条目标记来源 -->
-<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">
-  → 显示合并结果（项目级覆盖 + 用户级补充），标记各自来源：
-</p>
-<div class="card-list">
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">openai-gpt4o</div>
-      <div class="card-sub">openai / gpt-4o</div>
-      <div class="card-tags">
-        <span class="source-tag project">项目级</span>
-        <span class="tag tag-success">API Key 已配置</span>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">local-deepseek</div>
-      <div class="card-sub">deepseek / deepseek-v4-pro</div>
-      <div class="card-tags">
-        <span class="source-tag user">用户级</span>
-        <span class="tag tag-success">API Key 已配置</span>
-      </div>
-      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">
-        未被项目覆盖，来自用户配置
-      </div>
-    </div>
-  </div>
-</div>
-
-<hr>
-
-<!-- ============================================================ -->
-<!-- Project missing — hover detail -->
-<!-- ============================================================ -->
-<h2>4. 项目路径不存在 —— 标记 + Tooltip 详情</h2>
-
-<div class="config-source-bar">
-  <span class="label">配置来源：</span>
-  <div class="segmented">
-    <button>用户配置</button>
-    <button class="active">项目配置</button>
-  </div>
-  <span class="label">项目：</span>
-  <div class="select-wrapper" style="position:relative;">
-    <select>
-      <option class="warn" selected>⚠ old-project</option>
-    </select>
-  </div>
-
-  <div class="warn-badge" style="position:relative;">
-    ⚠ 路径不存在
-    <span class="tooltip">原路径: /Users/chanyu/old-project<br>移除时间: 2026-04-15</span>
-  </div>
-
-  <button class="open-btn">📂 打开项目配置</button>
-</div>
-
-<hr>
-
-<!-- ============================================================ -->
-<!-- Archive tab -->
-<!-- ============================================================ -->
-<h2>5. 归档 Tab</h2>
-
-<!-- 点击 Archive tab 锚点 -->
-<div class="tabs" role="tablist">
-  <button class="tab-btn" role="tab">General</button>
-  <button class="tab-btn" role="tab">MCP</button>
-  <button class="tab-btn" role="tab">Skills</button>
-  <button class="tab-btn" role="tab">Models</button>
-  <button class="tab-btn active" role="tab">Archive</button>
-</div>
-
-<!-- 统计条 -->
-<div class="stats-bar">
-  <div class="stat-item">
-    <span class="stat-value">12</span>
-    <span class="stat-label">已归档会话</span>
-  </div>
-  <div class="stat-item">
-    <span class="stat-value">2026-05-10</span>
-    <span class="stat-label">最近归档</span>
-  </div>
-  <div class="stat-item">
-    <span class="stat-value">3</span>
-    <span class="stat-label">涉及项目</span>
-  </div>
-</div>
-
-<!-- 归档列表 -->
-<div class="card-list">
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">调试 token 计算逻辑</div>
-      <div class="card-sub">项目: kairox · 分支: fix/token-calc · 归档: 2026-05-10</div>
-      <div class="card-tags">
-        <span class="source-tag project">archived</span>
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-sm">恢复</button>
-      <button class="btn btn-sm btn-danger">永久删除</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">重构 event store 接口</div>
-      <div class="card-sub">项目: kairox · 分支: refactor/events · 归档: 2026-05-08</div>
-      <div class="card-tags">
-        <span class="source-tag project">archived</span>
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-sm">恢复</button>
-      <button class="btn btn-sm btn-danger">永久删除</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-body">
-      <div class="card-title">测试 MCP 连接稳定性</div>
-      <div class="card-sub">项目: my-app · 分支: test/mcp · 归档: 2026-05-05</div>
-      <div class="card-tags">
-        <span class="source-tag project">archived</span>
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-sm">恢复</button>
-      <button class="btn btn-sm btn-danger">永久删除</button>
-    </div>
-  </div>
-</div>
-
-<hr>
-
-<!-- ============================================================ -->
-<!-- API Key fix -->
-<!-- ============================================================ -->
-<h2>6. API Key 显示修复</h2>
-<p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;">
-  问题：profile_settings.rs 只检查 <code>api_key_env</code> 环境变量，未检查直接配置的 <code>api_key</code> 值。<br>
-  修复：对齐 <code>list_profiles_with_limits</code> 和 <code>Config::profile_info()</code> 的逻辑，同时检查 <code>api_key</code> 和 <code>api_key_env</code>。
-</p>
-
-<!-- Before -->
-<div style="display:flex; gap:24px;">
-<div style="flex:1;">
-  <strong style="color:var(--danger);">修复前 ❌</strong>
-  <div class="card" style="margin-top:6px;">
-    <div class="card-body">
-      <div class="card-title">openai-gpt4o</div>
-      <div class="card-sub">openai / gpt-4o</div>
-      <div class="card-tags">
-        <span class="tag tag-warning">未配置 API Key</span>
-      </div>
-      <div class="path-missing">实际有 api_key = "sk-xxx" 但未被检测</div>
-    </div>
-  </div>
-</div>
-<div style="flex:1;">
-  <strong style="color:var(--success);">修复后 ✅</strong>
-  <div class="card" style="margin-top:6px;">
-    <div class="card-body">
-      <div class="card-title">openai-gpt4o</div>
-      <div class="card-sub">openai / gpt-4o</div>
-      <div class="card-tags">
-        <span class="tag tag-success">API Key 已配置</span>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-
-</div>
-</body>
+  </body>
 </html>

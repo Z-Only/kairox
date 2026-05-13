@@ -17,9 +17,16 @@ const stdioArgs = ref("");
 const sseUrl = ref("");
 const busyServerId = ref<string | null>(null);
 
-onMounted(() => {
-  void mcp.fetchSettingsServers();
-});
+const configSource = inject<Ref<"user" | "project">>("configSource");
+const configProjectId = inject<Ref<string | undefined>>("configProjectId");
+
+watch(
+  [() => configSource?.value, () => configProjectId?.value],
+  () => {
+    void mcp.fetchSettingsServers(configSource?.value === "project" ? "project" : null);
+  },
+  { immediate: true }
+);
 
 function formatTools(server: McpServerSettingsView): string {
   return server.tool_count === null
