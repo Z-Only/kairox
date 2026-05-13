@@ -610,6 +610,305 @@ Authorization = "Bearer ${TEST_MCP_AUTH}"
         );
         std::env::remove_var("TEST_MCP_AUTH");
     }
+
+    // -------------------------------------------------------------------
+    // Task 1: validation & env resolution tests
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn validate_rejects_openai_compatible_without_base_url() {
+        let toml = r#"
+[profiles.fast]
+provider = "openai_compatible"
+model_id = "gpt-4.1-mini"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        let result = validate(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_allows_ollama_without_base_url() {
+        let toml = r#"
+[profiles.local-llm]
+provider = "ollama"
+model_id = "llama3"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        let result = validate(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn resolve_api_keys_reads_from_env() {
+        let toml = r#"
+[profiles.test]
+provider = "openai_compatible"
+model_id = "test-model"
+base_url = "https://api.example.com/v1"
+api_key_env = "TEST_KEY_123"
+"#;
+        std::env::set_var("TEST_KEY_123", "sk-abc");
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_api_keys(&mut config);
+        let (_, def) = &config.profiles[0];
+        assert_eq!(def.api_key, Some("sk-abc".to_string()));
+        std::env::remove_var("TEST_KEY_123");
+    }
+
+    #[test]
+    fn resolve_api_keys_does_not_overwrite_existing_key() {
+        let toml = r#"
+[profiles.test]
+provider = "openai_compatible"
+model_id = "test-model"
+base_url = "https://api.example.com/v1"
+api_key = "hardcoded"
+api_key_env = "SOME_VAR"
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_api_keys(&mut config);
+        let (_, def) = &config.profiles[0];
+        assert_eq!(def.api_key, Some("hardcoded".to_string()));
+    }
+
+    #[test]
+    fn resolve_api_keys_noop_when_no_env_var() {
+        let toml = r#"
+[profiles.test]
+provider = "openai_compatible"
+model_id = "test-model"
+base_url = "https://api.example.com/v1"
+api_key_env = "NONEXISTENT_VAR_FOR_TEST"
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_api_keys(&mut config);
+        let (_, def) = &config.profiles[0];
+        assert_eq!(def.api_key, None);
+    }
+
+    #[test]
+    fn resolve_api_keys_fallback_empty_if_no_env_and_not_anthropic() {
+        let toml = r#"
+[profiles.test]
+provider = "openai_compatible"
+model_id = "test-model"
+base_url = "https://api.example.com/v1"
+api_key_env = "NONEXISTENT_VAR"
+"#;
+        let mut config = load_from_str(toml, "test.toml").unwrap();
+        resolve_api_keys(&mut config);
+        let (_, def) = &config.profiles[0];
+        assert_eq!(def.api_key, None);
+    }
+
+    #[test]
+    fn config_parse_includes_context_policy() {
+        // Empty [context] section uses defaults.
+        let cfg_empty: crate::Config = crate::loader::load_from_str(
+            r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[context]
+"#,
+            "test.toml",
+        )
+        .unwrap();
+        assert!(
+            (cfg_empty.context.auto_compact_threshold - 0.85_f32).abs() < 1e-6,
+            "default should be 0.85"
+        );
+        assert!(cfg_empty.context.compactor_profile.is_none());
+        assert!(cfg_empty.context.max_tool_definition_tokens.is_none());
+
+        // Override works.
+        let cfg_override: crate::Config = crate::loader::load_from_str(
+            r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[context]
+auto_compact_threshold = 0.9
+compactor_profile = "fake"
+max_tool_definition_tokens = 50000
+"#,
+            "test.toml",
+        )
+        .unwrap();
+        assert!((cfg_override.context.auto_compact_threshold - 0.9).abs() < 1e-6);
+        assert_eq!(
+            cfg_override.context.compactor_profile.as_deref(),
+            Some("fake")
+        );
+        assert_eq!(
+            cfg_override.context.max_tool_definition_tokens,
+            Some(50_000)
+        );
+    }
+
+    #[test]
+    fn config_parse_merges_multiple_mcp_servers() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.server1]
+type = "stdio"
+command = "npx"
+args = ["server1"]
+
+[mcp_servers.server2]
+type = "sse"
+url = "https://mcp2.example.com"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.mcp_servers.len(), 2);
+        let ids: Vec<&str> = config
+            .mcp_servers
+            .iter()
+            .map(|(id, _)| id.as_str())
+            .collect();
+        assert!(ids.contains(&"server1"));
+        assert!(ids.contains(&"server2"));
+    }
+
+    #[test]
+    fn config_parse_stdio_mcp_with_all_fields() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.full-stdio]
+type = "stdio"
+command = "/usr/local/bin/node"
+args = ["server.js", "--port", "3000"]
+cwd = "/home/user/mcp-server"
+keep_alive = true
+idle_timeout_secs = 600
+auto_restart = false
+max_restart_attempts = 5
+
+[mcp_servers.full-stdio.env]
+NODE_ENV = "production"
+DEBUG = "mcp:*"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.mcp_servers.len(), 1);
+        let (id, server) = &config.mcp_servers[0];
+        assert_eq!(id, "full-stdio");
+        assert_eq!(server.r#type, McpTransportType::Stdio);
+        assert_eq!(server.command.as_deref(), Some("/usr/local/bin/node"));
+        assert_eq!(
+            server.args.as_deref(),
+            Some(
+                &vec![
+                    "server.js".to_string(),
+                    "--port".to_string(),
+                    "3000".to_string()
+                ][..]
+            )
+        );
+        assert_eq!(server.cwd.as_deref(), Some("/home/user/mcp-server"));
+        assert!(server.keep_alive);
+        assert_eq!(server.idle_timeout_secs, 600);
+        assert!(!server.auto_restart);
+        assert_eq!(server.max_restart_attempts, 5);
+        let env = server.env.as_ref().unwrap();
+        assert_eq!(env.get("NODE_ENV"), Some(&"production".to_string()));
+        assert_eq!(env.get("DEBUG"), Some(&"mcp:*".to_string()));
+    }
+
+    #[test]
+    fn config_parse_disabled_profile_excluded() {
+        let toml = r#"
+[profiles.enabled-one]
+provider = "fake"
+model_id = "fake"
+
+[profiles.disabled-one]
+provider = "ollama"
+model_id = "llama3"
+enabled = false
+
+[profiles.enabled-two]
+provider = "openai_compatible"
+model_id = "gpt-4"
+base_url = "https://api.openai.com/v1"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+
+        // profile_names() should exclude disabled-one
+        let names = config.profile_names();
+        assert!(names.contains(&"enabled-one".to_string()));
+        assert!(names.contains(&"enabled-two".to_string()));
+        assert!(!names.contains(&"disabled-one".to_string()));
+        assert_eq!(names.len(), 2);
+
+        // profile_info() should also exclude disabled-one
+        let info = config.profile_info();
+        assert!(info.iter().any(|p| p.alias == "enabled-one"));
+        assert!(info.iter().any(|p| p.alias == "enabled-two"));
+        assert!(!info.iter().any(|p| p.alias == "disabled-one"));
+        assert_eq!(info.len(), 2);
+    }
+
+    #[test]
+    fn config_parse_profile_with_all_optional_fields() {
+        let toml = r#"
+[profiles.full]
+provider = "openai_compatible"
+model_id = "gpt-4"
+base_url = "https://api.openai.com/v1"
+temperature = 0.7
+top_p = 0.9
+top_k = 50
+supports_tools = true
+supports_vision = false
+supports_reasoning = true
+
+[profiles.full.headers]
+X-Custom = "custom-value"
+Authorization = "Bearer test"
+
+[profiles.full.extra_params]
+seed = 42
+response_format = { type = "json_object" }
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.profiles.len(), 1);
+        let (alias, def) = &config.profiles[0];
+        assert_eq!(alias, "full");
+        assert_eq!(def.provider, "openai_compatible");
+        assert_eq!(def.model_id, "gpt-4");
+        assert!((def.temperature.unwrap() - 0.7).abs() < 1e-6);
+        assert!((def.top_p.unwrap() - 0.9).abs() < 1e-6);
+        assert_eq!(def.top_k, Some(50));
+        assert_eq!(def.supports_tools, Some(true));
+        assert_eq!(def.supports_vision, Some(false));
+        assert_eq!(def.supports_reasoning, Some(true));
+
+        let headers = def.headers.as_ref().unwrap();
+        assert_eq!(headers.get("X-Custom"), Some(&"custom-value".to_string()));
+        assert_eq!(
+            headers.get("Authorization"),
+            Some(&"Bearer test".to_string())
+        );
+
+        let extra = def.extra_params.as_ref().unwrap();
+        assert_eq!(extra.get("seed").and_then(|v| v.as_integer()), Some(42));
+        assert_eq!(
+            extra
+                .get("response_format")
+                .and_then(|v| v.get("type"))
+                .and_then(|v| v.as_str()),
+            Some("json_object")
+        );
+    }
 }
 
 /// Load main config plus an optional marketplace `mcp_servers.toml` overlay.
