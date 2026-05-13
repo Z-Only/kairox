@@ -130,10 +130,14 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
       </button>
     </div>
 
-    <section v-if="activeSubTab === 'installed'" data-test="mcp-installed-servers">
+    <section
+      v-if="activeSubTab === 'installed'"
+      class="mcp-settings__installed"
+      data-test="mcp-installed-servers"
+    >
       <div class="mcp-toolbar">
         <button
-          class="btn"
+          class="btn btn-sm"
           type="button"
           :disabled="mcp.configFolderOpening"
           data-test="mcp-open-config"
@@ -142,7 +146,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
           {{ mcp.configFolderOpening ? t("mcp.opening") : t("mcp.openConfigFolder") }}
         </button>
         <button
-          class="btn"
+          class="btn btn-sm"
           type="button"
           :disabled="mcp.settingsLoading"
           data-test="mcp-refresh-all"
@@ -187,91 +191,95 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
         </KxDropdownMenu>
       </div>
 
-      <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">
-        {{ t("mcp.loading") }}
-      </p>
-      <p v-else-if="mcp.settingsServers.length === 0" class="empty-state">
-        {{ t("mcp.noServers") }}
-      </p>
+      <div class="mcp-settings__body">
+        <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">
+          {{ t("mcp.loading") }}
+        </p>
+        <p v-else-if="mcp.settingsServers.length === 0" class="empty-state">
+          {{ t("mcp.noServers") }}
+        </p>
 
-      <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
-        <article
-          v-for="server in mcp.settingsServers"
-          :key="server.id"
-          class="card mcp-settings__server"
-          role="listitem"
-          :data-test="`mcp-server-row-${server.id}`"
-        >
-          <div class="card-body mcp-settings__server-body">
-            <div class="mcp-settings__server-main">
-              <h3>{{ server.name }}</h3>
-              <p>{{ server.description || t("mcp.noDescription") }}</p>
-              <div class="mcp-settings__tags" aria-label="Server metadata">
-                <span class="tag">{{ server.transport }}</span>
-                <span class="tag">{{ formatTools(server) }}</span>
-                <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
-                  {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
-                </span>
-                <span :class="['tag', server.trusted ? 'tag-success' : 'tag-warning']">
-                  {{ server.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
-                </span>
+        <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
+          <article
+            v-for="server in mcp.settingsServers"
+            :key="server.id"
+            class="card mcp-settings__server"
+            role="listitem"
+            :data-test="`mcp-server-row-${server.id}`"
+          >
+            <div class="card-body mcp-settings__server-body">
+              <div class="mcp-settings__server-main">
+                <h3>{{ server.name }}</h3>
+                <p>{{ server.description || t("mcp.noDescription") }}</p>
+                <div class="mcp-settings__tags" aria-label="Server metadata">
+                  <span class="tag">{{ server.transport }}</span>
+                  <span class="tag">{{ formatTools(server) }}</span>
+                  <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
+                    {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
+                  </span>
+                  <span :class="['tag', server.trusted ? 'tag-success' : 'tag-warning']">
+                    {{ server.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
+                  </span>
+                </div>
+                <p
+                  v-if="server.last_error"
+                  class="alert alert-error"
+                  role="alert"
+                  :data-test="`mcp-row-error-${server.id}`"
+                >
+                  {{ server.last_error }}
+                </p>
               </div>
-              <p
-                v-if="server.last_error"
-                class="alert alert-error"
-                role="alert"
-                :data-test="`mcp-row-error-${server.id}`"
-              >
-                {{ server.last_error }}
-              </p>
-            </div>
 
-            <div class="mcp-settings__actions" aria-label="Server actions">
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-refresh-tools-${server.id}`"
-                @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
-              >
-                {{ busyServerId === server.id ? t("common.loading") : t("mcp.refreshTools") }}
-              </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-enable-${server.id}`"
-                @click="
-                  runServerAction(server.id, () => mcp.setServerEnabled(server.id, !server.enabled))
-                "
-              >
-                {{ server.enabled ? t("mcp.disable") : t("mcp.enable") }}
-              </button>
-              <button
-                class="btn btn-sm"
-                type="button"
-                :disabled="busyServerId === server.id"
-                :data-test="`mcp-trust-${server.id}`"
-                @click="
-                  runServerAction(server.id, () =>
-                    server.trusted ? mcp.revokeTrust(server.id) : mcp.trustServer(server.id)
-                  )
-                "
-              >
-                {{ server.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
-              </button>
-              <button
-                class="btn btn-danger btn-sm"
-                type="button"
-                :disabled="!server.writable || busyServerId === server.id"
-                :data-test="`mcp-delete-${server.id}`"
-                @click="runServerAction(server.id, () => mcp.deleteServerSettings(server.id))"
-              >
-                {{ t("common.delete") }}
-              </button>
+              <div class="mcp-settings__actions" aria-label="Server actions">
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-refresh-tools-${server.id}`"
+                  @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
+                >
+                  {{ busyServerId === server.id ? t("common.loading") : t("mcp.refreshTools") }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-enable-${server.id}`"
+                  @click="
+                    runServerAction(server.id, () =>
+                      mcp.setServerEnabled(server.id, !server.enabled)
+                    )
+                  "
+                >
+                  {{ server.enabled ? t("mcp.disable") : t("mcp.enable") }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="busyServerId === server.id"
+                  :data-test="`mcp-trust-${server.id}`"
+                  @click="
+                    runServerAction(server.id, () =>
+                      server.trusted ? mcp.revokeTrust(server.id) : mcp.trustServer(server.id)
+                    )
+                  "
+                >
+                  {{ server.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
+                </button>
+                <button
+                  class="btn btn-danger btn-sm"
+                  type="button"
+                  :disabled="!server.writable || busyServerId === server.id"
+                  :data-test="`mcp-delete-${server.id}`"
+                  @click="runServerAction(server.id, () => mcp.deleteServerSettings(server.id))"
+                >
+                  {{ t("common.delete") }}
+                </button>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -354,6 +362,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 .mcp-settings__header,
@@ -362,6 +371,21 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+/* Wrapper for installed tab content — toolbar + scrollable list */
+.mcp-settings__installed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mcp-settings__body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .mcp-sub-tabs {
@@ -402,6 +426,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   gap: 8px;
   align-items: center;
   margin-bottom: 12px;
+  flex: none;
 }
 
 .mcp-settings__server h3 {

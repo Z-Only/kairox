@@ -81,10 +81,7 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
     </div>
 
     <div v-if="['mcp', 'skills', 'models'].includes(activeTab)" class="settings__source-bar">
-      <ConfigSourceBar
-        :current-tab="activeTab as 'mcp' | 'skills' | 'models'"
-        @source-change="onSourceChange"
-      />
+      <ConfigSourceBar @source-change="onSourceChange" />
     </div>
 
     <router-view />
@@ -105,8 +102,9 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
   min-height: 0;
   overflow: auto;
 }
-.settings__source-bar {
+.settings > :not(.tabs):not(h1).settings__source-bar {
   flex: none;
+  overflow: visible;
 }
 .tabs {
   display: flex;

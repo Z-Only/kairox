@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import { commands } from "@/generated/commands";
 import { useProjectStore } from "@/stores/project";
-
-const props = defineProps<{
-  currentTab: "mcp" | "skills" | "models";
-}>();
 
 const emit = defineEmits<{
   (e: "source-change", source: "user" | "project", projectId?: string): void;
@@ -38,20 +33,6 @@ function onSourceChange(newSource: "user" | "project"): void {
 
 function onProjectChange(): void {
   emit("source-change", "project", selectedProjectId.value);
-}
-
-async function openConfigLocation(): Promise<void> {
-  try {
-    if (props.currentTab === "models") {
-      await commands.openConfigDir();
-    } else if (props.currentTab === "mcp") {
-      await commands.openMcpConfigFile();
-    } else if (props.currentTab === "skills") {
-      await commands.openSkillsDir();
-    }
-  } catch {
-    // best-effort
-  }
 }
 
 onMounted(() => {
@@ -96,15 +77,6 @@ onMounted(() => {
           </select>
         </div>
       </template>
-
-      <button
-        class="config-source-bar__open-btn"
-        data-test="open-config-btn"
-        @click="openConfigLocation"
-        :title="t('settings.openConfigDir')"
-      >
-        {{ t("settings.openConfigDir") }}
-      </button>
     </div>
   </div>
 </template>
@@ -114,7 +86,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 0;
+  padding: 2px 0;
   flex-wrap: wrap;
 }
 .segmented {
@@ -153,32 +125,15 @@ onMounted(() => {
   color: var(--app-text-color);
   font-size: 0.82rem;
 }
-.config-source-bar__open-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--app-text-color-2);
-  font-size: 0.82rem;
-  cursor: pointer;
-  margin-left: auto;
-  transition: background 0.15s;
-}
-.config-source-bar__open-btn:hover {
-  background: var(--app-hover-color);
-}
 .config-source-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 4px 12px;
   background: color-mix(in srgb, #f59e0b 15%, transparent);
   border: 1px solid color-mix(in srgb, #f59e0b 44%, transparent);
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
   font-size: 0.82rem;
   color: var(--app-text-color);
 }

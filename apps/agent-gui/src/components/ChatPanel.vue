@@ -23,27 +23,15 @@ interface Attachment {
   mimeType: string;
 }
 const attachments = ref<Attachment[]>([]);
-const thumbnailUrls = ref<Map<string, string>>(new Map());
+const previewAttachment = ref<Attachment | null>(null);
+const previewPos = ref({ x: 0, y: 0 });
 
 function isImageMime(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
-async function loadAttachmentThumbnail(att: Attachment): Promise<void> {
-  try {
-    const assetUrl = convertFileSrc(att.path);
-    const response = await fetch(assetUrl);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    thumbnailUrls.value.set(att.id, objectUrl);
-  } catch (e) {
-    console.warn(`Failed to load thumbnail for ${att.path}:`, e);
-  }
-}
-
-function getThumbnailUrl(att: Attachment): string | undefined {
-  return thumbnailUrls.value.get(att.id);
+function getThumbnailUrl(att: Attachment): string {
+  return convertFileSrc(att.path);
 }
 
 function onThumbnailError(e: Event) {
@@ -51,6 +39,30 @@ function onThumbnailError(e: Event) {
   img.style.display = "none";
   const badge = img.nextElementSibling as HTMLElement | null;
   if (badge) badge.style.display = "";
+}
+
+const PREVIEW_MAX_HEIGHT = 328; // 320px img + 8px padding
+
+function showPreview(att: Attachment, e: MouseEvent) {
+  previewAttachment.value = att;
+  clampPreviewPos(e.clientX, e.clientY);
+}
+
+function hidePreview() {
+  previewAttachment.value = null;
+}
+
+function updatePreviewPos(e: MouseEvent) {
+  clampPreviewPos(e.clientX, e.clientY);
+}
+
+function clampPreviewPos(clientX: number, clientY: number): void {
+  let top = clientY - PREVIEW_MAX_HEIGHT / 2;
+  if (top < 8) top = 8;
+  if (top + PREVIEW_MAX_HEIGHT > window.innerHeight - 8) {
+    top = window.innerHeight - PREVIEW_MAX_HEIGHT - 8;
+  }
+  previewPos.value = { x: clientX + 12, y: top };
 }
 
 const FILE_ICON_MAP: Record<string, string> = {
@@ -115,9 +127,7 @@ async function pickFiles() {
         mimeType
       };
       attachments.value = [...attachments.value, att];
-      if (isImageMime(mimeType)) {
-        loadAttachmentThumbnail(att);
-      }
+      // Thumbnails are loaded on-demand via convertFileSrc in the template.
     }
   } catch (e) {
     console.error("File picker error:", e);
@@ -158,11 +168,6 @@ function mimeFromExtension(ext: string): string {
 
 function removeAttachment(id: string) {
   attachments.value = attachments.value.filter((a) => a.id !== id);
-  const url = thumbnailUrls.value.get(id);
-  if (url) {
-    URL.revokeObjectURL(url);
-    thumbnailUrls.value.delete(id);
-  }
 }
 
 /** Map role to CSS class suffix. */
@@ -267,11 +272,6 @@ async function sendMessage() {
 
   inputText.value = "";
   attachments.value = [];
-  // Revoke all thumbnail URLs
-  for (const url of thumbnailUrls.value.values()) {
-    URL.revokeObjectURL(url);
-  }
-  thumbnailUrls.value.clear();
   try {
     await invoke("send_message", payload);
   } catch (e) {
@@ -466,14 +466,17 @@ watch(
           :data-filename="att.name"
         >
           <img
-            v-if="isImageMime(att.mimeType) && getThumbnailUrl(att)"
+            v-if="isImageMime(att.mimeType)"
             :src="getThumbnailUrl(att)"
             class="attachment-thumbnail"
             :alt="att.name"
             @error="onThumbnailError"
+            @mouseenter="showPreview(att, $event)"
+            @mousemove="updatePreviewPos"
+            @mouseleave="hidePreview"
           />
           <span
-            v-show="!isImageMime(att.mimeType) || !getThumbnailUrl(att)"
+            v-else
             :class="['attachment-type-icon', fileIconClass(att.name)]"
             :aria-label="att.mimeType"
           >
@@ -508,7 +511,9 @@ watch(
               />
             </svg>
           </span>
-          <span class="attachment-name" :title="att.name">{{ truncateFilename(att.name) }}</span>
+          <span v-if="!isImageMime(att.mimeType)" class="attachment-name" :title="att.name">{{
+            truncateFilename(att.name)
+          }}</span>
           <button
             class="attachment-remove"
             type="button"
@@ -561,6 +566,20 @@ watch(
         </button>
       </div>
     </div>
+    <Teleport to="body">
+      <div
+        v-if="previewAttachment"
+        class="thumbnail-preview-overlay"
+        :style="{ left: previewPos.x + 'px', top: previewPos.y + 'px' }"
+        @mouseleave="hidePreview"
+      >
+        <img
+          :src="getThumbnailUrl(previewAttachment)"
+          class="thumbnail-preview-image"
+          :alt="previewAttachment.name"
+        />
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -946,5 +965,22 @@ watch(
   width: 28px;
   height: 28px;
   font-size: 16px;
+}
+.thumbnail-preview-overlay {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--app-card-color);
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+.thumbnail-preview-image {
+  display: block;
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 6px;
+  object-fit: contain;
 }
 </style>

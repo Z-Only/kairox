@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
 import { commands } from "@/generated/commands";
+import { useNotifications } from "@/composables/useNotifications";
 
 const { t } = useI18n();
+const { notify } = useNotifications();
 const profiles = ref<ProfileSettingsView[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -10,7 +12,6 @@ const busyAlias = ref<string | null>(null);
 const addDialogOpen = ref(false);
 const editDialogOpen = ref(false);
 const editingProfile = ref<ProfileSettingsView | null>(null);
-const sourceFilter = ref<string | null>(null);
 const advancedOpen = ref(false);
 const editAdvancedOpen = ref(false);
 const formAlias = ref("");
@@ -31,7 +32,6 @@ const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 watch(
   [() => configSource?.value, () => configProjectId?.value],
   () => {
-    sourceFilter.value = configSource?.value === "project" ? "project" : null;
     void fetchProfiles();
   },
   { immediate: true }
@@ -67,7 +67,8 @@ async function fetchProfiles(): Promise<void> {
   loading.value = true;
   error.value = null;
   try {
-    profiles.value = await unwrapCommandResult(commands.listProfileSettings(sourceFilter.value));
+    const filter = configSource?.value === "project" ? "project" : null;
+    profiles.value = await unwrapCommandResult(commands.listProfileSettings(filter));
   } catch (caughtError) {
     error.value = formatError(caughtError);
   } finally {
@@ -216,6 +217,29 @@ async function toggleProfile(profile: ProfileSettingsView): Promise<void> {
   }
 }
 
+async function testConnectivity(profile: ProfileSettingsView): Promise<void> {
+  busyAlias.value = profile.alias;
+  try {
+    const result = await commands.testModelConnectivity(profile.alias);
+    if (result.status === "ok" && result.data.ok === true) {
+      notify("success", t("models.testSuccess", { alias: profile.alias }));
+    } else {
+      const msg =
+        result.status === "error"
+          ? String(result.error)
+          : (result.data.error ?? t("models.testFailed", { alias: profile.alias }));
+      notify("error", msg);
+    }
+  } catch (caughtError) {
+    notify(
+      "error",
+      t("models.testFailed", { alias: profile.alias, error: formatError(caughtError) })
+    );
+  } finally {
+    busyAlias.value = null;
+  }
+}
+
 async function deleteProfile(profile: ProfileSettingsView): Promise<void> {
   busyAlias.value = profile.alias;
   error.value = null;
@@ -229,9 +253,31 @@ async function deleteProfile(profile: ProfileSettingsView): Promise<void> {
   }
 }
 
-function changeSourceFilter(value: string): void {
-  sourceFilter.value = value || null;
-  void fetchProfiles();
+async function testFormConnectivity(): Promise<void> {
+  const url = formBaseUrl.value.trim();
+  if (!url) return;
+  try {
+    const result = await commands.testUrlConnectivity(url);
+    if (result.status === "ok" && result.data.ok === true) {
+      notify("success", t("models.testSuccess", { alias: url }));
+    } else {
+      const msg =
+        result.status === "error"
+          ? String(result.error)
+          : (result.data.error ?? t("models.testFailed", { alias: url }));
+      notify("error", msg);
+    }
+  } catch (caughtError) {
+    notify("error", t("models.testFailed", { alias: url, error: formatError(caughtError) }));
+  }
+}
+
+async function openConfigDir(): Promise<void> {
+  try {
+    await commands.openConfigDir();
+  } catch {
+    // best-effort
+  }
 }
 
 async function moveProfile(alias: string, direction: number): Promise<void> {
@@ -246,14 +292,6 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
     busyAlias.value = null;
   }
 }
-
-async function openConfigDir(): Promise<void> {
-  try {
-    await unwrapCommandResult(commands.openConfigDir());
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  }
-}
 </script>
 
 <template>
@@ -263,18 +301,16 @@ async function openConfigDir(): Promise<void> {
     </p>
 
     <div class="model-toolbar">
-      <div class="model-toolbar__left">
-        <select
-          v-model="sourceFilter"
-          class="model-source-select"
-          data-test="model-source-filter"
-          @change="changeSourceFilter(($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">{{ t("models.showUserConfig") }}</option>
-          <option value="project">{{ t("models.showProjectConfig") }}</option>
-        </select>
-      </div>
       <div class="model-toolbar__actions">
+        <button
+          class="btn btn-sm"
+          type="button"
+          data-test="model-open-config-dir"
+          :title="t('models.openConfigDir')"
+          @click="openConfigDir()"
+        >
+          {{ t("models.openConfigDir") }}
+        </button>
         <button
           class="btn btn-sm"
           type="button"
@@ -291,14 +327,6 @@ async function openConfigDir(): Promise<void> {
           @click="openAddDialog()"
         >
           {{ t("models.addProfile") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
-          data-test="model-open-config-dir"
-          @click="openConfigDir()"
-        >
-          {{ t("models.openConfigDir") }}
         </button>
       </div>
     </div>
@@ -325,9 +353,6 @@ async function openConfigDir(): Promise<void> {
             <div class="mcp-settings__tags" aria-label="Profile metadata">
               <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
                 {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
-              </span>
-              <span :class="['tag', profile.has_api_key ? 'tag-success' : 'tag-warning']">
-                {{ profile.has_api_key ? t("models.hasApiKey") : t("models.noApiKey") }}
               </span>
               <span v-if="profile.context_window" class="tag">
                 {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
@@ -381,6 +406,16 @@ async function openConfigDir(): Promise<void> {
               @click="toggleProfile(profile)"
             >
               {{ profile.enabled ? t("models.disable") : t("models.enable") }}
+            </button>
+            <button
+              class="btn btn-sm"
+              type="button"
+              :disabled="busyAlias === profile.alias"
+              :data-test="`model-test-${profile.alias}`"
+              :title="t('models.testConnectivity')"
+              @click="testConnectivity(profile)"
+            >
+              {{ t("models.testConnectivity") }}
             </button>
             <button
               v-if="profile.writable"
@@ -530,6 +565,15 @@ async function openConfigDir(): Promise<void> {
       <template #footer>
         <button class="btn" type="button" @click="closeAddDialog">
           {{ t("common.cancel") }}
+        </button>
+        <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="!formBaseUrl.trim()"
+          data-test="model-test-form-btn"
+          @click="testFormConnectivity()"
+        >
+          {{ t("models.testConnectivity") }}
         </button>
         <button
           class="btn btn-primary"
@@ -682,6 +726,15 @@ async function openConfigDir(): Promise<void> {
           {{ t("common.cancel") }}
         </button>
         <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="!editingProfile"
+          data-test="model-edit-test-btn"
+          @click="editingProfile && testConnectivity(editingProfile)"
+        >
+          {{ t("models.testConnectivity") }}
+        </button>
+        <button
           class="btn btn-primary"
           type="submit"
           :disabled="loading || !formProvider.trim() || !formModelId.trim()"
@@ -700,6 +753,7 @@ async function openConfigDir(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 .model-toolbar {
@@ -708,11 +762,7 @@ async function openConfigDir(): Promise<void> {
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.model-toolbar__left {
-  display: flex;
-  align-items: center;
+  flex: none;
 }
 
 .model-toolbar__actions {
@@ -721,18 +771,12 @@ async function openConfigDir(): Promise<void> {
   gap: 8px;
 }
 
-.model-source-select {
-  padding: 4px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.85rem;
-}
-
 .model-settings__list {
   display: grid;
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .model-settings__profile-body {
@@ -790,7 +834,7 @@ async function openConfigDir(): Promise<void> {
   font-weight: 600;
   font-size: 0.9rem;
   margin-bottom: 8px;
-  color: var(--color-text-muted);
+  color: var(--app-text-color-2);
   width: 100%;
 }
 
@@ -799,7 +843,7 @@ async function openConfigDir(): Promise<void> {
   cursor: pointer;
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--color-text-muted);
+  color: var(--app-text-color-2);
 }
 
 .model-form__toggle:hover {
@@ -828,20 +872,20 @@ async function openConfigDir(): Promise<void> {
 .model-form label > span {
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--app-text-color-2);
 }
 
 .model-form input {
   padding: 6px 8px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--app-border-color);
   border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--app-card-color);
+  color: var(--app-text-color);
   font-size: 0.85rem;
 }
 
 .model-form input:focus {
-  border-color: var(--color-primary);
+  border-color: var(--app-primary-color);
   outline: none;
 }
 </style>

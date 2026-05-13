@@ -17,7 +17,8 @@ vi.mock("@/generated/commands", () => ({
     setProfileEnabled: vi.fn(),
     deleteProfileSettings: vi.fn(),
     moveProfileInOrder: vi.fn(),
-    openConfigDir: vi.fn()
+    openConfigDir: vi.fn(),
+    testModelConnectivity: vi.fn()
   }
 }));
 
@@ -115,7 +116,6 @@ describe("ModelSettingsPane", () => {
 
     const myModelRow = wrapper.find('[data-test="model-row-my-model"]');
     expect(myModelRow.text()).toContain("Enabled");
-    expect(myModelRow.text()).toContain("Has API Key");
 
     const slowRow = wrapper.find('[data-test="model-row-slow-model"]');
     expect(slowRow.text()).toContain("Disabled");
@@ -233,24 +233,14 @@ describe("ModelSettingsPane", () => {
     expect(mockedCommands.moveProfileInOrder).toHaveBeenCalledWith("my-model", 1);
   });
 
-  it("source toggle switches between user and project views", async () => {
+  it("renders without ConfigSourceBar parent (defaults to user scope)", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    const select = wrapper.find('[data-test="model-source-filter"]');
-    expect(select.exists()).toBe(true);
-
-    await select.setValue("project");
-    await flushPromises();
-    expect(mockedCommands.listProfileSettings).toHaveBeenCalledWith("project");
-  });
-
-  it("open config dir button calls openConfigDir", async () => {
-    const wrapper = mountPane();
-    await flushPromises();
-
-    await wrapper.find('[data-test="model-open-config-dir"]').trigger("click");
-    expect(mockedCommands.openConfigDir).toHaveBeenCalled();
+    // When configSource is not provided (unit test context), defaults to null (user scope)
+    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith(null);
+    // Profile rows should still render
+    expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(true);
   });
 
   it("shows error message on fetch failure", async () => {
