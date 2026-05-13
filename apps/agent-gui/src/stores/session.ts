@@ -410,8 +410,7 @@ export const useSessionStore = defineStore("session", () => {
     // Dedup: check all existing sessions (excluding the one just created)
     sessions.value = await listOrdinarySessions();
     const existingTitles = sessions.value.filter((s) => s.id !== result.id).map((s) => s.title);
-    let title = "New Session";
-    title = uniqueSessionTitle(title, existingTitles);
+    const title = uniqueSessionTitle("New Session", existingTitles);
 
     // Persist the deduped title if different from default
     if (title !== result.title) {
