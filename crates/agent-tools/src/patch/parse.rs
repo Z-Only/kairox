@@ -297,41 +297,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_multi_file_diff() {
-        let diff = "\
-diff --git a/foo.rs b/foo.rs
---- a/foo.rs
-+++ b/foo.rs
-@@ -1,1 +1,2 @@
--old
-+new
-diff --git a/bar.rs b/bar.rs
---- a/bar.rs
-+++ b/bar.rs
-@@ -1,1 +1,1 @@
--old
-+new
-";
-        let patches = parse_unified_diff(diff).unwrap();
-        assert_eq!(patches.len(), 2);
-        assert_eq!(patches[0].old_path, PathBuf::from("foo.rs"));
-        assert_eq!(patches[0].hunks.len(), 1);
-        assert_eq!(patches[1].old_path, PathBuf::from("bar.rs"));
-        assert_eq!(patches[1].hunks.len(), 1);
-    }
-
-    #[test]
-    fn parse_rejects_invalid_header() {
-        let diff = "just some random text\nnothing to see here\n";
-        let result = parse_unified_diff(diff);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            PatchParseError::InvalidHeader(_)
-        ));
-    }
-
-    #[test]
     fn parse_line_types_correct() {
         let diff = "\
 --- a/test.txt

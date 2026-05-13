@@ -522,11 +522,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_command_quoted_args() {
+    fn parse_command_splits_literally_on_whitespace() {
         let (program, args) = parse_command(r#"echo "hello world""#);
         assert_eq!(program, "echo");
-        // Current implementation splits on whitespace including spaces inside
-        // quotes. Quote characters become part of the tokens.
+        // FIXME: handle shell quoting — split_whitespace breaks quoted arguments
         assert_eq!(args.len(), 2);
         assert_eq!(args[0], "\"hello");
         assert_eq!(args[1], "world\"");
