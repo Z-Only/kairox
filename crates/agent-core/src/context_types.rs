@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum ContextSource {
     System,
+    ProjectInstruction,
     ToolDefinitions,
     Request,
     Memory,
@@ -66,6 +67,14 @@ mod tests {
             "compaction_summary"
         );
         assert_eq!(serde_json::to_value(ContextSource::Skill).unwrap(), "skill");
+    }
+
+    #[test]
+    fn project_instruction_serializes_snake_case() {
+        assert_eq!(
+            serde_json::to_value(ContextSource::ProjectInstruction).unwrap(),
+            "project_instruction"
+        );
     }
 
     #[test]

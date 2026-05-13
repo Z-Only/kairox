@@ -768,6 +768,18 @@ where
                 Ok(())
             }
             ExecutionMode::SingleStep => {
+                let root_path = match self.project_repository() {
+                    Ok(repo) => match repo.get_session_binding(request.session_id.as_str()).await {
+                        Ok(Some(binding)) => repo
+                            .get_project(&binding.project_id)
+                            .await
+                            .ok()
+                            .map(|project| std::path::PathBuf::from(project.root_path)),
+                        _ => None,
+                    },
+                    Err(_) => None,
+                };
+
                 crate::agent_loop::run_agent_loop(
                     crate::agent_loop::AgentLoopDeps {
                         store: &self.store,
@@ -783,6 +795,7 @@ where
                         session_states: &self.session_states,
                         skill_registry: &self.skill_registry,
                         active_skills: &self.active_skills,
+                        root_path,
                     },
                     &request,
                 )

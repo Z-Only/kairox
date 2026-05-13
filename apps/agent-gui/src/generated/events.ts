@@ -13,6 +13,7 @@ export type CompactionReason = { type: "UserRequested" } | { type: "Threshold"; 
 
 export type ContextSource =
   | "system"
+  | "project_instruction"
   | "tool_definitions"
   | "request"
   | "memory"

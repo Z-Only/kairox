@@ -497,6 +497,7 @@ export type ProjectInfoResponse = {
 
 export type ProjectInstructionSummaryResponse = {
   source_paths: string[];
+  contents: string | null;
   warning: string | null;
 };
 
