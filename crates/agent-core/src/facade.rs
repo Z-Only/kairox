@@ -550,6 +550,7 @@ pub struct ProjectGitStatus {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProjectInstructionSummary {
     pub source_paths: Vec<String>,
+    pub contents: Option<String>,
     pub warning: Option<String>,
 }
 

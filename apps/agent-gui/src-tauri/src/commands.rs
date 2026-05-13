@@ -91,6 +91,7 @@ pub struct ProjectGitStatusResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProjectInstructionSummaryResponse {
     pub source_paths: Vec<String>,
+    pub contents: Option<String>,
     pub warning: Option<String>,
 }
 
@@ -124,6 +125,7 @@ impl From<ProjectInstructionSummary> for ProjectInstructionSummaryResponse {
     fn from(summary: ProjectInstructionSummary) -> Self {
         Self {
             source_paths: summary.source_paths,
+            contents: summary.contents,
             warning: summary.warning,
         }
     }

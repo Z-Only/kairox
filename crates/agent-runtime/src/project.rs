@@ -172,6 +172,7 @@ pub async fn read_project_instruction_summary(root_path: &Path) -> ProjectInstru
 
     ProjectInstructionSummary {
         source_paths,
+        contents: None,
         warning,
     }
 }
