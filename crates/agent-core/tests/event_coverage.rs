@@ -11,7 +11,8 @@ use std::collections::HashSet;
 // ── helpers ────────────────────────────────────────────────────────────────
 
 fn ts(s: &str) -> chrono::DateTime<chrono::Utc> {
-    s.parse().unwrap()
+    s.parse()
+        .unwrap_or_else(|e| panic!("invalid timestamp '{s}': {e}"))
 }
 
 fn usage() -> ContextUsage {
@@ -298,9 +299,7 @@ fn every_event_payload_variant_has_event_type() {
 // ── key-variant JSON roundtrip (standalone EventPayload, no envelope) ──────
 
 #[test]
-fn payload_serde_roundtrip_for_key_variants() {
-    // Pick a representative subset across all categories: session, model,
-    // tools, memory, skills, MCP, catalog, compaction, multi-agent.
+fn payload_serde_roundtrip_for_all_variants() {
     let variants: Vec<EventPayload> = vec![
         EventPayload::WorkspaceOpened {
             path: "/home/user/proj".into(),
@@ -318,10 +317,23 @@ fn payload_serde_roundtrip_for_key_variants() {
             role: AgentRole::Reviewer,
             dependencies: vec![],
         },
+        EventPayload::AgentTaskStarted {
+            task_id: agent_core::TaskId::new(),
+        },
+        EventPayload::ContextAssembled { usage: usage() },
         EventPayload::ContextCompactionStarted {
             reason: CompactionReason::Threshold { ratio: 0.87 },
             before_tokens: 188_000,
             candidate_event_count: 42,
+        },
+        EventPayload::ContextCompactionCompleted {
+            summary_id: "sum_done".into(),
+            after_tokens: 12_000,
+            fallback_used: false,
+        },
+        EventPayload::ContextCompactionFailed {
+            error: "timeout".into(),
+            fallback_used: true,
         },
         EventPayload::CompactionSummary {
             summary_id: "sum_abc".into(),
@@ -340,6 +352,33 @@ fn payload_serde_roundtrip_for_key_variants() {
             output_limit: 16_384,
             limit_source: "builtin_registry".into(),
         },
+        EventPayload::ModelRequestStarted {
+            model_profile: "fast".into(),
+            model_id: "gpt-4.1-mini".into(),
+        },
+        EventPayload::ModelTokenDelta {
+            delta: "Hello".into(),
+        },
+        EventPayload::ModelToolCallRequested {
+            tool_call_id: "call1".into(),
+            tool_id: "shell.exec".into(),
+        },
+        EventPayload::PermissionRequested {
+            request_id: "req1".into(),
+            tool_id: "shell.exec".into(),
+            preview: "rm -rf /tmp".into(),
+        },
+        EventPayload::PermissionGranted {
+            request_id: "req1".into(),
+        },
+        EventPayload::PermissionDenied {
+            request_id: "req1".into(),
+            reason: "destructive".into(),
+        },
+        EventPayload::ToolInvocationStarted {
+            invocation_id: "inv-1".into(),
+            tool_id: "shell.exec".into(),
+        },
         EventPayload::ToolInvocationCompleted {
             invocation_id: "inv-99".into(),
             tool_id: "fs.read".into(),
@@ -357,6 +396,9 @@ fn payload_serde_roundtrip_for_key_variants() {
             patch_id: "patch-1".into(),
             diff: "--- a/src/main.rs\n+++ b/src/main.rs\n@@ -1 +1 @@\n-foo\n+bar\n".into(),
         },
+        EventPayload::FilePatchApplied {
+            patch_id: "patch-1".into(),
+        },
         EventPayload::MemoryProposed {
             memory_id: "mem-7".into(),
             scope: "workspace".into(),
@@ -369,6 +411,10 @@ fn payload_serde_roundtrip_for_key_variants() {
             key: Some("editor".into()),
             content: "vscode".into(),
         },
+        EventPayload::MemoryRejected {
+            memory_id: "mem-7".into(),
+            reason: "stale".into(),
+        },
         EventPayload::ReviewerFindingAdded {
             finding_id: "find-3".into(),
             severity: "medium".into(),
@@ -378,6 +424,9 @@ fn payload_serde_roundtrip_for_key_variants() {
             message_id: "msg-42".into(),
             content: "The function computes...".into(),
         },
+        EventPayload::AgentTaskCompleted {
+            task_id: agent_core::TaskId::new(),
+        },
         EventPayload::AgentTaskFailed {
             task_id: agent_core::TaskId::new(),
             error: "max retries exceeded".into(),
@@ -386,10 +435,18 @@ fn payload_serde_roundtrip_for_key_variants() {
             parent_task_id: agent_core::TaskId::new(),
             sub_task_ids: vec![agent_core::TaskId::new(), agent_core::TaskId::new()],
         },
+        EventPayload::TaskBlocked {
+            task_id: agent_core::TaskId::new(),
+            blocking_task_id: agent_core::TaskId::new(),
+            reason: "dep failed".into(),
+        },
         EventPayload::AgentSpawned {
             agent_id: "agent_worker_bob".into(),
             role: "Worker".into(),
             task_id: agent_core::TaskId::new(),
+        },
+        EventPayload::AgentIdle {
+            agent_id: "agent_worker_bob".into(),
         },
         EventPayload::TaskRetried {
             task_id: agent_core::TaskId::new(),
@@ -398,28 +455,48 @@ fn payload_serde_roundtrip_for_key_variants() {
         EventPayload::SessionCancelled {
             reason: "user interrupt".into(),
         },
+        EventPayload::SkillDiscovered {
+            skill_id: "sk1".into(),
+            name: "docs".into(),
+            source: "builtin".into(),
+        },
+        EventPayload::SkillValidationFailed {
+            path: "/tmp/bad/SKILL.md".into(),
+            error: "missing required field 'name'".into(),
+        },
         EventPayload::SkillActivated {
             skill_id: "code-review".into(),
             name: "Code Review".into(),
             source: "builtin".into(),
             activation_mode: "suggest".into(),
         },
+        EventPayload::SkillDeactivated {
+            skill_id: "code-review".into(),
+            name: "Code Review".into(),
+            source: "builtin".into(),
+        },
         EventPayload::SkillSuggested {
             skill_id: "code-review".into(),
             name: "Code Review".into(),
             reason: "user asked for a review".into(),
         },
-        EventPayload::SkillValidationFailed {
-            path: "/tmp/bad/SKILL.md".into(),
-            error: "missing required field 'name'".into(),
+        EventPayload::McpServerStarting {
+            server_id: "filesystem".into(),
         },
         EventPayload::McpServerReady {
             server_id: "filesystem".into(),
             tool_count: 3,
         },
+        EventPayload::McpServerStopped {
+            server_id: "filesystem".into(),
+        },
         EventPayload::McpServerFailed {
             server_id: "bad-server".into(),
             error: "connection refused".into(),
+        },
+        EventPayload::McpToolCallStarted {
+            server_id: "github".into(),
+            tool_name: "create_issue".into(),
         },
         EventPayload::McpToolCallCompleted {
             server_id: "github".into(),
@@ -436,10 +513,21 @@ fn payload_serde_roundtrip_for_key_variants() {
             source: "mcp-registry".into(),
             entry_count: 47,
         },
+        EventPayload::CatalogEntryInstalling {
+            catalog_id: "cat1".into(),
+            source: "builtin".into(),
+        },
         EventPayload::CatalogEntryInstalled {
             catalog_id: "gh-modelcontextprotocol".into(),
             source: "mcp-registry".into(),
             server_id: "github-mcp".into(),
+        },
+        EventPayload::CatalogEntryUninstalled {
+            server_id: "github-mcp".into(),
+        },
+        EventPayload::CatalogRuntimeMissing {
+            catalog_id: "cat1".into(),
+            missing: vec!["node".into(), "python".into()],
         },
         EventPayload::CatalogSourceAdded {
             source: "community-registry".into(),

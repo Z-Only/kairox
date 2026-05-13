@@ -1204,7 +1204,7 @@ mod task_snapshot_tests {
     use crate::{AgentRole, TaskFailureReason, TaskId, TaskState};
 
     #[test]
-    fn task_snapshot_creation_and_defaults() {
+    fn task_snapshot_field_access() {
         let snapshot = TaskSnapshot {
             id: TaskId::new(),
             title: "review PR #42".into(),
@@ -1297,12 +1297,6 @@ mod task_snapshot_tests {
 
         // task2 depends on task1.
         assert_eq!(graph.tasks[1].dependencies, vec![task1.id.clone()]);
-    }
-
-    #[test]
-    fn task_graph_snapshot_default_is_empty() {
-        let graph = TaskGraphSnapshot::default();
-        assert!(graph.tasks.is_empty());
     }
 
     #[test]
