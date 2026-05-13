@@ -77,6 +77,7 @@ pub struct ProjectInfoResponse {
     pub removed_at: Option<String>,
     pub sort_order: i64,
     pub expanded: bool,
+    pub path_exists: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -95,6 +96,7 @@ pub struct ProjectInstructionSummaryResponse {
 
 impl From<ProjectMeta> for ProjectInfoResponse {
     fn from(project: ProjectMeta) -> Self {
+        let path_exists = std::path::Path::new(&project.root_path).exists();
         Self {
             project_id: project.project_id.to_string(),
             display_name: project.display_name,
@@ -102,6 +104,7 @@ impl From<ProjectMeta> for ProjectInfoResponse {
             removed_at: project.removed_at,
             sort_order: project.sort_order,
             expanded: project.expanded,
+            path_exists,
         }
     }
 }
@@ -930,6 +933,34 @@ pub async fn delete_session(session_id: String, state: State<'_, GuiState>) -> R
 
 #[tauri::command]
 #[specta::specta]
+pub async fn permanently_delete_session(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .permanently_delete_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_archived_session(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .restore_archived_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn cancel_session(state: State<'_, GuiState>) -> Result<(), String> {
     let workspace_id = {
         let ws = state.workspace_id.lock().await;
@@ -1141,10 +1172,11 @@ pub async fn list_active_skills(
 #[specta::specta]
 pub async fn list_mcp_server_settings(
     state: State<'_, GuiState>,
+    source_filter: Option<String>,
 ) -> Result<Vec<McpServerSettingsView>, String> {
     state
         .runtime
-        .list_mcp_server_settings()
+        .list_mcp_server_settings(source_filter)
         .await
         .map_err(|error| error.to_string())
 }
@@ -1299,6 +1331,22 @@ pub async fn open_config_dir(state: State<'_, GuiState>) -> Result<Option<String
     let config_dir = std::path::PathBuf::from(config_dir);
     open_path_in_system_file_manager(&config_dir)?;
     Ok(Some(config_dir.display().to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_skills_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+    let Some(skills_dir) = state
+        .runtime
+        .open_skills_dir()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    let skills_dir = std::path::PathBuf::from(skills_dir);
+    open_path_in_system_file_manager(&skills_dir)?;
+    Ok(Some(skills_dir.display().to_string()))
 }
 
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {

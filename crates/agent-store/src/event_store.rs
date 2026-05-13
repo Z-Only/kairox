@@ -35,6 +35,10 @@ pub trait EventStore: Send + Sync {
     async fn rename_session(&self, session_id: &str, title: &str) -> crate::Result<()>;
     /// Soft-delete a session by setting deleted_at.
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()>;
+    /// Permanently hard-delete a session and all associated data.
+    async fn permanently_delete_session(&self, session_id: &str) -> crate::Result<()>;
+    /// Restore an archived session back to visible status.
+    async fn restore_archived_session(&self, session_id: &str) -> crate::Result<()>;
     /// Hard-delete sessions that were soft-deleted longer than the specified duration ago.
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize>;
     /// List visible project-bound sessions.
@@ -272,6 +276,40 @@ impl SqliteEventStore {
         Ok(())
     }
 
+    pub async fn permanently_delete_session(&self, session_id: &str) -> crate::Result<()> {
+        sqlx::query("DELETE FROM events WHERE session_id = ?1")
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM kairox_session_visibility WHERE session_id = ?1")
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM kairox_project_sessions WHERE session_id = ?1")
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("DELETE FROM kairox_sessions WHERE session_id = ?1")
+            .bind(session_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn restore_archived_session(&self, session_id: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO kairox_session_visibility (session_id, visibility, updated_at)
+             VALUES (?1, 'visible', ?2)
+             ON CONFLICT(session_id) DO UPDATE SET visibility = 'visible', updated_at = ?2",
+        )
+        .bind(session_id)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,
@@ -386,6 +424,14 @@ impl EventStore for SqliteEventStore {
 
     async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()> {
         SqliteEventStore::soft_delete_session(self, session_id).await
+    }
+
+    async fn permanently_delete_session(&self, session_id: &str) -> crate::Result<()> {
+        SqliteEventStore::permanently_delete_session(self, session_id).await
+    }
+
+    async fn restore_archived_session(&self, session_id: &str) -> crate::Result<()> {
+        SqliteEventStore::restore_archived_session(self, session_id).await
     }
 
     async fn cleanup_expired_sessions(&self, older_than: Duration) -> crate::Result<usize> {

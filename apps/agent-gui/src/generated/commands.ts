@@ -75,6 +75,10 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("rename_session", { sessionId, title })),
   deleteSession: (sessionId: string) =>
     typedError<null, string>(__TAURI_INVOKE("delete_session", { sessionId })),
+  permanentlyDeleteSession: (sessionId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("permanently_delete_session", { sessionId })),
+  restoreArchivedSession: (sessionId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("restore_archived_session", { sessionId })),
   getProfileDetail: (profile: string) =>
     typedError<ProfileDetailResponse, string>(__TAURI_INVOKE("get_profile_detail", { profile })),
   restoreWorkspace: (workspaceId: string) =>
@@ -103,8 +107,10 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("deactivate_skill", { skillId })),
   listActiveSkills: () =>
     typedError<ActiveSkillView[], string>(__TAURI_INVOKE("list_active_skills")),
-  listMcpServerSettings: () =>
-    typedError<McpServerSettingsView[], string>(__TAURI_INVOKE("list_mcp_server_settings")),
+  listMcpServerSettings: (sourceFilter: string | null) =>
+    typedError<McpServerSettingsView[], string>(
+      __TAURI_INVOKE("list_mcp_server_settings", { sourceFilter })
+    ),
   upsertMcpServerSettings: (input: McpServerSettingsInput) =>
     typedError<McpServerSettingsView, string>(
       __TAURI_INVOKE("upsert_mcp_server_settings", { input })
@@ -128,6 +134,7 @@ export const commands = {
   moveProfileInOrder: (alias: string, direction: number) =>
     typedError<null, string>(__TAURI_INVOKE("move_profile_in_order", { alias, direction })),
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
+  openSkillsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_skills_dir")),
   listSkillSettings: () =>
     typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),
   getSkillSettingsDetail: (skillId: string) =>
@@ -373,6 +380,7 @@ export type McpServerSettingsView = {
   writable: boolean;
   config_path: string | null;
   description: string | null;
+  source: string;
 };
 
 // The lifecycle status of an MCP server connection.
@@ -484,6 +492,7 @@ export type ProjectInfoResponse = {
   removed_at: string | null;
   sort_order: number;
   expanded: boolean;
+  path_exists: boolean;
 };
 
 export type ProjectInstructionSummaryResponse = {

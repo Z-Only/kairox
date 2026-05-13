@@ -234,6 +234,7 @@ pub struct McpServerSettingsView {
     pub writable: bool,
     pub config_path: Option<String>,
     pub description: Option<String>,
+    pub source: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -668,6 +669,12 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
     async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
         SessionFacade::soft_delete_session(self, session_id).await
     }
+    async fn permanently_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        SessionFacade::permanently_delete_session(self, session_id).await
+    }
+    async fn restore_archived_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        SessionFacade::restore_archived_session(self, session_id).await
+    }
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,
@@ -796,11 +803,17 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
     async fn refresh_skill_catalog(&self) -> crate::Result<()> {
         SkillsFacade::refresh_skill_catalog(self).await
     }
+    async fn open_skills_dir(&self) -> crate::Result<Option<String>> {
+        SkillsFacade::open_skills_dir(self).await
+    }
 
     // ── MCP / Marketplace / Profile ─────────────────────────────────────
 
-    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
-        McpFacade::list_mcp_server_settings(self).await
+    async fn list_mcp_server_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> crate::Result<Vec<McpServerSettingsView>> {
+        McpFacade::list_mcp_server_settings(self, source_filter).await
     }
     async fn upsert_mcp_server_settings(
         &self,

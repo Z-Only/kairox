@@ -25,9 +25,17 @@ const formMaxTokens = ref("");
 const formBaseUrl = ref("");
 const formApiKeyEnv = ref("");
 
-onMounted(() => {
-  void fetchProfiles();
-});
+const configSource = inject<Ref<"user" | "project">>("configSource");
+const configProjectId = inject<Ref<string | undefined>>("configProjectId");
+
+watch(
+  [() => configSource?.value, () => configProjectId?.value],
+  () => {
+    sourceFilter.value = configSource?.value === "project" ? "project" : null;
+    void fetchProfiles();
+  },
+  { immediate: true }
+);
 
 function formatError(caughtError: unknown): string {
   return caughtError instanceof Error ? caughtError.message : String(caughtError);

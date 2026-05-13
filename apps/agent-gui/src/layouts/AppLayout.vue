@@ -12,7 +12,7 @@ const { t } = useI18n();
         <RouterLink :to="{ name: 'workbench' }" data-test="nav-workbench">
           {{ t("nav.workbench") }}
         </RouterLink>
-        <RouterLink :to="{ name: 'settings' }" data-test="nav-settings">
+        <RouterLink :to="{ name: 'settings-general' }" data-test="nav-settings">
           {{ t("nav.settings") }}
         </RouterLink>
       </nav>

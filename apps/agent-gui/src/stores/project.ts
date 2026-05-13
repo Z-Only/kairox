@@ -12,6 +12,7 @@ export interface ProjectInfo {
   removedAt: string | null;
   sortOrder: number;
   expanded: boolean;
+  pathExists: boolean;
 }
 
 export interface ProjectSessionInfo {
@@ -43,6 +44,7 @@ interface ProjectInfoResponse {
   removed_at: string | null;
   sort_order: number;
   expanded: boolean;
+  path_exists: boolean;
 }
 
 interface ProjectGitStatusResponse {
@@ -64,7 +66,8 @@ function normalizeProject(response: ProjectInfoResponse): ProjectInfo {
     rootPath: response.root_path,
     removedAt: response.removed_at,
     sortOrder: response.sort_order,
-    expanded: response.expanded
+    expanded: response.expanded,
+    pathExists: response.path_exists
   };
 }
 

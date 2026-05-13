@@ -27,6 +27,7 @@ struct ProfileSettingsRow {
     max_tokens: Option<u64>,
     base_url: Option<String>,
     api_key_env: Option<String>,
+    api_key: Option<String>,
     /// Where this profile was found: "defaults", "profiles_toml", "user_config", "project_config"
     source: String,
     writable: bool,
@@ -57,6 +58,7 @@ pub async fn list_profile_settings(
                 max_tokens: def.max_tokens,
                 base_url: def.base_url.clone(),
                 api_key_env: def.api_key_env.clone(),
+                api_key: def.api_key.clone(),
                 source: "defaults".to_string(),
                 writable: false,
             },
@@ -113,10 +115,11 @@ pub async fn list_profile_settings(
     let mut views: Vec<ProfileSettingsView> = rows
         .into_iter()
         .map(|(alias, row)| {
-            let has_api_key = row
-                .api_key_env
-                .as_ref()
-                .is_some_and(|v| std::env::var(v).is_ok());
+            let has_api_key = row.api_key.is_some()
+                || row
+                    .api_key_env
+                    .as_ref()
+                    .is_some_and(|v| std::env::var(v).is_ok());
             ProfileSettingsView {
                 alias: alias.clone(),
                 provider: row.provider,
@@ -224,6 +227,10 @@ fn profile_row_from_toml_table(item: &Item, source: &str, writable: bool) -> Pro
             .and_then(|t| t.get("api_key_env"))
             .and_then(Item::as_str)
             .map(ToString::to_string),
+        api_key: table
+            .and_then(|t| t.get("api_key"))
+            .and_then(Item::as_str)
+            .map(ToString::to_string),
         source: source.to_string(),
         writable,
     }
@@ -298,6 +305,11 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
     if let Some(ref v) = def.api_key_env {
         if !v.is_empty() {
             table["api_key_env"] = value(v.clone());
+        }
+    }
+    if let Some(ref v) = def.api_key {
+        if !v.is_empty() {
+            table["api_key"] = value(v.clone());
         }
     }
 }

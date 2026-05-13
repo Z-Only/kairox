@@ -30,6 +30,14 @@ pub trait SessionFacade: Send + Sync {
     async fn list_sessions(&self, workspace_id: &WorkspaceId) -> crate::Result<Vec<SessionMeta>>;
     async fn rename_session(&self, session_id: &SessionId, title: String) -> crate::Result<()>;
     async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()>;
+    async fn permanently_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        let _ = session_id;
+        Ok(())
+    }
+    async fn restore_archived_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        let _ = session_id;
+        Ok(())
+    }
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,

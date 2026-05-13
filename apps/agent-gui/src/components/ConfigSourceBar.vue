@@ -1,0 +1,185 @@
+<script setup lang="ts">
+import { commands } from "@/generated/commands";
+import { useProjectStore } from "@/stores/project";
+
+const props = defineProps<{
+  currentTab: "mcp" | "skills" | "models";
+}>();
+
+const emit = defineEmits<{
+  (e: "source-change", source: "user" | "project", projectId?: string): void;
+}>();
+
+const { t } = useI18n();
+const projectStore = useProjectStore();
+
+const source = ref<"user" | "project">("user");
+const selectedProjectId = ref<string>("");
+
+const missingProjects = computed(() => projectStore.activeProjects.filter((p) => !p.pathExists));
+
+const projectOptions = computed(() =>
+  projectStore.activeProjects.map((p) => ({
+    value: p.projectId,
+    label: p.displayName,
+    missing: !p.pathExists
+  }))
+);
+
+function onSourceChange(newSource: "user" | "project"): void {
+  source.value = newSource;
+  if (newSource === "user") {
+    selectedProjectId.value = "";
+  } else if (projectStore.activeProjects.length > 0 && !selectedProjectId.value) {
+    selectedProjectId.value = projectStore.activeProjects[0].projectId;
+  }
+  emit("source-change", newSource, newSource === "project" ? selectedProjectId.value : undefined);
+}
+
+function onProjectChange(): void {
+  emit("source-change", "project", selectedProjectId.value);
+}
+
+async function openConfigLocation(): Promise<void> {
+  try {
+    if (props.currentTab === "models") {
+      await commands.openConfigDir();
+    } else if (props.currentTab === "mcp") {
+      await commands.openMcpConfigFile();
+    } else if (props.currentTab === "skills") {
+      await commands.openSkillsDir();
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+onMounted(() => {
+  void projectStore.loadProjects();
+});
+</script>
+
+<template>
+  <div>
+    <div
+      v-if="missingProjects.length > 0"
+      class="config-source-banner"
+      data-test="path-warning-banner"
+    >
+      <span>{{ t("settings.pathWarning", { count: missingProjects.length }) }}</span>
+    </div>
+
+    <div class="config-source-bar" data-test="config-source-bar">
+      <div class="segmented" data-test="source-segmented">
+        <button
+          :class="['segmented__btn', { active: source === 'user' }]"
+          data-test="source-btn-user"
+          @click="onSourceChange('user')"
+        >
+          {{ t("settings.userConfig") }}
+        </button>
+        <button
+          :class="['segmented__btn', { active: source === 'project' }]"
+          data-test="source-btn-project"
+          @click="onSourceChange('project')"
+        >
+          {{ t("settings.projectConfig") }}
+        </button>
+      </div>
+
+      <template v-if="source === 'project'">
+        <div class="select-wrapper">
+          <select v-model="selectedProjectId" data-test="project-select" @change="onProjectChange">
+            <option v-for="opt in projectOptions" :key="opt.value" :value="opt.value">
+              {{ opt.missing ? "⚠ " : "" }}{{ opt.label }}
+            </option>
+          </select>
+        </div>
+      </template>
+
+      <button
+        class="config-source-bar__open-btn"
+        data-test="open-config-btn"
+        @click="openConfigLocation"
+        :title="t('settings.openConfigDir')"
+      >
+        {{ t("settings.openConfigDir") }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.config-source-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.segmented__btn {
+  padding: 4px 12px;
+  border: none;
+  border-right: 1px solid var(--app-border-color);
+  background: transparent;
+  color: var(--app-text-color-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.segmented__btn:last-child {
+  border-right: none;
+}
+.segmented__btn.active {
+  background: var(--app-primary-color);
+  color: #fff;
+}
+.segmented__btn:hover:not(.active) {
+  background: var(--app-hover-color);
+}
+.select-wrapper select {
+  padding: 4px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font-size: 0.82rem;
+}
+.config-source-bar__open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-color-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background 0.15s;
+}
+.config-source-bar__open-btn:hover {
+  background: var(--app-hover-color);
+}
+.config-source-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 44%, transparent);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  color: var(--app-text-color);
+}
+</style>

@@ -313,6 +313,16 @@ where
         Ok(())
     }
 
+    pub(crate) async fn open_skills_dir(&self) -> agent_core::Result<Option<String>> {
+        let dir = std::env::var("HOME").ok().map(|h| {
+            std::path::PathBuf::from(h)
+                .join(".config")
+                .join("kairox")
+                .join("skills")
+        });
+        Ok(dir.map(|d| d.display().to_string()))
+    }
+
     pub(crate) async fn refresh_skill_catalog(&self) -> agent_core::Result<()> {
         let catalog = self.ensure_skill_catalog().ok_or_else(|| {
             agent_core::CoreError::InvalidState("skill catalog not configured".into())
@@ -428,5 +438,9 @@ where
 
     async fn refresh_skill_catalog(&self) -> agent_core::Result<()> {
         LocalRuntime::refresh_skill_catalog(self).await
+    }
+
+    async fn open_skills_dir(&self) -> agent_core::Result<Option<String>> {
+        LocalRuntime::open_skills_dir(self).await
     }
 }

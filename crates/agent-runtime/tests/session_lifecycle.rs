@@ -54,6 +54,14 @@ impl EventStore for NonSqliteEventStore {
         Ok(())
     }
 
+    async fn permanently_delete_session(&self, _session_id: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn restore_archived_session(&self, _session_id: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
     async fn cleanup_expired_sessions(&self, _older_than: Duration) -> agent_store::Result<usize> {
         Ok(0)
     }

@@ -32,9 +32,25 @@ async function searchSkillsCatalog(): Promise<void> {
   await skillsStore.searchCatalog(query);
 }
 
-onMounted(() => {
-  void skillsStore.loadSkillSettings();
+const configSource = inject<Ref<"user" | "project">>("configSource");
+const configProjectId = inject<Ref<string | undefined>>("configProjectId");
+
+const filteredSkills = computed(() => {
+  const all = skillsStore.skillSettings;
+  if (!configSource?.value) return all;
+  if (configSource.value === "project") {
+    return all.filter((s) => s.scope === "project");
+  }
+  return all.filter((s) => s.scope !== "project");
 });
+
+watch(
+  [() => configSource?.value, () => configProjectId?.value],
+  () => {
+    void skillsStore.loadSkillSettings();
+  },
+  { immediate: true }
+);
 
 function formatUpdateState(updateState: string): string {
   return updateState.replaceAll("_", " ");
@@ -125,12 +141,12 @@ async function installFromGithub(): Promise<void> {
       <p v-if="skillsStore.settingsLoading" class="alert alert-info" role="status">
         {{ t("skills.loading") }}
       </p>
-      <p v-else-if="skillsStore.skillSettings.length === 0" class="empty-state">
+      <p v-else-if="filteredSkills.length === 0" class="empty-state">
         {{ t("skills.noSkills") }}
       </p>
 
       <article
-        v-for="skill in skillsStore.skillSettings"
+        v-for="skill in filteredSkills"
         v-else
         :key="skill.settings_id"
         class="skill-settings__row"

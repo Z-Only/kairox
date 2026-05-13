@@ -27,12 +27,27 @@ pub fn writable_mcp_config_path(config_dir: Option<&Path>) -> agent_core::Result
 
 pub async fn list_mcp_server_settings(
     config: &Config,
-    config_path: Option<&Path>,
+    user_config_path: Option<&Path>,
+    project_config_path: Option<&Path>,
+    source_filter: Option<&str>,
     manager: Option<Arc<Mutex<McpServerManager>>>,
 ) -> agent_core::Result<Vec<McpServerSettingsView>> {
-    let mut rows = settings_rows_from_config(config);
-    if let Some(path) = config_path {
-        rows.extend(settings_rows_from_file(path).await?);
+    let mut rows = settings_rows_from_config(config, "defaults", false);
+
+    let include_user = source_filter != Some("project");
+    let include_project = source_filter != Some("user");
+
+    if include_user {
+        if let Some(path) = user_config_path {
+            let user_rows = settings_rows_from_file(path, "user_config", true).await?;
+            rows.extend(user_rows);
+        }
+    }
+    if include_project {
+        if let Some(path) = project_config_path {
+            let project_rows = settings_rows_from_file(path, "project_config", true).await?;
+            rows.extend(project_rows);
+        }
     }
 
     let mut runtime_statuses = HashMap::new();
@@ -46,6 +61,8 @@ pub async fn list_mcp_server_settings(
         let permission_engine = permission_engine.lock().await;
         trusted_servers = permission_engine.trusted_servers().clone();
     }
+
+    let writable_path = writable_mcp_config_path(None)?;
 
     let mut views = rows
         .into_iter()
@@ -63,9 +80,10 @@ pub async fn list_mcp_server_settings(
                 trusted: trusted_servers.contains(&row.name),
                 tool_count: None,
                 last_error: None,
-                writable: config_path.is_some(),
-                config_path: config_path.map(|path| path.display().to_string()),
+                writable: row.writable,
+                config_path: writable_path.as_ref().map(|p| p.display().to_string()),
                 description: row.description,
+                source: row.source,
             }
         })
         .collect::<Vec<_>>();
@@ -196,13 +214,15 @@ struct McpSettingsRow {
     transport: String,
     enabled: bool,
     description: Option<String>,
+    source: String,
+    writable: bool,
 }
 
 async fn settings_view_from_file(
     config_path: &Path,
     server_id: &str,
 ) -> agent_core::Result<McpServerSettingsView> {
-    let rows = settings_rows_from_file(config_path).await?;
+    let rows = settings_rows_from_file(config_path, "user_config", true).await?;
     let row = rows.get(server_id).ok_or_else(|| {
         CoreError::InvalidState(format!("saved MCP server was not found: {server_id}"))
     })?;
@@ -218,10 +238,15 @@ async fn settings_view_from_file(
         writable: true,
         config_path: Some(config_path.display().to_string()),
         description: row.description.clone(),
+        source: row.source.clone(),
     })
 }
 
-fn settings_rows_from_config(config: &Config) -> HashMap<String, McpSettingsRow> {
+fn settings_rows_from_config(
+    config: &Config,
+    source: &str,
+    writable: bool,
+) -> HashMap<String, McpSettingsRow> {
     config
         .mcp_servers
         .iter()
@@ -233,6 +258,8 @@ fn settings_rows_from_config(config: &Config) -> HashMap<String, McpSettingsRow>
                     transport: transport_label(server_config),
                     enabled: true,
                     description: None,
+                    source: source.to_string(),
+                    writable,
                 },
             )
         })
@@ -241,6 +268,8 @@ fn settings_rows_from_config(config: &Config) -> HashMap<String, McpSettingsRow>
 
 async fn settings_rows_from_file(
     config_path: &Path,
+    source: &str,
+    writable: bool,
 ) -> agent_core::Result<HashMap<String, McpSettingsRow>> {
     if !config_path.exists() {
         return Ok(HashMap::new());
@@ -250,10 +279,14 @@ async fn settings_rows_from_file(
         .await
         .map_err(|error| CoreError::InvalidState(format!("failed to read MCP config: {error}")))?;
     let document = parse_document(&raw)?;
-    Ok(settings_rows_from_document(&document))
+    Ok(settings_rows_from_document(&document, source, writable))
 }
 
-fn settings_rows_from_document(document: &DocumentMut) -> HashMap<String, McpSettingsRow> {
+fn settings_rows_from_document(
+    document: &DocumentMut,
+    source: &str,
+    writable: bool,
+) -> HashMap<String, McpSettingsRow> {
     let Some(servers) = document["mcp_servers"].as_table() else {
         return HashMap::new();
     };
@@ -285,6 +318,8 @@ fn settings_rows_from_document(document: &DocumentMut) -> HashMap<String, McpSet
                     transport,
                     enabled,
                     description,
+                    source: source.to_string(),
+                    writable,
                 },
             ))
         })
@@ -680,9 +715,10 @@ mod tests {
                 .expect("server should be trusted");
         }
 
-        let views = list_mcp_server_settings(&config, Some(&config_path), Some(manager))
-            .await
-            .expect("settings should list");
+        let views =
+            list_mcp_server_settings(&config, Some(&config_path), None, None, Some(manager))
+                .await
+                .expect("settings should list");
 
         assert_eq!(views.len(), 1);
         let view = &views[0];
