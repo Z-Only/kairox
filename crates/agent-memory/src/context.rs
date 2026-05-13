@@ -9,6 +9,7 @@ pub use agent_core::{ContextSource, ContextUsage};
 #[derive(Debug, Clone, Default)]
 pub struct ContextRequest {
     pub system_prompt: Option<String>,
+    pub project_instructions: Option<String>,
     pub user_request: String,
     pub session_history: Vec<String>,
     pub selected_files: Vec<String>,
@@ -78,6 +79,14 @@ impl ContextAssembler {
         if let Some(sp) = &request.system_prompt {
             let n = self.count_tokens(sp);
             sections.push((ContextSource::System, sp.clone(), n));
+        }
+
+        // P0.25: Project instructions — high-priority guidance from project files,
+        // placed after System prompt, before active skills.
+        if let Some(pi) = &request.project_instructions {
+            let block = format!("<project-instructions>\n{pi}\n</project-instructions>");
+            let n = self.count_tokens(&block);
+            sections.push((ContextSource::ProjectInstruction, block, n));
         }
 
         // P0.5: Active skills — high-priority session guidance, below System
@@ -235,6 +244,7 @@ fn find_lowest_priority_drop(sections: &[(ContextSource, String, u64)]) -> Optio
         ContextSource::ToolResult,
         ContextSource::History,
         ContextSource::Memory,
+        ContextSource::ProjectInstruction,
         ContextSource::ToolDefinitions,
         ContextSource::Skill,
     ];
@@ -410,5 +420,71 @@ mod tests {
             source_caps: vec![],
         };
         assert_eq!(budget.input_budget(), 0);
+    }
+
+    #[tokio::test]
+    async fn includes_project_instructions_section() {
+        let assembler = ContextAssembler::new_standalone();
+        let bundle = assembler
+            .assemble(
+                ContextRequest {
+                    system_prompt: Some("System".into()),
+                    project_instructions: Some(
+                        "### Instructions from AGENTS.md\n\nUse cargo nextest.".into(),
+                    ),
+                    user_request: "test".into(),
+                    ..Default::default()
+                },
+                test_budget(600, 100),
+            )
+            .await;
+
+        let combined = bundle.messages.join("\n");
+        assert!(combined.contains("<project-instructions>"));
+        assert!(combined.contains("Use cargo nextest"));
+        assert!(combined.contains("</project-instructions>"));
+        assert!(
+            combined.find("System").unwrap() < combined.find("<project-instructions>").unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn project_instructions_dropped_as_last_resort() {
+        let assembler = ContextAssembler::new_standalone();
+        let bundle = assembler
+            .assemble(
+                ContextRequest {
+                    system_prompt: Some("S".into()),
+                    project_instructions: Some("PI content here".into()),
+                    user_request: "q".into(),
+                    ..Default::default()
+                },
+                test_budget(15, 0),
+            )
+            .await;
+
+        let combined = bundle.messages.join("\n");
+        assert!(combined.contains("S"), "System must survive");
+        assert!(combined.contains("q"), "Request must survive");
+        assert!(bundle.truncated);
+    }
+
+    #[test]
+    fn project_instruction_drop_order_is_between_memory_and_tool_defs() {
+        let sections = vec![
+            (ContextSource::System, String::from("system"), 1),
+            (ContextSource::Request, String::from("request"), 1),
+            (ContextSource::Memory, String::from("memory"), 1),
+            (ContextSource::ProjectInstruction, String::from("pi"), 1),
+        ];
+        // Memory drops first (lower priority than PI)
+        assert_eq!(find_lowest_priority_drop(&sections), Some(2));
+
+        let sections_no_mem = vec![
+            (ContextSource::System, String::from("system"), 1),
+            (ContextSource::Request, String::from("request"), 1),
+            (ContextSource::ProjectInstruction, String::from("pi"), 1),
+        ];
+        assert_eq!(find_lowest_priority_drop(&sections_no_mem), Some(2));
     }
 }
