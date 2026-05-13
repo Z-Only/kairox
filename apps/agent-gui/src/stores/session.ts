@@ -32,9 +32,18 @@ function emptyProjection(): SessionProjection {
   };
 }
 
+export function uniqueSessionTitle(base: string, existingTitles: string[]): string {
+  if (!existingTitles.includes(base)) return base;
+  let n = 1;
+  while (existingTitles.includes(`${base} ${n}`)) {
+    n++;
+  }
+  return `${base} ${n}`;
+}
+
 export function temporaryTitleFromFirstMessage(content: string): string {
   const trimmedContent = content.trim();
-  if (!trimmedContent) return "New conversation";
+  if (!trimmedContent) return "New Session";
 
   const maxLength = 48;
   return trimmedContent.length > maxLength
@@ -397,12 +406,27 @@ export const useSessionStore = defineStore("session", () => {
     const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
       profile: resolveSessionProfile(profile)
     });
+
+    // Dedup: check all existing sessions (excluding the one just created)
     sessions.value = await listOrdinarySessions();
+    const existingTitles = sessions.value.filter((s) => s.id !== result.id).map((s) => s.title);
+    let title = "New Session";
+    title = uniqueSessionTitle(title, existingTitles);
+
+    // Persist the deduped title if different from default
+    if (title !== result.title) {
+      try {
+        await invoke("rename_session", { sessionId: result.id, title });
+      } catch (e) {
+        console.error("Failed to set deduped session title:", e);
+      }
+    }
+
     currentProfile.value = result.profile;
     resetProjection();
     clearTrace();
     useTaskGraphStore().clearTaskGraph();
-    return result;
+    return { id: result.id, title, profile: result.profile };
   }
 
   async function deleteSession(sessionId: string) {

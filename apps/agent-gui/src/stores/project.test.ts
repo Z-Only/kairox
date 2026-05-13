@@ -186,7 +186,7 @@ describe("project store", () => {
 
     expect(draftSession).toEqual({
       sessionId: "s-draft",
-      title: "New conversation",
+      title: "New Session",
       profile: "default",
       projectId: "p1",
       worktreePath: "/tmp/demo",

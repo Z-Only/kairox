@@ -222,7 +222,7 @@ describe("resetProjection", () => {
 
 describe("temporaryTitleFromFirstMessage", () => {
   it("uses a fallback title for blank first messages", () => {
-    expect(temporaryTitleFromFirstMessage("   \n\t  ")).toBe("New conversation");
+    expect(temporaryTitleFromFirstMessage("   \n\t  ")).toBe("New Session");
   });
 
   it("trims and truncates long first messages", () => {

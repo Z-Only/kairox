@@ -326,7 +326,7 @@ pub async fn start_session(
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;
 
-    let title = format!("Session using {profile}");
+    let title = "New Session".to_string();
 
     // Switch to the new session (no forwarder respawn needed with subscribe_all)
     switch_session_inner(&state, session_id.clone(), &app_handle).await?;
