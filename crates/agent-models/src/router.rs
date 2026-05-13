@@ -46,10 +46,7 @@ impl ModelRouter {
         request: ModelRequest,
     ) -> Result<BoxStream<'static, Result<ModelEvent>>> {
         let client = self.clients.get(&request.model_profile).ok_or_else(|| {
-            crate::ModelError::Request(format!(
-                "unknown model profile: '{}'",
-                request.model_profile
-            ))
+            crate::ModelError::Request(format!("unknown model: '{}'", request.model_profile))
         })?;
         client.stream(request).await
     }

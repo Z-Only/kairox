@@ -168,7 +168,33 @@ where
             .map(|(_, def)| def);
         match profile_def {
             Some(def) => agent_config::resolve_limits(def),
-            None => agent_models::lookup_limits("fake", "fake"), // pre-0.7 sessions
+            None => {
+                // Profile alias not in current config — extract limits from the
+                // last ModelProfileSwitched event if available.
+                let from_event = session_events.iter().rev().find_map(|e| {
+                    if let agent_core::EventPayload::ModelProfileSwitched {
+                        context_window,
+                        output_limit,
+                        limit_source,
+                        ..
+                    } = &e.payload
+                    {
+                        Some(agent_models::ModelLimits {
+                            context_window: *context_window,
+                            output_limit: *output_limit,
+                            source: match limit_source.as_str() {
+                                "user_config" => agent_models::LimitSource::UserConfig,
+                                "builtin_registry" => agent_models::LimitSource::BuiltinRegistry,
+                                "runtime_probe" => agent_models::LimitSource::RuntimeProbe,
+                                _ => agent_models::LimitSource::Fallback,
+                            },
+                        })
+                    } else {
+                        None
+                    }
+                });
+                from_event.unwrap_or_else(|| agent_models::lookup_limits("fake", "fake"))
+            }
         }
     });
 

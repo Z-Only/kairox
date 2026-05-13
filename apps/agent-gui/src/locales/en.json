@@ -66,7 +66,7 @@
   },
   "errors": {
     "sessionBusy": "Session is busy: {reason}",
-    "profileNotFound": "Unknown model profile: {alias}"
+    "modelNotFound": "Model \"{alias}\" is not available"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"
@@ -113,6 +113,7 @@
   "context": {
     "title": "Context",
     "estimated": "estimated",
+    "estimatedBudget": "Estimated budget based on model limits. Send a message for exact values.",
     "compactNow": "Compact now",
     "compactInProgress": "Compacting…",
     "compactionFailed": "Compaction failed: {error}",

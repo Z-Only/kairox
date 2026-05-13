@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from "pinia";
 import {
   filterOrdinarySessions,
   temporaryTitleFromFirstMessage,
+  uniqueSessionTitle,
   useSessionStore
 } from "@/stores/session";
 import type { SessionInfoResponse } from "@/types";
@@ -222,7 +223,7 @@ describe("resetProjection", () => {
 
 describe("temporaryTitleFromFirstMessage", () => {
   it("uses a fallback title for blank first messages", () => {
-    expect(temporaryTitleFromFirstMessage("   \n\t  ")).toBe("New conversation");
+    expect(temporaryTitleFromFirstMessage("   \n\t  ")).toBe("New Session");
   });
 
   it("trims and truncates long first messages", () => {
@@ -231,6 +232,26 @@ describe("temporaryTitleFromFirstMessage", () => {
     );
 
     expect(title).toBe("Please help me implement project workspace navig…");
+  });
+});
+
+describe("uniqueSessionTitle", () => {
+  it("returns base when no conflict exists", () => {
+    expect(uniqueSessionTitle("New Session", ["Other"])).toBe("New Session");
+  });
+
+  it("appends 1 on first conflict", () => {
+    expect(uniqueSessionTitle("New Session", ["New Session"])).toBe("New Session 1");
+  });
+
+  it("increments counter correctly for second conflict", () => {
+    expect(uniqueSessionTitle("New Session", ["New Session", "New Session 1"])).toBe(
+      "New Session 2"
+    );
+  });
+
+  it("returns base when only numbered variants exist", () => {
+    expect(uniqueSessionTitle("New Session", ["New Session 1"])).toBe("New Session");
   });
 });
 

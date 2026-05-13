@@ -66,7 +66,7 @@
   },
   "errors": {
     "sessionBusy": "会话繁忙：{reason}",
-    "profileNotFound": "未知的模型配置：{alias}"
+    "modelNotFound": "模型 \"{alias}\" 不可用"
   },
   "workbench": {
     "sessionNotFound": "未找到会话：{id}"
@@ -113,6 +113,7 @@
   "context": {
     "title": "上下文",
     "estimated": "估算",
+    "estimatedBudget": "基于模型限制的预估预算。发送消息以获取准确数值。",
     "compactNow": "立即压缩",
     "compactInProgress": "压缩中…",
     "compactionFailed": "压缩失败：{error}",

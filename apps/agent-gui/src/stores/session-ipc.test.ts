@@ -139,12 +139,12 @@ describe("createSession", () => {
     session.currentProfile = "old";
 
     mockedInvoke
-      .mockResolvedValueOnce({ id: "s-new", title: "New", profile: "fast" }) // start_session
-      .mockResolvedValueOnce([makeSession("s-new", "New", "fast")] as never[]); // list_sessions
+      .mockResolvedValueOnce({ id: "s-new", title: "New Session", profile: "fast" }) // start_session
+      .mockResolvedValueOnce([makeSession("s-new", "New Session", "fast")] as never[]); // list_sessions
 
     const result = await session.createSession("fast");
 
-    expect(result).toEqual({ id: "s-new", title: "New", profile: "fast" });
+    expect(result).toEqual({ id: "s-new", title: "New Session", profile: "fast" });
     expect(session.sessions).toHaveLength(1);
     expect(session.sessions[0].id).toBe("s-new");
     expect(session.currentProfile).toBe("fast");

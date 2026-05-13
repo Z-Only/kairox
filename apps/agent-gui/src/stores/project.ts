@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { commands } from "@/generated/commands";
 import type { SessionInfoResponse } from "@/types";
-import { useSessionStore } from "@/stores/session";
+import { useSessionStore, uniqueSessionTitle } from "@/stores/session";
 
 export interface ProjectInfo {
   projectId: string;
@@ -116,7 +116,7 @@ function createDraftSessionPlaceholder(
 ): ProjectSessionInfo {
   return {
     sessionId,
-    title: "New conversation",
+    title: "New Session",
     profile: "default",
     projectId: project?.projectId ?? null,
     worktreePath: project?.rootPath ?? null,
@@ -220,11 +220,26 @@ export const useProjectStore = defineStore("project", () => {
       }
     }
     const draftSession = createDraftSessionPlaceholder(sessionId, project, branch);
-    const currentSessions = sessionsByProject.value.get(projectId) ?? [];
+
+    // Dedup within this project's sessions
+    const projectSessions = sessionsByProject.value.get(projectId) ?? [];
+    const existingTitles = projectSessions.map((s) => s.title);
+    draftSession.title = uniqueSessionTitle("New Session", existingTitles);
+
+    // Persist the deduped title
+    try {
+      await invoke("rename_session", {
+        sessionId: draftSession.sessionId,
+        title: draftSession.title
+      });
+    } catch (e) {
+      console.error("Failed to set deduped project session title:", e);
+    }
+
     const nextSessionsByProject = new Map(sessionsByProject.value);
     nextSessionsByProject.set(projectId, [
       draftSession,
-      ...currentSessions.filter((session) => session.sessionId !== sessionId)
+      ...projectSessions.filter((session) => session.sessionId !== sessionId)
     ]);
     sessionsByProject.value = nextSessionsByProject;
     return draftSession;
