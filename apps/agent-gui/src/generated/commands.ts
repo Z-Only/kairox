@@ -133,6 +133,12 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("delete_profile_settings", { alias })),
   moveProfileInOrder: (alias: string, direction: number) =>
     typedError<null, string>(__TAURI_INVOKE("move_profile_in_order", { alias, direction })),
+  testModelConnectivity: (alias: string) =>
+    typedError<ConnectivityTestResult, string>(
+      __TAURI_INVOKE("test_model_connectivity", { alias })
+    ),
+  testUrlConnectivity: (url: string) =>
+    typedError<ConnectivityTestResult, string>(__TAURI_INVOKE("test_url_connectivity", { url })),
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   openSkillsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_skills_dir")),
   listSkillSettings: () =>
@@ -299,6 +305,11 @@ export type CatalogSourceViewResponse = {
   enabled: boolean;
   cache_ttl_seconds: number | null;
   last_error: string | null;
+};
+
+export type ConnectivityTestResult = {
+  ok: boolean;
+  error: string | null;
 };
 
 export type InstallGithubSkillRequest = {

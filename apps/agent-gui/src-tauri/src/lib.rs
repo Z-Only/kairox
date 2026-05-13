@@ -256,6 +256,8 @@ pub fn run() {
             crate::commands::set_profile_enabled,
             crate::commands::delete_profile_settings,
             crate::commands::move_profile_in_order,
+            crate::commands::test_model_connectivity,
+            crate::commands::test_url_connectivity,
             crate::commands::open_config_dir,
             crate::commands::open_skills_dir,
             crate::commands::list_skill_settings,

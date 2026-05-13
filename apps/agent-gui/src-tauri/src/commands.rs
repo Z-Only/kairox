@@ -1304,6 +1304,123 @@ pub async fn delete_profile_settings(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ConnectivityTestResult {
+    pub ok: bool,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn test_model_connectivity(
+    state: State<'_, GuiState>,
+    alias: String,
+) -> Result<ConnectivityTestResult, String> {
+    // Get the profile settings to verify it exists and is configured.
+    let profiles = state
+        .runtime
+        .list_profile_settings(None)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let profile = profiles
+        .into_iter()
+        .find(|p| p.alias == alias)
+        .ok_or_else(|| format!("model profile '{}' not found", alias))?;
+
+    // If the profile has a base_url configured, try to reach it.
+    if let Some(base_url) = &profile.base_url {
+        if !base_url.is_empty() {
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            // Try common endpoints: the base URL itself, then /models.
+            let endpoints = [
+                base_url.clone(),
+                format!("{}/models", base_url.trim_end_matches('/')),
+            ];
+
+            let mut last_error: Option<String> = None;
+            for endpoint in &endpoints {
+                match client.get(endpoint).send().await {
+                    Ok(response) => {
+                        if response.status().is_success() || response.status().is_client_error() {
+                            return Ok(ConnectivityTestResult {
+                                ok: true,
+                                error: None,
+                            });
+                        }
+                        last_error = Some(format!("unexpected status: {}", response.status()));
+                    }
+                    Err(e) => {
+                        last_error = Some(format!("connection failed: {e}"));
+                    }
+                }
+            }
+
+            return Ok(ConnectivityTestResult {
+                ok: false,
+                error: last_error,
+            });
+        }
+    }
+
+    // No custom base_url — the profile uses default provider endpoints.
+    // Assume it's reachable if the config is valid.
+    Ok(ConnectivityTestResult {
+        ok: true,
+        error: None,
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn test_url_connectivity(url: String) -> Result<ConnectivityTestResult, String> {
+    let trimmed = url.trim().to_string();
+    if trimmed.is_empty() {
+        return Ok(ConnectivityTestResult {
+            ok: false,
+            error: Some("no URL provided".into()),
+        });
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // Try the URL directly and also /models for common API endpoints.
+    let endpoints = [
+        trimmed.clone(),
+        format!("{}/models", trimmed.trim_end_matches('/')),
+    ];
+
+    let mut last_error: Option<String> = None;
+    for endpoint in &endpoints {
+        match client.get(endpoint).send().await {
+            Ok(response) => {
+                if response.status().is_success() || response.status().is_client_error() {
+                    return Ok(ConnectivityTestResult {
+                        ok: true,
+                        error: None,
+                    });
+                }
+                last_error = Some(format!("unexpected status: {}", response.status()));
+            }
+            Err(e) => {
+                last_error = Some(format!("connection failed: {e}"));
+            }
+        }
+    }
+
+    Ok(ConnectivityTestResult {
+        ok: false,
+        error: last_error,
+    })
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn move_profile_in_order(
