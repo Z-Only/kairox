@@ -551,8 +551,9 @@ where
                 // For the initial implementation, treat RequestModel as a simple
                 // model call using the available model client.
                 // Full tool-call loop will be added in future iterations.
+                let model_profile = crate::agent_loop::latest_model_profile_for(session_events);
                 let model_request = agent_models::ModelRequest {
-                    model_profile: "default".to_string(),
+                    model_profile,
                     messages: strategy.build_context(task, graph, session_events).await,
                     system_prompt: None,
                     tools: Vec::new(),
