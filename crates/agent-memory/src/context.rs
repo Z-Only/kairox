@@ -488,8 +488,6 @@ mod tests {
         assert_eq!(find_lowest_priority_drop(&sections_no_mem), Some(2));
     }
 
-    // ── Task 4: context assembly tests ──
-
     #[test]
     fn budget_input_equals_window_minus_output() {
         let budget = ContextBudget {
@@ -526,7 +524,7 @@ mod tests {
                     ..Default::default()
                 },
                 ContextBudget {
-                    context_window: 100,
+                    context_window: 30,
                     output_reservation: 0,
                     source_caps: vec![],
                 },

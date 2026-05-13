@@ -98,8 +98,6 @@ mod tests {
         assert_eq!(strip_memory_markers(text), text);
     }
 
-    // ── Task 4: marker extraction & stripping tests ──
-
     #[test]
     fn extract_single_session_marker() {
         let text = r#"<memory scope="session">hello</memory>"#;
