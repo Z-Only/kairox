@@ -204,6 +204,15 @@ where
             .map(|p| p.display().to_string()))
     }
 
+    pub(crate) async fn open_profiles_config_file(&self) -> agent_core::Result<Option<String>> {
+        Ok(
+            crate::profile_settings::writable_profiles_config_path(
+                self.marketplace_dir.as_deref(),
+            )?
+            .map(|path| path.display().to_string()),
+        )
+    }
+
     // -----------------------------------------------------------------------
     // Marketplace catalog
     // -----------------------------------------------------------------------
@@ -630,6 +639,10 @@ where
 
     async fn open_config_dir(&self) -> agent_core::Result<Option<String>> {
         LocalRuntime::open_config_dir(self).await
+    }
+
+    async fn open_profiles_config_file(&self) -> agent_core::Result<Option<String>> {
+        LocalRuntime::open_profiles_config_file(self).await
     }
 
     async fn list_catalog(

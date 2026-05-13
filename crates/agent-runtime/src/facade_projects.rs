@@ -152,11 +152,12 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let model_profile = self.config.default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
             WorkspaceId::from_string(project.workspace_id.clone()),
-            "default".into(),
+            model_profile,
         )
         .await?;
         let git_status = crate::project::get_git_status(&project.root_path);
@@ -188,11 +189,12 @@ where
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
         let branch = branch_name.clone();
+        let model_profile = self.config.default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
             WorkspaceId::from_string(project.workspace_id.clone()),
-            branch_name,
+            model_profile,
         )
         .await?;
         repository

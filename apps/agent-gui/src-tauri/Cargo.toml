@@ -37,9 +37,10 @@ base64 = "0.22"
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+reqwest.workspace = true
 specta = "=2.0.0-rc.24"
 specta-typescript = "0.0.11"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-specta = { version = "=2.0.0-rc.24", features = ["derive", "typescript"] }
 tokio = { workspace = true, features = [

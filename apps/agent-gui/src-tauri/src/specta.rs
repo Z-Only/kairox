@@ -83,7 +83,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             set_profile_enabled,
             delete_profile_settings,
             move_profile_in_order,
+            test_model_connectivity,
+            test_url_connectivity,
             open_config_dir,
+            open_profiles_config_file,
             open_skills_dir,
             list_skill_settings,
             get_skill_settings_detail,
@@ -173,6 +176,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         // Phase 2: catalog source types
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()
+        .typ::<ConnectivityTestResult>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()

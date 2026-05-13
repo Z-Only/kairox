@@ -1,5 +1,5 @@
 /**
- * E2E: MCP settings pane — config folder action, marketplace browse, permission prompt.
+ * E2E: MCP settings pane — config file action, marketplace browse, permission prompt.
  *
  * The MCP status indicator and server manager popup were removed from StatusBar
  * during UI polish (PR #120). MCP settings are now managed exclusively through
@@ -17,18 +17,18 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("MCP Settings", () => {
-  test("opens the MCP settings page with a config folder action", async ({ page }) => {
+  test("opens the MCP settings page with a config file action", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("nav-settings").click();
     await page.getByTestId("settings-tab-mcp").click();
 
     const openConfigButton = page.getByTestId("mcp-open-config");
-    await expect(openConfigButton).toContainText(/Open\s+[Cc]onfig\s+[Ff]older/);
+    await expect(openConfigButton).toContainText(/Open\s+[Cc]onfig\s+[Ff]ile/);
     await openConfigButton.click();
     await expect(page.getByTestId("mcp-page-error")).toHaveCount(0);
   });
 
-  test("shows a settings error when opening the config folder fails", async ({ page }) => {
+  test("shows a settings error when opening the config file fails", async ({ page }) => {
     await page.addInitScript(() => {
       // @ts-expect-error injected for tauri-mock to read
       window.__MCP_OPEN_CONFIG_SHOULD_FAIL__ = true;
@@ -39,7 +39,7 @@ test.describe("MCP Settings", () => {
 
     await page.getByTestId("mcp-open-config").click();
     await expect(page.getByTestId("mcp-page-error")).toContainText(
-      "Unable to open MCP config folder"
+      "Unable to open MCP config file"
     );
   });
 

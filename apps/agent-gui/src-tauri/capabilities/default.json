@@ -8,6 +8,8 @@
     "core:event:default",
     "core:event:allow-emit",
     "core:event:allow-listen",
-    "dialog:default"
+    "dialog:default",
+    "updater:default",
+    "updater:allow-check"
   ]
 }

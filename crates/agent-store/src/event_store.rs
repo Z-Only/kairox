@@ -273,6 +273,17 @@ impl SqliteEventStore {
         .bind(session_id)
         .execute(&self.pool)
         .await?;
+
+        sqlx::query(
+            "INSERT INTO kairox_session_visibility (session_id, visibility, updated_at)
+             VALUES (?1, 'archived', ?2)
+             ON CONFLICT(session_id) DO UPDATE SET visibility = 'archived', updated_at = ?2",
+        )
+        .bind(session_id)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 
@@ -298,6 +309,14 @@ impl SqliteEventStore {
 
     pub async fn restore_archived_session(&self, session_id: &str) -> crate::Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE kairox_sessions SET deleted_at = NULL, updated_at = ?1 WHERE session_id = ?2",
+        )
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
+
         sqlx::query(
             "INSERT INTO kairox_session_visibility (session_id, visibility, updated_at)
              VALUES (?1, 'visible', ?2)
@@ -480,7 +499,6 @@ impl EventStore for SqliteEventStore {
              INNER JOIN kairox_session_visibility AS visibility
                 ON visibility.session_id = sessions.session_id
              WHERE projects.workspace_id = ?1
-               AND sessions.deleted_at IS NULL
                AND visibility.visibility = 'archived'
              ORDER BY sessions.updated_at DESC, sessions.created_at ASC",
         )

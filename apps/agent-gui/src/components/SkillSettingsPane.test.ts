@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { commands } from "@/generated/commands";
+import { commands, type SkillCatalogEntry } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
 
 vi.mock("@/generated/commands", () => ({
@@ -11,6 +11,8 @@ vi.mock("@/generated/commands", () => ({
     setSkillEnabled: vi.fn(),
     deleteSkillSettings: vi.fn(),
     searchRemoteSkills: vi.fn(),
+    listSkillCatalog: vi.fn(),
+    listSkillSources: vi.fn(),
     installRemoteSkill: vi.fn(),
     installGithubSkill: vi.fn(),
     updateSkill: vi.fn()
@@ -99,12 +101,16 @@ const invalidSkill = {
   deletable: true
 };
 
-const remoteSkill = {
+const remoteSkill: SkillCatalogEntry = {
+  catalog_id: "docs-helper",
   name: "Docs Helper",
   description: "Summarize documentation.",
-  repository: "https://github.com/acme/docs-helper",
-  install_count: 42,
+  source: "registry",
   source_url: "https://registry.example/docs-helper",
+  install_count: 42,
+  github_stars: null,
+  security_score: null,
+  rating: null,
   package: "docs-helper"
 };
 
@@ -124,6 +130,8 @@ beforeEach(() => {
   mockedCommands.setSkillEnabled.mockResolvedValue(null);
   mockedCommands.deleteSkillSettings.mockResolvedValue(null);
   mockedCommands.searchRemoteSkills.mockResolvedValue([remoteSkill]);
+  mockedCommands.listSkillCatalog.mockResolvedValue([remoteSkill]);
+  mockedCommands.listSkillSources.mockResolvedValue([]);
   mockedCommands.installRemoteSkill.mockResolvedValue(projectSkill);
   mockedCommands.installGithubSkill.mockResolvedValue(projectSkill);
   mockedCommands.updateSkill.mockResolvedValue(projectSkill);
@@ -148,26 +156,12 @@ describe("SkillSettingsPane", () => {
     );
   });
 
-  it("keeps skill edit actions read-only until an editor exists", async () => {
+  it("does not render edit buttons for skills", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-project-code-review"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-delete-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-update-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
+    expect(wrapper.find('[data-test="skill-edit-project-code-review"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="skill-edit-builtin-builtin-planning"]').exists()).toBe(false);
   });
 
   it("toggles enabled state through the skills store action", async () => {
@@ -212,20 +206,28 @@ describe("SkillSettingsPane", () => {
     await wrapper.find('[data-test="skill-subtab-discover"]').trigger("click");
     await flushPromises();
 
-    await wrapper.find('[data-test="skill-discover-query"]').setValue("docs");
-    await wrapper.find('[data-test="skill-discover-form"]').trigger("submit");
+    // Search for skills using the catalog search input and button
+    await wrapper.find('[data-test="skill-catalog-search"]').setValue("docs");
+    await wrapper.find('[data-test="skill-catalog-search-btn"]').trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.searchRemoteSkills).toHaveBeenCalledWith("docs");
-    expect(wrapper.find('[data-test="skill-remote-docs-helper"]').text()).toContain("42 installs");
+    // searchCatalog is called via the skills store
+    expect(mockedCommands.listSkillCatalog).toHaveBeenCalledWith({
+      keyword: "docs",
+      sources: null,
+      limit: 50
+    });
+    expect(wrapper.find('[data-test="skill-catalog-card"]').text()).toContain("42 installs");
 
-    await wrapper.find('[data-test="skill-install-docs-helper"]').trigger("click");
+    // Install button uses catalog_id-based data-test
+    await wrapper.find('[data-test="skill-catalog-install-docs-helper"]').trigger("click");
     await flushPromises();
 
+    // Default install target is "user" (syncs with ConfigSourceBar default)
     expect(mockedCommands.installRemoteSkill).toHaveBeenCalledWith({
       package: "docs-helper",
       source: "docs-helper",
-      target: "project"
+      target: "user"
     });
   });
 
@@ -239,9 +241,10 @@ describe("SkillSettingsPane", () => {
     await wrapper.find('[data-test="skill-github-form"]').trigger("submit");
     await flushPromises();
 
+    // Default install target is "user" (syncs with ConfigSourceBar default)
     expect(mockedCommands.installGithubSkill).toHaveBeenCalledWith({
       source: "https://github.com/acme/skill.git",
-      target: "project"
+      target: "user"
     });
   });
 });

@@ -15,11 +15,12 @@ use agent_core::facade::{
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
-    CatalogSourceViewResponse, InstallOutcomeResponse, InstallRequestPayload,
-    InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse, McpResourceDefResponse,
-    McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse, ProfileDetailResponse,
-    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
-    ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse, WorkspaceInfoResponse,
+    CatalogSourceViewResponse, ConnectivityTestResult, InstallOutcomeResponse,
+    InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse,
+    McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse,
+    ProfileDetailResponse, ProjectGitStatusResponse, ProjectInfoResponse,
+    ProjectInstructionSummaryResponse, ServerEntryResponse, SessionInfoResponse,
+    TaskSnapshotResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -95,7 +96,10 @@ fn main() {
             agent_gui_tauri::commands::set_profile_enabled,
             agent_gui_tauri::commands::delete_profile_settings,
             agent_gui_tauri::commands::move_profile_in_order,
+            agent_gui_tauri::commands::test_model_connectivity,
+            agent_gui_tauri::commands::test_url_connectivity,
             agent_gui_tauri::commands::open_config_dir,
+            agent_gui_tauri::commands::open_profiles_config_file,
             agent_gui_tauri::commands::open_skills_dir,
             agent_gui_tauri::commands::list_skill_settings,
             agent_gui_tauri::commands::get_skill_settings_detail,
@@ -184,7 +188,8 @@ fn main() {
         .typ::<InstalledEntryResponse>()
         // Phase 2: catalog source types
         .typ::<CatalogSourceViewResponse>()
-        .typ::<AddCatalogSourceRequestPayload>();
+        .typ::<AddCatalogSourceRequestPayload>()
+        .typ::<ConnectivityTestResult>();
 
     specta_builder
         .export(specta_typescript::Typescript::default(), out_path)
