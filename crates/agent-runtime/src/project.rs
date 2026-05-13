@@ -158,21 +158,46 @@ pub fn get_git_status(path: &str) -> ProjectGitStatus {
 
 pub async fn read_project_instruction_summary(root_path: &Path) -> ProjectInstructionSummary {
     let mut source_paths = Vec::new();
+    let mut content_parts: Vec<String> = Vec::new();
     let mut warning = None;
 
     for candidate in INSTRUCTION_FILE_PRIORITY {
         let path = root_path.join(candidate);
         match tokio::fs::metadata(&path).await {
-            Ok(metadata) if metadata.is_file() => source_paths.push(path.display().to_string()),
+            Ok(metadata) if metadata.is_file() => {
+                let display_path = path.display().to_string();
+                source_paths.push(display_path);
+                match tokio::fs::read_to_string(&path).await {
+                    Ok(content) => {
+                        let header = format!("### Instructions from {candidate}\n\n");
+                        let body = if content.len() > 64 * 1024 {
+                            let truncated: String = content.chars().take(64 * 1024).collect();
+                            format!("{truncated}\n\n[...truncated]")
+                        } else {
+                            content
+                        };
+                        content_parts.push(format!("{header}{body}"));
+                    }
+                    Err(error) => {
+                        warning = Some(error.to_string());
+                    }
+                }
+            }
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => warning = Some(error.to_string()),
         }
     }
 
+    let contents = if content_parts.is_empty() {
+        None
+    } else {
+        Some(content_parts.join("\n\n"))
+    };
+
     ProjectInstructionSummary {
         source_paths,
-        contents: None,
+        contents,
         warning,
     }
 }
@@ -243,15 +268,16 @@ mod tests {
     #[tokio::test]
     async fn reads_project_instructions_in_priority_order() {
         let temp = tempfile::tempdir().unwrap();
-        tokio::fs::write(temp.path().join("README.md"), "readme")
+        tokio::fs::write(temp.path().join("README.md"), "readme content")
             .await
             .unwrap();
-        tokio::fs::write(temp.path().join("AGENTS.md"), "agents")
+        tokio::fs::write(temp.path().join("AGENTS.md"), "agents content")
             .await
             .unwrap();
 
         let summary = read_project_instruction_summary(temp.path()).await;
 
+        // Priority: AGENTS.md before README.md
         assert_eq!(
             summary.source_paths[0],
             temp.path().join("AGENTS.md").display().to_string()
@@ -261,5 +287,37 @@ mod tests {
             temp.path().join("README.md").display().to_string()
         );
         assert!(summary.warning.is_none());
+
+        let contents = summary.contents.expect("should have merged contents");
+        assert!(contents.contains("### Instructions from AGENTS.md"));
+        assert!(contents.contains("agents content"));
+        assert!(contents.contains("### Instructions from README.md"));
+        assert!(contents.contains("readme content"));
+        let agents_pos = contents.find("AGENTS.md").unwrap();
+        let readme_pos = contents.find("README.md").unwrap();
+        assert!(agents_pos < readme_pos);
+    }
+
+    #[tokio::test]
+    async fn returns_none_contents_when_no_files_exist() {
+        let temp = tempfile::tempdir().unwrap();
+        let summary = read_project_instruction_summary(temp.path()).await;
+        assert!(summary.source_paths.is_empty());
+        assert!(summary.contents.is_none());
+        assert!(summary.warning.is_none());
+    }
+
+    #[tokio::test]
+    async fn truncates_large_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let big_content = "x".repeat(70_000);
+        tokio::fs::write(temp.path().join("AGENTS.md"), &big_content)
+            .await
+            .unwrap();
+
+        let summary = read_project_instruction_summary(temp.path()).await;
+        let contents = summary.contents.unwrap();
+        assert!(contents.contains("[...truncated]"));
+        assert!(contents.len() < 70_000 + 200);
     }
 }
