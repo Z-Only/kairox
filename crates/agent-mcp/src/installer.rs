@@ -329,3 +329,105 @@ fn add_trusted(doc: &mut toml_edit::DocumentMut, id: &str) {
     }
     doc["trusted_servers"] = value(arr);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::catalog::TrustLevel;
+
+    struct StaticProbe {
+        available: Vec<RuntimeKind>,
+    }
+
+    #[async_trait::async_trait]
+    impl RuntimeProbe for StaticProbe {
+        async fn is_available(&self, kind: RuntimeKind) -> bool {
+            self.available.contains(&kind)
+        }
+    }
+
+    fn sample_entry() -> ServerEntry {
+        ServerEntry {
+            id: "test-server".into(),
+            source: "builtin".into(),
+            display_name: "Test Server".into(),
+            summary: "A test server".into(),
+            description: "A server for testing installer behaviour.".into(),
+            categories: vec!["test".into()],
+            tags: vec![],
+            author: None,
+            homepage: None,
+            version: None,
+            install: InstallSpec::Stdio {
+                command: "echo".into(),
+                args: vec!["hello".into()],
+                env: BTreeMap::new(),
+                cwd: None,
+            },
+            requirements: vec![],
+            trust: TrustLevel::Community,
+            default_env: vec![],
+            icon: None,
+        }
+    }
+
+    fn install_request(entry: &ServerEntry) -> InstallRequest {
+        InstallRequest {
+            catalog_id: entry.id.clone(),
+            source: entry.source.clone(),
+            server_id_override: None,
+            env_overrides: BTreeMap::new(),
+            trust_grant: false,
+            auto_start: false,
+        }
+    }
+
+    #[test]
+    fn installer_new_is_not_installed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let toml_path = dir.path().join("mcp_servers.toml");
+        let probe = Arc::new(StaticProbe { available: vec![] });
+        let installer = Installer::new(toml_path, probe);
+
+        let ids = installer
+            .list_installed_ids()
+            .expect("list_installed_ids should succeed");
+        assert!(
+            ids.is_empty(),
+            "new installer should report zero installed servers"
+        );
+    }
+
+    #[tokio::test]
+    async fn installer_can_start_install() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let toml_path = dir.path().join("mcp_servers.toml");
+        let probe = Arc::new(StaticProbe { available: vec![] });
+        let installer = Installer::new(toml_path.clone(), probe);
+
+        let entry = sample_entry();
+        let req = install_request(&entry);
+
+        // Before install, no servers installed.
+        let before = installer.list_installed_ids().unwrap();
+        assert!(
+            before.is_empty(),
+            "should have no installed servers before install"
+        );
+
+        // Install the entry (no runtime requirements, so it should succeed).
+        let outcome = installer.install(&entry, &req).await.unwrap();
+        assert!(
+            matches!(outcome, InstallOutcomeView::Installed { ref started, .. } if !started),
+            "expected Installed with started=false, got {:?}",
+            outcome
+        );
+
+        // After install, the server should appear in the list.
+        let after = installer.list_installed_ids().unwrap();
+        assert_eq!(after, vec!["test-server"]);
+
+        // The TOML file should now exist.
+        assert!(toml_path.exists(), "TOML file should be created on install");
+    }
+}
