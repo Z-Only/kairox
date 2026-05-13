@@ -486,4 +486,56 @@ mod tests {
         assert_eq!(def.tool_id, SHELL_TOOL_ID);
         assert_eq!(def.required_capability, "shell.exec");
     }
+
+    // ── Additional classification tests ──────────────────────────────────
+
+    #[test]
+    fn classify_read_only_command() {
+        assert_eq!(classify_command("ls", &["-la"]), CommandRisk::ReadOnly);
+    }
+
+    #[test]
+    fn classify_write_command() {
+        assert_eq!(classify_command("cp", &["a", "b"]), CommandRisk::Write);
+    }
+
+    #[test]
+    fn classify_destructive_command() {
+        assert_eq!(
+            classify_command("rm", &["-rf", "/"]),
+            CommandRisk::Destructive
+        );
+    }
+
+    #[test]
+    fn classify_unknown_command_returns_unknown() {
+        assert_eq!(classify_command("foobarbaz", &[]), CommandRisk::Unknown);
+    }
+
+    // ── Additional parse_command tests ───────────────────────────────────
+
+    #[test]
+    fn parse_command_simple() {
+        let (program, args) = parse_command("ls -la");
+        assert_eq!(program, "ls");
+        assert_eq!(args, vec!["-la"]);
+    }
+
+    #[test]
+    fn parse_command_quoted_args() {
+        let (program, args) = parse_command(r#"echo "hello world""#);
+        assert_eq!(program, "echo");
+        // Current implementation splits on whitespace including spaces inside
+        // quotes. Quote characters become part of the tokens.
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], "\"hello");
+        assert_eq!(args[1], "world\"");
+    }
+
+    #[test]
+    fn parse_command_empty_returns_empty() {
+        let (program, args) = parse_command("");
+        assert_eq!(program, "");
+        assert_eq!(args, Vec::<String>::new());
+    }
 }

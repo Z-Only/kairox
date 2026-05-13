@@ -931,4 +931,69 @@ mod tests {
             entries[0].modified
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Additional path validation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn resolve_read_path_rejects_parent_traversal() {
+        let dir = temp_workspace();
+        // Create a file outside the workspace subdirectory
+        let outside_file = dir.path().join("sensitive.txt");
+        std::fs::write(&outside_file, "secret").unwrap();
+        // Create a workspace subdirectory
+        let workspace = dir.path().join("workspace");
+        std::fs::create_dir(&workspace).unwrap();
+        let workspace = workspace.canonicalize().unwrap();
+
+        let result = resolve_workspace_read_path(&workspace, "../sensitive.txt");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::ToolError::WorkspaceEscape(_)
+        ));
+    }
+
+    #[test]
+    fn resolve_read_path_rejects_absolute_in_relative() {
+        let dir = temp_workspace();
+        let workspace = canon_root(&dir);
+        // Passing an absolute path as the relative_path argument: Path::join
+        // replaces the entire path with the absolute one, which then
+        // resolves outside the workspace root.
+        let result = resolve_workspace_read_path(&workspace, "/etc/passwd");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::ToolError::WorkspaceEscape(_)
+        ));
+    }
+
+    #[test]
+    fn resolve_read_path_allows_normal_file() {
+        let dir = temp_workspace();
+        let workspace = canon_root(&dir);
+        // Create src/main.rs inside the workspace
+        let src_dir = workspace.join("src");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::write(src_dir.join("main.rs"), "fn main() {}").unwrap();
+
+        let result = resolve_workspace_read_path(&workspace, "src/main.rs").unwrap();
+        assert!(result.ends_with("src/main.rs"));
+        assert!(result.starts_with(&workspace));
+    }
+
+    #[test]
+    fn resolve_write_path_same_rules() {
+        let dir = temp_workspace();
+        let workspace = canon_root(&dir);
+        // write path rejects ".." components before touching the filesystem
+        let result = resolve_workspace_write_path(&workspace, "../escape");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::ToolError::WorkspaceEscape(_)
+        ));
+    }
 }
