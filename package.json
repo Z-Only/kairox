@@ -18,7 +18,7 @@
     "prepare": "node scripts/prepare.cjs"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.3",
+    "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^20.5.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.2",
