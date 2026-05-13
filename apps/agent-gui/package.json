@@ -49,6 +49,6 @@
   "optionalDependencies": {
     "@rolldown/binding-darwin-arm64": "1.0.0-rc.17",
     "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.17",
-    "@rolldown/binding-win32-x64-msvc": "1.0.0-rc.17"
+    "@rolldown/binding-win32-x64-msvc": "1.0.1"
   }
 }
