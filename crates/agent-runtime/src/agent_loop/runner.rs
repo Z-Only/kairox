@@ -37,6 +37,7 @@ where
     pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     pub skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
+    pub root_path: Option<std::path::PathBuf>,
 }
 
 /// Resolve the active model profile alias from a session's full event log.
@@ -127,6 +128,7 @@ where
         session_states,
         skill_registry,
         active_skills,
+        root_path,
     } = deps;
     // Record user message
     let user_event = DomainEvent::new(
@@ -248,11 +250,19 @@ where
     let active_skill_blocks =
         load_active_skill_blocks(skill_registry, active_skills, &request.session_id).await?;
 
+    let project_instructions = if let Some(ref root_path) = root_path {
+        let summary = crate::project::read_project_instruction_summary(root_path).await;
+        summary.contents
+    } else {
+        None
+    };
+
     let assembler = agent_memory::ContextAssembler::new_standalone();
     let bundle = assembler
         .assemble(
             agent_memory::ContextRequest {
                 system_prompt: Some(system_prompt.clone()),
+                project_instructions,
                 active_skills: active_skill_blocks.clone(),
                 user_request: request.content.clone(),
                 session_history,
