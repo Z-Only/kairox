@@ -156,6 +156,9 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
   test("manages skill settings discovery, install, update, and delete", async ({ page }) => {
     await page.getByTestId("settings-tab-skills").click();
+
+    // Switch to project config source to see project-scoped skills
+    await page.getByTestId("source-btn-project").click();
     await expect(page.getByTestId("skill-row-project-project-review")).toContainText(
       "Project Review"
     );
@@ -175,8 +178,9 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await page.getByTestId("skill-catalog-search").press("Enter");
     await expect(page.getByTestId("skill-catalog-card")).toBeVisible();
     await page.getByTestId("skill-catalog-install-skillhub/code-review-assistant").click();
-    // Switch back to Installed tab to verify the skill was added
+    // Switch back to Installed tab, then to User source to verify the installed user-scoped skill
     await page.getByTestId("skill-subtab-installed").click();
+    await page.getByTestId("source-btn-user").click();
     await expect(page.getByTestId("skill-row-user-code-review-assistant")).toContainText(
       "Code Review Assistant"
     );
