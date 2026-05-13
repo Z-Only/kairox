@@ -853,6 +853,14 @@ where
         crate::session::soft_delete_session(&*self.store, session_id).await
     }
 
+    async fn permanently_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        crate::session::permanently_delete_session(&*self.store, session_id.as_str()).await
+    }
+
+    async fn restore_archived_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        crate::session::restore_archived_session(&*self.store, session_id.as_str()).await
+    }
+
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,

@@ -669,6 +669,12 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
     async fn soft_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
         SessionFacade::soft_delete_session(self, session_id).await
     }
+    async fn permanently_delete_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        SessionFacade::permanently_delete_session(self, session_id).await
+    }
+    async fn restore_archived_session(&self, session_id: &SessionId) -> crate::Result<()> {
+        SessionFacade::restore_archived_session(self, session_id).await
+    }
     async fn cleanup_expired_sessions(
         &self,
         older_than: std::time::Duration,

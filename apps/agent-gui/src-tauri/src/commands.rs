@@ -930,6 +930,34 @@ pub async fn delete_session(session_id: String, state: State<'_, GuiState>) -> R
 
 #[tauri::command]
 #[specta::specta]
+pub async fn permanently_delete_session(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .permanently_delete_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn restore_archived_session(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .restore_archived_session(&sid)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn cancel_session(state: State<'_, GuiState>) -> Result<(), String> {
     let workspace_id = {
         let ws = state.workspace_id.lock().await;

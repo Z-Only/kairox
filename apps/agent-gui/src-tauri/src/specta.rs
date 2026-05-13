@@ -55,6 +55,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_workspaces,
             rename_session,
             delete_session,
+            permanently_delete_session,
+            restore_archived_session,
             get_profile_detail,
             restore_workspace,
             get_task_graph,

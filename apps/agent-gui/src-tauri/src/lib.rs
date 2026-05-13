@@ -229,6 +229,8 @@ pub fn run() {
             crate::commands::list_workspaces,
             crate::commands::rename_session,
             crate::commands::delete_session,
+            crate::commands::permanently_delete_session,
+            crate::commands::restore_archived_session,
             crate::commands::get_profile_detail,
             crate::commands::restore_workspace,
             crate::commands::get_task_graph,

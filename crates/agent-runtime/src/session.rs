@@ -300,6 +300,28 @@ pub async fn soft_delete_session<S: EventStore>(
         .map_err(|e| CoreError::InvalidState(e.to_string()))
 }
 
+/// Permanently hard-delete a session and all associated data.
+pub async fn permanently_delete_session<S: EventStore>(
+    store: &S,
+    session_id: &str,
+) -> agent_core::Result<()> {
+    store
+        .permanently_delete_session(session_id)
+        .await
+        .map_err(|e| CoreError::InvalidState(e.to_string()))
+}
+
+/// Restore an archived session back to visible status.
+pub async fn restore_archived_session<S: EventStore>(
+    store: &S,
+    session_id: &str,
+) -> agent_core::Result<()> {
+    store
+        .restore_archived_session(session_id)
+        .await
+        .map_err(|e| CoreError::InvalidState(e.to_string()))
+}
+
 /// Clean up sessions that have been soft-deleted longer than the given duration.
 pub async fn cleanup_expired_sessions<S: EventStore>(
     store: &S,
