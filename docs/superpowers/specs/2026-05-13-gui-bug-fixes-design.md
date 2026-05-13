@@ -109,9 +109,54 @@ The two archive confirmation icons differ from each other AND from the project-d
 - **Task 3**: Manually verify thumbnail display in dev mode (visual).
 - **Task 4**: Visual verification in sidebar.
 
+---
+
+## Task 5: Fix context window display values
+
+### Current behavior
+
+When Anthropic Claude Opus 4.7 is selected (context window = 200,000), the context details panel shows wrong values:
+
+| Field      | Expected | Actual | Reason                                               |
+| ---------- | -------- | ------ | ---------------------------------------------------- |
+| 最大 Token | ~198k    | 1.8k   | `budget_tokens` from fallback "fake" limits (4,096)  |
+| 上下文窗口 | 200k     | 4.1k   | `context_window` from fallback "fake" limits (4,096) |
+
+Two root causes:
+
+1. **`ModelProfileSwitched` excluded from projection** (`projection.rs:168`): This event is categorized as "not relevant to session projection", so `model_limits` is always `None` when loading saved sessions. After app restart, the frontend has no model limits data.
+
+2. **Runner fallback to "fake" limits** (`runner.rs:171`): When `latest_model_profile_for()` returns a profile alias not present in the current `Config.profiles` (e.g., after config migration, or the alias lookup fails), the runner falls back to:
+
+   ```rust
+   None => agent_models::lookup_limits("fake", "fake")
+   // → context_window: 4_096, output_limit: 256
+   ```
+
+   Budget calculation: `4_096 - (256 + 2_000) = 1_840` → displayed as "1.8k".
+
+3. **Context details not updated on model switch**: When `switch_model` is called, `ModelProfileSwitched` event updates `modelLimits` on the frontend (real-time), but `lastContextUsage` from the last `ContextAssembled` remains stale. The details panel shows old usage data until the next `send_message`.
+
+### Target behavior
+
+- `ModelProfileSwitched` events are included in session projection → `modelLimits` survives app restarts.
+- Runner resolves limits from the last `ModelProfileSwitched` event when profile alias is not found in config.
+- Context meter's "max" values use `modelLimits` for display (not just `lastContextUsage`).
+- After model switch, context window display updates immediately.
+
+### Implementation
+
+- `crates/agent-core/src/projection.rs`: Move `ModelProfileSwitched` from the "not relevant" catch-all to active handling that populates `model_limits`.
+- `crates/agent-runtime/src/agent_loop/runner.rs`: When profile alias not found in config, extract `context_window`/`output_limit`/`limit_source` from the last `ModelProfileSwitched` event instead of falling back to `"fake"`.
+- `apps/agent-gui/src/components/ContextMeter.vue`: Update `contextWindowSummary` and the detail grid to prefer `modelLimits` values when available.
+- Update projection tests and runner tests.
+
+---
+
 ## Scope boundaries
 
-- No backend API changes beyond error message text (no new IPC commands).
+- No new IPC commands or Tauri commands.
 - No new dependencies.
 - No changes to the Tauri asset protocol configuration.
 - Task 3 uses existing Tauri file-read capability (no new permissions needed).
+- Task 5 — backend changes limited to projection.rs (event handling) and runner.rs (limit resolution).
