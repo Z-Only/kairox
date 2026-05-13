@@ -487,4 +487,97 @@ mod tests {
         ];
         assert_eq!(find_lowest_priority_drop(&sections_no_mem), Some(2));
     }
+
+    // ── Task 4: context assembly tests ──
+
+    #[test]
+    fn budget_input_equals_window_minus_output() {
+        let budget = ContextBudget {
+            context_window: 10000,
+            output_reservation: 2000,
+            source_caps: vec![],
+        };
+        assert_eq!(budget.input_budget(), 8000);
+    }
+
+    #[tokio::test]
+    async fn assemble_without_memory_store_produces_bundle() {
+        let assembler = ContextAssembler::new_standalone();
+        let bundle = assembler
+            .assemble(
+                ContextRequest {
+                    user_request: "test".into(),
+                    ..Default::default()
+                },
+                test_budget(500, 100),
+            )
+            .await;
+        assert!(!bundle.messages.is_empty());
+    }
+
+    #[tokio::test]
+    async fn assemble_never_drops_system_or_user_request() {
+        let assembler = ContextAssembler::new_standalone();
+        let bundle = assembler
+            .assemble(
+                ContextRequest {
+                    system_prompt: Some("System".into()),
+                    user_request: "request".into(),
+                    ..Default::default()
+                },
+                ContextBudget {
+                    context_window: 100,
+                    output_reservation: 0,
+                    source_caps: vec![],
+                },
+            )
+            .await;
+        let combined = bundle.messages.join("\n");
+        assert!(combined.contains("System"), "System prompt must survive");
+        assert!(combined.contains("request"), "User request must survive");
+    }
+
+    #[tokio::test]
+    async fn assemble_respects_budget_truncates() {
+        let assembler = ContextAssembler::new_standalone();
+        let history: Vec<String> = (0..50)
+            .map(|i| {
+                format!(
+                    "long history entry number {} with extra padding text to consume tokens",
+                    i
+                )
+            })
+            .collect();
+        let bundle = assembler
+            .assemble(
+                ContextRequest {
+                    user_request: "test".into(),
+                    session_history: history,
+                    ..Default::default()
+                },
+                test_budget(100, 0),
+            )
+            .await;
+        assert!(
+            bundle.truncated,
+            "Expected truncated=true with small budget"
+        );
+    }
+
+    #[test]
+    fn context_request_default_is_empty() {
+        let req = ContextRequest::default();
+        assert!(req.system_prompt.is_none());
+        assert!(req.project_instructions.is_none());
+        assert!(req.user_request.is_empty());
+        assert!(req.session_history.is_empty());
+        assert!(req.selected_files.is_empty());
+        assert!(req.tool_results.is_empty());
+        assert!(req.memories.is_empty());
+        assert!(req.active_skills.is_empty());
+        assert!(req.active_task.is_none());
+        assert!(req.session_id.is_none());
+        assert!(req.workspace_id.is_none());
+        assert!(req.tool_definitions.is_empty());
+    }
 }
