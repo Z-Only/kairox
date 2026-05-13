@@ -234,6 +234,7 @@ pub struct McpServerSettingsView {
     pub writable: bool,
     pub config_path: Option<String>,
     pub description: Option<String>,
+    pub source: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

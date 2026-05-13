@@ -66,6 +66,7 @@ pub async fn list_mcp_server_settings(
                 writable: config_path.is_some(),
                 config_path: config_path.map(|path| path.display().to_string()),
                 description: row.description,
+                source: "user_config".to_string(),
             }
         })
         .collect::<Vec<_>>();
@@ -218,6 +219,7 @@ async fn settings_view_from_file(
         writable: true,
         config_path: Some(config_path.display().to_string()),
         description: row.description.clone(),
+        source: "user_config".to_string(),
     })
 }
 
