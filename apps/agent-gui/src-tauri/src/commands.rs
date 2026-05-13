@@ -1169,10 +1169,11 @@ pub async fn list_active_skills(
 #[specta::specta]
 pub async fn list_mcp_server_settings(
     state: State<'_, GuiState>,
+    source_filter: Option<String>,
 ) -> Result<Vec<McpServerSettingsView>, String> {
     state
         .runtime
-        .list_mcp_server_settings()
+        .list_mcp_server_settings(source_filter)
         .await
         .map_err(|error| error.to_string())
 }

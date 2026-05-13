@@ -26,12 +26,21 @@ where
 {
     pub(crate) async fn list_mcp_server_settings(
         &self,
+        source_filter: Option<String>,
     ) -> agent_core::Result<Vec<McpServerSettingsView>> {
-        let config_path =
-            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?;
+        let user_config_path = std::env::var("HOME").ok().map(|h| {
+            std::path::PathBuf::from(h)
+                .join(".kairox")
+                .join("mcp_servers.toml")
+        });
+        let project_config_path = std::env::current_dir()
+            .ok()
+            .map(|d| d.join(".kairox").join("mcp_servers.toml"));
         crate::mcp_settings::list_mcp_server_settings(
             &self.config,
-            config_path.as_deref(),
+            user_config_path.as_deref(),
+            project_config_path.as_deref(),
+            source_filter.as_deref(),
             self.mcp_manager.clone(),
         )
         .await
@@ -563,8 +572,11 @@ where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    async fn list_mcp_server_settings(&self) -> agent_core::Result<Vec<McpServerSettingsView>> {
-        LocalRuntime::list_mcp_server_settings(self).await
+    async fn list_mcp_server_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> agent_core::Result<Vec<McpServerSettingsView>> {
+        LocalRuntime::list_mcp_server_settings(self, source_filter).await
     }
 
     async fn upsert_mcp_server_settings(

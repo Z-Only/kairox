@@ -11,7 +11,11 @@ use async_trait::async_trait;
 pub trait McpFacade: Send + Sync {
     // ── MCP Settings ──────────────────────────────────────────────────────
 
-    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
+    async fn list_mcp_server_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> crate::Result<Vec<McpServerSettingsView>> {
+        let _ = source_filter;
         Ok(Vec::new())
     }
 

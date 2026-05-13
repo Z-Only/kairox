@@ -806,8 +806,11 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
 
     // ── MCP / Marketplace / Profile ─────────────────────────────────────
 
-    async fn list_mcp_server_settings(&self) -> crate::Result<Vec<McpServerSettingsView>> {
-        McpFacade::list_mcp_server_settings(self).await
+    async fn list_mcp_server_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> crate::Result<Vec<McpServerSettingsView>> {
+        McpFacade::list_mcp_server_settings(self, source_filter).await
     }
     async fn upsert_mcp_server_settings(
         &self,
