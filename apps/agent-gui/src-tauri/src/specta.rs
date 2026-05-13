@@ -84,6 +84,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             delete_profile_settings,
             move_profile_in_order,
             open_config_dir,
+            open_skills_dir,
             list_skill_settings,
             get_skill_settings_detail,
             set_skill_enabled,

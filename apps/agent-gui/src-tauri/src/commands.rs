@@ -1330,6 +1330,22 @@ pub async fn open_config_dir(state: State<'_, GuiState>) -> Result<Option<String
     Ok(Some(config_dir.display().to_string()))
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn open_skills_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+    let Some(skills_dir) = state
+        .runtime
+        .open_skills_dir()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+    let skills_dir = std::path::PathBuf::from(skills_dir);
+    open_path_in_system_file_manager(&skills_dir)?;
+    Ok(Some(skills_dir.display().to_string()))
+}
+
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
     let mut command = system_file_manager_command(path);
     let status = command

@@ -803,6 +803,9 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
     async fn refresh_skill_catalog(&self) -> crate::Result<()> {
         SkillsFacade::refresh_skill_catalog(self).await
     }
+    async fn open_skills_dir(&self) -> crate::Result<Option<String>> {
+        SkillsFacade::open_skills_dir(self).await
+    }
 
     // ── MCP / Marketplace / Profile ─────────────────────────────────────
 

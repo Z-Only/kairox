@@ -135,4 +135,8 @@ pub trait SkillsFacade: Send + Sync {
     async fn refresh_skill_catalog(&self) -> crate::Result<()> {
         Ok(())
     }
+
+    async fn open_skills_dir(&self) -> crate::Result<Option<String>> {
+        Ok(None)
+    }
 }
