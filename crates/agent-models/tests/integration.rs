@@ -79,7 +79,7 @@ async fn router_falls_back_when_unknown() {
         Err(err) => {
             let msg = err.to_string();
             assert!(
-                msg.contains("unknown model profile"),
+                msg.contains("unknown model"),
                 "expected 'unknown model profile' error, got: {msg}"
             );
         }

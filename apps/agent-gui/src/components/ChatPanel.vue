@@ -215,7 +215,12 @@ async function selectModelProfile(alias: string) {
     modelPopoverOpen.value = false;
   } catch (e) {
     console.error("Failed to switch model:", e);
-    notify("error", String(e));
+    const errMsg = String(e);
+    if (errMsg.includes("unknown model")) {
+      notify("error", t("errors.modelNotFound", { alias }));
+    } else {
+      notify("error", t("context.switchModelFailed", { error: errMsg }));
+    }
   } finally {
     switchingModel.value = false;
   }

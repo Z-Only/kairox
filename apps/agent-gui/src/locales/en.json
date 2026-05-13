@@ -66,7 +66,7 @@
   },
   "errors": {
     "sessionBusy": "Session is busy: {reason}",
-    "profileNotFound": "Unknown model profile: {alias}"
+    "modelNotFound": "Model \"{alias}\" is not available"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"

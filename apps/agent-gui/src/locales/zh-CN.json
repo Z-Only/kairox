@@ -66,7 +66,7 @@
   },
   "errors": {
     "sessionBusy": "会话繁忙：{reason}",
-    "profileNotFound": "未知的模型配置：{alias}"
+    "modelNotFound": "模型 \"{alias}\" 不可用"
   },
   "workbench": {
     "sessionNotFound": "未找到会话：{id}"

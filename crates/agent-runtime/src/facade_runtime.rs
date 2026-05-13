@@ -513,9 +513,7 @@ where
             .find(|(alias, def)| alias == &profile_alias && def.enabled)
             .map(|(_, def)| def.clone())
             .ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!(
-                    "unknown model profile: {profile_alias}"
-                ))
+                agent_core::CoreError::InvalidState(format!("unknown model: {profile_alias}"))
             })?;
 
         // Resolve the session's current profile using the same helper

@@ -135,6 +135,7 @@ export const useSessionStore = defineStore("session", () => {
   const streamsByTask = ref(new Map<string, string>());
   const profileInfos = ref<ProfileInfo[]>([]);
   const loadingProfileInfo = ref(false);
+  const lastSendError = ref<string | null>(null);
 
   function resolveSessionProfile(profile?: string): string {
     return profile ?? currentProfile.value;
@@ -181,6 +182,7 @@ export const useSessionStore = defineStore("session", () => {
 
   // ── actions ──────────────────────────────────────────────────────
   function reportSendError(message: string) {
+    lastSendError.value = message;
     projection.value.messages.push({
       role: "assistant",
       content: `[error] ${message}`
@@ -196,6 +198,7 @@ export const useSessionStore = defineStore("session", () => {
 
     switch (p.type) {
       case "UserMessageAdded": {
+        lastSendError.value = null;
         projection.value.messages.push({
           role: "user",
           content: p.content
@@ -338,6 +341,7 @@ export const useSessionStore = defineStore("session", () => {
 
   function resetProjection() {
     projection.value = emptyProjection();
+    lastSendError.value = null;
     isStreaming.value = false;
     streamsByTask.value.clear();
     useAgentsStore().clearAgents();
@@ -554,6 +558,7 @@ export const useSessionStore = defineStore("session", () => {
     streamsByTask,
     profileInfos,
     loadingProfileInfo,
+    lastSendError,
     currentSessionInfo,
     activeProfileInfo,
     activeProfileDisplay,
