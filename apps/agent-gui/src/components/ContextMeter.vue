@@ -20,8 +20,9 @@ const popoverOpen = ref(false);
 
 const ratio = computed(() => {
   const u = session.lastContextUsage;
-  if (!u || u.budget_tokens === 0) return 0;
-  return Math.min(1, u.total_tokens / u.budget_tokens);
+  const budget = displayBudgetTokens.value;
+  if (!u || budget === 0) return 0;
+  return Math.min(1, u.total_tokens / budget);
 });
 
 const ratioPct = computed(() => Math.round(ratio.value * 100));
@@ -39,6 +40,30 @@ const progressRingState = computed<"normal" | "warning" | "danger">(() => {
 });
 
 const currentModelContextWindow = computed(() => session.modelLimits?.context_window ?? null);
+
+// Display budget tokens — calculates from modelLimits when lastContextUsage is stale
+const displayBudgetTokens = computed(() => {
+  const usage = session.lastContextUsage;
+  const limits = session.modelLimits;
+  if (!usage && !limits) return 0;
+  if (limits) {
+    const safety = Math.max(2000, Math.floor(limits.output_limit / 10));
+    return limits.context_window - (limits.output_limit + safety);
+  }
+  return usage!.budget_tokens;
+});
+
+// Display context window — prefers modelLimits when available
+const displayContextWindow = computed(() => {
+  if (session.modelLimits) return session.modelLimits.context_window;
+  return session.lastContextUsage?.context_window ?? 0;
+});
+
+// Whether context usage data matches the current model limits
+const contextUsageMatchesModel = computed(() => {
+  if (!session.modelLimits || !session.lastContextUsage) return true;
+  return session.lastContextUsage.context_window === session.modelLimits.context_window;
+});
 
 const contextWindowSummary = computed(() => {
   const usageContextWindow = session.lastContextUsage?.context_window;
@@ -198,7 +223,16 @@ async function onCompactClick() {
               </div>
               <div>
                 <dt>{{ t("context.maxTokens") }}</dt>
-                <dd>{{ formatTokens(session.lastContextUsage.budget_tokens) }}</dd>
+                <dd>
+                  <template v-if="contextUsageMatchesModel">{{
+                    formatTokens(session.lastContextUsage.budget_tokens)
+                  }}</template>
+                  <template v-else>
+                    <span class="estimated-value" :title="t('context.estimatedBudget')">{{
+                      formatTokens(displayBudgetTokens)
+                    }}</span>
+                  </template>
+                </dd>
               </div>
               <div>
                 <dt>{{ t("context.percentage") }}</dt>
@@ -206,7 +240,7 @@ async function onCompactClick() {
               </div>
               <div>
                 <dt>{{ t("context.contextWindow") }}</dt>
-                <dd>{{ contextWindowSummary }}</dd>
+                <dd>{{ formatTokens(displayContextWindow) }}</dd>
               </div>
               <div>
                 <dt>{{ t("context.compactionState") }}</dt>
@@ -228,7 +262,7 @@ async function onCompactClick() {
                   <td>
                     {{
                       t("context.percentOfBudget", {
-                        pct: formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)
+                        pct: formatSourcePercent(tokens, displayBudgetTokens)
                       })
                     }}
                   </td>
@@ -289,7 +323,7 @@ async function onCompactClick() {
           :key="source"
           class="segment"
           :style="{
-            width: `${formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)}%`,
+            width: `${formatSourcePercent(tokens, displayBudgetTokens)}%`,
             background: formatSourceColor(source)
           }"
         />
@@ -297,7 +331,7 @@ async function onCompactClick() {
 
       <span class="numbers" data-test="context-meter-numbers">
         {{ formatTokens(session.lastContextUsage.total_tokens) }} /
-        {{ formatTokens(session.lastContextUsage.budget_tokens) }}
+        {{ formatTokens(displayBudgetTokens) }}
         ({{ ratioPct }}%)
       </span>
 
@@ -351,7 +385,7 @@ async function onCompactClick() {
             <td>
               {{
                 t("context.percentOfBudget", {
-                  pct: formatSourcePercent(tokens, session.lastContextUsage.budget_tokens)
+                  pct: formatSourcePercent(tokens, displayBudgetTokens)
                 })
               }}
             </td>
@@ -588,5 +622,9 @@ async function onCompactClick() {
   background: var(--app-primary-color);
   color: var(--app-inverse-text-color, #fff);
   border-color: var(--app-primary-color);
+}
+.estimated-value {
+  border-bottom: 1px dashed var(--app-text-color);
+  cursor: help;
 }
 </style>

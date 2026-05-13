@@ -163,9 +163,20 @@ impl SessionProjection {
                     error: error.clone(),
                 };
             }
+            EventPayload::ModelProfileSwitched {
+                context_window,
+                output_limit,
+                limit_source,
+                ..
+            } => {
+                self.model_limits = Some(ProjectedModelLimits {
+                    context_window: *context_window,
+                    output_limit: *output_limit,
+                    source: limit_source.clone(),
+                });
+            }
             // Events not relevant to session projection
             EventPayload::WorkspaceOpened { .. }
-            | EventPayload::ModelProfileSwitched { .. }
             | EventPayload::ModelRequestStarted { .. }
             | EventPayload::ModelToolCallRequested { .. }
             | EventPayload::PermissionRequested { .. }
