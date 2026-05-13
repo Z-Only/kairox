@@ -92,6 +92,10 @@ pub trait McpFacade: Send + Sync {
         Ok(None)
     }
 
+    async fn open_profiles_config_file(&self) -> crate::Result<Option<String>> {
+        Ok(None)
+    }
+
     // ── Marketplace Catalog ───────────────────────────────────────────────
 
     async fn list_catalog(&self, query: CatalogQuery) -> crate::Result<Vec<ServerEntry>> {

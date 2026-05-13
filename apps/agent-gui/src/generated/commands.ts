@@ -140,6 +140,8 @@ export const commands = {
   testUrlConnectivity: (url: string) =>
     typedError<ConnectivityTestResult, string>(__TAURI_INVOKE("test_url_connectivity", { url })),
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
+  openProfilesConfigFile: () =>
+    typedError<string | null, string>(__TAURI_INVOKE("open_profiles_config_file")),
   openSkillsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_skills_dir")),
   listSkillSettings: () =>
     typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),

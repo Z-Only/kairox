@@ -746,6 +746,11 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
         McpFacade::open_config_dir(self).await
     }
 
+    /// Open the profiles.toml config file with the system default text editor.
+    async fn open_profiles_config_file(&self) -> crate::Result<Option<String>> {
+        McpFacade::open_profiles_config_file(self).await
+    }
+
     /// List skills for settings UI.
     async fn list_skill_settings(&self) -> crate::Result<Vec<SkillSettingsView>> {
         SkillsFacade::list_skill_settings(self).await

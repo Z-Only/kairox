@@ -1236,13 +1236,8 @@ pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<S
     };
 
     let config_file_path = std::path::PathBuf::from(config_file_path);
-    let config_folder_path = config_file_path
-        .parent()
-        .unwrap_or(config_file_path.as_path())
-        .to_path_buf();
-
-    open_path_in_system_file_manager(&config_folder_path)?;
-    Ok(Some(config_folder_path.display().to_string()))
+    open_path_in_system_file_manager(&config_file_path)?;
+    Ok(Some(config_file_path.display().to_string()))
 }
 
 #[tauri::command]
@@ -1450,6 +1445,25 @@ pub async fn open_config_dir(state: State<'_, GuiState>) -> Result<Option<String
     let config_dir = std::path::PathBuf::from(config_dir);
     open_path_in_system_file_manager(&config_dir)?;
     Ok(Some(config_dir.display().to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn open_profiles_config_file(
+    state: State<'_, GuiState>,
+) -> Result<Option<String>, String> {
+    let Some(config_file_path) = state
+        .runtime
+        .open_profiles_config_file()
+        .await
+        .map_err(|error| error.to_string())?
+    else {
+        return Ok(None);
+    };
+
+    let config_file_path = std::path::PathBuf::from(config_file_path);
+    open_path_in_system_file_manager(&config_file_path)?;
+    Ok(Some(config_file_path.display().to_string()))
 }
 
 #[tauri::command]

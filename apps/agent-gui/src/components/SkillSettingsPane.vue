@@ -244,15 +244,6 @@ async function installFromGithub(): Promise<void> {
             <button
               class="btn btn-sm"
               type="button"
-              disabled
-              :title="'Skill editing is not available in this settings pane yet.'"
-              :data-test="`skill-edit-${skillSettingsTestId(skill)}`"
-            >
-              {{ t("skills.edit") }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
               :disabled="!canUpdateSkill(skill) || busySkillId === skill.settings_id"
               :data-test="`skill-update-${skillSettingsTestId(skill)}`"
               @click="

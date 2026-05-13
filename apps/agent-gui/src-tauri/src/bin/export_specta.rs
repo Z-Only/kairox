@@ -99,6 +99,7 @@ fn main() {
             agent_gui_tauri::commands::test_model_connectivity,
             agent_gui_tauri::commands::test_url_connectivity,
             agent_gui_tauri::commands::open_config_dir,
+            agent_gui_tauri::commands::open_profiles_config_file,
             agent_gui_tauri::commands::open_skills_dir,
             agent_gui_tauri::commands::list_skill_settings,
             agent_gui_tauri::commands::get_skill_settings_detail,

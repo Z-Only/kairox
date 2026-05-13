@@ -195,7 +195,7 @@
     "title": "MCP 设置",
     "tabInstalled": "已安装",
     "tabMarketplace": "应用市场",
-    "openConfigFolder": "打开配置目录",
+    "openConfigFile": "打开配置文件",
     "opening": "打开中…",
     "addServer": "添加服务",
     "addManual": "手动",
@@ -314,7 +314,7 @@
     "sortAlpha": "按字母排序",
     "showUserConfig": "用户配置",
     "showProjectConfig": "项目配置",
-    "openConfigDir": "打开配置目录",
+    "openConfigFile": "打开配置文件",
     "advancedOptions": "高级选项",
     "basicOptions": "基本",
     "connectionOptions": "连接"

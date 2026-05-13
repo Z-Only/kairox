@@ -17,7 +17,7 @@ vi.mock("@/generated/commands", () => ({
     setProfileEnabled: vi.fn(),
     deleteProfileSettings: vi.fn(),
     moveProfileInOrder: vi.fn(),
-    openConfigDir: vi.fn(),
+    openProfilesConfigFile: vi.fn(),
     testModelConnectivity: vi.fn()
   }
 }));
@@ -102,7 +102,7 @@ beforeEach(() => {
   mockedCommands.setProfileEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteProfileSettings.mockResolvedValue(ok(null));
   mockedCommands.moveProfileInOrder.mockResolvedValue(ok(null));
-  mockedCommands.openConfigDir.mockResolvedValue(ok("/tmp/config"));
+  mockedCommands.openProfilesConfigFile.mockResolvedValue(ok("/tmp/profiles.toml"));
 });
 
 describe("ModelSettingsPane", () => {

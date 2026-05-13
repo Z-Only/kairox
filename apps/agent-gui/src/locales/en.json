@@ -195,7 +195,7 @@
     "title": "MCP Settings",
     "tabInstalled": "Installed",
     "tabMarketplace": "Marketplace",
-    "openConfigFolder": "Open Config Folder",
+    "openConfigFile": "Open Config File",
     "opening": "Opening…",
     "addServer": "Add server",
     "addManual": "Manual",
@@ -270,7 +270,7 @@
     "sortAlpha": "Sort A-Z",
     "showUserConfig": "User Config",
     "showProjectConfig": "Project Config",
-    "openConfigDir": "Open Config Dir",
+    "openConfigFile": "Open Config File",
     "advancedOptions": "Advanced",
     "basicOptions": "Basic",
     "connectionOptions": "Connection"

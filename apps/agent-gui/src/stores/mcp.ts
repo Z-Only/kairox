@@ -48,7 +48,7 @@ export const useMcpStore = defineStore("mcp", () => {
   const loading = ref(false);
   const settingsServers = ref<McpServerSettingsView[]>([]);
   const settingsLoading = ref(false);
-  const configFolderOpening = ref(false);
+  const configFileOpening = ref(false);
   const settingsError = ref<string | null>(null);
 
   const runningServers = computed(() => servers.value.filter((s) => s.status === "running"));
@@ -213,15 +213,15 @@ export const useMcpStore = defineStore("mcp", () => {
   }
 
   async function openConfigFile(): Promise<string | null> {
-    configFolderOpening.value = true;
+    configFileOpening.value = true;
     settingsError.value = null;
     try {
       return await unwrapCommandResult(commands.openMcpConfigFile());
     } catch (caughtError) {
-      settingsError.value = `Unable to open MCP config folder: ${formatError(caughtError)}`;
+      settingsError.value = `Unable to open MCP config file: ${formatError(caughtError)}`;
       return null;
     } finally {
-      configFolderOpening.value = false;
+      configFileOpening.value = false;
     }
   }
 
@@ -271,7 +271,7 @@ export const useMcpStore = defineStore("mcp", () => {
     loading,
     settingsServers,
     settingsLoading,
-    configFolderOpening,
+    configFileOpening,
     settingsError,
     runningServers,
     failedServers,

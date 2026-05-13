@@ -156,26 +156,12 @@ describe("SkillSettingsPane", () => {
     );
   });
 
-  it("keeps skill edit actions read-only until an editor exists", async () => {
+  it("does not render edit buttons for skills", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-project-code-review"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-edit-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-delete-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
-    expect(
-      wrapper.find<HTMLButtonElement>('[data-test="skill-update-builtin-builtin-planning"]').element
-        .disabled
-    ).toBe(true);
+    expect(wrapper.find('[data-test="skill-edit-project-code-review"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="skill-edit-builtin-builtin-planning"]').exists()).toBe(false);
   });
 
   it("toggles enabled state through the skills store action", async () => {

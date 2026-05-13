@@ -139,11 +139,11 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
         <button
           class="btn btn-sm"
           type="button"
-          :disabled="mcp.configFolderOpening"
+          :disabled="mcp.configFileOpening"
           data-test="mcp-open-config"
           @click="mcp.openConfigFile()"
         >
-          {{ mcp.configFolderOpening ? t("mcp.opening") : t("mcp.openConfigFolder") }}
+          {{ mcp.configFileOpening ? t("mcp.opening") : t("mcp.openConfigFile") }}
         </button>
         <button
           class="btn btn-sm"

@@ -100,12 +100,12 @@ describe("McpSettingsPane", () => {
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
   });
 
-  it("labels the config action as a folder opener and delegates to the MCP store", async () => {
+  it("labels the config action as a file opener and delegates to the MCP store", async () => {
     const wrapper = mountPane();
     await flushPromises();
 
     const openConfigButton = wrapper.find('[data-test="mcp-open-config"]');
-    expect(openConfigButton.text()).toContain("Open Config Folder");
+    expect(openConfigButton.text()).toContain("Open Config File");
 
     await openConfigButton.trigger("click");
     await flushPromises();
@@ -113,7 +113,7 @@ describe("McpSettingsPane", () => {
     expect(mockedCommands.openMcpConfigFile).toHaveBeenCalledTimes(1);
   });
 
-  it("does not show the config folder action as opening while settings are loading", async () => {
+  it("does not show the config file action as opening while settings are loading", async () => {
     let resolveSettings: (value: { status: "ok"; data: McpServerSettingsView[] }) => void;
     mockedCommands.listMcpServerSettings.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -125,14 +125,14 @@ describe("McpSettingsPane", () => {
     await nextTick();
 
     const openConfigButton = wrapper.find<HTMLButtonElement>('[data-test="mcp-open-config"]');
-    expect(openConfigButton.text()).toContain("Open Config Folder");
+    expect(openConfigButton.text()).toContain("Open Config File");
     expect(openConfigButton.element.disabled).toBe(false);
 
     resolveSettings!(ok([githubServer, readonlyServer]));
     await flushPromises();
   });
 
-  it("disables the config folder action while the folder is opening", async () => {
+  it("disables the config file action while the file is opening", async () => {
     let resolveOpenConfig: (value: { status: "ok"; data: string }) => void;
     mockedCommands.openMcpConfigFile.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -152,23 +152,21 @@ describe("McpSettingsPane", () => {
     resolveOpenConfig!(ok("/tmp"));
     await flushPromises();
 
-    expect(openConfigButton.text()).toContain("Open Config Folder");
+    expect(openConfigButton.text()).toContain("Open Config File");
     expect(openConfigButton.element.disabled).toBe(false);
   });
 
-  it("shows a page-level error when opening the config folder fails", async () => {
-    mockedCommands.openMcpConfigFile.mockRejectedValueOnce(new Error("folder open denied"));
+  it("shows a page-level error when opening the config file fails", async () => {
+    mockedCommands.openMcpConfigFile.mockRejectedValueOnce(new Error("file open denied"));
     const wrapper = mountPane();
     await flushPromises();
 
     await wrapper.find('[data-test="mcp-open-config"]').trigger("click");
     await flushPromises();
 
-    expect(useMcpStore().settingsError).toBe(
-      "Unable to open MCP config folder: folder open denied"
-    );
+    expect(useMcpStore().settingsError).toBe("Unable to open MCP config file: file open denied");
     expect(wrapper.find('[data-test="mcp-page-error"]').text()).toContain(
-      "Unable to open MCP config folder: folder open denied"
+      "Unable to open MCP config file: file open denied"
     );
   });
 

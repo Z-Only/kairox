@@ -272,9 +272,9 @@ async function testFormConnectivity(): Promise<void> {
   }
 }
 
-async function openConfigDir(): Promise<void> {
+async function openConfigFile(): Promise<void> {
   try {
-    await commands.openConfigDir();
+    await commands.openProfilesConfigFile();
   } catch {
     // best-effort
   }
@@ -305,11 +305,11 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
         <button
           class="btn btn-sm"
           type="button"
-          data-test="model-open-config-dir"
-          :title="t('models.openConfigDir')"
-          @click="openConfigDir()"
+          data-test="model-open-config-file"
+          :title="t('models.openConfigFile')"
+          @click="openConfigFile()"
         >
-          {{ t("models.openConfigDir") }}
+          {{ t("models.openConfigFile") }}
         </button>
         <button
           class="btn btn-sm"
