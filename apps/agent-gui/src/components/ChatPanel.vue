@@ -23,13 +23,27 @@ interface Attachment {
   mimeType: string;
 }
 const attachments = ref<Attachment[]>([]);
+const thumbnailUrls = ref<Map<string, string>>(new Map());
 
 function isImageMime(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
-function attachmentThumbnailSrc(att: Attachment): string {
-  return convertFileSrc(att.path);
+async function loadAttachmentThumbnail(att: Attachment): Promise<void> {
+  try {
+    const assetUrl = convertFileSrc(att.path);
+    const response = await fetch(assetUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    thumbnailUrls.value.set(att.id, objectUrl);
+  } catch (e) {
+    console.warn(`Failed to load thumbnail for ${att.path}:`, e);
+  }
+}
+
+function getThumbnailUrl(att: Attachment): string | undefined {
+  return thumbnailUrls.value.get(att.id);
 }
 
 function onThumbnailError(e: Event) {
@@ -94,12 +108,16 @@ async function pickFiles() {
       const name = (filePath as string).split(/[\\/]/).pop() || (filePath as string);
       const ext = name.split(".").pop()?.toLowerCase() || "";
       const mimeType = mimeFromExtension(ext);
-      attachments.value.push({
+      const att: Attachment = {
         id: crypto.randomUUID(),
         path: filePath as string,
         name,
         mimeType
-      });
+      };
+      attachments.value = [...attachments.value, att];
+      if (isImageMime(mimeType)) {
+        loadAttachmentThumbnail(att);
+      }
     }
   } catch (e) {
     console.error("File picker error:", e);
@@ -140,6 +158,11 @@ function mimeFromExtension(ext: string): string {
 
 function removeAttachment(id: string) {
   attachments.value = attachments.value.filter((a) => a.id !== id);
+  const url = thumbnailUrls.value.get(id);
+  if (url) {
+    URL.revokeObjectURL(url);
+    thumbnailUrls.value.delete(id);
+  }
 }
 
 /** Map role to CSS class suffix. */
@@ -244,6 +267,11 @@ async function sendMessage() {
 
   inputText.value = "";
   attachments.value = [];
+  // Revoke all thumbnail URLs
+  for (const url of thumbnailUrls.value.values()) {
+    URL.revokeObjectURL(url);
+  }
+  thumbnailUrls.value.clear();
   try {
     await invoke("send_message", payload);
   } catch (e) {
@@ -438,14 +466,14 @@ watch(
           :data-filename="att.name"
         >
           <img
-            v-if="isImageMime(att.mimeType)"
-            :src="attachmentThumbnailSrc(att)"
+            v-if="isImageMime(att.mimeType) && getThumbnailUrl(att)"
+            :src="getThumbnailUrl(att)"
             class="attachment-thumbnail"
             :alt="att.name"
             @error="onThumbnailError"
           />
           <span
-            v-show="!isImageMime(att.mimeType)"
+            v-show="!isImageMime(att.mimeType) || !getThumbnailUrl(att)"
             :class="['attachment-type-icon', fileIconClass(att.name)]"
             :aria-label="att.mimeType"
           >
