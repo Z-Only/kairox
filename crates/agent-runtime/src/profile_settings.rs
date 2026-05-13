@@ -307,6 +307,11 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
             table["api_key_env"] = value(v.clone());
         }
     }
+    if let Some(ref v) = def.api_key {
+        if !v.is_empty() {
+            table["api_key"] = value(v.clone());
+        }
+    }
 }
 
 // -- display ordering helpers --
