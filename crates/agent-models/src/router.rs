@@ -145,4 +145,88 @@ mod tests {
         let first = stream.next().await.unwrap().unwrap();
         assert_eq!(first, ModelEvent::TokenDelta("trait response".into()));
     }
+
+    #[test]
+    fn new_router_is_empty() {
+        let router = ModelRouter::new();
+        assert!(router.list_profiles().is_empty());
+    }
+
+    #[test]
+    fn register_and_list_single_profile() {
+        let mut router = ModelRouter::new();
+        router.register(
+            test_profile("single"),
+            Arc::new(FakeModelClient::new(vec![])),
+        );
+        assert_eq!(router.list_profiles().len(), 1);
+        let profile = router.get_profile("single");
+        assert!(profile.is_some());
+        assert_eq!(profile.unwrap().alias, "single");
+    }
+
+    #[test]
+    fn register_and_list_multiple_sorted() {
+        let mut router = ModelRouter::new();
+        router.register(test_profile("c"), Arc::new(FakeModelClient::new(vec![])));
+        router.register(test_profile("a"), Arc::new(FakeModelClient::new(vec![])));
+        router.register(test_profile("b"), Arc::new(FakeModelClient::new(vec![])));
+        let names: Vec<_> = router
+            .list_profiles()
+            .iter()
+            .map(|p| p.alias.as_str())
+            .collect();
+        assert_eq!(names, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn get_profile_unknown_returns_none() {
+        let router = ModelRouter::new();
+        assert!(router.get_profile("nonexistent").is_none());
+    }
+
+    #[tokio::test]
+    async fn route_unknown_profile_returns_error() {
+        let router = ModelRouter::new();
+        let result = router
+            .route(ModelRequest::user_text("unknown", "test"))
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn route_twice_uses_same_client() {
+        let mut router = ModelRouter::new();
+        let client = Arc::new(FakeModelClient::new(vec!["token".into()]));
+        router.register(test_profile("test"), client);
+
+        let mut stream1 = router
+            .route(ModelRequest::user_text("test", "first"))
+            .await
+            .unwrap();
+        let first = stream1.next().await.unwrap().unwrap();
+        assert_eq!(first, ModelEvent::TokenDelta("token".into()));
+
+        let mut stream2 = router
+            .route(ModelRequest::user_text("test", "second"))
+            .await
+            .unwrap();
+        let second = stream2.next().await.unwrap().unwrap();
+        assert_eq!(second, ModelEvent::TokenDelta("token".into()));
+    }
+
+    #[tokio::test]
+    async fn router_implements_model_client_trait() {
+        let mut router = ModelRouter::new();
+        let client = Arc::new(FakeModelClient::new(vec!["trait_token".into()]));
+        router.register(test_profile("test"), client);
+
+        let model_client: &dyn ModelClient = &router;
+        let mut stream = model_client
+            .stream(ModelRequest::user_text("test", "hello"))
+            .await
+            .unwrap();
+        let first = stream.next().await.unwrap().unwrap();
+        assert!(matches!(first, ModelEvent::TokenDelta(_)));
+    }
 }

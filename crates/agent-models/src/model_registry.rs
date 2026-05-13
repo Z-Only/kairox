@@ -197,4 +197,69 @@ mod tests {
         assert_eq!(limits.source, LimitSource::Fallback);
         assert_eq!(limits.context_window, 128_000);
     }
+
+    #[test]
+    fn lookup_openai_gpt41_returns_builtin() {
+        let limits = lookup("openai_compatible", "gpt-4.1");
+        assert_eq!(limits.source, LimitSource::BuiltinRegistry);
+        assert!(limits.context_window > 0);
+    }
+
+    #[test]
+    fn lookup_openai_unknown_model_returns_fallback() {
+        let limits = lookup("openai", "unknown-model-xyz");
+        assert_eq!(limits.source, LimitSource::Fallback);
+        assert_eq!(limits.context_window, 128_000);
+    }
+
+    #[test]
+    fn lookup_anthropic_claude_sonnet_4() {
+        let limits = lookup("anthropic", "claude-sonnet-4-20250514");
+        assert_eq!(limits.source, LimitSource::BuiltinRegistry);
+        assert!(limits.context_window > 0);
+    }
+
+    #[test]
+    fn lookup_anthropic_unknown_returns_fallback() {
+        let limits = lookup("anthropic", "unknown-model");
+        assert_eq!(limits.source, LimitSource::Fallback);
+    }
+
+    #[test]
+    fn lookup_ollama_always_fallback() {
+        let limits = lookup("ollama", "llama3:latest");
+        assert_eq!(limits.source, LimitSource::Fallback);
+        assert_eq!(limits.context_window, 8_192);
+        assert_eq!(limits.output_limit, 2_048);
+    }
+
+    #[test]
+    fn lookup_fake_always_fallback() {
+        let limits = lookup("fake", "any-model");
+        assert_eq!(limits.source, LimitSource::Fallback);
+        assert_eq!(limits.context_window, 4_096);
+        assert_eq!(limits.output_limit, 256);
+    }
+
+    #[test]
+    fn lookup_unknown_provider_returns_generic_fallback() {
+        let limits = lookup("deepseek", "deepseek-v3");
+        assert_eq!(limits.source, LimitSource::Fallback);
+        assert_eq!(limits.context_window, 128_000);
+    }
+
+    #[test]
+    fn lookup_prefix_matching_chooses_longest_match() {
+        let limits = lookup("anthropic", "claude-3-5-sonnet-20241022");
+        assert_eq!(limits.source, LimitSource::BuiltinRegistry);
+        assert_eq!(limits.context_window, 200_000);
+        assert_eq!(limits.output_limit, 8_192);
+    }
+
+    #[test]
+    fn limits_source_variants_distinct() {
+        assert_ne!(LimitSource::UserConfig, LimitSource::Fallback);
+        assert_ne!(LimitSource::UserConfig, LimitSource::BuiltinRegistry);
+        assert_ne!(LimitSource::BuiltinRegistry, LimitSource::Fallback);
+    }
 }
