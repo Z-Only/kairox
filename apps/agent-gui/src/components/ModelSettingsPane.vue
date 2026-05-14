@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { ProfileSettingsView } from "@/generated/commands";
+import type { ProfileSettingsView, EffectiveProfileView } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
 
 const { t } = useI18n();
 const { notify } = useNotifications();
 const profiles = ref<ProfileSettingsView[]>([]);
+const effectiveProfiles = ref<EffectiveProfileView[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const busyAlias = ref<string | null>(null);
@@ -67,8 +68,12 @@ async function fetchProfiles(): Promise<void> {
   loading.value = true;
   error.value = null;
   try {
-    const filter = configSource?.value === "project" ? "project" : null;
-    profiles.value = await unwrapCommandResult(commands.listProfileSettings(filter));
+    const [rawProfiles, effective] = await Promise.all([
+      unwrapCommandResult(commands.listProfileSettings(null)),
+      unwrapCommandResult(commands.getEffectiveModelProfiles())
+    ]);
+    profiles.value = rawProfiles;
+    effectiveProfiles.value = effective;
   } catch (caughtError) {
     error.value = formatError(caughtError);
   } finally {
@@ -334,34 +339,43 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
     <p v-if="loading" class="alert alert-info" role="status">
       {{ t("models.loading") }}
     </p>
-    <p v-else-if="profiles.length === 0" class="empty-state">
+    <p v-else-if="effectiveProfiles.length === 0" class="empty-state">
       {{ t("models.noProfiles") }}
     </p>
 
     <div v-else class="model-settings__list" role="list" aria-label="Configured model profiles">
       <article
-        v-for="(profile, index) in profiles"
-        :key="profile.alias"
+        v-for="(profile, index) in effectiveProfiles"
+        :key="profile.value.alias"
         class="card model-settings__profile"
         role="listitem"
-        :data-test="`model-row-${profile.alias}`"
+        :data-test="`model-row-${profile.value.alias}`"
       >
         <div class="card-body model-settings__profile-body">
           <div class="model-settings__profile-main">
-            <h3>{{ profile.alias }}</h3>
-            <p>{{ profile.provider }} / {{ profile.model_id }}</p>
-            <div class="mcp-settings__tags" aria-label="Profile metadata">
+            <h3>{{ profile.value.alias }}</h3>
+            <p>{{ profile.value.provider }} / {{ profile.value.model_id }}</p>
+            <div class="server__tags" aria-label="Profile metadata">
+              <span class="tag tag--source" :class="`tag--source-${profile.source.toLowerCase()}`">
+                {{ profile.source }}
+              </span>
+              <span v-if="profile.overrides" class="tag tag--override">
+                {{ t("models.overrides", { source: profile.overrides }) }}
+              </span>
+              <span v-if="profile.disabledBy" class="tag tag--disabled-by">
+                {{ t("models.disabledBy", { source: profile.disabledBy }) }}
+              </span>
               <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
                 {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
               </span>
-              <span v-if="profile.context_window" class="tag">
-                {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
+              <span v-if="profile.value.context_window" class="tag">
+                {{ t("models.contextWindow") }}: {{ profile.value.context_window.toLocaleString() }}
               </span>
-              <span v-if="profile.output_limit" class="tag">
-                {{ t("models.outputLimit") }}: {{ profile.output_limit.toLocaleString() }}
+              <span v-if="profile.value.output_limit" class="tag">
+                {{ t("models.outputLimit") }}: {{ profile.value.output_limit.toLocaleString() }}
               </span>
-              <span v-if="profile.temperature != null" class="tag">
-                {{ t("models.temperature") }}: {{ profile.temperature }}
+              <span v-if="profile.value.temperature != null" class="tag">
+                {{ t("models.temperature") }}: {{ profile.value.temperature }}
               </span>
             </div>
           </div>
@@ -371,20 +385,22 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
               <button
                 class="btn btn-sm btn-icon"
                 type="button"
-                :disabled="busyAlias === profile.alias || index === 0"
-                :data-test="`model-move-up-${profile.alias}`"
+                :disabled="busyAlias === profile.value.alias || index === 0"
+                :data-test="`model-move-up-${profile.value.alias}`"
                 :title="t('models.moveUp')"
-                @click="moveProfile(profile.alias, -1)"
+                @click="moveProfile(profile.value.alias, -1)"
               >
                 ▲
               </button>
               <button
                 class="btn btn-sm btn-icon"
                 type="button"
-                :disabled="busyAlias === profile.alias || index === profiles.length - 1"
-                :data-test="`model-move-down-${profile.alias}`"
+                :disabled="
+                  busyAlias === profile.value.alias || index === effectiveProfiles.length - 1
+                "
+                :data-test="`model-move-down-${profile.value.alias}`"
                 :title="t('models.moveDown')"
-                @click="moveProfile(profile.alias, 1)"
+                @click="moveProfile(profile.value.alias, 1)"
               >
                 ▼
               </button>
@@ -392,28 +408,28 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-edit-${profile.alias}`"
-              @click="openEditDialog(profile)"
+              :disabled="busyAlias === profile.value.alias"
+              :data-test="`model-edit-${profile.value.alias}`"
+              @click="openEditDialog(profile.value)"
             >
               {{ t("common.edit") }}
             </button>
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-enable-${profile.alias}`"
-              @click="toggleProfile(profile)"
+              :disabled="busyAlias === profile.value.alias"
+              :data-test="`model-enable-${profile.value.alias}`"
+              @click="toggleProfile(profile.value)"
             >
               {{ profile.enabled ? t("models.disable") : t("models.enable") }}
             </button>
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-test-${profile.alias}`"
+              :disabled="busyAlias === profile.value.alias"
+              :data-test="`model-test-${profile.value.alias}`"
               :title="t('models.testConnectivity')"
-              @click="testConnectivity(profile)"
+              @click="testConnectivity(profile.value)"
             >
               {{ t("models.testConnectivity") }}
             </button>
@@ -421,9 +437,9 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
               v-if="profile.writable"
               class="btn btn-danger btn-sm"
               type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-delete-${profile.alias}`"
-              @click="deleteProfile(profile)"
+              :disabled="busyAlias === profile.value.alias"
+              :data-test="`model-delete-${profile.value.alias}`"
+              @click="deleteProfile(profile.value)"
             >
               {{ t("common.delete") }}
             </button>
@@ -908,5 +924,40 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
 .model-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
+}
+
+/* Source tags for effective (unified) view */
+.tag--source {
+  font-weight: 600;
+}
+
+.tag--source-builtin {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+}
+
+.tag--source-user {
+  background: var(--color-secondary-light);
+  color: var(--color-secondary);
+}
+
+.tag--source-project {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tag--source-local {
+  background: var(--color-accent-light, var(--color-primary-light));
+  color: var(--color-accent, var(--color-primary));
+}
+
+.tag--override {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.tag--disabled-by {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
 }
 </style>

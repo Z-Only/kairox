@@ -275,7 +275,9 @@
     "sourceFormError": {
       "idAndDisplayNameRequired": "id 和 display_name 必填",
       "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
-    }
+    },
+    "overrides": "覆盖 {source}",
+    "disabledBy": "被 {source} 禁用"
   },
   "models": {
     "tabModels": "模型",
@@ -315,6 +317,8 @@
     "sourceProjectConfig": "项目配置",
     "moveUp": "上移",
     "moveDown": "下移",
+    "overrides": "覆盖 {source}",
+    "disabledBy": "被 {source} 禁用",
     "sortAlpha": "按字母排序",
     "showUserConfig": "用户配置",
     "showProjectConfig": "项目配置",

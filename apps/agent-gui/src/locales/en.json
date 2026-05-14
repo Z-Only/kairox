@@ -271,6 +271,8 @@
     "sourceProjectConfig": "Project config",
     "moveUp": "Move Up",
     "moveDown": "Move Down",
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}",
     "sortAlpha": "Sort A-Z",
     "showUserConfig": "User Config",
     "showProjectConfig": "Project Config",
@@ -343,7 +345,9 @@
     "sourceFormError": {
       "idAndDisplayNameRequired": "id and display_name are required",
       "urlMustStartWithHttp": "URL must start with http:// or https://"
-    }
+    },
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}"
   },
   "statusBar": {
     "profile": "profile: {profile}",
