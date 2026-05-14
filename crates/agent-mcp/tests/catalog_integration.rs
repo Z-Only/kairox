@@ -199,7 +199,7 @@ fn catalog_entry_deserialization_stdio() {
 
     assert_eq!(entry.default_env.len(), 1);
     assert_eq!(entry.default_env[0].key, "CONFIG_PATH");
-    assert_eq!(entry.default_env[0].required, true);
+    assert!(entry.default_env[0].required);
     assert_eq!(entry.default_env[0].default.as_deref(), Some("/etc/config"));
 }
 

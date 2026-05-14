@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn skill_id_ordering() {
-        let mut ids = vec![
+        let mut ids = [
             SkillId::new("zeta"),
             SkillId::new("alpha"),
             SkillId::new("beta"),

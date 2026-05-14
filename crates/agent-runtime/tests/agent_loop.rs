@@ -248,6 +248,7 @@ async fn subscribe_session_receives_events() {
 /// Verify MAX_AGENT_LOOP_ITERATIONS is a reasonable value — the constant
 /// guards against infinite loops, so it must be positive and bounded.
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn max_agent_loop_iterations_is_reasonable() {
     use agent_runtime::agent_loop::MAX_AGENT_LOOP_ITERATIONS;
     assert!(MAX_AGENT_LOOP_ITERATIONS > 0);
@@ -503,13 +504,17 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
     );
 
     // Verify the second request's messages include tool results.
-    let msgs = second_messages.lock().unwrap();
-    let has_tool_result = msgs.iter().any(|m| m.role == "tool");
-    assert!(
-        has_tool_result,
-        "Second model request should contain tool result messages. Got: {:?}",
-        msgs
-    );
+    let has_tool_result = {
+        let msgs = second_messages.lock().unwrap();
+        let has = msgs.iter().any(|m| m.role == "tool");
+        assert!(
+            has,
+            "Second model request should contain tool result messages. Got: {:?}",
+            msgs
+        );
+        has
+    };
+    let _ = has_tool_result;
 
     // Also verify the trace contains the expected tool invocation events.
     let trace = runtime.get_trace(session_id).await.unwrap();
