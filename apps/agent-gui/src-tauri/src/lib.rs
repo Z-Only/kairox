@@ -248,6 +248,8 @@ pub fn run() {
             // Settings commands
             crate::commands::list_mcp_server_settings,
             crate::commands::get_effective_mcp_servers,
+            crate::commands::get_effective_skills,
+            crate::commands::get_effective_model_profiles,
             crate::commands::upsert_mcp_server_settings,
             crate::commands::set_mcp_server_enabled,
             crate::commands::delete_mcp_server_settings,

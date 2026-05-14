@@ -4,12 +4,13 @@ use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
-    SkillCatalogEntry, SkillCatalogQuery, SkillSettingsDetail, SkillSettingsView, SkillSourceView,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsView, ProfileSettingsInput,
+    ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
+    SkillSettingsDetail, SkillSettingsView, SkillSourceView,
 };
 use agent_core::{
-    AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
+    AppFacade, EffectiveItem, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
     ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta,
 };
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};

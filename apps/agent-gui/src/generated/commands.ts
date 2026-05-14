@@ -113,6 +113,10 @@ export const commands = {
     ),
   getEffectiveMcpServers: () =>
     typedError<EffectiveMcpServerView[], string>(__TAURI_INVOKE("get_effective_mcp_servers")),
+  getEffectiveSkills: () =>
+    typedError<EffectiveSkillView[], string>(__TAURI_INVOKE("get_effective_skills")),
+  getEffectiveModelProfiles: () =>
+    typedError<EffectiveProfileView[], string>(__TAURI_INVOKE("get_effective_model_profiles")),
   upsertMcpServerSettings: (input: McpServerSettingsInput) =>
     typedError<McpServerSettingsView, string>(
       __TAURI_INVOKE("upsert_mcp_server_settings", { input })
@@ -333,6 +337,36 @@ export type ConnectivityTestResult = {
  */
 export type EffectiveMcpServerView = {
   value: McpServerSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
+};
+
+/**
+ *  Concrete effective-view wrapper for profile settings.
+ *  Combines [`EffectiveItem`] metadata with a [`ProfileSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveProfileView = {
+  value: ProfileSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
+};
+
+/**
+ *  Concrete effective-view wrapper for skill settings.
+ *  Combines [`EffectiveItem`] metadata with a [`SkillSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveSkillView = {
+  value: SkillSettingsView;
   source: ConfigScope;
   overrides: ConfigScope | null;
   enabled: boolean;
