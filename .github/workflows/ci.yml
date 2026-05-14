@@ -316,6 +316,18 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Remove Homebrew rustup (macOS GH runner workaround)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Homebrew-installed rustup has self-update disabled and can
+          # cause `cargo` to resolve to `rustup-init` on Apple Silicon.
+          if command -v brew &>/dev/null && brew list --formula rustup &>/dev/null 2>&1; then
+            brew uninstall --ignore-dependencies rustup rustup-init 2>/dev/null || true
+          fi
+          # Also clean up any broken cargo symlinks
+          rm -f /usr/local/bin/cargo /usr/local/bin/rustc /usr/local/bin/rustup 2>/dev/null || true
+          rm -f /opt/homebrew/bin/cargo /opt/homebrew/bin/rustc /opt/homebrew/bin/rustup 2>/dev/null || true
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -323,7 +335,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-          shared-key: rust-ci-pilot-${{ matrix.os }}
+          shared-key: rust-ci-pilot-${{ matrix.os }}-v2
 
       - name: Cache tauri-pilot CLI
         id: cache-tauri-pilot
