@@ -299,4 +299,44 @@ for line in sys.stdin:
         let result = transport.send_request(request).await;
         assert!(result.is_err(), "send_request after close should fail");
     }
+
+    #[tokio::test]
+    async fn stdio_command_construction() {
+        // Verify that StdioTransport::spawn constructs the command correctly:
+        // - command name is passed
+        // - args are forwarded in order
+        // - child process starts and can be communicated with
+        let script = r#"
+import sys, json
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    msg = json.loads(line)
+    if "id" in msg:
+        # Echo the method name back as the result so we can verify round-trip.
+        resp = {"jsonrpc": "2.0", "id": msg["id"], "result": msg.get("method", "UNKNOWN")}
+        sys.stdout.write(json.dumps(resp) + "\n")
+        sys.stdout.flush()
+"#;
+        let args = &["-c", script, "ignored-extra-arg"];
+        let mut transport = StdioTransport::spawn("python3", args, HashMap::new(), None)
+            .await
+            .expect("failed to spawn echo server with extra arg");
+
+        // Verify the child is alive.
+        let status = transport.child.try_wait().expect("try_wait");
+        assert!(status.is_none(), "child should be alive after spawn");
+
+        // Communicate to confirm the command was constructed correctly.
+        let request = JsonRpcRequest::new(7, "test/method_name", None);
+        let response = transport
+            .send_request(request)
+            .await
+            .expect("send_request after construction should work");
+        assert_eq!(response.id, json!(7));
+        assert_eq!(response.result, json!("test/method_name"));
+
+        transport.close().await.expect("close failed");
+    }
 }

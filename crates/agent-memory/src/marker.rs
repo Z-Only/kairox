@@ -97,4 +97,84 @@ mod tests {
         assert!(extract_memory_markers(text).is_empty());
         assert_eq!(strip_memory_markers(text), text);
     }
+
+    #[test]
+    fn extract_single_session_marker() {
+        let text = r#"<memory scope="session">hello</memory>"#;
+        let markers = extract_memory_markers(text);
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].scope, MemoryScope::Session);
+        assert_eq!(markers[0].content, "hello");
+        assert_eq!(markers[0].key, None);
+    }
+
+    #[test]
+    fn extract_marker_with_key() {
+        let text = r#"<memory scope="user" key="pref">value</memory>"#;
+        let markers = extract_memory_markers(text);
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].key, Some("pref".to_string()));
+        assert_eq!(markers[0].scope, MemoryScope::User);
+    }
+
+    #[test]
+    fn extract_three_markers() {
+        let text = r#"<memory scope="session">first</memory>
+<memory scope="user" key="a">second</memory>
+<memory scope="workspace">third</memory>"#;
+        let markers = extract_memory_markers(text);
+        assert_eq!(markers.len(), 3);
+    }
+
+    #[test]
+    fn extract_empty_text_returns_empty() {
+        let markers = extract_memory_markers("");
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn extract_no_markers_returns_empty() {
+        let markers = extract_memory_markers("hello world");
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn strip_memory_markers_removes_tags() {
+        let text = r#"prefix <memory scope="session">note</memory> suffix"#;
+        let stripped = strip_memory_markers(text);
+        assert!(!stripped.contains("<memory"));
+        assert!(!stripped.contains("</memory>"));
+        assert!(stripped.contains("prefix"));
+        assert!(stripped.contains("suffix"));
+    }
+
+    #[test]
+    fn strip_no_markers_returns_original() {
+        let text = "plain text without any tags";
+        assert_eq!(strip_memory_markers(text), text);
+    }
+
+    #[test]
+    fn extract_default_scope_is_session() {
+        let text = r#"<memory>content</memory>"#;
+        let markers = extract_memory_markers(text);
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].scope, MemoryScope::Session);
+    }
+
+    #[test]
+    fn extract_ignores_empty_content() {
+        let text = r#"<memory scope="session"></memory>"#;
+        let markers = extract_memory_markers(text);
+        assert!(markers.is_empty());
+    }
+
+    #[test]
+    fn extract_workspace_scope() {
+        let text = r#"<memory scope="workspace" key="config">data</memory>"#;
+        let markers = extract_memory_markers(text);
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].scope, MemoryScope::Workspace);
+        assert_eq!(markers[0].key, Some("config".to_string()));
+    }
 }

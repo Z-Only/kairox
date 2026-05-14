@@ -295,4 +295,69 @@ mod tests {
         assert_eq!(fp.old_path, PathBuf::from("src/deep/file.rs"));
         assert_eq!(fp.new_path, PathBuf::from("src/deep/file.rs"));
     }
+
+    #[test]
+    fn parse_line_types_correct() {
+        let diff = "\
+--- a/test.txt
++++ b/test.txt
+@@ -1,4 +1,4 @@
+ unchanged context
+-removed line
++added line
+ more context
+ final context
+";
+        let patches = parse_unified_diff(diff).unwrap();
+        assert_eq!(patches.len(), 1);
+        let h = &patches[0].hunks[0];
+        assert_eq!(h.lines.len(), 5);
+        assert!(matches!(&h.lines[0], PatchLine::Context(s) if s == "unchanged context"));
+        assert!(matches!(&h.lines[1], PatchLine::Remove(s) if s == "removed line"));
+        assert!(matches!(&h.lines[2], PatchLine::Add(s) if s == "added line"));
+        assert!(matches!(&h.lines[3], PatchLine::Context(s) if s == "more context"));
+        assert!(matches!(&h.lines[4], PatchLine::Context(s) if s == "final context"));
+    }
+
+    #[test]
+    fn roundtrip_parse_and_inspect() {
+        let diff = "\
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -5,3 +5,4 @@
+ use std::io;
+-
++use std::fs;
++use std::path;
+@@ -10,2 +11,3 @@
+ fn main() {
+-    old_function();
++    new_function();
++    println!(\"test\");
+";
+        let patches = parse_unified_diff(diff).unwrap();
+        assert_eq!(patches.len(), 1);
+
+        let fp = &patches[0];
+        assert_eq!(fp.old_path, PathBuf::from("src/lib.rs"));
+        assert_eq!(fp.new_path, PathBuf::from("src/lib.rs"));
+        assert!(!fp.is_new_file);
+        assert!(!fp.is_delete);
+
+        assert_eq!(fp.hunks.len(), 2);
+
+        // First hunk
+        let h0 = &fp.hunks[0];
+        assert_eq!(h0.old_start, 5);
+        assert_eq!(h0.old_count, 3);
+        assert_eq!(h0.new_start, 5);
+        assert_eq!(h0.new_count, 4);
+
+        // Second hunk
+        let h1 = &fp.hunks[1];
+        assert_eq!(h1.old_start, 10);
+        assert_eq!(h1.old_count, 2);
+        assert_eq!(h1.new_start, 11);
+        assert_eq!(h1.new_count, 3);
+    }
 }

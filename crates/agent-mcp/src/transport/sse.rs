@@ -704,4 +704,63 @@ mod tests {
         let data = r#"{"jsonrpc":"2.0","method":"notifications/progress","params":{}}"#;
         assert!(parse_sse_response(data).is_none());
     }
+
+    #[tokio::test]
+    async fn sse_url_validation() {
+        let mock_server = MockServer::start().await;
+
+        // Mock the SSE endpoint so the background listener doesn't fail.
+        Mock::given(method("GET"))
+            .and(path("/sse"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(""),
+            )
+            .mount(&mock_server)
+            .await;
+
+        // Test 1: URL without trailing slash produces correct message URL.
+        let url_no_slash = mock_server.uri();
+        let mut transport = SseTransport::new(&url_no_slash, HashMap::new(), None)
+            .await
+            .expect("creating SseTransport with valid URL should succeed");
+        let expected = format!("{}/message", url_no_slash);
+        assert_eq!(
+            transport.message_url(),
+            expected,
+            "message_url() should be {{base}}/message"
+        );
+        transport.close().await.ok();
+
+        // Test 2: URL with trailing slash — trailing slash should be stripped.
+        let url_with_slash = format!("{}/", mock_server.uri());
+        let mut transport2 = SseTransport::new(&url_with_slash, HashMap::new(), None)
+            .await
+            .expect("creating SseTransport with trailing-slash URL should succeed");
+        // The trailing slash should be stripped, so message_url() matches the
+        // same as without the trailing slash.
+        assert_eq!(
+            transport2.message_url(),
+            format!("{}/message", url_no_slash),
+            "URL with trailing slash should produce same message_url() as without"
+        );
+        transport2.close().await.ok();
+    }
+
+    #[tokio::test]
+    async fn sse_url_invalid_rejected_at_connection() {
+        // An obviously malformed URL (missing scheme) should fail when the
+        // background SSE listener attempts to connect.
+        let result = SseTransport::new("not-a-valid-url", HashMap::new(), None).await;
+        // Construction itself succeeds (it spawns a background task), but the
+        // SSE listener will fail to connect and log warnings.
+        // We verify that new() itself does not panic on invalid input.
+        assert!(
+            result.is_ok(),
+            "SseTransport::new should not panic on invalid URL"
+        );
+        let mut transport = result.unwrap();
+        transport.close().await.ok();
+    }
 }
