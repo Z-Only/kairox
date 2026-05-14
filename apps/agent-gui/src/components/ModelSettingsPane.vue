@@ -850,6 +850,12 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
   color: var(--color-text);
 }
 
+.model-form__toggle:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .model-form__grid {
   display: grid;
   gap: 8px;
@@ -887,5 +893,15 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
 .model-form input:focus {
   border-color: var(--app-primary-color);
   outline: none;
+}
+
+.model-form input:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+
+.model-settings button:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
 }
 </style>
