@@ -177,4 +177,9 @@ onMounted(() => {
   align-items: center;
   flex-shrink: 0;
 }
+
+.archive-settings button:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
 </style>

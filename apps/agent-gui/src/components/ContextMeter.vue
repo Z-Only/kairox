@@ -472,6 +472,10 @@ async function onCompactClick() {
   padding: 0;
   cursor: pointer;
 }
+.bar:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
 .ring-trigger {
   display: inline-grid;
   width: 40px;
@@ -483,6 +487,10 @@ async function onCompactClick() {
   color: var(--app-text-color, #1f2937);
   background: transparent;
   cursor: pointer;
+}
+.ring-trigger:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
 }
 .segment {
   height: 100%;

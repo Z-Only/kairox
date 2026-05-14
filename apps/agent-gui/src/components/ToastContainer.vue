@@ -118,17 +118,19 @@ const iconMap: Record<ToastItem["type"], string> = {
   color: var(--app-text-color);
 }
 
-.toast-enter-active {
-  animation: toast-in 0.25s ease-out;
-}
-.toast-leave-active {
-  animation: toast-out 0.2s ease-in;
+@media (prefers-reduced-motion: no-preference) {
+  .toast-enter-active {
+    animation: toast-in 0.25s ease-out;
+  }
+  .toast-leave-active {
+    animation: toast-out 0.2s ease-in;
+  }
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(100%);
+    transform: translateX(16px);
   }
   to {
     opacity: 1;
@@ -143,7 +145,7 @@ const iconMap: Record<ToastItem["type"], string> = {
   }
   to {
     opacity: 0;
-    transform: translateX(100%);
+    transform: translateX(16px);
   }
 }
 </style>

@@ -58,7 +58,12 @@ const isThemeSelectFocused = ref(false);
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-block: 12px;
+  margin-block: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--app-border-color);
+}
+.settings__row:last-child {
+  border-bottom: none;
 }
 .settings__row label {
   min-width: 100px;
