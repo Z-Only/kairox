@@ -20,7 +20,7 @@ use agent_gui_tauri::commands::{
     McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse,
     ProfileDetailResponse, ProjectGitStatusResponse, ProjectInfoResponse,
     ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse, SessionInfoResponse,
-    TaskSnapshotResponse, WorkspaceInfoResponse,
+    TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -138,10 +138,12 @@ fn main() {
             agent_gui_tauri::commands::add_catalog_source,
             agent_gui_tauri::commands::remove_catalog_source,
             agent_gui_tauri::commands::set_catalog_source_enabled,
+            agent_gui_tauri::commands::list_workspace_files,
             agent_gui_tauri::commands::save_draft,
             agent_gui_tauri::commands::get_draft,
         ])
         .typ::<WorkspaceInfoResponse>()
+        .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
         .typ::<ProjectGitStatusResponse>()

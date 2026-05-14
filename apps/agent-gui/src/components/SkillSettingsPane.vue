@@ -4,6 +4,7 @@ import type { SkillSettingsView, SkillCatalogQuery } from "@/generated/commands"
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
+import ModalDialog from "@/components/ui/ModalDialog.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -331,13 +332,14 @@ async function installFromGithub(): Promise<void> {
         </button>
       </div>
 
-      <div
-        v-if="sourceSettingsOpen"
-        class="card settings-drawer"
+      <ModalDialog
+        :open="sourceSettingsOpen"
+        :title="t('skills.catalogSourcesTitle')"
         data-test="skill-source-settings-drawer"
+        @close="sourceSettingsOpen = false"
       >
         <SkillSourcesSettings />
-      </div>
+      </ModalDialog>
 
       <div class="discover-search-row">
         <input

@@ -133,34 +133,19 @@ impl SkillSourcesToml {
 }
 
 pub fn default_skill_sources() -> Vec<SkillSourceView> {
-    vec![
-        SkillSourceView {
-            id: "skills-sh".into(),
-            display_name: "skills.sh".into(),
-            kind: "skills-sh".into(),
-            url: "https://skills.sh".into(),
-            search_template: "/api/search?q={{query}}&limit={{limit}}".into(),
-            list_template: None,
-            field_mapping: SkillFieldMappingView::default(),
-            enabled: true,
-            priority: 0,
-            cache_ttl_seconds: 900,
-            last_error: None,
-        },
-        SkillSourceView {
-            id: "skillhub".into(),
-            display_name: "SkillHub".into(),
-            kind: "skillhub".into(),
-            url: "https://skills.palebluedot.live".into(),
-            search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
-            list_template: Some("/api/skills?limit={{limit}}".into()),
-            field_mapping: SkillFieldMappingView::default(),
-            enabled: true,
-            priority: 1,
-            cache_ttl_seconds: 900,
-            last_error: None,
-        },
-    ]
+    vec![SkillSourceView {
+        id: "skillhub".into(),
+        display_name: "SkillHub".into(),
+        kind: "skillhub".into(),
+        url: "https://skills.palebluedot.live".into(),
+        search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
+        list_template: Some("/api/skills?limit={{limit}}".into()),
+        field_mapping: SkillFieldMappingView::default(),
+        enabled: true,
+        priority: 1,
+        cache_ttl_seconds: 900,
+        last_error: None,
+    }]
 }
 
 #[cfg(test)]
@@ -181,9 +166,8 @@ mod tests {
         let sources = default_skill_sources();
         toml.write(&sources).unwrap();
         let read_back = toml.read();
-        assert_eq!(read_back.len(), 2);
-        assert_eq!(read_back[0].id, "skills-sh");
-        assert_eq!(read_back[1].id, "skillhub");
+        assert_eq!(read_back.len(), 1);
+        assert_eq!(read_back[0].id, "skillhub");
     }
 
     #[test]
@@ -191,9 +175,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let toml = SkillSourcesToml::new(dir.path());
         let user = vec![SkillSourceView {
-            id: "skills-sh".into(),
-            display_name: "Custom skills.sh".into(),
-            kind: "skills-sh".into(),
+            id: "skillhub".into(),
+            display_name: "Custom SkillHub".into(),
+            kind: "skillhub".into(),
             url: "https://custom.sh".into(),
             search_template: "/api/search?q={{query}}".into(),
             list_template: None,
@@ -204,9 +188,9 @@ mod tests {
             last_error: None,
         }];
         let merged = toml.merge_with_defaults(&user);
-        let sh = merged.iter().find(|s| s.id == "skills-sh").unwrap();
-        assert_eq!(sh.display_name, "Custom skills.sh");
+        let sh = merged.iter().find(|s| s.id == "skillhub").unwrap();
+        assert_eq!(sh.display_name, "Custom SkillHub");
         assert!(!sh.enabled);
-        assert!(merged.iter().any(|s| s.id == "skillhub"));
+        assert_eq!(merged.len(), 1);
     }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useCommandRegistry, type CommandDef } from "@/composables/useCommandRegistry";
 
 const props = withDefaults(
@@ -21,6 +21,7 @@ const emit = defineEmits<{
 
 const registry = useCommandRegistry();
 
+const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
 
 watch(
@@ -39,6 +40,12 @@ watch(
 );
 
 const displayedItems = computed(() => registry.allItems());
+
+watch(selectedIndex, async () => {
+  await nextTick();
+  const el = paletteEl.value?.querySelector(".command-palette__item--selected");
+  el?.scrollIntoView?.({ block: "nearest" });
+});
 
 function selectItem(index: number) {
   const item = displayedItems.value[index];
@@ -70,10 +77,29 @@ function handleKeydown(e: KeyboardEvent) {
     emit("close");
   }
 }
+
+function highlightMatch(text: string): string {
+  const q = props.filterText;
+  if (!q) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const escapedPattern = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return escaped.replace(new RegExp(`(${escapedPattern})`, "gi"), "<mark>$1</mark>");
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+defineExpose({ handleKeydown });
 </script>
 
 <template>
   <div
+    ref="paletteEl"
     v-if="visible && displayedItems.length > 0"
     class="command-palette"
     data-test="command-palette"
@@ -89,12 +115,20 @@ function handleKeydown(e: KeyboardEvent) {
       @click="selectItem(i)"
       @mouseenter="selectedIndex = i"
     >
-      <span class="command-palette__label">
-        {{ item.kind === "command" ? item.command.label : `/skills ${item.displayName}` }}
-      </span>
-      <span class="command-palette__desc">
-        {{ item.kind === "command" ? item.command.description : "Run skill" }}
-      </span>
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <span
+        class="command-palette__label"
+        v-html="
+          highlightMatch(
+            item.kind === 'command' ? item.command.label : `/skills ${item.displayName}`
+          )
+        "
+      ></span>
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <span
+        class="command-palette__desc"
+        v-html="highlightMatch(item.kind === 'command' ? item.command.description : 'Run skill')"
+      ></span>
     </div>
   </div>
 </template>
@@ -144,5 +178,14 @@ function handleKeydown(e: KeyboardEvent) {
 .command-palette__desc {
   font-size: 12px;
   color: var(--app-text-color-2);
+}
+
+.command-palette__label :deep(mark),
+.command-palette__desc :deep(mark) {
+  background: color-mix(in srgb, var(--app-primary-color) 25%, transparent);
+  color: var(--app-primary-color);
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 </style>

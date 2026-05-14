@@ -237,6 +237,171 @@ impl SkillPackageManager for NpxSkillsPackageManager {
     }
 }
 
+pub struct DirectDownloadPackageManager;
+
+#[async_trait::async_trait]
+impl SkillPackageManager for DirectDownloadPackageManager {
+    async fn search(&self, _query: &str) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
+        Ok(Vec::new())
+    }
+
+    async fn install_from_registry(
+        &self,
+        install_root: &Path,
+        request: &InstallRemoteSkillRequest,
+    ) -> agent_core::Result<()> {
+        let download_url = request
+            .package_url
+            .as_deref()
+            .or_else(|| {
+                if request.package.starts_with("http://") || request.package.starts_with("https://")
+                {
+                    Some(request.package.as_str())
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| {
+                CoreError::InvalidState(format!(
+                    "no package_url for skill install; package={}",
+                    request.package
+                ))
+            })?;
+
+        download_and_extract_skill(download_url, install_root).await
+    }
+
+    async fn install_from_github(
+        &self,
+        install_root: &Path,
+        request: &InstallGithubSkillRequest,
+    ) -> agent_core::Result<()> {
+        let clone_dir = tempfile::tempdir()
+            .map_err(|e| CoreError::InvalidState(format!("tempdir for clone: {e}")))?;
+
+        let status = Command::new("git")
+            .args(["clone", "--depth", "1", &request.source])
+            .arg(clone_dir.path())
+            .status()
+            .await
+            .map_err(|e| CoreError::InvalidState(format!("git clone spawn failed: {e}")))?;
+
+        if !status.success() {
+            return Err(CoreError::InvalidState(format!(
+                "git clone exited with {status}"
+            )));
+        }
+
+        copy_skill_files(clone_dir.path(), install_root).await?;
+        Ok(())
+    }
+
+    async fn check_updates(&self, _skill_id: &str) -> agent_core::Result<SkillUpdateState> {
+        Ok(SkillUpdateState::Unknown)
+    }
+
+    async fn update(&self, _skill_id: &str) -> agent_core::Result<()> {
+        Err(CoreError::InvalidState(
+            "skill update not yet supported".into(),
+        ))
+    }
+}
+
+async fn download_and_extract_skill(url: &str, install_root: &Path) -> agent_core::Result<()> {
+    let response = reqwest::get(url)
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("skill download failed: {e}")))?;
+
+    if !response.status().is_success() {
+        return Err(CoreError::InvalidState(format!(
+            "skill download returned HTTP {}",
+            response.status()
+        )));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("skill download read failed: {e}")))?;
+
+    let temp_dir = tempfile::tempdir()
+        .map_err(|e| CoreError::InvalidState(format!("tempdir for zip: {e}")))?;
+
+    let zip_path = temp_dir.path().join("skill.zip");
+    tokio::fs::write(&zip_path, &bytes)
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("write zip: {e}")))?;
+
+    let dest = install_root.to_path_buf();
+    let zip_path_owned = zip_path.clone();
+    tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&zip_path_owned)
+            .map_err(|e| CoreError::InvalidState(format!("open zip: {e}")))?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| CoreError::InvalidState(format!("read zip: {e}")))?;
+        archive
+            .extract(&dest)
+            .map_err(|e| CoreError::InvalidState(format!("extract zip: {e}")))?;
+        Ok::<_, CoreError>(())
+    })
+    .await
+    .map_err(|e| CoreError::InvalidState(format!("extract task panicked: {e}")))??;
+
+    Ok(())
+}
+
+async fn copy_skill_files(src: &Path, dest: &Path) -> agent_core::Result<()> {
+    tokio::fs::create_dir_all(dest)
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("mkdir for skill: {e}")))?;
+
+    let mut entries = tokio::fs::read_dir(src)
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("read clone dir: {e}")))?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| CoreError::InvalidState(format!("read entry: {e}")))?
+    {
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
+        if name.starts_with('.') && name != ".kairox" {
+            continue;
+        }
+        let file_type = entry
+            .file_type()
+            .await
+            .map_err(|e| CoreError::InvalidState(format!("file_type: {e}")))?;
+        let dest_path = dest.join(&*file_name);
+
+        if file_type.is_dir() {
+            let mut src_sub = tokio::fs::read_dir(entry.path())
+                .await
+                .map_err(|e| CoreError::InvalidState(format!("read subdir: {e}")))?;
+            tokio::fs::create_dir_all(&dest_path)
+                .await
+                .map_err(|e| CoreError::InvalidState(format!("mkdir sub: {e}")))?;
+            while let Some(sub_entry) = src_sub
+                .next_entry()
+                .await
+                .map_err(|e| CoreError::InvalidState(format!("read sub entry: {e}")))?
+            {
+                let sub_name = sub_entry.file_name();
+                let sub_dest = dest_path.join(&*sub_name.to_string_lossy());
+                tokio::fs::copy(sub_entry.path(), &sub_dest)
+                    .await
+                    .map_err(|e| CoreError::InvalidState(format!("copy file: {e}")))?;
+            }
+        } else {
+            tokio::fs::copy(entry.path(), &dest_path)
+                .await
+                .map_err(|e| CoreError::InvalidState(format!("copy file: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
 pub fn parse_npx_skills_find_output(
     output: &str,
 ) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
@@ -437,6 +602,7 @@ mod tests {
             package: "@skills/code-review".to_string(),
             source: "registry".to_string(),
             target: SkillInstallTarget::Project,
+            package_url: None,
         };
         let github_request = InstallGithubSkillRequest {
             source: "obra/superpowers".to_string(),
@@ -505,6 +671,7 @@ mod tests {
             package: "@skills/code-review".to_string(),
             source: "registry".to_string(),
             target: SkillInstallTarget::Project,
+            package_url: None,
         };
 
         let project_install_root = tempfile::tempdir().expect("project install root");

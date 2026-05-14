@@ -1725,6 +1725,10 @@ function invoke(cmd, args) {
       return "/mock/path/to/config";
     }
 
+    case "list_workspace_files": {
+      return Promise.resolve({ paths: [] });
+    }
+
     case "save_draft": {
       state.drafts.set(args.request.session_id, args.request.draft_text);
       return Promise.resolve(undefined);

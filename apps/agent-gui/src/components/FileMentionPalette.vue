@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { useMentionSearch } from "@/composables/useMentionSearch";
 
 const props = withDefaults(
   defineProps<{
     visible: boolean;
     filterText: string;
+    workspacePath: string;
   }>(),
   {
     visible: false,
-    filterText: ""
+    filterText: "",
+    workspacePath: ""
   }
 );
 
@@ -20,7 +22,9 @@ const emit = defineEmits<{
 
 const mention = useMentionSearch();
 
+const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
+const filesLoaded = ref(false);
 
 mention.setFilter(props.filterText);
 
@@ -35,11 +39,66 @@ watch(
 watch(
   () => props.visible,
   (v) => {
-    if (v) selectedIndex.value = 0;
+    if (v) {
+      selectedIndex.value = 0;
+      if (!filesLoaded.value && props.workspacePath) {
+        mention.loadFiles(props.workspacePath);
+        filesLoaded.value = true;
+      }
+    }
+  }
+);
+
+watch(
+  () => props.workspacePath,
+  (newPath) => {
+    if (newPath) {
+      mention.loadFiles(newPath);
+      filesLoaded.value = true;
+    }
   }
 );
 
 const displayedFiles = computed(() => mention.matchingFiles());
+
+interface HighlightSegment {
+  text: string;
+  match: boolean;
+}
+
+function highlightSegments(path: string, filter: string): HighlightSegment[] {
+  const segments: HighlightSegment[] = [];
+  if (!filter) {
+    segments.push({ text: path, match: false });
+    return segments;
+  }
+  const lower = path.toLowerCase();
+  const q = filter.toLowerCase();
+  let qi = 0;
+  let buf = "";
+  for (let i = 0; i < path.length; i++) {
+    if (qi < q.length && lower[i] === q[qi]) {
+      if (buf) {
+        segments.push({ text: buf, match: false });
+        buf = "";
+      }
+      segments.push({ text: path[i], match: true });
+      qi++;
+    } else {
+      buf += path[i];
+    }
+  }
+  if (buf) {
+    segments.push({ text: buf, match: false });
+  }
+  return segments;
+}
+
+watch(selectedIndex, async () => {
+  await nextTick();
+  const el = paletteEl.value?.querySelector(".file-mention-palette__item--selected");
+  el?.scrollIntoView?.({ block: "nearest" });
+});
 
 function selectFile(index: number) {
   const path = displayedFiles.value[index];
@@ -63,10 +122,13 @@ function handleKeydown(e: KeyboardEvent) {
     emit("close");
   }
 }
+
+defineExpose({ handleKeydown });
 </script>
 
 <template>
   <div
+    ref="paletteEl"
     v-if="visible && displayedFiles.length > 0"
     class="file-mention-palette"
     data-test="file-mention-palette"
@@ -82,7 +144,12 @@ function handleKeydown(e: KeyboardEvent) {
       @click="selectFile(i)"
       @mouseenter="selectedIndex = i"
     >
-      <span class="file-mention-palette__label">@{{ path }}</span>
+      <span class="file-mention-palette__label"
+        >@<template v-for="(seg, si) in highlightSegments(path, props.filterText)" :key="si">
+          <mark v-if="seg.match" class="file-mention-palette__match">{{ seg.text }}</mark>
+          <template v-else>{{ seg.text }}</template>
+        </template></span
+      >
     </div>
   </div>
 </template>
@@ -124,5 +191,11 @@ function handleKeydown(e: KeyboardEvent) {
 .file-mention-palette__label {
   font-size: 13px;
   font-family: monospace;
+}
+
+.file-mention-palette__match {
+  background: color-mix(in srgb, var(--app-primary-color) 22%, transparent);
+  color: var(--app-primary-color);
+  font-weight: 650;
 }
 </style>

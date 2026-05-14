@@ -16,6 +16,7 @@ pub struct SkillCatalogEntry {
     pub security_score: Option<u32>,
     pub rating: Option<f64>,
     pub package: String,
+    pub package_url: Option<String>,
 }
 
 /// Query parameters for skill catalog searches.

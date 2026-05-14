@@ -181,6 +181,7 @@ mod tests {
             security_score: None,
             rating: None,
             package: id.into(),
+            package_url: None,
         }
     }
 

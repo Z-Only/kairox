@@ -255,6 +255,7 @@ where
                 security_score: e.security_score,
                 rating: e.rating,
                 package: e.package,
+                package_url: e.package_url,
             })
             .collect())
     }

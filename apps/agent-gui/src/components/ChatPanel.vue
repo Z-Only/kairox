@@ -23,6 +23,8 @@ const commandRegistry = useCommandRegistry();
 const showCommandPalette = ref(false);
 const showMentionPalette = ref(false);
 const paletteFilter = ref("");
+const commandPaletteRef = ref<InstanceType<typeof CommandPalette> | null>(null);
+const fileMentionPaletteRef = ref<InstanceType<typeof FileMentionPalette> | null>(null);
 let _draftTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Load draft when session switches
@@ -234,6 +236,15 @@ const sessionGitMeta = computed(() => {
 });
 
 const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
+
+const workspacePath = computed(() => {
+  const sessionInfo = currentSession.value;
+  if (sessionInfo?.worktree_path) return sessionInfo.worktree_path;
+  const projectId = currentProjectId.value;
+  if (!projectId) return "";
+  const project = projectStore.projects.find((p) => p.projectId === projectId);
+  return project?.rootPath ?? "";
+});
 const isEmptyProjectChat = computed(
   () =>
     Boolean(currentProjectId.value) &&
@@ -298,19 +309,20 @@ async function selectModelProfile(alias: string) {
 function handleInput(e: Event) {
   const textarea = e.target as HTMLTextAreaElement;
   const cursorPos = textarea.selectionStart;
-  const textBeforeCursor = inputText.value.slice(0, cursorPos);
+  // Use DOM value so cursor slicing is never behind v-model's async update.
+  const textBeforeCursor = textarea.value.slice(0, cursorPos);
 
-  // Check for / command trigger: at start or after whitespace
-  const slashMatch = textBeforeCursor.match(/^\s*\/[^/\s]*$/);
-  // Check for @ mention trigger: at start or after whitespace
-  const atMatch = textBeforeCursor.match(/^\s*@[^@\s]*$/);
+  // Check for / command trigger: only at start of input (after optional whitespace)
+  const slashMatch = textBeforeCursor.match(/^\s*\/([^\s/]*)$/);
+  // Check for @ mention trigger: preceded by whitespace or start of input
+  const atMatch = textBeforeCursor.match(/(?:^|\s)@([^\s@]*)$/);
 
   if (slashMatch) {
-    paletteFilter.value = textBeforeCursor.replace(/^\s*\//, "");
+    paletteFilter.value = slashMatch[1] || "";
     showCommandPalette.value = true;
     showMentionPalette.value = false;
   } else if (atMatch) {
-    paletteFilter.value = textBeforeCursor.replace(/^\s*@/, "");
+    paletteFilter.value = atMatch[1] || "";
     showMentionPalette.value = true;
     showCommandPalette.value = false;
   } else {
@@ -329,7 +341,7 @@ function onSelectCommand(cmd: CommandDef) {
     // Replace the slash trigger with command text
     const cursorPos = inputText.value.length;
     const textBeforeCursor = inputText.value.slice(0, cursorPos);
-    const match = textBeforeCursor.match(/^\s*\/[^\s]*/);
+    const match = textBeforeCursor.match(/^\s*\/[^\s]*$/);
     if (match) {
       const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
       const after = inputText.value.slice(cursorPos);
@@ -342,7 +354,7 @@ function onSelectCommand(cmd: CommandDef) {
 function onSelectSkill(skillId: string) {
   const cursorPos = inputText.value.length;
   const textBeforeCursor = inputText.value.slice(0, cursorPos);
-  const match = textBeforeCursor.match(/^\s*\/[^\s]*/);
+  const match = textBeforeCursor.match(/^\s*\/[^\s]*$/);
   if (match) {
     const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
     const after = inputText.value.slice(cursorPos);
@@ -354,7 +366,7 @@ function onSelectSkill(skillId: string) {
 function onSelectFile(path: string) {
   const cursorPos = inputText.value.length;
   const textBeforeCursor = inputText.value.slice(0, cursorPos);
-  const match = textBeforeCursor.match(/^\s*@[^\s]*/);
+  const match = textBeforeCursor.match(/(?:^|\s)@[^\s]*$/);
   if (match) {
     const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
     const after = inputText.value.slice(cursorPos);
@@ -403,9 +415,22 @@ async function cancelSession() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  // Forward navigation keys to active palette
+  if (showCommandPalette.value && commandPaletteRef.value) {
+    if (["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) {
+      commandPaletteRef.value.handleKeydown(e);
+      return;
+    }
+  }
+  if (showMentionPalette.value && fileMentionPaletteRef.value) {
+    if (["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) {
+      fileMentionPaletteRef.value.handleKeydown(e);
+      return;
+    }
+  }
+
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    // If a palette is open, let the palette handle it (don't send)
     if (showCommandPalette.value || showMentionPalette.value) {
       return;
     }
@@ -531,6 +556,7 @@ watch(
     <div class="input-area">
       <div class="palette-container">
         <CommandPalette
+          ref="commandPaletteRef"
           :visible="showCommandPalette"
           :filter-text="paletteFilter"
           @select-command="onSelectCommand"
@@ -538,8 +564,10 @@ watch(
           @close="closePalettes"
         />
         <FileMentionPalette
+          ref="fileMentionPaletteRef"
           :visible="showMentionPalette"
           :filter-text="paletteFilter"
+          :workspace-path="workspacePath"
           @select-file="onSelectFile"
           @close="closePalettes"
         />

@@ -257,7 +257,8 @@ describe("skills store", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("install_remote_skill", {
       request: {
         package: "@skills/review",
-        source: "@skills/review",
+        package_url: null,
+        source: "registry",
         target: "user"
       }
     });

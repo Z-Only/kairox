@@ -57,6 +57,9 @@ struct SkillHubItem {
     security_score: Option<u32>,
     #[serde(default)]
     rating: Option<f64>,
+    #[serde(default)]
+    #[serde(rename = "packageUrl")]
+    package_url: Option<String>,
 }
 
 struct CacheEntry {
@@ -124,7 +127,8 @@ impl SkillHubProvider {
             github_stars: item.github_stars,
             security_score: item.security_score,
             rating: item.rating,
-            package: item.id,
+            package: item.id.clone(),
+            package_url: item.package_url,
         }
     }
 
