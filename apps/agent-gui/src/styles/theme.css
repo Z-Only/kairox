@@ -3,51 +3,91 @@
  */
 
 :root {
+  /* === Surface === */
   --app-body-color: #ffffff;
   --app-card-color: #f9fafb;
   --app-border-color: #e5e7eb;
+  --app-hover-color: #f3f4f6;
+  --app-muted-surface-color: #f3f4f6;
+
+  /* === Text === */
   --app-text-color: #1f2937;
-  --app-text-color-2: #6b7280;
-  --app-text-color-3: #9ca3af;
+  --app-text-color-2: #475569;
+  --app-text-color-3: #64748b;
+  --app-muted-text-color: #475569;
+
+  /* === Semantic === */
   --app-primary-color: #3b82f6;
   --app-primary-contrast-color: #fff;
-  --app-success-color: #22c55e;
+  --app-success-color: #16a34a;
   --app-warning-color: #f59e0b;
   --app-error-color: #ef4444;
   --app-info-color: #3b82f6;
-  --app-hover-color: #f3f4f6;
+
+  /* === Code === */
   --app-code-bg: #f1f5f9;
-  --app-muted-surface-color: #f3f4f6;
-  --app-muted-text-color: #6b7280;
+
+  /* === Radius === */
+  --app-radius-sm: 4px;
+  --app-radius-md: 6px;
+  --app-radius-lg: 8px;
+  --app-radius-xl: 12px;
+
+  /* === Type scale === */
+  --app-text-xs: 11px;
+  --app-text-sm: 12px;
+  --app-text-base: 13px;
+  --app-text-lg: 14px;
+  --app-text-xl: 16px;
 
   /* Context meter — per-source colours (light) */
-  --src-system: #6b7280; /* slate-500 */
-  --src-tools: #2563eb; /* blue-600 */
-  --src-memory: #7c3aed; /* violet-600 */
-  --src-history: #16a34a; /* green-600 */
-  --src-tool-result: #f59e0b; /* amber-500 */
-  --src-selected-file: #db2777; /* pink-600 */
-  --src-compaction-summary: #9ca3af; /* slate-400 */
-  --src-request: #0ea5e9; /* sky-500 */
+  --src-system: #64748b;
+  --src-tools: #2563eb;
+  --src-memory: #7c3aed;
+  --src-history: #16a34a;
+  --src-tool-result: #f59e0b;
+  --src-selected-file: #db2777;
+  --src-compaction-summary: #94a3b8;
+  --src-request: #0ea5e9;
 }
 
 html.dark {
-  --app-body-color: #0b0f19;
-  --app-card-color: #141b2d;
-  --app-border-color: #2a3040;
+  /* === Surface === */
+  --app-body-color: #0f172a;
+  --app-card-color: #1e293b;
+  --app-border-color: #334155;
+  --app-hover-color: #334155;
+  --app-muted-surface-color: #1e293b;
+
+  /* === Text === */
   --app-text-color: #f0f4f8;
   --app-text-color-2: #8896ab;
   --app-text-color-3: #7c8da2;
+  --app-muted-text-color: #8896ab;
+
+  /* === Semantic === */
   --app-primary-color: #60a5fa;
-  --app-primary-contrast-color: #0b0f19;
-  --app-success-color: #4ade80;
+  --app-primary-contrast-color: #0f172a;
+  --app-success-color: #22c55e;
   --app-warning-color: #fbbf24;
   --app-error-color: #f87171;
   --app-info-color: #60a5fa;
-  --app-hover-color: #1a2235;
-  --app-code-bg: #111827;
-  --app-muted-surface-color: #1a2235;
-  --app-muted-text-color: #8896ab;
+
+  /* === Code === */
+  --app-code-bg: #0f172a;
+
+  /* === Radius (same as light) === */
+  --app-radius-sm: 4px;
+  --app-radius-md: 6px;
+  --app-radius-lg: 8px;
+  --app-radius-xl: 12px;
+
+  /* === Type scale (same as light) === */
+  --app-text-xs: 11px;
+  --app-text-sm: 12px;
+  --app-text-base: 13px;
+  --app-text-lg: 14px;
+  --app-text-xl: 16px;
 
   /* Context meter — per-source colours (dark, higher contrast) */
   --src-system: #94a3b8;
@@ -56,6 +96,6 @@ html.dark {
   --src-history: #4ade80;
   --src-tool-result: #fbbf24;
   --src-selected-file: #f472b6;
-  --src-compaction-summary: #6b7280;
+  --src-compaction-summary: #64748b;
   --src-request: #38bdf8;
 }
