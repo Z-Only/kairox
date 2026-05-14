@@ -80,6 +80,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             upsert_mcp_server_settings,
             set_mcp_server_enabled,
             delete_mcp_server_settings,
+            disable_mcp_server_at_scope,
+            enable_mcp_server_at_scope,
             open_mcp_config_file,
             // Profile settings commands
             list_profile_settings,

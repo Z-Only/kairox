@@ -253,6 +253,8 @@ pub fn run() {
             crate::commands::upsert_mcp_server_settings,
             crate::commands::set_mcp_server_enabled,
             crate::commands::delete_mcp_server_settings,
+            crate::commands::disable_mcp_server_at_scope,
+            crate::commands::enable_mcp_server_at_scope,
             crate::commands::open_mcp_config_file,
             crate::commands::list_profile_settings,
             crate::commands::upsert_profile_settings,

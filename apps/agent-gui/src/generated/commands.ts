@@ -125,6 +125,22 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("set_mcp_server_enabled", { serverId, enabled })),
   deleteMcpServerSettings: (serverId: string) =>
     typedError<null, string>(__TAURI_INVOKE("delete_mcp_server_settings", { serverId })),
+  /**
+   *  Disable an MCP server at the project scope by adding its ID to
+   *  `disabled_mcp_servers` in `.kairox/config.toml`.
+   */
+  disableMcpServerAtScope: (serverId: string, projectRoot: string) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("disable_mcp_server_at_scope", { serverId, projectRoot })
+    ),
+  /**
+   *  Enable an MCP server at the project scope by removing its ID from
+   *  `disabled_mcp_servers` in `.kairox/config.toml`.
+   */
+  enableMcpServerAtScope: (serverId: string, projectRoot: string) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("enable_mcp_server_at_scope", { serverId, projectRoot })
+    ),
   openMcpConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
   listProfileSettings: (sourceFilter: string | null) =>

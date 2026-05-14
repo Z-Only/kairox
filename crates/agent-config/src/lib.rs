@@ -209,6 +209,10 @@ pub struct Config {
     pub source: ConfigSource,
     /// Session compaction & context budgeting policy.
     pub context: ContextPolicy,
+    /// MCP server IDs disabled at the project (or higher) scope.
+    /// Each entry is marked `disabled_by = Some(ConfigScope::Project)` in the
+    /// effective view so the project can override user-level servers.
+    pub disabled_mcp_servers: Vec<String>,
 }
 
 /// Errors that can occur during config loading.
@@ -300,11 +304,18 @@ impl Config {
         let mut merged_mcp: Vec<(String, McpServerConfig)> = mcp_map.into_iter().collect();
         merged_mcp.sort_by(|a, b| a.0.cmp(&b.0));
 
+        // Merge disabled MCP server IDs: additive union across all layers.
+        let mut disabled_set: std::collections::HashSet<String> =
+            base.disabled_mcp_servers.into_iter().collect();
+        disabled_set.extend(overlay.disabled_mcp_servers);
+        let merged_disabled: Vec<String> = disabled_set.into_iter().collect();
+
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
             source,
             context: overlay.context,
+            disabled_mcp_servers: merged_disabled,
         })
     }
 
@@ -393,6 +404,7 @@ impl Config {
             mcp_servers: Vec::new(),
             source: ConfigSource::Defaults,
             context: ContextPolicy::default(),
+            disabled_mcp_servers: Vec::new(),
         }
     }
 

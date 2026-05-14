@@ -93,6 +93,8 @@ fn main() {
             agent_gui_tauri::commands::upsert_mcp_server_settings,
             agent_gui_tauri::commands::set_mcp_server_enabled,
             agent_gui_tauri::commands::delete_mcp_server_settings,
+            agent_gui_tauri::commands::disable_mcp_server_at_scope,
+            agent_gui_tauri::commands::enable_mcp_server_at_scope,
             agent_gui_tauri::commands::open_mcp_config_file,
             // Profile settings commands
             agent_gui_tauri::commands::list_profile_settings,

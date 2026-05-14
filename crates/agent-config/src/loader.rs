@@ -11,6 +11,9 @@ struct ConfigToml {
     mcp_servers: toml::value::Table,
     #[serde(default)]
     context: crate::ContextPolicy,
+    /// Top-level list of MCP server IDs to disable at this config layer.
+    #[serde(default)]
+    disabled_mcp_servers: Vec<String>,
 }
 
 /// Intermediate profile structure for deserialization.
@@ -127,6 +130,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         mcp_servers,
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
         context: config_toml.context,
+        disabled_mcp_servers: config_toml.disabled_mcp_servers,
     })
 }
 
