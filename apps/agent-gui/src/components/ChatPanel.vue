@@ -337,6 +337,24 @@ watch(
         "
       >
         <div
+          v-if="session.projection.messages.length === 0 && !session.projection.token_stream"
+          class="empty-state"
+          data-test="chat-empty-state"
+        >
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <p>{{ t("chat.emptyState") }}</p>
+        </div>
+        <div
           v-for="(msg, i) in session.projection.messages"
           :key="i"
           :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
@@ -620,9 +638,23 @@ watch(
   font-size: 12px;
   line-height: 1.5;
 }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 16px;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  opacity: 0.72;
+}
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
 .message-content {
   max-width: min(760px, 82%);
-  border-radius: 16px;
+  border-radius: var(--app-radius-xl);
   padding: 10px 12px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -696,6 +728,14 @@ watch(
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-model-trigger {
+    transition:
+      border-color 0.15s,
+      background 0.15s,
+      color 0.15s;
+  }
+}
 .chat-model-popover-panel {
   min-width: 240px;
 }
@@ -755,6 +795,21 @@ watch(
   color: var(--app-text-color-3, var(--app-muted-text-color));
   font-size: 11px;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-model-popover-panel {
+    animation: popover-in 0.15s ease;
+  }
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 .cancelled-marker.tag {
   background: color-mix(in srgb, var(--app-warning-color, #faad14) 15%, transparent);
   color: var(--app-warning-color, #faad14);
@@ -799,6 +854,7 @@ watch(
 }
 .message-input:focus {
   border-color: var(--app-primary-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary-color) 25%, transparent);
 }
 .message-input:disabled {
   opacity: 0.5;

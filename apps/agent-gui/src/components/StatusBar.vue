@@ -63,7 +63,7 @@ onMounted(async () => {
   padding: 6px 16px;
   background: var(--app-card-color);
   border-top: 1px solid var(--app-border-color);
-  font-size: 12px;
+  font-size: var(--app-text-xs);
   color: var(--app-text-color);
 }
 .status-items {
@@ -80,17 +80,17 @@ onMounted(async () => {
 }
 .status-label {
   color: var(--app-text-color);
-  opacity: 0.7;
+  opacity: 0.8;
   font-size: 11px;
 }
 .status-value {
   color: var(--app-text-color);
   font-weight: 500;
-  font-size: 11px;
+  font-size: var(--app-text-xs);
 }
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }

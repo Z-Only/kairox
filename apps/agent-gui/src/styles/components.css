@@ -7,18 +7,23 @@
   gap: 6px;
   padding: 6px 14px;
   border: 1px solid var(--app-border-color);
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   background: var(--app-card-color);
   color: var(--app-text-color);
-  font-size: 13px;
+  font-size: var(--app-text-base);
   line-height: 1.4;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
   white-space: nowrap;
   font-family: inherit;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn {
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
 }
 
 .btn:hover {
@@ -40,7 +45,7 @@
 .btn-primary:hover {
   background: color-mix(in srgb, var(--app-primary-color) 85%, #000);
   border-color: color-mix(in srgb, var(--app-primary-color) 85%, #000);
-  transform: translateY(-1px);
+  filter: brightness(1.1);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--app-primary-color) 30%, transparent);
 }
 
@@ -53,7 +58,7 @@
 .btn-danger:hover {
   background: color-mix(in srgb, var(--app-error-color) 85%, #000);
   border-color: color-mix(in srgb, var(--app-error-color) 85%, #000);
-  transform: translateY(-1px);
+  filter: brightness(1.1);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--app-error-color) 30%, transparent);
 }
 
@@ -68,7 +73,7 @@
 
 .btn-sm {
   padding: 3px 8px;
-  font-size: 12px;
+  font-size: var(--app-text-sm);
 }
 
 .btn-icon {
@@ -80,8 +85,8 @@
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--app-radius-sm);
+  font-size: var(--app-text-sm);
   line-height: 1.6;
   background: var(--app-hover-color);
   color: var(--app-text-color-2);
@@ -111,7 +116,7 @@
 .card {
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
-  border-radius: 8px;
+  border-radius: var(--app-radius-lg);
   overflow: hidden;
 }
 
@@ -119,7 +124,7 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--app-border-color);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--app-text-lg);
 }
 
 .card-body {
@@ -131,8 +136,8 @@
   display: flex;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--app-radius-md);
+  font-size: var(--app-text-base);
   border-left: 3px solid;
 }
 
@@ -164,7 +169,7 @@
   justify-content: center;
   padding: 32px 16px;
   color: var(--app-text-color-3);
-  font-size: 13px;
+  font-size: var(--app-text-base);
 }
 
 /* === Divider === */
@@ -182,7 +187,12 @@
   border: 2px solid var(--app-border-color);
   border-top-color: var(--app-primary-color);
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spinner {
+    animation: spin 0.6s linear infinite;
+  }
 }
 
 @keyframes spin {
@@ -219,7 +229,7 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 6px 16px;
-  font-size: 13px;
+  font-size: var(--app-text-base);
 }
 
 .desc-list dt {
@@ -245,12 +255,17 @@
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--app-text-color-2);
-  font-size: 14px;
+  font-size: var(--app-text-lg);
   font-family: inherit;
   cursor: pointer;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab-btn {
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
 }
 
 .tab-btn:hover {
@@ -290,7 +305,12 @@ dialog.drawer {
   height: 100vh;
   max-height: 100vh;
   border-radius: 0;
-  animation: slide-in-right 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.drawer {
+    animation: slide-in-right 0.2s ease-out;
+  }
 }
 
 @keyframes slide-in-right {
@@ -309,12 +329,19 @@ input,
 textarea {
   padding: 6px 10px;
   border: 1px solid var(--app-border-color);
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   background: var(--app-body-color);
   color: var(--app-text-color);
-  font-size: 13px;
+  font-size: var(--app-text-base);
   font-family: inherit;
-  transition: border-color 0.15s;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  select,
+  input,
+  textarea {
+    transition: border-color 0.15s;
+  }
 }
 
 select:focus,
@@ -322,6 +349,7 @@ input:focus,
 textarea:focus {
   outline: none;
   border-color: var(--app-primary-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary-color) 25%, transparent);
 }
 
 textarea {
@@ -373,16 +401,21 @@ textarea {
   height: 28px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   background: transparent;
   color: var(--app-text-color-2);
   font: inherit;
   line-height: 1;
   cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kx-icon-button {
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+  }
 }
 
 .kx-icon-button:hover:not(:disabled) {
@@ -421,7 +454,7 @@ textarea {
 .kx-tooltip-content {
   z-index: 50;
   border: 1px solid var(--app-border-color);
-  border-radius: 8px;
+  border-radius: var(--app-radius-lg);
   background: var(--app-card-color);
   color: var(--app-text-color);
   box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
@@ -443,9 +476,15 @@ textarea {
   background: transparent;
   color: var(--app-text-color);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--app-text-base);
   text-align: left;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kx-dropdown-item {
+    transition: background 0.15s;
+  }
 }
 
 .kx-dropdown-item:hover,
@@ -467,10 +506,10 @@ textarea {
 .kx-tooltip-content {
   max-width: 260px;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   background: var(--app-text-color);
   color: var(--app-body-color);
-  font-size: 12px;
+  font-size: var(--app-text-sm);
   line-height: 1.4;
 }
 
@@ -518,12 +557,36 @@ textarea {
 .kx-progress-ring__value {
   stroke: var(--kx-progress-ring-color);
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.2s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kx-progress-ring__value {
+    transition: stroke-dashoffset 0.2s ease;
+  }
 }
 
 .kx-progress-ring__label {
   position: relative;
   z-index: 1;
-  font-size: 11px;
+  font-size: var(--app-text-xs);
   font-weight: 600;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-text-color-3);
 }

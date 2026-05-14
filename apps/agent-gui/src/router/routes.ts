@@ -1,4 +1,5 @@
 import SettingsLayout from "@/layouts/SettingsLayout.vue";
+import GeneralSettings from "@/views/settings/GeneralSettings.vue";
 
 export const routes: RouteRecordRaw[] = [
   { path: "/", redirect: { name: "workbench" } },
@@ -18,7 +19,7 @@ export const routes: RouteRecordRaw[] = [
       {
         path: "general",
         name: "settings-general",
-        component: () => import("@/views/settings/GeneralSettings.vue")
+        component: GeneralSettings
       },
       {
         path: "mcp",

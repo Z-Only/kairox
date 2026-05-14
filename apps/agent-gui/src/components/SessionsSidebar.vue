@@ -284,6 +284,14 @@ onMounted(() => {
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
     <div class="session-scroll">
+      <div
+        v-if="projects.activeProjects.length === 0 && session.sessions.length === 0"
+        class="sessions-empty-state"
+      >
+        <p class="sessions-empty-state-text">
+          {{ t("sessions.emptyState") }}
+        </p>
+      </div>
       <template v-for="sectionName in orderedSidebarSections" :key="sectionName">
         <section
           v-if="sectionName === 'projects'"
@@ -1040,5 +1048,27 @@ html.dark .row-actions :deep(.kx-icon-button) svg {
 }
 .confirm-action:hover {
   background: color-mix(in srgb, var(--app-error-color, #d03050) 16%, transparent) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .project-expand-btn,
+  .project-title-btn,
+  .session-item {
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+}
+.sessions-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+}
+.sessions-empty-state-text {
+  color: var(--app-text-color-3);
+  font-size: var(--app-text-sm);
+  text-align: center;
 }
 </style>
