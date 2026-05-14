@@ -104,11 +104,81 @@ pub fn classify_command(program: &str, args: &[&str]) -> CommandRisk {
 // ── Command parsing ──────────────────────────────────────────────────────
 
 pub fn parse_command(command: &str) -> (String, Vec<String>) {
-    let tokens: Vec<String> = command.split_whitespace().map(|s| s.to_string()).collect();
+    let tokens = tokenize(command);
     match tokens.split_first() {
         Some((program, args)) => (program.clone(), args.to_vec()),
         None => (String::new(), Vec::new()),
     }
+}
+
+fn tokenize(input: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut chars = input.chars().peekable();
+    let mut in_single = false;
+    let mut in_double = false;
+
+    while let Some(ch) = chars.next() {
+        if in_single {
+            if ch == '\'' {
+                in_single = false;
+            } else {
+                current.push(ch);
+            }
+        } else if in_double {
+            if ch == '"' {
+                in_double = false;
+            } else if ch == '\\' {
+                if let Some(&next) = chars.peek() {
+                    if matches!(next, '"' | '\\' | '$' | '`') {
+                        current.push(next);
+                        chars.next();
+                    } else {
+                        current.push('\\');
+                        current.push(next);
+                        chars.next();
+                    }
+                } else {
+                    current.push('\\');
+                }
+            } else {
+                current.push(ch);
+            }
+        } else if ch == '\'' {
+            in_single = true;
+        } else if ch == '"' {
+            in_double = true;
+        } else if ch == '\\' {
+            if let Some(&next) = chars.peek() {
+                current.push(next);
+                chars.next();
+            } else {
+                current.push('\\');
+            }
+        } else if ch.is_whitespace() {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push(ch);
+        }
+    }
+
+    if in_double {
+        // Unclosed double quote: keep opening quote, push accumulated content
+        let mut fixed = String::from("\"");
+        fixed.push_str(&current);
+        tokens.push(fixed);
+    } else if in_single {
+        // Unclosed single quote: keep opening quote, push accumulated content
+        let mut fixed = String::from("'");
+        fixed.push_str(&current);
+        tokens.push(fixed);
+    } else if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    tokens
 }
 
 // ── ShellExecTool ─────────────────────────────────────────────────────────
@@ -522,13 +592,45 @@ mod tests {
     }
 
     #[test]
-    fn parse_command_splits_literally_on_whitespace() {
+    fn parse_command_double_quoted_arg() {
         let (program, args) = parse_command(r#"echo "hello world""#);
         assert_eq!(program, "echo");
-        // FIXME: handle shell quoting — split_whitespace breaks quoted arguments
-        assert_eq!(args.len(), 2);
-        assert_eq!(args[0], "\"hello");
-        assert_eq!(args[1], "world\"");
+        assert_eq!(args, vec!["hello world"]);
+    }
+
+    #[test]
+    fn parse_command_single_quoted_arg() {
+        let (program, args) = parse_command("echo 'hello world'");
+        assert_eq!(program, "echo");
+        assert_eq!(args, vec!["hello world"]);
+    }
+
+    #[test]
+    fn parse_command_backslash_escape() {
+        let (program, args) = parse_command(r"echo hello\ world");
+        assert_eq!(program, "echo");
+        assert_eq!(args, vec!["hello world"]);
+    }
+
+    #[test]
+    fn parse_command_mixed_quoted_and_unquoted() {
+        let (program, args) = parse_command(r#"git commit -m "my message""#);
+        assert_eq!(program, "git");
+        assert_eq!(args, vec!["commit", "-m", "my message"]);
+    }
+
+    #[test]
+    fn parse_command_unclosed_double_quote_preserved() {
+        let (program, args) = parse_command(r#"echo "hello world"#);
+        assert_eq!(program, "echo");
+        assert_eq!(args, vec!["\"hello world"]);
+    }
+
+    #[test]
+    fn parse_command_unclosed_single_quote_preserved() {
+        let (program, args) = parse_command("echo 'hello world");
+        assert_eq!(program, "echo");
+        assert_eq!(args, vec!["'hello world"]);
     }
 
     #[test]
@@ -536,5 +638,12 @@ mod tests {
         let (program, args) = parse_command("");
         assert_eq!(program, "");
         assert_eq!(args, Vec::<String>::new());
+    }
+
+    #[test]
+    fn parse_command_whitespace_only() {
+        let (program, args) = parse_command("   ");
+        assert_eq!(program, "");
+        assert!(args.is_empty());
     }
 }
