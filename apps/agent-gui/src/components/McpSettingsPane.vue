@@ -34,6 +34,16 @@ function formatTools(server: McpServerSettingsView | EffectiveMcpServerView): st
   return toolCount === null ? t("mcp.toolsUnknown") : t("mcp.toolsCount", { count: toolCount });
 }
 
+function testButtonLabel(serverId: string): string {
+  if (mcp.testingConnectivity.has(serverId)) return t("mcp.testChecking");
+  const result = mcp.connectivityResults[serverId];
+  if (!result) return t("mcp.testConnectivity");
+  if (result.status === "connected") {
+    return t("mcp.testConnected", { count: result.tool_count });
+  }
+  return t("mcp.testFailed", { reason: result.reason });
+}
+
 function resetForm(): void {
   serverName.value = "";
   serverDescription.value = "";
@@ -283,6 +293,17 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
                   "
                 >
                   {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  type="button"
+                  :disabled="
+                    mcp.testingConnectivity.has(server.value.id) || busyServerId === server.value.id
+                  "
+                  :data-test="`mcp-test-connectivity-${server.value.id}`"
+                  @click="mcp.testConnectivity(server.value.id)"
+                >
+                  {{ testButtonLabel(server.value.id) }}
                 </button>
                 <button
                   class="btn btn-danger btn-sm"

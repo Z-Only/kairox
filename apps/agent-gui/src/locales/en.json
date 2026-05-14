@@ -237,7 +237,11 @@
     "refreshAll": "Refresh All",
     "refreshTools": "Refresh Tools",
     "overrides": "Overrides {source}",
-    "disabledBy": "Disabled by {source}"
+    "disabledBy": "Disabled by {source}",
+    "testConnectivity": "Test Connectivity",
+    "testChecking": "Testing…",
+    "testConnected": "Connected ({count} tools)",
+    "testFailed": "Failed: {reason}"
   },
   "models": {
     "tabModels": "Models",

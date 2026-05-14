@@ -6,6 +6,7 @@ import type {
   InstalledEntryResponse,
   ConfigScope
 } from "../../generated/commands";
+import { commands } from "../../generated/commands";
 import { useCatalogStore } from "@/stores/catalog";
 import { useMcpStore } from "@/stores/mcp";
 import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
@@ -83,6 +84,39 @@ watch(
   },
   { immediate: true }
 );
+
+const testingCatalogConnectivity = ref(false);
+const catalogConnectivityResult = ref<
+  { status: "connected"; tool_count: number } | { status: "failed"; reason: string } | null
+>(null);
+
+function testConnectivityLabel(): string {
+  if (testingCatalogConnectivity.value) return t("mcp.testChecking");
+  const result = catalogConnectivityResult.value;
+  if (!result) return t("mcp.testConnectivity");
+  if (result.status === "connected") {
+    return t("mcp.testConnected", { count: result.tool_count });
+  }
+  return t("mcp.testFailed", { reason: result.reason });
+}
+
+async function testCatalogConnectivity(): Promise<void> {
+  if (!installedEntry.value) return;
+  const serverId = installedEntry.value.server_id;
+  testingCatalogConnectivity.value = true;
+  try {
+    const result = await commands.testMcpConnectivity(serverId);
+    if (result.status === "ok") {
+      catalogConnectivityResult.value = result.data;
+    } else {
+      catalogConnectivityResult.value = { status: "failed", reason: String(result.error) };
+    }
+  } catch (e) {
+    catalogConnectivityResult.value = { status: "failed", reason: String(e) };
+  } finally {
+    testingCatalogConnectivity.value = false;
+  }
+}
 
 async function onInstall() {
   const req: InstallRequestPayload = {
@@ -183,6 +217,16 @@ function onOverlayClick(event: MouseEvent) {
           >
             {{ scopeLabel }}
           </span>
+          <button
+            v-if="isInstalled"
+            class="btn btn-sm"
+            type="button"
+            :disabled="testingCatalogConnectivity"
+            data-test="catalog-test-connectivity"
+            @click="testCatalogConnectivity"
+          >
+            {{ testConnectivityLabel() }}
+          </button>
           <span
             class="tooltip-wrap"
             :class="{ 'tooltip-active': installDisabled }"

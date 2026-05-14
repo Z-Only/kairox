@@ -6,6 +6,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
+  type ConnectivityResult,
   type EffectiveMcpServerView,
   type McpServerSettingsInput,
   type McpServerSettingsView,
@@ -52,6 +53,8 @@ export const useMcpStore = defineStore("mcp", () => {
   const configFileOpening = ref(false);
   const settingsError = ref<string | null>(null);
   const effectiveServers = ref<EffectiveMcpServerView[]>([]);
+  const connectivityResults = ref<Record<string, ConnectivityResult>>({});
+  const testingConnectivity = ref<Set<string>>(new Set());
 
   const runningServers = computed(() => servers.value.filter((s) => s.status === "running"));
 
@@ -235,6 +238,43 @@ export const useMcpStore = defineStore("mcp", () => {
     }
   }
 
+  async function testConnectivity(serverId: string): Promise<void> {
+    const next = new Set(testingConnectivity.value);
+    next.add(serverId);
+    testingConnectivity.value = next;
+    try {
+      const result = await commands.testMcpConnectivity(serverId);
+      if (result.status === "ok") {
+        connectivityResults.value = {
+          ...connectivityResults.value,
+          [serverId]: result.data
+        };
+      } else {
+        connectivityResults.value = {
+          ...connectivityResults.value,
+          [serverId]: { status: "failed", reason: String(result.error) }
+        };
+      }
+    } catch (e) {
+      connectivityResults.value = {
+        ...connectivityResults.value,
+        [serverId]: { status: "failed", reason: String(e) }
+      };
+    } finally {
+      const next2 = new Set(testingConnectivity.value);
+      next2.delete(serverId);
+      testingConnectivity.value = next2;
+    }
+  }
+
+  async function testAllConnectivity(): Promise<void> {
+    for (const server of effectiveServers.value) {
+      if (server.value.transport !== "builtin") {
+        await testConnectivity(server.value.id);
+      }
+    }
+  }
+
   /**
    * Apply an MCP-related DomainEvent to the local state.
    * Called from useTauriEvents for real-time updates.
@@ -300,6 +340,10 @@ export const useMcpStore = defineStore("mcp", () => {
     openConfigFile,
     effectiveServers,
     fetchEffectiveServers,
+    connectivityResults,
+    testingConnectivity,
+    testConnectivity,
+    testAllConnectivity,
     handleMcpEvent
   };
 });
