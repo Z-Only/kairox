@@ -7,8 +7,6 @@ use std::sync::Arc;
 /// Which adapter implementation backs a skill catalog source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillSourceKind {
-    /// skills.sh (`https://skills.sh/api/search`)
-    SkillsSh,
     /// SkillHub (`https://skills.palebluedot.live/api/skills`)
     SkillHub,
 }
@@ -17,7 +15,6 @@ impl SkillSourceKind {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "skills-sh" | "skills_sh" => Some(Self::SkillsSh),
             "skillhub" => Some(Self::SkillHub),
             _ => None,
         }
@@ -25,7 +22,6 @@ impl SkillSourceKind {
 
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::SkillsSh => "skills-sh",
             Self::SkillHub => "skillhub",
         }
     }
@@ -53,9 +49,6 @@ pub fn build_skill_provider(
     http: SharedHttpClient,
 ) -> Arc<dyn SkillCatalogProvider> {
     match cfg.kind {
-        SkillSourceKind::SkillsSh => Arc::new(
-            crate::catalog::skills::skills_sh::SkillsShProvider::new(cfg, http),
-        ),
         SkillSourceKind::SkillHub => Arc::new(
             crate::catalog::skills::skillhub::SkillHubProvider::new(cfg, http),
         ),
@@ -69,10 +62,6 @@ mod tests {
     #[test]
     fn skill_source_kind_from_str_round_trip() {
         assert_eq!(
-            SkillSourceKind::from_str("skills-sh"),
-            Some(SkillSourceKind::SkillsSh)
-        );
-        assert_eq!(
             SkillSourceKind::from_str("skillhub"),
             Some(SkillSourceKind::SkillHub)
         );
@@ -81,7 +70,6 @@ mod tests {
 
     #[test]
     fn skill_source_kind_as_str() {
-        assert_eq!(SkillSourceKind::SkillsSh.as_str(), "skills-sh");
         assert_eq!(SkillSourceKind::SkillHub.as_str(), "skillhub");
     }
 
@@ -90,18 +78,18 @@ mod tests {
         let http = SharedHttpClient::new().unwrap();
         let provider = build_skill_provider(
             RemoteSkillSourceConfig {
-                id: "skills-sh".into(),
-                display_name: "skills.sh".into(),
-                kind: SkillSourceKind::SkillsSh,
-                url: "https://skills.sh".into(),
-                search_template: "/api/search?q={{query}}&limit={{limit}}".into(),
-                list_template: None,
+                id: "skillhub".into(),
+                display_name: "SkillHub".into(),
+                kind: SkillSourceKind::SkillHub,
+                url: "https://skills.palebluedot.live".into(),
+                search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
+                list_template: Some("/api/skills?limit={{limit}}".into()),
                 enabled: true,
-                priority: 10,
+                priority: 20,
                 cache_ttl_seconds: 900,
             },
             http,
         );
-        assert_eq!(provider.source_id(), "skills-sh");
+        assert_eq!(provider.source_id(), "skillhub");
     }
 }

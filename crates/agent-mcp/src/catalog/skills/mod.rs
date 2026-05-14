@@ -67,4 +67,3 @@ pub trait SkillCatalogProvider: Send + Sync {
 pub mod aggregate;
 pub mod remote;
 pub mod skillhub;
-pub mod skills_sh;
