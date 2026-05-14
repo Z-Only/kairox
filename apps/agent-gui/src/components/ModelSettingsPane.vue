@@ -779,8 +779,13 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
   min-height: 0;
 }
 
+.model-settings__profile {
+  overflow: visible;
+}
+
 .model-settings__profile-body {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
@@ -801,7 +806,7 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .model-settings__reorder {
