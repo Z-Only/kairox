@@ -7,7 +7,7 @@ pub mod loader;
 use serde::{Deserialize, Serialize};
 
 pub use builder::{build_ollama_clients, build_router};
-pub use discovery::{find_config, find_config_upward};
+pub use discovery::{find_config, find_config_upward, find_local_config};
 pub use limits::resolve_limits;
 pub use loader::{
     default_catalog_sources, load_from_str, load_with_marketplace_loaded,
@@ -81,6 +81,7 @@ pub struct ProfileInfo {
 pub enum ConfigSource {
     ProjectFile,
     UserFile,
+    LocalFile,
     Defaults,
 }
 
@@ -241,27 +242,30 @@ impl Config {
     fn load_inner(project_root: Option<&std::path::Path>) -> Result<Self, ConfigError> {
         let mut base = Self::defaults();
 
-        // Layer 1: merge user-level config if present
+        // Layer 1: User config (~/.kairox/config.toml)
         if let Some(home_dir) = dirs::home_dir() {
             let user_path = home_dir.join(".kairox").join("config.toml");
             if user_path.is_file() {
-                base = Self::merge_config(base, &user_path)?;
+                base = Self::merge_config(base, &user_path, ConfigSource::UserFile)?;
             }
         }
 
-        // Layer 2: merge project-level config if present (highest priority)
+        // Layer 2: Project config (.kairox/config.toml)
         if let Some(root) = project_root {
             let project_path = root.join(".kairox").join("config.toml");
             if project_path.is_file() {
-                base = Self::merge_config(base, &project_path)?;
-                base.source = ConfigSource::ProjectFile;
+                base = Self::merge_config(base, &project_path, ConfigSource::ProjectFile)?;
             } else {
                 // Fallback: walk up from project_root looking for .kairox/config.toml
                 if let Some((found_path, _)) = discovery::find_config_upward(root) {
-                    base = Self::merge_config(base, &found_path)?;
-                    base.source = ConfigSource::ProjectFile;
+                    base = Self::merge_config(base, &found_path, ConfigSource::ProjectFile)?;
                 }
             }
+        }
+
+        // Layer 3: Local config (.kairox/config.local.toml, gitignored)
+        if let Some(local_path) = discovery::find_local_config(project_root) {
+            base = Self::merge_config(base, &local_path, ConfigSource::LocalFile)?;
         }
 
         Ok(base)
@@ -269,7 +273,11 @@ impl Config {
 
     /// Merge configuration from `path` into `base`, with profiles and MCP servers
     /// from the loaded config overriding or appending to the base.
-    fn merge_config(base: Self, path: &std::path::Path) -> Result<Self, ConfigError> {
+    fn merge_config(
+        base: Self,
+        path: &std::path::Path,
+        source: ConfigSource,
+    ) -> Result<Self, ConfigError> {
         let content = std::fs::read_to_string(path)?;
         let mut overlay = load_from_str(&content, &path.display().to_string())?;
         resolve_api_keys(&mut overlay);
@@ -295,7 +303,7 @@ impl Config {
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
-            source: overlay.source,
+            source,
             context: overlay.context,
         })
     }

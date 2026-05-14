@@ -35,6 +35,7 @@ fn config_source_to_scope(source: &ConfigSource) -> ConfigScope {
     match source {
         ConfigSource::ProjectFile => ConfigScope::Project,
         ConfigSource::UserFile => ConfigScope::User,
+        ConfigSource::LocalFile => ConfigScope::Local,
         ConfigSource::Defaults => ConfigScope::Builtin,
     }
 }

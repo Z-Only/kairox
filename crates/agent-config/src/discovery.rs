@@ -50,6 +50,19 @@ pub fn find_config_upward(start_dir: &Path) -> Option<(PathBuf, ConfigSource)> {
     None
 }
 
+/// Find a local override config at `<project_root>/.kairox/config.local.toml`.
+/// This file is gitignored and provides per-developer overrides that take
+/// the highest priority.
+pub fn find_local_config(project_root: Option<&Path>) -> Option<PathBuf> {
+    let root = project_root?;
+    let local = root.join(CONFIG_DIR).join("config.local.toml");
+    if local.exists() {
+        Some(local)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
