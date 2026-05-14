@@ -400,4 +400,41 @@ mod tests {
         assert_eq!(projection.skills[0].id.as_str(), "review");
         assert_eq!(projection.state_errors.len(), 1);
     }
+
+    #[test]
+    fn scope_priority_order() {
+        assert!(scope_priority(SkillSourceKind::Builtin) < scope_priority(SkillSourceKind::User));
+        assert!(scope_priority(SkillSourceKind::User) < scope_priority(SkillSourceKind::Workspace));
+    }
+
+    #[test]
+    fn default_install_source_builtin_vs_local() {
+        assert_eq!(default_install_source(SkillSourceKind::Builtin), "builtin");
+        assert_eq!(default_install_source(SkillSourceKind::User), "local");
+        assert_eq!(default_install_source(SkillSourceKind::Workspace), "local");
+    }
+
+    #[test]
+    fn fallback_skill_id_from_directory_name() {
+        let path = std::path::Path::new("/tmp/skills/my-skill/SKILL.md");
+        assert_eq!(fallback_skill_id(path), "my-skill");
+    }
+
+    #[test]
+    fn fallback_skill_id_unknown_for_path_without_parent() {
+        let path = std::path::Path::new("SKILL.md");
+        assert_eq!(fallback_skill_id(path), "unknown");
+    }
+
+    #[test]
+    fn extract_frontmatter_name_parses_simple_line() {
+        let raw = "---\nname: review\ndescription: desc\n---\nBody\n";
+        assert_eq!(extract_frontmatter_name(raw).as_deref(), Some("review"));
+    }
+
+    #[test]
+    fn extract_frontmatter_name_returns_none_when_no_name() {
+        let raw = "---\ndescription: desc\n---\nBody\n";
+        assert!(extract_frontmatter_name(raw).is_none());
+    }
 }

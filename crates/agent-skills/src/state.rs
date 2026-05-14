@@ -160,4 +160,25 @@ mod tests {
 
         assert_eq!(reloaded, state);
     }
+
+    #[tokio::test]
+    async fn read_skills_state_returns_default_when_file_missing() {
+        let root = tempfile::tempdir().expect("root should exist");
+        let state_path = root.path().join("nonexistent.toml");
+
+        let state = read_skills_state(&state_path)
+            .await
+            .expect("missing file should return default");
+        assert!(state.skills.is_empty());
+    }
+
+    #[tokio::test]
+    async fn read_skills_state_rejects_invalid_toml() {
+        let root = tempfile::tempdir().expect("root should exist");
+        let state_path = root.path().join("skills-state.toml");
+        std::fs::write(&state_path, "this is not {{{ valid toml").expect("write should succeed");
+
+        let result = read_skills_state(&state_path).await;
+        assert!(result.is_err());
+    }
 }

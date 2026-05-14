@@ -266,4 +266,57 @@ mod tests {
         assert_eq!(document.metadata.source.kind, SkillSourceKind::Workspace);
         assert_eq!(document.body_markdown, "Workspace body\n");
     }
+
+    #[tokio::test]
+    async fn list_returns_empty_when_no_roots() {
+        let registry = FileSkillRegistry::discover(vec![])
+            .await
+            .expect("empty discover should succeed");
+        assert!(registry.list().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_unknown_skill_returns_none() {
+        let root = tempfile::tempdir().expect("root should exist");
+        write_skill(root.path(), "test", "test", "A test skill", "Body\n");
+
+        let registry =
+            FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+                .await
+                .expect("discover should succeed");
+
+        assert!(registry.get(&SkillId::new("nonexistent")).is_none());
+    }
+
+    #[tokio::test]
+    async fn load_document_unknown_skill_returns_error() {
+        let root = tempfile::tempdir().expect("root should exist");
+        write_skill(root.path(), "test", "test", "A test skill", "Body\n");
+
+        let registry =
+            FileSkillRegistry::discover(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+                .await
+                .expect("discover should succeed");
+
+        let result = registry.load_document(&SkillId::new("nonexistent")).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn discover_skips_missing_root_directories() {
+        let missing_path = std::path::PathBuf::from("/tmp/nonexistent-skills-root-12345");
+        let valid_root = tempfile::tempdir().expect("valid root should exist");
+        write_skill(valid_root.path(), "valid", "valid", "Valid skill", "Body\n");
+
+        let registry = FileSkillRegistry::discover(vec![
+            SkillRoot::new(SkillSourceKind::User, &missing_path),
+            SkillRoot::new(SkillSourceKind::Builtin, valid_root.path()),
+        ])
+        .await
+        .expect("discover should succeed despite missing root");
+
+        let list = registry.list();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, SkillId::new("valid"));
+    }
 }

@@ -147,4 +147,44 @@ name: Code Review
             }
         ));
     }
+
+    #[test]
+    fn rejects_missing_frontmatter_delimiters() {
+        let raw = "# Just markdown\n\nNo frontmatter here.\n";
+        let error = parse_skill_markdown(raw).expect_err("no delimiters should be rejected");
+        assert!(matches!(error, SkillError::MissingFrontmatter));
+    }
+
+    #[test]
+    fn rejects_missing_closing_frontmatter() {
+        let raw = "---\nname: Test\ndescription: Desc\n# No closing delimiter\n";
+        let error =
+            parse_skill_markdown(raw).expect_err("missing closing delimiter should be rejected");
+        assert!(matches!(error, SkillError::MissingFrontmatter));
+    }
+
+    #[test]
+    fn rejects_invalid_yaml_in_frontmatter() {
+        let raw = "---\n{{invalid_yaml\n---\nBody\n";
+        let error = parse_skill_markdown(raw).expect_err("invalid YAML should be rejected");
+        assert!(matches!(error, SkillError::InvalidFrontmatter(_)));
+    }
+
+    #[test]
+    fn parses_minimal_frontmatter_with_defaults() {
+        let raw = "---\nname: minimal\ndescription: Minimal skill\n---\nBody\n";
+        let parsed = parse_skill_markdown(raw).expect("minimal frontmatter should parse");
+        assert_eq!(parsed.frontmatter.name, "minimal");
+        assert_eq!(parsed.activation.mode, SkillActivationMode::Manual);
+        assert!(parsed.activation.keywords.is_empty());
+        assert!(parsed.permissions.tools.is_empty());
+        assert_eq!(parsed.body_markdown, "Body\n");
+    }
+
+    #[test]
+    fn parses_frontmatter_with_optional_version_only() {
+        let raw = "---\nname: versioned\ndescription: Has version\nversion: 2.0.0\n---\nBody\n";
+        let parsed = parse_skill_markdown(raw).expect("versioned frontmatter should parse");
+        assert_eq!(parsed.frontmatter.version.as_deref(), Some("2.0.0"));
+    }
 }
