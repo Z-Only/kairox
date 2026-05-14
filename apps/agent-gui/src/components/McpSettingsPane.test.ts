@@ -4,7 +4,11 @@ import { setActivePinia, createPinia } from "pinia";
 import { nextTick } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { invoke } from "@tauri-apps/api/core";
-import { commands, type McpServerSettingsView } from "@/generated/commands";
+import {
+  commands,
+  type EffectiveMcpServerView,
+  type McpServerSettingsView
+} from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
 
@@ -16,7 +20,8 @@ vi.mock("@/generated/commands", () => ({
     upsertMcpServerSettings: vi.fn(),
     setMcpServerEnabled: vi.fn(),
     deleteMcpServerSettings: vi.fn(),
-    openMcpConfigFile: vi.fn()
+    openMcpConfigFile: vi.fn(),
+    getEffectiveMcpServers: vi.fn()
   }
 }));
 
@@ -55,6 +60,18 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
+function toEffective(server: McpServerSettingsView): EffectiveMcpServerView {
+  return {
+    value: server,
+    source: server.config_path ? "User" : "Builtin",
+    overrides: null,
+    enabled: server.enabled,
+    disabledBy: null,
+    writable: server.writable,
+    deletable: server.writable
+  };
+}
+
 function mountPane() {
   const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
     reusePinia: true
@@ -66,6 +83,9 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
   mockedCommands.listMcpServerSettings.mockResolvedValue(ok([githubServer, readonlyServer]));
+  mockedCommands.getEffectiveMcpServers.mockResolvedValue(
+    ok([toEffective(githubServer), toEffective(readonlyServer)])
+  );
   mockedCommands.upsertMcpServerSettings.mockResolvedValue(ok(githubServer));
   mockedCommands.setMcpServerEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteMcpServerSettings.mockResolvedValue(ok(null));

@@ -229,7 +229,9 @@
     "saving": "保存中…",
     "saveServer": "保存",
     "refreshAll": "刷新全部",
-    "refreshTools": "刷新工具"
+    "refreshTools": "刷新工具",
+    "overrides": "覆盖 {source}",
+    "disabledBy": "{source} 已禁用"
   },
   "skills": {
     "title": "Skills 设置",

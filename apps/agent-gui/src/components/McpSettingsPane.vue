@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMcpStore } from "@/stores/mcp";
-import type { McpServerSettingsView } from "@/generated/commands";
+import type { EffectiveMcpServerView, McpServerSettingsView } from "@/generated/commands";
 import MarketplacePane from "@/components/MarketplacePane.vue";
 
 const { t } = useI18n();
@@ -22,16 +22,16 @@ const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 
 watch(
   [() => configSource?.value, () => configProjectId?.value],
-  () => {
-    void mcp.fetchSettingsServers(configSource?.value === "project" ? "project" : null);
+  async () => {
+    await mcp.fetchSettingsServers(configSource?.value === "project" ? "project" : null);
+    await mcp.fetchEffectiveServers();
   },
   { immediate: true }
 );
 
-function formatTools(server: McpServerSettingsView): string {
-  return server.tool_count === null
-    ? t("mcp.toolsUnknown")
-    : t("mcp.toolsCount", { count: server.tool_count });
+function formatTools(server: McpServerSettingsView | EffectiveMcpServerView): string {
+  const toolCount = "value" in server ? server.value.tool_count : server.tool_count;
+  return toolCount === null ? t("mcp.toolsUnknown") : t("mcp.toolsCount", { count: toolCount });
 }
 
 function resetForm(): void {
@@ -97,6 +97,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   try {
     await action();
     await mcp.fetchSettingsServers();
+    await mcp.fetchEffectiveServers();
   } finally {
     busyServerId.value = null;
   }
@@ -195,39 +196,51 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
         <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">
           {{ t("mcp.loading") }}
         </p>
-        <p v-else-if="mcp.settingsServers.length === 0" class="empty-state">
+        <p v-else-if="mcp.effectiveServers.length === 0" class="empty-state">
           {{ t("mcp.noServers") }}
         </p>
 
         <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
           <article
-            v-for="server in mcp.settingsServers"
-            :key="server.id"
+            v-for="server in mcp.effectiveServers"
+            :key="server.value.id"
             class="card mcp-settings__server"
             role="listitem"
-            :data-test="`mcp-server-row-${server.id}`"
+            :data-test="`mcp-server-row-${server.value.id}`"
           >
             <div class="card-body mcp-settings__server-body">
               <div class="mcp-settings__server-main">
-                <h3>{{ server.name }}</h3>
-                <p>{{ server.description || t("mcp.noDescription") }}</p>
-                <div class="mcp-settings__tags" aria-label="Server metadata">
-                  <span class="tag">{{ server.transport }}</span>
+                <h3>{{ server.value.name }}</h3>
+                <p>{{ server.value.description || t("mcp.noDescription") }}</p>
+                <div class="server__tags" aria-label="Server metadata">
+                  <span
+                    class="tag tag--source"
+                    :class="`tag--source-${server.source.toLowerCase()}`"
+                  >
+                    {{ server.source }}
+                  </span>
+                  <span v-if="server.overrides" class="tag tag--override">
+                    {{ t("mcp.overrides", { source: server.overrides }) }}
+                  </span>
+                  <span v-if="server.disabledBy" class="tag tag--disabled-by">
+                    {{ t("mcp.disabledBy", { source: server.disabledBy }) }}
+                  </span>
+                  <span class="tag">{{ server.value.transport }}</span>
                   <span class="tag">{{ formatTools(server) }}</span>
                   <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
                     {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
                   </span>
-                  <span :class="['tag', server.trusted ? 'tag-success' : 'tag-warning']">
-                    {{ server.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
+                  <span :class="['tag', server.value.trusted ? 'tag-success' : 'tag-warning']">
+                    {{ server.value.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
                   </span>
                 </div>
                 <p
-                  v-if="server.last_error"
+                  v-if="server.value.last_error"
                   class="alert alert-error"
                   role="alert"
-                  :data-test="`mcp-row-error-${server.id}`"
+                  :data-test="`mcp-row-error-${server.value.id}`"
                 >
-                  {{ server.last_error }}
+                  {{ server.value.last_error }}
                 </p>
               </div>
 
@@ -235,20 +248,22 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
                 <button
                   class="btn btn-sm"
                   type="button"
-                  :disabled="busyServerId === server.id"
-                  :data-test="`mcp-refresh-tools-${server.id}`"
-                  @click="runServerAction(server.id, () => mcp.refreshTools(server.id))"
+                  :disabled="busyServerId === server.value.id"
+                  :data-test="`mcp-refresh-tools-${server.value.id}`"
+                  @click="runServerAction(server.value.id, () => mcp.refreshTools(server.value.id))"
                 >
-                  {{ busyServerId === server.id ? t("common.loading") : t("mcp.refreshTools") }}
+                  {{
+                    busyServerId === server.value.id ? t("common.loading") : t("mcp.refreshTools")
+                  }}
                 </button>
                 <button
                   class="btn btn-sm"
                   type="button"
-                  :disabled="busyServerId === server.id"
-                  :data-test="`mcp-enable-${server.id}`"
+                  :disabled="busyServerId === server.value.id"
+                  :data-test="`mcp-enable-${server.value.id}`"
                   @click="
-                    runServerAction(server.id, () =>
-                      mcp.setServerEnabled(server.id, !server.enabled)
+                    runServerAction(server.value.id, () =>
+                      mcp.setServerEnabled(server.value.id, !server.enabled)
                     )
                   "
                 >
@@ -257,22 +272,28 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
                 <button
                   class="btn btn-sm"
                   type="button"
-                  :disabled="busyServerId === server.id"
-                  :data-test="`mcp-trust-${server.id}`"
+                  :disabled="busyServerId === server.value.id"
+                  :data-test="`mcp-trust-${server.value.id}`"
                   @click="
-                    runServerAction(server.id, () =>
-                      server.trusted ? mcp.revokeTrust(server.id) : mcp.trustServer(server.id)
+                    runServerAction(server.value.id, () =>
+                      server.value.trusted
+                        ? mcp.revokeTrust(server.value.id)
+                        : mcp.trustServer(server.value.id)
                     )
                   "
                 >
-                  {{ server.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
+                  {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
                 </button>
                 <button
                   class="btn btn-danger btn-sm"
                   type="button"
-                  :disabled="!server.writable || busyServerId === server.id"
-                  :data-test="`mcp-delete-${server.id}`"
-                  @click="runServerAction(server.id, () => mcp.deleteServerSettings(server.id))"
+                  :disabled="!server.writable || busyServerId === server.value.id"
+                  :data-test="`mcp-delete-${server.value.id}`"
+                  @click="
+                    runServerAction(server.value.id, () =>
+                      mcp.deleteServerSettings(server.value.id)
+                    )
+                  "
                 >
                   {{ t("common.delete") }}
                 </button>
@@ -434,6 +455,7 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
 }
 
 .mcp-settings__tags,
+.server__tags,
 .mcp-settings__actions {
   display: flex;
   flex-wrap: wrap;
@@ -484,5 +506,40 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
 
 .mcp-settings__actions {
   justify-content: flex-end;
+}
+
+/* Source tags for effective (unified) view */
+.tag--source {
+  font-weight: 600;
+}
+
+.tag--source-builtin {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+}
+
+.tag--source-user {
+  background: var(--color-secondary-light);
+  color: var(--color-secondary);
+}
+
+.tag--source-project {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tag--source-local {
+  background: var(--color-accent-light, var(--color-primary-light));
+  color: var(--color-accent, var(--color-primary));
+}
+
+.tag--override {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.tag--disabled-by {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
 }
 </style>

@@ -229,7 +229,9 @@
     "saving": "Saving…",
     "saveServer": "Save",
     "refreshAll": "Refresh All",
-    "refreshTools": "Refresh Tools"
+    "refreshTools": "Refresh Tools",
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}"
   },
   "models": {
     "tabModels": "Models",

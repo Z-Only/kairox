@@ -228,7 +228,6 @@ export const useMcpStore = defineStore("mcp", () => {
   }
 
   async function fetchEffectiveServers(): Promise<void> {
-    settingsError.value = null;
     try {
       effectiveServers.value = await unwrapCommandResult(commands.getEffectiveMcpServers());
     } catch (caughtError) {
