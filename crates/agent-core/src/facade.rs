@@ -241,6 +241,36 @@ pub struct McpServerSettingsView {
     pub source: String,
 }
 
+/// Concrete effective-view wrapper for MCP server settings.
+/// Combines [`EffectiveItem`] metadata with a [`McpServerSettingsView`].
+/// This is a non-generic type so it can safely derive both serde and specta.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct EffectiveMcpServerView {
+    pub value: McpServerSettingsView,
+    pub source: crate::config_scope::ConfigScope,
+    pub overrides: Option<crate::config_scope::ConfigScope>,
+    pub enabled: bool,
+    #[serde(rename = "disabledBy")]
+    pub disabled_by: Option<crate::config_scope::ConfigScope>,
+    pub writable: bool,
+    pub deletable: bool,
+}
+
+impl EffectiveMcpServerView {
+    pub fn from_effective(item: crate::EffectiveItem<McpServerSettingsView>) -> Self {
+        Self {
+            value: item.value,
+            source: item.source,
+            overrides: item.overrides,
+            enabled: item.enabled,
+            disabled_by: item.disabled_by,
+            writable: item.writable,
+            deletable: item.deletable,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ProfileSettingsInput {

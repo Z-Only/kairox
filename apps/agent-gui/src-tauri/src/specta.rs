@@ -4,16 +4,16 @@
 
 use crate::commands::*;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    EffectiveMcpServerView, InstallGithubSkillRequest, InstallRemoteSkillRequest,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
+    ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry,
+    SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource, SkillInstallTarget,
+    SkillSettingsDetail, SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{
-    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage,
-    DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits, SkillDetail, SkillView,
-    TaskGraphSnapshot, TaskSnapshot, TaskState,
+    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
+    ContextUsage, DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits,
+    SkillDetail, SkillView, TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -73,6 +73,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_active_skills,
             // Settings commands
             list_mcp_server_settings,
+            get_effective_mcp_servers,
             upsert_mcp_server_settings,
             set_mcp_server_enabled,
             delete_mcp_server_settings,
@@ -144,6 +145,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Effective config types
+        .typ::<ConfigScope>()
+        .typ::<EffectiveMcpServerView>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()

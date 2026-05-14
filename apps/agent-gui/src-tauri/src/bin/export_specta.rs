@@ -6,13 +6,13 @@
 
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    EffectiveMcpServerView, InstallGithubSkillRequest, InstallRemoteSkillRequest,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
+    ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry,
+    SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource, SkillInstallTarget,
+    SkillSettingsDetail, SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
-use agent_core::{ActiveSkillView, SkillDetail, SkillView};
+use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
     CatalogSourceViewResponse, ConnectivityTestResult, InstallOutcomeResponse,
@@ -86,6 +86,7 @@ fn main() {
             agent_gui_tauri::commands::list_active_skills,
             // Settings commands
             agent_gui_tauri::commands::list_mcp_server_settings,
+            agent_gui_tauri::commands::get_effective_mcp_servers,
             agent_gui_tauri::commands::upsert_mcp_server_settings,
             agent_gui_tauri::commands::set_mcp_server_enabled,
             agent_gui_tauri::commands::delete_mcp_server_settings,
@@ -157,6 +158,9 @@ fn main() {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Effective config types
+        .typ::<ConfigScope>()
+        .typ::<EffectiveMcpServerView>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()

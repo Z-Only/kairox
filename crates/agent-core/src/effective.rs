@@ -3,11 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::config_scope::ConfigScope;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[serde(bound(
-    serialize = "T: Serialize",
-    deserialize = "T: serde::de::DeserializeOwned"
-))]
+#[serde(bound = "T: Serialize + serde::de::DeserializeOwned")]
 pub struct EffectiveItem<T: Serialize + serde::de::DeserializeOwned + Clone> {
     pub value: T,
     pub source: ConfigScope,

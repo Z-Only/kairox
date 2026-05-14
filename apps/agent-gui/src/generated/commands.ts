@@ -111,6 +111,8 @@ export const commands = {
     typedError<McpServerSettingsView[], string>(
       __TAURI_INVOKE("list_mcp_server_settings", { sourceFilter })
     ),
+  getEffectiveMcpServers: () =>
+    typedError<EffectiveMcpServerView[], string>(__TAURI_INVOKE("get_effective_mcp_servers")),
   upsertMcpServerSettings: (input: McpServerSettingsInput) =>
     typedError<McpServerSettingsView, string>(
       __TAURI_INVOKE("upsert_mcp_server_settings", { input })
@@ -317,9 +319,26 @@ export type CatalogSourceViewResponse = {
   last_error: string | null;
 };
 
+export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
+
 export type ConnectivityTestResult = {
   ok: boolean;
   error: string | null;
+};
+
+/**
+ *  Concrete effective-view wrapper for MCP server settings.
+ *  Combines [`EffectiveItem`] metadata with a [`McpServerSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveMcpServerView = {
+  value: McpServerSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
 };
 
 export type InstallGithubSkillRequest = {

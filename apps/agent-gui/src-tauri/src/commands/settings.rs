@@ -27,6 +27,48 @@ pub async fn list_mcp_server_settings(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn get_effective_mcp_servers(
+    state: State<'_, GuiState>,
+) -> Result<Vec<EffectiveMcpServerView>, String> {
+    let config = state.config.read().map_err(|e| e.to_string())?;
+    let effective = agent_config::effective::build_effective_mcp_servers(&config);
+    Ok(effective
+        .into_iter()
+        .map(|item| {
+            let transport = match &item.value.transport {
+                agent_mcp::McpTransportDef::Stdio { .. } => "stdio".to_string(),
+                agent_mcp::McpTransportDef::Sse { .. } => "sse".to_string(),
+            };
+            let view = McpServerSettingsView {
+                id: item.value.name.clone(),
+                name: item.value.name.clone(),
+                transport,
+                enabled: item.enabled,
+                runtime_status: "unknown".to_string(),
+                trusted: false,
+                tool_count: None,
+                last_error: None,
+                writable: item.writable,
+                config_path: None,
+                description: None,
+                source: item.source.to_string(),
+            };
+            let effective_item = EffectiveItem {
+                value: view,
+                source: item.source,
+                overrides: item.overrides,
+                enabled: item.enabled,
+                disabled_by: item.disabled_by,
+                writable: item.writable,
+                deletable: item.deletable,
+            };
+            EffectiveMcpServerView::from_effective(effective_item)
+        })
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn upsert_mcp_server_settings(
     state: State<'_, GuiState>,
     input: McpServerSettingsInput,

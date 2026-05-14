@@ -247,6 +247,7 @@ pub fn run() {
             crate::commands::list_active_skills,
             // Settings commands
             crate::commands::list_mcp_server_settings,
+            crate::commands::get_effective_mcp_servers,
             crate::commands::upsert_mcp_server_settings,
             crate::commands::set_mcp_server_enabled,
             crate::commands::delete_mcp_server_settings,
