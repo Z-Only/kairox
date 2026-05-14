@@ -6,12 +6,52 @@ import { useProjectStore } from "@/stores/project";
 import { useNotifications } from "@/composables/useNotifications";
 import { renderMarkdown } from "../utils/markdown";
 import type { ProfileInfo, ProjectedRole } from "../types";
+import CommandPalette from "@/components/CommandPalette.vue";
+import FileMentionPalette from "@/components/FileMentionPalette.vue";
+import { useCommandRegistry, type CommandDef } from "@/composables/useCommandRegistry";
+import { useDraftStore } from "@/composables/useDraftStore";
 
 const { t } = useI18n();
 const session = useSessionStore();
 const projectStore = useProjectStore();
 const { notify } = useNotifications();
 const inputText = ref("");
+
+// --- Palette + draft state ---
+const draftStore = useDraftStore();
+const commandRegistry = useCommandRegistry();
+const showCommandPalette = ref(false);
+const showMentionPalette = ref(false);
+const paletteFilter = ref("");
+let _draftTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Load draft when session switches
+watch(
+  () => session.currentSessionId,
+  async (newId, oldId) => {
+    // Save draft for old session before switching
+    if (oldId && inputText.value.trim()) {
+      await draftStore.saveDraft(oldId, inputText.value);
+    }
+    // Load draft for new session
+    if (newId) {
+      inputText.value = await draftStore.loadDraft(newId);
+    } else {
+      inputText.value = "";
+    }
+  }
+);
+
+// Auto-save draft on input (debounced 500ms)
+watch(inputText, (val) => {
+  if (_draftTimer) clearTimeout(_draftTimer);
+  _draftTimer = setTimeout(async () => {
+    if (session.currentSessionId) {
+      await draftStore.saveDraft(session.currentSessionId, val);
+    }
+  }, 500);
+});
+
 const scrollbar = ref<HTMLElement | null>(null);
 const modelPopoverOpen = ref(false);
 const switchingModel = ref(false);
@@ -254,6 +294,75 @@ async function selectModelProfile(alias: string) {
   }
 }
 
+// Trigger detection for / and @
+function handleInput(e: Event) {
+  const textarea = e.target as HTMLTextAreaElement;
+  const cursorPos = textarea.selectionStart;
+  const textBeforeCursor = inputText.value.slice(0, cursorPos);
+
+  // Check for / command trigger: at start or after whitespace
+  const slashMatch = textBeforeCursor.match(/^\s*\/[^/\s]*$/);
+  // Check for @ mention trigger: at start or after whitespace
+  const atMatch = textBeforeCursor.match(/^\s*@[^@\s]*$/);
+
+  if (slashMatch) {
+    paletteFilter.value = textBeforeCursor.replace(/^\s*\//, "");
+    showCommandPalette.value = true;
+    showMentionPalette.value = false;
+  } else if (atMatch) {
+    paletteFilter.value = textBeforeCursor.replace(/^\s*@/, "");
+    showMentionPalette.value = true;
+    showCommandPalette.value = false;
+  } else {
+    showCommandPalette.value = false;
+    showMentionPalette.value = false;
+  }
+}
+
+function closePalettes() {
+  showCommandPalette.value = false;
+  showMentionPalette.value = false;
+}
+
+function onSelectCommand(cmd: CommandDef) {
+  if (cmd.insertText) {
+    // Replace the slash trigger with command text
+    const cursorPos = inputText.value.length;
+    const textBeforeCursor = inputText.value.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/^\s*\/[^\s]*/);
+    if (match) {
+      const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
+      const after = inputText.value.slice(cursorPos);
+      inputText.value = before + cmd.insertText + after;
+    }
+  }
+  closePalettes();
+}
+
+function onSelectSkill(skillId: string) {
+  const cursorPos = inputText.value.length;
+  const textBeforeCursor = inputText.value.slice(0, cursorPos);
+  const match = textBeforeCursor.match(/^\s*\/[^\s]*/);
+  if (match) {
+    const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
+    const after = inputText.value.slice(cursorPos);
+    inputText.value = before + `/skills ${skillId} ` + after;
+  }
+  closePalettes();
+}
+
+function onSelectFile(path: string) {
+  const cursorPos = inputText.value.length;
+  const textBeforeCursor = inputText.value.slice(0, cursorPos);
+  const match = textBeforeCursor.match(/^\s*@[^\s]*/);
+  if (match) {
+    const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
+    const after = inputText.value.slice(cursorPos);
+    inputText.value = before + `@${path} ` + after;
+  }
+  closePalettes();
+}
+
 async function sendMessage() {
   const content = inputText.value.trim();
   if ((!content && attachments.value.length === 0) || session.isStreaming) return;
@@ -272,6 +381,9 @@ async function sendMessage() {
 
   inputText.value = "";
   attachments.value = [];
+  if (session.currentSessionId) {
+    draftStore.clearDraft(session.currentSessionId);
+  }
   try {
     await invoke("send_message", payload);
   } catch (e) {
@@ -293,6 +405,10 @@ async function cancelSession() {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
+    // If a palette is open, let the palette handle it (don't send)
+    if (showCommandPalette.value || showMentionPalette.value) {
+      return;
+    }
     sendMessage();
   }
 }
@@ -413,6 +529,21 @@ watch(
     </div>
 
     <div class="input-area">
+      <div class="palette-container">
+        <CommandPalette
+          :visible="showCommandPalette"
+          :filter-text="paletteFilter"
+          @select-command="onSelectCommand"
+          @select-skill="onSelectSkill"
+          @close="closePalettes"
+        />
+        <FileMentionPalette
+          :visible="showMentionPalette"
+          :filter-text="paletteFilter"
+          @select-file="onSelectFile"
+          @close="closePalettes"
+        />
+      </div>
       <div class="composer-meta">
         <KxPopover
           v-model:open="modelPopoverOpen"
@@ -563,6 +694,7 @@ watch(
           rows="1"
           :placeholder="t('chat.placeholder')"
           @keydown="handleKeydown"
+          @input="handleInput"
         />
         <ContextMeter variant="ring" />
         <button
@@ -869,8 +1001,13 @@ watch(
   font-size: 13px;
 }
 .input-area {
+  position: relative;
   padding: 8px 16px;
   border-top: 1px solid var(--app-border-color, #d7d7d7);
+}
+
+.palette-container {
+  position: relative;
 }
 .composer-meta {
   display: flex;
