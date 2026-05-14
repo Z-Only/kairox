@@ -117,6 +117,7 @@ mod tests {
             trust: TrustLevel::Community,
             default_env: vec![],
             icon: None,
+            verified: false,
         }]
     }
 
