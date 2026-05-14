@@ -6,6 +6,7 @@ import { computed, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
+  type EffectiveMcpServerView,
   type McpServerSettingsInput,
   type McpServerSettingsView,
   type McpServerStatusResponse
@@ -50,6 +51,7 @@ export const useMcpStore = defineStore("mcp", () => {
   const settingsLoading = ref(false);
   const configFileOpening = ref(false);
   const settingsError = ref<string | null>(null);
+  const effectiveServers = ref<EffectiveMcpServerView[]>([]);
 
   const runningServers = computed(() => servers.value.filter((s) => s.status === "running"));
 
@@ -225,6 +227,15 @@ export const useMcpStore = defineStore("mcp", () => {
     }
   }
 
+  async function fetchEffectiveServers(): Promise<void> {
+    settingsError.value = null;
+    try {
+      effectiveServers.value = await unwrapCommandResult(commands.getEffectiveMcpServers());
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    }
+  }
+
   /**
    * Apply an MCP-related DomainEvent to the local state.
    * Called from useTauriEvents for real-time updates.
@@ -288,6 +299,8 @@ export const useMcpStore = defineStore("mcp", () => {
     setServerEnabled,
     deleteServerSettings,
     openConfigFile,
+    effectiveServers,
+    fetchEffectiveServers,
     handleMcpEvent
   };
 });

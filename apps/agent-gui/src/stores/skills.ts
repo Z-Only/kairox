@@ -5,6 +5,7 @@ import { defineStore } from "pinia";
 import {
   commands,
   type ActiveSkillView,
+  type EffectiveSkillView,
   type InstallGithubSkillRequest,
   type InstallRemoteSkillRequest,
   type RemoteSkillSearchResult,
@@ -53,6 +54,7 @@ export const useSkillsStore = defineStore("skills", () => {
   const activatingSkillId = ref<string | null>(null);
   const error = ref<string | null>(null);
   const skillSettings = ref<SkillSettingsView[]>([]);
+  const effectiveSkills = ref<EffectiveSkillView[]>([]);
   const remoteResults = ref<RemoteSkillSearchResult[]>([]);
   const settingsLoading = ref(false);
   const remoteLoading = ref(false);
@@ -152,6 +154,15 @@ export const useSkillsStore = defineStore("skills", () => {
       error.value = formatError(caughtError);
     } finally {
       settingsLoading.value = false;
+    }
+  }
+
+  async function fetchEffectiveSkills(): Promise<void> {
+    error.value = null;
+    try {
+      effectiveSkills.value = await unwrapCommandResult(commands.getEffectiveSkills());
+    } catch (caughtError) {
+      error.value = formatError(caughtError);
     }
   }
 
@@ -371,6 +382,8 @@ export const useSkillsStore = defineStore("skills", () => {
     activateSkill,
     deactivateSkill,
     loadSkillSettings,
+    effectiveSkills,
+    fetchEffectiveSkills,
     setSkillEnabled,
     deleteSkill,
     searchRemoteSkills,
