@@ -19,8 +19,8 @@ use agent_gui_tauri::commands::{
     InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse,
     McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse,
     ProfileDetailResponse, ProjectGitStatusResponse, ProjectInfoResponse,
-    ProjectInstructionSummaryResponse, ServerEntryResponse, SessionInfoResponse,
-    TaskSnapshotResponse, WorkspaceInfoResponse,
+    ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse, SessionInfoResponse,
+    TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -138,8 +138,12 @@ fn main() {
             agent_gui_tauri::commands::add_catalog_source,
             agent_gui_tauri::commands::remove_catalog_source,
             agent_gui_tauri::commands::set_catalog_source_enabled,
+            agent_gui_tauri::commands::list_workspace_files,
+            agent_gui_tauri::commands::save_draft,
+            agent_gui_tauri::commands::get_draft,
         ])
         .typ::<WorkspaceInfoResponse>()
+        .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
         .typ::<ProjectGitStatusResponse>()
@@ -189,7 +193,9 @@ fn main() {
         // Phase 2: catalog source types
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()
-        .typ::<ConnectivityTestResult>();
+        .typ::<ConnectivityTestResult>()
+        // Draft persistence types
+        .typ::<SaveDraftRequest>();
 
     match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),

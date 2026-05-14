@@ -13,10 +13,10 @@ onMounted(async () => {
   }
 });
 
-async function onInstall(entryPackage: string): Promise<void> {
+async function onInstall(entryPackage: string, packageUrl?: string | null): Promise<void> {
   installingId.value = entryPackage;
   try {
-    await store.installRemoteSkill(entryPackage, "user");
+    await store.installRemoteSkill(entryPackage, "user", packageUrl);
   } finally {
     installingId.value = null;
   }
@@ -41,7 +41,7 @@ async function onInstall(entryPackage: string): Promise<void> {
         :key="entry.catalog_id"
         :entry="entry"
         :installing="installingId === entry.package"
-        @install="onInstall(entry.package)"
+        @install="onInstall(entry.package, entry.package_url)"
       />
     </div>
   </div>

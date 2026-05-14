@@ -106,6 +106,10 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     await page.getByTestId("src-url").fill("https://registry.smithery.ai");
     await page.getByTestId("src-save").click();
 
+    // Close the settings modal so it doesn't block chip interaction.
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("catalog-source-settings-drawer")).not.toBeVisible();
+
     // The new remote chip starts active.
     const remote = page.getByTestId("source-chip-smithery");
     await expect(remote).toBeVisible();

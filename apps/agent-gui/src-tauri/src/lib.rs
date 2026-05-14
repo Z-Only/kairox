@@ -298,6 +298,10 @@ pub fn run() {
             crate::commands::add_catalog_source,
             crate::commands::remove_catalog_source,
             crate::commands::set_catalog_source_enabled,
+            // Draft persistence commands
+            crate::commands::list_workspace_files,
+            crate::commands::save_draft,
+            crate::commands::get_draft,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run tauri application");

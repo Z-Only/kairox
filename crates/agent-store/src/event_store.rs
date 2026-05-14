@@ -51,6 +51,11 @@ pub trait EventStore: Send + Sync {
         &self,
         workspace_id: &str,
     ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+
+    /// Save draft text for a session (upsert).
+    async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()>;
+    /// Get draft text for a session, returning empty string if none exists.
+    async fn get_draft(&self, session_id: &str) -> crate::Result<String>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -192,6 +197,16 @@ impl SqliteEventStore {
                 return Err(crate::StoreError::Sqlx(e));
             }
         }
+        // 0005 adds the session_drafts table; tolerate duplicate on re-connect
+        if let Err(e) = sqlx::query(include_str!("../migrations/0005_session_drafts.sql"))
+            .execute(&self.pool)
+            .await
+        {
+            let msg = e.to_string();
+            if !msg.contains("already exists") && !msg.contains("duplicate") {
+                return Err(crate::StoreError::Sqlx(e));
+            }
+        }
         Ok(())
     }
 
@@ -245,7 +260,7 @@ impl SqliteEventStore {
     pub async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
         let rows = sqlx::query_as::<_, SessionRowForQuery>(
             "SELECT session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at
-             FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY created_at ASC",
+             FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY updated_at DESC",
         )
         .bind(workspace_id)
         .fetch_all(&self.pool)
@@ -373,6 +388,31 @@ impl SqliteEventStore {
 
         transaction.commit().await?;
         Ok(count)
+    }
+
+    pub async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO session_drafts (session_id, draft_text, updated_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(session_id) DO UPDATE SET draft_text = excluded.draft_text, updated_at = excluded.updated_at",
+        )
+        .bind(session_id)
+        .bind(draft_text)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_draft(&self, session_id: &str) -> crate::Result<String> {
+        let row = sqlx::query("SELECT draft_text FROM session_drafts WHERE session_id = ?1")
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row
+            .map(|r: sqlx::sqlite::SqliteRow| r.get::<String, _>("draft_text"))
+            .unwrap_or_default())
     }
 }
 
@@ -506,6 +546,14 @@ impl EventStore for SqliteEventStore {
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()> {
+        SqliteEventStore::save_draft(self, session_id, draft_text).await
+    }
+
+    async fn get_draft(&self, session_id: &str) -> crate::Result<String> {
+        SqliteEventStore::get_draft(self, session_id).await
     }
 }
 
@@ -1170,5 +1218,96 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn save_and_get_draft() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Test".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            })
+            .await
+            .unwrap();
+
+        // Get draft for non-existent session returns empty
+        let draft = store.get_draft("ses_nonexistent").await.unwrap();
+        assert_eq!(draft, "");
+
+        // Save draft
+        store.save_draft("ses_1", "hello world").await.unwrap();
+
+        // Get draft returns saved text
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "hello world");
+
+        // Overwrite draft
+        store.save_draft("ses_1", "updated").await.unwrap();
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "updated");
+
+        // Clear draft
+        store.save_draft("ses_1", "").await.unwrap();
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "");
+    }
+
+    #[tokio::test]
+    async fn list_active_sessions_returns_most_recent_first() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now();
+        let old = (now - chrono::Duration::hours(1)).to_rfc3339();
+        let recent = now.to_rfc3339();
+
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_old".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: old.clone(),
+                updated_at: old,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_recent".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Recent".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: recent.clone(),
+                updated_at: recent,
+            })
+            .await
+            .unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(sessions[0].session_id, "ses_recent");
+        assert_eq!(sessions[1].session_id, "ses_old");
     }
 }

@@ -2431,6 +2431,125 @@ mod compact_session_command_tests {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct WorkspaceFilesResponse {
+    pub paths: Vec<String>,
+}
+
+fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut dirs = vec![root.to_path_buf()];
+    // Respect .gitignore / common ignores
+    let skip_dirs: &[&str] = &[
+        ".git",
+        "node_modules",
+        "target",
+        ".claude",
+        ".kairox",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".eggs",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".next",
+        ".nuxt",
+        ".output",
+    ];
+    while let Some(dir) = dirs.pop() {
+        if paths.len() >= max {
+            break;
+        }
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            if paths.len() >= max {
+                break;
+            }
+            let ft = match entry.file_type() {
+                Ok(ft) => ft,
+                Err(_) => continue,
+            };
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            let is_hidden = name_str.starts_with('.');
+            if ft.is_dir() {
+                if skip_dirs.contains(&name_str.as_ref())
+                    || (is_hidden && name_str != "." && name_str != "..")
+                {
+                    continue;
+                }
+                dirs.push(entry.path());
+            } else if ft.is_file() || ft.is_symlink() {
+                if is_hidden && !name_str.starts_with(".env") {
+                    continue;
+                }
+                if let Ok(rel) = entry.path().strip_prefix(root) {
+                    paths.push(rel.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    paths.sort();
+    paths
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_workspace_files(
+    workspace_path: String,
+) -> Result<WorkspaceFilesResponse, String> {
+    let root = std::path::PathBuf::from(&workspace_path);
+    if !root.exists() {
+        return Err(format!("Path does not exist: {}", workspace_path));
+    }
+    let paths = tokio::task::spawn_blocking(move || walk_workspace_files(&root, 500))
+        .await
+        .map_err(|e| format!("Failed to walk files: {e}"))?;
+    Ok(WorkspaceFilesResponse { paths })
+}
+
+// ---------------------------------------------------------------------------
+// Draft persistence commands
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct SaveDraftRequest {
+    pub session_id: String,
+    pub draft_text: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn save_draft(
+    state: State<'_, GuiState>,
+    request: SaveDraftRequest,
+) -> Result<(), String> {
+    state
+        .runtime
+        .store()
+        .save_draft(&request.session_id, &request.draft_text)
+        .await
+        .map_err(|e| format!("Failed to save draft: {e}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_draft(state: State<'_, GuiState>, session_id: String) -> Result<String, String> {
+    state
+        .runtime
+        .store()
+        .get_draft(&session_id)
+        .await
+        .map_err(|e| format!("Failed to get draft: {e}"))
+}
+
 #[cfg(test)]
 mod switch_model_command_tests {
     use super::switch_model;

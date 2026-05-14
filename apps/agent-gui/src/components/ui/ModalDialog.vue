@@ -15,9 +15,9 @@ watch(
   () => props.open,
   (val) => {
     if (val) {
-      nextTick(() => dialogRef.value?.showModal());
+      nextTick(() => dialogRef.value?.showModal?.());
     } else {
-      dialogRef.value?.close();
+      dialogRef.value?.close?.();
     }
   }
 );

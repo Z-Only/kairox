@@ -376,6 +376,7 @@ pub struct InstallRemoteSkillRequest {
     pub package: String,
     pub source: String,
     pub target: SkillInstallTarget,
+    pub package_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -403,6 +404,7 @@ pub struct SkillCatalogEntry {
     pub security_score: Option<u32>,
     pub rating: Option<f64>,
     pub package: String,
+    pub package_url: Option<String>,
 }
 
 /// Query against the skills catalog.

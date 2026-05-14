@@ -364,6 +364,7 @@ export const useSessionStore = defineStore("session", () => {
       sessionId
     });
     currentSessionId.value = sessionId;
+    localStorage.setItem("kairox.last-active-session-id", sessionId);
     currentProfile.value = target.profile;
     if (currentProfile.value === "default" && profileInfos.value.length > 0) {
       currentProfile.value = profileInfos.value[0].alias;
@@ -486,7 +487,12 @@ export const useSessionStore = defineStore("session", () => {
       initialized.value = true;
       if (sessions.value.length > 0) {
         try {
-          await switchSession(sessions.value[0].id);
+          const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
+          const targetId =
+            lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
+              ? lastActiveId
+              : sessions.value[0].id;
+          await switchSession(targetId);
         } catch {
           // Initial session may have minimal data — non-critical.
         }
@@ -530,7 +536,12 @@ export const useSessionStore = defineStore("session", () => {
       await invoke("restore_workspace", { workspaceId: ws.workspace_id });
       sessions.value = await listOrdinarySessions();
       if (sessions.value.length > 0) {
-        await switchSession(sessions.value[0].id);
+        const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
+        const targetId =
+          lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
+            ? lastActiveId
+            : sessions.value[0].id;
+        await switchSession(targetId);
       }
       initialized.value = true;
       return true;

@@ -555,6 +555,7 @@ mod tests {
             package: "obra/superpowers@brainstorming".to_string(),
             source: "registry".to_string(),
             target: SkillInstallTarget::Project,
+            package_url: None,
         };
 
         let installed =
@@ -707,6 +708,7 @@ mod tests {
             package: "@skills/code-review@1.2.3".to_string(),
             source: "registry".to_string(),
             target: SkillInstallTarget::Project,
+            package_url: None,
         };
 
         let installed =
@@ -742,6 +744,7 @@ mod tests {
             package: "@skills/code-review@1.2.3".to_string(),
             source: "registry".to_string(),
             target: SkillInstallTarget::Project,
+            package_url: None,
         };
 
         let installed =

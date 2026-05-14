@@ -248,7 +248,15 @@ export const commands = {
   removeCatalogSource: (id: string) =>
     typedError<null, string>(__TAURI_INVOKE("remove_catalog_source", { id })),
   setCatalogSourceEnabled: (id: string, enabled: boolean) =>
-    typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled }))
+    typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled })),
+  listWorkspaceFiles: (workspacePath: string) =>
+    typedError<WorkspaceFilesResponse, string>(
+      __TAURI_INVOKE("list_workspace_files", { workspacePath })
+    ),
+  saveDraft: (request: SaveDraftRequest) =>
+    typedError<null, string>(__TAURI_INVOKE("save_draft", { request })),
+  getDraft: (sessionId: string) =>
+    typedError<string, string>(__TAURI_INVOKE("get_draft", { sessionId }))
 };
 
 /* Types */
@@ -332,6 +340,7 @@ export type InstallRemoteSkillRequest = {
   package: string;
   source: string;
   target: SkillInstallTarget;
+  package_url: string | null;
 };
 
 export type InstallRequestPayload = {
@@ -523,6 +532,11 @@ export type RemoteSkillSearchResult = {
   package: string;
 };
 
+export type SaveDraftRequest = {
+  session_id: string;
+  draft_text: string;
+};
+
 export type ServerEntryResponse = {
   id: string;
   source: string;
@@ -567,6 +581,7 @@ export type SkillCatalogEntry = {
   security_score: number | null;
   rating: number | null;
   package: string;
+  package_url: string | null;
 };
 
 /**  Query against the skills catalog. */
@@ -661,6 +676,10 @@ export type TaskSnapshotResponse = {
   state: string;
   dependencies: string[];
   error: string | null;
+};
+
+export type WorkspaceFilesResponse = {
+  paths: string[];
 };
 
 export type WorkspaceInfoResponse = {

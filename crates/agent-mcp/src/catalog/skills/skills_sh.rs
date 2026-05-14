@@ -83,6 +83,7 @@ impl SkillsShProvider {
             security_score: None,
             rating: None,
             package: item.id,
+            package_url: None,
         }
     }
 

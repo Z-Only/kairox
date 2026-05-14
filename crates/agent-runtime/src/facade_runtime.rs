@@ -1,5 +1,5 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
-use crate::skill_package::{NpxSkillsPackageManager, SkillPackageManager};
+use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
 use agent_core::facade::SessionFacade;
@@ -130,7 +130,7 @@ where
             catalog_cache: None,
             skill_registry: None,
             skill_settings_roots: crate::skill_settings::SkillSettingsRoots::default(),
-            skill_package_manager: Arc::new(NpxSkillsPackageManager),
+            skill_package_manager: Arc::new(DirectDownloadPackageManager),
             active_skills: Arc::new(Mutex::new(HashMap::new())),
             session_states: Arc::new(Mutex::new(HashMap::new())),
             config: Arc::new(agent_config::Config {
@@ -189,6 +189,11 @@ where
             .entry(session_id.to_string())
             .or_insert_with(crate::session::SessionState::default);
         entry.model_limits = Some(limits);
+    }
+
+    /// Public accessor for the underlying event store.
+    pub fn store(&self) -> &S {
+        &self.store
     }
 
     /// Test-only accessor for the underlying event store. Gated so production

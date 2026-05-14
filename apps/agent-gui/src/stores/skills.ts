@@ -193,14 +193,16 @@ export const useSkillsStore = defineStore("skills", () => {
 
   async function installRemoteSkill(
     packageName: string,
-    target: SkillInstallTarget
+    target: SkillInstallTarget,
+    packageUrl?: string | null
   ): Promise<SkillSettingsView | null> {
     settingsLoading.value = true;
     error.value = null;
     const request: InstallRemoteSkillRequest = {
       package: packageName,
-      source: packageName,
-      target
+      source: "registry",
+      target,
+      package_url: packageUrl ?? null
     };
     try {
       const installedSkill = await unwrapCommandResult(commands.installRemoteSkill(request));

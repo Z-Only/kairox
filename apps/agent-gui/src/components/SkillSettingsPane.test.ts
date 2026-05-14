@@ -226,7 +226,8 @@ describe("SkillSettingsPane", () => {
     // Default install target is "user" (syncs with ConfigSourceBar default)
     expect(mockedCommands.installRemoteSkill).toHaveBeenCalledWith({
       package: "docs-helper",
-      source: "docs-helper",
+      package_url: null,
+      source: "registry",
       target: "user"
     });
   });

@@ -3,6 +3,7 @@ import { useCatalogStore } from "@/stores/catalog";
 import CatalogList from "@/components/marketplace/CatalogList.vue";
 import InstallProgress from "@/components/marketplace/InstallProgress.vue";
 import CatalogSourcesSettings from "@/components/CatalogSourcesSettings.vue";
+import ModalDialog from "@/components/ui/ModalDialog.vue";
 
 const catalog = useCatalogStore();
 const { t } = useI18n();
@@ -76,13 +77,14 @@ onMounted(async () => {
         </button>
       </div>
 
-      <div
-        v-if="settingsOpen"
-        class="card settings-drawer"
+      <ModalDialog
+        :open="settingsOpen"
+        :title="t('marketplace.sourceSettingsAria')"
         data-test="catalog-source-settings-drawer"
+        @close="settingsOpen = false"
       >
         <CatalogSourcesSettings />
-      </div>
+      </ModalDialog>
 
       <CatalogList />
     </div>

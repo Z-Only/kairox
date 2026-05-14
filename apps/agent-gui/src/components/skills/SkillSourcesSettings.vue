@@ -10,9 +10,9 @@ const formError = ref<string | null>(null);
 const draft = ref({
   id: "",
   display_name: "",
-  kind: "skills-sh",
+  kind: "skillhub",
   url: "",
-  search_template: "/api/search?q={{query}}&limit={{limit}}",
+  search_template: "/api/skills?q={{query}}&limit={{limit}}",
   list_template: "",
   enabled: true,
   priority: 100,
@@ -20,8 +20,8 @@ const draft = ref({
 });
 
 const kindOptions = [
-  { label: "skills.sh", value: "skills-sh" },
-  { label: "SkillHub", value: "skillhub" }
+  { label: "SkillHub", value: "skillhub" },
+  { label: "skills.sh", value: "skills-sh" }
 ];
 
 onMounted(() => {
@@ -36,9 +36,9 @@ function resetDraft(): void {
   draft.value = {
     id: "",
     display_name: "",
-    kind: "skills-sh",
+    kind: "skillhub",
     url: "",
-    search_template: "/api/search?q={{query}}&limit={{limit}}",
+    search_template: "/api/skills?q={{query}}&limit={{limit}}",
     list_template: "",
     enabled: true,
     priority: 100,
@@ -134,13 +134,13 @@ function formatError(caughtError: unknown): string {
             <input
               type="checkbox"
               :checked="src.enabled"
-              :disabled="src.id === 'skills-sh' || src.id === 'skillhub'"
+              :disabled="src.id === 'skillhub'"
               @change="onToggle(src.id, ($event.target as HTMLInputElement).checked)"
             />
             Enabled
           </label>
           <button
-            v-if="src.id !== 'skills-sh' && src.id !== 'skillhub'"
+            v-if="src.id !== 'skillhub'"
             class="btn btn-error-ghost"
             :data-test="`skill-src-remove-${src.id}`"
             @click="onRemove(src.id)"

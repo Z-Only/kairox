@@ -29,7 +29,12 @@ onMounted(async () => {
     session.initialized = true;
     session.sessions = await invoke("list_sessions");
     if (session.sessions.length > 0) {
-      await session.switchSession(session.sessions[0].id);
+      const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
+      const targetId =
+        lastActiveId && session.sessions.some((s: { id: string }) => s.id === lastActiveId)
+          ? lastActiveId
+          : session.sessions[0].id;
+      await session.switchSession(targetId);
     }
   } catch (e) {
     console.error("Failed to initialize workspace:", e);
@@ -39,7 +44,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppLayout />
+  <AppLayout v-if="session.initialized" />
+  <div v-else class="app-loading" data-test="app-loading">
+    <span class="loading-spinner" />
+  </div>
 </template>
 
 <style>
@@ -62,5 +70,27 @@ h4,
 h5,
 h6 {
   line-height: 1.3;
+}
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--app-border-color);
+  border-top-color: var(--app-primary-color);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

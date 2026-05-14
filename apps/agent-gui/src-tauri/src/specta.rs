@@ -125,8 +125,12 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             add_catalog_source,
             remove_catalog_source,
             set_catalog_source_enabled,
+            list_workspace_files,
+            save_draft,
+            get_draft,
         ])
         .typ::<WorkspaceInfoResponse>()
+        .typ::<WorkspaceFilesResponse>()
         .typ::<SessionInfoResponse>()
         .typ::<ProjectInfoResponse>()
         .typ::<ProjectGitStatusResponse>()
@@ -177,6 +181,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()
         .typ::<ConnectivityTestResult>()
+        // Draft persistence types
+        .typ::<SaveDraftRequest>()
         // Event domain types (also exported by export-events binary)
         .typ::<EventPayload>()
         .typ::<DomainEvent>()
