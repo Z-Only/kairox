@@ -108,7 +108,7 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 }
 .tabs {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   border-bottom: 1px solid var(--app-border-color);
   margin-bottom: 12px;
 }
@@ -116,18 +116,23 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
   padding: 8px 16px;
   border: none;
   border-bottom: 2px solid transparent;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
   background: none;
   cursor: pointer;
   font-size: inherit;
   color: var(--app-text-color-2);
-  transition:
-    color 0.2s,
-    border-color 0.2s,
-    background 0.15s;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tab-btn {
+    transition:
+      color 0.2s,
+      border-color 0.2s,
+      background 0.15s;
+  }
 }
 .tab-btn[aria-selected="true"] {
   color: var(--app-primary-color);
+  border-bottom-width: 3px;
   border-bottom-color: var(--app-primary-color);
   background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
 }

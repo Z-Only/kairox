@@ -44,17 +44,20 @@ const { t } = useI18n();
 .app-nav a {
   text-decoration: none;
   color: var(--app-text-color-2);
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition:
-    color 0.2s,
-    background 0.2s,
-    transform 0.15s;
+  padding: 6px 12px;
+  border-radius: var(--app-radius-md);
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-nav a {
+    transition:
+      color 0.2s,
+      background 0.2s;
+  }
 }
 .app-nav a:hover {
   color: var(--app-text-color);
   background: var(--app-hover-color);
-  transform: translateY(-1px);
 }
 .app-nav a.router-link-active {
   color: var(--app-primary-color);
