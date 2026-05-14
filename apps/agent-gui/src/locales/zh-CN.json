@@ -121,7 +121,8 @@
     "currentModel": "当前",
     "selectModelAria": "选择模型。当前模型：{model}",
     "attachFileAria": "附加文件",
-    "removeFileAria": "移除 {name}"
+    "removeFileAria": "移除 {name}",
+    "emptyState": "开始对话"
   },
   "context": {
     "title": "上下文",

@@ -121,7 +121,8 @@
     "currentModel": "Current",
     "selectModelAria": "Select model. Current model: {model}",
     "attachFileAria": "Attach file",
-    "removeFileAria": "Remove {name}"
+    "removeFileAria": "Remove {name}",
+    "emptyState": "Start a conversation"
   },
   "context": {
     "title": "Context",
