@@ -11,6 +11,7 @@ import { useCatalogStore } from "@/stores/catalog";
 import { useMcpStore } from "@/stores/mcp";
 import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
+import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const catalog = useCatalogStore();
@@ -69,6 +70,7 @@ const overrides = ref<Record<string, string>>({});
 // PermissionCenter. Default to false and let the user opt in explicitly.
 const trustGrant = ref(false);
 const autoStart = ref(true);
+const installTarget = ref<ConfigScope>("User");
 
 // Re-initialise local form state whenever the selected entry changes.
 watch(
@@ -81,6 +83,7 @@ watch(
     overrides.value = next;
     trustGrant.value = false;
     autoStart.value = true;
+    catalogConnectivityResult.value = null;
   },
   { immediate: true }
 );
@@ -208,7 +211,9 @@ function onOverlayClick(event: MouseEvent) {
           </div>
         </div>
 
-        <footer class="drawer-footer">
+        <footer class="drawer-footer drawer-footer--with-scope">
+          <ScopeSelector v-model="installTarget" />
+
           <!-- Installed-status badge: shows scope when already installed -->
           <span
             v-if="isInstalled && scopeLabel"
@@ -298,6 +303,10 @@ function onOverlayClick(event: MouseEvent) {
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid var(--app-border-color);
+}
+
+.drawer-footer--with-scope {
+  flex-wrap: wrap;
 }
 .catalog-detail {
   display: flex;
@@ -445,5 +454,9 @@ function onOverlayClick(event: MouseEvent) {
   color: var(--app-text-color-2);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.drawer-footer--with-scope :deep(.scope-selector) {
+  width: 100%;
 }
 </style>

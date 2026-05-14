@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { useMcpStore } from "@/stores/mcp";
-import type { EffectiveMcpServerView, McpServerSettingsView } from "@/generated/commands";
+import type {
+  ConfigScope,
+  EffectiveMcpServerView,
+  McpServerSettingsView
+} from "@/generated/commands";
 import MarketplacePane from "@/components/MarketplacePane.vue";
+import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -16,6 +21,7 @@ const stdioCommand = ref("");
 const stdioArgs = ref("");
 const sseUrl = ref("");
 const busyServerId = ref<string | null>(null);
+const installTarget = ref<ConfigScope>("User");
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -335,6 +341,8 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
       @close="closeAddServerDialog"
     >
       <form class="mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
+        <ScopeSelector v-model="installTarget" :show-local="true" />
+
         <label for="mcp-server-name">{{ t("mcp.serverName") }}</label>
         <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
 

@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
-import type { EffectiveSkillView, SkillCatalogQuery } from "@/generated/commands";
+import type {
+  ConfigScope,
+  EffectiveSkillView,
+  SkillCatalogQuery,
+  SkillInstallTarget
+} from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
+import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -12,7 +18,7 @@ const activeSubTab = ref<"installed" | "discover">("installed");
 const sourceSettingsOpen = ref(false);
 const discoverKeyword = ref("");
 const githubSource = ref("");
-const installTarget = ref<"project" | "user">("user");
+const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
 
 const discoverSourceChips = computed(() => {
@@ -41,7 +47,7 @@ const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 watch(
   () => configSource?.value,
   (src) => {
-    if (src) installTarget.value = src;
+    if (src) installTarget.value = (src === "user" ? "User" : "Project") as ConfigScope;
   },
   { immediate: true }
 );
@@ -102,7 +108,8 @@ async function installFromGithub(): Promise<void> {
     return;
   }
 
-  const installedSkill = await skillsStore.installGithubSkill(trimmedSource, installTarget.value);
+  const target: SkillInstallTarget = installTarget.value.toLowerCase() as SkillInstallTarget;
+  const installedSkill = await skillsStore.installGithubSkill(trimmedSource, target);
   if (installedSkill) {
     githubSource.value = "";
   }
@@ -282,15 +289,7 @@ async function installFromGithub(): Promise<void> {
               data-test="skill-github-form"
               @submit.prevent="installFromGithub"
             >
-              <label for="skill-install-target">{{ t("skills.target") }}</label>
-              <select
-                id="skill-install-target"
-                v-model="installTarget"
-                data-test="skill-install-target"
-              >
-                <option value="project">{{ t("skills.targetProject") }}</option>
-                <option value="user">{{ t("skills.targetUser") }}</option>
-              </select>
+              <ScopeSelector v-model="installTarget" />
 
               <label for="skill-github-source">{{ t("skills.githubUrl") }}</label>
               <input
