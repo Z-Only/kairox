@@ -34,6 +34,7 @@ const state = {
   agents: new Map(),
   /** Tauri v2 event system: eventName → Map<eventId, handler> */
   eventListeners: new Map(),
+  drafts: new Map(),
   profiles: [
     {
       alias: "fast",
@@ -1724,6 +1725,15 @@ function invoke(cmd, args) {
       return "/mock/path/to/config";
     }
 
+    case "save_draft": {
+      state.drafts.set(args.request.session_id, args.request.draft_text);
+      return Promise.resolve(undefined);
+    }
+
+    case "get_draft": {
+      return Promise.resolve(state.drafts.get(args.session_id) || "");
+    }
+
     default:
       console.warn("[tauri-mock] Unknown invoke: " + cmd, args);
       return Promise.resolve(undefined);
@@ -1889,6 +1899,7 @@ function installMock() {
       state.memories = [];
       state.permissionRequests.clear();
       state.agents.clear();
+      state.drafts.clear();
       state.callbacks.clear();
       state.eventListeners.clear();
       idCounter = 0;

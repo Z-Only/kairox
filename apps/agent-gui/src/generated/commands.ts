@@ -248,7 +248,11 @@ export const commands = {
   removeCatalogSource: (id: string) =>
     typedError<null, string>(__TAURI_INVOKE("remove_catalog_source", { id })),
   setCatalogSourceEnabled: (id: string, enabled: boolean) =>
-    typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled }))
+    typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled })),
+  saveDraft: (request: SaveDraftRequest) =>
+    typedError<null, string>(__TAURI_INVOKE("save_draft", { request })),
+  getDraft: (sessionId: string) =>
+    typedError<string, string>(__TAURI_INVOKE("get_draft", { sessionId }))
 };
 
 /* Types */
@@ -521,6 +525,11 @@ export type RemoteSkillSearchResult = {
   install_count: number;
   source_url: string;
   package: string;
+};
+
+export type SaveDraftRequest = {
+  session_id: string;
+  draft_text: string;
 };
 
 export type ServerEntryResponse = {
