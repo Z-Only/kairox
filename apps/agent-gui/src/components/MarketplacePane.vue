@@ -83,7 +83,7 @@ onMounted(async () => {
         data-test="catalog-source-settings-drawer"
         @close="settingsOpen = false"
       >
-        <CatalogSourcesSettings @close="settingsOpen = false" />
+        <CatalogSourcesSettings />
       </ModalDialog>
 
       <CatalogList />

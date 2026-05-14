@@ -8,10 +8,6 @@ const catalog = useCatalogStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
 
-const emit = defineEmits<{
-  close: [];
-}>();
-
 const draft = ref<AddCatalogSourceRequestPayload>({
   id: "",
   display_name: "",
@@ -66,7 +62,6 @@ async function save(): Promise<void> {
   await catalog.addSource({ ...draft.value });
   showAddForm.value = false;
   resetDraft();
-  emit("close");
 }
 
 function onToggleChecked(id: string, checked: boolean): void {
