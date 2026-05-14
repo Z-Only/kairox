@@ -191,6 +191,11 @@ where
         entry.model_limits = Some(limits);
     }
 
+    /// Public accessor for the underlying event store.
+    pub fn store(&self) -> &S {
+        &self.store
+    }
+
     /// Test-only accessor for the underlying event store. Gated so production
     /// code can never read it.
     #[cfg(any(test, feature = "test-helpers"))]
