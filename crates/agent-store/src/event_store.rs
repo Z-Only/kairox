@@ -51,6 +51,11 @@ pub trait EventStore: Send + Sync {
         &self,
         workspace_id: &str,
     ) -> crate::Result<Vec<ProjectSessionMetaRow>>;
+
+    /// Save draft text for a session (upsert).
+    async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()>;
+    /// Get draft text for a session, returning empty string if none exists.
+    async fn get_draft(&self, session_id: &str) -> crate::Result<String>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -384,6 +389,31 @@ impl SqliteEventStore {
         transaction.commit().await?;
         Ok(count)
     }
+
+    pub async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO session_drafts (session_id, draft_text, updated_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(session_id) DO UPDATE SET draft_text = excluded.draft_text, updated_at = excluded.updated_at",
+        )
+        .bind(session_id)
+        .bind(draft_text)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_draft(&self, session_id: &str) -> crate::Result<String> {
+        let row = sqlx::query("SELECT draft_text FROM session_drafts WHERE session_id = ?1")
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row
+            .map(|r: sqlx::sqlite::SqliteRow| r.get::<String, _>("draft_text"))
+            .unwrap_or_default())
+    }
 }
 
 #[async_trait]
@@ -516,6 +546,14 @@ impl EventStore for SqliteEventStore {
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()> {
+        SqliteEventStore::save_draft(self, session_id, draft_text).await
+    }
+
+    async fn get_draft(&self, session_id: &str) -> crate::Result<String> {
+        SqliteEventStore::get_draft(self, session_id).await
     }
 }
 
@@ -1180,5 +1218,49 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn save_and_get_draft() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_1".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Test".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: chrono::Utc::now().to_rfc3339(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            })
+            .await
+            .unwrap();
+
+        // Get draft for non-existent session returns empty
+        let draft = store.get_draft("ses_nonexistent").await.unwrap();
+        assert_eq!(draft, "");
+
+        // Save draft
+        store.save_draft("ses_1", "hello world").await.unwrap();
+
+        // Get draft returns saved text
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "hello world");
+
+        // Overwrite draft
+        store.save_draft("ses_1", "updated").await.unwrap();
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "updated");
+
+        // Clear draft
+        store.save_draft("ses_1", "").await.unwrap();
+        let draft = store.get_draft("ses_1").await.unwrap();
+        assert_eq!(draft, "");
     }
 }
