@@ -107,7 +107,8 @@
     "expandProject": "Expand {name}",
     "collapseProject": "Collapse {name}",
     "toggleProject": "Toggle {name}",
-    "openProjectSession": "Open {title}"
+    "openProjectSession": "Open {title}",
+    "emptyState": "No sessions yet"
   },
   "chat": {
     "header": "Chat",

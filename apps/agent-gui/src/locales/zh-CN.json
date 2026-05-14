@@ -107,7 +107,8 @@
     "expandProject": "展开 {name}",
     "collapseProject": "折叠 {name}",
     "toggleProject": "切换 {name}",
-    "openProjectSession": "打开 {title}"
+    "openProjectSession": "打开 {title}",
+    "emptyState": "暂无会话"
   },
   "chat": {
     "header": "对话",
