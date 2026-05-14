@@ -490,6 +490,7 @@ export type McpServerSettingsView = {
   config_path: string | null;
   description: string | null;
   source: string;
+  verified?: boolean;
 };
 
 /**  The lifecycle status of an MCP server connection. */
