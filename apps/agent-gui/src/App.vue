@@ -41,3 +41,32 @@ onMounted(async () => {
 <template>
   <AppLayout />
 </template>
+
+<style>
+body {
+  font-family:
+    "IBM Plex Sans",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  line-height: 1.5;
+}
+
+code,
+pre,
+.markdown-body code,
+.markdown-body pre {
+  font-family: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.3;
+}
+</style>
