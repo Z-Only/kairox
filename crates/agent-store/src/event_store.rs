@@ -260,7 +260,7 @@ impl SqliteEventStore {
     pub async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
         let rows = sqlx::query_as::<_, SessionRowForQuery>(
             "SELECT session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at
-             FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY created_at ASC",
+             FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY updated_at DESC",
         )
         .bind(workspace_id)
         .fetch_all(&self.pool)
@@ -1262,5 +1262,52 @@ mod tests {
         store.save_draft("ses_1", "").await.unwrap();
         let draft = store.get_draft("ses_1").await.unwrap();
         assert_eq!(draft, "");
+    }
+
+    #[tokio::test]
+    async fn list_active_sessions_returns_most_recent_first() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_1", "/tmp/project")
+            .await
+            .unwrap();
+
+        let now = chrono::Utc::now();
+        let old = (now - chrono::Duration::hours(1)).to_rfc3339();
+        let recent = now.to_rfc3339();
+
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_old".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Old".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: old.clone(),
+                updated_at: old,
+            })
+            .await
+            .unwrap();
+        store
+            .upsert_session(&SessionRow {
+                session_id: "ses_recent".into(),
+                workspace_id: "wrk_1".into(),
+                title: "Recent".into(),
+                model_profile: "fast".into(),
+                model_id: None,
+                provider: None,
+                deleted_at: None,
+                created_at: recent.clone(),
+                updated_at: recent,
+            })
+            .await
+            .unwrap();
+
+        let sessions = store.list_active_sessions("wrk_1").await.unwrap();
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(sessions[0].session_id, "ses_recent");
+        assert_eq!(sessions[1].session_id, "ses_old");
     }
 }
