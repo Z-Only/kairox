@@ -51,6 +51,8 @@
 - ✅ Add MCP and skills settings UI in GUI
 - ✅ Optimize build and package pipeline
 - ✅ GUI interaction polish and UI primitives improvements
+- ✅ Comprehensive GUI UI polish — color system, typography scale, accessibility refinements, micro-interactions (#155)
+- ✅ Upgrade Rust and JS dependencies to latest versions (#156)
 
 ## Mid term
 
