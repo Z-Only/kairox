@@ -24,6 +24,8 @@ pub struct ServerEntry {
     pub trust: TrustLevel,
     pub default_env: Vec<EnvVarSpec>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub verified: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

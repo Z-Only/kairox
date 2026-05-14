@@ -39,6 +39,11 @@ pub async fn get_effective_mcp_servers(
                 agent_mcp::McpTransportDef::Stdio { .. } => "stdio".to_string(),
                 agent_mcp::McpTransportDef::Sse { .. } => "sse".to_string(),
             };
+            let verified = if item.source == agent_core::config_scope::ConfigScope::Builtin {
+                agent_mcp::catalog::builtin::lookup_verified(&item.value.name)
+            } else {
+                true
+            };
             let view = McpServerSettingsView {
                 id: item.value.name.clone(),
                 name: item.value.name.clone(),
@@ -52,6 +57,7 @@ pub async fn get_effective_mcp_servers(
                 config_path: None,
                 description: None,
                 source: item.source.to_string(),
+                verified,
             };
             let effective_item = EffectiveItem {
                 value: view,

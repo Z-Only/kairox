@@ -239,6 +239,8 @@ pub struct McpServerSettingsView {
     pub config_path: Option<String>,
     pub description: Option<String>,
     pub source: String,
+    #[serde(default)]
+    pub verified: bool,
 }
 
 /// Concrete effective-view wrapper for MCP server settings.

@@ -38,7 +38,8 @@
           "default": "~"
         }
       ],
-      "icon": "📁"
+      "icon": "📁",
+      "verified": true
     },
     {
       "id": "git",
@@ -76,7 +77,8 @@
           "default": "."
         }
       ],
-      "icon": "🔀"
+      "icon": "🔀",
+      "verified": true
     },
     {
       "id": "github",
@@ -114,7 +116,8 @@
           "default": null
         }
       ],
-      "icon": "🐱"
+      "icon": "🐱",
+      "verified": true
     },
     {
       "id": "gitlab",
@@ -160,7 +163,8 @@
           "default": "https://gitlab.com/api/v4"
         }
       ],
-      "icon": "🦊"
+      "icon": "🦊",
+      "verified": false
     },
     {
       "id": "brave-search",
@@ -198,7 +202,8 @@
           "default": null
         }
       ],
-      "icon": "🔍"
+      "icon": "🔍",
+      "verified": false
     },
     {
       "id": "exa",
@@ -236,7 +241,8 @@
           "default": null
         }
       ],
-      "icon": "🧠"
+      "icon": "🧠",
+      "verified": false
     },
     {
       "id": "tavily",
@@ -274,7 +280,8 @@
           "default": null
         }
       ],
-      "icon": "🌐"
+      "icon": "🌐",
+      "verified": false
     },
     {
       "id": "puppeteer",
@@ -303,7 +310,8 @@
       ],
       "trust": "community",
       "default_env": [],
-      "icon": "🟦"
+      "icon": "🟦",
+      "verified": true
     },
     {
       "id": "playwright",
@@ -332,7 +340,8 @@
       ],
       "trust": "community",
       "default_env": [],
-      "icon": "🎭"
+      "icon": "🎭",
+      "verified": true
     },
     {
       "id": "sqlite",
@@ -370,7 +379,8 @@
           "default": null
         }
       ],
-      "icon": "💾"
+      "icon": "💾",
+      "verified": true
     },
     {
       "id": "postgres",
@@ -408,7 +418,8 @@
           "default": null
         }
       ],
-      "icon": "🐘"
+      "icon": "🐘",
+      "verified": false
     },
     {
       "id": "redis",
@@ -446,7 +457,8 @@
           "default": null
         }
       ],
-      "icon": "🔴"
+      "icon": "🔴",
+      "verified": false
     },
     {
       "id": "time",
@@ -475,7 +487,8 @@
       ],
       "trust": "verified",
       "default_env": [],
-      "icon": "⏰"
+      "icon": "⏰",
+      "verified": true
     },
     {
       "id": "fetch",
@@ -504,7 +517,8 @@
       ],
       "trust": "verified",
       "default_env": [],
-      "icon": "📥"
+      "icon": "📥",
+      "verified": true
     },
     {
       "id": "everything",
@@ -533,7 +547,8 @@
       ],
       "trust": "verified",
       "default_env": [],
-      "icon": "📦"
+      "icon": "📦",
+      "verified": true
     },
     {
       "id": "memory",
@@ -562,7 +577,8 @@
       ],
       "trust": "verified",
       "default_env": [],
-      "icon": "🧊"
+      "icon": "🧊",
+      "verified": true
     },
     {
       "id": "slack",
@@ -608,7 +624,8 @@
           "default": null
         }
       ],
-      "icon": "💬"
+      "icon": "💬",
+      "verified": false
     },
     {
       "id": "gmail",
@@ -637,7 +654,8 @@
       ],
       "trust": "community",
       "default_env": [],
-      "icon": "✉️"
+      "icon": "✉️",
+      "verified": false
     },
     {
       "id": "notion",
@@ -675,7 +693,8 @@
           "default": null
         }
       ],
-      "icon": "📒"
+      "icon": "📒",
+      "verified": false
     },
     {
       "id": "linear",
@@ -713,7 +732,8 @@
           "default": null
         }
       ],
-      "icon": "📋"
+      "icon": "📋",
+      "verified": false
     },
     {
       "id": "obsidian",
@@ -759,7 +779,8 @@
           "default": "https://127.0.0.1:27124"
         }
       ],
-      "icon": "📕"
+      "icon": "📕",
+      "verified": false
     },
     {
       "id": "aws-kb-retrieval",
@@ -813,7 +834,8 @@
           "default": "us-east-1"
         }
       ],
-      "icon": "☁️"
+      "icon": "☁️",
+      "verified": false
     },
     {
       "id": "google-maps",
@@ -851,7 +873,8 @@
           "default": null
         }
       ],
-      "icon": "🗺️"
+      "icon": "🗺️",
+      "verified": false
     },
     {
       "id": "sentry",
@@ -889,7 +912,8 @@
           "default": null
         }
       ],
-      "icon": "🚨"
+      "icon": "🚨",
+      "verified": false
     }
   ]
 }

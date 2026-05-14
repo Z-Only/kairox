@@ -282,6 +282,7 @@ mod tests_phase2 {
             trust,
             default_env: vec![],
             icon: None,
+            verified: false,
         }
     }
 

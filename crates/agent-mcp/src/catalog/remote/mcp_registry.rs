@@ -268,6 +268,7 @@ fn map_mcp_to_entry(
         trust,
         default_env,
         icon: None,
+        verified: false,
     })
 }
 

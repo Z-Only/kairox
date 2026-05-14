@@ -25,6 +25,7 @@ pub struct ServerEntryResponse {
     pub version: Option<String>,
     /// Lower-case trust level: "unverified" | "community" | "verified".
     pub trust: String,
+    pub verified: bool,
     pub icon: Option<String>,
     /// JSON-encoded `agent_mcp::catalog::InstallSpec`.
     pub install_spec_json: String,
@@ -187,6 +188,7 @@ fn into_response_entry(e: agent_core::ServerEntry) -> ServerEntryResponse {
         homepage: e.homepage,
         version: e.version,
         trust: e.trust,
+        verified: e.verified,
         icon: e.icon,
         install_spec_json: e.install_spec_json,
         requirements_json: e.requirements_json,

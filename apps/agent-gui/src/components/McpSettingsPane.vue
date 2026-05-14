@@ -291,6 +291,12 @@ async function enableAtScope(serverId: string): Promise<void> {
                   <span :class="['tag', server.value.trusted ? 'tag-success' : 'tag-warning']">
                     {{ server.value.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
                   </span>
+                  <span
+                    v-if="server.source === 'builtin' && !server.value.verified"
+                    class="tag tag--unverified"
+                  >
+                    Unverified
+                  </span>
                 </div>
                 <p
                   v-if="server.value.last_error"
@@ -632,5 +638,10 @@ async function enableAtScope(serverId: string): Promise<void> {
 .tag--disabled-by {
   background: var(--color-danger-light);
   color: var(--color-danger);
+}
+
+.tag--unverified {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
 }
 </style>
