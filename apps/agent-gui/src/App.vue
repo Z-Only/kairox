@@ -44,13 +44,7 @@ onMounted(async () => {
 
 <style>
 body {
-  font-family:
-    "IBM Plex Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    system-ui,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -58,7 +52,7 @@ code,
 pre,
 .markdown-body code,
 .markdown-body pre {
-  font-family: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
 }
 
 h1,

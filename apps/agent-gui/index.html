@@ -8,18 +8,5 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
-    <script>
-      // Load web fonts asynchronously after page becomes interactive.
-      // Must not block initial render (macOS WKWebView hangs on unreachable hosts).
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          var link = document.createElement("link");
-          link.rel = "stylesheet";
-          link.href =
-            "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap";
-          document.head.appendChild(link);
-        });
-      });
-    </script>
   </body>
 </html>
