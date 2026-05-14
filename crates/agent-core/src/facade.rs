@@ -43,6 +43,7 @@ pub struct CatalogQuery {
     pub trust_min: Option<String>,
     /// Filter by source id (e.g. "builtin").
     pub source: Option<String>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub limit: Option<usize>,
 }
 
@@ -125,6 +126,7 @@ pub struct CatalogSourceView {
     /// Lower-case trust level cap: "unverified" | "community" | "verified".
     pub default_trust: String,
     pub enabled: bool,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub cache_ttl_seconds: Option<u64>,
     /// Last error observed when querying this source, if any.
     pub last_error: Option<String>,
@@ -145,6 +147,7 @@ pub struct AddCatalogSourceRequest {
     pub priority: Option<u32>,
     pub default_trust: Option<String>,
     pub enabled: Option<bool>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub cache_ttl_seconds: Option<u64>,
 }
 
@@ -229,6 +232,7 @@ pub struct McpServerSettingsView {
     pub enabled: bool,
     pub runtime_status: String,
     pub trusted: bool,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub tool_count: Option<usize>,
     pub last_error: Option<String>,
     pub writable: bool,
@@ -245,11 +249,14 @@ pub struct ProfileSettingsInput {
     pub model_id: String,
     #[serde(default = "crate::facade::default_true")]
     pub enabled: bool,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub context_window: Option<u64>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub output_limit: Option<u64>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub top_k: Option<u32>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
     pub api_key_env: Option<String>,
@@ -266,11 +273,14 @@ pub struct ProfileSettingsView {
     pub provider: String,
     pub model_id: String,
     pub enabled: bool,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub context_window: Option<u64>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub output_limit: Option<u64>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub top_k: Option<u32>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
     pub api_key_env: Option<String>,
@@ -346,6 +356,7 @@ pub struct RemoteSkillSearchResult {
     pub name: String,
     pub description: String,
     pub repository: Option<String>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub install_count: Option<u64>,
     pub source_url: String,
     pub package: String,
@@ -385,7 +396,9 @@ pub struct SkillCatalogEntry {
     pub description: String,
     pub source: String,
     pub source_url: String,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub install_count: Option<u64>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub github_stars: Option<u64>,
     pub security_score: Option<u32>,
     pub rating: Option<f64>,
@@ -398,6 +411,7 @@ pub struct SkillCatalogEntry {
 pub struct SkillCatalogQuery {
     pub keyword: Option<String>,
     pub sources: Option<Vec<String>>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub limit: Option<usize>,
 }
 
@@ -439,6 +453,7 @@ pub struct SkillSourceView {
     pub field_mapping: SkillFieldMappingView,
     pub enabled: bool,
     pub priority: u32,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub cache_ttl_seconds: u64,
     pub last_error: Option<String>,
 }
@@ -525,6 +540,7 @@ pub struct ProjectMeta {
     pub created_at: String,
     pub updated_at: String,
     pub removed_at: Option<String>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub sort_order: i64,
     pub expanded: bool,
 }
@@ -582,7 +598,9 @@ pub struct TaskSnapshot {
     pub state: crate::TaskState,
     pub dependencies: Vec<TaskId>,
     pub error: Option<String>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub retry_count: usize,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_retries: usize,
     pub assigned_agent_id: Option<String>,
     pub failure_reason: Option<crate::TaskFailureReason>,

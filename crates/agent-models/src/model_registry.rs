@@ -18,7 +18,9 @@ pub enum LimitSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ModelLimits {
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub context_window: u64,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub output_limit: u64,
     pub source: LimitSource,
 }

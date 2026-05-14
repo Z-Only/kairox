@@ -9,26 +9,15 @@ export type AgentRole = "Planner" | "Worker" | "Reviewer";
  *  crosses `ContextPolicy.auto_compact_threshold`. `UserRequested` is the
  *  manual path (TUI `:compact` / GUI button — both wired in P3).
  */
-export type CompactionReason = { type: "UserRequested" } | { type: "Threshold"; ratio: number };
-
-export type ContextSource =
-  | "system"
-  | "project_instruction"
-  | "tool_definitions"
-  | "request"
-  | "memory"
-  | "history"
-  | "tool_result"
-  | "selected_file"
-  | "compaction_summary"
-  | "skill";
+export type CompactionReason =
+  | { type: "UserRequested" }
+  | { type: "Threshold"; ratio: number | null };
 
 export type ContextUsage = {
   total_tokens: number;
   budget_tokens: number;
   context_window: number;
   output_reservation: number;
-  by_source: [ContextSource, number][];
   estimator: string;
   corrected_by_real_usage: boolean;
 };
@@ -97,7 +86,7 @@ export type EventPayload =
        *  introducing a cycle on `agent-models`.
        */
       context_window: number;
-      // Mirrors `agent_models::ModelLimits.output_limit`.
+      /**  Mirrors `agent_models::ModelLimits.output_limit`. */
       output_limit: number;
       /**
        *  Snake-case `agent_models::LimitSource` discriminant: one of
@@ -176,22 +165,22 @@ export type EventPayload =
   | { type: "CatalogSourceAdded"; source: string }
   | { type: "CatalogSourceFailed"; source: string; error: string };
 
-// The lifecycle status of an MCP server connection.
+/**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
-  // The server is stopped and not connected.
+  /**  The server is stopped and not connected. */
   | "stopped"
-  // The server is starting up (launching process or connecting).
+  /**  The server is starting up (launching process or connecting). */
   | "starting"
-  // The server is running and ready to accept requests.
+  /**  The server is running and ready to accept requests. */
   | "running"
-  // The server has failed and is no longer running.
+  /**  The server has failed and is no longer running. */
   | "failed";
 
 export type MemoryScope = "User" | "Workspace" | "Session";
 
 export type PrivacyClassification = "minimal_trace" | "full_trace";
 
-// Reason a task failed, used for diagnostics and UI display.
+/**  Reason a task failed, used for diagnostics and UI display. */
 export type TaskFailureReason =
   | { type: "ModelError"; retries: number }
   | { type: "ToolExhausted"; tool_id: string; attempts: number; last_error: string }
@@ -199,12 +188,12 @@ export type TaskFailureReason =
   | { type: "Cancelled" }
   | { type: "MaxIterations" };
 
-// A snapshot of the entire task graph for a session.
+/**  A snapshot of the entire task graph for a session. */
 export type TaskGraphSnapshot = {
   tasks: TaskSnapshot[];
 };
 
-// A snapshot of a single task in the task graph.
+/**  A snapshot of a single task in the task graph. */
 export type TaskSnapshot = {
   id: string;
   title: string;

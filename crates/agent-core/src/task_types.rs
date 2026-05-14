@@ -49,10 +49,12 @@ impl TaskState {
 #[serde(tag = "type", rename_all = "PascalCase")]
 pub enum TaskFailureReason {
     ModelError {
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         retries: usize,
     },
     ToolExhausted {
         tool_id: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         attempts: usize,
         last_error: String,
     },
@@ -100,8 +102,10 @@ impl Default for BackoffStrategy {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RetryConfig {
     /// Maximum retries for model errors (default: 3).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_model_retries: usize,
     /// Maximum retries for tool call exhaustion (default: 2).
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub max_tool_retries: usize,
     /// Backoff strategy between retries (default: ExponentialJitter).
     pub backoff: BackoffStrategy,

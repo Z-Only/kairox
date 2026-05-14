@@ -191,9 +191,11 @@ fn main() {
         .typ::<AddCatalogSourceRequestPayload>()
         .typ::<ConnectivityTestResult>();
 
-    specta_builder
-        .export(specta_typescript::Typescript::default(), out_path)
-        .expect("Failed to export specta types");
-
-    eprintln!("TypeScript bindings exported to {}", out_path.display());
+    match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
+        Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),
+        Err(e) => {
+            eprintln!("Export error: {e:?}");
+            std::process::exit(1);
+        }
+    }
 }

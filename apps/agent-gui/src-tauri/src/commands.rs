@@ -75,6 +75,7 @@ pub struct ProjectInfoResponse {
     pub display_name: String,
     pub root_path: String,
     pub removed_at: Option<String>,
+    #[specta(type = i32)]
     pub sort_order: i64,
     pub expanded: bool,
     pub path_exists: bool,
@@ -169,6 +170,7 @@ impl From<MemoryEntry> for MemoryEntryResponse {
 pub struct McpServerStatusResponse {
     pub id: String,
     pub status: agent_mcp::McpServerStatus,
+    #[specta(type = u32)]
     pub tool_count: Option<usize>,
 }
 
@@ -191,6 +193,7 @@ pub struct McpResourceDefResponse {
 pub struct McpPromptDefResponse {
     pub name: String,
     pub description: Option<String>,
+    #[specta(type = u32)]
     pub argument_count: usize,
 }
 
@@ -857,7 +860,7 @@ pub async fn query_memories(
     state: State<'_, GuiState>,
     scope: Option<String>,
     keywords: Option<Vec<String>>,
-    limit: Option<usize>,
+    limit: Option<u32>,
 ) -> Result<Vec<MemoryEntryResponse>, String> {
     let scope = scope.map(|s| match s.as_str() {
         "user" => MemoryScope::User,
@@ -869,7 +872,7 @@ pub async fn query_memories(
         .query(MemoryQuery {
             scope,
             keywords: keywords.unwrap_or_default(),
-            limit: limit.unwrap_or(50),
+            limit: limit.unwrap_or(50) as usize,
             session_id: None,
             workspace_id: None,
         })
@@ -1943,6 +1946,7 @@ pub struct CatalogQueryRequest {
     /// "unverified" | "community" | "verified"
     pub trust_min: Option<String>,
     pub source: Option<String>,
+    #[specta(type = u32)]
     pub limit: Option<usize>,
 }
 
@@ -2189,6 +2193,7 @@ pub struct CatalogSourceViewResponse {
     pub priority: u32,
     pub default_trust: String,
     pub enabled: bool,
+    #[specta(type = u32)]
     pub cache_ttl_seconds: Option<u64>,
     pub last_error: Option<String>,
 }
@@ -2203,6 +2208,7 @@ pub struct AddCatalogSourceRequestPayload {
     pub priority: Option<u32>,
     pub default_trust: Option<String>,
     pub enabled: Option<bool>,
+    #[specta(type = u32)]
     pub cache_ttl_seconds: Option<u64>,
 }
 
@@ -2316,7 +2322,9 @@ pub struct ProfileWithLimits {
     pub alias: String,
     pub provider: String,
     pub model_id: String,
+    #[specta(type = u32)]
     pub context_window: u64,
+    #[specta(type = u32)]
     pub output_limit: u64,
     /// Snake-case `LimitSource`: "user_config" | "builtin_registry" | "runtime_probe" | "fallback".
     pub limit_source: String,
