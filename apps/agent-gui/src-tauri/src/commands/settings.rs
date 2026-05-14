@@ -665,6 +665,25 @@ pub async fn read_mcp_resource(
     }
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn test_mcp_connectivity(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<agent_mcp::ConnectivityResult, String> {
+    let runtime = state.runtime.clone();
+    match runtime.mcp_manager() {
+        Some(manager) => {
+            let mut manager = manager.lock().await;
+            manager
+                .test_connectivity(&server_id, Some(std::time::Duration::from_secs(15)))
+                .await
+                .map_err(|e| e.to_string())
+        }
+        None => Err("No MCP servers configured".into()),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileWithLimits {
     pub alias: String,

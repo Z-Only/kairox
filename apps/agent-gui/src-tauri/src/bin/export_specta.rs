@@ -130,6 +130,7 @@ fn main() {
             agent_gui_tauri::commands::list_mcp_resources,
             agent_gui_tauri::commands::list_mcp_prompts,
             agent_gui_tauri::commands::read_mcp_resource,
+            agent_gui_tauri::commands::test_mcp_connectivity,
             // Marketplace commands
             agent_gui_tauri::commands::list_catalog,
             agent_gui_tauri::commands::get_catalog_entry,
@@ -203,6 +204,7 @@ fn main() {
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()
         .typ::<ConnectivityTestResult>()
+        .typ::<agent_mcp::ConnectivityResult>()
         // Draft persistence types
         .typ::<SaveDraftRequest>();
 

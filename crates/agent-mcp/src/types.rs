@@ -377,6 +377,27 @@ mod json_string_option {
 }
 
 // ---------------------------------------------------------------------------
+// MCP connectivity test result
+// ---------------------------------------------------------------------------
+
+/// Result of a connectivity test to an MCP server.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ConnectivityResult {
+    /// The server is reachable and returned tools.
+    Connected {
+        /// Number of tools discovered on the server.
+        tool_count: u32,
+    },
+    /// The server could not be reached or the operation timed out.
+    Failed {
+        /// Human-readable reason for the failure.
+        reason: String,
+    },
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 

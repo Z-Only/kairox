@@ -285,6 +285,22 @@ impl McpServerManager {
         client.read_resource(uri).await
     }
 
+    /// Test connectivity to an MCP server.
+    ///
+    /// Starts the server if necessary, then calls `tools/list` to verify
+    /// the server is responsive. Returns a [`ConnectivityResult`].
+    pub async fn test_connectivity(
+        &mut self,
+        server_id: &str,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<agent_mcp::ConnectivityResult, McpError> {
+        let lifecycle = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| McpError::NotRunning(server_id.to_string()))?;
+        Ok(lifecycle.test_connectivity(timeout).await)
+    }
+
     /// Shut down all managed servers.
     pub async fn shutdown_all(&mut self) -> Result<(), McpError> {
         let ids: Vec<String> = self.servers.keys().cloned().collect();

@@ -117,6 +117,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_mcp_resources,
             list_mcp_prompts,
             read_mcp_resource,
+            test_mcp_connectivity,
             // Marketplace commands
             list_catalog,
             get_catalog_entry,
@@ -175,6 +176,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<McpPromptDefResponse>()
         .typ::<McpContentBlockResponse>()
         .typ::<McpServerStatus>()
+        .typ::<agent_mcp::ConnectivityResult>()
         // Marketplace request/response types
         .typ::<CatalogQueryRequest>()
         .typ::<ServerEntryResponse>()

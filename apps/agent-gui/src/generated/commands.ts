@@ -202,6 +202,8 @@ export const commands = {
     typedError<McpContentBlockResponse[], string>(
       __TAURI_INVOKE("read_mcp_resource", { serverId, uri })
     ),
+  testMcpConnectivity: (serverId: string) =>
+    typedError<ConnectivityResult, string>(__TAURI_INVOKE("test_mcp_connectivity", { serverId })),
   listCatalog: (
     query: {
       keyword: string | null;
@@ -324,6 +326,21 @@ export type CatalogSourceViewResponse = {
 };
 
 export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
+
+/**  Result of a connectivity test to an MCP server. */
+export type ConnectivityResult =
+  /**  The server is reachable and returned tools. */
+  | {
+      status: "connected";
+      /**  Number of tools discovered on the server. */
+      tool_count: number;
+    }
+  /**  The server could not be reached or the operation timed out. */
+  | {
+      status: "failed";
+      /**  Human-readable reason for the failure. */
+      reason: string;
+    };
 
 export type ConnectivityTestResult = {
   ok: boolean;
