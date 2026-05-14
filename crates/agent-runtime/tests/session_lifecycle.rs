@@ -79,6 +79,14 @@ impl EventStore for NonSqliteEventStore {
     ) -> agent_store::Result<Vec<ProjectSessionMetaRow>> {
         Ok(Vec::new())
     }
+
+    async fn save_draft(&self, _session_id: &str, _draft_text: &str) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn get_draft(&self, _session_id: &str) -> agent_store::Result<String> {
+        Ok(String::new())
+    }
 }
 
 /// Helper: create an in-memory runtime for quick tests.

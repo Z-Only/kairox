@@ -8,7 +8,8 @@ import CommandPalette from "./CommandPalette.vue";
 // Session store: a valid session so session-active commands appear
 vi.mock("@/stores/session", () => ({
   useSessionStore: () => ({
-    currentSessionId: "ses_1"
+    currentSessionId: "ses_1",
+    resetProjection: vi.fn()
   })
 }));
 

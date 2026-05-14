@@ -17,6 +17,26 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(vi.fn()))
 }));
+vi.mock("@/composables/useDraftStore", () => ({
+  useDraftStore: () => ({
+    loadDraft: vi.fn(() => Promise.resolve("")),
+    saveDraft: vi.fn(() => Promise.resolve()),
+    clearDraft: vi.fn(() => Promise.resolve())
+  })
+}));
+vi.mock("@/composables/useCommandRegistry", () => ({
+  useCommandRegistry: () => ({
+    filterText: { value: "" },
+    setFilter: vi.fn(),
+    allItems: () => []
+  })
+}));
+vi.mock("@/components/CommandPalette.vue", () => ({
+  default: { name: "CommandPalette", template: "<div/>", props: ["visible", "filterText"] }
+}));
+vi.mock("@/components/FileMentionPalette.vue", () => ({
+  default: { name: "FileMentionPalette", template: "<div/>", props: ["visible", "filterText"] }
+}));
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
