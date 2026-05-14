@@ -1,5 +1,6 @@
 pub mod account;
 pub mod build_info;
+pub mod config_scope;
 pub mod context_types;
 pub mod error;
 pub mod events;
@@ -12,6 +13,7 @@ pub mod task_types;
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
 pub use account::{AccountService, AccountState, LocalNoAccountService};
+pub use config_scope::ConfigScope;
 pub use context_types::{ContextSource, ContextUsage};
 pub use error::CoreError;
 pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassification};
