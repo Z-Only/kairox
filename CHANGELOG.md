@@ -4,26 +4,75 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-05-14
+
+### 🚀 Features
+
+- **gui**: add chat file attachment support with image previews (#123)
+- **config,models**: enhance model configuration with auto-detection, sampling params, and upstream config search (#124)
+- **mcp**: skills marketplace with catalog discovery and source management (#125)
+- **gui**: add model settings page, MCP refresh, and UI improvements (#127)
+- **gui**: model settings polish — ordering, filtering, source toggle, and UI rework (#128)
+- **gui**: restructure settings panel with tabs, config source bar, and archive tab (#131)
+- **runtime**: inject project instruction file contents into agent context (#132)
+- **gui**: open config files with system editor, add connectivity test, restructure settings panes (#133)
+- add test coverage for core crates (+85 tests)
+- **gui**: comprehensive UI polish — color, typography, accessibility, micro-interactions (#155)
+
+### 🐛 Bug Fixes
+
+- **gui**: session naming, model error, thumbnails, archive icons, context window
+
+### 📚 Documentation
+
+- refresh project documentation for v0.19.0 (#122)
+- update ROADMAP for v0.20.0
+- refresh AI docs for v0.20.0
+
+### 📦 Dependencies
+
+- **deps-dev**: bump @playwright/test from 1.59.1 to 1.60.0 (#137)
+- **deps-dev**: bump @commitlint/cli from 20.5.3 to 21.0.1 (#148)
+- **deps**: bump @rolldown/binding-win32-x64-msvc (#150)
+- **deps**: bump vue-i18n from 9.14.5 to 11.4.2 (#144)
+- **deps-dev**: bump lint-staged from 17.0.2 to 17.0.4 (#140)
+- **deps**: bump pinia from 2.3.1 to 3.0.4 (#149)
+- **deps-dev**: bump vue-tsc from 3.2.8 to 3.2.9 (#151)
+- **deps-dev**: bump vite from 8.0.10 to 8.0.12 (#153)
+- **deps**: upgrade Rust and JS dependencies to latest versions (#156)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: fix CI warnings, flaky pilot test, and release build
+- resolve merge conflicts with main, sync McpFacade to main's profile settings API (#129)
+- remove unnecessary gitignore entries for generated files
+- add AI assistant local config to gitignore
+- remove deprecated pnpm config options
+
 ## [0.19.0] - 2026-05-11
 
 ### 🚀 Features
 
-- **skills**: add native skills system for reusable prompt/tool/workflow capabilities
-- **config**: discover project config under `.kairox/` directories (#113)
+- add native skills system
+- **config**: discover project config under .kairox (#113)
 - **gui**: add project workspace flows (#115)
-- **gui**: add mcp and skills settings (#114)
+- add mcp and skills settings (#114)
 - **gui**: interaction polish (#117)
 - **gui**: UI primitives polish and interaction improvements (#119)
 
 ### 🐛 Bug Fixes
 
-- **gui**: UI polish round 2 — contrast, hover, and context-meter cleanup (#120)
-- **gui**: fail fast when dev port is occupied (#118)
 - **gui**: pin tauri-pilot v0.5.1
+- **gui**: fail fast when dev port is occupied (#118)
+- **gui**: UI polish round 2 — contrast, hover, and context-meter cleanup (#120)
 
 ### ⚡ Performance
 
-- **build**: optimize build and package pipeline (#116)
+- optimize build and package pipeline (#116)
+
+### 🔧 Miscellaneous Tasks
+
+- bump version to v0.19.0 (#121)
 
 ## [0.18.0] - 2026-05-09
 
@@ -57,7 +106,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - update gitignore for tauri gen path
 - untrack auto-generated files and refine .gitignore
 
-### 🏗 Build
+### build
 
 - add gen-types dependency to gui and tauri commands
 

@@ -19,7 +19,8 @@
 | agent-memory  | Memory, context assembly, and compaction                                                        | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
 | agent-models  | LLM adapters + model metadata/context windows                                                   | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
 | agent-tools   | Tool registry & permissions, built-in tools                                                     | `ToolRegistry`, `PermissionEngine`, `Tool`            |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, skills system                                    | `McpClient`, `Transport`, `ServerLifecycle`           |
+| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                              | `McpClient`, `Transport`, `ServerLifecycle`           |
+| agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery      | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`       |
 | agent-config  | TOML config, profile discovery, `.kairox/` discovery, skills/MCP config                         | `ProfileDef`, `build_router`                          |
 | agent-runtime | Agent loop, context budgets, compaction, model switching, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
 | agent-tui     | Terminal UI (ratatui)                                                                           | `App`                                                 |
@@ -49,7 +50,7 @@ Edit all 5 files in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfi
 
 ## Commit convention
 
-Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `tui`, `gui`, `deps`, `ci`.
+Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `tui`, `gui`, `deps`, `ci`.
 
 Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps): ...`
 
