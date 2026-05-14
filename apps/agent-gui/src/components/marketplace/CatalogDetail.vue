@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import type { ServerEntryResponse, InstallRequestPayload } from "../../generated/commands";
+import type {
+  ServerEntryResponse,
+  InstallRequestPayload,
+  InstalledEntryResponse,
+  ConfigScope
+} from "../../generated/commands";
 import { useCatalogStore } from "@/stores/catalog";
+import { useMcpStore } from "@/stores/mcp";
 import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 
 const { t } = useI18n();
 const catalog = useCatalogStore();
+const mcp = useMcpStore();
 const props = defineProps<{ entry: ServerEntryResponse }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -14,6 +21,44 @@ const emit = defineEmits<{ close: [] }>();
 const installDisabled = computed(
   () => catalog.currentInstallEntryId !== null && catalog.currentInstallEntryId !== props.entry.id
 );
+
+// ── installed-state detection ──────────────────────────────────────
+// Match catalog entry → installed entry via catalog_id.
+const installedEntry = computed<InstalledEntryResponse | null>(
+  () => catalog.installed.find((e) => e.catalog_id === props.entry.id) ?? null
+);
+
+const isInstalled = computed(() => installedEntry.value !== null);
+
+// Resolve the scope at which this server is installed. We cross-reference
+// the installed entry's server_id against the effective MCP server list
+// (which carries ConfigScope metadata per item).
+const installScope = computed<ConfigScope | null>(() => {
+  if (!installedEntry.value) return null;
+  const effective = mcp.effectiveServers.find(
+    (es) =>
+      es.value.id === installedEntry.value!.server_id ||
+      es.value.name === installedEntry.value!.server_id
+  );
+  return (effective?.source as ConfigScope) ?? null;
+});
+
+// Derive a short human-readable label for the scope badge.
+const scopeLabel = computed(() => {
+  if (!installScope.value) return "";
+  switch (installScope.value) {
+    case "Builtin":
+      return t("marketplace.scopeBuiltin");
+    case "User":
+      return t("marketplace.scopeUser");
+    case "Project":
+      return t("marketplace.scopeProject");
+    case "Local":
+      return t("marketplace.scopeLocal");
+    default:
+      return installScope.value;
+  }
+});
 
 const requirements = computed(() => parseRequirements(props.entry));
 const envSpec = computed(() => parseDefaultEnv(props.entry));
@@ -130,6 +175,14 @@ function onOverlayClick(event: MouseEvent) {
         </div>
 
         <footer class="drawer-footer">
+          <!-- Installed-status badge: shows scope when already installed -->
+          <span
+            v-if="isInstalled && scopeLabel"
+            class="scope-badge"
+            data-test="catalog-install-scope"
+          >
+            {{ scopeLabel }}
+          </span>
           <span
             class="tooltip-wrap"
             :class="{ 'tooltip-active': installDisabled }"
@@ -141,7 +194,11 @@ function onOverlayClick(event: MouseEvent) {
               :disabled="installDisabled"
               @click="onInstall"
             >
-              Install
+              {{
+                isInstalled
+                  ? t("marketplace.install.buttonReinstall")
+                  : t("marketplace.install.buttonInstall")
+              }}
             </button>
           </span>
           <button class="btn btn-sm" @click="emit('close')">Close</button>
@@ -333,5 +390,16 @@ function onOverlayClick(event: MouseEvent) {
 }
 .tooltip-active:hover::after {
   opacity: 1;
+}
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: var(--app-tag-color, color-mix(in srgb, var(--app-primary-color) 10%, transparent));
+  color: var(--app-text-color-2);
+  font-size: 12px;
+  white-space: nowrap;
 }
 </style>

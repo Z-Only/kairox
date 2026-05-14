@@ -45,6 +45,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   });
   const sources = ref<CatalogSourceViewResponse[]>([]);
   const sourceFailures = ref<Record<string, string>>({});
+  // Set of server_ids that are currently installed. Populated by
+  // `fetchInstalled` and `checkInstalledStatus` for quick O(1) lookups
+  // from CatalogDetail.vue without repeating the async fetch per entry.
+  const installedServerNames = ref<Set<string>>(new Set());
+
   // Catalog id whose install-progress modal is currently visible. Hoisted out
   // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
   // the progress modal survives drawer dismissal mid-install. `null` = hidden.
@@ -54,6 +59,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   function reset(): void {
     entries.value = [];
     installed.value = [];
+    installedServerNames.value = new Set();
     installState.value = {};
     loading.value = false;
     error.value = null;
@@ -152,10 +158,29 @@ export const useCatalogStore = defineStore("catalog", () => {
       // `installed.value = result` assignment can silently detach the proxy
       // in Pinia setup-stores when called from deeply-nested async flows.
       installed.value.splice(0, installed.value.length, ...result);
+      installedServerNames.value = new Set(result.map((e) => e.server_id));
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load installed entries: ${e}`);
     }
+  }
+
+  /** Lightweight installed-status refresh. Keeps both the installed array
+   *  and the installedServerNames lookup set in sync so CatalogDetail can
+   *  detect installed state after the drawer opens. */
+  async function checkInstalledStatus(): Promise<void> {
+    try {
+      const result = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      installed.value.splice(0, installed.value.length, ...result);
+      installedServerNames.value = new Set(result.map((e) => e.server_id));
+    } catch (e) {
+      console.error("Failed to check installed status:", e);
+    }
+  }
+
+  /** O(1) check whether a server name appears in the installed set. */
+  function isServerInstalled(name: string): boolean {
+    return installedServerNames.value.has(name);
   }
 
   async function getCatalogEntry(
@@ -273,6 +298,7 @@ export const useCatalogStore = defineStore("catalog", () => {
     // state
     entries,
     installed,
+    installedServerNames,
     installState,
     loading,
     error,
@@ -294,6 +320,8 @@ export const useCatalogStore = defineStore("catalog", () => {
     handleSourceFailed,
     requestInstallProgress,
     dismissInstallProgress,
+    checkInstalledStatus,
+    isServerInstalled,
     // actions
     fetchCatalog,
     fetchInstalled,

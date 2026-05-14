@@ -186,8 +186,14 @@
       "stepDetectRuntime": "检测运行时",
       "stepWriteConfig": "写入配置",
       "stepStartServer": "启动服务",
+      "buttonInstall": "安装",
+      "buttonReinstall": "重新安装",
       "anotherInProgress": "另一项安装正在进行中。"
-    }
+    },
+    "scopeBuiltin": "内置",
+    "scopeUser": "用户",
+    "scopeProject": "项目",
+    "scopeLocal": "本地"
   },
   "mcp": {
     "statusRunning": "运行中",

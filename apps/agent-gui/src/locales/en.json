@@ -186,8 +186,14 @@
       "stepDetectRuntime": "Detect runtime",
       "stepWriteConfig": "Write config",
       "stepStartServer": "Start server",
+      "buttonInstall": "Install",
+      "buttonReinstall": "Reinstall",
       "anotherInProgress": "Another install is in progress."
-    }
+    },
+    "scopeBuiltin": "Built-in",
+    "scopeUser": "User",
+    "scopeProject": "Project",
+    "scopeLocal": "Local"
   },
   "mcp": {
     "statusRunning": "Running",
