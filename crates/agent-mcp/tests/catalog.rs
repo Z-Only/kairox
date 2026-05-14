@@ -44,6 +44,7 @@ fn server_entry_round_trips_through_json() {
             default: Some("~".into()),
         }],
         icon: Some("📁".into()),
+        verified: false,
     };
 
     let json = serde_json::to_string(&entry).expect("serialize");

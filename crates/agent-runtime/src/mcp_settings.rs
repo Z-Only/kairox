@@ -83,8 +83,8 @@ pub async fn list_mcp_server_settings(
                 writable: row.writable,
                 config_path: writable_path.as_ref().map(|p| p.display().to_string()),
                 description: row.description,
-                source: row.source,
                 verified: row.source != "defaults",
+                source: row.source,
             }
         })
         .collect::<Vec<_>>();
