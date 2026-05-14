@@ -241,7 +241,9 @@
     "testConnectivity": "Test Connectivity",
     "testChecking": "Testing…",
     "testConnected": "Connected ({count} tools)",
-    "testFailed": "Failed: {reason}"
+    "testFailed": "Failed: {reason}",
+    "disableInProject": "Disable in Project",
+    "enableInProject": "Enable in Project"
   },
   "models": {
     "tabModels": "Models",

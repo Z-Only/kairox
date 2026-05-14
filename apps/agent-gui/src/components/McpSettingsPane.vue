@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMcpStore } from "@/stores/mcp";
+import { useProjectStore } from "@/stores/project";
 import type {
   ConfigScope,
   EffectiveMcpServerView,
@@ -10,6 +11,7 @@ import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
+const projectStore = useProjectStore();
 const activeSubTab = ref<"installed" | "marketplace">("installed");
 const addServerDialogOpen = ref(false);
 const addServerMode = ref<"git" | "manual">("manual");
@@ -25,6 +27,17 @@ const installTarget = ref<ConfigScope>("User");
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
+
+/** When a project is selected, resolve its root path for config writes. */
+const currentProjectRoot = computed(() => {
+  const pid = configProjectId?.value;
+  if (!pid) return undefined;
+  const project = projectStore.activeProjects.find((p) => p.projectId === pid);
+  return project?.rootPath;
+});
+
+/** Whether we are in a project-config context where project-scope disable is relevant. */
+const isProjectScope = computed(() => configSource?.value === "project");
 
 watch(
   [() => configSource?.value, () => configProjectId?.value],
@@ -117,6 +130,35 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
   } finally {
     busyServerId.value = null;
   }
+}
+
+function canDisableAtScope(server: EffectiveMcpServerView): boolean {
+  return (
+    isProjectScope.value &&
+    currentProjectRoot.value !== undefined &&
+    server.source === "User" &&
+    !server.disabledBy
+  );
+}
+
+function canEnableAtScope(server: EffectiveMcpServerView): boolean {
+  return (
+    isProjectScope.value &&
+    currentProjectRoot.value !== undefined &&
+    server.disabledBy === "Project"
+  );
+}
+
+async function disableAtScope(serverId: string): Promise<void> {
+  const root = currentProjectRoot.value;
+  if (!root) return;
+  await runServerAction(serverId, () => mcp.disableServerAtScope(serverId, root));
+}
+
+async function enableAtScope(serverId: string): Promise<void> {
+  const root = currentProjectRoot.value;
+  if (!root) return;
+  await runServerAction(serverId, () => mcp.enableServerAtScope(serverId, root));
 }
 </script>
 
@@ -310,6 +352,26 @@ async function runServerAction(serverId: string, action: () => Promise<void>): P
                   @click="mcp.testConnectivity(server.value.id)"
                 >
                   {{ testButtonLabel(server.value.id) }}
+                </button>
+                <button
+                  v-if="canDisableAtScope(server)"
+                  class="btn btn-sm btn-warning"
+                  type="button"
+                  :disabled="busyServerId === server.value.id"
+                  :data-test="`mcp-disable-scope-${server.value.id}`"
+                  @click="disableAtScope(server.value.id)"
+                >
+                  {{ t("mcp.disableInProject") }}
+                </button>
+                <button
+                  v-if="canEnableAtScope(server)"
+                  class="btn btn-sm btn-success"
+                  type="button"
+                  :disabled="busyServerId === server.value.id"
+                  :data-test="`mcp-enable-scope-${server.value.id}`"
+                  @click="enableAtScope(server.value.id)"
+                >
+                  {{ t("mcp.enableInProject") }}
                 </button>
                 <button
                   class="btn btn-danger btn-sm"

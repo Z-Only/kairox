@@ -217,6 +217,26 @@ export const useMcpStore = defineStore("mcp", () => {
     }
   }
 
+  async function disableServerAtScope(serverId: string, projectRoot: string): Promise<void> {
+    settingsError.value = null;
+    try {
+      await unwrapCommandResult(commands.disableMcpServerAtScope(serverId, projectRoot));
+      await fetchEffectiveServers();
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    }
+  }
+
+  async function enableServerAtScope(serverId: string, projectRoot: string): Promise<void> {
+    settingsError.value = null;
+    try {
+      await unwrapCommandResult(commands.enableMcpServerAtScope(serverId, projectRoot));
+      await fetchEffectiveServers();
+    } catch (caughtError) {
+      settingsError.value = formatError(caughtError);
+    }
+  }
+
   async function openConfigFile(): Promise<string | null> {
     configFileOpening.value = true;
     settingsError.value = null;
@@ -337,6 +357,8 @@ export const useMcpStore = defineStore("mcp", () => {
     saveServerSettings,
     setServerEnabled,
     deleteServerSettings,
+    disableServerAtScope,
+    enableServerAtScope,
     openConfigFile,
     effectiveServers,
     fetchEffectiveServers,

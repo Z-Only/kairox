@@ -237,7 +237,13 @@
     "refreshAll": "刷新全部",
     "refreshTools": "刷新工具",
     "overrides": "覆盖 {source}",
-    "disabledBy": "{source} 已禁用"
+    "disabledBy": "{source} 已禁用",
+    "testConnectivity": "测试连通性",
+    "testChecking": "检测中…",
+    "testConnected": "已连接（{count} 个工具）",
+    "testFailed": "失败：{reason}",
+    "disableInProject": "在项目中禁用",
+    "enableInProject": "在项目中启用"
   },
   "skills": {
     "title": "Skills 设置",
