@@ -51,11 +51,14 @@ pub enum EventPayload {
     },
     ContextCompactionStarted {
         reason: CompactionReason,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         before_tokens: u64,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         candidate_event_count: usize,
     },
     ContextCompactionCompleted {
         summary_id: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         after_tokens: u64,
         fallback_used: bool,
     },
@@ -68,7 +71,9 @@ pub enum EventPayload {
         content: String,
         replaces_event_range: (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>),
         reason: CompactionReason,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         before_tokens: u64,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         after_tokens: u64,
         summarised_by_profile: String,
     },
@@ -83,8 +88,10 @@ pub enum EventPayload {
         /// Mirrors `agent_models::ModelLimits.context_window` so this
         /// event can be consumed by `agent-core` projections without
         /// introducing a cycle on `agent-models`.
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         context_window: u64,
         /// Mirrors `agent_models::ModelLimits.output_limit`.
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         output_limit: u64,
         /// Snake-case `agent_models::LimitSource` discriminant: one of
         /// `"user_config" | "builtin_registry" | "runtime_probe" | "fallback"`.
@@ -122,6 +129,7 @@ pub enum EventPayload {
         tool_id: String,
         output_preview: String,
         exit_code: Option<i32>,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         duration_ms: u64,
         truncated: bool,
     },
@@ -188,6 +196,7 @@ pub enum EventPayload {
     },
     TaskRetried {
         task_id: TaskId,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         attempt: usize,
     },
     SessionCancelled {
@@ -223,6 +232,7 @@ pub enum EventPayload {
     },
     McpServerReady {
         server_id: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         tool_count: usize,
     },
     McpServerStopped {
@@ -239,6 +249,7 @@ pub enum EventPayload {
     McpToolCallCompleted {
         server_id: String,
         tool_name: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         duration_ms: u64,
     },
     McpTrustGranted {
@@ -249,6 +260,7 @@ pub enum EventPayload {
     },
     CatalogRefreshed {
         source: String,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
         entry_count: usize,
     },
     CatalogEntryInstalling {

@@ -200,10 +200,10 @@ export const commands = {
     query: {
       keyword: string | null;
       category: string | null;
-      // "unverified" | "community" | "verified"
+      /**  "unverified" | "community" | "verified" */
       trust_min: string | null;
       source: string | null;
-      limit: number | null;
+      limit: number;
     } | null
   ) => typedError<ServerEntryResponse[], string>(__TAURI_INVOKE("list_catalog", { query })),
   getCatalogEntry: (id: string, source: string | null) =>
@@ -219,14 +219,14 @@ export const commands = {
         author: string | null;
         homepage: string | null;
         version: string | null;
-        // Lower-case trust level: "unverified" | "community" | "verified".
+        /**  Lower-case trust level: "unverified" | "community" | "verified". */
         trust: string;
         icon: string | null;
-        // JSON-encoded `agent_mcp::catalog::InstallSpec`.
+        /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
         install_spec_json: string;
-        // JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
+        /**  JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`. */
         requirements_json: string;
-        // JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
+        /**  JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`. */
         default_env_json: string;
       } | null,
       string
@@ -268,16 +268,16 @@ export type AddCatalogSourceRequestPayload = {
   priority: number | null;
   default_trust: string | null;
   enabled: boolean | null;
-  cache_ttl_seconds: number | null;
+  cache_ttl_seconds: number;
 };
 
-// Metadata for a file attached to a user message.
+/**  Metadata for a file attached to a user message. */
 export type AttachmentInfo = {
-  // Absolute filesystem path.
+  /**  Absolute filesystem path. */
   path: string;
-  // Display filename.
+  /**  Display filename. */
   name: string;
-  // MIME type (e.g. "image/png", "application/pdf").
+  /**  MIME type (e.g. "image/png", "application/pdf"). */
   mime_type: string;
 };
 
@@ -290,10 +290,10 @@ export type BuildInfoResponse = {
 export type CatalogQueryRequest = {
   keyword: string | null;
   category: string | null;
-  // "unverified" | "community" | "verified"
+  /**  "unverified" | "community" | "verified" */
   trust_min: string | null;
   source: string | null;
-  limit: number | null;
+  limit: number;
 };
 
 export type CatalogSourceViewResponse = {
@@ -305,7 +305,7 @@ export type CatalogSourceViewResponse = {
   priority: number;
   default_trust: string;
   enabled: boolean;
-  cache_ttl_seconds: number | null;
+  cache_ttl_seconds: number;
   last_error: string | null;
 };
 
@@ -320,7 +320,7 @@ export type InstallGithubSkillRequest = {
 };
 
 export type InstallOutcomeResponse = {
-  // "installed" | "runtime_missing" | "already_installed" | "invalid_env"
+  /**  "installed" | "runtime_missing" | "already_installed" | "invalid_env" */
   kind: string;
   server_id: string | null;
   started: boolean | null;
@@ -388,7 +388,7 @@ export type McpServerSettingsView = {
   enabled: boolean;
   runtime_status: string;
   trusted: boolean;
-  tool_count: number | null;
+  tool_count: number;
   last_error: string | null;
   writable: boolean;
   config_path: string | null;
@@ -396,21 +396,21 @@ export type McpServerSettingsView = {
   source: string;
 };
 
-// The lifecycle status of an MCP server connection.
+/**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
-  // The server is stopped and not connected.
+  /**  The server is stopped and not connected. */
   | "stopped"
-  // The server is starting up (launching process or connecting).
+  /**  The server is starting up (launching process or connecting). */
   | "starting"
-  // The server is running and ready to accept requests.
+  /**  The server is running and ready to accept requests. */
   | "running"
-  // The server has failed and is no longer running.
+  /**  The server has failed and is no longer running. */
   | "failed";
 
 export type McpServerStatusResponse = {
   id: string;
   status: McpServerStatus;
-  tool_count: number | null;
+  tool_count: number;
 };
 
 export type McpToolDefResponse = {
@@ -435,7 +435,7 @@ export type ProfileDetailResponse = {
   has_api_key: boolean;
 };
 
-// Metadata about a profile for UI display.
+/**  Metadata about a profile for UI display. */
 export type ProfileInfo = {
   alias: string;
   provider: string;
@@ -451,12 +451,12 @@ export type ProfileSettingsInput = {
   provider: string;
   model_id: string;
   enabled?: boolean;
-  context_window: number | null;
-  output_limit: number | null;
+  context_window: number;
+  output_limit: number;
   temperature: number | null;
   top_p: number | null;
   top_k: number | null;
-  max_tokens: number | null;
+  max_tokens: number;
   base_url: string | null;
   api_key_env: string | null;
 };
@@ -466,12 +466,12 @@ export type ProfileSettingsView = {
   provider: string;
   model_id: string;
   enabled: boolean;
-  context_window: number | null;
-  output_limit: number | null;
+  context_window: number;
+  output_limit: number;
   temperature: number | null;
   top_p: number | null;
   top_k: number | null;
-  max_tokens: number | null;
+  max_tokens: number;
   base_url: string | null;
   api_key_env: string | null;
   has_api_key: boolean;
@@ -486,7 +486,7 @@ export type ProfileWithLimits = {
   model_id: string;
   context_window: number;
   output_limit: number;
-  // Snake-case `LimitSource`: "user_config" | "builtin_registry" | "runtime_probe" | "fallback".
+  /**  Snake-case `LimitSource`: "user_config" | "builtin_registry" | "runtime_probe" | "fallback". */
   limit_source: string;
   has_api_key: boolean;
 };
@@ -518,7 +518,7 @@ export type RemoteSkillSearchResult = {
   name: string;
   description: string;
   repository: string | null;
-  install_count: number | null;
+  install_count: number;
   source_url: string;
   package: string;
 };
@@ -534,14 +534,14 @@ export type ServerEntryResponse = {
   author: string | null;
   homepage: string | null;
   version: string | null;
-  // Lower-case trust level: "unverified" | "community" | "verified".
+  /**  Lower-case trust level: "unverified" | "community" | "verified". */
   trust: string;
   icon: string | null;
-  // JSON-encoded `agent_mcp::catalog::InstallSpec`.
+  /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
   install_spec_json: string;
-  // JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`.
+  /**  JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`. */
   requirements_json: string;
-  // JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`.
+  /**  JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`. */
   default_env_json: string;
 };
 
@@ -555,25 +555,25 @@ export type SessionInfoResponse = {
   visibility: string | null;
 };
 
-// A single skill entry returned by the skills catalog.
+/**  A single skill entry returned by the skills catalog. */
 export type SkillCatalogEntry = {
   catalog_id: string;
   name: string;
   description: string;
   source: string;
   source_url: string;
-  install_count: number | null;
-  github_stars: number | null;
+  install_count: number;
+  github_stars: number;
   security_score: number | null;
   rating: number | null;
   package: string;
 };
 
-// Query against the skills catalog.
+/**  Query against the skills catalog. */
 export type SkillCatalogQuery = {
   keyword: string | null;
   sources: string[] | null;
-  limit: number | null;
+  limit: number;
 };
 
 export type SkillDetail = {
@@ -581,7 +581,7 @@ export type SkillDetail = {
   body_markdown: string;
 };
 
-// JSON field mapping for a skill source API response.
+/**  JSON field mapping for a skill source API response. */
 export type SkillFieldMappingView = {
   name_path: string;
   description_path: string;
@@ -623,7 +623,7 @@ export type SkillSettingsView = {
   deletable: boolean;
 };
 
-// A configured skill catalog source.
+/**  A configured skill catalog source. */
 export type SkillSourceView = {
   id: string;
   display_name: string;

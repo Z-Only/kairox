@@ -19,10 +19,15 @@ pub enum ContextSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ContextUsage {
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub total_tokens: u64,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub budget_tokens: u64,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub context_window: u64,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub output_reservation: u64,
+    #[cfg_attr(feature = "specta", specta(skip))]
     pub by_source: Vec<(ContextSource, u64)>,
     pub estimator: String,
     pub corrected_by_real_usage: bool,
