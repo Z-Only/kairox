@@ -52,6 +52,7 @@ fn sample_entry() -> ServerEntry {
             default: Some("/tmp/x".into()),
         }],
         icon: None,
+        verified: false,
     }
 }
 
