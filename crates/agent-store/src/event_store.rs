@@ -192,6 +192,16 @@ impl SqliteEventStore {
                 return Err(crate::StoreError::Sqlx(e));
             }
         }
+        // 0005 adds the session_drafts table; tolerate duplicate on re-connect
+        if let Err(e) = sqlx::query(include_str!("../migrations/0005_session_drafts.sql"))
+            .execute(&self.pool)
+            .await
+        {
+            let msg = e.to_string();
+            if !msg.contains("already exists") && !msg.contains("duplicate") {
+                return Err(crate::StoreError::Sqlx(e));
+            }
+        }
         Ok(())
     }
 
