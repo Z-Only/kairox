@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
-import chatPanelSource from "./ChatPanel.vue?raw";
+import chatComposerSource from "./ChatComposer.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 // jsdom does not implement `Element.prototype.scrollTo`. The scrollbar
@@ -214,22 +214,24 @@ describe("ChatPanel", () => {
   });
 
   it("keeps model selector and git metadata stable with long labels", () => {
-    expect(chatPanelSource).toMatch(/\.composer-meta\s*\{[\s\S]*min-width:\s*0/);
-    expect(chatPanelSource).toMatch(/\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatPanelSource).toMatch(
+    expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*min-width:\s*0/);
+    expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatComposerSource).toMatch(
       /\.chat-model-trigger\s*\{[\s\S]*max-width:\s*min\(100%,\s*280px\)/
     );
-    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/);
-    expect(chatPanelSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/);
-    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/);
-    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatPanelSource).toMatch(
+    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/);
+    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/);
+    expect(chatComposerSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/);
+    expect(chatComposerSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatComposerSource).toMatch(
       /\.chat-model-option-label\s*\{[\s\S]*text-overflow:\s*ellipsis/
     );
-    expect(chatPanelSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*white-space:\s*nowrap/);
-    expect(chatPanelSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
-    expect(chatPanelSource).toMatch(/\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/);
+    expect(chatComposerSource).toMatch(
+      /\.chat-model-option-label\s*\{[\s\S]*white-space:\s*nowrap/
+    );
+    expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
+    expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/);
   });
 
   it("renders context meter as a ring inside the composer input row", async () => {
