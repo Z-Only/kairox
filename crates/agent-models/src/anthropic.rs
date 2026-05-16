@@ -654,6 +654,52 @@ mod tests {
     use super::*;
     use crate::ModelClient;
 
+    struct EnvVarGuard {
+        key: &'static str,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            std::env::set_var(key, value);
+            Self { key }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            std::env::remove_var(self.key);
+        }
+    }
+
+    fn test_config(base_url: String, api_key_env: &'static str) -> AnthropicConfig {
+        AnthropicConfig {
+            base_url,
+            api_key_env: api_key_env.into(),
+            default_model: "test-model".into(),
+            max_tokens: 4096,
+            headers: Vec::new(),
+            capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            extra_params: None,
+        }
+    }
+
+    fn shell_tool() -> crate::ToolDefinition {
+        crate::ToolDefinition {
+            name: "shell.exec".into(),
+            description: "Execute a shell command".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"}
+                },
+                "required": ["command"]
+            }),
+        }
+    }
+
     #[test]
     fn builds_anthropic_messages_request() {
         let config = AnthropicConfig {
@@ -1058,6 +1104,168 @@ file2.rs",
             .iter()
             .any(|e| matches!(e, Ok(ModelEvent::Completed { .. }))));
         std::env::remove_var("KAIROX_ANTHROPIC_KEY");
+    }
+
+    #[tokio::test]
+    async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let sse_body = "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}\n\n";
+
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .and(header("x-api-key", "anthropic-contract-key"))
+            .and(header("anthropic-version", "2023-06-01"))
+            .and(header("x-provider-contract", "anthropic"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(sse_body))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let _env = EnvVarGuard::set("KAIROX_ANTHROPIC_CONTRACT_KEY", "anthropic-contract-key");
+        let mut config = test_config(mock_server.uri(), "KAIROX_ANTHROPIC_CONTRACT_KEY");
+        config.max_tokens = 2048;
+        config.headers = vec![("x-provider-contract".into(), "anthropic".into())];
+        config.temperature = Some(0.2);
+        config.top_p = Some(0.8);
+        config.top_k = Some(40);
+        config.extra_params = Some(serde_json::json!({"metadata": {"contract": true}}));
+
+        let request = ModelRequest::user_text("claude", "list files")
+            .with_system_prompt("Use tools when useful.")
+            .with_tools(vec![shell_tool()])
+            .add_assistant_with_tools(
+                "I will run ls.",
+                vec![crate::ToolCall {
+                    id: "toolu_contract".into(),
+                    name: "shell.exec".into(),
+                    arguments: serde_json::json!({"command": "ls"}),
+                }],
+            )
+            .add_tool_result("toolu_contract", "Cargo.toml");
+
+        let stream = AnthropicClient::new(config).stream(request).await.unwrap();
+        let events = stream.collect::<Vec<_>>().await;
+
+        assert!(events
+            .iter()
+            .any(|event| matches!(event, Ok(ModelEvent::Completed { .. }))));
+
+        let requests = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value = requests[0].body_json().unwrap();
+        assert_eq!(body["model"], "test-model");
+        assert_eq!(body["max_tokens"], 2048);
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["system"], "Use tools when useful.");
+        assert!((body["temperature"].as_f64().unwrap() - 0.2).abs() < 1e-6);
+        assert!((body["top_p"].as_f64().unwrap() - 0.8).abs() < 1e-6);
+        assert_eq!(body["top_k"], 40);
+        assert_eq!(body["metadata"]["contract"], true);
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][0]["content"], "list files");
+        assert_eq!(body["messages"][1]["role"], "assistant");
+        assert_eq!(body["messages"][1]["content"][0]["type"], "text");
+        assert_eq!(body["messages"][1]["content"][0]["text"], "I will run ls.");
+        assert_eq!(body["messages"][1]["content"][1]["type"], "tool_use");
+        assert_eq!(body["messages"][1]["content"][1]["id"], "toolu_contract");
+        assert_eq!(body["messages"][1]["content"][1]["name"], "shell_exec");
+        assert_eq!(body["messages"][1]["content"][1]["input"]["command"], "ls");
+        assert_eq!(body["messages"][2]["role"], "user");
+        assert_eq!(body["messages"][2]["content"][0]["type"], "tool_result");
+        assert_eq!(
+            body["messages"][2]["content"][0]["tool_use_id"],
+            "toolu_contract"
+        );
+        assert_eq!(body["messages"][2]["content"][0]["content"], "Cargo.toml");
+        assert_eq!(body["tools"][0]["name"], "shell_exec");
+        assert_eq!(body["tools"][0]["input_schema"]["required"][0], "command");
+    }
+
+    #[tokio::test]
+    async fn missing_api_key_returns_request_error_before_http() {
+        let key = "KAIROX_ANTHROPIC_MISSING_CONTRACT_KEY";
+        std::env::remove_var(key);
+
+        let result = AnthropicClient::new(test_config("http://127.0.0.1:1".into(), key))
+            .stream(ModelRequest::user_text("claude", "hello"))
+            .await;
+        let err = match result {
+            Err(err) => err,
+            Ok(_) => panic!("expected missing API key error"),
+        };
+
+        match err {
+            ModelError::Request(message) => {
+                assert!(message.contains("Anthropic API key not set"), "{message}");
+            }
+            other => panic!("expected ModelError::Request, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn maps_http_error_status_and_body_to_api_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(529).set_body_string(r#"{"error":{"message":"overloaded"}}"#),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let _env = EnvVarGuard::set("KAIROX_ANTHROPIC_HTTP_ERROR_KEY", "test-key");
+        let result = AnthropicClient::new(test_config(
+            mock_server.uri(),
+            "KAIROX_ANTHROPIC_HTTP_ERROR_KEY",
+        ))
+        .stream(ModelRequest::user_text("claude", "hello"))
+        .await;
+        let err = match result {
+            Err(err) => err,
+            Ok(_) => panic!("expected HTTP error"),
+        };
+
+        match err {
+            ModelError::Api(message) => {
+                assert!(message.contains("529"), "{message}");
+                assert!(message.contains("overloaded"), "{message}");
+            }
+            other => panic!("expected ModelError::Api, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn surfaces_malformed_sse_payload_as_stream_parse_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("data: not-json\n\n"))
+            .mount(&mock_server)
+            .await;
+
+        let _env = EnvVarGuard::set("KAIROX_ANTHROPIC_PARSE_ERROR_KEY", "test-key");
+        let mut stream = AnthropicClient::new(test_config(
+            mock_server.uri(),
+            "KAIROX_ANTHROPIC_PARSE_ERROR_KEY",
+        ))
+        .stream(ModelRequest::user_text("claude", "hello"))
+        .await
+        .unwrap();
+
+        let first = stream
+            .next()
+            .await
+            .expect("stream should yield parse error");
+        assert!(matches!(first, Err(ModelError::StreamParse(_))));
     }
 
     #[tokio::test]
