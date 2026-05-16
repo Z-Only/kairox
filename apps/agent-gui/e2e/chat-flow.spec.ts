@@ -233,3 +233,38 @@ test("recovers the active session and its draft after reload", async ({ page }) 
   await waitForActiveSession(page, secondSessionId);
   await expect(page.getByTestId("message-input")).toHaveValue("draft that survives reload");
 });
+
+test("keeps draft and attachments when sending with an attachment fails", async ({ page }) => {
+  await openWorkbench(page);
+
+  const sendProbe = await page.evaluate(async () => {
+    const mock = (window as any).__KAIROX_MOCK__;
+    mock.setNextOpenDialogResult(["/mock/workspace/report.md"]);
+    const internals = (window as any).__TAURI_INTERNALS__;
+    const invoke = internals.invoke.bind(internals);
+    internals.invoke = (cmd: string, args: unknown, options: unknown) => {
+      if (cmd === "send_message") {
+        return Promise.reject(new Error("mock IPC failure"));
+      }
+      return invoke(cmd, args, options);
+    };
+    try {
+      await internals.invoke("send_message", { content: "probe", attachments: [] });
+      return "resolved";
+    } catch (error) {
+      return String(error);
+    }
+  });
+  expect(sendProbe).toContain("mock IPC failure");
+
+  const input = page.getByTestId("message-input");
+  await input.fill("send this after recovery");
+  await page.getByTestId("attach-file-btn").click();
+  await expect(page.getByTestId("attachment-chip")).toHaveAttribute("data-filename", "report.md");
+
+  await page.getByTestId("send-button").click();
+
+  await expect(input).toHaveValue("send this after recovery");
+  await expect(page.getByTestId("attachment-chip")).toHaveAttribute("data-filename", "report.md");
+  await expect(page.locator(".send-error-banner")).toContainText("mock IPC failure");
+});
