@@ -430,6 +430,50 @@ mod tests {
     use super::*;
     use crate::ModelClient;
 
+    struct EnvVarGuard {
+        key: &'static str,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            std::env::set_var(key, value);
+            Self { key }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            std::env::remove_var(self.key);
+        }
+    }
+
+    fn test_config(base_url: String, api_key_env: &'static str) -> OpenAiCompatibleConfig {
+        OpenAiCompatibleConfig {
+            base_url,
+            api_key_env: api_key_env.into(),
+            default_model: "test-model".into(),
+            headers: vec![],
+            capability_overrides: None,
+            temperature: None,
+            top_p: None,
+            extra_params: None,
+        }
+    }
+
+    fn shell_tool() -> crate::ToolDefinition {
+        crate::ToolDefinition {
+            name: "shell.exec".into(),
+            description: "Execute a shell command".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"}
+                },
+                "required": ["command"]
+            }),
+        }
+    }
+
     #[test]
     fn builds_chat_request_with_system_prompt_and_messages() {
         let config = OpenAiCompatibleConfig {
@@ -806,6 +850,148 @@ file2.rs",
         assert!(events
             .iter()
             .any(|e| matches!(e, Ok(ModelEvent::Completed { .. }))));
+    }
+
+    #[tokio::test]
+    async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        let sse_body =
+            "data: {\"choices\":[{\"finish_reason\":\"stop\",\"index\":0}]}\n\ndata: [DONE]\n\n";
+
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .and(header("authorization", "Bearer openai-contract-key"))
+            .and(header("x-provider-contract", "openai"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(sse_body))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let _env = EnvVarGuard::set("KAIROX_OPENAI_CONTRACT_KEY", "openai-contract-key");
+        let mut config = test_config(mock_server.uri(), "KAIROX_OPENAI_CONTRACT_KEY");
+        config.headers = vec![("x-provider-contract".into(), "openai".into())];
+        config.temperature = Some(0.2);
+        config.top_p = Some(0.8);
+        config.extra_params = Some(serde_json::json!({"seed": 42}));
+
+        let request = ModelRequest::user_text("fast", "list files")
+            .with_system_prompt("Use tools when useful.")
+            .with_tools(vec![shell_tool()])
+            .add_assistant_with_tools(
+                "I will run ls.",
+                vec![crate::ToolCall {
+                    id: "call_contract".into(),
+                    name: "shell.exec".into(),
+                    arguments: serde_json::json!({"command": "ls"}),
+                }],
+            )
+            .add_tool_result("call_contract", "Cargo.toml");
+
+        let stream = OpenAiCompatibleClient::new(config)
+            .stream(request)
+            .await
+            .unwrap();
+        let events = stream.collect::<Vec<_>>().await;
+
+        assert!(events
+            .iter()
+            .any(|event| matches!(event, Ok(ModelEvent::Completed { .. }))));
+
+        let requests = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value = requests[0].body_json().unwrap();
+        assert_eq!(body["model"], "test-model");
+        assert_eq!(body["stream"], true);
+        assert!((body["temperature"].as_f64().unwrap() - 0.2).abs() < 1e-6);
+        assert!((body["top_p"].as_f64().unwrap() - 0.8).abs() < 1e-6);
+        assert_eq!(body["seed"], 42);
+        assert_eq!(body["messages"][0]["role"], "system");
+        assert_eq!(body["messages"][0]["content"], "Use tools when useful.");
+        assert_eq!(body["messages"][2]["role"], "assistant");
+        assert_eq!(body["messages"][2]["content"], "I will run ls.");
+        assert_eq!(body["messages"][2]["tool_calls"][0]["id"], "call_contract");
+        assert_eq!(
+            body["messages"][2]["tool_calls"][0]["function"]["name"],
+            "shell.exec"
+        );
+        assert_eq!(
+            body["messages"][2]["tool_calls"][0]["function"]["arguments"],
+            "{\"command\":\"ls\"}"
+        );
+        assert_eq!(body["messages"][3]["role"], "tool");
+        assert_eq!(body["messages"][3]["tool_call_id"], "call_contract");
+        assert_eq!(body["messages"][3]["content"], "Cargo.toml");
+        assert_eq!(body["tools"][0]["type"], "function");
+        assert_eq!(body["tools"][0]["function"]["name"], "shell.exec");
+        assert_eq!(
+            body["tools"][0]["function"]["parameters"]["required"][0],
+            "command"
+        );
+    }
+
+    #[tokio::test]
+    async fn maps_http_error_status_and_body_to_api_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(
+                ResponseTemplate::new(429)
+                    .set_body_string(r#"{"error":{"message":"rate limit exceeded"}}"#),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let result = OpenAiCompatibleClient::new(test_config(
+            mock_server.uri(),
+            "KAIROX_OPENAI_HTTP_ERROR_KEY",
+        ))
+        .stream(ModelRequest::user_text("fast", "hello"))
+        .await;
+        let err = match result {
+            Err(err) => err,
+            Ok(_) => panic!("expected HTTP error"),
+        };
+
+        match err {
+            ModelError::Api(message) => {
+                assert!(message.contains("429"), "{message}");
+                assert!(message.contains("rate limit exceeded"), "{message}");
+            }
+            other => panic!("expected ModelError::Api, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn surfaces_malformed_sse_payload_as_stream_parse_error() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("data: not-json\n\n"))
+            .mount(&mock_server)
+            .await;
+
+        let mut stream = OpenAiCompatibleClient::new(test_config(
+            mock_server.uri(),
+            "KAIROX_OPENAI_PARSE_ERROR_KEY",
+        ))
+        .stream(ModelRequest::user_text("fast", "hello"))
+        .await
+        .unwrap();
+
+        let first = stream
+            .next()
+            .await
+            .expect("stream should yield parse error");
+        assert!(matches!(first, Err(ModelError::StreamParse(_))));
     }
 
     #[tokio::test]
