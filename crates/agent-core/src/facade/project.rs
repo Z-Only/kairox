@@ -1,10 +1,70 @@
-//! Project management sub-trait — all methods provide default (no-op / error) implementations.
+//! Project DTOs and management sub-trait.
 
-use crate::{
-    ProjectGitStatus, ProjectId, ProjectInstructionSummary, ProjectMeta, SessionId, SessionMeta,
-    WorkspaceId,
-};
+use crate::{ProjectId, SessionId, WorkspaceId};
+use serde::{Deserialize, Serialize};
+
+use super::SessionMeta;
 use async_trait::async_trait;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub enum ProjectSessionVisibility {
+    DraftHidden,
+    Visible,
+    Archived,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub enum ProjectGitStatusKind {
+    NotInitialized,
+    Clean,
+    Dirty,
+    Detached,
+    MissingPath,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectMeta {
+    pub project_id: ProjectId,
+    pub display_name: String,
+    pub root_path: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub removed_at: Option<String>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub sort_order: i64,
+    pub expanded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectSessionBinding {
+    pub session_id: SessionId,
+    pub project_id: ProjectId,
+    pub worktree_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectGitStatus {
+    pub kind: ProjectGitStatusKind,
+    pub branch: Option<String>,
+    pub worktree_path: String,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ProjectInstructionSummary {
+    pub source_paths: Vec<String>,
+    pub contents: Option<String>,
+    pub warning: Option<String>,
+}
 
 #[async_trait]
 pub trait ProjectFacade: Send + Sync {
@@ -155,5 +215,27 @@ pub trait ProjectFacade: Send + Sync {
         Err(crate::CoreError::InvalidState(
             "project support is not implemented".into(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_id_round_trips_from_string() {
+        let project_id = ProjectId::new();
+        let encoded = project_id.to_string();
+
+        let decoded = ProjectId::from_string(encoded.clone());
+
+        assert_eq!(decoded.to_string(), encoded);
+    }
+
+    #[test]
+    fn project_visibility_serializes_as_snake_case() {
+        let value = serde_json::to_value(ProjectSessionVisibility::DraftHidden).unwrap();
+
+        assert_eq!(value, serde_json::json!("draft_hidden"));
     }
 }
