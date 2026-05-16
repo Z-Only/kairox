@@ -1,46 +1,18 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
-import type {
-  ConfigScope,
-  EffectiveSkillView,
-  SkillCatalogQuery,
-  SkillInstallTarget
-} from "@/generated/commands";
+import type { ConfigScope, EffectiveSkillView, SkillInstallTarget } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
-import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
-import ModalDialog from "@/components/ui/ModalDialog.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
 const activeSubTab = ref<"installed" | "discover">("installed");
-const sourceSettingsOpen = ref(false);
-const discoverKeyword = ref("");
 const githubSource = ref("");
 const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
 const skillCatalogInstallTarget = computed<SkillInstallTarget>(
   () => installTarget.value.toLowerCase() as SkillInstallTarget
 );
-
-const discoverSourceChips = computed(() => {
-  const remoteSources = skillsStore.catalogSources
-    .filter((s) => s.id !== "builtin")
-    .map((s) => ({
-      id: s.id,
-      display_name: s.display_name
-    }));
-  return [{ id: "builtin", display_name: t("skills.builtinSource") }, ...remoteSources];
-});
-
-async function searchSkillsCatalog(): Promise<void> {
-  const query: SkillCatalogQuery = {
-    keyword: discoverKeyword.value.trim() || null,
-    sources: null,
-    limit: 50
-  };
-  await skillsStore.searchCatalog(query);
-}
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -284,54 +256,6 @@ async function installFromGithub(): Promise<void> {
     </div>
 
     <div v-if="activeSubTab === 'discover'" class="skill-settings__discover">
-      <div class="source-filter">
-        <button
-          v-for="chip in discoverSourceChips"
-          :key="chip.id"
-          :class="['btn', 'chip', { active: skillsStore.isCatalogSourceEnabled(chip.id) }]"
-          data-test="skill-source-chip"
-          @click="skillsStore.toggleCatalogSource(chip.id)"
-        >
-          {{ chip.display_name }}
-        </button>
-        <button
-          class="btn settings-icon"
-          data-test="skill-source-settings-btn"
-          :aria-label="t('marketplace.sourceSettingsAria')"
-          @click="sourceSettingsOpen = !sourceSettingsOpen"
-        >
-          <span aria-hidden="true">⚙</span>
-        </button>
-      </div>
-
-      <ModalDialog
-        :open="sourceSettingsOpen"
-        :title="t('skills.catalogSourcesTitle')"
-        data-test="skill-source-settings-drawer"
-        @close="sourceSettingsOpen = false"
-      >
-        <SkillSourcesSettings />
-      </ModalDialog>
-
-      <div class="discover-search-row">
-        <input
-          v-model="discoverKeyword"
-          class="discover-search-input"
-          type="search"
-          :placeholder="t('skills.searchPlaceholder')"
-          data-test="skill-catalog-search"
-          @keyup.enter="searchSkillsCatalog()"
-        />
-        <button
-          class="btn btn-primary btn-sm"
-          type="button"
-          data-test="skill-catalog-search-btn"
-          @click="searchSkillsCatalog()"
-        >
-          {{ t("common.search") }}
-        </button>
-      </div>
-
       <details class="advanced-install" data-test="skill-advanced-install">
         <summary>{{ t("skills.advancedInstall") }}</summary>
         <form
@@ -563,41 +487,6 @@ async function installFromGithub(): Promise<void> {
   outline-offset: 2px;
 }
 
-.source-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.source-filter .chip {
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 14px;
-  background: var(--app-card-color);
-  cursor: pointer;
-  color: var(--app-text-color);
-  font-size: 13px;
-}
-
-.source-filter .chip.active {
-  background: var(--app-primary-color, #18a058);
-  color: #fff;
-  border-color: var(--app-primary-color, #18a058);
-}
-
-.source-filter .settings-icon {
-  padding: 4px 8px;
-  font-size: 16px;
-  margin-left: auto;
-}
-
-.discover-search-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
 .advanced-install {
   max-width: 760px;
   padding: 8px 0;
@@ -611,25 +500,6 @@ async function installFromGithub(): Promise<void> {
 
 .advanced-install__form {
   margin-top: 12px;
-}
-
-.discover-search-input {
-  flex: 1;
-  max-width: 320px;
-  min-height: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-}
-
-.settings-drawer {
-  margin-top: 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 12px;
 }
 
 /* Source tags for effective (unified) view */

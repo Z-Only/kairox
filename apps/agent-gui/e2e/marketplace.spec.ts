@@ -178,10 +178,20 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
     // Switch to Discover sub-tab to search remote skills
     await page.getByTestId("skill-subtab-discover").click();
+    await expect(page.getByTestId("skill-catalog-refresh")).toBeVisible();
+    await page.getByTestId("skill-catalog-refresh").click();
+    await expect(page.getByTestId("skill-source-filter-skillhub")).toBeVisible();
+    await page.getByTestId("skill-source-filter-skillhub").click();
     await page.getByTestId("skill-catalog-search").fill("review");
     await page.getByTestId("skill-catalog-search").press("Enter");
     await expect(page.getByTestId("skill-catalog-card")).toBeVisible();
     await page.getByTestId("skill-catalog-install-skillhub/code-review-assistant").click();
+    await expect(page.getByTestId("skill-catalog-install-success")).toContainText(
+      "Installed Code Review Assistant"
+    );
+    await expect(
+      page.getByTestId("skill-catalog-install-skillhub/code-review-assistant")
+    ).toHaveText("Installed");
     // Switch back to Installed tab. Marketplace installs follow the top-level
     // Settings source selection, which is still Project from the setup above.
     await page.getByTestId("skill-subtab-installed").click();

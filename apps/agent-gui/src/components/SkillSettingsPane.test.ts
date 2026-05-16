@@ -19,6 +19,7 @@ vi.mock("@/generated/commands", () => ({
     addSkillSource: vi.fn(),
     removeSkillSource: vi.fn(),
     setSkillSourceEnabled: vi.fn(),
+    refreshSkillCatalog: vi.fn(),
     installRemoteSkill: vi.fn(),
     installGithubSkill: vi.fn(),
     updateSkill: vi.fn()
@@ -163,6 +164,7 @@ beforeEach(() => {
   mockedCommands.addSkillSource.mockResolvedValue(null);
   mockedCommands.removeSkillSource.mockResolvedValue(null);
   mockedCommands.setSkillSourceEnabled.mockResolvedValue(null);
+  mockedCommands.refreshSkillCatalog.mockResolvedValue(null);
   mockedCommands.installRemoteSkill.mockResolvedValue(projectSkill);
   mockedCommands.installGithubSkill.mockResolvedValue(projectSkill);
   mockedCommands.updateSkill.mockResolvedValue(projectSkill);
@@ -246,7 +248,7 @@ describe("SkillSettingsPane", () => {
     expect(mockedCommands.listSkillCatalog).toHaveBeenCalledWith({
       keyword: "docs",
       sources: null,
-      limit: 50
+      limit: 100
     });
     expect(wrapper.find('[data-test="skill-catalog-card"]').text()).toContain("42 installs");
 

@@ -8,8 +8,11 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ close: []; install: [entry: SkillCatalogEntry] }>();
+const { t } = useI18n();
 
-const targetLabel = computed(() => (props.installTarget === "project" ? "Project" : "User"));
+const targetLabel = computed(() =>
+  props.installTarget === "project" ? t("skills.targetProject") : t("skills.targetUser")
+);
 
 function onOverlayClick(event: MouseEvent): void {
   if (event.target === event.currentTarget) {
@@ -27,7 +30,7 @@ function onOverlayClick(event: MouseEvent): void {
           <button
             class="btn drawer-close-btn"
             type="button"
-            aria-label="Close"
+            :aria-label="t('common.close')"
             @click="emit('close')"
           >
             x
@@ -36,31 +39,31 @@ function onOverlayClick(event: MouseEvent): void {
 
         <div class="drawer-body">
           <div class="detail-stack">
-            <p class="description">{{ entry.description || "No description provided." }}</p>
+            <p class="description">{{ entry.description || t("skills.noDescription") }}</p>
 
             <dl class="meta-grid">
               <div>
-                <dt>Source</dt>
+                <dt>{{ t("skills.source") }}</dt>
                 <dd>{{ entry.source }}</dd>
               </div>
               <div>
-                <dt>Install target</dt>
+                <dt>{{ t("skills.installTarget") }}</dt>
                 <dd>{{ targetLabel }}</dd>
               </div>
               <div v-if="entry.install_count != null">
-                <dt>Downloads</dt>
+                <dt>{{ t("skills.downloads") }}</dt>
                 <dd>{{ entry.install_count.toLocaleString() }}</dd>
               </div>
               <div v-if="entry.github_stars != null">
-                <dt>Stars</dt>
+                <dt>{{ t("skills.stars") }}</dt>
                 <dd>{{ entry.github_stars.toLocaleString() }}</dd>
               </div>
               <div v-if="entry.security_score != null">
-                <dt>Security</dt>
+                <dt>{{ t("skills.security") }}</dt>
                 <dd>{{ entry.security_score }}</dd>
               </div>
               <div v-if="entry.rating != null">
-                <dt>Rating</dt>
+                <dt>{{ t("skills.rating") }}</dt>
                 <dd>{{ entry.rating.toFixed(1) }}</dd>
               </div>
             </dl>
@@ -72,7 +75,7 @@ function onOverlayClick(event: MouseEvent): void {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View source
+                {{ t("skills.viewSource") }}
               </a>
               <a
                 v-if="entry.package_url"
@@ -80,7 +83,7 @@ function onOverlayClick(event: MouseEvent): void {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Download package
+                {{ t("skills.downloadPackage") }}
               </a>
             </div>
           </div>
@@ -94,9 +97,15 @@ function onOverlayClick(event: MouseEvent): void {
             data-test="skill-catalog-detail-install"
             @click="emit('install', entry)"
           >
-            {{ installing ? "Installing..." : `Install to ${targetLabel}` }}
+            {{
+              installing
+                ? t("skills.installing")
+                : t("skills.installToTarget", { target: targetLabel })
+            }}
           </button>
-          <button class="btn btn-sm" type="button" @click="emit('close')">Close</button>
+          <button class="btn btn-sm" type="button" @click="emit('close')">
+            {{ t("common.close") }}
+          </button>
         </footer>
       </aside>
     </div>

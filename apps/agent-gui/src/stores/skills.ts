@@ -269,13 +269,16 @@ export const useSkillsStore = defineStore("skills", () => {
     return `${keyword}|${sources}|${query.limit ?? 50}`;
   }
 
-  async function searchCatalog(query: SkillCatalogQuery): Promise<void> {
+  async function searchCatalog(
+    query: SkillCatalogQuery,
+    options: { force?: boolean } = {}
+  ): Promise<void> {
     catalogLoading.value = true;
     error.value = null;
     try {
       const cacheKey = cacheKeyForQuery(query);
       const cached = searchCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      if (!options.force && cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         catalogEntries.value = cached.entries;
         catalogLoading.value = false;
         return;
