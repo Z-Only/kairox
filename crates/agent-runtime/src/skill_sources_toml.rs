@@ -58,10 +58,21 @@ impl SkillSourcesToml {
                 search_template: item
                     .get("search_template")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("/api/search?q={{query}}&limit={{limit}}")
+                    .unwrap_or(
+                        "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc",
+                    )
+                    .to_string(),
+                download_template: item
+                    .get("download_template")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("/api/v1/download?slug={{slug}}")
                     .to_string(),
                 list_template: item
                     .get("list_template")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                detail_template: item
+                    .get("detail_template")
                     .and_then(|v| v.as_str())
                     .map(String::from),
                 field_mapping: SkillFieldMappingView::default(),
@@ -92,8 +103,12 @@ impl SkillSourcesToml {
             tbl.insert("kind", value(&src.kind));
             tbl.insert("url", value(&src.url));
             tbl.insert("search_template", value(&src.search_template));
+            tbl.insert("download_template", value(&src.download_template));
             if let Some(ref lt) = src.list_template {
                 tbl.insert("list_template", value(lt));
+            }
+            if let Some(ref dt) = src.detail_template {
+                tbl.insert("detail_template", value(dt));
             }
             tbl.insert("enabled", value(src.enabled));
             tbl.insert("priority", value(src.priority as i64));
@@ -118,7 +133,7 @@ impl SkillSourcesToml {
 
         for src in user_sources {
             seen_ids.insert(src.id.clone());
-            merged.push(src.clone());
+            merged.push(migrate_builtin_skill_source(src));
         }
 
         for src in &defaults {
@@ -132,14 +147,35 @@ impl SkillSourcesToml {
     }
 }
 
+fn migrate_builtin_skill_source(src: &SkillSourceView) -> SkillSourceView {
+    if src.id != "skillhub" || src.url != "https://skills.palebluedot.live" {
+        return src.clone();
+    }
+
+    let mut migrated = default_skill_sources()
+        .into_iter()
+        .find(|default| default.id == "skillhub")
+        .unwrap_or_else(|| src.clone());
+    migrated.enabled = src.enabled;
+    migrated.priority = src.priority;
+    migrated.cache_ttl_seconds = src.cache_ttl_seconds;
+    migrated
+}
+
 pub fn default_skill_sources() -> Vec<SkillSourceView> {
     vec![SkillSourceView {
         id: "skillhub".into(),
         display_name: "SkillHub".into(),
         kind: "skillhub".into(),
-        url: "https://skills.palebluedot.live".into(),
-        search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
-        list_template: Some("/api/skills?limit={{limit}}".into()),
+        url: "https://api.skillhub.cn".into(),
+        search_template:
+            "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc"
+                .into(),
+        download_template: "/api/v1/download?slug={{slug}}".into(),
+        list_template: Some(
+            "/api/skills?page=1&pageSize={{limit}}&sortBy=downloads&order=desc".into(),
+        ),
+        detail_template: Some("/api/v1/skills/{{slug}}".into()),
         field_mapping: SkillFieldMappingView::default(),
         enabled: true,
         priority: 1,
@@ -178,9 +214,11 @@ mod tests {
             id: "skillhub".into(),
             display_name: "Custom SkillHub".into(),
             kind: "skillhub".into(),
-            url: "https://custom.sh".into(),
+            url: "https://custom.example".into(),
             search_template: "/api/skills?q={{query}}".into(),
+            download_template: "/api/download?slug={{slug}}".into(),
             list_template: None,
+            detail_template: None,
             field_mapping: SkillFieldMappingView::default(),
             enabled: false,
             priority: 0,
@@ -190,6 +228,24 @@ mod tests {
         let merged = toml.merge_with_defaults(&user);
         let hub = merged.iter().find(|s| s.id == "skillhub").unwrap();
         assert_eq!(hub.display_name, "Custom SkillHub");
+        assert!(!hub.enabled);
+        assert_eq!(merged.len(), 1);
+    }
+
+    #[test]
+    fn merge_migrates_legacy_default_skillhub_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let toml = SkillSourcesToml::new(dir.path());
+        let mut legacy = default_skill_sources()[0].clone();
+        legacy.url = "https://skills.palebluedot.live".into();
+        legacy.search_template = "/api/skills?q={{query}}&limit={{limit}}".into();
+        legacy.list_template = Some("/api/skills?limit={{limit}}".into());
+        legacy.enabled = false;
+
+        let merged = toml.merge_with_defaults(&[legacy]);
+        let hub = merged.iter().find(|s| s.id == "skillhub").unwrap();
+        assert_eq!(hub.url, "https://api.skillhub.cn");
+        assert!(hub.search_template.contains("keyword={{query}}"));
         assert!(!hub.enabled);
         assert_eq!(merged.len(), 1);
     }

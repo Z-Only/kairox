@@ -12,8 +12,11 @@ const draft = ref({
   display_name: "",
   kind: "skillhub",
   url: "",
-  search_template: "/api/skills?q={{query}}&limit={{limit}}",
+  search_template:
+    "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc",
+  download_template: "/api/v1/download?slug={{slug}}",
   list_template: "",
+  detail_template: "/api/v1/skills/{{slug}}",
   enabled: true,
   priority: 100,
   cache_ttl_seconds: 900
@@ -35,8 +38,11 @@ function resetDraft(): void {
     display_name: "",
     kind: "skillhub",
     url: "",
-    search_template: "/api/skills?q={{query}}&limit={{limit}}",
+    search_template:
+      "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc",
+    download_template: "/api/v1/download?slug={{slug}}",
     list_template: "",
+    detail_template: "/api/v1/skills/{{slug}}",
     enabled: true,
     priority: 100,
     cache_ttl_seconds: 900
@@ -53,13 +59,19 @@ async function save(): Promise<void> {
     formError.value = t("skills.sourceFormError.urlMustStartWithHttp");
     return;
   }
+  if (!draft.value.search_template.trim() || !draft.value.download_template.trim()) {
+    formError.value = t("skills.sourceFormError.searchAndDownloadRequired");
+    return;
+  }
   const config: SkillSourceView = {
     id: draft.value.id.trim(),
     display_name: draft.value.display_name.trim(),
     kind: draft.value.kind,
     url: draft.value.url,
-    search_template: draft.value.search_template,
-    list_template: draft.value.list_template || null,
+    search_template: draft.value.search_template.trim(),
+    download_template: draft.value.download_template.trim(),
+    list_template: draft.value.list_template.trim() || null,
+    detail_template: draft.value.detail_template.trim() || null,
     field_mapping: {
       name_path: "name",
       description_path: "description",
@@ -178,6 +190,34 @@ function formatError(caughtError: unknown): string {
       <label class="field">
         <span class="field-label">url</span>
         <input v-model="draft.url" class="input" data-test="skill-src-url" />
+      </label>
+      <label class="field">
+        <span class="field-label">search template *</span>
+        <input
+          v-model="draft.search_template"
+          class="input"
+          data-test="skill-src-search-template"
+        />
+      </label>
+      <label class="field">
+        <span class="field-label">download template *</span>
+        <input
+          v-model="draft.download_template"
+          class="input"
+          data-test="skill-src-download-template"
+        />
+      </label>
+      <label class="field">
+        <span class="field-label">list template</span>
+        <input v-model="draft.list_template" class="input" data-test="skill-src-list-template" />
+      </label>
+      <label class="field">
+        <span class="field-label">detail template</span>
+        <input
+          v-model="draft.detail_template"
+          class="input"
+          data-test="skill-src-detail-template"
+        />
       </label>
       <span v-if="formError" class="error text-error">
         {{ formError }}

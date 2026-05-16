@@ -1,6 +1,6 @@
 //! SkillHub catalog provider.
 //!
-//! Adapts the SkillHub API (`https://skills.palebluedot.live/api/skills`)
+//! Adapts the SkillHub API (`https://api.skillhub.cn/api/skills`)
 //! to [`SkillCatalogEntry`].
 
 use crate::catalog::remote::http_client::{GetOpts, SharedHttpClient};
@@ -21,7 +21,24 @@ const DEFAULT_TTL_SECONDS: u64 = 900;
 #[allow(dead_code)]
 struct SkillHubResponse {
     #[serde(default)]
+    code: Option<i32>,
+    #[serde(default)]
+    message: Option<String>,
+    #[serde(default)]
     skills: Vec<SkillHubItem>,
+    #[serde(default)]
+    data: Option<SkillHubData>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct SkillHubData {
+    #[serde(default)]
+    skills: Vec<SkillHubItem>,
+    #[serde(default)]
+    total: Option<u64>,
+    #[serde(default)]
+    count: Option<u64>,
     #[serde(default)]
     pagination: Option<SkillHubPagination>,
 }
@@ -36,10 +53,15 @@ struct SkillHubPagination {
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct SkillHubItem {
+    #[serde(default, alias = "slug")]
     id: String,
+    #[serde(default, alias = "displayName")]
     name: String,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "description_zh")]
+    description_zh: Option<String>,
     #[serde(default)]
     #[serde(rename = "githubOwner")]
     github_owner: Option<String>,
@@ -53,6 +75,12 @@ struct SkillHubItem {
     #[serde(rename = "downloadCount")]
     download_count: Option<u64>,
     #[serde(default)]
+    downloads: Option<u64>,
+    #[serde(default)]
+    installs: Option<u64>,
+    #[serde(default)]
+    stars: Option<u64>,
+    #[serde(default)]
     #[serde(rename = "securityScore")]
     security_score: Option<u32>,
     #[serde(default)]
@@ -60,6 +88,8 @@ struct SkillHubItem {
     #[serde(default)]
     #[serde(rename = "packageUrl")]
     package_url: Option<String>,
+    #[serde(default)]
+    homepage: Option<String>,
 }
 
 struct CacheEntry {
@@ -91,14 +121,15 @@ impl SkillHubProvider {
     }
 
     fn build_url(&self, keyword: Option<&str>, limit: usize) -> String {
-        let base = self.cfg.url.trim_end_matches('/');
         let template = match (keyword, &self.cfg.list_template) {
             (Some(_), _) => &self.cfg.search_template,
             (None, Some(list_tmpl)) => list_tmpl,
             (None, None) => &self.cfg.search_template,
         };
 
-        let mut url = template.replace("{{limit}}", &limit.to_string());
+        let mut url = template
+            .replace("{{limit}}", &limit.to_string())
+            .replace("{{pageSize}}", &limit.to_string());
 
         if let Some(kw) = keyword {
             let encoded = url::form_urlencoded::byte_serialize(kw.as_bytes()).collect::<String>();
@@ -106,29 +137,51 @@ impl SkillHubProvider {
         } else {
             url = url
                 .replace("?q={{query}}&", "?")
-                .replace("&q={{query}}", "");
+                .replace("&q={{query}}", "")
+                .replace("?keyword={{query}}&", "?")
+                .replace("&keyword={{query}}", "");
         }
 
-        if url.starts_with('/') {
-            format!("{base}{url}")
+        self.absolute_url(&url)
+    }
+
+    fn absolute_url(&self, template: &str) -> String {
+        if template.starts_with('/') {
+            format!("{}{}", self.cfg.url.trim_end_matches('/'), template)
         } else {
-            url
+            template.to_string()
         }
     }
 
+    fn package_url(&self, slug: &str) -> String {
+        self.absolute_url(
+            &self
+                .cfg
+                .download_template
+                .replace("{{slug}}", slug)
+                .replace("{{id}}", slug)
+                .replace("{{package}}", slug),
+        )
+    }
+
     fn map_entry(&self, item: SkillHubItem) -> SkillCatalogEntry {
+        let package_url = item
+            .package_url
+            .or_else(|| Some(self.package_url(&item.id)));
+        let description = item.description_zh.or(item.description).unwrap_or_default();
+
         SkillCatalogEntry {
             catalog_id: item.id.clone(),
             name: item.name,
-            description: item.description.unwrap_or_default(),
+            description,
             source: self.cfg.id.clone(),
-            source_url: format!("https://skills.palebluedot.live/skills/{}", item.id),
-            install_count: item.download_count,
-            github_stars: item.github_stars,
+            source_url: format!("https://skillhub.cn/skills/{}", item.id),
+            install_count: item.download_count.or(item.downloads).or(item.installs),
+            github_stars: item.github_stars.or(item.stars),
             security_score: item.security_score,
             rating: item.rating,
             package: item.id.clone(),
-            package_url: item.package_url,
+            package_url,
         }
     }
 
@@ -161,9 +214,24 @@ impl SkillHubProvider {
         let parsed: SkillHubResponse = serde_json::from_slice(&response.body)
             .map_err(|e| SkillCatalogError::Decode(format!("SkillHub parse: {e}")))?;
 
-        let entries: Vec<SkillCatalogEntry> = parsed
-            .skills
+        if let Some(code) = parsed.code {
+            if code != 0 {
+                let message = parsed.message.unwrap_or_else(|| "unknown error".into());
+                return Err(SkillCatalogError::Decode(format!(
+                    "SkillHub returned code {code}: {message}"
+                )));
+            }
+        }
+
+        let skills = parsed
+            .data
+            .map(|data| data.skills)
+            .filter(|skills| !skills.is_empty())
+            .unwrap_or(parsed.skills);
+
+        let entries: Vec<SkillCatalogEntry> = skills
             .into_iter()
+            .filter(|item| !item.id.is_empty())
             .map(|item| self.map_entry(item))
             .collect();
 
@@ -249,9 +317,15 @@ mod tests {
             id: "skillhub".into(),
             display_name: "SkillHub".into(),
             kind: SkillSourceKind::SkillHub,
-            url: "https://skills.palebluedot.live".into(),
-            search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
-            list_template: Some("/api/skills?limit={{limit}}".into()),
+            url: "https://api.skillhub.cn".into(),
+            download_template: "/api/v1/download?slug={{slug}}".into(),
+            search_template:
+                "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc"
+                    .into(),
+            list_template: Some(
+                "/api/skills?page=1&pageSize={{limit}}&sortBy=downloads&order=desc".into(),
+            ),
+            detail_template: Some("/api/v1/skills/{{slug}}".into()),
             enabled: true,
             priority: 20,
             cache_ttl_seconds: 900,
@@ -263,9 +337,9 @@ mod tests {
         let http = SharedHttpClient::new().unwrap();
         let provider = SkillHubProvider::new(test_cfg(), http);
         let url = provider.build_url(Some("code review"), 10);
-        assert!(url.contains("q=code+review"));
-        assert!(url.contains("limit=10"));
-        assert!(url.starts_with("https://skills.palebluedot.live"));
+        assert!(url.contains("keyword=code+review"));
+        assert!(url.contains("pageSize=10"));
+        assert!(url.starts_with("https://api.skillhub.cn"));
     }
 
     #[test]
@@ -274,21 +348,19 @@ mod tests {
         let provider = SkillHubProvider::new(test_cfg(), http);
         let url = provider.build_url(None, 20);
         assert!(!url.contains("q="));
-        assert!(url.contains("limit=20"));
-        assert!(url.starts_with("https://skills.palebluedot.live"));
+        assert!(url.contains("pageSize=20"));
+        assert!(url.starts_with("https://api.skillhub.cn"));
     }
 
     #[test]
     fn skillhub_response_parses_correctly() {
-        let json = r#"{"skills":[{"id":"test/skill","name":"test-skill","description":"A test skill","githubStars":100,"downloadCount":50,"securityScore":95,"rating":4.5}]}"#;
+        let json = r#"{"code":0,"data":{"skills":[{"slug":"test-skill","name":"test-skill","description_zh":"A test skill","stars":100,"downloads":50,"securityScore":95,"rating":4.5}]}}"#;
         let parsed: SkillHubResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(parsed.skills.len(), 1);
-        assert_eq!(parsed.skills[0].name, "test-skill");
-        assert_eq!(
-            parsed.skills[0].description.as_deref(),
-            Some("A test skill")
-        );
-        assert_eq!(parsed.skills[0].github_stars, Some(100));
-        assert_eq!(parsed.skills[0].download_count, Some(50));
+        let skills = parsed.data.unwrap().skills;
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].name, "test-skill");
+        assert_eq!(skills[0].description_zh.as_deref(), Some("A test skill"));
+        assert_eq!(skills[0].stars, Some(100));
+        assert_eq!(skills[0].downloads, Some(50));
     }
 }

@@ -182,15 +182,15 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await page.getByTestId("skill-catalog-search").press("Enter");
     await expect(page.getByTestId("skill-catalog-card")).toBeVisible();
     await page.getByTestId("skill-catalog-install-skillhub/code-review-assistant").click();
-    // Switch back to Installed tab, then to User source to verify the installed user-scoped skill
+    // Switch back to Installed tab. Marketplace installs follow the top-level
+    // Settings source selection, which is still Project from the setup above.
     await page.getByTestId("skill-subtab-installed").click();
-    await page.getByTestId("source-btn-user").click();
-    await expect(page.getByTestId("skill-row-user-code-review-assistant")).toContainText(
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toContainText(
       "Code Review Assistant"
     );
 
-    await page.getByTestId("skill-delete-user-code-review-assistant").click();
-    await expect(page.getByTestId("skill-row-user-code-review-assistant")).toHaveCount(0);
+    await page.getByTestId("skill-delete-project-code-review-assistant").click();
+    await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
   });
 
   test("mock rejects ambiguous legacy skill ids without mutating rows", async ({ page }) => {

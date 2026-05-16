@@ -753,7 +753,9 @@ export type SkillSourceView = {
   kind: string;
   url: string;
   search_template: string;
+  download_template: string;
   list_template: string | null;
+  detail_template: string | null;
   field_mapping: SkillFieldMappingView;
   enabled: boolean;
   priority: number;

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
+import { ref } from "vue";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { commands, type SkillCatalogEntry, type EffectiveSkillView } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
+import SkillSourcesSettings from "./skills/SkillSourcesSettings.vue";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -14,6 +16,9 @@ vi.mock("@/generated/commands", () => ({
     searchRemoteSkills: vi.fn(),
     listSkillCatalog: vi.fn(),
     listSkillSources: vi.fn(),
+    addSkillSource: vi.fn(),
+    removeSkillSource: vi.fn(),
+    setSkillSourceEnabled: vi.fn(),
     installRemoteSkill: vi.fn(),
     installGithubSkill: vi.fn(),
     updateSkill: vi.fn()
@@ -124,11 +129,24 @@ const remoteSkill: SkillCatalogEntry = {
   github_stars: null,
   security_score: null,
   rating: null,
-  package: "docs-helper"
+  package: "docs-helper",
+  package_url: "https://api.skillhub.cn/api/v1/download?slug=docs-helper"
 };
 
-function mountPane() {
-  return mountWithPlugins(SkillSettingsPane, { reusePinia: true }).wrapper;
+function mountPane(configSource?: "user" | "project") {
+  return mountWithPlugins(SkillSettingsPane, {
+    reusePinia: true,
+    mount: configSource
+      ? {
+          global: {
+            provide: {
+              configSource: ref(configSource),
+              configProjectId: ref("test-project")
+            }
+          }
+        }
+      : undefined
+  }).wrapper;
 }
 
 beforeEach(() => {
@@ -142,6 +160,9 @@ beforeEach(() => {
   mockedCommands.searchRemoteSkills.mockResolvedValue([remoteSkill]);
   mockedCommands.listSkillCatalog.mockResolvedValue([remoteSkill]);
   mockedCommands.listSkillSources.mockResolvedValue([]);
+  mockedCommands.addSkillSource.mockResolvedValue(null);
+  mockedCommands.removeSkillSource.mockResolvedValue(null);
+  mockedCommands.setSkillSourceEnabled.mockResolvedValue(null);
   mockedCommands.installRemoteSkill.mockResolvedValue(projectSkill);
   mockedCommands.installGithubSkill.mockResolvedValue(projectSkill);
   mockedCommands.updateSkill.mockResolvedValue(projectSkill);
@@ -236,26 +257,86 @@ describe("SkillSettingsPane", () => {
     // Default install target is "user" (syncs with ConfigSourceBar default)
     expect(mockedCommands.installRemoteSkill).toHaveBeenCalledWith({
       package: "docs-helper",
-      package_url: null,
+      package_url: "https://api.skillhub.cn/api/v1/download?slug=docs-helper",
       source: "registry",
       target: "user"
     });
+    expect(mockedCommands.getEffectiveSkills).toHaveBeenCalledTimes(2);
   });
 
-  it("installs skills from GitHub with a stable form selector", async () => {
+  it("opens a skill catalog detail drawer and installs into the selected project target", async () => {
+    const wrapper = mountPane("project");
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-subtab-discover"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-catalog-card"] button').trigger("click");
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("Install target");
+    expect(document.body.textContent).toContain("Project");
+
+    document
+      .querySelector<HTMLButtonElement>('[data-test="skill-catalog-detail-install"]')
+      ?.click();
+    await flushPromises();
+
+    expect(mockedCommands.installRemoteSkill).toHaveBeenCalledWith({
+      package: "docs-helper",
+      package_url: "https://api.skillhub.cn/api/v1/download?slug=docs-helper",
+      source: "registry",
+      target: "project"
+    });
+    expect(mockedCommands.getEffectiveSkills).toHaveBeenCalledTimes(2);
+  });
+
+  it("installs skills from GitHub from the marketplace advanced install section", async () => {
     const wrapper = mountPane();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="skill-github-form"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="skill-subtab-discover"]').trigger("click");
     await flushPromises();
 
     await wrapper
       .find('[data-test="skill-github-source"]')
-      .setValue("https://github.com/acme/skill.git");
+      .setValue("https://github.com/acme/skills/tree/main/packages/review");
     await wrapper.find('[data-test="skill-github-form"]').trigger("submit");
     await flushPromises();
 
     // Default install target is "user" (syncs with ConfigSourceBar default)
     expect(mockedCommands.installGithubSkill).toHaveBeenCalledWith({
-      source: "https://github.com/acme/skill.git",
+      source: "https://github.com/acme/skills/tree/main/packages/review",
       target: "user"
     });
+    expect(mockedCommands.getEffectiveSkills).toHaveBeenCalledTimes(2);
+  });
+
+  it("adds a skill source with required search and download templates", async () => {
+    const wrapper = mountWithPlugins(SkillSourcesSettings, { reusePinia: true }).wrapper;
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-add-source-toggle"]').trigger("click");
+    await wrapper.find('[data-test="skill-src-id"]').setValue("custom-skillhub");
+    await wrapper.find('[data-test="skill-src-name"]').setValue("Custom SkillHub");
+    await wrapper.find('[data-test="skill-src-url"]').setValue("https://api.skillhub.cn");
+    await wrapper.find('[data-test="skill-src-list-template"]').setValue("");
+    await wrapper.find('[data-test="skill-src-detail-template"]').setValue("");
+    await wrapper.find('[data-test="skill-src-save"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.addSkillSource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "custom-skillhub",
+        display_name: "Custom SkillHub",
+        search_template:
+          "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc",
+        download_template: "/api/v1/download?slug={{slug}}",
+        list_template: null,
+        detail_template: null
+      })
+    );
   });
 });

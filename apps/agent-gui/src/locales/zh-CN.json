@@ -172,7 +172,8 @@
     "sourcesEmpty": "尚未配置远程目录源。",
     "sourceFormError": {
       "idAndDisplayNameRequired": "id 和 display_name 必填",
-      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
+      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头",
+      "searchAndDownloadRequired": "搜索模板和下载模板必填"
     },
     "install": {
       "installed": "已安装",
@@ -282,6 +283,7 @@
     "updateSkill": "更新",
     "delete": "删除",
     "installFromGithub": "从 GitHub 安装",
+    "advancedInstall": "高级安装",
     "target": "目标",
     "targetProject": "项目",
     "targetUser": "用户",
@@ -298,7 +300,8 @@
     "sourcesEmpty": "尚未配置 skill 目录源。",
     "sourceFormError": {
       "idAndDisplayNameRequired": "id 和 display_name 必填",
-      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
+      "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头",
+      "searchAndDownloadRequired": "搜索模板和下载模板必填"
     },
     "overrides": "覆盖 {source}",
     "disabledBy": "被 {source} 禁用"
