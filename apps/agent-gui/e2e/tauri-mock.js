@@ -1787,6 +1787,11 @@ function invoke(cmd, args) {
           );
         });
       }
+      if (sq && Array.isArray(sq.sources) && sq.sources.length > 0) {
+        entries = entries.filter(function (e) {
+          return sq.sources.indexOf(e.source) !== -1;
+        });
+      }
       return clone(entries);
     }
 

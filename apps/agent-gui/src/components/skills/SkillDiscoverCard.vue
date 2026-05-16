@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { SkillCatalogEntry } from "@/generated/commands";
 
-const props = defineProps<{ entry: SkillCatalogEntry; installing: boolean }>();
+const props = defineProps<{
+  entry: SkillCatalogEntry;
+  installing: boolean;
+  installed: boolean;
+}>();
 const emit = defineEmits<{ install: []; select: [] }>();
+const { t } = useI18n();
 
 const trustTagClass = computed<string>(() => {
   const score = props.entry.security_score;
@@ -24,6 +29,16 @@ const ratingDisplay = computed<string>(() => {
   if (r == null) return "";
   return r.toFixed(1);
 });
+
+const installCountDisplay = computed<string>(() =>
+  props.entry.install_count.toLocaleString(undefined, { maximumFractionDigits: 0 })
+);
+
+const installButtonLabel = computed<string>(() => {
+  if (props.installed) return t("skills.installed");
+  if (props.installing) return t("skills.installing");
+  return t("skills.install");
+});
 </script>
 
 <template>
@@ -35,15 +50,15 @@ const ratingDisplay = computed<string>(() => {
           v-if="entry.security_score != null"
           class="tag sec-tag"
           :class="trustTagClass"
-          :title="`Security score: ${entry.security_score}`"
+          :title="t('skills.securityScore', { score: entry.security_score })"
         >
           {{ entry.security_score }}
         </span>
       </div>
-      <span class="summary">{{ entry.description || "No description" }}</span>
+      <span class="summary">{{ entry.description || t("skills.noDescription") }}</span>
       <div class="meta-row">
         <span v-if="entry.install_count != null" class="meta-item">
-          {{ entry.install_count.toLocaleString() }} installs
+          {{ t("skills.installs", { count: installCountDisplay }) }}
         </span>
         <span v-if="starsDisplay" class="meta-item"> ★ {{ starsDisplay }} </span>
         <span v-if="ratingDisplay" class="meta-item">
@@ -62,16 +77,16 @@ const ratingDisplay = computed<string>(() => {
         rel="noopener noreferrer"
         class="tag tag-link"
       >
-        View source
+        {{ t("skills.viewSource") }}
       </a>
       <button
         class="btn btn-primary btn-sm"
         type="button"
-        :disabled="installing"
+        :disabled="installing || installed"
         :data-test="`skill-catalog-install-${entry.catalog_id}`"
         @click.stop="emit('install')"
       >
-        {{ installing ? "Installing…" : "Install" }}
+        {{ installButtonLabel }}
       </button>
     </div>
   </div>

@@ -5,6 +5,8 @@ import { useSkillsStore } from "@/stores/skills";
 import type {
   EffectiveSkillView,
   RemoteSkillSearchResult,
+  SkillCatalogEntry,
+  SkillCatalogQuery,
   SkillSettingsView
 } from "@/generated/commands";
 
@@ -70,6 +72,23 @@ function createRemoteSkillResult(
     install_count: 42,
     source_url: "https://registry.example/review",
     package: "@skills/review",
+    ...overrides
+  };
+}
+
+function createCatalogEntry(overrides: Partial<SkillCatalogEntry> = {}): SkillCatalogEntry {
+  return {
+    catalog_id: "skillhub/review",
+    name: "Review",
+    description: "Review code changes.",
+    source: "skillhub",
+    source_url: "https://registry.example/review",
+    install_count: 42,
+    github_stars: 10,
+    security_score: 95,
+    rating: 4.8,
+    package: "skillhub/review",
+    package_url: "https://registry.example/download/review",
     ...overrides
   };
 }
@@ -249,6 +268,23 @@ describe("skills store", () => {
     expect(store.remoteResults).toEqual(existingResults);
     expect(store.remoteLoading).toBe(false);
     expect(store.error).toContain("registry unavailable");
+  });
+
+  it("caches catalog searches and supports forced refresh of the same query", async () => {
+    const query: SkillCatalogQuery = { keyword: "review", sources: ["skillhub"], limit: 100 };
+    const firstResults = [createCatalogEntry({ name: "Review" })];
+    const refreshedResults = [createCatalogEntry({ name: "Review Pro" })];
+    mockedInvoke.mockResolvedValueOnce(firstResults).mockResolvedValueOnce(refreshedResults);
+
+    const store = useSkillsStore();
+    await store.searchCatalog(query);
+    await store.searchCatalog(query);
+    await store.searchCatalog(query, { force: true });
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(2);
+    expect(mockedInvoke).toHaveBeenNthCalledWith(1, "list_skill_catalog", { query });
+    expect(mockedInvoke).toHaveBeenNthCalledWith(2, "list_skill_catalog", { query });
+    expect(store.catalogEntries).toEqual(refreshedResults);
   });
 
   it("installs a remote skill with package source and upserts the result", async () => {
