@@ -67,6 +67,25 @@ where
         *self.permission_engine.lock().await.mode()
     }
 
+    /// Set the current permission mode (session-scoped).
+    pub async fn set_permission_mode(&self, mode: PermissionMode) {
+        self.permission_engine.lock().await.set_mode(mode);
+    }
+
+    /// Persist permission mode for a specific session.
+    /// Updates both the in-memory engine AND the database row.
+    pub async fn set_session_permission_mode(
+        &self,
+        session_id: &agent_core::SessionId,
+        mode: PermissionMode,
+    ) -> agent_core::Result<()> {
+        self.permission_engine.lock().await.set_mode(mode);
+        self.store
+            .update_permission_mode(session_id.as_str(), &mode.to_string())
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
     /// Set the memory store for persistent memory.
     pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
         self.memory_store = Some(store.clone());

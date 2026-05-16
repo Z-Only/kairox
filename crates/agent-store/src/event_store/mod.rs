@@ -60,6 +60,8 @@ pub trait EventStore: Send + Sync {
     async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()>;
     /// Get draft text for a session, returning empty string if none exists.
     async fn get_draft(&self, session_id: &str) -> crate::Result<String>;
+    /// Update the permission mode for a session.
+    async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -77,6 +79,7 @@ pub struct ProjectSessionMetaRow {
     pub worktree_path: String,
     pub branch: Option<String>,
     pub visibility: String,
+    pub permission_mode: String,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -95,6 +98,7 @@ pub struct SessionRow {
     pub model_profile: String,
     pub model_id: Option<String>,
     pub provider: Option<String>,
+    pub permission_mode: String,
     pub deleted_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -108,6 +112,7 @@ struct SessionRowForQuery {
     model_profile: String,
     model_id: Option<String>,
     provider: Option<String>,
+    permission_mode: String,
     deleted_at: Option<String>,
     created_at: String,
     updated_at: String,
@@ -122,6 +127,7 @@ impl From<SessionRowForQuery> for SessionRow {
             model_profile: r.model_profile,
             model_id: r.model_id,
             provider: r.provider,
+            permission_mode: r.permission_mode,
             deleted_at: r.deleted_at,
             created_at: r.created_at,
             updated_at: r.updated_at,
@@ -254,6 +260,10 @@ impl EventStore for SqliteEventStore {
 
     async fn get_draft(&self, session_id: &str) -> crate::Result<String> {
         SqliteEventStore::get_draft(self, session_id).await
+    }
+
+    async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()> {
+        SqliteEventStore::update_permission_mode(self, session_id, mode).await
     }
 }
 

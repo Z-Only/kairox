@@ -78,6 +78,7 @@ fn main() {
             agent_gui_tauri::commands::compact_session,
             agent_gui_tauri::commands::switch_model,
             agent_gui_tauri::commands::get_permission_mode,
+            agent_gui_tauri::commands::set_permission_mode,
             agent_gui_tauri::commands::get_build_info,
             // Skill commands
             agent_gui_tauri::commands::list_skills,

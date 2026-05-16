@@ -171,6 +171,7 @@ function installMock() {
       state.gitStatuses.clear();
       state.currentSessionId = null;
       state.currentProfile = "fast";
+      state.currentPermissionMode = "suggest";
       state.projections.clear();
       state.traces.clear();
       state.memories = [];

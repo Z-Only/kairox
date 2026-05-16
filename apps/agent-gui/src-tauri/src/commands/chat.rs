@@ -55,6 +55,7 @@ pub async fn initialize_workspace(
                 .start_session(agent_core::StartSessionRequest {
                     workspace_id: workspace_id.clone(),
                     model_profile: profile.clone(),
+                    permission_mode: None,
                 })
                 .await
                 .map_err(|e| format!("Failed to start session: {e}"))?
@@ -87,6 +88,7 @@ pub async fn initialize_workspace(
 #[specta::specta]
 pub async fn start_session(
     profile: String,
+    permission_mode: Option<String>,
     state: State<'_, GuiState>,
     app_handle: tauri::AppHandle,
 ) -> Result<SessionInfoResponse, String> {
@@ -100,6 +102,7 @@ pub async fn start_session(
         .start_session(agent_core::StartSessionRequest {
             workspace_id: workspace_id.clone(),
             model_profile: profile.clone(),
+            permission_mode: permission_mode.clone(),
         })
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;
@@ -113,6 +116,7 @@ pub async fn start_session(
         id: session_id.to_string(),
         title,
         profile,
+        permission_mode: permission_mode.or(Some("suggest".into())),
         project_id: None,
         worktree_path: None,
         branch: None,

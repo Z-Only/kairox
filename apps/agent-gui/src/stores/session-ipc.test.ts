@@ -158,7 +158,7 @@ describe("createSession", () => {
     // start_session was invoked with the requested profile alias.
     const startCall = mockedInvoke.mock.calls.find(([cmd]) => cmd === "start_session");
     expect(startCall).toBeDefined();
-    expect(startCall?.[1]).toEqual({ profile: "fast" });
+    expect(startCall?.[1]).toEqual({ profile: "fast", permissionMode: "suggest" });
   });
 
   it("propagates start_session failures to the caller (the view surfaces them)", async () => {

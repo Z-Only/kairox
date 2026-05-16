@@ -54,6 +54,14 @@ impl EventStore for NonSqliteEventStore {
         Ok(())
     }
 
+    async fn update_permission_mode(
+        &self,
+        _session_id: &str,
+        _mode: &str,
+    ) -> agent_store::Result<()> {
+        Ok(())
+    }
+
     async fn permanently_delete_session(&self, _session_id: &str) -> agent_store::Result<()> {
         Ok(())
     }
@@ -127,6 +135,8 @@ async fn full_workspace_session_round_trip() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -202,6 +212,8 @@ async fn session_metadata_persists_across_reopen() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -253,6 +265,8 @@ async fn rename_and_soft_delete_flow() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -305,6 +319,8 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "gpt-4".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -312,6 +328,8 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "claude".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -319,6 +337,8 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "ollama".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -381,6 +401,8 @@ async fn cleanup_expired_removes_old_sessions_and_events() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -581,6 +603,8 @@ async fn mark_session_visible_rejects_non_draft_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id,
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -608,6 +632,8 @@ async fn mark_session_visible_rejects_draft_visibility_without_project_binding()
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id,
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

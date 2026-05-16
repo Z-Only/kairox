@@ -83,6 +83,8 @@ async fn permission_mode_restricts_write_tool() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -136,6 +138,8 @@ async fn session_restore_preserves_messages() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

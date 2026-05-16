@@ -12,8 +12,10 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("refresh_config_for_project", { projectRoot })),
   initializeWorkspace: () =>
     typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
-  startSession: (profile: string) =>
-    typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
+  startSession: (profile: string, permissionMode: string | null) =>
+    typedError<SessionInfoResponse, string>(
+      __TAURI_INVOKE("start_session", { profile, permissionMode })
+    ),
   sendMessage: (content: string, attachments: AttachmentInfo[]) =>
     typedError<null, string>(__TAURI_INVOKE("send_message", { content, attachments })),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
@@ -97,6 +99,8 @@ export const commands = {
   switchModel: (sessionId: string, profileAlias: string) =>
     typedError<null, string>(__TAURI_INVOKE("switch_model", { sessionId, profileAlias })),
   getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
+  setPermissionMode: (mode: string) =>
+    typedError<string, string>(__TAURI_INVOKE("set_permission_mode", { mode })),
   getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
   listSkills: () => typedError<SkillView[], string>(__TAURI_INVOKE("list_skills")),
   getSkillDetail: (skillId: string) =>
@@ -671,6 +675,7 @@ export type SessionInfoResponse = {
   id: string;
   title: string;
   profile: string;
+  permission_mode: string | null;
   project_id: string | null;
   worktree_path: string | null;
   branch: string | null;

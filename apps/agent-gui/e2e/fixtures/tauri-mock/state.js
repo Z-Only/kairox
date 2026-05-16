@@ -27,6 +27,7 @@ const state = {
   gitStatuses: new Map(),
   currentSessionId: null,
   currentProfile: "fast",
+  currentPermissionMode: "suggest",
   projections: new Map(),
   traces: new Map(),
   memories: [],

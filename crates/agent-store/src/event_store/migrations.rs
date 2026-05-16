@@ -34,5 +34,15 @@ pub(super) async fn run(pool: &SqlitePool) -> crate::Result<()> {
             return Err(crate::StoreError::Sqlx(e));
         }
     }
+    // 0006 adds permission_mode column to kairox_sessions; tolerate duplicate on re-connect.
+    if let Err(e) = sqlx::query(include_str!("../../migrations/0006_permission_mode.sql"))
+        .execute(pool)
+        .await
+    {
+        let msg = e.to_string();
+        if !msg.contains("duplicate column name") {
+            return Err(crate::StoreError::Sqlx(e));
+        }
+    }
     Ok(())
 }

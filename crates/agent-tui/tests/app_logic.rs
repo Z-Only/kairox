@@ -39,6 +39,8 @@ async fn tui_send_message_produces_user_and_assistant_messages() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -82,6 +84,8 @@ async fn tui_event_stream_matches_projection() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -152,6 +156,8 @@ async fn tui_multiple_sessions_have_isolated_projections() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -159,6 +165,8 @@ async fn tui_multiple_sessions_have_isolated_projections() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -200,6 +208,8 @@ async fn tui_cancel_session_marks_cancelled() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -233,6 +243,8 @@ async fn tui_trace_entries_populated_after_message() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -278,6 +290,8 @@ async fn tui_session_listing_works() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -285,6 +299,8 @@ async fn tui_session_listing_works() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "smart".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -315,6 +331,8 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -322,6 +340,8 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

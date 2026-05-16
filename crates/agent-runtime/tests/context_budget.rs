@@ -46,6 +46,8 @@ async fn context_assembled_event_emitted_with_budget_respected() {
         .start_session(StartSessionRequest {
             workspace_id: workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -153,6 +155,8 @@ base_url = "{}"
         .start_session(StartSessionRequest {
             workspace_id: ws_info.workspace_id.clone(),
             model_profile: "ollama-test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

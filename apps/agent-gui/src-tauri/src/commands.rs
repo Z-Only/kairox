@@ -29,6 +29,7 @@ pub struct SessionInfoResponse {
     pub id: String,
     pub title: String,
     pub profile: String,
+    pub permission_mode: Option<String>,
     pub project_id: Option<String>,
     pub worktree_path: Option<String>,
     pub branch: Option<String>,
@@ -139,6 +140,7 @@ impl From<SessionMeta> for SessionInfoResponse {
             id: session.session_id.to_string(),
             title: session.title,
             profile: session.model_profile,
+            permission_mode: session.permission_mode,
             project_id: session.project_id.map(|project_id| project_id.to_string()),
             worktree_path: session.worktree_path,
             branch: session.branch,
@@ -276,12 +278,33 @@ fn project_git_status_kind_to_string(kind: ProjectGitStatusKind) -> String {
 }
 
 /// Inner helper: update current session.
+/// Restores the session's permission mode from stored metadata.
 /// No forwarder respawning needed since we use subscribe_all().
 async fn switch_session_inner(
     state: &GuiState,
     session_id: agent_core::SessionId,
     _app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
+    // Restore permission mode from session metadata before switching
+    {
+        let workspace_id = {
+            let ws = state.workspace_id.lock().await;
+            ws.clone().ok_or("Workspace not initialized")?
+        };
+        let sessions = state
+            .runtime
+            .list_sessions(&workspace_id)
+            .await
+            .map_err(|e| format!("Failed to list sessions: {e}"))?;
+        if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
+            if let Some(ref mode_str) = session.permission_mode {
+                if let Ok(mode) = mode_str.parse::<agent_tools::PermissionMode>() {
+                    state.runtime.set_permission_mode(mode).await;
+                }
+            }
+        }
+    }
+
     // Update current session
     {
         let mut current = state.current_session_id.lock().await;
