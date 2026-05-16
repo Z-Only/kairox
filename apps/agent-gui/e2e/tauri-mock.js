@@ -12,6 +12,8 @@
 
 /* ---- State ---- */
 
+const persistedStateKey = "__kairox_mock_state__";
+
 let idCounter = 0;
 function nextId(prefix) {
   return prefix + "_" + ++idCounter;
@@ -35,6 +37,14 @@ const state = {
   /** Tauri v2 event system: eventName → Map<eventId, handler> */
   eventListeners: new Map(),
   drafts: new Map(),
+  workspaceFiles: [
+    "apps/agent-gui/src/components/ChatComposer.vue",
+    "apps/agent-gui/src/components/FileMentionPalette.vue",
+    "apps/agent-gui/e2e/chat-flow.spec.ts",
+    "apps/agent-gui/e2e/tauri-mock.js",
+    "crates/agent-core/src/lib.rs",
+    "README.md"
+  ],
   profiles: [
     {
       alias: "fast",
@@ -407,6 +417,62 @@ function getProjectSessionList(projectId) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function snapshotMap(map) {
+  return Array.from(map.entries()).map(function (entry) {
+    return [entry[0], clone(entry[1])];
+  });
+}
+
+function persistMockState() {
+  try {
+    localStorage.setItem(
+      persistedStateKey,
+      JSON.stringify({
+        idCounter: idCounter,
+        initialized: state.initialized,
+        workspace: state.workspace,
+        sessions: state.sessions,
+        projects: state.projects,
+        projectSessions: snapshotMap(state.projectSessions),
+        archivedSessions: state.archivedSessions,
+        gitStatuses: snapshotMap(state.gitStatuses),
+        currentSessionId: state.currentSessionId,
+        currentProfile: state.currentProfile,
+        projections: snapshotMap(state.projections),
+        traces: snapshotMap(state.traces),
+        drafts: snapshotMap(state.drafts)
+      })
+    );
+  } catch {
+    // The mock can be evaluated in non-origin contexts where localStorage is unavailable.
+  }
+}
+
+function restorePersistedMockState() {
+  try {
+    var raw = localStorage.getItem(persistedStateKey);
+    if (!raw) return;
+    var snapshot = JSON.parse(raw);
+    idCounter = snapshot.idCounter || 0;
+    state.initialized = Boolean(snapshot.initialized);
+    state.workspace = snapshot.workspace || null;
+    state.sessions = snapshot.sessions || [];
+    state.projects = snapshot.projects || [];
+    state.projectSessions = new Map(snapshot.projectSessions || []);
+    state.archivedSessions = snapshot.archivedSessions || [];
+    state.gitStatuses = new Map(snapshot.gitStatuses || []);
+    state.currentSessionId = snapshot.currentSessionId || null;
+    state.currentProfile = snapshot.currentProfile || "fast";
+    state.projections = new Map(snapshot.projections || []);
+    state.traces = new Map(snapshot.traces || []);
+    state.drafts = new Map(snapshot.drafts || []);
+  } catch {
+    try {
+      localStorage.removeItem(persistedStateKey);
+    } catch {}
+  }
 }
 
 function slugify(value) {
@@ -1809,7 +1875,7 @@ function invoke(cmd, args) {
     }
 
     case "list_workspace_files": {
-      return Promise.resolve({ paths: [] });
+      return Promise.resolve({ paths: state.workspaceFiles.slice() });
     }
 
     case "save_draft": {
@@ -1818,7 +1884,8 @@ function invoke(cmd, args) {
     }
 
     case "get_draft": {
-      return Promise.resolve(state.drafts.get(args.session_id) || "");
+      var draftSessionId = args.sessionId || args.session_id;
+      return Promise.resolve(state.drafts.get(draftSessionId) || "");
     }
 
     default:
@@ -1975,10 +2042,15 @@ function installMock() {
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
     },
+    persistForReload: persistMockState,
     reset: function () {
       state.initialized = false;
       state.workspace = null;
       state.sessions = [];
+      state.projects = [];
+      state.projectSessions.clear();
+      state.archivedSessions = [];
+      state.gitStatuses.clear();
       state.currentSessionId = null;
       state.currentProfile = "fast";
       state.projections.clear();
@@ -1989,9 +2061,13 @@ function installMock() {
       state.drafts.clear();
       state.callbacks.clear();
       state.eventListeners.clear();
+      try {
+        localStorage.removeItem(persistedStateKey);
+      } catch {}
       idCounter = 0;
     }
   };
 }
 
+restorePersistedMockState();
 installMock();
