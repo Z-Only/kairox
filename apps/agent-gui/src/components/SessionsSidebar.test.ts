@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { enableAutoUnmount, flushPromises } from "@vue/test-utils";
 import SessionsSidebar from "./SessionsSidebar.vue";
 import sessionsSidebarSource from "./SessionsSidebar.vue?raw";
+import sessionSectionSource from "./sidebar/SessionSection.vue?raw";
+import projectSectionSource from "./sidebar/ProjectSection.vue?raw";
+import sidebarActionsSource from "@/composables/sidebar/useSidebarActions.ts?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
 
@@ -179,9 +182,10 @@ describe("SessionsSidebar", () => {
   });
 
   it("uses inline SVG icons rather than emoji action labels", () => {
-    expect(sessionsSidebarSource).toContain("<svg");
-    expect(sessionsSidebarSource).not.toContain("✏️");
-    expect(sessionsSidebarSource).not.toContain("🗑️");
+    const sectionSources = [sessionSectionSource, projectSectionSource].join("\n");
+    expect(sectionSources).toContain("<svg");
+    expect(sectionSources).not.toContain("✏️");
+    expect(sectionSources).not.toContain("🗑️");
   });
 
   it("P2-S2-sidebar-landmark-name: gives the sessions sidebar a unique accessible name", async () => {
@@ -235,8 +239,8 @@ describe("SessionsSidebar", () => {
   });
 
   it("P2-S2-new-session-contrast: uses kx-icon-button for the new session action", () => {
-    expect(sessionsSidebarSource).toContain('data-test="new-session-btn"');
-    expect(sessionsSidebarSource).toContain("<KxIconButton");
+    expect(sessionSectionSource).toContain('data-test="new-session-btn"');
+    expect(sessionSectionSource).toContain("<KxIconButton");
   });
 
   it("requires a second click on the same session archive button before deleting", async () => {
@@ -255,8 +259,8 @@ describe("SessionsSidebar", () => {
   });
 
   it("waits for session deletion before continuing after confirmation", () => {
-    expect(sessionsSidebarSource).not.toContain("void session.deleteSession");
-    expect(sessionsSidebarSource).toContain("await session.deleteSession(sessionId)");
+    expect(sidebarActionsSource).not.toContain("void session.deleteSession");
+    expect(sidebarActionsSource).toContain("await session.deleteSession(sessionId)");
   });
 
   it("imports an existing project from the selected directory", async () => {
