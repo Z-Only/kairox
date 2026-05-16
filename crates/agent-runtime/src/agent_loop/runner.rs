@@ -220,7 +220,13 @@ where
 
     // Retrieve relevant memories from the MemoryStore and inject them
     // into the system prompt so the model can use prior context.
+    // Start with the hardcoded SYSTEM_PROMPT, then append any user-authored
+    // instructions from the config layers (User + Project scope).
     let mut system_prompt = super::SYSTEM_PROMPT.to_string();
+    if let Some(ref instructions) = config.instructions {
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(instructions);
+    }
     if let Some(section) =
         crate::memory_handler::retrieve_memory_section(memory_store, &request.content).await
     {

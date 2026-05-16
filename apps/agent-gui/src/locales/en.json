@@ -50,6 +50,7 @@
     "archiveTotal": "Total: {count}",
     "archiveProjects": "Projects: {count}",
     "archiveRestore": "Restore",
+    "instructions": "Instructions",
     "archivePermanentDelete": "Delete Forever",
     "archiveDeleteConfirm": "Permanently delete this session? This cannot be undone.",
     "configSource": "Config Source",
@@ -80,6 +81,17 @@
   "errors": {
     "sessionBusy": "Session is busy: {reason}",
     "modelNotFound": "Model \"{alias}\" is not available"
+  },
+  "instructions": {
+    "system": "System",
+    "user": "User",
+    "project": "Project",
+    "readOnly": "Read-only",
+    "editable": "Editable",
+    "projectScopeRequired": "Switch to Project scope",
+    "userPlaceholder": "Instructions that apply to all projects…",
+    "projectPlaceholder": "Instructions for this project only…",
+    "effectivePreview": "Effective instructions"
   },
   "workbench": {
     "sessionNotFound": "Session not found: {id}"

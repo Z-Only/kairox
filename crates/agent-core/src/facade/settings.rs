@@ -162,9 +162,38 @@ pub struct ProfileSettingsView {
     pub source: String,
 }
 
+// -- instructions settings DTOs --
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstructionsView {
+    pub system: String,
+    pub user: Option<String>,
+    pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct InstructionsUpdateInput {
+    pub scope: crate::config_scope::ConfigScope,
+    pub text: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instructions_view_serializes() {
+        let view = InstructionsView {
+            system: "You are helpful.".into(),
+            user: Some("Be concise.".into()),
+            project: None,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert!(json.contains("You are helpful."));
+        assert!(json.contains("Be concise."));
+    }
 
     #[test]
     fn mcp_settings_input_serializes_stdio_transport() {

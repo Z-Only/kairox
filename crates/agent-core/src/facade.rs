@@ -26,8 +26,9 @@ pub use session::{
     SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use settings::{
-    EffectiveMcpServerView, EffectiveProfileView, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    EffectiveMcpServerView, EffectiveProfileView, InstructionsUpdateInput, InstructionsView,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
+    ProfileSettingsInput, ProfileSettingsView,
 };
 pub use skill_dtos::{
     ActivateSkillRequest, ActiveSkillView, DeactivateSkillRequest, EffectiveSkillView,

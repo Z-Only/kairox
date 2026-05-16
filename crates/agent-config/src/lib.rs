@@ -219,6 +219,9 @@ pub struct Config {
     /// Each entry is marked `disabled_by = Some(ConfigScope::Project)` in the
     /// effective view so the project can override user-level servers.
     pub disabled_mcp_servers: Vec<String>,
+    /// Merged custom instructions appended after the system prompt.
+    /// Higher layers are concatenated with `\n\n` separator.
+    pub instructions: Option<String>,
 }
 
 /// Errors that can occur during config loading.
@@ -316,12 +319,21 @@ impl Config {
         disabled_set.extend(overlay.disabled_mcp_servers);
         let merged_disabled: Vec<String> = disabled_set.into_iter().collect();
 
+        // Merge instructions: higher layer appends to lower layer with "\n\n".
+        let merged_instructions = match (&base.instructions, &overlay.instructions) {
+            (Some(b), Some(o)) if !b.is_empty() && !o.is_empty() => Some(format!("{}\n\n{}", b, o)),
+            (Some(b), _) if !b.is_empty() => Some(b.clone()),
+            (_, Some(o)) if !o.is_empty() => Some(o.clone()),
+            _ => None,
+        };
+
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
             source,
             context: overlay.context,
             disabled_mcp_servers: merged_disabled,
+            instructions: merged_instructions,
         })
     }
 
@@ -411,6 +423,7 @@ impl Config {
             source: ConfigSource::Defaults,
             context: ContextPolicy::default(),
             disabled_mcp_servers: Vec::new(),
+            instructions: None,
         }
     }
 

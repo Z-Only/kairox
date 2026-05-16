@@ -127,6 +127,7 @@ where
                 source: agent_config::ConfigSource::Defaults,
                 context: agent_config::ContextPolicy::default(),
                 disabled_mcp_servers: vec![],
+                instructions: None,
             }),
             ollama_clients: HashMap::new(),
             skill_catalog: std::sync::OnceLock::new(),
@@ -664,6 +665,7 @@ mod tests {
             source: ConfigSource::Defaults,
             context: ContextPolicy::default(),
             disabled_mcp_servers: vec![],
+            instructions: None,
         })
     }
 

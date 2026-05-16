@@ -13,6 +13,7 @@ pub(crate) mod facade_projects;
 pub mod facade_runtime;
 pub(crate) mod facade_sessions;
 pub(crate) mod facade_skills;
+pub mod instructions_settings;
 pub(crate) mod marketplace_toml;
 pub mod mcp_manager;
 pub mod mcp_settings;
