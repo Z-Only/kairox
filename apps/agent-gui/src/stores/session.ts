@@ -136,6 +136,7 @@ export const useSessionStore = defineStore("session", () => {
   const profileInfos = ref<ProfileInfo[]>([]);
   const loadingProfileInfo = ref(false);
   const lastSendError = ref<string | null>(null);
+  const permissionMode = ref<string>("suggest");
 
   function resolveSessionProfile(profile?: string): string {
     return profile ?? currentProfile.value;
@@ -366,6 +367,9 @@ export const useSessionStore = defineStore("session", () => {
     currentSessionId.value = sessionId;
     localStorage.setItem("kairox.last-active-session-id", sessionId);
     currentProfile.value = target.profile;
+    if (target.permission_mode) {
+      permissionMode.value = target.permission_mode;
+    }
     if (currentProfile.value === "default" && profileInfos.value.length > 0) {
       currentProfile.value = profileInfos.value[0].alias;
     }
@@ -406,10 +410,12 @@ export const useSessionStore = defineStore("session", () => {
    * directly. Throws on backend failure so the view can surface it.
    */
   async function createSession(
-    profile?: string
+    profile?: string,
+    permissionModeParam?: string
   ): Promise<{ id: string; title: string; profile: string }> {
     const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
-      profile: resolveSessionProfile(profile)
+      profile: resolveSessionProfile(profile),
+      permissionMode: permissionModeParam ?? permissionMode.value
     });
 
     // Dedup: check all existing sessions (excluding the one just created)
@@ -524,6 +530,17 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  async function setPermissionMode(mode: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      const result: string = await invoke("set_permission_mode", { mode });
+      permissionMode.value = result;
+    } catch (e) {
+      console.error("Failed to set permission mode:", e);
+      ui.pushNotification("error", `Failed to set permission mode: ${e}`);
+    }
+  }
+
   async function recoverSessions(): Promise<boolean> {
     const ui = useUiStore();
     try {
@@ -570,6 +587,7 @@ export const useSessionStore = defineStore("session", () => {
     profileInfos,
     loadingProfileInfo,
     lastSendError,
+    permissionMode,
     currentSessionInfo,
     activeProfileInfo,
     activeProfileDisplay,
@@ -587,6 +605,7 @@ export const useSessionStore = defineStore("session", () => {
     initializeWorkspace,
     loadProfileInfo,
     recoverSessions,
-    setConnected
+    setConnected,
+    setPermissionMode
   };
 });

@@ -186,6 +186,7 @@ async fn dispatch_commands(
                     .start_session(StartSessionRequest {
                         workspace_id: ws_id,
                         model_profile: mp.clone(),
+                        permission_mode: None,
                     })
                     .await
                 {
@@ -356,6 +357,7 @@ async fn main() -> Result<()> {
             .start_session(StartSessionRequest {
                 workspace_id: workspace_id.clone(),
                 model_profile: profile.clone(),
+                permission_mode: None,
             })
             .await?;
         app_sessions.push(SessionInfo {

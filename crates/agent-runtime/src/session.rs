@@ -89,6 +89,7 @@ pub async fn start_session<S: EventStore>(
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     workspace_id: WorkspaceId,
     model_profile: String,
+    permission_mode: Option<String>,
 ) -> agent_core::Result<SessionId> {
     let session_id = SessionId::new();
     let event = DomainEvent::new(
@@ -104,6 +105,7 @@ pub async fn start_session<S: EventStore>(
 
     // Persist session metadata for session recovery
     let now = chrono::Utc::now().to_rfc3339();
+    let perm = permission_mode.unwrap_or_else(|| "suggest".to_string());
     let session_row = SessionRow {
         session_id: session_id.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -111,6 +113,7 @@ pub async fn start_session<S: EventStore>(
         model_profile,
         model_id: None,
         provider: None,
+        permission_mode: perm,
         deleted_at: None,
         created_at: now.clone(),
         updated_at: now,
@@ -263,6 +266,7 @@ pub async fn list_sessions<S: EventStore>(
             worktree_path: None,
             branch: None,
             visibility: None,
+            permission_mode: Some(row.permission_mode.clone()),
             session_id: SessionId::from_string(row.session_id),
             workspace_id: WorkspaceId::from_string(row.workspace_id),
             title: row.title,

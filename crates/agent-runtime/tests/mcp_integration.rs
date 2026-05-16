@@ -62,6 +62,8 @@ async fn runtime_without_mcp_servers_works() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

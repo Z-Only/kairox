@@ -1,12 +1,42 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PermissionMode {
     ReadOnly,
     Suggest,
     Agent,
     Autonomous,
     Interactive,
+}
+
+impl std::fmt::Display for PermissionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ReadOnly => write!(f, "read_only"),
+            Self::Suggest => write!(f, "suggest"),
+            Self::Agent => write!(f, "agent"),
+            Self::Autonomous => write!(f, "autonomous"),
+            Self::Interactive => write!(f, "interactive"),
+        }
+    }
+}
+
+impl FromStr for PermissionMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "read_only" | "readonly" => Ok(Self::ReadOnly),
+            "suggest" => Ok(Self::Suggest),
+            "agent" => Ok(Self::Agent),
+            "autonomous" => Ok(Self::Autonomous),
+            "interactive" => Ok(Self::Interactive),
+            other => Err(format!("unknown permission mode: {other}")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +110,10 @@ impl PermissionEngine {
 
     pub fn mode(&self) -> &PermissionMode {
         &self.mode
+    }
+
+    pub fn set_mode(&mut self, mode: PermissionMode) {
+        self.mode = mode;
     }
 
     pub fn check_mcp_permission(&self, server_id: &str, _tool_id: &str) -> PermissionOutcome {
@@ -315,5 +349,66 @@ mod tests {
         engine.revoke_trust("srv-a");
         assert!(!engine.trusted_servers().contains("srv-a"));
         assert!(engine.trusted_servers().contains("srv-b"));
+    }
+
+    #[test]
+    fn display_roundtrip_via_fromstr() {
+        for mode in [
+            PermissionMode::ReadOnly,
+            PermissionMode::Suggest,
+            PermissionMode::Agent,
+            PermissionMode::Autonomous,
+            PermissionMode::Interactive,
+        ] {
+            let s = mode.to_string();
+            let parsed: PermissionMode = s.parse().unwrap();
+            assert_eq!(mode, parsed);
+        }
+    }
+
+    #[test]
+    fn fromstr_readonly_alias() {
+        assert_eq!(
+            "readonly".parse::<PermissionMode>().unwrap(),
+            PermissionMode::ReadOnly
+        );
+        assert_eq!(
+            "ReadOnly".parse::<PermissionMode>().unwrap(),
+            PermissionMode::ReadOnly
+        );
+    }
+
+    #[test]
+    fn fromstr_invalid() {
+        assert!("bogus".parse::<PermissionMode>().is_err());
+    }
+
+    #[test]
+    fn serde_roundtrip() {
+        for mode in [
+            PermissionMode::ReadOnly,
+            PermissionMode::Suggest,
+            PermissionMode::Agent,
+            PermissionMode::Autonomous,
+            PermissionMode::Interactive,
+        ] {
+            let json = serde_json::to_string(&mode).unwrap();
+            let back: PermissionMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(mode, back);
+        }
+    }
+
+    #[test]
+    fn serde_is_snake_case() {
+        let json = serde_json::to_string(&PermissionMode::ReadOnly).unwrap();
+        assert_eq!(json, "\"read_only\"");
+    }
+
+    #[test]
+    fn set_mode_updates_engine() {
+        let mut engine = PermissionEngine::new(PermissionMode::Suggest);
+        assert_eq!(*engine.mode(), PermissionMode::Suggest);
+        engine.set_mode(PermissionMode::Agent);
+        assert_eq!(*engine.mode(), PermissionMode::Agent);
     }
 }

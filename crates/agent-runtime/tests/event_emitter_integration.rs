@@ -22,6 +22,8 @@ async fn event_emitter_forwards_key_payload_types() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

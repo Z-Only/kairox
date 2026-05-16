@@ -121,6 +121,8 @@
     "model": "模型",
     "currentModel": "当前",
     "selectModelAria": "选择模型。当前模型：{model}",
+    "selectPermissionAria": "选择权限级别。当前：{mode}",
+    "permission": "权限",
     "attachFileAria": "附加文件",
     "removeFileAria": "移除 {name}",
     "emptyState": "开始对话"

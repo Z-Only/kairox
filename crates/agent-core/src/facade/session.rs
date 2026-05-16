@@ -20,6 +20,7 @@ pub struct WorkspaceInfo {
 pub struct StartSessionRequest {
     pub workspace_id: WorkspaceId,
     pub model_profile: String,
+    pub permission_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,6 +68,7 @@ pub struct SessionMeta {
     pub worktree_path: Option<String>,
     pub branch: Option<String>,
     pub visibility: Option<ProjectSessionVisibility>,
+    pub permission_mode: Option<String>,
     pub session_id: SessionId,
     pub workspace_id: WorkspaceId,
     pub title: String,

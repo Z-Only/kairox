@@ -23,9 +23,9 @@ impl SqliteEventStore {
 
     pub async fn upsert_session(&self, meta: &SessionRow) -> crate::Result<()> {
         sqlx::query(
-            "INSERT INTO kairox_sessions (session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-             ON CONFLICT(session_id) DO UPDATE SET title = ?3, model_profile = ?4, model_id = ?5, provider = ?6, updated_at = ?9",
+            "INSERT INTO kairox_sessions (session_id, workspace_id, title, model_profile, model_id, provider, permission_mode, deleted_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(session_id) DO UPDATE SET title = ?3, model_profile = ?4, model_id = ?5, provider = ?6, permission_mode = ?7, updated_at = ?10",
         )
         .bind(&meta.session_id)
         .bind(&meta.workspace_id)
@@ -33,6 +33,7 @@ impl SqliteEventStore {
         .bind(&meta.model_profile)
         .bind(&meta.model_id)
         .bind(&meta.provider)
+        .bind(&meta.permission_mode)
         .bind(&meta.deleted_at)
         .bind(&meta.created_at)
         .bind(&meta.updated_at)
@@ -52,7 +53,7 @@ impl SqliteEventStore {
 
     pub async fn list_active_sessions(&self, workspace_id: &str) -> crate::Result<Vec<SessionRow>> {
         let rows = sqlx::query_as::<_, SessionRowForQuery>(
-            "SELECT session_id, workspace_id, title, model_profile, model_id, provider, deleted_at, created_at, updated_at
+            "SELECT session_id, workspace_id, title, model_profile, model_id, provider, permission_mode, deleted_at, created_at, updated_at
              FROM kairox_sessions WHERE workspace_id = ?1 AND deleted_at IS NULL ORDER BY updated_at DESC",
         )
         .bind(workspace_id)
@@ -191,7 +192,8 @@ impl SqliteEventStore {
             "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
                     sessions.model_profile, sessions.model_id, sessions.provider,
                     sessions.deleted_at, sessions.created_at, sessions.updated_at,
-                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility
+                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility,
+                    sessions.permission_mode
              FROM kairox_sessions AS sessions
              INNER JOIN kairox_project_sessions AS bindings
                 ON bindings.session_id = sessions.session_id
@@ -216,7 +218,8 @@ impl SqliteEventStore {
             "SELECT sessions.session_id, sessions.workspace_id, sessions.title,
                     sessions.model_profile, sessions.model_id, sessions.provider,
                     sessions.deleted_at, sessions.created_at, sessions.updated_at,
-                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility
+                    bindings.project_id, bindings.worktree_path, bindings.branch, visibility.visibility,
+                    sessions.permission_mode
              FROM kairox_sessions AS sessions
              INNER JOIN kairox_project_sessions AS bindings
                 ON bindings.session_id = sessions.session_id
@@ -244,6 +247,19 @@ impl SqliteEventStore {
         .bind(session_id)
         .bind(draft_text)
         .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE kairox_sessions SET permission_mode = ?1, updated_at = ?2 WHERE session_id = ?3",
+        )
+        .bind(mode)
+        .bind(&now)
+        .bind(session_id)
         .execute(&self.pool)
         .await?;
         Ok(())

@@ -238,6 +238,7 @@ pub fn run() {
             crate::commands::compact_session,
             crate::commands::switch_model,
             crate::commands::get_permission_mode,
+            crate::commands::set_permission_mode,
             crate::commands::get_build_info,
             // Skill commands
             crate::commands::list_skills,
@@ -365,6 +366,8 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             })
             .await
             .unwrap();
@@ -380,6 +383,8 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             })
             .await
             .unwrap();
@@ -407,6 +412,8 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             })
             .await
             .unwrap();
@@ -436,6 +443,8 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             })
             .await
             .unwrap();

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import StatusBar from "./StatusBar.vue";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { useSessionStore } from "@/stores/session";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -23,36 +24,25 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockedInvoke.mockImplementation(async (command) => {
     if (command === "get_profile_info") return [];
-    if (command === "get_permission_mode") return "Interactive";
     return undefined;
   });
 });
 
 describe("StatusBar", () => {
-  it("calls get_permission_mode on mount", () => {
+  it("calls get_profile_info on mount", () => {
     mountStatusBar();
-    expect(mockedInvoke).toHaveBeenCalledWith("get_permission_mode");
+    expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
   });
 
-  it("displays the permission mode in lowercase", async () => {
-    mockedInvoke.mockImplementation(async (command) => {
-      if (command === "get_profile_info") return [];
-      if (command === "get_permission_mode") return "Suggest";
-      if (command === "list_mcp_servers") return [];
-      return undefined;
-    });
+  it("displays the permission mode from the session store", async () => {
+    const session = useSessionStore();
+    session.permissionMode = "suggest";
     const wrapper = mountStatusBar();
-    await vi.waitFor(() => {
-      expect(wrapper.text()).toContain("suggest");
-    });
+    await flushPromises();
+    expect(wrapper.text()).toContain("suggest");
   });
 
   it("renders sessions count, streaming and connected status as text", async () => {
-    mockedInvoke.mockImplementation(async (command) => {
-      if (command === "get_profile_info") return [];
-      if (command === "get_permission_mode") return "Interactive";
-      return undefined;
-    });
     const wrapper = mountStatusBar();
     await flushPromises();
 

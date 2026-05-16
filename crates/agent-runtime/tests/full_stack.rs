@@ -174,6 +174,8 @@ async fn full_stack_start_session_under_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -200,6 +202,8 @@ async fn full_stack_rename_and_soft_delete_session() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -236,6 +240,8 @@ async fn full_stack_send_message_text_only() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -273,6 +279,8 @@ async fn full_stack_tool_call_with_permission_grant() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -339,6 +347,8 @@ async fn full_stack_task_graph_populated() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -386,6 +396,8 @@ async fn full_stack_memory_store_queries() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -436,6 +448,8 @@ async fn full_stack_cancel_session() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -464,6 +478,8 @@ async fn full_stack_event_stream_matches_trace() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -548,6 +564,8 @@ async fn full_stack_data_persists_across_reconnection() {
             .start_session(StartSessionRequest {
                 workspace_id: ws.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             })
             .await
             .unwrap();
@@ -602,6 +620,8 @@ async fn full_stack_agent_mode_completes_without_prompt() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -683,6 +703,8 @@ async fn cancellation_stops_agent_loop_mid_stream() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "slow".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

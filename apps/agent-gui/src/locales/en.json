@@ -121,6 +121,8 @@
     "model": "Model",
     "currentModel": "Current",
     "selectModelAria": "Select model. Current model: {model}",
+    "selectPermissionAria": "Select permission level. Current: {mode}",
+    "permission": "Permission",
     "attachFileAria": "Attach file",
     "removeFileAria": "Remove {name}",
     "emptyState": "Start a conversation"

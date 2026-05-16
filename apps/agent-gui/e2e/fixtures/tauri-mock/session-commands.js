@@ -13,6 +13,7 @@
 registerCommandHandlers({
   start_session: function (args) {
     var profile = args.profile || "fast";
+    var permissionMode = args.permissionMode || "suggest";
     var sid = nextId("ses");
     var session = makeSessionInfo(
       sid,
@@ -21,8 +22,10 @@ registerCommandHandlers({
       null,
       null,
       null,
-      "visible"
+      "visible",
+      permissionMode
     );
+    state.currentPermissionMode = permissionMode;
     state.sessions.push(session);
     state.currentSessionId = sid;
     state.projections.set(sid, {
@@ -117,7 +120,10 @@ registerCommandHandlers({
     if (!sessionId) return Promise.reject(new Error("sessionId is required"));
     state.currentSessionId = sessionId;
     var session = getSession(sessionId);
-    if (session) state.currentProfile = session.profile;
+    if (session) {
+      state.currentProfile = session.profile;
+      if (session.permission_mode) state.currentPermissionMode = session.permission_mode;
+    }
     return Promise.resolve(getProjection(sessionId));
   },
   get_trace: function (args) {
@@ -250,7 +256,15 @@ registerCommandHandlers({
     return Promise.resolve(getProjection(sessionId).task_graph.tasks);
   },
   get_permission_mode: function (args) {
-    return Promise.resolve("Interactive");
+    return Promise.resolve(state.currentPermissionMode);
+  },
+  set_permission_mode: function (args) {
+    var mode = args.mode;
+    if (!mode) return Promise.reject(new Error("mode is required"));
+    state.currentPermissionMode = mode;
+    var session = getSession(state.currentSessionId);
+    if (session) session.permission_mode = mode;
+    return Promise.resolve(mode);
   },
   resolve_permission: function (args) {
     var requestId = args.requestId || args.request_id;

@@ -23,11 +23,21 @@ function getProject(projectId) {
   });
 }
 
-function makeSessionInfo(id, title, profile, projectId, worktreePath, branch, visibility) {
+function makeSessionInfo(
+  id,
+  title,
+  profile,
+  projectId,
+  worktreePath,
+  branch,
+  visibility,
+  permissionMode
+) {
   return {
     id: id,
     title: title,
     profile: profile,
+    permission_mode: permissionMode || "suggest",
     project_id: projectId || null,
     worktree_path: worktreePath || null,
     branch: branch || null,
@@ -73,6 +83,7 @@ function persistMockState() {
         gitStatuses: snapshotMap(state.gitStatuses),
         currentSessionId: state.currentSessionId,
         currentProfile: state.currentProfile,
+        currentPermissionMode: state.currentPermissionMode,
         projections: snapshotMap(state.projections),
         traces: snapshotMap(state.traces),
         drafts: snapshotMap(state.drafts)
@@ -98,6 +109,7 @@ function restorePersistedMockState() {
     state.gitStatuses = new Map(snapshot.gitStatuses || []);
     state.currentSessionId = snapshot.currentSessionId || null;
     state.currentProfile = snapshot.currentProfile || "fast";
+    state.currentPermissionMode = snapshot.currentPermissionMode || "suggest";
     state.projections = new Map(snapshot.projections || []);
     state.traces = new Map(snapshot.traces || []);
     state.drafts = new Map(snapshot.drafts || []);

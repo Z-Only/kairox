@@ -96,6 +96,8 @@ async fn agent_loop_processes_tool_call_and_continues() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -164,6 +166,8 @@ async fn agent_loop_stops_when_no_tool_calls() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -198,6 +202,8 @@ async fn subscribe_session_receives_events() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -271,6 +277,8 @@ async fn agent_loop_emits_completion_event_sequence() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -363,6 +371,8 @@ async fn agent_loop_handles_model_error_gracefully() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();
@@ -481,6 +491,8 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
+
+            permission_mode: None,
         })
         .await
         .unwrap();

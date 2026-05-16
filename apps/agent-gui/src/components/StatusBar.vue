@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "@/stores/session";
 
 const { t } = useI18n();
 const session = useSessionStore();
-const permissionMode = ref("interactive");
 
 const streamingDotType = computed<"warning" | "default">(() =>
   session.isStreaming ? "warning" : "default"
@@ -13,14 +11,8 @@ const connectedDotType = computed<"success" | "error">(() =>
   session.connected ? "success" : "error"
 );
 
-onMounted(async () => {
+onMounted(() => {
   void session.loadProfileInfo();
-  try {
-    const mode: string = await invoke("get_permission_mode");
-    permissionMode.value = mode.toLowerCase();
-  } catch {
-    permissionMode.value = "interactive";
-  }
 });
 </script>
 
@@ -52,7 +44,7 @@ onMounted(async () => {
       <!-- Mode -->
       <div class="status-item">
         <span class="status-label">{{ t("statusBar.modeLabel") }}:</span>
-        <span class="status-value">{{ permissionMode }}</span>
+        <span class="status-value">{{ session.permissionMode }}</span>
       </div>
     </div>
   </footer>

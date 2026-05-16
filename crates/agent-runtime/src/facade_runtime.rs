@@ -245,16 +245,24 @@ where
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
         let model_profile_alias = request.model_profile.clone();
+        let permission_mode = request.permission_mode.clone();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
             request.workspace_id,
             request.model_profile,
+            request.permission_mode,
         )
         .await?;
 
         self.initialize_session_limits(&session_id, &model_profile_alias)
             .await;
+
+        if let Some(ref mode_str) = permission_mode {
+            if let Ok(mode) = mode_str.parse::<PermissionMode>() {
+                self.permission_engine.lock().await.set_mode(mode);
+            }
+        }
 
         Ok(session_id)
     }
@@ -563,6 +571,8 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
+
+                permission_mode: None,
             },
         )
         .await
@@ -672,6 +682,8 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
+
+                permission_mode: None,
             },
         )
         .await
@@ -732,6 +744,8 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
+
+                permission_mode: None,
             },
         )
         .await
@@ -759,6 +773,8 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
+
+                permission_mode: None,
             },
         )
         .await
@@ -801,6 +817,8 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
+
+                permission_mode: None,
             },
         )
         .await
