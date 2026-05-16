@@ -96,6 +96,33 @@ describe("useChatComposer", () => {
     expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_1");
   });
 
+  it("preserves draft and attachments when sending fails before IPC accepts the message", async () => {
+    const reportSendError = vi.fn();
+    const session = createSession({ reportSendError });
+    const invokeFn = vi.fn(async () => {
+      throw new Error("IPC offline");
+    });
+    const { composer, draftStore, notify } = createComposer({ session, invokeFn });
+
+    composer.inputText.value = "  keep this draft  ";
+    composer.addFilePaths(["/repo/src/main.rs", "/repo/notes.md"]);
+
+    await composer.sendMessage();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "keep this draft",
+      attachments: [
+        { path: "/repo/src/main.rs", name: "main.rs", mime_type: "text/x-rust" },
+        { path: "/repo/notes.md", name: "notes.md", mime_type: "text/markdown" }
+      ]
+    });
+    expect(composer.inputText.value).toBe("  keep this draft  ");
+    expect(composer.attachments.value.map((att) => att.name)).toEqual(["main.rs", "notes.md"]);
+    expect(draftStore.clearDraft).not.toHaveBeenCalled();
+    expect(reportSendError).toHaveBeenCalledWith("Error: IPC offline");
+    expect(notify).toHaveBeenCalledWith("error", "chat.sendFailed: Error: IPC offline");
+  });
+
   it("saves the outgoing session draft before loading the next session draft", async () => {
     const session = createSession();
     const { composer, draftStore } = createComposer({ session });

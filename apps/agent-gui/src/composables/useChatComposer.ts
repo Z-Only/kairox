@@ -222,25 +222,31 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   async function sendMessage() {
-    const content = inputText.value.trim();
-    if ((!content && attachments.value.length === 0) || session.isStreaming) return;
+    const draftAtSend = inputText.value;
+    const attachmentsAtSend = attachments.value;
+    const content = draftAtSend.trim();
+    if ((!content && attachmentsAtSend.length === 0) || session.isStreaming) return;
 
     const payload = {
       content,
-      attachments: attachments.value.map((a) => ({
+      attachments: attachmentsAtSend.map((a) => ({
         path: a.path,
         name: a.name,
         mime_type: a.mimeType
       }))
     };
 
-    inputText.value = "";
-    attachments.value = [];
-    if (session.currentSessionId) {
-      draftStore.clearDraft(session.currentSessionId);
-    }
     try {
       await invokeFn("send_message", payload);
+      const composerUnchanged =
+        inputText.value === draftAtSend && attachments.value === attachmentsAtSend;
+      if (composerUnchanged) {
+        inputText.value = "";
+        attachments.value = [];
+        if (session.currentSessionId) {
+          draftStore.clearDraft(session.currentSessionId);
+        }
+      }
     } catch (e) {
       console.error("Failed to send message:", e);
       session.reportSendError?.(String(e));

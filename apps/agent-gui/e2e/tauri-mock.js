@@ -34,6 +34,7 @@ const state = {
   memories: [],
   permissionRequests: new Map(),
   agents: new Map(),
+  nextOpenDialogResult: null,
   /** Tauri v2 event system: eventName → Map<eventId, handler> */
   eventListeners: new Map(),
   drafts: new Map(),
@@ -909,6 +910,12 @@ function invoke(cmd, args) {
         }, delay + 50);
       }, 30);
       return Promise.resolve(undefined);
+    }
+
+    case "plugin:dialog|open": {
+      var selected = state.nextOpenDialogResult;
+      state.nextOpenDialogResult = null;
+      return Promise.resolve(selected);
     }
 
     case "switch_session": {
@@ -2042,6 +2049,9 @@ function installMock() {
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
     },
+    setNextOpenDialogResult: function (selected) {
+      state.nextOpenDialogResult = selected;
+    },
     persistForReload: persistMockState,
     reset: function () {
       state.initialized = false;
@@ -2058,6 +2068,7 @@ function installMock() {
       state.memories = [];
       state.permissionRequests.clear();
       state.agents.clear();
+      state.nextOpenDialogResult = null;
       state.drafts.clear();
       state.callbacks.clear();
       state.eventListeners.clear();
