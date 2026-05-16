@@ -1,18 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-
-// `apps/agent-gui/package.json` is `"type": "module"`, so the CJS-style
-// `__dirname` is undefined here. Mirror the pattern used by every other
-// spec in this directory (e.g. `chat-flow.spec.ts`, `session-lifecycle.spec.ts`)
-// — derive `__dirname` from `import.meta.url` and load the mock by `path`
-// rather than embedding its source via `readFileSync`.
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { installTauriMock } from "./helpers/tauriMock";
 
 test.describe("ContextMeter (P3)", () => {
   test.beforeEach(async ({ page }) => {
-    const mockPath = resolve(__dirname, "tauri-mock.js");
-    await page.addInitScript({ path: mockPath });
+    await installTauriMock(page);
     await page.goto("/");
     await page.waitForSelector('[data-test="chat-panel"]');
     // The mock only emits ContextAssembled inside `send_message`, so we need

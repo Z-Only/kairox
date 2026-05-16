@@ -1,12 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const currentDirectory = dirname(fileURLToPath(import.meta.url));
+import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
-  const mockPath = resolve(currentDirectory, "tauri-mock.js");
-  await page.addInitScript({ path: mockPath });
+  await installTauriMock(page);
 });
 
 test("creates a blank project and sends first project message", async ({ page }) => {
