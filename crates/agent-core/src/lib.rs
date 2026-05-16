@@ -22,11 +22,11 @@ pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassificat
 pub use facade::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
     AttachmentInfo, CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView,
-    InstallRequest, InstalledEntry, McpFacade, PermissionDecision, ProjectFacade, ProjectGitStatus,
-    ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding,
-    ProjectSessionVisibility, SendMessageRequest, ServerEntry, SessionFacade, SessionMeta,
-    SkillDetail, SkillView, SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot,
-    TraceEntry, WorkspaceInfo,
+    InstallRequest, InstalledEntry, InstructionsUpdateInput, InstructionsView, McpFacade,
+    PermissionDecision, ProjectFacade, ProjectGitStatus, ProjectGitStatusKind,
+    ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
+    SendMessageRequest, ServerEntry, SessionFacade, SessionMeta, SkillDetail, SkillView,
+    SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use ids::{AgentId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

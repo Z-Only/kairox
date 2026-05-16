@@ -147,6 +147,13 @@ export const commands = {
     ),
   openMcpConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
+  getInstructions: (scope: ConfigScope, projectRoot: string | null) =>
+    typedError<InstructionsView, string>(
+      __TAURI_INVOKE("get_instructions", { scope, projectRoot })
+    ),
+  upsertInstructions: (input: InstructionsUpdateInput, projectRoot: string | null) =>
+    typedError<null, string>(__TAURI_INVOKE("upsert_instructions", { input, projectRoot })),
+  getSystemPrompt: () => typedError<string, string>(__TAURI_INVOKE("get_system_prompt")),
   listProfileSettings: (sourceFilter: string | null) =>
     typedError<ProfileSettingsView[], string>(
       __TAURI_INVOKE("list_profile_settings", { sourceFilter })
@@ -464,6 +471,17 @@ export type InstalledEntryResponse = {
   display_name: string;
   installed_at: string;
   running: boolean;
+};
+
+export type InstructionsUpdateInput = {
+  scope: ConfigScope;
+  text: string;
+};
+
+export type InstructionsView = {
+  system: string;
+  user: string | null;
+  project: string | null;
 };
 
 export type McpContentBlockResponse =

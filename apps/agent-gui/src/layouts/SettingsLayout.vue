@@ -9,7 +9,9 @@ const router = useRouter();
 const activeTab = computed(() => {
   const segments = route.path.split("/");
   const tab = segments[segments.length - 1];
-  return tab && ["general", "mcp", "skills", "models", "archive"].includes(tab) ? tab : "general";
+  return tab && ["general", "instructions", "mcp", "skills", "models", "archive"].includes(tab)
+    ? tab
+    : "general";
 });
 
 const currentSource = ref<"user" | "project">("user");
@@ -72,6 +74,15 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
       <button
         class="tab-btn"
         role="tab"
+        :aria-selected="activeTab === 'instructions'"
+        data-test="settings-tab-instructions"
+        @click="navigateToTab('instructions')"
+      >
+        {{ t("settings.instructions") }}
+      </button>
+      <button
+        class="tab-btn"
+        role="tab"
         :aria-selected="activeTab === 'archive'"
         data-test="settings-tab-archive"
         @click="navigateToTab('archive')"
@@ -80,7 +91,10 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
       </button>
     </div>
 
-    <div v-if="['mcp', 'skills', 'models'].includes(activeTab)" class="settings__source-bar">
+    <div
+      v-if="['mcp', 'skills', 'models', 'instructions'].includes(activeTab)"
+      class="settings__source-bar"
+    >
       <ConfigSourceBar @source-change="onSourceChange" />
     </div>
 

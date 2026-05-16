@@ -5,11 +5,11 @@
 use crate::commands::*;
 use agent_core::facade::{
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
-    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsTransport,
-    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
-    SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource,
-    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
-    SkillSourceView, SkillUpdateState,
+    InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
+    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
+    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
+    SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{
     ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
@@ -84,6 +84,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             disable_mcp_server_at_scope,
             enable_mcp_server_at_scope,
             open_mcp_config_file,
+            // Instructions settings commands
+            get_instructions,
+            upsert_instructions,
+            get_system_prompt,
             // Profile settings commands
             list_profile_settings,
             upsert_profile_settings,
@@ -166,6 +170,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<McpServerSettingsTransport>()
         .typ::<ProfileSettingsView>()
         .typ::<ProfileSettingsInput>()
+        .typ::<InstructionsView>()
+        .typ::<InstructionsUpdateInput>()
         .typ::<SkillSettingsView>()
         .typ::<SkillSettingsDetail>()
         .typ::<SkillSettingsScope>()

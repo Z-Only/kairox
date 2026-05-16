@@ -28,6 +28,9 @@ struct ConfigToml {
     /// Top-level list of MCP server IDs to disable at this config layer.
     #[serde(default)]
     disabled_mcp_servers: Vec<String>,
+    /// Optional custom instructions appended to the system prompt at this layer.
+    #[serde(default)]
+    instructions: Option<String>,
 }
 
 /// Parse a TOML string into a Config.
@@ -43,6 +46,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
         context: config_toml.context,
         disabled_mcp_servers: config_toml.disabled_mcp_servers,
+        instructions: config_toml.instructions,
     })
 }
 

@@ -7,11 +7,11 @@
 use agent_config::ProfileInfo;
 use agent_core::facade::{
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
-    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsTransport,
-    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
-    SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource,
-    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
-    SkillSourceView, SkillUpdateState,
+    InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
+    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
+    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
+    SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
@@ -97,6 +97,10 @@ fn main() {
             agent_gui_tauri::commands::disable_mcp_server_at_scope,
             agent_gui_tauri::commands::enable_mcp_server_at_scope,
             agent_gui_tauri::commands::open_mcp_config_file,
+            // Instructions settings commands
+            agent_gui_tauri::commands::get_instructions,
+            agent_gui_tauri::commands::upsert_instructions,
+            agent_gui_tauri::commands::get_system_prompt,
             // Profile settings commands
             agent_gui_tauri::commands::list_profile_settings,
             agent_gui_tauri::commands::upsert_profile_settings,
@@ -173,6 +177,9 @@ fn main() {
         .typ::<EffectiveMcpServerView>()
         .typ::<EffectiveSkillView>()
         .typ::<EffectiveProfileView>()
+        // Instructions settings types
+        .typ::<InstructionsView>()
+        .typ::<InstructionsUpdateInput>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()

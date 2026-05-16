@@ -50,6 +50,7 @@
     "archiveTotal": "总计：{count}",
     "archiveProjects": "项目数：{count}",
     "archiveRestore": "恢复",
+    "instructions": "指令",
     "archivePermanentDelete": "永久删除",
     "archiveDeleteConfirm": "确定要永久删除此会话吗？此操作不可撤销。",
     "configSource": "配置来源",
@@ -80,6 +81,17 @@
   "errors": {
     "sessionBusy": "会话繁忙：{reason}",
     "modelNotFound": "模型 \"{alias}\" 不可用"
+  },
+  "instructions": {
+    "system": "系统",
+    "user": "用户",
+    "project": "项目",
+    "readOnly": "只读",
+    "editable": "可编辑",
+    "projectScopeRequired": "请切换到项目范围",
+    "userPlaceholder": "应用于所有项目的指令…",
+    "projectPlaceholder": "仅应用于此项目的指令…",
+    "effectivePreview": "生效指令"
   },
   "workbench": {
     "sessionNotFound": "未找到会话：{id}"

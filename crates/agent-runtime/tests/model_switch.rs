@@ -87,6 +87,7 @@ fn two_profile_config() -> Arc<Config> {
         source: ConfigSource::Defaults,
         context: ContextPolicy::default(),
         disabled_mcp_servers: vec![],
+        instructions: None,
     })
 }
 
