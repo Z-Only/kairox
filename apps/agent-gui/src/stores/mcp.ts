@@ -213,6 +213,7 @@ export const useMcpStore = defineStore("mcp", () => {
     try {
       const savedServer = await unwrapCommandResult(commands.upsertMcpServerSettings(input));
       upsertSettingsServer(savedServer);
+      await fetchEffectiveServers();
       return savedServer;
     } catch (caughtError) {
       settingsError.value = formatError(caughtError);

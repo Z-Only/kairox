@@ -491,6 +491,64 @@ function createSkillSettingFromInstall(name, source, target, installSource) {
     deletable: true
   };
 }
+
+function configScopeFromSource(source) {
+  switch (source) {
+    case "builtin":
+    case "defaults":
+      return "Builtin";
+    case "project":
+    case "project_config":
+      return "Project";
+    case "local":
+      return "Local";
+    case "user":
+    case "user_config":
+    default:
+      return "User";
+  }
+}
+
+function effectiveMcpServerView(server) {
+  var source = configScopeFromSource(server.source || "user_config");
+  return {
+    value: {
+      id: server.id,
+      name: server.name,
+      transport: server.transport,
+      enabled: server.enabled,
+      runtime_status: server.runtime_status,
+      trusted: server.trusted,
+      tool_count: server.tool_count,
+      last_error: server.last_error,
+      writable: server.writable,
+      config_path: server.config_path,
+      description: server.description,
+      source: server.source || "user_config",
+      verified: server.verified ?? true
+    },
+    source: source,
+    overrides: null,
+    enabled: server.enabled,
+    disabledBy: null,
+    writable: server.writable,
+    deletable: server.writable
+  };
+}
+
+function effectiveSkillView(skill) {
+  var source = configScopeFromSource(skill.scope);
+  return {
+    value: clone(skill),
+    source: source,
+    overrides: null,
+    enabled: skill.enabled,
+    disabledBy: null,
+    writable: skill.editable,
+    deletable: skill.deletable
+  };
+}
+
 function getProjection(sessionId) {
   if (!state.projections.has(sessionId)) {
     state.projections.set(sessionId, {
@@ -1214,6 +1272,9 @@ function invoke(cmd, args) {
     case "list_mcp_server_settings":
       return clone(state.mcpSettingsServers);
 
+    case "get_effective_mcp_servers":
+      return clone(state.mcpSettingsServers.map(effectiveMcpServerView));
+
     case "upsert_mcp_server_settings": {
       var savedServer = createMcpSettingsServer(args.input);
       state.mcpSettingsServers = state.mcpSettingsServers.filter(function (server) {
@@ -1246,6 +1307,9 @@ function invoke(cmd, args) {
 
     case "list_skill_settings":
       return clone(state.skillSettings);
+
+    case "get_effective_skills":
+      return clone(state.skillSettings.map(effectiveSkillView));
 
     case "get_skill_settings_detail": {
       var detailSetting = findSkillSetting(args.skillId);
@@ -1365,6 +1429,25 @@ function invoke(cmd, args) {
       var serverToRefresh = findMcpSettingsServer(args.serverId);
       if (serverToRefresh) serverToRefresh.tool_count = (serverToRefresh.tool_count || 0) + 1;
       return [{ name: "echo", description: "Echo tool", input_schema: null }];
+    }
+    case "check_mcp_health": {
+      var serverToCheck = findMcpSettingsServer(args.serverId);
+      if (!serverToCheck)
+        return Promise.reject(new Error("MCP server not found: " + args.serverId));
+      return {
+        tools: [{ name: "echo", description: "Echo tool", input_schema: null }],
+        healthy: true,
+        error: null
+      };
+    }
+    case "get_mcp_tool_states":
+      return { disabled_tools: [] };
+    case "set_mcp_tool_disabled":
+      return null;
+    case "test_mcp_connectivity": {
+      var serverToTest = findMcpSettingsServer(args.serverId);
+      if (!serverToTest) return Promise.reject(new Error("MCP server not found: " + args.serverId));
+      return { status: "connected", tool_count: serverToTest.tool_count || 1 };
     }
     case "list_mcp_resources":
       return [];

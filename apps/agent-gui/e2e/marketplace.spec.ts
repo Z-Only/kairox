@@ -32,7 +32,7 @@ test.describe("Marketplace", () => {
 
   test("installs the filesystem entry happy path", async ({ page }) => {
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
-    await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
+    await page.getByTestId("config-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     // Wait for the install to complete (progress text shows "Install complete.").
     await expect(page.getByTestId("install-progress")).toContainText(/complete/i, {
@@ -51,7 +51,7 @@ test.describe("Marketplace", () => {
       window.__MARKETPLACE_FORCE_MISSING__ = ["npx"];
     });
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
-    await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
+    await page.getByTestId("config-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     await expect(page.getByTestId("install-progress")).toContainText("Missing runtimes");
     await expect(page.getByTestId("install-progress")).toContainText("npx");
@@ -59,7 +59,7 @@ test.describe("Marketplace", () => {
 
   test("keeps installed server management out of the marketplace tabs", async ({ page }) => {
     await page.getByTestId("catalog-card").filter({ hasText: "Filesystem" }).click();
-    await page.getByTestId("env-WORKSPACE_PATH").fill("/tmp/demo");
+    await page.getByTestId("config-WORKSPACE_PATH").fill("/tmp/demo");
     await page.getByTestId("catalog-install").click();
     // Wait for the install to complete before closing.
     await expect(page.getByTestId("install-progress")).toContainText(/complete/i, {
