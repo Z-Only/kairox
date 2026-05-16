@@ -557,7 +557,7 @@ where
                 url: s.url.clone(),
                 api_key_env: s.api_key_env.clone(),
                 priority: s.priority,
-                default_trust: crate::facade_runtime::parse_trust_str(&s.default_trust),
+                default_trust: crate::facade_marketplace::parse_trust_str(&s.default_trust),
                 enabled: true,
                 cache_ttl_seconds: s.cache_ttl_seconds,
             };
