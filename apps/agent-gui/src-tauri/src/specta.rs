@@ -120,6 +120,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_mcp_prompts,
             read_mcp_resource,
             test_mcp_connectivity,
+            check_mcp_health,
+            set_mcp_tool_disabled,
+            get_mcp_tool_states,
             // Marketplace commands
             list_catalog,
             get_catalog_entry,

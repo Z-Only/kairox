@@ -294,6 +294,34 @@ export const useCatalogStore = defineStore("catalog", () => {
     sourceFailures.value[source] = errorMsg;
   }
 
+  /** Merge incremental results from one source into the combined list.
+   *  Called as each catalog source completes, so the UI updates without
+   *  waiting for the slowest source. */
+  function mergeSourceResults(source: string, incoming: ServerEntryResponse[]): void {
+    delete sourceFailures.value[source];
+    // Build a lookup of existing (source, id) keys.
+    const seen = new Map<string, ServerEntryResponse>();
+    for (const e of entries.value) {
+      seen.set(`${e.source}:${e.id}`, e);
+    }
+    for (const e of incoming) {
+      seen.set(`${e.source}:${e.id}`, e);
+    }
+    // Re-sort to match backend ordering (trust desc, source asc, name asc).
+    const TRUST_ORDER: Record<string, number> = {
+      unverified: 0,
+      community: 1,
+      verified: 2
+    };
+    entries.value = Array.from(seen.values()).sort((a, b) => {
+      const ta = TRUST_ORDER[a.trust] ?? 0;
+      const tb = TRUST_ORDER[b.trust] ?? 0;
+      if (tb !== ta) return tb - ta;
+      if (a.source !== b.source) return a.source.localeCompare(b.source);
+      return a.display_name.localeCompare(b.display_name);
+    });
+  }
+
   return {
     // state
     entries,
@@ -322,6 +350,8 @@ export const useCatalogStore = defineStore("catalog", () => {
     dismissInstallProgress,
     checkInstalledStatus,
     isServerInstalled,
+    // incremental merge (called by useTauriEvents on CatalogSourceResultsArrived)
+    mergeSourceResults,
     // actions
     fetchCatalog,
     fetchInstalled,

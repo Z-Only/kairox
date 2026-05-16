@@ -206,13 +206,20 @@ describe("revokeTrust", () => {
 });
 
 describe("refreshTools", () => {
-  it("invokes refresh_mcp_tools and refreshes list", async () => {
+  it("invokes refresh_mcp_tools and updates health tools", async () => {
     const mcp = useMcpStore();
-    mockedInvoke.mockResolvedValueOnce([]);
-    mockedInvoke.mockResolvedValueOnce([]);
+    mockedInvoke.mockResolvedValueOnce([
+      { name: "read_file", description: "Read a file", input_schema: {} }
+    ]);
+    mockedInvoke.mockResolvedValueOnce({ disabled_tools: ["write_file"] });
     await mcp.refreshTools("s1");
     expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", {
       serverId: "s1"
+    });
+    expect(mcp.serverHealth.s1).toEqual({
+      tools: [{ name: "read_file", description: "Read a file", input_schema: {} }],
+      healthy: true,
+      error: null
     });
   });
 });
@@ -446,5 +453,41 @@ describe("effective servers", () => {
 
     expect(store.effectiveServers).toHaveLength(0);
     expect(store.settingsError).toContain("config not available");
+  });
+
+  it("refreshInstalledServers loads configured servers and health tools on initial page load", async () => {
+    const effective = createEffectiveMcpServer({ value: createMcpServerSettings({ id: "files" }) });
+    mockedInvoke
+      .mockResolvedValueOnce([createMcpServerSettings({ id: "files" })])
+      .mockResolvedValueOnce([effective])
+      .mockResolvedValueOnce({
+        tools: [{ name: "list", description: "List files", input_schema: {} }],
+        healthy: true,
+        error: null
+      })
+      .mockResolvedValueOnce({ disabled_tools: [] });
+
+    const store = useMcpStore();
+    await store.refreshInstalledServers(null);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_server_settings", { sourceFilter: null });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_effective_mcp_servers");
+    expect(mockedInvoke).toHaveBeenCalledWith("check_mcp_health", { serverId: "files" });
+    expect(store.serverHealth.files?.tools.map((tool) => tool.name)).toEqual(["list"]);
+  });
+
+  it("refreshInstalledServers force refreshes tool lists when requested", async () => {
+    const effective = createEffectiveMcpServer({ value: createMcpServerSettings({ id: "files" }) });
+    mockedInvoke
+      .mockResolvedValueOnce([createMcpServerSettings({ id: "files" })])
+      .mockResolvedValueOnce([effective])
+      .mockResolvedValueOnce([{ name: "read", description: "Read files", input_schema: {} }])
+      .mockResolvedValueOnce({ disabled_tools: [] });
+
+    const store = useMcpStore();
+    await store.refreshInstalledServers(null, { forceTools: true });
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "files" });
+    expect(store.serverHealth.files?.tools.map((tool) => tool.name)).toEqual(["read"]);
   });
 });

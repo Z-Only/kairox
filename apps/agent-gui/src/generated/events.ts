@@ -163,7 +163,13 @@ export type EventPayload =
   | { type: "CatalogEntryUninstalled"; server_id: string }
   | { type: "CatalogRuntimeMissing"; catalog_id: string; missing: string[] }
   | { type: "CatalogSourceAdded"; source: string }
-  | { type: "CatalogSourceFailed"; source: string; error: string };
+  | { type: "CatalogSourceFailed"; source: string; error: string }
+  /**
+   *  Emitted incrementally as each catalog source completes its query.
+   *  `entries` is the current state of the fully-merged, sorted list
+   *  across all providers that have responded so far.
+   */
+  | { type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] };
 
 /**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
@@ -179,6 +185,29 @@ export type McpServerStatus =
 export type MemoryScope = "User" | "Workspace" | "Session";
 
 export type PrivacyClassification = "minimal_trace" | "full_trace";
+
+/**  A single MCP server entry returned by the catalog. */
+export type ServerEntry = {
+  id: string;
+  source: string;
+  display_name: string;
+  summary: string;
+  description: string;
+  categories: string[];
+  tags: string[];
+  author: string | null;
+  homepage: string | null;
+  version: string | null;
+  /**  Lower-case trust level: "unverified" | "community" | "verified". */
+  trust: string;
+  icon: string | null;
+  /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
+  install_spec_json: string;
+  /**  JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`. */
+  requirements_json: string;
+  /**  JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`. */
+  default_env_json: string;
+};
 
 /**  Reason a task failed, used for diagnostics and UI display. */
 export type TaskFailureReason =

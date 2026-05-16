@@ -5,6 +5,7 @@
 use crate::catalog::{CatalogProvider, CatalogQuery, CatalogResult, DomainEventSink, ServerEntry};
 use async_trait::async_trait;
 use futures::future::join_all;
+use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -126,30 +127,63 @@ impl CatalogProvider for AggregateCatalogProvider {
             })
             .collect();
 
-        // Issue all `list` calls in parallel.
-        let futures = active.iter().map(|p| {
-            let q = query.clone();
-            async move {
+        // Fire all provider queries concurrently. Process results as they
+        // arrive so the frontend can update incrementally — no waiting for
+        // the slowest source.
+        let mut tasks: FuturesUnordered<_> = active
+            .iter()
+            .map(|p| {
+                let q = query.clone();
                 let id = p.inner.source_id().to_string();
-                let result = p.inner.list(&q).await;
-                (p.priority, id, result)
-            }
-        });
-        let mut results = join_all(futures).await;
-
-        // Stable merge: collect successes in priority order, emit failures.
-        results.sort_by_key(|(prio, _, _)| *prio);
+                let provider = p.inner.clone();
+                tokio::spawn(async move {
+                    let result = provider.list(&q).await;
+                    (id, result)
+                })
+            })
+            .collect();
 
         let mut all: Vec<ServerEntry> = Vec::new();
-        let mut seen: std::collections::HashSet<(String, String)> = Default::default();
-        for (_, source_id, res) in results {
+        // Track (position in `all`, source) for each entry id so remote
+        // sources can replace builtin entries for the same logical server.
+        let mut index: HashMap<String, (usize, String)> = HashMap::new();
+
+        while let Some(task_result) = tasks.next().await {
+            let (source_id, res) = match task_result {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::warn!(error=%e, "catalog provider task panicked");
+                    continue;
+                }
+            };
             match res {
                 Ok(entries) => {
                     for entry in entries {
-                        let key = (entry.source.clone(), entry.id.clone());
-                        if seen.insert(key) {
-                            all.push(entry);
+                        match index.get(&entry.id) {
+                            Some((pos, existing_source)) => {
+                                // Remote replaces builtin for same logical server.
+                                if existing_source == "builtin" && entry.source != "builtin" {
+                                    all[*pos] = entry.clone();
+                                    index.insert(entry.id.clone(), (*pos, entry.source.clone()));
+                                }
+                            }
+                            None => {
+                                let pos = all.len();
+                                all.push(entry.clone());
+                                index.insert(entry.id.clone(), (pos, entry.source.clone()));
+                            }
                         }
+                    }
+                    // Re-sort after each merge so incremental events are
+                    // always consistent.
+                    all.sort_by(|a, b| {
+                        b.trust
+                            .cmp(&a.trust)
+                            .then_with(|| a.source.cmp(&b.source))
+                            .then_with(|| a.display_name.cmp(&b.display_name))
+                    });
+                    if let Some(sink) = &self.event_sink {
+                        sink.emit_source_results_arrived(&source_id, &all).await;
                     }
                 }
                 Err(e) => {
@@ -160,12 +194,6 @@ impl CatalogProvider for AggregateCatalogProvider {
             }
         }
 
-        all.sort_by(|a, b| {
-            b.trust
-                .cmp(&a.trust)
-                .then_with(|| a.source.cmp(&b.source))
-                .then_with(|| a.display_name.cmp(&b.display_name))
-        });
         if let Some(limit) = query.limit {
             all.truncate(limit);
         }
@@ -324,6 +352,7 @@ mod tests_phase2 {
     struct RecordingSink {
         failed: StdMutex<Vec<(String, String)>>,
         added: StdMutex<Vec<String>>,
+        results: StdMutex<Vec<(String, usize)>>,
     }
     #[async_trait]
     impl DomainEventSink for RecordingSink {
@@ -335,6 +364,12 @@ mod tests_phase2 {
         }
         async fn emit_source_added(&self, id: &str) {
             self.added.lock().unwrap().push(id.to_string());
+        }
+        async fn emit_source_results_arrived(&self, source_id: &str, entries: &[ServerEntry]) {
+            self.results
+                .lock()
+                .unwrap()
+                .push((source_id.to_string(), entries.len()));
         }
     }
 

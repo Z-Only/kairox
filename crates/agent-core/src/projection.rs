@@ -213,6 +213,7 @@ impl SessionProjection {
             | EventPayload::CatalogRuntimeMissing { .. }
             | EventPayload::CatalogSourceAdded { .. }
             | EventPayload::CatalogSourceFailed { .. }
+            | EventPayload::CatalogSourceResultsArrived { .. }
             | EventPayload::CompactionSummary { .. } => {}
         }
     }

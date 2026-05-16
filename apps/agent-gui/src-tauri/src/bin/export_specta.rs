@@ -16,12 +16,12 @@ use agent_core::facade::{
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
-    CatalogSourceViewResponse, ConnectivityTestResult, InstallOutcomeResponse,
-    InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse,
-    McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse,
-    ProfileDetailResponse, ProjectGitStatusResponse, ProjectInfoResponse,
-    ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse, SessionInfoResponse,
-    TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult,
+    InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
+    McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
+    McpToolStatesResponse, MemoryEntryResponse, ProfileDetailResponse, ProjectGitStatusResponse,
+    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse,
+    SessionInfoResponse, TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -133,6 +133,9 @@ fn main() {
             agent_gui_tauri::commands::list_mcp_prompts,
             agent_gui_tauri::commands::read_mcp_resource,
             agent_gui_tauri::commands::test_mcp_connectivity,
+            agent_gui_tauri::commands::check_mcp_health,
+            agent_gui_tauri::commands::set_mcp_tool_disabled,
+            agent_gui_tauri::commands::get_mcp_tool_states,
             // Marketplace commands
             agent_gui_tauri::commands::list_catalog,
             agent_gui_tauri::commands::get_catalog_entry,
@@ -208,7 +211,9 @@ fn main() {
         .typ::<ConnectivityTestResult>()
         .typ::<agent_mcp::ConnectivityResult>()
         // Draft persistence types
-        .typ::<SaveDraftRequest>();
+        .typ::<SaveDraftRequest>()
+        .typ::<CheckMcpHealthResponse>()
+        .typ::<McpToolStatesResponse>();
 
     match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),

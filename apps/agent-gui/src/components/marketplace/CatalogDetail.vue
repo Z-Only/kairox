@@ -9,7 +9,11 @@ import type {
 import { commands } from "../../generated/commands";
 import { useCatalogStore } from "@/stores/catalog";
 import { useMcpStore } from "@/stores/mcp";
-import { parseRequirements, parseDefaultEnv } from "../../composables/useMarketplace";
+import {
+  parseRequirements,
+  parseDefaultEnv,
+  parseInstallHeaders
+} from "../../composables/useMarketplace";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import ScopeSelector from "@/components/ScopeSelector.vue";
 
@@ -64,6 +68,26 @@ const scopeLabel = computed(() => {
 
 const requirements = computed(() => parseRequirements(props.entry));
 const envSpec = computed(() => parseDefaultEnv(props.entry));
+const headerSpec = computed(() => parseInstallHeaders(props.entry));
+const headerKeys = computed(() => new Set(headerSpec.value.map((h) => h.key)));
+
+// Env vars excluding those that serve as header values.
+const nonHeaderEnvSpec = computed(() => envSpec.value.filter((s) => !headerKeys.value.has(s.key)));
+const configItems = computed(() => [
+  ...headerSpec.value.map((spec) => ({
+    ...spec,
+    kind: spec.key.toLowerCase() === "authorization" ? "Authentication header" : "HTTP header"
+  })),
+  ...nonHeaderEnvSpec.value.map((spec) => ({
+    ...spec,
+    kind: "Environment variable"
+  }))
+]);
+const requiredConfigCount = computed(
+  () => configItems.value.filter((spec) => spec.required).length
+);
+const hasConfig = computed(() => configItems.value.length > 0);
+
 const overrides = ref<Record<string, string>>({});
 // Trust grant must be opt-in: catalog "verified" means the *distribution
 // channel* is trusted, not that runtime tool calls should bypass the
@@ -71,6 +95,11 @@ const overrides = ref<Record<string, string>>({});
 const trustGrant = ref(false);
 const autoStart = ref(true);
 const installTarget = ref<ConfigScope>("User");
+
+const testingCatalogConnectivity = ref(false);
+const catalogConnectivityResult = ref<
+  { status: "connected"; tool_count: number } | { status: "failed"; reason: string } | null
+>(null);
 
 // Re-initialise local form state whenever the selected entry changes.
 watch(
@@ -88,11 +117,6 @@ watch(
   { immediate: true }
 );
 
-const testingCatalogConnectivity = ref(false);
-const catalogConnectivityResult = ref<
-  { status: "connected"; tool_count: number } | { status: "failed"; reason: string } | null
->(null);
-
 function testConnectivityLabel(): string {
   if (testingCatalogConnectivity.value) return t("mcp.testChecking");
   const result = catalogConnectivityResult.value;
@@ -101,6 +125,12 @@ function testConnectivityLabel(): string {
     return t("mcp.testConnected", { count: result.tool_count });
   }
   return t("mcp.testFailed", { reason: result.reason });
+}
+
+function configPlaceholder(spec: (typeof configItems.value)[number]): string {
+  if (spec.default) return spec.default;
+  if (spec.kind === "Authentication header") return "Bearer <token>";
+  return "";
 }
 
 async function testCatalogConnectivity(): Promise<void> {
@@ -169,26 +199,59 @@ function onOverlayClick(event: MouseEvent) {
             </div>
 
             <div class="card card-sm">
-              <div class="card-title">Configure</div>
-              <div v-if="envSpec.length > 0" class="env-list">
-                <div v-for="spec in envSpec" :key="spec.key" class="env-item">
-                  <label class="env-label">
-                    {{ spec.label }}<span v-if="spec.required">*</span>
-                  </label>
+              <div class="config-head">
+                <div>
+                  <div class="card-title">Configuration</div>
+                  <span v-if="hasConfig" class="config-summary text-tertiary">
+                    {{
+                      requiredConfigCount > 0
+                        ? `${requiredConfigCount} required value${requiredConfigCount === 1 ? "" : "s"} before install.`
+                        : "Optional values can be provided before install."
+                    }}
+                  </span>
+                  <span v-else class="config-summary text-tertiary">
+                    No configuration required.
+                  </span>
+                </div>
+                <span v-if="requiredConfigCount > 0" class="config-status required">
+                  Required configuration
+                </span>
+              </div>
+
+              <div v-if="hasConfig" class="config-list">
+                <div
+                  v-for="spec in configItems"
+                  :key="`${spec.kind}:${spec.key}`"
+                  class="config-item"
+                >
+                  <div class="config-item-head">
+                    <div class="config-title-row">
+                      <span class="config-label">{{ spec.label }}</span>
+                      <span class="config-key">{{ spec.key }}</span>
+                    </div>
+                    <div class="config-badges">
+                      <span class="config-kind">{{ spec.kind }}</span>
+                      <span class="config-required" :class="{ optional: !spec.required }">
+                        {{ spec.required ? "Required" : "Optional" }}
+                      </span>
+                    </div>
+                  </div>
+                  <span v-if="spec.description" class="config-description text-secondary">
+                    {{ spec.description }}
+                  </span>
+                  <span v-else class="config-description text-tertiary">
+                    No description provided by the catalog.
+                  </span>
                   <input
                     :value="overrides[spec.key]"
                     :type="spec.secret ? 'password' : 'text'"
-                    :placeholder="spec.default ?? ''"
+                    :placeholder="configPlaceholder(spec)"
                     class="input input-sm"
-                    :data-test="`env-${spec.key}`"
+                    :data-test="`config-${spec.key}`"
                     @input="overrides[spec.key] = ($event.target as HTMLInputElement).value"
                   />
-                  <span v-if="spec.description" class="env-help text-tertiary">
-                    {{ spec.description }}
-                  </span>
                 </div>
               </div>
-              <span v-else class="text-tertiary">No configurable environment variables.</span>
             </div>
 
             <div class="card card-sm">
@@ -211,46 +274,16 @@ function onOverlayClick(event: MouseEvent) {
           </div>
         </div>
 
-        <footer class="drawer-footer drawer-footer--with-scope">
-          <ScopeSelector v-model="installTarget" />
-
-          <!-- Installed-status badge: shows scope when already installed -->
-          <span
-            v-if="isInstalled && scopeLabel"
-            class="scope-badge"
-            data-test="catalog-install-scope"
-          >
-            {{ scopeLabel }}
-          </span>
+        <footer class="drawer-footer">
           <button
-            v-if="isInstalled"
-            class="btn btn-sm"
-            type="button"
-            :disabled="testingCatalogConnectivity"
-            data-test="catalog-test-connectivity"
-            @click="testCatalogConnectivity"
+            class="btn btn-primary btn-sm"
+            data-test="catalog-install"
+            :disabled="installDisabled"
+            @click="onInstall"
           >
-            {{ testConnectivityLabel() }}
+            {{ t("marketplace.install.buttonInstall") }}
           </button>
-          <span
-            class="tooltip-wrap"
-            :class="{ 'tooltip-active': installDisabled }"
-            :data-tooltip="t('marketplace.install.anotherInProgress')"
-          >
-            <button
-              class="btn btn-primary btn-sm"
-              data-test="catalog-install"
-              :disabled="installDisabled"
-              @click="onInstall"
-            >
-              {{
-                isInstalled
-                  ? t("marketplace.install.buttonReinstall")
-                  : t("marketplace.install.buttonInstall")
-              }}
-            </button>
-          </span>
-          <button class="btn btn-sm" @click="emit('close')">Close</button>
+          <button class="btn btn-sm" @click="emit('close')">{{ t("common.close") }}</button>
         </footer>
       </aside>
     </div>
@@ -305,9 +338,6 @@ function onOverlayClick(event: MouseEvent) {
   border-top: 1px solid var(--app-border-color);
 }
 
-.drawer-footer--with-scope {
-  flex-wrap: wrap;
-}
 .catalog-detail {
   display: flex;
   flex-direction: column;
@@ -336,6 +366,103 @@ function onOverlayClick(event: MouseEvent) {
   font-size: 13px;
   color: var(--app-text-color);
   margin-bottom: 8px;
+}
+.config-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.config-head .card-title {
+  margin-bottom: 2px;
+}
+.config-summary {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.config-status,
+.config-kind,
+.config-required,
+.config-key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.config-status.required {
+  border-color: color-mix(in srgb, var(--app-warning-color, #d97706) 45%, var(--app-border-color));
+  color: var(--app-warning-color, #b45309);
+  background: color-mix(in srgb, var(--app-warning-color, #d97706) 10%, transparent);
+}
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-border-color);
+}
+.config-item:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.config-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+.config-title-row {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.config-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-color);
+}
+.config-key {
+  color: var(--app-text-color-3);
+  font-family: var(--app-mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+.config-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.config-kind {
+  color: var(--app-text-color-2);
+  background: var(--app-bg-color);
+}
+.config-required {
+  border-color: color-mix(in srgb, var(--app-error-color, #dc2626) 40%, var(--app-border-color));
+  color: var(--app-error-color, #dc2626);
+  background: color-mix(in srgb, var(--app-error-color, #dc2626) 8%, transparent);
+}
+.config-required.optional {
+  border-color: var(--app-border-color);
+  color: var(--app-text-color-3);
+  background: transparent;
+}
+.config-description {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .env-list {
   display: flex;
@@ -454,9 +581,5 @@ function onOverlayClick(event: MouseEvent) {
   color: var(--app-text-color-2);
   font-size: 12px;
   white-space: nowrap;
-}
-
-.drawer-footer--with-scope :deep(.scope-selector) {
-  width: 100%;
 }
 </style>

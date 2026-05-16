@@ -212,6 +212,10 @@ pub enum McpServerSettingsTransport {
         url: String,
         headers: BTreeMap<String, String>,
     },
+    StreamableHttp {
+        url: String,
+        headers: BTreeMap<String, String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

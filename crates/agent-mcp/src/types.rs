@@ -10,6 +10,12 @@
 
 use serde::{Deserialize, Serialize};
 
+/// MCP protocol version sent during initialize and HTTP transport negotiation.
+pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
+/// Protocol versions to try during initialize, newest first.
+pub const MCP_PROTOCOL_VERSION_CANDIDATES: &[&str] =
+    &[MCP_PROTOCOL_VERSION, "2025-06-18", "2024-11-05"];
+
 // ---------------------------------------------------------------------------
 // JSON-RPC 2.0 types (internal wire protocol — no specta derive)
 // ---------------------------------------------------------------------------
@@ -190,6 +196,17 @@ pub enum McpTransportDef {
     /// Connect to an already-running server via Server-Sent Events + HTTP POST.
     Sse {
         /// The URL of the SSE endpoint.
+        url: String,
+        /// Optional environment variable name containing an API key for authentication.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        api_key_env: Option<String>,
+        /// Optional HTTP headers to include with every request.
+        #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+        headers: std::collections::HashMap<String, String>,
+    },
+    /// Connect to a server via MCP Streamable HTTP transport (2025 spec).
+    StreamableHttp {
+        /// The URL of the Streamable HTTP endpoint.
         url: String,
         /// Optional environment variable name containing an API key for authentication.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -398,6 +415,28 @@ pub enum ConnectivityResult {
 }
 
 // ---------------------------------------------------------------------------
+// MCP health check + tool management
+// ---------------------------------------------------------------------------
+
+/// Result of a health check against an MCP server.
+/// Success = tools were fetched (server is reachable and responsive).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct CheckHealthResult {
+    pub tools: Vec<McpToolDef>,
+    pub healthy: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Per-tool enabled/disabled state for a server.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct McpToolStates {
+    pub disabled_tools: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -587,7 +626,7 @@ mod tests {
         let req = JsonRpcRequest::new(
             1,
             "initialize",
-            Some(json!({"protocolVersion": "2024-11-05"})),
+            Some(json!({"protocolVersion": MCP_PROTOCOL_VERSION})),
         );
         assert_eq!(req.jsonrpc, "2.0");
         assert_eq!(req.id, json!(1));

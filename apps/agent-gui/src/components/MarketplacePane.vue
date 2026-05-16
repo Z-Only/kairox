@@ -19,29 +19,32 @@ const sourceChips = computed(() => {
   return [{ id: "builtin", display_name: t("marketplace.builtinSource") }, ...remoteSources];
 });
 
-const hasCachedEntries = computed(() => catalog.entries.length > 0);
-
 onMounted(async () => {
   if (catalog.tab === "installed") {
     catalog.tab = "browse";
   }
 
-  // If we have cached entries, show them immediately and refresh in background.
-  if (hasCachedEntries.value) {
-    catalog.fetchSources();
-    const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
+  // Always wait for the source list so we can decide whether to
+  // trigger a remote refresh. The backend caches catalog entries in
+  // memory per session, so fetchCatalog is fast after the first load.
+  await catalog.fetchSources();
+  const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
+
+  // Cold cache: block until we have data. Backend in-memory cache is
+  // populated on this first call so subsequent visits are instant.
+  if (catalog.entries.length === 0) {
     if (hasEnabledRemote) {
-      catalog.refreshCatalogSource();
+      await catalog.refreshCatalogSource();
+    } else {
+      await catalog.fetchCatalog();
     }
     return;
   }
 
-  await catalog.fetchSources();
-  const hasEnabledRemote = catalog.sources.some((s) => s.id !== "builtin" && s.enabled);
+  // Warm cache: show cached entries immediately, refresh remote in
+  // background so fresh data replaces stale cache entries.
   if (hasEnabledRemote) {
-    await catalog.refreshCatalogSource();
-  } else {
-    await catalog.fetchCatalog();
+    catalog.refreshCatalogSource();
   }
 });
 </script>
@@ -99,9 +102,19 @@ onMounted(async () => {
 
 <style scoped>
 .marketplace-pane {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
+}
+.marketplace-pane > div:first-of-type {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .btn {
   padding: 4px 12px;

@@ -39,6 +39,30 @@ export function parseDefaultEnv(entry: ServerEntryResponse): EnvVarSpecParsed[] 
   }
 }
 
+/** Extract headers from install_spec_json (Sse/StreamableHttp variants). */
+export function parseInstallHeaders(entry: ServerEntryResponse): EnvVarSpecParsed[] {
+  try {
+    const spec = JSON.parse(entry.install_spec_json);
+    if (spec.transport !== "sse" && spec.transport !== "streamable_http") return [];
+    const headers = spec.headers as Record<string, string> | undefined;
+    if (!headers) return [];
+    return Object.entries(headers).map(([key]) => {
+      // Match against default_env to get description/required/secret metadata.
+      const envMeta = parseDefaultEnv(entry).find((e) => e.key === key);
+      return {
+        key,
+        label: key,
+        description: envMeta?.description ?? "",
+        required: envMeta?.required ?? false,
+        secret: envMeta?.secret ?? false,
+        default: ""
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function useMarketplace() {
   const catalog = useCatalogStore();
   const { filteredEntries } = storeToRefs(catalog);

@@ -17,8 +17,8 @@ async fn list_catalog_returns_builtin_entries() {
         .list_catalog(CatalogQuery::default())
         .await
         .expect("list_catalog");
-    // The built-in catalog ships exactly 24 curated entries (see Task 2).
-    assert_eq!(entries.len(), 24);
+    // The built-in catalog keeps only the core servers Kairox enables by default.
+    assert_eq!(entries.len(), 6);
     assert!(entries.iter().any(|e| e.id == "filesystem"));
 }
 
@@ -83,6 +83,36 @@ async fn install_then_list_then_uninstall_filesystem() {
         }
         other => panic!("unexpected install outcome kind: {other}"),
     }
+}
+
+#[tokio::test]
+async fn list_installed_entries_uses_persisted_catalog_metadata_for_overrides() {
+    let (rt, tmp) = build_marketplace_runtime().await;
+    std::fs::write(
+        tmp.path().join("mcp_servers.toml"),
+        r#"
+[mcp_servers.fetch-local]
+type = "stdio"
+command = "uvx"
+args = ["mcp-server-fetch"]
+__catalog_id = "fetch"
+__source = "builtin"
+"#,
+    )
+    .expect("write mcp servers toml");
+
+    let installed = rt
+        .list_installed_entries()
+        .await
+        .expect("list_installed_entries");
+
+    let entry = installed
+        .iter()
+        .find(|entry| entry.server_id == "fetch-local")
+        .expect("overridden install should be listed");
+    assert_eq!(entry.catalog_id.as_deref(), Some("fetch"));
+    assert_eq!(entry.source.as_deref(), Some("builtin"));
+    assert_eq!(entry.display_name, "Fetch");
 }
 
 #[tokio::test]

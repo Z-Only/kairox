@@ -45,6 +45,11 @@ pub enum InstallSpec {
         #[serde(default)]
         headers: BTreeMap<String, String>,
     },
+    StreamableHttp {
+        url: String,
+        #[serde(default)]
+        headers: BTreeMap<String, String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -195,4 +200,9 @@ pub trait DomainEventSink: Send + Sync {
     async fn emit_source_failed(&self, source_id: &str, error: &str);
     /// A new catalog source has been added at runtime.
     async fn emit_source_added(&self, source_id: &str);
+    /// Emitted when a catalog source completes its query. `entries` is the
+    /// current merged state of all sources that have responded so far, so the
+    /// frontend can update the list incrementally without waiting for every
+    /// source to finish.
+    async fn emit_source_results_arrived(&self, source_id: &str, entries: &[ServerEntry]);
 }

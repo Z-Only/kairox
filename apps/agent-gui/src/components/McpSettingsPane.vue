@@ -42,11 +42,23 @@ const isProjectScope = computed(() => configSource?.value === "project");
 watch(
   [() => configSource?.value, () => configProjectId?.value],
   async () => {
-    await mcp.fetchSettingsServers(configSource?.value === "project" ? "project" : null);
-    await mcp.fetchEffectiveServers();
+    await mcp.refreshInstalledServers(configSource?.value === "project" ? "project" : null);
   },
   { immediate: true }
 );
+
+async function refreshInstalledServers(): Promise<void> {
+  await mcp.refreshInstalledServers(configSource?.value === "project" ? "project" : null, {
+    forceTools: true
+  });
+}
+
+// Auto-check health when switching to installed tab
+watch(activeSubTab, async (tab) => {
+  if (tab === "installed") {
+    await mcp.checkAllHealth();
+  }
+});
 
 function formatTools(server: McpServerSettingsView | EffectiveMcpServerView): string {
   const toolCount = "value" in server ? server.value.tool_count : server.tool_count;
@@ -55,12 +67,24 @@ function formatTools(server: McpServerSettingsView | EffectiveMcpServerView): st
 
 function testButtonLabel(serverId: string): string {
   if (mcp.testingConnectivity.has(serverId)) return t("mcp.testChecking");
-  const result = mcp.connectivityResults[serverId];
-  if (!result) return t("mcp.testConnectivity");
-  if (result.status === "connected") {
-    return t("mcp.testConnected", { count: result.tool_count });
-  }
-  return t("mcp.testFailed", { reason: result.reason });
+  return t("mcp.testConnectivity");
+}
+
+function healthLabel(serverId: string): string {
+  if (mcp.checkingHealth.has(serverId)) return t("mcp.checkingHealth");
+  const h = mcp.serverHealth[serverId];
+  if (!h) return "";
+  return h.healthy ? t("mcp.healthy") : t("mcp.unhealthy");
+}
+
+function healthClass(serverId: string): string {
+  const h = mcp.serverHealth[serverId];
+  if (!h) return "";
+  return h.healthy ? "tag-success" : "tag-danger";
+}
+
+function serverToolCount(serverId: string): number {
+  return mcp.serverHealth[serverId]?.tools?.length ?? 0;
 }
 
 function resetForm(): void {
@@ -209,7 +233,7 @@ async function enableAtScope(serverId: string): Promise<void> {
           type="button"
           :disabled="mcp.settingsLoading"
           data-test="mcp-refresh-all"
-          @click="mcp.fetchSettingsServers()"
+          @click="refreshInstalledServers()"
         >
           {{ mcp.settingsLoading ? t("common.loading") : t("mcp.refreshAll") }}
         </button>
@@ -284,7 +308,6 @@ async function enableAtScope(serverId: string): Promise<void> {
                     {{ t("mcp.disabledBy", { source: server.disabledBy }) }}
                   </span>
                   <span class="tag">{{ server.value.transport }}</span>
-                  <span class="tag">{{ formatTools(server) }}</span>
                   <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
                     {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
                   </span>
@@ -296,6 +319,14 @@ async function enableAtScope(serverId: string): Promise<void> {
                     class="tag tag--unverified"
                   >
                     Unverified
+                  </span>
+                  <!-- Health badge (non-builtin servers only) -->
+                  <span
+                    v-if="server.value.transport !== 'builtin' && healthLabel(server.value.id)"
+                    :class="['tag', healthClass(server.value.id)]"
+                    :data-test="`mcp-health-${server.value.id}`"
+                  >
+                    {{ healthLabel(server.value.id) }}
                   </span>
                 </div>
                 <p
@@ -310,14 +341,19 @@ async function enableAtScope(serverId: string): Promise<void> {
 
               <div class="mcp-settings__actions" aria-label="Server actions">
                 <button
+                  v-if="server.value.transport !== 'builtin'"
                   class="btn btn-sm"
                   type="button"
-                  :disabled="busyServerId === server.value.id"
-                  :data-test="`mcp-refresh-tools-${server.value.id}`"
-                  @click="runServerAction(server.value.id, () => mcp.refreshTools(server.value.id))"
+                  :disabled="
+                    mcp.checkingHealth.has(server.value.id) || busyServerId === server.value.id
+                  "
+                  :data-test="`mcp-recheck-${server.value.id}`"
+                  @click="mcp.checkHealth(server.value.id)"
                 >
                   {{
-                    busyServerId === server.value.id ? t("common.loading") : t("mcp.refreshTools")
+                    mcp.checkingHealth.has(server.value.id)
+                      ? t("mcp.checkingHealth")
+                      : t("mcp.recheckHealth")
                   }}
                 </button>
                 <button
@@ -347,17 +383,6 @@ async function enableAtScope(serverId: string): Promise<void> {
                   "
                 >
                   {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
-                </button>
-                <button
-                  class="btn btn-sm"
-                  type="button"
-                  :disabled="
-                    mcp.testingConnectivity.has(server.value.id) || busyServerId === server.value.id
-                  "
-                  :data-test="`mcp-test-connectivity-${server.value.id}`"
-                  @click="mcp.testConnectivity(server.value.id)"
-                >
-                  {{ testButtonLabel(server.value.id) }}
                 </button>
                 <button
                   v-if="canDisableAtScope(server)"
@@ -393,13 +418,67 @@ async function enableAtScope(serverId: string): Promise<void> {
                   {{ t("common.delete") }}
                 </button>
               </div>
+
+              <!-- Collapsible tool list at card bottom (non-builtin servers only) -->
+              <div
+                v-if="server.value.transport !== 'builtin' && serverToolCount(server.value.id) > 0"
+                class="mcp-settings__tools"
+                :data-test="`mcp-tools-${server.value.id}`"
+              >
+                <button
+                  class="mcp-settings__tools-toggle"
+                  type="button"
+                  :aria-expanded="mcp.expandedServers.has(server.value.id)"
+                  :data-test="`mcp-tools-toggle-${server.value.id}`"
+                  @click="mcp.toggleExpanded(server.value.id)"
+                >
+                  <span class="toggle-icon">{{
+                    mcp.expandedServers.has(server.value.id) ? "▼" : "▶"
+                  }}</span>
+                  {{ t("mcp.toolCount", { count: serverToolCount(server.value.id) }) }}
+                </button>
+
+                <div
+                  v-if="mcp.expandedServers.has(server.value.id)"
+                  class="mcp-settings__tools-list"
+                >
+                  <button
+                    v-for="tool in mcp.serverHealth[server.value.id]?.tools ?? []"
+                    :key="tool.name"
+                    class="mcp-settings__tool-btn"
+                    :class="{
+                      'mcp-settings__tool-btn--enabled': !mcp.isToolDisabled(
+                        server.value.id,
+                        tool.name
+                      ),
+                      'mcp-settings__tool-btn--disabled': mcp.isToolDisabled(
+                        server.value.id,
+                        tool.name
+                      )
+                    }"
+                    :title="tool.description ?? tool.name"
+                    :data-test="`mcp-tool-${server.value.id}-${tool.name}`"
+                    @click="
+                      mcp.setToolDisabled(
+                        server.value.id,
+                        tool.name,
+                        !mcp.isToolDisabled(server.value.id, tool.name)
+                      )
+                    "
+                  >
+                    {{ tool.name }}
+                  </button>
+                </div>
+              </div>
             </div>
           </article>
         </div>
       </div>
     </section>
 
-    <MarketplacePane v-if="activeSubTab === 'marketplace'" />
+    <div v-if="activeSubTab === 'marketplace'" class="mcp-settings__marketplace">
+      <MarketplacePane />
+    </div>
 
     <ModalDialog
       :open="addServerDialogOpen"
@@ -486,9 +565,19 @@ async function enableAtScope(serverId: string): Promise<void> {
 .mcp-settings__header,
 .mcp-settings__server-body {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
+}
+
+/* Wrapper for marketplace tab content — constrain to available height */
+.mcp-settings__marketplace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Wrapper for installed tab content — toolbar + scrollable list */
@@ -643,5 +732,87 @@ async function enableAtScope(serverId: string): Promise<void> {
 .tag--unverified {
   background: var(--color-warning-light);
   color: var(--color-warning);
+}
+
+/* ── Health badge ── */
+.tag-danger {
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger, #dc2626);
+}
+
+/* ── Collapsible tool list ── */
+.mcp-settings__tools {
+  width: 100%;
+  margin-top: 4px;
+  border-top: 1px solid var(--app-border-color, #e0e0e0);
+  padding-top: 8px;
+}
+
+.mcp-settings__tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--app-text-color-2, #6b7280);
+  border-radius: 4px;
+}
+
+.mcp-settings__tools-toggle:hover {
+  background: var(--app-hover-color, #f3f4f6);
+}
+
+.toggle-icon {
+  font-size: 10px;
+}
+
+.mcp-settings__tools-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mcp-settings__tool-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: monospace;
+  font-weight: 500;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    opacity 0.15s;
+}
+
+.mcp-settings__tool-btn--enabled {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success, #059669);
+  border-color: var(--color-success, #059669);
+}
+
+.mcp-settings__tool-btn--enabled:hover {
+  background: var(--color-danger-light, #fee2e2);
+  color: var(--color-danger, #dc2626);
+  border-color: var(--color-danger, #dc2626);
+}
+
+.mcp-settings__tool-btn--disabled {
+  background: var(--color-muted-light, #f3f4f6);
+  color: var(--color-text-muted, #9ca3af);
+  border-color: var(--app-border-color, #d7d7d7);
+}
+
+.mcp-settings__tool-btn--disabled:hover {
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success, #059669);
+  border-color: var(--color-success, #059669);
 }
 </style>

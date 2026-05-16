@@ -10,7 +10,7 @@ use agent_core::facade::{
     SkillSettingsDetail, SkillSettingsView, SkillSourceView,
 };
 use agent_core::{
-    AppFacade, EffectiveItem, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
+    AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
     ProjectInstructionSummary, ProjectMeta, ProjectSessionVisibility, SessionId, SessionMeta,
 };
 use agent_memory::{MemoryEntry, MemoryQuery, MemoryScope};
@@ -180,6 +180,18 @@ pub struct McpToolDefResponse {
     pub name: String,
     pub description: Option<String>,
     pub input_schema: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CheckMcpHealthResponse {
+    pub tools: Vec<McpToolDefResponse>,
+    pub healthy: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct McpToolStatesResponse {
+    pub disabled_tools: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

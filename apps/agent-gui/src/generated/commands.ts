@@ -220,6 +220,14 @@ export const commands = {
     ),
   testMcpConnectivity: (serverId: string) =>
     typedError<ConnectivityResult, string>(__TAURI_INVOKE("test_mcp_connectivity", { serverId })),
+  checkMcpHealth: (serverId: string) =>
+    typedError<CheckMcpHealthResponse, string>(__TAURI_INVOKE("check_mcp_health", { serverId })),
+  setMcpToolDisabled: (serverId: string, toolName: string, disabled: boolean) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("set_mcp_tool_disabled", { serverId, toolName, disabled })
+    ),
+  getMcpToolStates: (serverId: string) =>
+    typedError<McpToolStatesResponse, string>(__TAURI_INVOKE("get_mcp_tool_states", { serverId })),
   listCatalog: (
     query: {
       keyword: string | null;
@@ -340,6 +348,12 @@ export type CatalogSourceViewResponse = {
   enabled: boolean;
   cache_ttl_seconds: number;
   last_error: string | null;
+};
+
+export type CheckMcpHealthResponse = {
+  tools: McpToolDefResponse[];
+  healthy: boolean;
+  error: string | null;
 };
 
 export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
@@ -475,7 +489,8 @@ export type McpServerSettingsInput = {
 
 export type McpServerSettingsTransport =
   | { transport: "stdio"; command: string; args: string[]; env: { [key in string]: string } }
-  | { transport: "sse"; url: string; headers: { [key in string]: string } };
+  | { transport: "sse"; url: string; headers: { [key in string]: string } }
+  | { transport: "streamable_http"; url: string; headers: { [key in string]: string } };
 
 export type McpServerSettingsView = {
   id: string;
@@ -514,6 +529,10 @@ export type McpToolDefResponse = {
   name: string;
   description: string | null;
   input_schema: string | null;
+};
+
+export type McpToolStatesResponse = {
+  disabled_tools: string[];
 };
 
 export type MemoryEntryResponse = {

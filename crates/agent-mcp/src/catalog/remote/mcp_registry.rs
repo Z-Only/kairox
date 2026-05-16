@@ -11,20 +11,18 @@
 //! Only entries whose `_meta` has `isLatest == true` are kept so the
 //! catalog shows one entry per server rather than one per version.
 
-use crate::catalog::remote::http_cache::{CachedResponse, HttpResponseCache};
+use crate::catalog::remote::http_cache::HttpResponseCache;
 use crate::catalog::remote::http_client::{GetOpts, SharedHttpClient};
 use crate::catalog::remote::{RemoteError, RemoteSourceConfig};
 use crate::catalog::{
-    CatalogProvider, CatalogQuery, CatalogResult, EnvVarSpec, InstallSpec, RuntimeKind,
-    RuntimeRequirement, ServerEntry, TrustLevel,
+    CatalogError, CatalogProvider, CatalogQuery, CatalogResult, EnvVarSpec, InstallSpec,
+    RuntimeKind, RuntimeRequirement, ServerEntry, TrustLevel,
 };
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
-
-const DEFAULT_TTL_SECONDS: u64 = 900;
+use tokio::sync::Mutex;
 
 /// Maximum number of servers to collect across all pages.
 const MAX_SERVERS_TO_FETCH: usize = 500;
@@ -78,10 +76,23 @@ struct McpServer {
 
 #[derive(Debug, Deserialize)]
 struct McpRemote {
-    #[allow(dead_code)]
     #[serde(rename = "type")]
     transport_type: String,
     url: String,
+    #[serde(default)]
+    headers: Vec<McpRemoteHeader>,
+}
+
+#[derive(Debug, Deserialize)]
+struct McpRemoteHeader {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default, rename = "isRequired")]
+    is_required: Option<bool>,
+    #[serde(default, rename = "isSecret")]
+    is_secret: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -123,18 +134,6 @@ struct McpRepository {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
-
-fn sanitize_id(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect()
-}
 
 fn first_sentence(s: &str, max_chars: usize) -> String {
     let trimmed = s.trim();
@@ -181,7 +180,7 @@ fn map_mcp_to_entry(
     trust_ceiling: TrustLevel,
 ) -> Result<ServerEntry, RemoteError> {
     let srv = &wrapper.server;
-    let id = sanitize_id(&srv.name);
+    let id = srv.name.clone();
     let display_name = srv
         .title
         .clone()
@@ -195,9 +194,20 @@ fn map_mcp_to_entry(
 
     // Build InstallSpec: prefer remote endpoints, fall back to packages.
     let install = if let Some(remote) = srv.remotes.first() {
-        InstallSpec::Sse {
-            url: remote.url.clone(),
-            headers: BTreeMap::new(),
+        let headers: BTreeMap<String, String> = remote
+            .headers
+            .iter()
+            .filter_map(|h| h.name.clone().map(|n| (n, String::new())))
+            .collect();
+        match remote.transport_type.as_str() {
+            "streamable-http" => InstallSpec::StreamableHttp {
+                url: remote.url.clone(),
+                headers,
+            },
+            _ => InstallSpec::Sse {
+                url: remote.url.clone(),
+                headers,
+            },
         }
     } else if let Some(pkg) = srv.packages.first() {
         build_install_from_package(pkg)
@@ -242,6 +252,27 @@ fn map_mcp_to_entry(
                 description: ev.description.clone().unwrap_or_default(),
                 required: ev.is_required.unwrap_or(false),
                 secret: ev.is_secret.unwrap_or(false),
+                default: None,
+            });
+        }
+    }
+
+    // Headers from remote endpoints — surfaced as configurable fields.
+    for remote in &srv.remotes {
+        for h in &remote.headers {
+            let name = match &h.name {
+                Some(n) if !n.is_empty() => n,
+                _ => continue,
+            };
+            if default_env.iter().any(|e| e.key == *name) {
+                continue;
+            }
+            default_env.push(EnvVarSpec {
+                key: name.clone(),
+                label: name.clone(),
+                description: h.description.clone().unwrap_or_default(),
+                required: h.is_required.unwrap_or(false),
+                secret: h.is_secret.unwrap_or(false),
                 default: None,
             });
         }
@@ -311,6 +342,10 @@ pub struct McpRegistryProvider {
     cfg: RemoteSourceConfig,
     http: SharedHttpClient,
     cache: Arc<HttpResponseCache>,
+    /// In-memory cache of fetched entries. Survives for the provider's
+    /// lifetime (session-scoped). Never persisted to disk — app restart
+    /// always starts cold and fetches fresh data.
+    cached_entries: Mutex<Option<Vec<ServerEntry>>>,
 }
 
 impl McpRegistryProvider {
@@ -319,11 +354,12 @@ impl McpRegistryProvider {
         http: SharedHttpClient,
         cache: Arc<HttpResponseCache>,
     ) -> Self {
-        Self { cfg, http, cache }
-    }
-
-    fn ttl(&self) -> u64 {
-        self.cfg.cache_ttl_seconds.unwrap_or(DEFAULT_TTL_SECONDS)
+        Self {
+            cfg,
+            http,
+            cache,
+            cached_entries: Mutex::new(None),
+        }
     }
 
     async fn fetch(&self) -> Result<Vec<ServerEntry>, RemoteError> {
@@ -381,37 +417,28 @@ impl McpRegistryProvider {
         }
 
         all_entries.truncate(MAX_SERVERS_TO_FETCH);
-
-        let cached = CachedResponse {
-            fetched_at_unix: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
-            etag: None,
-            last_modified: None,
-            entries: all_entries.clone(),
-        };
-        self.cache.put(&self.cfg.id, cached).await?;
         Ok(all_entries)
     }
 
+    /// Serve from in-memory cache when warm. On cache miss, fetch from the
+    /// network, store in cache, and return. The cache is session-scoped
+    /// (never persisted to disk) so app restart always fetches fresh data.
     async fn entries(&self) -> CatalogResult<Vec<ServerEntry>> {
+        // Fast path: in-memory cache hit.
+        if let Some(cached) = self.cached_entries.lock().await.as_ref() {
+            return Ok(cached.clone());
+        }
+        // Slow path: fetch from network with single-flight lock.
         let lock = self.cache.lock_for(&self.cfg.id).await;
         let _guard = lock.lock().await;
-        if let Some(cached) = self.cache.get(&self.cfg.id).await {
-            if HttpResponseCache::is_fresh(&cached, self.ttl()) {
-                return Ok(cached.entries);
-            }
-            match self.fetch().await {
-                Ok(entries) => Ok(entries),
-                Err(e) => {
-                    tracing::warn!(error=%e, "mcp registry refetch failed, serving stale");
-                    Ok(cached.entries)
-                }
-            }
-        } else {
-            self.fetch().await.map_err(Into::into)
+        // Double-check: another task may have populated the cache while we
+        // waited for the lock.
+        if let Some(cached) = self.cached_entries.lock().await.as_ref() {
+            return Ok(cached.clone());
         }
+        let entries = self.fetch().await.map_err(CatalogError::from)?;
+        *self.cached_entries.lock().await = Some(entries.clone());
+        Ok(entries)
     }
 }
 
@@ -448,7 +475,12 @@ impl CatalogProvider for McpRegistryProvider {
     }
 
     async fn refresh(&self) -> CatalogResult<()> {
-        self.fetch().await?;
+        let lock = self.cache.lock_for(&self.cfg.id).await;
+        let _guard = lock.lock().await;
+        // Clear the in-memory cache so the next read will see fresh data.
+        self.cached_entries.lock().await.take();
+        let entries = self.fetch().await?;
+        *self.cached_entries.lock().await = Some(entries);
         Ok(())
     }
 }
@@ -484,20 +516,52 @@ mod tests {
     }
 
     #[test]
-    fn maps_remote_server_to_sse() {
+    fn maps_remote_server_to_streamable_http() {
         let val = sample_wrapper("com.example/my-server", true);
         let wrapper = parse_wrapper(&val);
         let entry = map_mcp_to_entry("mcp-registry", &wrapper, TrustLevel::Community).unwrap();
-        assert_eq!(entry.id, "com.example-my-server");
+        assert_eq!(entry.id, "com.example/my-server");
         assert_eq!(entry.display_name, "Test Server");
         assert_eq!(entry.summary, "A test server");
         assert_eq!(entry.source, "mcp-registry");
         match &entry.install {
-            InstallSpec::Sse { url, .. } => {
+            InstallSpec::StreamableHttp { url, .. } => {
                 assert_eq!(url, "https://example.com/mcp");
+            }
+            _ => panic!("expected StreamableHttp install"),
+        }
+    }
+
+    #[test]
+    fn maps_remote_with_headers() {
+        let val = json!({
+            "server": {
+                "name": "ai.example/app",
+                "description": "API server.",
+                "remotes": [{
+                    "type": "sse",
+                    "url": "https://api.example.com/mcp",
+                    "headers": [
+                        {"name": "Authorization", "description": "Bearer token", "isRequired": true, "isSecret": true}
+                    ]
+                }]
+            }
+        });
+        let wrapper = parse_wrapper(&val);
+        let entry = map_mcp_to_entry("mcp-registry", &wrapper, TrustLevel::Community).unwrap();
+        assert_eq!(entry.id, "ai.example/app");
+        match &entry.install {
+            InstallSpec::Sse { url, headers } => {
+                assert_eq!(url, "https://api.example.com/mcp");
+                assert!(headers.contains_key("Authorization"));
             }
             _ => panic!("expected SSE install"),
         }
+        // Header surfaced as configurable env var.
+        assert!(entry
+            .default_env
+            .iter()
+            .any(|e| e.key == "Authorization" && e.required && e.secret));
     }
 
     #[test]
@@ -675,8 +739,8 @@ mod tests {
         let entries = provider.list(&CatalogQuery::default()).await.unwrap();
         // Only isLatest==true entries are returned (a and c).
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].id, "com.example-a");
-        assert_eq!(entries[1].id, "com.example-c");
+        assert_eq!(entries[0].id, "com.example/a");
+        assert_eq!(entries[1].id, "com.example/c");
         assert_eq!(entries[0].source, "mcp-registry");
     }
 }

@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 #[cfg(feature = "sse")]
 use crate::transport::sse::SseTransport;
 use crate::transport::stdio::StdioTransport;
+#[cfg(feature = "sse")]
+use crate::transport::streamable_http::StreamableHttpTransport;
 
 /// Manages the lifecycle of an MCP server connection (start, stop, restart, idle timeout).
 ///
@@ -153,6 +155,26 @@ impl ServerLifecycle {
                     ))
                 }
             }
+            McpTransportDef::StreamableHttp {
+                url,
+                api_key_env,
+                headers,
+            } => {
+                #[cfg(feature = "sse")]
+                {
+                    let transport =
+                        StreamableHttpTransport::new(url, headers.clone(), api_key_env.as_deref())
+                            .await?;
+                    Ok(Box::new(transport))
+                }
+                #[cfg(not(feature = "sse"))]
+                {
+                    let _ = (url, api_key_env, headers);
+                    Err(McpError::Transport(
+                        "Streamable HTTP transport requires the 'sse' feature".into(),
+                    ))
+                }
+            }
         }
     }
 
@@ -225,6 +247,35 @@ impl ServerLifecycle {
     /// Get the discovery cache (if the server is running).
     pub fn discovery(&self) -> Option<&DiscoveryCache> {
         self.discovery.as_ref()
+    }
+
+    /// Get cached tools, starting the server if needed.
+    pub async fn cached_tools(&mut self) -> Result<Vec<McpToolDef>> {
+        self.ensure_running().await?;
+        let discovery = self.discovery.as_ref().ok_or_else(|| {
+            McpError::Protocol(format!(
+                "server '{}' is running without discovery cache",
+                self.def.name
+            ))
+        })?;
+        let tools = discovery.tools().await?;
+        self.mark_active();
+        Ok(tools)
+    }
+
+    /// Force-refresh the cached tool list, starting the server if needed.
+    pub async fn refresh_cached_tools(&mut self) -> Result<Vec<McpToolDef>> {
+        self.ensure_running().await?;
+        let discovery = self.discovery.as_ref().ok_or_else(|| {
+            McpError::Protocol(format!(
+                "server '{}' is running without discovery cache",
+                self.def.name
+            ))
+        })?;
+        discovery.invalidate_tools().await;
+        let tools = discovery.tools().await?;
+        self.mark_active();
+        Ok(tools)
     }
 
     /// Get a reference to the server definition.

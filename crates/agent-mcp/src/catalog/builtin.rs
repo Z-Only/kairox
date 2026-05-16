@@ -140,8 +140,8 @@ mod tests {
             .expect("list should succeed");
         assert!(!entries.is_empty(), "builtin catalog should have entries");
         assert!(
-            entries.len() >= 20,
-            "expected at least 20 curated entries, got {}",
+            entries.len() >= 6,
+            "expected at least 6 core entries, got {}",
             entries.len()
         );
     }

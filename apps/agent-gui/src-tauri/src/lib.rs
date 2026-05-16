@@ -292,6 +292,9 @@ pub fn run() {
             crate::commands::list_mcp_prompts,
             crate::commands::read_mcp_resource,
             crate::commands::test_mcp_connectivity,
+            crate::commands::check_mcp_health,
+            crate::commands::set_mcp_tool_disabled,
+            crate::commands::get_mcp_tool_states,
             // Marketplace commands
             crate::commands::list_catalog,
             crate::commands::get_catalog_entry,

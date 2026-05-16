@@ -183,6 +183,73 @@ pub async fn delete_mcp_server_settings(
     delete_mcp_server_settings_in_file(config_path, &mut lifecycle, server_id).await
 }
 
+/// Read disabled tool names for a server from `mcp_servers.toml`.
+pub async fn get_mcp_disabled_tools(
+    config_path: &Path,
+    server_id: &str,
+) -> agent_core::Result<HashSet<String>> {
+    if !config_path.exists() {
+        return Ok(HashSet::new());
+    }
+    let raw = tokio::fs::read_to_string(config_path)
+        .await
+        .map_err(|error| CoreError::InvalidState(format!("failed to read MCP config: {error}")))?;
+    let document = parse_document(&raw)?;
+    Ok(read_disabled_tools_from_document(&document, server_id))
+}
+
+/// Add or remove a tool from the `disabled_tools` array for a server in `mcp_servers.toml`.
+pub async fn set_mcp_tool_disabled_in_file(
+    config_path: &Path,
+    server_id: &str,
+    tool_name: &str,
+    disabled: bool,
+) -> agent_core::Result<()> {
+    mutate_mcp_config(config_path, |document| {
+        let server_table = ensure_server_table(document, server_id);
+        let tools_array = server_table
+            .entry("disabled_tools")
+            .or_insert_with(|| Item::Value(toml_edit::Value::Array(Array::default())));
+
+        if let Some(array) = tools_array.as_array_mut() {
+            if disabled {
+                // Add tool_name if not already present
+                let already_present = array.iter().any(|v| v.as_str() == Some(tool_name));
+                if !already_present {
+                    array.push(tool_name);
+                }
+            } else {
+                // Remove tool_name
+                let idx = array.iter().position(|v| v.as_str() == Some(tool_name));
+                if let Some(i) = idx {
+                    array.remove(i);
+                }
+            }
+            // If array is empty after removal, clean it up
+            if array.is_empty() {
+                server_table.remove("disabled_tools");
+            }
+        }
+        Ok(())
+    })
+    .await
+}
+
+fn read_disabled_tools_from_document(document: &DocumentMut, server_id: &str) -> HashSet<String> {
+    let Some(servers) = document["mcp_servers"].as_table() else {
+        return HashSet::new();
+    };
+    let Some(server) = servers.get(server_id).and_then(|s| s.as_table()) else {
+        return HashSet::new();
+    };
+    let Some(arr) = server.get("disabled_tools").and_then(|v| v.as_array()) else {
+        return HashSet::new();
+    };
+    arr.iter()
+        .filter_map(|v| v.as_str().map(ToString::to_string))
+        .collect()
+}
+
 #[async_trait::async_trait]
 impl McpSettingsLifecycle for McpServerManager {
     fn is_server_running(&self, server_id: &str) -> bool {
@@ -386,6 +453,14 @@ fn upsert_server_table(document: &mut DocumentMut, input: &McpServerSettingsInpu
             server_table.remove("args");
             server_table.remove("env");
         }
+        McpServerSettingsTransport::StreamableHttp { url, headers } => {
+            server_table["type"] = value("streamable_http");
+            server_table["url"] = value(url.clone());
+            replace_optional_table(server_table, "headers", headers);
+            server_table.remove("command");
+            server_table.remove("args");
+            server_table.remove("env");
+        }
     }
 }
 
@@ -437,12 +512,30 @@ fn transport_label(config: &McpServerConfig) -> String {
     match config.r#type {
         McpTransportType::Stdio => "stdio".to_string(),
         McpTransportType::Sse => "sse".to_string(),
+        McpTransportType::StreamableHttp => "streamable_http".to_string(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn string_map_to_inline_uses_equals_not_colon() {
+        let input: BTreeMap<String, String> = BTreeMap::from([("REPO_PATH".into(), ".".into())]);
+        let item = string_map_to_inline(&input);
+        let rendered = item.to_string();
+        assert!(
+            !rendered.contains("\":"),
+            "inline table must use '=' not ':':\n{rendered}",
+        );
+        // Also verify toml 1.1.2 can parse it.
+        let table_str = format!("[t]\nenv = {rendered}");
+        let parsed: toml::value::Table =
+            toml::from_str(&table_str).expect("string_map_to_inline must produce valid TOML");
+        let env = parsed["t"]["env"].as_table().unwrap();
+        assert_eq!(env["REPO_PATH"].as_str(), Some("."));
+    }
 
     struct FakeMcpSettingsLifecycle {
         running_servers: HashSet<String>,

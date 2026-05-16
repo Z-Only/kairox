@@ -30,45 +30,37 @@ pub async fn list_mcp_server_settings(
 pub async fn get_effective_mcp_servers(
     state: State<'_, GuiState>,
 ) -> Result<Vec<EffectiveMcpServerView>, String> {
+    let settings = state
+        .runtime
+        .list_mcp_server_settings(None)
+        .await
+        .map_err(|e| e.to_string())?;
+
     let config = state.config.read().map_err(|e| e.to_string())?;
-    let effective = agent_config::effective::build_effective_mcp_servers(&config);
-    Ok(effective
+    let disabled: std::collections::HashSet<&str> = config
+        .disabled_mcp_servers
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
+
+    Ok(settings
         .into_iter()
-        .map(|item| {
-            let transport = match &item.value.transport {
-                agent_mcp::McpTransportDef::Stdio { .. } => "stdio".to_string(),
-                agent_mcp::McpTransportDef::Sse { .. } => "sse".to_string(),
-            };
-            let verified = if item.source == agent_core::config_scope::ConfigScope::Builtin {
-                agent_mcp::catalog::builtin::lookup_verified(&item.value.name)
+        .map(|view| {
+            let source = parse_mcp_source_to_scope(&view.source);
+            let disabled_by = if disabled.contains(view.id.as_str()) {
+                Some(agent_core::config_scope::ConfigScope::Project)
             } else {
-                true
+                None
             };
-            let view = McpServerSettingsView {
-                id: item.value.name.clone(),
-                name: item.value.name.clone(),
-                transport,
-                enabled: item.enabled,
-                runtime_status: "unknown".to_string(),
-                trusted: false,
-                tool_count: None,
-                last_error: None,
-                writable: item.writable,
-                config_path: None,
-                description: None,
-                source: item.source.to_string(),
-                verified,
-            };
-            let effective_item = EffectiveItem {
-                value: view,
-                source: item.source,
-                overrides: item.overrides,
-                enabled: item.enabled,
-                disabled_by: item.disabled_by,
-                writable: item.writable,
-                deletable: item.deletable,
-            };
-            EffectiveMcpServerView::from_effective(effective_item)
+            EffectiveMcpServerView {
+                value: view.clone(),
+                source,
+                overrides: None,
+                enabled: disabled_by.is_none() && view.enabled,
+                disabled_by,
+                writable: view.writable,
+                deletable: view.writable,
+            }
         })
         .collect())
 }
@@ -798,6 +790,63 @@ pub async fn test_mcp_connectivity(
     }
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn check_mcp_health(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<CheckMcpHealthResponse, String> {
+    let runtime = state.runtime.clone();
+    let result = runtime
+        .check_mcp_health(&server_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(CheckMcpHealthResponse {
+        tools: result
+            .tools
+            .into_iter()
+            .map(|t| McpToolDefResponse {
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+            })
+            .collect(),
+        healthy: result.healthy,
+        error: result.error,
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_mcp_tool_disabled(
+    server_id: String,
+    tool_name: String,
+    disabled: bool,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let runtime = state.runtime.clone();
+    runtime
+        .set_mcp_tool_disabled(&server_id, &tool_name, disabled)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_mcp_tool_states(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<McpToolStatesResponse, String> {
+    let runtime = state.runtime.clone();
+    let disabled = runtime
+        .get_mcp_disabled_tools(&server_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(McpToolStatesResponse {
+        disabled_tools: disabled.into_iter().collect(),
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileWithLimits {
     pub alias: String,
@@ -861,6 +910,16 @@ pub async fn list_profiles_with_limits(
     }
     Ok(out)
 }
+
+fn parse_mcp_source_to_scope(source: &str) -> agent_core::config_scope::ConfigScope {
+    match source {
+        "user_config" => agent_core::config_scope::ConfigScope::User,
+        "project_config" => agent_core::config_scope::ConfigScope::Project,
+        "defaults" => agent_core::config_scope::ConfigScope::Builtin,
+        _ => agent_core::config_scope::ConfigScope::Builtin,
+    }
+}
+
 #[cfg(test)]
 mod profile_with_limits_tests {
     use super::*;

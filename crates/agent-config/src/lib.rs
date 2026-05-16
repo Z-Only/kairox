@@ -91,6 +91,7 @@ pub enum ConfigSource {
 pub enum McpTransportType {
     Stdio,
     Sse,
+    StreamableHttp,
 }
 
 fn default_idle_timeout() -> u64 {
@@ -149,6 +150,11 @@ impl McpServerConfig {
                 cwd: self.cwd.clone(),
             },
             McpTransportType::Sse => agent_mcp::McpTransportDef::Sse {
+                url: self.url.clone().unwrap_or_default(),
+                api_key_env: self.api_key_env.clone(),
+                headers: self.headers.clone().unwrap_or_default(),
+            },
+            McpTransportType::StreamableHttp => agent_mcp::McpTransportDef::StreamableHttp {
                 url: self.url.clone().unwrap_or_default(),
                 api_key_env: self.api_key_env.clone(),
                 headers: self.headers.clone().unwrap_or_default(),

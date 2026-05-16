@@ -175,6 +175,7 @@
       "urlMustStartWithHttp": "URL 必须以 http:// 或 https:// 开头"
     },
     "install": {
+      "installed": "已安装",
       "titleInstalling": "安装中…",
       "titleComplete": "安装完成。",
       "titleFailed": "安装失败",
@@ -243,7 +244,18 @@
     "testConnected": "已连接（{count} 个工具）",
     "testFailed": "失败：{reason}",
     "disableInProject": "在项目中禁用",
-    "enableInProject": "在项目中启用"
+    "enableInProject": "在项目中启用",
+    "healthy": "正常",
+    "unhealthy": "异常",
+    "checkingHealth": "检查中…",
+    "recheckHealth": "检查",
+    "toolCount": "{count} 个工具",
+    "expandTools": "展开工具列表",
+    "collapseTools": "收起工具列表",
+    "toolDisabled": "已禁用",
+    "toolEnabled": "已启用",
+    "disableTool": "禁用工具",
+    "enableTool": "启用工具"
   },
   "skills": {
     "title": "Skills 设置",

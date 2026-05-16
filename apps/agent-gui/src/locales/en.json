@@ -175,6 +175,7 @@
       "urlMustStartWithHttp": "URL must start with http:// or https://"
     },
     "install": {
+      "installed": "Installed",
       "titleInstalling": "Installing…",
       "titleComplete": "Install complete.",
       "titleFailed": "Install failed",
@@ -243,7 +244,18 @@
     "testConnected": "Connected ({count} tools)",
     "testFailed": "Failed: {reason}",
     "disableInProject": "Disable in Project",
-    "enableInProject": "Enable in Project"
+    "enableInProject": "Enable in Project",
+    "healthy": "Healthy",
+    "unhealthy": "Unhealthy",
+    "checkingHealth": "Checking health…",
+    "recheckHealth": "Check",
+    "toolCount": "{count} tools",
+    "expandTools": "Show tools",
+    "collapseTools": "Hide tools",
+    "toolDisabled": "Disabled",
+    "toolEnabled": "Enabled",
+    "disableTool": "Disable tool",
+    "enableTool": "Enable tool"
   },
   "models": {
     "tabModels": "Models",

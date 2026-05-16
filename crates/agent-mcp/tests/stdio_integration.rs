@@ -3,22 +3,30 @@
 //! These tests launch a real MCP server as a child process and exercise the
 //! full protocol stack (StdioTransport → McpClient → JSON-RPC ↔ server).
 //!
-//! Tests are automatically skipped if `node` is not available on PATH.
+//! Tests are automatically skipped if `node` or the fixture dependencies are
+//! not available.
 
 use agent_mcp::client::McpClient;
 use agent_mcp::transport::stdio::StdioTransport;
 use agent_mcp::types::*;
 use std::collections::HashMap;
 
-/// Check whether `node` is available on PATH.
-fn node_available() -> bool {
-    std::process::Command::new("node")
-        .arg("--version")
+/// Check whether `node` and the fixture dependencies are available.
+fn echo_fixture_available() -> bool {
+    let node_available = std::process::Command::new("node")
+        .arg("--input-type=module")
+        .arg("-e")
+        .arg("await import('@modelcontextprotocol/sdk/server/mcp.js'); await import('zod');")
+        .current_dir("tests/fixtures")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
         .map(|s| s.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    if !node_available {
+        eprintln!("skipping: node fixture dependencies not available; run pnpm install in crates/agent-mcp/tests/fixtures to enable these tests");
+    }
+    node_available
 }
 
 /// Path to the echo-mcp-server fixture script.
@@ -47,8 +55,7 @@ async fn create_echo_client_with_env(env: HashMap<String, String>) -> McpClient 
 
 #[tokio::test]
 async fn stdio_handshake_with_real_server() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -63,8 +70,7 @@ async fn stdio_handshake_with_real_server() {
 
 #[tokio::test]
 async fn stdio_discover_tools() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -95,8 +101,7 @@ async fn stdio_discover_tools() {
 
 #[tokio::test]
 async fn stdio_call_echo_tool() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -118,8 +123,7 @@ async fn stdio_call_echo_tool() {
 
 #[tokio::test]
 async fn stdio_env_tool_returns_variable() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let env = HashMap::from([("TEST_MCP_VAR".to_string(), "hello_from_test".to_string())]);
@@ -141,8 +145,7 @@ async fn stdio_env_tool_returns_variable() {
 
 #[tokio::test]
 async fn stdio_env_tool_returns_empty_for_missing_variable() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -167,8 +170,7 @@ async fn stdio_env_tool_returns_empty_for_missing_variable() {
 
 #[tokio::test]
 async fn stdio_discover_resources() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -188,8 +190,7 @@ async fn stdio_discover_resources() {
 
 #[tokio::test]
 async fn stdio_read_resource() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -224,8 +225,7 @@ async fn stdio_read_resource() {
 
 #[tokio::test]
 async fn stdio_discover_prompts() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -245,8 +245,7 @@ async fn stdio_discover_prompts() {
 
 #[tokio::test]
 async fn stdio_get_prompt() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;
@@ -282,8 +281,7 @@ async fn stdio_get_prompt() {
 
 #[tokio::test]
 async fn stdio_handles_server_shutdown_and_reconnect() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     // First client connects and handshakes successfully
@@ -306,8 +304,7 @@ async fn stdio_handles_server_shutdown_and_reconnect() {
 
 #[tokio::test]
 async fn stdio_multiple_sequential_requests() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let client = create_echo_client().await;

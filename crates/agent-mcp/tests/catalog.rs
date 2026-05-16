@@ -73,7 +73,25 @@ fn builtin_catalog_json_parses() {
     }
     let doc: Doc = serde_json::from_str(JSON).expect("builtin catalog must be valid JSON");
     assert_eq!(doc.schema_version, "1");
-    assert_eq!(doc.entries.len(), 24, "expected 24 curated entries");
+    assert_eq!(doc.entries.len(), 6, "expected 6 core builtin entries");
+
+    let ids = doc
+        .entries
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        ids,
+        std::collections::BTreeSet::from([
+            "fetch",
+            "filesystem",
+            "git",
+            "playwright",
+            "sqlite",
+            "time",
+        ]),
+        "builtin catalog should only contain core local-agent capabilities"
+    );
 
     let mut seen = std::collections::HashSet::new();
     for entry in &doc.entries {
@@ -98,7 +116,7 @@ fn builtin_catalog_json_parses() {
 async fn builtin_provider_lists_all_when_query_empty() {
     let p = BuiltinCatalogProvider::new().expect("builtin loads");
     let items = p.list(&CatalogQuery::default()).await.unwrap();
-    assert_eq!(items.len(), 24);
+    assert_eq!(items.len(), 6);
     assert_eq!(p.source_id(), "builtin");
 }
 
