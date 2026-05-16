@@ -175,6 +175,7 @@
       "urlMustStartWithHttp": "URL must start with http:// or https://"
     },
     "install": {
+      "installed": "Installed",
       "titleInstalling": "Installing…",
       "titleComplete": "Install complete.",
       "titleFailed": "Install failed",
@@ -186,8 +187,14 @@
       "stepDetectRuntime": "Detect runtime",
       "stepWriteConfig": "Write config",
       "stepStartServer": "Start server",
+      "buttonInstall": "Install",
+      "buttonReinstall": "Reinstall",
       "anotherInProgress": "Another install is in progress."
-    }
+    },
+    "scopeBuiltin": "Built-in",
+    "scopeUser": "User",
+    "scopeProject": "Project",
+    "scopeLocal": "Local"
   },
   "mcp": {
     "statusRunning": "Running",
@@ -229,7 +236,26 @@
     "saving": "Saving…",
     "saveServer": "Save",
     "refreshAll": "Refresh All",
-    "refreshTools": "Refresh Tools"
+    "refreshTools": "Refresh Tools",
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}",
+    "testConnectivity": "Test Connectivity",
+    "testChecking": "Testing…",
+    "testConnected": "Connected ({count} tools)",
+    "testFailed": "Failed: {reason}",
+    "disableInProject": "Disable in Project",
+    "enableInProject": "Enable in Project",
+    "healthy": "Healthy",
+    "unhealthy": "Unhealthy",
+    "checkingHealth": "Checking health…",
+    "recheckHealth": "Check",
+    "toolCount": "{count} tools",
+    "expandTools": "Show tools",
+    "collapseTools": "Hide tools",
+    "toolDisabled": "Disabled",
+    "toolEnabled": "Enabled",
+    "disableTool": "Disable tool",
+    "enableTool": "Enable tool"
   },
   "models": {
     "tabModels": "Models",
@@ -269,6 +295,8 @@
     "sourceProjectConfig": "Project config",
     "moveUp": "Move Up",
     "moveDown": "Move Down",
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}",
     "sortAlpha": "Sort A-Z",
     "showUserConfig": "User Config",
     "showProjectConfig": "Project Config",
@@ -341,7 +369,9 @@
     "sourceFormError": {
       "idAndDisplayNameRequired": "id and display_name are required",
       "urlMustStartWithHttp": "URL must start with http:// or https://"
-    }
+    },
+    "overrides": "Overrides {source}",
+    "disabledBy": "Disabled by {source}"
   },
   "statusBar": {
     "profile": "profile: {profile}",

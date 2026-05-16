@@ -6,15 +6,22 @@ use agent_mcp::lifecycle::ServerLifecycle;
 use agent_mcp::types::{McpServerDef, McpServerStatus, McpTransportDef};
 use std::collections::HashMap;
 
-/// Check whether `node` is available on PATH.
-fn node_available() -> bool {
-    std::process::Command::new("node")
-        .arg("--version")
+/// Check whether `node` and the fixture dependencies are available.
+fn echo_fixture_available() -> bool {
+    let available = std::process::Command::new("node")
+        .arg("--input-type=module")
+        .arg("-e")
+        .arg("await import('@modelcontextprotocol/sdk/server/mcp.js'); await import('zod');")
+        .current_dir("tests/fixtures")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
         .map(|s| s.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    if !available {
+        eprintln!("skipping: node fixture dependencies not available; run pnpm install in crates/agent-mcp/tests/fixtures to enable these tests");
+    }
+    available
 }
 
 /// Create a stdio McpServerDef pointing at the echo-mcp-server fixture.
@@ -36,8 +43,7 @@ fn echo_server_def() -> McpServerDef {
 
 #[tokio::test]
 async fn full_lifecycle_start_discover_call() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let mut lifecycle = ServerLifecycle::new(echo_server_def());
@@ -74,8 +80,7 @@ async fn full_lifecycle_start_discover_call() {
 
 #[tokio::test]
 async fn keep_alive_server_never_times_out() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let mut def = echo_server_def();
@@ -104,8 +109,7 @@ async fn keep_alive_server_never_times_out() {
 
 #[tokio::test]
 async fn idle_timeout_shuts_down_server() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let mut def = echo_server_def();
@@ -132,8 +136,7 @@ async fn idle_timeout_shuts_down_server() {
 
 #[tokio::test]
 async fn restart_after_shutdown() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let mut lifecycle = ServerLifecycle::new(echo_server_def());
@@ -166,8 +169,7 @@ async fn restart_after_shutdown() {
 
 #[tokio::test]
 async fn discovery_cache_available_when_running() {
-    if !node_available() {
-        eprintln!("skipping: node not found on PATH");
+    if !echo_fixture_available() {
         return;
     }
     let mut lifecycle = ServerLifecycle::new(echo_server_def());

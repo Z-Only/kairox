@@ -19,10 +19,7 @@ const draft = ref({
   cache_ttl_seconds: 900
 });
 
-const kindOptions = [
-  { label: "SkillHub", value: "skillhub" },
-  { label: "skills.sh", value: "skills-sh" }
-];
+const kindOptions = [{ label: "SkillHub", value: "skillhub" }];
 
 onMounted(() => {
   void store.loadCatalogSources();

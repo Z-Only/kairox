@@ -1,10 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { nextTick } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { invoke } from "@tauri-apps/api/core";
-import { commands, type McpServerSettingsView } from "@/generated/commands";
+import {
+  commands,
+  type EffectiveMcpServerView,
+  type McpServerSettingsView
+} from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
 
@@ -16,12 +20,20 @@ vi.mock("@/generated/commands", () => ({
     upsertMcpServerSettings: vi.fn(),
     setMcpServerEnabled: vi.fn(),
     deleteMcpServerSettings: vi.fn(),
-    openMcpConfigFile: vi.fn()
+    openMcpConfigFile: vi.fn(),
+    getEffectiveMcpServers: vi.fn(),
+    checkMcpHealth: vi.fn(),
+    getMcpToolStates: vi.fn()
   }
 }));
 
 const mockedInvoke = vi.mocked(invoke);
 const mockedCommands = vi.mocked(commands);
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal ??= vi.fn();
+  HTMLDialogElement.prototype.close ??= vi.fn();
+});
 
 const githubServer: McpServerSettingsView = {
   id: "github",
@@ -55,6 +67,18 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
+function toEffective(server: McpServerSettingsView): EffectiveMcpServerView {
+  return {
+    value: server,
+    source: server.config_path ? "User" : "Builtin",
+    overrides: null,
+    enabled: server.enabled,
+    disabledBy: null,
+    writable: server.writable,
+    deletable: server.writable
+  };
+}
+
 function mountPane() {
   const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
     reusePinia: true
@@ -66,10 +90,21 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
   mockedCommands.listMcpServerSettings.mockResolvedValue(ok([githubServer, readonlyServer]));
+  mockedCommands.getEffectiveMcpServers.mockResolvedValue(
+    ok([toEffective(githubServer), toEffective(readonlyServer)])
+  );
   mockedCommands.upsertMcpServerSettings.mockResolvedValue(ok(githubServer));
   mockedCommands.setMcpServerEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteMcpServerSettings.mockResolvedValue(ok(null));
   mockedCommands.openMcpConfigFile.mockResolvedValue(ok("/tmp/kairox.toml"));
+  mockedCommands.checkMcpHealth.mockResolvedValue(
+    ok({
+      tools: [{ name: "search_repos", description: "Search repositories", input_schema: {} }],
+      healthy: true,
+      error: null
+    })
+  );
+  mockedCommands.getMcpToolStates.mockResolvedValue(ok({ disabled_tools: [] }));
   mockedInvoke.mockResolvedValue([]);
 });
 
@@ -92,7 +127,8 @@ describe("McpSettingsPane", () => {
       )
     ).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("GitHub");
-    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("5 tools");
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("1 tool");
+    expect(mockedCommands.checkMcpHealth).toHaveBeenCalledWith("github");
     expect(wrapper.find('[data-test="mcp-trust-github"]').text()).toContain("Trust");
     expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').text()).toContain(
       "connection refused"
@@ -218,5 +254,33 @@ describe("McpSettingsPane", () => {
 
     expect(useMcpStore().settingsError).toBe("settings unavailable");
     expect(wrapper.find('[role="alert"]').text()).toContain("settings unavailable");
+  });
+
+  it("refreshes settings, effective servers, and tools when refreshing all", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+    vi.clearAllMocks();
+    mockedCommands.listMcpServerSettings.mockResolvedValue(ok([githubServer, readonlyServer]));
+    mockedCommands.getEffectiveMcpServers.mockResolvedValue(
+      ok([toEffective(githubServer), toEffective({ ...readonlyServer, enabled: true })])
+    );
+    mockedInvoke
+      .mockResolvedValueOnce([
+        { name: "create_issue", description: "Create issue", input_schema: {} }
+      ])
+      .mockResolvedValueOnce({ disabled_tools: [] })
+      .mockResolvedValueOnce([
+        { name: "readonly_search", description: "Search docs", input_schema: {} }
+      ])
+      .mockResolvedValueOnce({ disabled_tools: [] });
+
+    await wrapper.find('[data-test="mcp-refresh-all"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.listMcpServerSettings).toHaveBeenCalledTimes(1);
+    expect(mockedCommands.getEffectiveMcpServers).toHaveBeenCalledTimes(1);
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "github" });
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "builtin-docs" });
+    expect(wrapper.find('[data-test="mcp-tools-github"]').text()).toContain("1 tool");
   });
 });

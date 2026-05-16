@@ -27,6 +27,46 @@ pub async fn list_mcp_server_settings(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn get_effective_mcp_servers(
+    state: State<'_, GuiState>,
+) -> Result<Vec<EffectiveMcpServerView>, String> {
+    let settings = state
+        .runtime
+        .list_mcp_server_settings(None)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let config = state.config.read().map_err(|e| e.to_string())?;
+    let disabled: std::collections::HashSet<&str> = config
+        .disabled_mcp_servers
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
+
+    Ok(settings
+        .into_iter()
+        .map(|view| {
+            let source = parse_mcp_source_to_scope(&view.source);
+            let disabled_by = if disabled.contains(view.id.as_str()) {
+                Some(agent_core::config_scope::ConfigScope::Project)
+            } else {
+                None
+            };
+            EffectiveMcpServerView {
+                value: view.clone(),
+                source,
+                overrides: None,
+                enabled: disabled_by.is_none() && view.enabled,
+                disabled_by,
+                writable: view.writable,
+                deletable: view.writable,
+            }
+        })
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn upsert_mcp_server_settings(
     state: State<'_, GuiState>,
     input: McpServerSettingsInput,
@@ -65,6 +105,113 @@ pub async fn delete_mcp_server_settings(
         .map_err(|error| error.to_string())
 }
 
+/// Disable an MCP server at the project scope by adding its ID to
+/// `disabled_mcp_servers` in `.kairox/config.toml`.
+#[tauri::command]
+#[specta::specta]
+pub async fn disable_mcp_server_at_scope(
+    state: State<'_, GuiState>,
+    server_id: String,
+    project_root: String,
+) -> Result<(), String> {
+    use std::collections::HashSet;
+
+    let config_path = std::path::Path::new(&project_root)
+        .join(".kairox")
+        .join("config.toml");
+
+    let raw = match std::fs::read_to_string(&config_path) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(format!("failed to read project config: {e}")),
+    };
+
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .map_err(|e| format!("failed to parse project config: {e}"))?;
+
+    let mut disabled: HashSet<String> = doc
+        .get("disabled_mcp_servers")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    disabled.insert(server_id);
+
+    let mut values: Vec<_> = disabled.into_iter().collect();
+    values.sort();
+    let mut arr = toml_edit::Array::new();
+    for value in values {
+        arr.push(value);
+    }
+    doc["disabled_mcp_servers"] = toml_edit::value(arr);
+
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("failed to create config dir: {e}"))?;
+    }
+    std::fs::write(&config_path, doc.to_string())
+        .map_err(|e| format!("failed to write project config: {e}"))?;
+
+    state.refresh_config_for_project(std::path::Path::new(&project_root))?;
+    Ok(())
+}
+
+/// Enable an MCP server at the project scope by removing its ID from
+/// `disabled_mcp_servers` in `.kairox/config.toml`.
+#[tauri::command]
+#[specta::specta]
+pub async fn enable_mcp_server_at_scope(
+    state: State<'_, GuiState>,
+    server_id: String,
+    project_root: String,
+) -> Result<(), String> {
+    let config_path = std::path::Path::new(&project_root)
+        .join(".kairox")
+        .join("config.toml");
+
+    let raw = match std::fs::read_to_string(&config_path) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(format!("failed to read project config: {e}")),
+    };
+
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .map_err(|e| format!("failed to parse project config: {e}"))?;
+
+    let mut disabled: Vec<String> = doc
+        .get("disabled_mcp_servers")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .filter(|id| id != &server_id)
+                .collect()
+        })
+        .unwrap_or_default();
+    disabled.sort();
+
+    if disabled.is_empty() {
+        doc.remove("disabled_mcp_servers");
+    } else {
+        let mut arr = toml_edit::Array::new();
+        for value in disabled {
+            arr.push(value);
+        }
+        doc["disabled_mcp_servers"] = toml_edit::value(arr);
+    }
+
+    std::fs::write(&config_path, doc.to_string())
+        .map_err(|e| format!("failed to write project config: {e}"))?;
+
+    state.refresh_config_for_project(std::path::Path::new(&project_root))?;
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn open_mcp_config_file(state: State<'_, GuiState>) -> Result<Option<String>, String> {
@@ -93,6 +240,50 @@ pub async fn list_profile_settings(
         .list_profile_settings(source_filter)
         .await
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_effective_model_profiles(
+    state: State<'_, GuiState>,
+) -> Result<Vec<EffectiveProfileView>, String> {
+    let config = state.config.read().map_err(|e| e.to_string())?;
+    let source = match &config.source {
+        agent_config::ConfigSource::ProjectFile => agent_core::ConfigScope::Project,
+        agent_config::ConfigSource::UserFile => agent_core::ConfigScope::User,
+        agent_config::ConfigSource::LocalFile => agent_core::ConfigScope::Local,
+        agent_config::ConfigSource::Defaults => agent_core::ConfigScope::Builtin,
+    };
+    let mut result = Vec::with_capacity(config.profiles.len());
+    for (alias, profile) in &config.profiles {
+        let has_api_key = profile.api_key.is_some()
+            || profile
+                .api_key_env
+                .as_deref()
+                .map(|env| std::env::var(env).is_ok())
+                .unwrap_or(false)
+            || matches!(profile.provider.as_str(), "ollama" | "fake");
+        let view = ProfileSettingsView {
+            alias: alias.clone(),
+            provider: profile.provider.clone(),
+            model_id: profile.model_id.clone(),
+            enabled: profile.enabled,
+            context_window: profile.context_window,
+            output_limit: profile.output_limit,
+            temperature: profile.temperature,
+            top_p: profile.top_p,
+            top_k: profile.top_k,
+            max_tokens: profile.max_tokens,
+            base_url: profile.base_url.clone(),
+            api_key_env: profile.api_key_env.clone(),
+            has_api_key,
+            writable: source >= agent_core::ConfigScope::User,
+            config_path: None,
+            source: source.to_string(),
+        };
+        result.push(EffectiveProfileView::from_view(view, source));
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -579,6 +770,82 @@ pub async fn read_mcp_resource(
     }
 }
 
+#[tauri::command]
+#[specta::specta]
+pub async fn test_mcp_connectivity(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<agent_mcp::ConnectivityResult, String> {
+    let runtime = state.runtime.clone();
+    match runtime.mcp_manager() {
+        Some(manager) => {
+            let mut manager = manager.lock().await;
+            manager
+                .test_connectivity(&server_id, Some(std::time::Duration::from_secs(15)))
+                .await
+                .map_err(|e| e.to_string())
+        }
+        None => Err("No MCP servers configured".into()),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn check_mcp_health(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<CheckMcpHealthResponse, String> {
+    let runtime = state.runtime.clone();
+    let result = runtime
+        .check_mcp_health(&server_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(CheckMcpHealthResponse {
+        tools: result
+            .tools
+            .into_iter()
+            .map(|t| McpToolDefResponse {
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+            })
+            .collect(),
+        healthy: result.healthy,
+        error: result.error,
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_mcp_tool_disabled(
+    server_id: String,
+    tool_name: String,
+    disabled: bool,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let runtime = state.runtime.clone();
+    runtime
+        .set_mcp_tool_disabled(&server_id, &tool_name, disabled)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_mcp_tool_states(
+    server_id: String,
+    state: State<'_, GuiState>,
+) -> Result<McpToolStatesResponse, String> {
+    let runtime = state.runtime.clone();
+    let disabled = runtime
+        .get_mcp_disabled_tools(&server_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(McpToolStatesResponse {
+        disabled_tools: disabled.into_iter().collect(),
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileWithLimits {
     pub alias: String,
@@ -642,6 +909,16 @@ pub async fn list_profiles_with_limits(
     }
     Ok(out)
 }
+
+fn parse_mcp_source_to_scope(source: &str) -> agent_core::config_scope::ConfigScope {
+    match source {
+        "user_config" => agent_core::config_scope::ConfigScope::User,
+        "project_config" => agent_core::config_scope::ConfigScope::Project,
+        "defaults" => agent_core::config_scope::ConfigScope::Builtin,
+        _ => agent_core::config_scope::ConfigScope::Builtin,
+    }
+}
+
 #[cfg(test)]
 mod profile_with_limits_tests {
     use super::*;

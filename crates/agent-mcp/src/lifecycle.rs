@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 #[cfg(feature = "sse")]
 use crate::transport::sse::SseTransport;
 use crate::transport::stdio::StdioTransport;
+#[cfg(feature = "sse")]
+use crate::transport::streamable_http::StreamableHttpTransport;
 
 /// Manages the lifecycle of an MCP server connection (start, stop, restart, idle timeout).
 ///
@@ -153,6 +155,26 @@ impl ServerLifecycle {
                     ))
                 }
             }
+            McpTransportDef::StreamableHttp {
+                url,
+                api_key_env,
+                headers,
+            } => {
+                #[cfg(feature = "sse")]
+                {
+                    let transport =
+                        StreamableHttpTransport::new(url, headers.clone(), api_key_env.as_deref())
+                            .await?;
+                    Ok(Box::new(transport))
+                }
+                #[cfg(not(feature = "sse"))]
+                {
+                    let _ = (url, api_key_env, headers);
+                    Err(McpError::Transport(
+                        "Streamable HTTP transport requires the 'sse' feature".into(),
+                    ))
+                }
+            }
         }
     }
 
@@ -227,6 +249,35 @@ impl ServerLifecycle {
         self.discovery.as_ref()
     }
 
+    /// Get cached tools, starting the server if needed.
+    pub async fn cached_tools(&mut self) -> Result<Vec<McpToolDef>> {
+        self.ensure_running().await?;
+        let discovery = self.discovery.as_ref().ok_or_else(|| {
+            McpError::Protocol(format!(
+                "server '{}' is running without discovery cache",
+                self.def.name
+            ))
+        })?;
+        let tools = discovery.tools().await?;
+        self.mark_active();
+        Ok(tools)
+    }
+
+    /// Force-refresh the cached tool list, starting the server if needed.
+    pub async fn refresh_cached_tools(&mut self) -> Result<Vec<McpToolDef>> {
+        self.ensure_running().await?;
+        let discovery = self.discovery.as_ref().ok_or_else(|| {
+            McpError::Protocol(format!(
+                "server '{}' is running without discovery cache",
+                self.def.name
+            ))
+        })?;
+        discovery.invalidate_tools().await;
+        let tools = discovery.tools().await?;
+        self.mark_active();
+        Ok(tools)
+    }
+
     /// Get a reference to the server definition.
     pub fn def(&self) -> &McpServerDef {
         &self.def
@@ -246,6 +297,56 @@ impl ServerLifecycle {
     /// to indicate the server is healthy.
     pub fn reset_restart_count(&mut self) {
         self.restart_count = 0;
+    }
+
+    /// Test connectivity to the MCP server.
+    ///
+    /// Ensures the server is running, then calls `tools/list` (or equivalent
+    /// discovery) to verify the server responds. Returns a
+    /// [`ConnectivityResult`] indicating success with tool count, or failure
+    /// with a reason.
+    ///
+    /// The `timeout` parameter controls how long to wait for the server to
+    /// start and respond. If `None`, defaults to 15 seconds.
+    pub async fn test_connectivity(&mut self, timeout: Option<Duration>) -> ConnectivityResult {
+        let timeout = timeout.unwrap_or(Duration::from_secs(15));
+
+        // Ensure the server is running, with a timeout.
+        let client = match tokio::time::timeout(timeout, self.ensure_running()).await {
+            Ok(Ok(client)) => client,
+            Ok(Err(e)) => {
+                return ConnectivityResult::Failed {
+                    reason: format!("failed to start server: {e}"),
+                };
+            }
+            Err(_elapsed) => {
+                return ConnectivityResult::Failed {
+                    reason: format!(
+                        "timed out after {}s waiting for server to start",
+                        timeout.as_secs()
+                    ),
+                };
+            }
+        };
+
+        // Discover tools to verify the server is responsive.
+        match tokio::time::timeout(timeout, client.discover_tools()).await {
+            Ok(Ok(tools)) => {
+                self.mark_active();
+                ConnectivityResult::Connected {
+                    tool_count: tools.len() as u32,
+                }
+            }
+            Ok(Err(e)) => ConnectivityResult::Failed {
+                reason: format!("tool discovery failed: {e}"),
+            },
+            Err(_elapsed) => ConnectivityResult::Failed {
+                reason: format!(
+                    "timed out after {}s waiting for tool discovery",
+                    timeout.as_secs()
+                ),
+            },
+        }
     }
 }
 

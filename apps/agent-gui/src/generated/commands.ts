@@ -111,6 +111,12 @@ export const commands = {
     typedError<McpServerSettingsView[], string>(
       __TAURI_INVOKE("list_mcp_server_settings", { sourceFilter })
     ),
+  getEffectiveMcpServers: () =>
+    typedError<EffectiveMcpServerView[], string>(__TAURI_INVOKE("get_effective_mcp_servers")),
+  getEffectiveSkills: () =>
+    typedError<EffectiveSkillView[], string>(__TAURI_INVOKE("get_effective_skills")),
+  getEffectiveModelProfiles: () =>
+    typedError<EffectiveProfileView[], string>(__TAURI_INVOKE("get_effective_model_profiles")),
   upsertMcpServerSettings: (input: McpServerSettingsInput) =>
     typedError<McpServerSettingsView, string>(
       __TAURI_INVOKE("upsert_mcp_server_settings", { input })
@@ -119,6 +125,22 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("set_mcp_server_enabled", { serverId, enabled })),
   deleteMcpServerSettings: (serverId: string) =>
     typedError<null, string>(__TAURI_INVOKE("delete_mcp_server_settings", { serverId })),
+  /**
+   *  Disable an MCP server at the project scope by adding its ID to
+   *  `disabled_mcp_servers` in `.kairox/config.toml`.
+   */
+  disableMcpServerAtScope: (serverId: string, projectRoot: string) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("disable_mcp_server_at_scope", { serverId, projectRoot })
+    ),
+  /**
+   *  Enable an MCP server at the project scope by removing its ID from
+   *  `disabled_mcp_servers` in `.kairox/config.toml`.
+   */
+  enableMcpServerAtScope: (serverId: string, projectRoot: string) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("enable_mcp_server_at_scope", { serverId, projectRoot })
+    ),
   openMcpConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_mcp_config_file")),
   listProfileSettings: (sourceFilter: string | null) =>
@@ -196,6 +218,16 @@ export const commands = {
     typedError<McpContentBlockResponse[], string>(
       __TAURI_INVOKE("read_mcp_resource", { serverId, uri })
     ),
+  testMcpConnectivity: (serverId: string) =>
+    typedError<ConnectivityResult, string>(__TAURI_INVOKE("test_mcp_connectivity", { serverId })),
+  checkMcpHealth: (serverId: string) =>
+    typedError<CheckMcpHealthResponse, string>(__TAURI_INVOKE("check_mcp_health", { serverId })),
+  setMcpToolDisabled: (serverId: string, toolName: string, disabled: boolean) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("set_mcp_tool_disabled", { serverId, toolName, disabled })
+    ),
+  getMcpToolStates: (serverId: string) =>
+    typedError<McpToolStatesResponse, string>(__TAURI_INVOKE("get_mcp_tool_states", { serverId })),
   listCatalog: (
     query: {
       keyword: string | null;
@@ -221,6 +253,7 @@ export const commands = {
         version: string | null;
         /**  Lower-case trust level: "unverified" | "community" | "verified". */
         trust: string;
+        verified: boolean;
         icon: string | null;
         /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
         install_spec_json: string;
@@ -317,9 +350,77 @@ export type CatalogSourceViewResponse = {
   last_error: string | null;
 };
 
+export type CheckMcpHealthResponse = {
+  tools: McpToolDefResponse[];
+  healthy: boolean;
+  error: string | null;
+};
+
+export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
+
+/**  Result of a connectivity test to an MCP server. */
+export type ConnectivityResult =
+  /**  The server is reachable and returned tools. */
+  | {
+      status: "connected";
+      /**  Number of tools discovered on the server. */
+      tool_count: number;
+    }
+  /**  The server could not be reached or the operation timed out. */
+  | {
+      status: "failed";
+      /**  Human-readable reason for the failure. */
+      reason: string;
+    };
+
 export type ConnectivityTestResult = {
   ok: boolean;
   error: string | null;
+};
+
+/**
+ *  Concrete effective-view wrapper for MCP server settings.
+ *  Combines [`EffectiveItem`] metadata with a [`McpServerSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveMcpServerView = {
+  value: McpServerSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
+};
+
+/**
+ *  Concrete effective-view wrapper for profile settings.
+ *  Combines [`EffectiveItem`] metadata with a [`ProfileSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveProfileView = {
+  value: ProfileSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
+};
+
+/**
+ *  Concrete effective-view wrapper for skill settings.
+ *  Combines [`EffectiveItem`] metadata with a [`SkillSettingsView`].
+ *  This is a non-generic type so it can safely derive both serde and specta.
+ */
+export type EffectiveSkillView = {
+  value: SkillSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
 };
 
 export type InstallGithubSkillRequest = {
@@ -388,7 +489,8 @@ export type McpServerSettingsInput = {
 
 export type McpServerSettingsTransport =
   | { transport: "stdio"; command: string; args: string[]; env: { [key in string]: string } }
-  | { transport: "sse"; url: string; headers: { [key in string]: string } };
+  | { transport: "sse"; url: string; headers: { [key in string]: string } }
+  | { transport: "streamable_http"; url: string; headers: { [key in string]: string } };
 
 export type McpServerSettingsView = {
   id: string;
@@ -403,6 +505,7 @@ export type McpServerSettingsView = {
   config_path: string | null;
   description: string | null;
   source: string;
+  verified?: boolean;
 };
 
 /**  The lifecycle status of an MCP server connection. */
@@ -426,6 +529,10 @@ export type McpToolDefResponse = {
   name: string;
   description: string | null;
   input_schema: string | null;
+};
+
+export type McpToolStatesResponse = {
+  disabled_tools: string[];
 };
 
 export type MemoryEntryResponse = {
@@ -550,6 +657,7 @@ export type ServerEntryResponse = {
   version: string | null;
   /**  Lower-case trust level: "unverified" | "community" | "verified". */
   trust: string;
+  verified: boolean;
   icon: string | null;
   /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
   install_spec_json: string;

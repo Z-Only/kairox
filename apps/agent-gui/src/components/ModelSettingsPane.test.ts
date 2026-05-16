@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
-import { commands } from "@/generated/commands";
+import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 
 beforeAll(() => {
@@ -13,6 +13,7 @@ beforeAll(() => {
 vi.mock("@/generated/commands", () => ({
   commands: {
     listProfileSettings: vi.fn(),
+    getEffectiveModelProfiles: vi.fn(),
     upsertProfileSettings: vi.fn(),
     setProfileEnabled: vi.fn(),
     deleteProfileSettings: vi.fn(),
@@ -81,6 +82,18 @@ const disabledProfile = {
   source: "profiles_toml"
 };
 
+function toEffective(profile: typeof writableProfile): EffectiveProfileView {
+  return {
+    value: profile,
+    source: profile.source === "user_config" ? "User" : "Project",
+    overrides: null,
+    enabled: profile.enabled,
+    disabledBy: null,
+    writable: profile.writable,
+    deletable: profile.writable
+  };
+}
+
 function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
@@ -95,9 +108,9 @@ function mountPane() {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
-  mockedCommands.listProfileSettings.mockResolvedValue(
-    ok([writableProfile, readOnlyProfile, disabledProfile])
-  );
+  const profileFixtures = [writableProfile, readOnlyProfile, disabledProfile];
+  mockedCommands.listProfileSettings.mockResolvedValue(ok(profileFixtures));
+  mockedCommands.getEffectiveModelProfiles.mockResolvedValue(ok(profileFixtures.map(toEffective)));
   mockedCommands.upsertProfileSettings.mockResolvedValue(ok(writableProfile));
   mockedCommands.setProfileEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteProfileSettings.mockResolvedValue(ok(null));
@@ -253,6 +266,7 @@ describe("ModelSettingsPane", () => {
 
   it("shows empty state when no profiles", async () => {
     mockedCommands.listProfileSettings.mockResolvedValue(ok([]));
+    mockedCommands.getEffectiveModelProfiles.mockResolvedValue(ok([]));
     const wrapper = mountPane();
     await flushPromises();
 

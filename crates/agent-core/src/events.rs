@@ -286,6 +286,13 @@ pub enum EventPayload {
         source: String,
         error: String,
     },
+    /// Emitted incrementally as each catalog source completes its query.
+    /// `entries` is the current state of the fully-merged, sorted list
+    /// across all providers that have responded so far.
+    CatalogSourceResultsArrived {
+        source: String,
+        entries: Vec<crate::facade::ServerEntry>,
+    },
 }
 
 impl EventPayload {
@@ -346,6 +353,7 @@ impl EventPayload {
             Self::CatalogRuntimeMissing { .. } => "CatalogRuntimeMissing",
             Self::CatalogSourceAdded { .. } => "CatalogSourceAdded",
             Self::CatalogSourceFailed { .. } => "CatalogSourceFailed",
+            Self::CatalogSourceResultsArrived { .. } => "CatalogSourceResultsArrived",
         }
     }
 }

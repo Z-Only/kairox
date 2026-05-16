@@ -63,6 +63,9 @@ export function useTauriEvents() {
       case "CatalogSourceFailed":
         catalog.handleSourceFailed(payload.source, payload.error);
         break;
+      case "CatalogSourceResultsArrived":
+        catalog.mergeSourceResults(payload.source, payload.entries);
+        break;
     }
   });
 

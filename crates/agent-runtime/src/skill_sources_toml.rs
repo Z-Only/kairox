@@ -179,7 +179,7 @@ mod tests {
             display_name: "Custom SkillHub".into(),
             kind: "skillhub".into(),
             url: "https://custom.sh".into(),
-            search_template: "/api/search?q={{query}}".into(),
+            search_template: "/api/skills?q={{query}}".into(),
             list_template: None,
             field_mapping: SkillFieldMappingView::default(),
             enabled: false,
@@ -188,9 +188,9 @@ mod tests {
             last_error: None,
         }];
         let merged = toml.merge_with_defaults(&user);
-        let sh = merged.iter().find(|s| s.id == "skillhub").unwrap();
-        assert_eq!(sh.display_name, "Custom SkillHub");
-        assert!(!sh.enabled);
+        let hub = merged.iter().find(|s| s.id == "skillhub").unwrap();
+        assert_eq!(hub.display_name, "Custom SkillHub");
+        assert!(!hub.enabled);
         assert_eq!(merged.len(), 1);
     }
 }

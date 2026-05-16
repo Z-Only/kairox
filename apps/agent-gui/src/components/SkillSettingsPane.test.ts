@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { commands, type SkillCatalogEntry } from "@/generated/commands";
+import { commands, type SkillCatalogEntry, type EffectiveSkillView } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
     listSkillSettings: vi.fn(),
+    getEffectiveSkills: vi.fn(),
     setSkillEnabled: vi.fn(),
     deleteSkillSettings: vi.fn(),
     searchRemoteSkills: vi.fn(),
@@ -101,6 +102,18 @@ const invalidSkill = {
   deletable: true
 };
 
+function toEffective(skill: typeof projectSkill): EffectiveSkillView {
+  return {
+    value: skill,
+    source: skill.scope === "project" ? "Project" : skill.scope === "builtin" ? "Builtin" : "User",
+    overrides: skill.shadowed_by ? (skill.shadowed_by === "project" ? "Project" : "User") : null,
+    enabled: skill.enabled,
+    disabledBy: null,
+    writable: skill.editable,
+    deletable: skill.deletable
+  };
+}
+
 const remoteSkill: SkillCatalogEntry = {
   catalog_id: "docs-helper",
   name: "Docs Helper",
@@ -121,12 +134,9 @@ function mountPane() {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
-  mockedCommands.listSkillSettings.mockResolvedValue([
-    projectSkill,
-    shadowedSkill,
-    builtinSkill,
-    invalidSkill
-  ]);
+  const settingsFixtures = [projectSkill, shadowedSkill, builtinSkill, invalidSkill];
+  mockedCommands.listSkillSettings.mockResolvedValue(settingsFixtures);
+  mockedCommands.getEffectiveSkills.mockResolvedValue(settingsFixtures.map(toEffective));
   mockedCommands.setSkillEnabled.mockResolvedValue(null);
   mockedCommands.deleteSkillSettings.mockResolvedValue(null);
   mockedCommands.searchRemoteSkills.mockResolvedValue([remoteSkill]);
@@ -175,17 +185,17 @@ describe("SkillSettingsPane", () => {
   });
 
   it("uses unique settings selectors for shadowed duplicate skill ids", async () => {
-    mockedCommands.listSkillSettings.mockResolvedValue([
-      projectSkill,
-      {
-        ...projectSkill,
-        settings_id: "user:code-review",
-        scope: "user",
-        path: "/home/user/.kairox/skills/code-review",
-        effective: false,
-        shadowed_by: "project"
-      }
-    ]);
+    const userShadowedSkill = {
+      ...projectSkill,
+      settings_id: "user:code-review",
+      scope: "user",
+      path: "/home/user/.kairox/skills/code-review",
+      effective: false,
+      shadowed_by: "project"
+    };
+    const settingsFixtures = [projectSkill, userShadowedSkill];
+    mockedCommands.listSkillSettings.mockResolvedValue(settingsFixtures);
+    mockedCommands.getEffectiveSkills.mockResolvedValue(settingsFixtures.map(toEffective));
 
     const wrapper = mountPane();
     await flushPromises();

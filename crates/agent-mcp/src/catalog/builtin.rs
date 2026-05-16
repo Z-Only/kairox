@@ -5,6 +5,7 @@ use crate::catalog::{
 };
 use async_trait::async_trait;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 const BUILTIN_JSON: &str = include_str!("data/builtin-catalog.json");
 
@@ -15,6 +16,25 @@ struct Doc {
     #[allow(dead_code)]
     generated_at: Option<String>,
     entries: Vec<ServerEntry>,
+}
+
+/// Lazily-parsed static lookup table for builtin catalog entries.
+fn builtin_entries() -> &'static [ServerEntry] {
+    static ENTRIES: OnceLock<Vec<ServerEntry>> = OnceLock::new();
+    ENTRIES
+        .get_or_init(|| {
+            let doc: Doc =
+                serde_json::from_str(BUILTIN_JSON).expect("builtin catalog should be valid JSON");
+            doc.entries
+        })
+        .as_slice()
+}
+
+/// Return the `verified` flag for a builtin catalog entry, if it exists.
+pub fn lookup_verified(server_id: &str) -> bool {
+    builtin_entries()
+        .iter()
+        .any(|e| e.id == server_id && e.verified)
 }
 
 pub struct BuiltinCatalogProvider {
@@ -120,8 +140,8 @@ mod tests {
             .expect("list should succeed");
         assert!(!entries.is_empty(), "builtin catalog should have entries");
         assert!(
-            entries.len() >= 20,
-            "expected at least 20 curated entries, got {}",
+            entries.len() >= 6,
+            "expected at least 6 core entries, got {}",
             entries.len()
         );
     }

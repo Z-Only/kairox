@@ -51,9 +51,9 @@ crates/agent-mcp/tests/fixtures/node_modules/
 # =============================================================================
 # Project-specific generated / local
 # =============================================================================
-# local user config (sensitive — may contain API keys)
+# local project config (sensitive — may contain API keys and MCP settings)
 kairox.toml
-/.kairox/config.toml
+/.kairox/
 # unplugin-auto-import / unplugin-vue-components generated artifacts
 apps/agent-gui/src/auto-imports.d.ts
 apps/agent-gui/src/components.d.ts

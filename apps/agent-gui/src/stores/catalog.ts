@@ -45,6 +45,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   });
   const sources = ref<CatalogSourceViewResponse[]>([]);
   const sourceFailures = ref<Record<string, string>>({});
+  // Set of server_ids that are currently installed. Populated by
+  // `fetchInstalled` and `checkInstalledStatus` for quick O(1) lookups
+  // from CatalogDetail.vue without repeating the async fetch per entry.
+  const installedServerNames = ref<Set<string>>(new Set());
+
   // Catalog id whose install-progress modal is currently visible. Hoisted out
   // of CatalogDetail.vue (which is unmounted whenever its NDrawer closes) so
   // the progress modal survives drawer dismissal mid-install. `null` = hidden.
@@ -54,6 +59,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   function reset(): void {
     entries.value = [];
     installed.value = [];
+    installedServerNames.value = new Set();
     installState.value = {};
     loading.value = false;
     error.value = null;
@@ -152,10 +158,29 @@ export const useCatalogStore = defineStore("catalog", () => {
       // `installed.value = result` assignment can silently detach the proxy
       // in Pinia setup-stores when called from deeply-nested async flows.
       installed.value.splice(0, installed.value.length, ...result);
+      installedServerNames.value = new Set(result.map((e) => e.server_id));
     } catch (e) {
       error.value = String(e);
       ui.pushNotification("error", `Failed to load installed entries: ${e}`);
     }
+  }
+
+  /** Lightweight installed-status refresh. Keeps both the installed array
+   *  and the installedServerNames lookup set in sync so CatalogDetail can
+   *  detect installed state after the drawer opens. */
+  async function checkInstalledStatus(): Promise<void> {
+    try {
+      const result = await invoke<InstalledEntryResponse[]>("list_installed_entries");
+      installed.value.splice(0, installed.value.length, ...result);
+      installedServerNames.value = new Set(result.map((e) => e.server_id));
+    } catch (e) {
+      console.error("Failed to check installed status:", e);
+    }
+  }
+
+  /** O(1) check whether a server name appears in the installed set. */
+  function isServerInstalled(name: string): boolean {
+    return installedServerNames.value.has(name);
   }
 
   async function getCatalogEntry(
@@ -269,10 +294,39 @@ export const useCatalogStore = defineStore("catalog", () => {
     sourceFailures.value[source] = errorMsg;
   }
 
+  /** Merge incremental results from one source into the combined list.
+   *  Called as each catalog source completes, so the UI updates without
+   *  waiting for the slowest source. */
+  function mergeSourceResults(source: string, incoming: ServerEntryResponse[]): void {
+    delete sourceFailures.value[source];
+    // Build a lookup of existing (source, id) keys.
+    const seen = new Map<string, ServerEntryResponse>();
+    for (const e of entries.value) {
+      seen.set(`${e.source}:${e.id}`, e);
+    }
+    for (const e of incoming) {
+      seen.set(`${e.source}:${e.id}`, e);
+    }
+    // Re-sort to match backend ordering (trust desc, source asc, name asc).
+    const TRUST_ORDER: Record<string, number> = {
+      unverified: 0,
+      community: 1,
+      verified: 2
+    };
+    entries.value = Array.from(seen.values()).sort((a, b) => {
+      const ta = TRUST_ORDER[a.trust] ?? 0;
+      const tb = TRUST_ORDER[b.trust] ?? 0;
+      if (tb !== ta) return tb - ta;
+      if (a.source !== b.source) return a.source.localeCompare(b.source);
+      return a.display_name.localeCompare(b.display_name);
+    });
+  }
+
   return {
     // state
     entries,
     installed,
+    installedServerNames,
     installState,
     loading,
     error,
@@ -294,6 +348,10 @@ export const useCatalogStore = defineStore("catalog", () => {
     handleSourceFailed,
     requestInstallProgress,
     dismissInstallProgress,
+    checkInstalledStatus,
+    isServerInstalled,
+    // incremental merge (called by useTauriEvents on CatalogSourceResultsArrived)
+    mergeSourceResults,
     // actions
     fetchCatalog,
     fetchInstalled,

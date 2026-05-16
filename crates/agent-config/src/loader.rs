@@ -11,6 +11,9 @@ struct ConfigToml {
     mcp_servers: toml::value::Table,
     #[serde(default)]
     context: crate::ContextPolicy,
+    /// Top-level list of MCP server IDs to disable at this config layer.
+    #[serde(default)]
+    disabled_mcp_servers: Vec<String>,
 }
 
 /// Intermediate profile structure for deserialization.
@@ -103,7 +106,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
             })?;
 
         // Validate required fields per transport type
-        match server_config.r#type {
+        match &server_config.r#type {
             McpTransportType::Stdio if server_config.command.is_none() => {
                 return Err(ConfigError::Parse {
                     path: path_for_errors.to_string(),
@@ -114,6 +117,12 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
                 return Err(ConfigError::Parse {
                     path: path_for_errors.to_string(),
                     message: format!("mcp_server '{}': sse requires 'url'", id),
+                });
+            }
+            McpTransportType::StreamableHttp if server_config.url.is_none() => {
+                return Err(ConfigError::Parse {
+                    path: path_for_errors.to_string(),
+                    message: format!("mcp_server '{}': streamable_http requires 'url'", id),
                 });
             }
             _ => {}
@@ -127,6 +136,7 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         mcp_servers,
         source: crate::ConfigSource::ProjectFile, // Will be overridden by caller
         context: config_toml.context,
+        disabled_mcp_servers: config_toml.disabled_mcp_servers,
     })
 }
 
@@ -449,6 +459,25 @@ api_key_env = "MCP_SEARCH_KEY"
     }
 
     #[test]
+    fn parse_streamable_http_mcp_server() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.remote-search]
+type = "streamable_http"
+url = "https://mcp.example.com/mcp"
+"#;
+        let config = load_from_str(toml, "test.toml").unwrap();
+        assert_eq!(config.mcp_servers.len(), 1);
+        let (id, server) = &config.mcp_servers[0];
+        assert_eq!(id, "remote-search");
+        assert_eq!(server.r#type, McpTransportType::StreamableHttp);
+        assert_eq!(server.url, Some("https://mcp.example.com/mcp".to_string()));
+    }
+
+    #[test]
     fn reject_stdio_without_command() {
         let toml = r#"
 [profiles.fake]
@@ -471,6 +500,20 @@ model_id = "fake"
 
 [mcp_servers.bad]
 type = "sse"
+"#;
+        let result = load_from_str(toml, "test.toml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reject_streamable_http_without_url() {
+        let toml = r#"
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+
+[mcp_servers.bad]
+type = "streamable_http"
 "#;
         let result = load_from_str(toml, "test.toml");
         assert!(result.is_err());

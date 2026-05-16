@@ -138,6 +138,7 @@ where
                 mcp_servers: vec![],
                 source: agent_config::ConfigSource::Defaults,
                 context: agent_config::ContextPolicy::default(),
+                disabled_mcp_servers: vec![],
             }),
             ollama_clients: HashMap::new(),
             skill_catalog: std::sync::OnceLock::new(),
@@ -365,6 +366,88 @@ where
     /// Get a reference to the MCP server manager (if configured).
     pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
         self.mcp_manager.clone()
+    }
+
+    /// Check health of an MCP server: start + discover tools.
+    /// Returns tools + healthy flag. Healthy = tools fetched successfully.
+    /// Also syncs disabled tools from config into the manager.
+    pub async fn check_mcp_health(
+        &self,
+        server_id: &str,
+    ) -> agent_core::Result<agent_mcp::types::CheckHealthResult> {
+        // Sync disabled tools from config into manager
+        if let Some(config_path) =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+        {
+            if let Some(manager) = self.mcp_manager() {
+                let disabled =
+                    crate::mcp_settings::get_mcp_disabled_tools(&config_path, server_id).await?;
+                let mut manager = manager.lock().await;
+                manager.load_disabled_tools(server_id, disabled);
+            }
+        }
+
+        match self.mcp_manager() {
+            Some(manager) => {
+                let mut manager = manager.lock().await;
+                Ok(manager
+                    .check_health(server_id, Some(std::time::Duration::from_secs(15)))
+                    .await)
+            }
+            None => Ok(agent_mcp::types::CheckHealthResult {
+                tools: Vec::new(),
+                healthy: false,
+                error: Some("No MCP servers configured".into()),
+            }),
+        }
+    }
+
+    /// Enable or disable a specific tool on an MCP server.
+    /// Updates both the runtime state (tool registry) and the config file.
+    pub async fn set_mcp_tool_disabled(
+        &self,
+        server_id: &str,
+        tool_name: &str,
+        disabled: bool,
+    ) -> agent_core::Result<()> {
+        // Persist to config file
+        if let Some(config_path) =
+            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
+        {
+            crate::mcp_settings::set_mcp_tool_disabled_in_file(
+                &config_path,
+                server_id,
+                tool_name,
+                disabled,
+            )
+            .await?;
+        }
+
+        // Update runtime state
+        if let Some(manager) = self.mcp_manager() {
+            let mut manager = manager.lock().await;
+            manager
+                .set_tool_disabled(server_id, tool_name, disabled)
+                .await
+                .map_err(|e| {
+                    agent_core::CoreError::InvalidState(format!("failed to update tool state: {e}"))
+                })?;
+        }
+
+        Ok(())
+    }
+
+    /// Get disabled tool names for a server from the config file.
+    pub async fn get_mcp_disabled_tools(
+        &self,
+        server_id: &str,
+    ) -> agent_core::Result<std::collections::HashSet<String>> {
+        match crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())? {
+            Some(config_path) => {
+                crate::mcp_settings::get_mcp_disabled_tools(&config_path, server_id).await
+            }
+            None => Ok(std::collections::HashSet::new()),
+        }
     }
 
     /// Enable DAG execution mode with the default configuration.
@@ -1168,6 +1251,7 @@ mod tests {
             mcp_servers: vec![],
             source: ConfigSource::Defaults,
             context: ContextPolicy::default(),
+            disabled_mcp_servers: vec![],
         })
     }
 

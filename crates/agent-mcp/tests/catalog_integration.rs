@@ -73,6 +73,13 @@ async fn builtin_catalog_is_well_formed() {
                     entry.id
                 );
             }
+            InstallSpec::StreamableHttp { url, headers: _ } => {
+                assert!(
+                    !url.is_empty(),
+                    "entry '{}': StreamableHttp url must not be empty",
+                    entry.id
+                );
+            }
         }
 
         // --- runtime requirements ---
@@ -330,17 +337,7 @@ async fn catalog_search_by_id_known_entries() {
     let provider = load_builtin();
 
     // Verify known entries can be found.
-    let known_ids = [
-        "filesystem",
-        "github",
-        "postgres",
-        "sqlite",
-        "brave-search",
-        "puppeteer",
-        "memory",
-        "git",
-        "fetch",
-    ];
+    let known_ids = ["filesystem", "sqlite", "playwright", "git", "fetch", "time"];
 
     for id in &known_ids {
         let found = provider
@@ -353,6 +350,36 @@ async fn catalog_search_by_id_known_entries() {
         );
         let entry = found.unwrap();
         assert_eq!(entry.id, *id, "returned entry id should match queried id");
+    }
+}
+
+#[tokio::test]
+async fn builtin_catalog_excludes_marketplace_integrations() {
+    let provider = load_builtin();
+
+    for id in [
+        "github",
+        "gitlab",
+        "slack",
+        "gmail",
+        "notion",
+        "linear",
+        "postgres",
+        "redis",
+        "brave-search",
+        "exa",
+        "tavily",
+        "memory",
+        "everything",
+    ] {
+        let found = provider
+            .get(id)
+            .await
+            .unwrap_or_else(|e| panic!("get('{id}') should succeed: {e}"));
+        assert!(
+            found.is_none(),
+            "integration '{id}' should be installed from marketplace, not builtin catalog"
+        );
     }
 }
 

@@ -5,6 +5,8 @@
 
 pub mod sse;
 pub mod stdio;
+#[cfg(feature = "sse")]
+pub mod streamable_http;
 
 use crate::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, Result};
 use async_trait::async_trait;

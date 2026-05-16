@@ -63,6 +63,7 @@ pub struct ServerEntry {
     pub version: Option<String>,
     /// Lower-case trust level: "unverified" | "community" | "verified".
     pub trust: String,
+    pub verified: bool,
     pub icon: Option<String>,
     /// JSON-encoded `agent_mcp::catalog::InstallSpec`.
     pub install_spec_json: String,
@@ -212,6 +213,10 @@ pub enum McpServerSettingsTransport {
         url: String,
         headers: BTreeMap<String, String>,
     },
+    StreamableHttp {
+        url: String,
+        headers: BTreeMap<String, String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -239,6 +244,108 @@ pub struct McpServerSettingsView {
     pub config_path: Option<String>,
     pub description: Option<String>,
     pub source: String,
+    #[serde(default)]
+    pub verified: bool,
+}
+
+/// Concrete effective-view wrapper for MCP server settings.
+/// Combines [`EffectiveItem`] metadata with a [`McpServerSettingsView`].
+/// This is a non-generic type so it can safely derive both serde and specta.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct EffectiveMcpServerView {
+    pub value: McpServerSettingsView,
+    pub source: crate::config_scope::ConfigScope,
+    pub overrides: Option<crate::config_scope::ConfigScope>,
+    pub enabled: bool,
+    #[serde(rename = "disabledBy")]
+    pub disabled_by: Option<crate::config_scope::ConfigScope>,
+    pub writable: bool,
+    pub deletable: bool,
+}
+
+impl EffectiveMcpServerView {
+    pub fn from_effective(item: crate::EffectiveItem<McpServerSettingsView>) -> Self {
+        Self {
+            value: item.value,
+            source: item.source,
+            overrides: item.overrides,
+            enabled: item.enabled,
+            disabled_by: item.disabled_by,
+            writable: item.writable,
+            deletable: item.deletable,
+        }
+    }
+}
+
+/// Concrete effective-view wrapper for skill settings.
+/// Combines [`EffectiveItem`] metadata with a [`SkillSettingsView`].
+/// This is a non-generic type so it can safely derive both serde and specta.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct EffectiveSkillView {
+    pub value: SkillSettingsView,
+    pub source: crate::config_scope::ConfigScope,
+    pub overrides: Option<crate::config_scope::ConfigScope>,
+    pub enabled: bool,
+    #[serde(rename = "disabledBy")]
+    pub disabled_by: Option<crate::config_scope::ConfigScope>,
+    pub writable: bool,
+    pub deletable: bool,
+}
+
+impl EffectiveSkillView {
+    pub fn from_skill_settings(view: SkillSettingsView) -> Self {
+        let source = match view.scope {
+            SkillSettingsScope::Project => crate::config_scope::ConfigScope::Project,
+            SkillSettingsScope::User => crate::config_scope::ConfigScope::User,
+            SkillSettingsScope::Builtin => crate::config_scope::ConfigScope::Builtin,
+        };
+        let effectively_enabled = view.effective && view.enabled;
+        Self {
+            source,
+            overrides: if view.effective && source > crate::config_scope::ConfigScope::Builtin {
+                Some(source)
+            } else {
+                None
+            },
+            enabled: effectively_enabled,
+            disabled_by: if view.effective { None } else { Some(source) },
+            writable: view.editable,
+            deletable: view.deletable,
+            value: view,
+        }
+    }
+}
+
+/// Concrete effective-view wrapper for profile settings.
+/// Combines [`EffectiveItem`] metadata with a [`ProfileSettingsView`].
+/// This is a non-generic type so it can safely derive both serde and specta.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct EffectiveProfileView {
+    pub value: ProfileSettingsView,
+    pub source: crate::config_scope::ConfigScope,
+    pub overrides: Option<crate::config_scope::ConfigScope>,
+    pub enabled: bool,
+    #[serde(rename = "disabledBy")]
+    pub disabled_by: Option<crate::config_scope::ConfigScope>,
+    pub writable: bool,
+    pub deletable: bool,
+}
+
+impl EffectiveProfileView {
+    pub fn from_view(view: ProfileSettingsView, source: crate::config_scope::ConfigScope) -> Self {
+        Self {
+            writable: source >= crate::config_scope::ConfigScope::User,
+            deletable: source >= crate::config_scope::ConfigScope::User,
+            enabled: view.enabled,
+            value: view,
+            source,
+            overrides: None,
+            disabled_by: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

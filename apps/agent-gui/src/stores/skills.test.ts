@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
 import { useSkillsStore } from "@/stores/skills";
-import type { RemoteSkillSearchResult, SkillSettingsView } from "@/generated/commands";
+import type {
+  EffectiveSkillView,
+  RemoteSkillSearchResult,
+  SkillSettingsView
+} from "@/generated/commands";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn()
@@ -333,5 +337,49 @@ describe("skills store", () => {
 
     expect(result).toEqual(updatedSkill);
     expect(store.skillSettings).toEqual([existingSkill, updatedSkill]);
+  });
+});
+
+function createEffectiveSkill(overrides: Partial<EffectiveSkillView> = {}): EffectiveSkillView {
+  return {
+    value: createSkillSetting(),
+    source: "User",
+    overrides: null,
+    enabled: true,
+    disabledBy: null,
+    writable: true,
+    deletable: true,
+    ...overrides
+  };
+}
+
+describe("effective skills", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  it("fetchEffectiveSkills populates effectiveSkills", async () => {
+    const effective = createEffectiveSkill();
+    mockedInvoke.mockResolvedValueOnce([effective]);
+
+    const store = useSkillsStore();
+    await store.fetchEffectiveSkills();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_effective_skills");
+    expect(store.effectiveSkills).toHaveLength(1);
+    expect(store.effectiveSkills[0].source).toBe("User");
+    expect(store.effectiveSkills[0].enabled).toBe(true);
+    expect(store.effectiveSkills[0].writable).toBe(true);
+  });
+
+  it("fetchEffectiveSkills stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("config not available"));
+
+    const store = useSkillsStore();
+    await store.fetchEffectiveSkills();
+
+    expect(store.effectiveSkills).toHaveLength(0);
+    expect(store.error).toContain("config not available");
   });
 });

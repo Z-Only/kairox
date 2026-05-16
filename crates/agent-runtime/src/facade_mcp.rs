@@ -261,10 +261,6 @@ where
             return Ok(());
         };
 
-        if self.marketplace_dir.is_some() {
-            self.rebuild_aggregate_from_disk().await?;
-        }
-
         catalog
             .refresh()
             .await
@@ -402,30 +398,32 @@ where
         let Some(installer) = self.installer.as_ref() else {
             return Ok(Vec::new());
         };
-        let ids = installer
-            .list_installed_ids()
+        let records = installer
+            .list_installed_records()
             .map_err(|e| agent_core::CoreError::InvalidState(format!("installer: {e}")))?;
 
-        let mut out = Vec::with_capacity(ids.len());
-        for id in ids {
+        let mut out = Vec::with_capacity(records.len());
+        for record in records {
+            let server_id = record.server_id;
+            let catalog_lookup_id = record.catalog_id.as_deref().unwrap_or(&server_id);
             let entry = if let Some(c) = &self.catalog {
-                c.get(&id).await.ok().flatten()
+                c.get(catalog_lookup_id).await.ok().flatten()
             } else {
                 None
             };
             let running = if let Some(manager) = &self.mcp_manager {
-                manager.lock().await.is_running(&id).unwrap_or(false)
+                manager.lock().await.is_running(&server_id).unwrap_or(false)
             } else {
                 false
             };
             let display_name = entry
                 .as_ref()
                 .map(|e| e.display_name.clone())
-                .unwrap_or_else(|| id.clone());
+                .unwrap_or_else(|| server_id.clone());
             out.push(CoreInstalledEntry {
-                server_id: id,
-                catalog_id: entry.as_ref().map(|e| e.id.clone()),
-                source: entry.as_ref().map(|e| e.source.clone()),
+                server_id,
+                catalog_id: entry.as_ref().map(|e| e.id.clone()).or(record.catalog_id),
+                source: entry.as_ref().map(|e| e.source.clone()).or(record.source),
                 display_name,
                 installed_at: chrono::Utc::now().to_rfc3339(),
                 running,
@@ -747,6 +745,7 @@ fn map_entry_to_core(e: ServerEntry) -> CoreServerEntry {
         homepage: e.homepage,
         version: e.version,
         trust: trust_to_str(e.trust).into(),
+        verified: e.verified,
         icon: e.icon,
         install_spec_json,
         requirements_json,
@@ -836,6 +835,17 @@ fn build_server_def(entry: &ServerEntry, req: &McpInstallRequest) -> McpServerDe
         }
         InstallSpec::Sse { url, headers } => (
             McpTransportDef::Sse {
+                url: url.clone(),
+                api_key_env: None,
+                headers: headers
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect(),
+            },
+            Vec::new(),
+        ),
+        InstallSpec::StreamableHttp { url, headers } => (
+            McpTransportDef::StreamableHttp {
                 url: url.clone(),
                 api_key_env: None,
                 headers: headers

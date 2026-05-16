@@ -103,6 +103,22 @@ pub async fn list_skill_settings(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn get_effective_skills(
+    state: State<'_, GuiState>,
+) -> Result<Vec<EffectiveSkillView>, String> {
+    let settings = state
+        .runtime
+        .list_skill_settings()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(settings
+        .into_iter()
+        .map(EffectiveSkillView::from_skill_settings)
+        .collect())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn get_skill_settings_detail(
     state: State<'_, GuiState>,
     skill_id: String,

@@ -24,6 +24,14 @@ pub enum InstallOutcomeView {
     InvalidEnv { missing_keys: Vec<String> },
 }
 
+/// Metadata for a server persisted in the marketplace-managed MCP config.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstalledServerRecord {
+    pub server_id: String,
+    pub catalog_id: Option<String>,
+    pub source: Option<String>,
+}
+
 /// Detects whether a host runtime is available.
 #[async_trait]
 pub trait RuntimeProbe: Send + Sync {
@@ -155,14 +163,36 @@ impl Installer {
     }
 
     pub fn list_installed_ids(&self) -> Result<Vec<String>, InstallerError> {
+        Ok(self
+            .list_installed_records()?
+            .into_iter()
+            .map(|record| record.server_id)
+            .collect())
+    }
+
+    pub fn list_installed_records(&self) -> Result<Vec<InstalledServerRecord>, InstallerError> {
         let doc = self.read_doc()?;
-        let mut ids = Vec::new();
+        let mut records = Vec::new();
         if let Some(t) = doc.get("mcp_servers").and_then(|i| i.as_table()) {
-            for (k, _) in t.iter() {
-                ids.push(k.to_string());
+            for (server_id, item) in t.iter() {
+                let catalog_id = item
+                    .as_table()
+                    .and_then(|section| section.get("__catalog_id"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string);
+                let source = item
+                    .as_table()
+                    .and_then(|section| section.get("__source"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_string);
+                records.push(InstalledServerRecord {
+                    server_id: server_id.to_string(),
+                    catalog_id,
+                    source,
+                });
             }
         }
-        Ok(ids)
+        Ok(records)
     }
 
     fn read_doc(&self) -> Result<toml_edit::DocumentMut, InstallerError> {
@@ -253,7 +283,7 @@ fn expand(s: &str, env: &BTreeMap<String, String>) -> String {
 }
 
 fn build_section(entry: &ServerEntry, env: &BTreeMap<String, String>) -> toml_edit::Table {
-    use toml_edit::{value, Array, Table};
+    use toml_edit::{value, Array, InlineTable, Table, Value};
     let mut t = Table::new();
     match &entry.install {
         InstallSpec::Stdio {
@@ -269,12 +299,12 @@ fn build_section(entry: &ServerEntry, env: &BTreeMap<String, String>) -> toml_ed
                 a.push(expand(arg, env));
             }
             t["args"] = value(a);
-            let mut env_table = Table::new();
+            let mut inline = InlineTable::new();
             for (k, v) in env.iter().chain(extra_env.iter()) {
-                env_table[k] = value(expand(v, env));
+                inline.insert(k.clone(), Value::from(expand(v, env)));
             }
-            if !env_table.is_empty() {
-                t["env"] = toml_edit::Item::Table(env_table);
+            if !inline.is_empty() {
+                t["env"] = toml_edit::Item::Value(toml_edit::Value::InlineTable(inline));
             }
             if let Some(c) = cwd {
                 t["cwd"] = value(expand(c, env));
@@ -284,11 +314,25 @@ fn build_section(entry: &ServerEntry, env: &BTreeMap<String, String>) -> toml_ed
             t["type"] = value("sse");
             t["url"] = value(expand(url, env));
             if !headers.is_empty() {
-                let mut h = Table::new();
+                let mut inline = InlineTable::new();
                 for (k, v) in headers {
-                    h[k] = value(expand(v, env));
+                    // Prefer user-provided env override over default (empty) value.
+                    let resolved = env.get(k).cloned().unwrap_or_else(|| expand(v, env));
+                    inline.insert(k.clone(), Value::from(resolved));
                 }
-                t["headers"] = toml_edit::Item::Table(h);
+                t["headers"] = toml_edit::Item::Value(toml_edit::Value::InlineTable(inline));
+            }
+        }
+        InstallSpec::StreamableHttp { url, headers } => {
+            t["type"] = value("streamable_http");
+            t["url"] = value(expand(url, env));
+            if !headers.is_empty() {
+                let mut inline = InlineTable::new();
+                for (k, v) in headers {
+                    let resolved = env.get(k).cloned().unwrap_or_else(|| expand(v, env));
+                    inline.insert(k.clone(), Value::from(resolved));
+                }
+                t["headers"] = toml_edit::Item::Value(toml_edit::Value::InlineTable(inline));
             }
         }
     }
@@ -368,6 +412,7 @@ mod tests {
             trust: TrustLevel::Community,
             default_env: vec![],
             icon: None,
+            verified: false,
         }
     }
 
@@ -380,6 +425,67 @@ mod tests {
             trust_grant: false,
             auto_start: false,
         }
+    }
+
+    #[test]
+    fn build_section_env_output_is_valid_toml() {
+        let entry = ServerEntry {
+            id: "git".into(),
+            source: "builtin".into(),
+            display_name: "Git".into(),
+            summary: "...".into(),
+            description: "...".into(),
+            categories: vec![],
+            tags: vec![],
+            author: None,
+            homepage: None,
+            version: None,
+            install: InstallSpec::Stdio {
+                command: "uvx".into(),
+                args: vec!["mcp-server-git".into(), "--repository".into(), ".".into()],
+                env: BTreeMap::new(),
+                cwd: None,
+            },
+            requirements: vec![],
+            trust: TrustLevel::Verified,
+            default_env: vec![EnvVarSpec {
+                key: "REPO_PATH".into(),
+                label: "Repository path".into(),
+                description: "Path to a git repository on disk.".into(),
+                required: true,
+                secret: false,
+                default: Some(".".into()),
+            }],
+            icon: None,
+            verified: true,
+        };
+        let req = InstallRequest {
+            catalog_id: "git".into(),
+            source: "builtin".into(),
+            server_id_override: None,
+            env_overrides: BTreeMap::new(),
+            trust_grant: false,
+            auto_start: false,
+        };
+        let resolved = resolve_env(&entry.default_env, &req.env_overrides).unwrap();
+        let section = build_section(&entry, &resolved);
+        // Render the exact same way the real install() method does.
+        let mut doc = toml_edit::DocumentMut::new();
+        ensure_table(&mut doc, "mcp_servers");
+        doc["mcp_servers"]["git"] = toml_edit::Item::Table(section);
+        let rendered = doc.to_string();
+        eprintln!("=== build_section output ===\n{rendered}===");
+        assert!(
+            rendered.contains("env = {"),
+            "env must be an inline table, got:\n{rendered}"
+        );
+        let parsed: toml::value::Table =
+            toml::from_str(&rendered).expect("build_section must produce valid TOML");
+        // Spot-check that mcp_servers.git.env.REPO_PATH = "."
+        let servers = parsed["mcp_servers"].as_table().unwrap();
+        let git_srv = servers["git"].as_table().unwrap();
+        let env = git_srv["env"].as_table().unwrap();
+        assert_eq!(env["REPO_PATH"].as_str(), Some("."));
     }
 
     #[test]
@@ -429,5 +535,37 @@ mod tests {
 
         // The TOML file should now exist.
         assert!(toml_path.exists(), "TOML file should be created on install");
+
+        // Verify the file contains valid TOML that both toml_edit and toml can parse.
+        let raw = std::fs::read_to_string(&toml_path).unwrap();
+        eprintln!("=== installer output ===\n{raw}===");
+        let _doc = raw
+            .parse::<toml_edit::DocumentMut>()
+            .unwrap_or_else(|e| panic!("installer output must be valid toml_edit: {e}\n{raw}"));
+        toml::from_str::<toml::value::Table>(&raw)
+            .unwrap_or_else(|e| panic!("installer output must be valid toml: {e}\n{raw}"));
+    }
+
+    #[tokio::test]
+    async fn installer_lists_catalog_metadata_for_overridden_server_id() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let toml_path = dir.path().join("mcp_servers.toml");
+        let probe = Arc::new(StaticProbe { available: vec![] });
+        let installer = Installer::new(toml_path, probe);
+
+        let entry = sample_entry();
+        let mut req = install_request(&entry);
+        req.server_id_override = Some("custom-server-id".into());
+        installer.install(&entry, &req).await.unwrap();
+
+        let records = installer.list_installed_records().unwrap();
+        assert_eq!(
+            records,
+            vec![InstalledServerRecord {
+                server_id: "custom-server-id".into(),
+                catalog_id: Some("test-server".into()),
+                source: Some("builtin".into()),
+            }]
+        );
     }
 }

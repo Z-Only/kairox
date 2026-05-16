@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
-import type { SkillSettingsView, SkillCatalogQuery } from "@/generated/commands";
+import type {
+  ConfigScope,
+  EffectiveSkillView,
+  SkillCatalogQuery,
+  SkillInstallTarget
+} from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
+import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -12,7 +18,7 @@ const activeSubTab = ref<"installed" | "discover">("installed");
 const sourceSettingsOpen = ref(false);
 const discoverKeyword = ref("");
 const githubSource = ref("");
-const installTarget = ref<"project" | "user">("user");
+const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
 
 const discoverSourceChips = computed(() => {
@@ -41,24 +47,7 @@ const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 watch(
   () => configSource?.value,
   (src) => {
-    if (src) installTarget.value = src;
-  },
-  { immediate: true }
-);
-
-const filteredSkills = computed(() => {
-  const all = skillsStore.skillSettings;
-  if (!configSource?.value) return all;
-  if (configSource.value === "project") {
-    return all.filter((s) => s.scope === "project");
-  }
-  return all.filter((s) => s.scope !== "project");
-});
-
-watch(
-  [() => configSource?.value, () => configProjectId?.value],
-  () => {
-    void skillsStore.loadSkillSettings();
+    if (src) installTarget.value = (src === "user" ? "User" : "Project") as ConfigScope;
   },
   { immediate: true }
 );
@@ -75,22 +64,31 @@ function slugify(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function canUpdateSkill(skill: SkillSettingsView): boolean {
+function canUpdateSkill(skill: EffectiveSkillView): boolean {
   return (
-    skill.editable &&
-    skill.install_source !== "builtin" &&
-    skill.update_state === "update_available"
+    skill.value.editable &&
+    skill.value.install_source !== "builtin" &&
+    skill.value.update_state === "update_available"
   );
 }
 
-function skillSettingsTestId(skill: SkillSettingsView): string {
-  return slugify(skill.settings_id);
+function skillSettingsTestId(skill: EffectiveSkillView): string {
+  return slugify(skill.value.settings_id);
 }
+
+watch(
+  [() => configSource?.value, () => configProjectId?.value],
+  async () => {
+    await Promise.all([skillsStore.loadSkillSettings(), skillsStore.fetchEffectiveSkills()]);
+  },
+  { immediate: true }
+);
 
 async function runSkillAction(skillId: string, action: () => Promise<unknown>): Promise<void> {
   busySkillId.value = skillId;
   try {
     await action();
+    await Promise.all([skillsStore.loadSkillSettings(), skillsStore.fetchEffectiveSkills()]);
   } finally {
     busySkillId.value = null;
   }
@@ -110,7 +108,8 @@ async function installFromGithub(): Promise<void> {
     return;
   }
 
-  const installedSkill = await skillsStore.installGithubSkill(trimmedSource, installTarget.value);
+  const target: SkillInstallTarget = installTarget.value.toLowerCase() as SkillInstallTarget;
+  const installedSkill = await skillsStore.installGithubSkill(trimmedSource, target);
   if (installedSkill) {
     githubSource.value = "";
   }
@@ -170,61 +169,70 @@ async function installFromGithub(): Promise<void> {
         <p v-if="skillsStore.settingsLoading" class="alert alert-info" role="status">
           {{ t("skills.loading") }}
         </p>
-        <p v-else-if="filteredSkills.length === 0" class="empty-state">
+        <p v-else-if="skillsStore.effectiveSkills.length === 0" class="empty-state">
           {{ t("skills.noSkills") }}
         </p>
 
         <article
-          v-for="skill in filteredSkills"
+          v-for="skill in skillsStore.effectiveSkills"
           v-else
-          :key="skill.settings_id"
+          :key="skill.value.settings_id"
           class="skill-settings__row"
           :data-test="`skill-row-${skillSettingsTestId(skill)}`"
         >
           <div class="skill-settings__main">
             <div class="skill-settings__title-row">
-              <h4>{{ skill.name }}</h4>
-              <span class="tag">{{ skill.scope }}</span>
+              <h4>{{ skill.value.name }}</h4>
+              <span class="tag tag--source" :class="`tag--source-${skill.source.toLowerCase()}`">
+                {{ skill.source }}
+              </span>
+              <span v-if="skill.overrides" class="tag tag--override">
+                {{ t("skills.overrides", { source: skill.overrides }) }}
+              </span>
+              <span v-if="skill.disabledBy" class="tag tag--disabled-by">
+                {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
+              </span>
+              <span class="tag">{{ skill.value.scope }}</span>
               <span :class="['tag', skill.enabled ? 'tag-success' : 'tag-warning']">
                 {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
               </span>
-              <span :class="['tag', skill.effective ? 'tag-success' : 'tag-warning']">
+              <span :class="['tag', skill.value.effective ? 'tag-success' : 'tag-warning']">
                 {{
-                  skill.effective
+                  skill.value.effective
                     ? t("skills.effective")
-                    : t("skills.shadowedBy", { name: skill.shadowed_by })
+                    : t("skills.shadowedBy", { name: skill.value.shadowed_by })
                 }}
               </span>
-              <span :class="['tag', skill.valid ? 'tag-success' : 'tag-error']">
-                {{ skill.valid ? t("skills.valid") : t("skills.invalid") }}
+              <span :class="['tag', skill.value.valid ? 'tag-success' : 'tag-error']">
+                {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
               </span>
             </div>
-            <p>{{ skill.description }}</p>
+            <p>{{ skill.value.description }}</p>
             <dl class="skill-settings__meta">
               <div>
                 <dt>{{ t("skills.activation") }}</dt>
-                <dd>{{ skill.activation_mode }}</dd>
+                <dd>{{ skill.value.activation_mode }}</dd>
               </div>
               <div>
                 <dt>{{ t("skills.source") }}</dt>
-                <dd>{{ skill.install_source }}</dd>
+                <dd>{{ skill.value.install_source }}</dd>
               </div>
               <div>
                 <dt>{{ t("skills.update") }}</dt>
-                <dd>{{ formatUpdateState(skill.update_state) }}</dd>
+                <dd>{{ formatUpdateState(skill.value.update_state) }}</dd>
               </div>
               <div>
                 <dt>{{ t("skills.path") }}</dt>
-                <dd>{{ skill.path }}</dd>
+                <dd>{{ skill.value.path }}</dd>
               </div>
             </dl>
             <p
-              v-if="skill.validation_error"
+              v-if="skill.value.validation_error"
               class="alert alert-error"
               role="alert"
               :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
             >
-              {{ skill.validation_error }}
+              {{ skill.value.validation_error }}
             </p>
           </div>
 
@@ -232,11 +240,11 @@ async function installFromGithub(): Promise<void> {
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="busySkillId === skill.settings_id"
+              :disabled="!skill.writable || busySkillId === skill.value.settings_id"
               :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
               @click="
-                runSkillAction(skill.settings_id, () =>
-                  skillsStore.setSkillEnabled(skill.settings_id, !skill.enabled)
+                runSkillAction(skill.value.settings_id, () =>
+                  skillsStore.setSkillEnabled(skill.value.settings_id, !skill.enabled)
                 )
               "
             >
@@ -245,10 +253,12 @@ async function installFromGithub(): Promise<void> {
             <button
               class="btn btn-sm"
               type="button"
-              :disabled="!canUpdateSkill(skill) || busySkillId === skill.settings_id"
+              :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
               :data-test="`skill-update-${skillSettingsTestId(skill)}`"
               @click="
-                runSkillAction(skill.settings_id, () => skillsStore.updateSkill(skill.settings_id))
+                runSkillAction(skill.value.settings_id, () =>
+                  skillsStore.updateSkill(skill.value.settings_id)
+                )
               "
             >
               {{ t("skills.updateSkill") }}
@@ -256,10 +266,12 @@ async function installFromGithub(): Promise<void> {
             <button
               class="btn btn-danger btn-sm"
               type="button"
-              :disabled="!skill.deletable || busySkillId === skill.settings_id"
+              :disabled="!skill.writable || busySkillId === skill.value.settings_id"
               :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
               @click="
-                runSkillAction(skill.settings_id, () => skillsStore.deleteSkill(skill.settings_id))
+                runSkillAction(skill.value.settings_id, () =>
+                  skillsStore.deleteSkill(skill.value.settings_id)
+                )
               "
             >
               {{ t("skills.delete") }}
@@ -277,15 +289,7 @@ async function installFromGithub(): Promise<void> {
               data-test="skill-github-form"
               @submit.prevent="installFromGithub"
             >
-              <label for="skill-install-target">{{ t("skills.target") }}</label>
-              <select
-                id="skill-install-target"
-                v-model="installTarget"
-                data-test="skill-install-target"
-              >
-                <option value="project">{{ t("skills.targetProject") }}</option>
-                <option value="user">{{ t("skills.targetUser") }}</option>
-              </select>
+              <ScopeSelector v-model="installTarget" />
 
               <label for="skill-github-source">{{ t("skills.githubUrl") }}</label>
               <input
@@ -598,5 +602,40 @@ async function installFromGithub(): Promise<void> {
   border: 1px solid var(--app-border-color);
   border-radius: 6px;
   padding: 12px;
+}
+
+/* Source tags for effective (unified) view */
+.tag--source {
+  font-weight: 600;
+}
+
+.tag--source-builtin {
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+}
+
+.tag--source-user {
+  background: var(--color-secondary-light);
+  color: var(--color-secondary);
+}
+
+.tag--source-project {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tag--source-local {
+  background: var(--color-accent-light, var(--color-primary-light));
+  color: var(--color-accent, var(--color-primary));
+}
+
+.tag--override {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.tag--disabled-by {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
 }
 </style>

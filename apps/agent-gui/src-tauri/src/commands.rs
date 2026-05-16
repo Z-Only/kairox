@@ -4,9 +4,10 @@ use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
-    SkillCatalogEntry, SkillCatalogQuery, SkillSettingsDetail, SkillSettingsView, SkillSourceView,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsView, ProfileSettingsInput,
+    ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
+    SkillSettingsDetail, SkillSettingsView, SkillSourceView,
 };
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,
@@ -179,6 +180,18 @@ pub struct McpToolDefResponse {
     pub name: String,
     pub description: Option<String>,
     pub input_schema: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CheckMcpHealthResponse {
+    pub tools: Vec<McpToolDefResponse>,
+    pub healthy: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct McpToolStatesResponse {
+    pub disabled_tools: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

@@ -11,6 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCatalogStore } from "@/stores/catalog";
 import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
+import CatalogDetail from "./CatalogDetail.vue";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
 
@@ -183,9 +184,11 @@ describe("Marketplace.vue — Phase 2 source chips", () => {
 
 describe("CatalogCard.vue", () => {
   it("renders display_name, summary, trust, and tags", () => {
-    const wrapper = mount(CatalogCard, {
-      props: { entry: fixtureEntry() }
-    });
+    setActivePinia(createPinia());
+    const wrapper = mountWithPlugins(CatalogCard, {
+      reusePinia: true,
+      mount: { props: { entry: fixtureEntry() } }
+    }).wrapper;
     expect(wrapper.text()).toContain("Filesystem");
     expect(wrapper.text()).toContain("Read & write files");
     expect(wrapper.text()).toContain("verified");
@@ -193,11 +196,125 @@ describe("CatalogCard.vue", () => {
   });
 
   it("emits click", async () => {
-    const wrapper = mount(CatalogCard, {
-      props: { entry: fixtureEntry() }
-    });
-    await wrapper.trigger("click");
+    setActivePinia(createPinia());
+    const wrapper = mountWithPlugins(CatalogCard, {
+      reusePinia: true,
+      mount: { props: { entry: fixtureEntry() } }
+    }).wrapper;
+    await wrapper.find('[data-test="catalog-card"]').trigger("click");
     expect(wrapper.emitted("click")).toBeTruthy();
+  });
+});
+
+describe("CatalogDetail.vue configuration section", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    document.body.innerHTML = "";
+  });
+
+  const mountDetail = (entry = fixtureEntry()) =>
+    mountWithPlugins(CatalogDetail, {
+      reusePinia: true,
+      mount: {
+        attachTo: document.body,
+        props: { entry }
+      }
+    }).wrapper;
+
+  it("presents stdio environment configuration as required configuration", async () => {
+    const wrapper = mountDetail(
+      fixtureEntry({
+        display_name: "Filesystem",
+        description: "Scoped filesystem access.",
+        install_spec_json: JSON.stringify({
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem", "${WORKSPACE_PATH}"],
+          env: {},
+          cwd: null
+        }),
+        default_env_json: JSON.stringify([
+          {
+            key: "WORKSPACE_PATH",
+            label: "Workspace path",
+            description: "Directory the server is allowed to access.",
+            required: true,
+            secret: false,
+            default: "~"
+          }
+        ])
+      })
+    );
+    await flushPromises();
+
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("Configuration");
+    expect(text).toContain("Required configuration");
+    expect(text).toContain("Environment variable");
+    expect(text).toContain("Workspace path");
+    expect(text).toContain("Directory the server is allowed to access.");
+    expect(document.body.querySelector('[data-test="config-WORKSPACE_PATH"]')).not.toBeNull();
+
+    wrapper.unmount();
+  });
+
+  it("presents streamable HTTP headers with their configuration descriptions", async () => {
+    const wrapper = mountDetail(
+      fixtureEntry({
+        id: "remote-auth",
+        source: "mcp-registry",
+        display_name: "Remote Auth",
+        install_spec_json: JSON.stringify({
+          transport: "streamable_http",
+          url: "https://example.com/mcp",
+          headers: { Authorization: "" }
+        }),
+        default_env_json: JSON.stringify([
+          {
+            key: "Authorization",
+            label: "Authorization",
+            description: "Bearer token from the provider dashboard.",
+            required: true,
+            secret: true,
+            default: null
+          }
+        ])
+      })
+    );
+    await flushPromises();
+
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("Configuration");
+    expect(text).toContain("Authentication header");
+    expect(text).toContain("Required");
+    expect(text).toContain("Bearer token from the provider dashboard.");
+    expect(
+      document.body.querySelector('[data-test="config-Authorization"]')?.getAttribute("type")
+    ).toBe("password");
+
+    wrapper.unmount();
+  });
+
+  it("shows a compact no-configuration state when no values are needed", async () => {
+    const wrapper = mountDetail(
+      fixtureEntry({
+        display_name: "Fetch",
+        install_spec_json: JSON.stringify({
+          transport: "stdio",
+          command: "uvx",
+          args: ["mcp-server-fetch"],
+          env: {},
+          cwd: null
+        }),
+        default_env_json: "[]"
+      })
+    );
+    await flushPromises();
+
+    expect(document.body.textContent ?? "").toContain("No configuration required.");
+
+    wrapper.unmount();
   });
 });
 

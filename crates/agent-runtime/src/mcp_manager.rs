@@ -12,13 +12,14 @@ use agent_core::{
 };
 use agent_mcp::lifecycle::ServerLifecycle;
 use agent_mcp::types::{
-    McpContentBlock, McpPromptDef, McpResourceDef, McpServerDef, McpServerStatus, McpToolDef,
+    CheckHealthResult, McpContentBlock, McpPromptDef, McpResourceDef, McpServerDef,
+    McpServerStatus, McpToolDef,
 };
 use agent_mcp::{McpClient, McpError};
 use agent_tools::permission::PermissionEngine;
 use agent_tools::provider::mcp_provider::McpToolAdapter;
 use agent_tools::registry::ToolRegistry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -33,6 +34,9 @@ pub struct McpServerManager {
     tool_registry: Arc<Mutex<ToolRegistry>>,
     permission_engine: Arc<Mutex<PermissionEngine>>,
     event_tx: Option<tokio::sync::broadcast::Sender<DomainEvent>>,
+    /// Per-server set of disabled tool names. Tools in this set are not
+    /// registered in the tool registry when the server starts.
+    disabled_tools: HashMap<String, HashSet<String>>,
 }
 
 impl McpServerManager {
@@ -55,6 +59,7 @@ impl McpServerManager {
             tool_registry,
             permission_engine,
             event_tx,
+            disabled_tools: HashMap::new(),
         }
     }
 
@@ -114,12 +119,25 @@ impl McpServerManager {
         };
 
         if was_stopped {
-            // Register tools from this server
-            match client.discover_tools().await {
+            // Register tools from this server (skip disabled tools)
+            let tools_result = {
+                let lifecycle = self.servers.get_mut(server_id).unwrap();
+                lifecycle.cached_tools().await
+            };
+            match tools_result {
                 Ok(tools) => {
-                    let tool_count = tools.len();
+                    let disabled = self
+                        .disabled_tools
+                        .get(server_id)
+                        .cloned()
+                        .unwrap_or_default();
+                    let enabled_tools: Vec<_> = tools
+                        .into_iter()
+                        .filter(|t| !disabled.contains(&t.name))
+                        .collect();
+                    let tool_count = enabled_tools.len();
                     let mut registry = self.tool_registry.lock().await;
-                    for tool_def in tools {
+                    for tool_def in enabled_tools {
                         let adapter =
                             McpToolAdapter::new(server_id.to_string(), tool_def, client.clone());
                         registry.register(Box::new(adapter));
@@ -151,21 +169,37 @@ impl McpServerManager {
     ///
     /// Re-registers tools (the `ToolRegistry` handles dedup by tool_id).
     pub async fn refresh_tools(&mut self, server_id: &str) -> Result<Vec<McpToolDef>, McpError> {
-        let client = self.ensure_server(server_id).await?;
-        let tools = client.discover_tools().await.map_err(|e| {
-            tracing::error!(
-                "Failed to refresh tools from MCP server '{}': {}",
-                server_id,
+        let (client, tools) = {
+            let lifecycle = self
+                .servers
+                .get_mut(server_id)
+                .ok_or_else(|| McpError::NotRunning(server_id.to_string()))?;
+            let tools = lifecycle.refresh_cached_tools().await.map_err(|e| {
+                tracing::error!(
+                    "Failed to refresh tools from MCP server '{}': {}",
+                    server_id,
+                    e
+                );
                 e
-            );
-            e
-        })?;
+            })?;
+            let client = lifecycle
+                .client()
+                .ok_or_else(|| McpError::NotRunning(server_id.to_string()))?;
+            (client, tools)
+        };
 
+        let disabled = self
+            .disabled_tools
+            .get(server_id)
+            .cloned()
+            .unwrap_or_default();
         let mut registry = self.tool_registry.lock().await;
         for tool_def in &tools {
-            let adapter =
-                McpToolAdapter::new(server_id.to_string(), tool_def.clone(), client.clone());
-            registry.register(Box::new(adapter));
+            if !disabled.contains(&tool_def.name) {
+                let adapter =
+                    McpToolAdapter::new(server_id.to_string(), tool_def.clone(), client.clone());
+                registry.register(Box::new(adapter));
+            }
         }
 
         Ok(tools)
@@ -283,6 +317,156 @@ impl McpServerManager {
             .client()
             .ok_or_else(|| McpError::NotRunning(server_id.to_string()))?;
         client.read_resource(uri).await
+    }
+
+    /// Test connectivity to an MCP server.
+    ///
+    /// Starts the server if necessary, then calls `tools/list` to verify
+    /// the server is responsive. Returns a [`ConnectivityResult`].
+    pub async fn test_connectivity(
+        &mut self,
+        server_id: &str,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<agent_mcp::ConnectivityResult, McpError> {
+        let lifecycle = self
+            .servers
+            .get_mut(server_id)
+            .ok_or_else(|| McpError::NotRunning(server_id.to_string()))?;
+        Ok(lifecycle.test_connectivity(timeout).await)
+    }
+
+    /// Check server health: try to start + discover tools.
+    ///
+    /// Returns [`CheckHealthResult`] with the full tool list on success,
+    /// or `healthy: false` with an error message. Does NOT register tools
+    /// in the tool registry — that's done by [`ensure_server`].
+    pub async fn check_health(
+        &mut self,
+        server_id: &str,
+        timeout: Option<std::time::Duration>,
+    ) -> CheckHealthResult {
+        let lifecycle = match self.servers.get_mut(server_id) {
+            Some(lc) => lc,
+            None => {
+                return CheckHealthResult {
+                    tools: Vec::new(),
+                    healthy: false,
+                    error: Some(format!("server '{server_id}' not found")),
+                }
+            }
+        };
+
+        let default_timeout = std::time::Duration::from_secs(15);
+        let timeout = timeout.unwrap_or(default_timeout);
+
+        // Ensure the server is running
+        match tokio::time::timeout(timeout, lifecycle.ensure_running()).await {
+            Ok(Ok(_client)) => {}
+            Ok(Err(e)) => {
+                return CheckHealthResult {
+                    tools: Vec::new(),
+                    healthy: false,
+                    error: Some(format!("failed to start server: {e}")),
+                }
+            }
+            Err(_elapsed) => {
+                return CheckHealthResult {
+                    tools: Vec::new(),
+                    healthy: false,
+                    error: Some(format!(
+                        "timed out after {}s waiting for server to start",
+                        timeout.as_secs()
+                    )),
+                }
+            }
+        };
+
+        // Discover tools, using the lifecycle discovery cache when warm.
+        match tokio::time::timeout(timeout, lifecycle.cached_tools()).await {
+            Ok(Ok(tools)) => {
+                lifecycle.mark_active();
+                CheckHealthResult {
+                    tools,
+                    healthy: true,
+                    error: None,
+                }
+            }
+            Ok(Err(e)) => CheckHealthResult {
+                tools: Vec::new(),
+                healthy: false,
+                error: Some(format!("tool discovery failed: {e}")),
+            },
+            Err(_elapsed) => CheckHealthResult {
+                tools: Vec::new(),
+                healthy: false,
+                error: Some(format!(
+                    "timed out after {}s waiting for tool discovery",
+                    timeout.as_secs()
+                )),
+            },
+        }
+    }
+
+    /// Load disabled tools for a server from external config.
+    pub fn load_disabled_tools(&mut self, server_id: &str, disabled: HashSet<String>) {
+        self.disabled_tools.insert(server_id.to_string(), disabled);
+    }
+
+    /// Get disabled tool names for a server.
+    pub fn get_disabled_tools(&self, server_id: &str) -> HashSet<String> {
+        self.disabled_tools
+            .get(server_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Enable or disable a specific tool on a server.
+    ///
+    /// When disabling, the tool is unregistered from the ToolRegistry.
+    /// When enabling, re-discovers tools from the running server and
+    /// registers the matching one.
+    pub async fn set_tool_disabled(
+        &mut self,
+        server_id: &str,
+        tool_name: &str,
+        disabled: bool,
+    ) -> Result<(), McpError> {
+        let tools = self
+            .disabled_tools
+            .entry(server_id.to_string())
+            .or_default();
+
+        if disabled {
+            tools.insert(tool_name.to_string());
+            let tool_id = format!("mcp.{server_id}.{tool_name}");
+            let mut registry = self.tool_registry.lock().await;
+            registry.unregister(&tool_id);
+        } else {
+            tools.remove(tool_name);
+            // Re-register if server is running by re-discovering tools
+            if let Some(lifecycle) = self.servers.get(server_id) {
+                if *lifecycle.status() == McpServerStatus::Running {
+                    if let Some(client) = lifecycle.client() {
+                        if let Ok(discovered) = client.discover_tools().await {
+                            let mut registry = self.tool_registry.lock().await;
+                            for tool_def in discovered {
+                                if tool_def.name == tool_name {
+                                    let adapter = McpToolAdapter::new(
+                                        server_id.to_string(),
+                                        tool_def,
+                                        client.clone(),
+                                    );
+                                    registry.register(Box::new(adapter));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Shut down all managed servers.

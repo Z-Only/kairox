@@ -111,6 +111,12 @@ impl ToolRegistry {
         self.index.insert(id, 0);
     }
 
+    /// Unregister a tool by id. Removes from both `internal` and `index`.
+    pub fn unregister(&mut self, tool_id: &str) {
+        self.internal.remove(tool_id);
+        self.index.remove(tool_id);
+    }
+
     /// Add a provider. Calls `provider.list_tools().await`, populates `index`, stores provider.
     pub async fn add_provider(&mut self, provider: Box<dyn ToolProvider>) {
         let provider_idx = self.providers.len() + 1; // 1-based

@@ -13,12 +13,22 @@ interface TrustOption {
 const { t } = useI18n();
 const catalog = useCatalogStore();
 const selected = ref<ServerEntryResponse | null>(null);
+const searchInput = ref("");
 
 const trustOptions = computed<TrustOption[]>(() => [
   { label: "All trust levels", value: null },
   { label: "Verified+", value: "verified" },
   { label: "Community+", value: "community" }
 ]);
+
+async function handleRefresh() {
+  catalog.filters.keyword = searchInput.value;
+  if (searchInput.value.trim()) {
+    await catalog.fetchCatalog({ keyword: searchInput.value.trim() });
+  } else {
+    await catalog.refreshCatalogSource(null);
+  }
+}
 
 onMounted(async () => {
   if (catalog.entries.length === 0) {
@@ -31,11 +41,14 @@ onMounted(async () => {
   <div class="catalog-list">
     <div class="filters">
       <input
-        :value="catalog.filters.keyword"
+        v-model="searchInput"
         placeholder="Search servers…"
         data-test="catalog-search"
         class="filter-keyword"
-        @input="catalog.filters.keyword = ($event.target as HTMLInputElement).value"
+        autocapitalize="off"
+        autocomplete="off"
+        spellcheck="false"
+        @keyup.enter="handleRefresh"
       />
       <select
         :value="catalog.filters.trustMin ?? ''"
@@ -47,12 +60,8 @@ onMounted(async () => {
           {{ opt.label }}
         </option>
       </select>
-      <button
-        class="btn btn-sm"
-        data-test="catalog-refresh"
-        @click="catalog.refreshCatalogSource(null)"
-      >
-        Refresh
+      <button class="btn btn-sm" data-test="catalog-refresh" @click="handleRefresh">
+        {{ t("common.refresh") }}
       </button>
     </div>
 
@@ -82,9 +91,12 @@ onMounted(async () => {
 
 <style scoped>
 .catalog-list {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
 }
 
 .filters {
@@ -117,8 +129,9 @@ onMounted(async () => {
 }
 
 .scrollable-area {
-  max-height: calc(100vh - 320px);
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .text-secondary {

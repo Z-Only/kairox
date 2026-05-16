@@ -6,21 +6,22 @@
 
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsTransport,
+    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
+    SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource,
+    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
+    SkillSourceView, SkillUpdateState,
 };
-use agent_core::{ActiveSkillView, SkillDetail, SkillView};
+use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
-    CatalogSourceViewResponse, ConnectivityTestResult, InstallOutcomeResponse,
-    InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse, McpPromptDefResponse,
-    McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse, MemoryEntryResponse,
-    ProfileDetailResponse, ProjectGitStatusResponse, ProjectInfoResponse,
-    ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse, SessionInfoResponse,
-    TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult,
+    InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
+    McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
+    McpToolStatesResponse, MemoryEntryResponse, ProfileDetailResponse, ProjectGitStatusResponse,
+    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse,
+    SessionInfoResponse, TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -86,9 +87,14 @@ fn main() {
             agent_gui_tauri::commands::list_active_skills,
             // Settings commands
             agent_gui_tauri::commands::list_mcp_server_settings,
+            agent_gui_tauri::commands::get_effective_mcp_servers,
+            agent_gui_tauri::commands::get_effective_skills,
+            agent_gui_tauri::commands::get_effective_model_profiles,
             agent_gui_tauri::commands::upsert_mcp_server_settings,
             agent_gui_tauri::commands::set_mcp_server_enabled,
             agent_gui_tauri::commands::delete_mcp_server_settings,
+            agent_gui_tauri::commands::disable_mcp_server_at_scope,
+            agent_gui_tauri::commands::enable_mcp_server_at_scope,
             agent_gui_tauri::commands::open_mcp_config_file,
             // Profile settings commands
             agent_gui_tauri::commands::list_profile_settings,
@@ -126,6 +132,10 @@ fn main() {
             agent_gui_tauri::commands::list_mcp_resources,
             agent_gui_tauri::commands::list_mcp_prompts,
             agent_gui_tauri::commands::read_mcp_resource,
+            agent_gui_tauri::commands::test_mcp_connectivity,
+            agent_gui_tauri::commands::check_mcp_health,
+            agent_gui_tauri::commands::set_mcp_tool_disabled,
+            agent_gui_tauri::commands::get_mcp_tool_states,
             // Marketplace commands
             agent_gui_tauri::commands::list_catalog,
             agent_gui_tauri::commands::get_catalog_entry,
@@ -157,6 +167,11 @@ fn main() {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Effective config types
+        .typ::<ConfigScope>()
+        .typ::<EffectiveMcpServerView>()
+        .typ::<EffectiveSkillView>()
+        .typ::<EffectiveProfileView>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()
@@ -194,8 +209,11 @@ fn main() {
         .typ::<CatalogSourceViewResponse>()
         .typ::<AddCatalogSourceRequestPayload>()
         .typ::<ConnectivityTestResult>()
+        .typ::<agent_mcp::ConnectivityResult>()
         // Draft persistence types
-        .typ::<SaveDraftRequest>();
+        .typ::<SaveDraftRequest>()
+        .typ::<CheckMcpHealthResponse>()
+        .typ::<McpToolStatesResponse>();
 
     match specta_builder.export(specta_typescript::Typescript::default(), out_path) {
         Ok(()) => eprintln!("TypeScript bindings exported to {}", out_path.display()),

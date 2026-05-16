@@ -4,16 +4,17 @@
 
 use crate::commands::*;
 use agent_core::facade::{
-    InstallGithubSkillRequest, InstallRemoteSkillRequest, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
-    RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
-    SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsTransport,
+    McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView, RemoteSkillSearchResult,
+    SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView, SkillInstallSource,
+    SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope, SkillSettingsView,
+    SkillSourceView, SkillUpdateState,
 };
 use agent_core::{
-    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ContextSource, ContextUsage,
-    DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits, SkillDetail, SkillView,
-    TaskGraphSnapshot, TaskSnapshot, TaskState,
+    ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
+    ContextUsage, DomainEvent, EventPayload, PrivacyClassification, ProjectedModelLimits,
+    SkillDetail, SkillView, TaskGraphSnapshot, TaskSnapshot, TaskState,
 };
 use agent_mcp::McpServerStatus;
 use agent_memory::MemoryScope;
@@ -73,9 +74,14 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_active_skills,
             // Settings commands
             list_mcp_server_settings,
+            get_effective_mcp_servers,
+            get_effective_skills,
+            get_effective_model_profiles,
             upsert_mcp_server_settings,
             set_mcp_server_enabled,
             delete_mcp_server_settings,
+            disable_mcp_server_at_scope,
+            enable_mcp_server_at_scope,
             open_mcp_config_file,
             // Profile settings commands
             list_profile_settings,
@@ -113,6 +119,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_mcp_resources,
             list_mcp_prompts,
             read_mcp_resource,
+            test_mcp_connectivity,
+            check_mcp_health,
+            set_mcp_tool_disabled,
+            get_mcp_tool_states,
             // Marketplace commands
             list_catalog,
             get_catalog_entry,
@@ -144,6 +154,11 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SkillView>()
         .typ::<SkillDetail>()
         .typ::<ActiveSkillView>()
+        // Effective config types
+        .typ::<ConfigScope>()
+        .typ::<EffectiveMcpServerView>()
+        .typ::<EffectiveSkillView>()
+        .typ::<EffectiveProfileView>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()
@@ -166,6 +181,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<McpPromptDefResponse>()
         .typ::<McpContentBlockResponse>()
         .typ::<McpServerStatus>()
+        .typ::<agent_mcp::ConnectivityResult>()
         // Marketplace request/response types
         .typ::<CatalogQueryRequest>()
         .typ::<ServerEntryResponse>()
