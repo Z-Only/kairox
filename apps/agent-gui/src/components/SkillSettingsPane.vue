@@ -10,7 +10,6 @@ import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SkillSourcesSettings from "@/components/skills/SkillSourcesSettings.vue";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
-import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -20,6 +19,9 @@ const discoverKeyword = ref("");
 const githubSource = ref("");
 const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
+const skillCatalogInstallTarget = computed<SkillInstallTarget>(
+  () => installTarget.value.toLowerCase() as SkillInstallTarget
+);
 
 const discoverSourceChips = computed(() => {
   const remoteSources = skillsStore.catalogSources
@@ -43,7 +45,7 @@ async function searchSkillsCatalog(): Promise<void> {
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 
-// Sync the GitHub install target with the ConfigSourceBar selection.
+// Sync installs with the SettingsLayout ConfigSourceBar selection.
 watch(
   () => configSource?.value,
   (src) => {
@@ -278,44 +280,10 @@ async function installFromGithub(): Promise<void> {
             </button>
           </div>
         </article>
-
-        <section class="card skill-settings__section" aria-labelledby="github-skills-title">
-          <div class="card-header">
-            <h3 id="github-skills-title">{{ t("skills.installFromGithub") }}</h3>
-          </div>
-          <div class="card-body skill-settings__body">
-            <form
-              class="skill-settings__inline-form"
-              data-test="skill-github-form"
-              @submit.prevent="installFromGithub"
-            >
-              <ScopeSelector v-model="installTarget" />
-
-              <label for="skill-github-source">{{ t("skills.githubUrl") }}</label>
-              <input
-                id="skill-github-source"
-                v-model="githubSource"
-                type="url"
-                data-test="skill-github-source"
-                placeholder="https://github.com/org/skill.git"
-              />
-              <button
-                class="btn btn-primary"
-                type="submit"
-                :disabled="skillsStore.settingsLoading || !githubSource.trim()"
-                data-test="skill-github-submit"
-              >
-                {{
-                  skillsStore.settingsLoading ? t("skills.installing") : t("skills.installButton")
-                }}
-              </button>
-            </form>
-          </div>
-        </section>
       </div>
     </div>
 
-    <template v-if="activeSubTab === 'discover'">
+    <div v-if="activeSubTab === 'discover'" class="skill-settings__discover">
       <div class="source-filter">
         <button
           v-for="chip in discoverSourceChips"
@@ -364,8 +332,36 @@ async function installFromGithub(): Promise<void> {
         </button>
       </div>
 
-      <SkillDiscoverList />
-    </template>
+      <details class="advanced-install" data-test="skill-advanced-install">
+        <summary>{{ t("skills.advancedInstall") }}</summary>
+        <form
+          class="skill-settings__inline-form advanced-install__form"
+          data-test="skill-github-form"
+          @submit.prevent="installFromGithub"
+        >
+          <label for="skill-github-source">{{ t("skills.githubUrl") }}</label>
+          <input
+            id="skill-github-source"
+            v-model="githubSource"
+            type="text"
+            data-test="skill-github-source"
+            placeholder="https://github.com/org/repo/tree/main/path/to/skill"
+          />
+          <button
+            class="btn btn-primary"
+            type="submit"
+            :disabled="skillsStore.settingsLoading || !githubSource.trim()"
+            data-test="skill-github-submit"
+          >
+            {{ skillsStore.settingsLoading ? t("skills.installing") : t("skills.installButton") }}
+          </button>
+        </form>
+      </details>
+
+      <div class="skill-settings__discover-body">
+        <SkillDiscoverList :install-target="skillCatalogInstallTarget" />
+      </div>
+    </div>
   </section>
 </template>
 
@@ -374,6 +370,7 @@ async function installFromGithub(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -429,6 +426,22 @@ async function installFromGithub(): Promise<void> {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+.skill-settings__discover {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.skill-settings__discover-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .skill-settings__title-row,
@@ -582,6 +595,21 @@ async function installFromGithub(): Promise<void> {
 .discover-search-row {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
+}
+
+.advanced-install {
+  max-width: 760px;
+  padding: 8px 0;
+}
+
+.advanced-install summary {
+  cursor: pointer;
+  color: var(--app-text-color);
+  font-weight: 600;
+}
+
+.advanced-install__form {
   margin-top: 12px;
 }
 

@@ -218,6 +218,7 @@ export const useSkillsStore = defineStore("skills", () => {
     try {
       const installedSkill = await unwrapCommandResult(commands.installRemoteSkill(request));
       upsertSkillSetting(installedSkill);
+      await fetchEffectiveSkills();
       return installedSkill;
     } catch (caughtError) {
       error.value = formatError(caughtError);
@@ -237,6 +238,7 @@ export const useSkillsStore = defineStore("skills", () => {
     try {
       const installedSkill = await unwrapCommandResult(commands.installGithubSkill(request));
       upsertSkillSetting(installedSkill);
+      await fetchEffectiveSkills();
       return installedSkill;
     } catch (caughtError) {
       error.value = formatError(caughtError);

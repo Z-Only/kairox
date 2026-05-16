@@ -7,7 +7,7 @@ use std::sync::Arc;
 /// Which adapter implementation backs a skill catalog source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillSourceKind {
-    /// SkillHub (`https://skills.palebluedot.live/api/skills`)
+    /// SkillHub (`https://api.skillhub.cn/api/skills`)
     SkillHub,
 }
 
@@ -36,8 +36,12 @@ pub struct RemoteSkillSourceConfig {
     pub url: String,
     /// URL template for search, e.g. `/api/search?q={{query}}&limit={{limit}}`
     pub search_template: String,
+    /// URL template for package download, e.g. `/api/v1/download?slug={{slug}}`.
+    pub download_template: String,
     /// URL template for list, e.g. `/api/skills?limit={{limit}}`. None if not supported.
     pub list_template: Option<String>,
+    /// URL template for detail, e.g. `/api/v1/skills/{{slug}}`. None if not supported.
+    pub detail_template: Option<String>,
     pub enabled: bool,
     pub priority: u32,
     pub cache_ttl_seconds: u64,
@@ -81,9 +85,11 @@ mod tests {
                 id: "skillhub".into(),
                 display_name: "SkillHub".into(),
                 kind: SkillSourceKind::SkillHub,
-                url: "https://skills.palebluedot.live".into(),
-                search_template: "/api/skills?q={{query}}&limit={{limit}}".into(),
-                list_template: Some("/api/skills?limit={{limit}}".into()),
+                url: "https://api.skillhub.cn".into(),
+                search_template: "/api/skills?keyword={{query}}&pageSize={{limit}}".into(),
+                download_template: "/api/v1/download?slug={{slug}}".into(),
+                list_template: Some("/api/skills?pageSize={{limit}}".into()),
+                detail_template: Some("/api/v1/skills/{{slug}}".into()),
                 enabled: true,
                 priority: 20,
                 cache_ttl_seconds: 900,

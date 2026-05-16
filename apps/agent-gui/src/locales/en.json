@@ -172,7 +172,8 @@
     "sourcesEmpty": "No remote catalog sources configured.",
     "sourceFormError": {
       "idAndDisplayNameRequired": "id and display_name are required",
-      "urlMustStartWithHttp": "URL must start with http:// or https://"
+      "urlMustStartWithHttp": "URL must start with http:// or https://",
+      "searchAndDownloadRequired": "search template and download template are required"
     },
     "install": {
       "installed": "Installed",
@@ -352,6 +353,7 @@
     "updateSkill": "Update",
     "delete": "Delete",
     "installFromGithub": "Install from GitHub",
+    "advancedInstall": "Advanced install",
     "target": "Target",
     "targetProject": "Project",
     "targetUser": "User",
@@ -368,7 +370,8 @@
     "sourcesEmpty": "No skill catalog sources configured.",
     "sourceFormError": {
       "idAndDisplayNameRequired": "id and display_name are required",
-      "urlMustStartWithHttp": "URL must start with http:// or https://"
+      "urlMustStartWithHttp": "URL must start with http:// or https://",
+      "searchAndDownloadRequired": "search template and download template are required"
     },
     "overrides": "Overrides {source}",
     "disabledBy": "Disabled by {source}"

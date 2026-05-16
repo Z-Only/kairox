@@ -2,7 +2,7 @@
 import type { SkillCatalogEntry } from "@/generated/commands";
 
 const props = defineProps<{ entry: SkillCatalogEntry; installing: boolean }>();
-const emit = defineEmits<{ install: [] }>();
+const emit = defineEmits<{ install: []; select: [] }>();
 
 const trustTagClass = computed<string>(() => {
   const score = props.entry.security_score;
@@ -28,7 +28,7 @@ const ratingDisplay = computed<string>(() => {
 
 <template>
   <div class="card catalog-card" data-test="skill-catalog-card">
-    <div class="card-body">
+    <button class="card-body card-body-btn" type="button" @click="emit('select')">
       <div class="card-head">
         <span class="display-name">{{ entry.name }}</span>
         <span
@@ -52,24 +52,24 @@ const ratingDisplay = computed<string>(() => {
       </div>
       <div class="tags">
         <span class="tag tag-source">{{ entry.source }}</span>
-        <a
-          v-if="entry.source_url"
-          :href="entry.source_url"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="tag tag-link"
-        >
-          View source
-        </a>
       </div>
-    </div>
+    </button>
     <div class="card-footer">
+      <a
+        v-if="entry.source_url"
+        :href="entry.source_url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="tag tag-link"
+      >
+        View source
+      </a>
       <button
         class="btn btn-primary btn-sm"
         type="button"
         :disabled="installing"
         :data-test="`skill-catalog-install-${entry.catalog_id}`"
-        @click="emit('install')"
+        @click.stop="emit('install')"
       >
         {{ installing ? "Installing…" : "Install" }}
       </button>
@@ -88,6 +88,21 @@ const ratingDisplay = computed<string>(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.card-body-btn {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.card-body-btn:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .card-head {
@@ -143,6 +158,10 @@ const ratingDisplay = computed<string>(() => {
 }
 
 .card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--app-border-color);
 }

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
+import type { SkillCatalogEntry, SkillInstallTarget } from "@/generated/commands";
 import SkillDiscoverCard from "./SkillDiscoverCard.vue";
+import SkillCatalogDetail from "./SkillCatalogDetail.vue";
 
 const { t } = useI18n();
 const store = useSkillsStore();
+const props = defineProps<{ installTarget: SkillInstallTarget }>();
 const installingId = ref<string | null>(null);
+const selectedEntry = ref<SkillCatalogEntry | null>(null);
 
 onMounted(async () => {
   await store.loadCatalogSources();
@@ -13,10 +17,10 @@ onMounted(async () => {
   }
 });
 
-async function onInstall(entryPackage: string, packageUrl?: string | null): Promise<void> {
-  installingId.value = entryPackage;
+async function onInstall(entry: SkillCatalogEntry): Promise<void> {
+  installingId.value = entry.package;
   try {
-    await store.installRemoteSkill(entryPackage, "user", packageUrl);
+    await store.installRemoteSkill(entry.package, props.installTarget, entry.package_url);
   } finally {
     installingId.value = null;
   }
@@ -41,9 +45,18 @@ async function onInstall(entryPackage: string, packageUrl?: string | null): Prom
         :key="entry.catalog_id"
         :entry="entry"
         :installing="installingId === entry.package"
-        @install="onInstall(entry.package, entry.package_url)"
+        @install="onInstall(entry)"
+        @select="selectedEntry = entry"
       />
     </div>
+    <SkillCatalogDetail
+      v-if="selectedEntry"
+      :entry="selectedEntry"
+      :install-target="props.installTarget"
+      :installing="installingId === selectedEntry.package"
+      @close="selectedEntry = null"
+      @install="onInstall"
+    />
   </div>
 </template>
 
