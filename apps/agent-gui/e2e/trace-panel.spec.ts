@@ -2,14 +2,10 @@
  * E2E: Trace timeline — events appear in trace panel as the session progresses.
  */
 import { test, expect } from "@playwright/test";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
-  const mockPath = resolve(__dirname, "tauri-mock.js");
-  await page.addInitScript({ path: mockPath });
+  await installTauriMock(page);
 });
 
 test("trace panel shows events after sending a message", async ({ page }) => {

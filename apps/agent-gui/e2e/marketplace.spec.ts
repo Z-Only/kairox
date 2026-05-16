@@ -5,14 +5,10 @@
  * Marketplace is accessed through the Settings page's MCP tab.
  */
 import { test, expect } from "@playwright/test";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
-  const mockPath = resolve(__dirname, "tauri-mock.js");
-  await page.addInitScript({ path: mockPath });
+  await installTauriMock(page);
   await page.goto("/");
   await page.getByTestId("nav-settings").click();
   await page.getByTestId("settings-tab-mcp").click();

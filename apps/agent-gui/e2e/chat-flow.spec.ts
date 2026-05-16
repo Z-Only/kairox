@@ -2,14 +2,10 @@
  * E2E: Chat flow — send messages, see assistant response, cancel streaming.
  */
 import { test, expect, type Page } from "@playwright/test";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
-  const mockPath = resolve(__dirname, "tauri-mock.js");
-  await page.addInitScript({ path: mockPath });
+  await installTauriMock(page);
 });
 
 async function openWorkbench(page: Page) {
