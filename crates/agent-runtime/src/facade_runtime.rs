@@ -7,25 +7,13 @@ use agent_core::{
     AgentStatusInfo, AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
     StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
-use agent_mcp::catalog::skills::{
-    aggregate::AggregateSkillCatalogProvider,
-    remote::{build_skill_provider, RemoteSkillSourceConfig, SkillSourceKind},
-    SkillCatalogProvider,
-};
-use agent_mcp::catalog::{
-    AggregateCatalogProvider, BuiltinCatalogProvider, CatalogProvider, TrustLevel,
-};
-use agent_mcp::{
-    build_remote_catalog_provider, HttpResponseCache, RemoteSourceConfig, RemoteSourceKind,
-    SharedHttpClient,
-};
-
-use crate::catalog_sink::CatalogEventSink;
-use agent_mcp::installer::{Installer, OsRuntimeProbe};
-use agent_mcp::types::McpServerDef;
+use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
+use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
+use agent_mcp::installer::Installer;
+use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
-use agent_store::{EventStore, ProjectMetaRepository};
-use agent_tools::{BuiltinProvider, PermissionEngine, PermissionMode, ToolProvider, ToolRegistry};
+use agent_store::EventStore;
+use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::collections::HashMap;
@@ -55,7 +43,7 @@ where
     pub(crate) permission_engine: Arc<Mutex<PermissionEngine>>,
     pub(crate) mcp_manager: Option<Arc<Mutex<McpServerManager>>>,
     pub(crate) tool_registry: Arc<Mutex<ToolRegistry>>,
-    context_assembler: ContextAssembler,
+    pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
     pub(crate) pending_permissions:
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
@@ -63,7 +51,7 @@ where
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     pub(crate) active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
     pub(crate) dag_executor: Option<Arc<DagExecutor<S, M>>>,
-    dag_config: DagConfig,
+    pub(crate) dag_config: DagConfig,
     /// Catalog provider (built-in + future remote sources). `None` when the
     /// marketplace has not been wired via [`Self::with_marketplace`].
     pub(crate) catalog: Option<Arc<dyn CatalogProvider>>,
@@ -97,8 +85,8 @@ where
     // Skill catalog
     pub(crate) skill_catalog: std::sync::OnceLock<Arc<AggregateSkillCatalogProvider>>,
     pub(crate) skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
-    skill_catalog_http: Option<SharedHttpClient>,
-    skill_catalog_cache_dir: Option<PathBuf>,
+    pub(crate) skill_catalog_http: Option<SharedHttpClient>,
+    pub(crate) skill_catalog_cache_dir: Option<PathBuf>,
 }
 
 impl<S, M> LocalRuntime<S, M>
@@ -148,50 +136,6 @@ where
         }
     }
 
-    /// Inject the loaded `Config` so the runtime can resolve `ModelLimits`
-    /// per session. Called by every production wiring site after `Config::load()`.
-    pub fn with_config(mut self, config: Arc<agent_config::Config>) -> Self {
-        self.config = config;
-        self
-    }
-
-    /// Register typed Ollama clients per profile alias. Called by the wiring
-    /// code AFTER `build_router` so we retain the typed handle needed for
-    /// `probe_context_window` (which `Arc<dyn ModelClient>` cannot expose).
-    /// Idempotent — calling twice replaces the entries.
-    pub fn with_ollama_clients(
-        mut self,
-        clients: HashMap<String, Arc<agent_models::OllamaClient>>,
-    ) -> Self {
-        self.ollama_clients = clients;
-        self
-    }
-
-    /// Configure the skill catalog with a cache directory. Creates an internal
-    /// HTTP client automatically.
-    pub fn with_skill_catalog(mut self, dir: Option<PathBuf>) -> Self {
-        if let Some(ref d) = dir {
-            self.skill_sources_toml = Some(crate::skill_sources_toml::SkillSourcesToml::new(d));
-        }
-        self.skill_catalog_http = SharedHttpClient::new().ok();
-        self.skill_catalog_cache_dir = dir;
-        self
-    }
-
-    /// Update the in-memory `SessionState` for `session_id` with newly
-    /// resolved model limits. Inserts a default `SessionState` if missing.
-    pub(crate) async fn set_session_limits(
-        &self,
-        session_id: &SessionId,
-        limits: agent_models::ModelLimits,
-    ) {
-        let mut states = self.session_states.lock().await;
-        let entry = states
-            .entry(session_id.to_string())
-            .or_insert_with(crate::session::SessionState::default);
-        entry.model_limits = Some(limits);
-    }
-
     /// Public accessor for the underlying event store.
     pub fn store(&self) -> &S {
         &self.store
@@ -212,300 +156,13 @@ where
     ) -> &Arc<Mutex<HashMap<String, crate::session::SessionState>>> {
         &self.session_states
     }
-
-    /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
-    /// targeting `<config_dir>/mcp_servers.toml`.
-    ///
-    /// Without this, the catalog-related [`AppFacade`] methods return errors
-    /// (or empty results) because they have nowhere to read from or write to.
-    pub fn with_marketplace(self, config_dir: PathBuf) -> crate::Result<Self> {
-        self.with_marketplace_loaded(config_dir, &[])
-    }
-
-    /// Phase 2: like [`with_marketplace`] but also registers user-configured
-    /// remote catalog sources. The runtime stores the marketplace directory
-    /// for future atomic toml mutations + reloads.
-    pub fn with_marketplace_loaded(
-        mut self,
-        config_dir: PathBuf,
-        sources: &[agent_config::CatalogSourceConfig],
-    ) -> crate::Result<Self> {
-        let cache_dir = config_dir.join("catalog-cache");
-        let event_tx = self.event_tx.clone();
-        let aggregate = build_catalog_provider(sources, cache_dir.clone(), event_tx)
-            .map_err(|e| crate::RuntimeError::Other(format!("catalog provider: {e}")))?;
-        let aggregate_arc = Arc::new(aggregate);
-        let dyn_arc: Arc<dyn CatalogProvider> = aggregate_arc.clone();
-        self.aggregate_handle = Some(aggregate_arc);
-        self.catalog = Some(dyn_arc);
-
-        let toml_path = config_dir.join("mcp_servers.toml");
-        self.installer = Some(Arc::new(Installer::new(
-            toml_path,
-            Arc::new(OsRuntimeProbe),
-        )));
-        self.catalog_http = Some(
-            SharedHttpClient::new()
-                .map_err(|e| crate::RuntimeError::Other(format!("http client: {e}")))?,
-        );
-        self.catalog_cache = Some(Arc::new(HttpResponseCache::new(cache_dir)));
-        self.marketplace_dir = Some(config_dir);
-        Ok(self)
-    }
-
-    pub fn with_permission_mode(mut self, mode: PermissionMode) -> Self {
-        self.permission_engine = Arc::new(Mutex::new(PermissionEngine::new(mode)));
-        self
-    }
-
-    pub fn with_skill_registry(mut self, registry: Arc<dyn agent_skills::SkillRegistry>) -> Self {
-        self.skill_registry = Some(registry);
-        self
-    }
-
-    pub fn with_skill_package_manager(mut self, manager: Arc<dyn SkillPackageManager>) -> Self {
-        self.skill_package_manager = manager;
-        self
-    }
-
-    pub fn with_skill_settings_roots(
-        mut self,
-        roots: crate::skill_settings::SkillSettingsRoots,
-    ) -> Self {
-        self.skill_settings_roots = roots;
-        self
-    }
-
-    pub(crate) fn skill_settings_roots(&self) -> crate::skill_settings::SkillSettingsRoots {
-        self.skill_settings_roots.clone()
-    }
-
-    /// Legacy builder kept for compatibility. The `max_tokens` argument is
-    /// ignored — Task 8 will replace this with per-session `ContextBudget`
-    /// configuration. Until then call sites can keep passing their old value.
-    pub fn with_context_limit(mut self, _max_tokens: usize) -> Self {
-        self.context_assembler = ContextAssembler::new_standalone();
-        self
-    }
-
-    pub fn tool_registry(&self) -> Arc<Mutex<ToolRegistry>> {
-        self.tool_registry.clone()
-    }
-
-    pub(crate) fn project_repository(&self) -> agent_core::Result<ProjectMetaRepository> {
-        self.store
-            .sqlite_pool()
-            .map(ProjectMetaRepository::new)
-            .ok_or_else(crate::project::invalid_project_store_error)
-    }
-
-    /// Get the current permission mode.
-    pub async fn permission_mode(&self) -> PermissionMode {
-        *self.permission_engine.lock().await.mode()
-    }
-
-    /// Set the memory store for persistent memory.
-    pub fn with_memory_store(mut self, store: Arc<dyn MemoryStore>) -> Self {
-        self.memory_store = Some(store.clone());
-        self.context_assembler = ContextAssembler::new(store);
-        self
-    }
-
-    /// Get a reference to the memory store (if configured).
-    pub fn memory_store(&self) -> Option<Arc<dyn MemoryStore>> {
-        self.memory_store.clone()
-    }
-
-    /// Register builtin tools (shell.exec, search.ripgrep, patch.apply, fs.read)
-    pub async fn with_builtin_tools(mut self, workspace_root: PathBuf) -> Self {
-        if self.skill_settings_roots.workspace_root.is_none()
-            && self.skill_settings_roots.user_root.is_none()
-        {
-            let home_dir = std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("."));
-            self.skill_settings_roots =
-                crate::skills::build_default_skill_settings_roots(&home_dir, &workspace_root);
-        }
-        let provider = BuiltinProvider::with_defaults(workspace_root);
-        self.tool_registry
-            .lock()
-            .await
-            .add_provider(Box::new(provider))
-            .await;
-        self
-    }
-
-    /// Register a custom tool provider
-    pub async fn with_provider(self, provider: Box<dyn ToolProvider>) -> Self {
-        self.tool_registry.lock().await.add_provider(provider).await;
-        self
-    }
-
-    /// Configure MCP servers from parsed config definitions.
-    pub async fn with_mcp_servers(mut self, configs: Vec<McpServerDef>) -> Self {
-        if configs.is_empty() {
-            return self;
-        }
-        let mut manager = McpServerManager::from_config(
-            configs,
-            self.tool_registry.clone(),
-            self.permission_engine.clone(),
-            Some(self.event_tx.clone()),
-        );
-        let results = manager.start_persistent_servers().await;
-        for result in &results {
-            if let Err(e) = result {
-                tracing::warn!("MCP server startup warning: {}", e);
-            }
-        }
-        self.mcp_manager = Some(Arc::new(Mutex::new(manager)));
-        self
-    }
-
-    /// Get a reference to the MCP server manager (if configured).
-    pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
-        self.mcp_manager.clone()
-    }
-
-    /// Check health of an MCP server: start + discover tools.
-    /// Returns tools + healthy flag. Healthy = tools fetched successfully.
-    /// Also syncs disabled tools from config into the manager.
-    pub async fn check_mcp_health(
-        &self,
-        server_id: &str,
-    ) -> agent_core::Result<agent_mcp::types::CheckHealthResult> {
-        // Sync disabled tools from config into manager
-        if let Some(config_path) =
-            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
-        {
-            if let Some(manager) = self.mcp_manager() {
-                let disabled =
-                    crate::mcp_settings::get_mcp_disabled_tools(&config_path, server_id).await?;
-                let mut manager = manager.lock().await;
-                manager.load_disabled_tools(server_id, disabled);
-            }
-        }
-
-        match self.mcp_manager() {
-            Some(manager) => {
-                let mut manager = manager.lock().await;
-                Ok(manager
-                    .check_health(server_id, Some(std::time::Duration::from_secs(15)))
-                    .await)
-            }
-            None => Ok(agent_mcp::types::CheckHealthResult {
-                tools: Vec::new(),
-                healthy: false,
-                error: Some("No MCP servers configured".into()),
-            }),
-        }
-    }
-
-    /// Enable or disable a specific tool on an MCP server.
-    /// Updates both the runtime state (tool registry) and the config file.
-    pub async fn set_mcp_tool_disabled(
-        &self,
-        server_id: &str,
-        tool_name: &str,
-        disabled: bool,
-    ) -> agent_core::Result<()> {
-        // Persist to config file
-        if let Some(config_path) =
-            crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())?
-        {
-            crate::mcp_settings::set_mcp_tool_disabled_in_file(
-                &config_path,
-                server_id,
-                tool_name,
-                disabled,
-            )
-            .await?;
-        }
-
-        // Update runtime state
-        if let Some(manager) = self.mcp_manager() {
-            let mut manager = manager.lock().await;
-            manager
-                .set_tool_disabled(server_id, tool_name, disabled)
-                .await
-                .map_err(|e| {
-                    agent_core::CoreError::InvalidState(format!("failed to update tool state: {e}"))
-                })?;
-        }
-
-        Ok(())
-    }
-
-    /// Get disabled tool names for a server from the config file.
-    pub async fn get_mcp_disabled_tools(
-        &self,
-        server_id: &str,
-    ) -> agent_core::Result<std::collections::HashSet<String>> {
-        match crate::mcp_settings::writable_mcp_config_path(self.marketplace_dir.as_deref())? {
-            Some(config_path) => {
-                crate::mcp_settings::get_mcp_disabled_tools(&config_path, server_id).await
-            }
-            None => Ok(std::collections::HashSet::new()),
-        }
-    }
-
-    /// Enable DAG execution mode with the default configuration.
-    pub fn with_dag_execution(mut self) -> Self {
-        self.dag_config = DagConfig::default();
-        self.dag_executor = Some(Arc::new(DagExecutor::new(
-            self.store.clone(),
-            self.model.clone(),
-            self.event_tx.clone(),
-            self.tool_registry.clone(),
-            self.permission_engine.clone(),
-            self.pending_permissions.clone(),
-            self.memory_store.clone(),
-            self.dag_config.clone(),
-        )));
-        self
-    }
-
-    /// Enable DAG execution mode with a custom configuration.
-    pub fn with_dag_config(mut self, config: DagConfig) -> Self {
-        self.dag_config = config.clone();
-        self.dag_executor = Some(Arc::new(DagExecutor::new(
-            self.store.clone(),
-            self.model.clone(),
-            self.event_tx.clone(),
-            self.tool_registry.clone(),
-            self.permission_engine.clone(),
-            self.pending_permissions.clone(),
-            self.memory_store.clone(),
-            config,
-        )));
-        self
-    }
-
-    /// Determine the execution mode for a given request.
-    pub(crate) fn execution_mode(&self, request: &SendMessageRequest) -> ExecutionMode {
-        if request.content.starts_with("/plan ") && self.dag_executor.is_some() {
-            ExecutionMode::DagExecution
-        } else {
-            ExecutionMode::SingleStep
-        }
-    }
 }
 
-/// Resolve a pending permission request (used by GUI Interactive mode).
 impl<S, M> LocalRuntime<S, M>
 where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    pub async fn resolve_permission(
-        &self,
-        request_id: &str,
-        decision: PermissionDecision,
-    ) -> agent_core::Result<()> {
-        crate::permission::resolve_permission(&self.pending_permissions, request_id, decision).await
-    }
-
     /// Trigger a compaction pass for `session_id`. Blocks until the chain
     /// completes (success or fallback). Returns `Err(SessionBusy)` if a
     /// compaction is already running for the same session.
@@ -574,178 +231,6 @@ where
         )
         .await
     }
-
-    /// Switch the active model profile for an ongoing session.
-    ///
-    /// The switch takes effect at the next `send_message` call — any
-    /// in-flight agent loop completes on the old profile end-to-end so
-    /// provider-specific tool-call formats (Anthropic `tool_use` vs.
-    /// OpenAI function-calling) don't get mixed mid-stream.
-    ///
-    /// Errors:
-    /// - `CoreError::InvalidState` if the alias is unknown.
-    /// - `CoreError::SessionBusy` if the session is currently compacting.
-    ///
-    /// Same-profile switches (alias equals the current profile) are a
-    /// silent no-op — they return `Ok(())` without appending an event.
-    pub async fn switch_model(
-        &self,
-        session_id: agent_core::SessionId,
-        profile_alias: String,
-    ) -> agent_core::Result<()> {
-        // Validate alias exists in the loaded Config.
-        let profile_def = self
-            .config
-            .profiles
-            .iter()
-            .find(|(alias, def)| alias == &profile_alias && def.enabled)
-            .map(|(_, def)| def.clone())
-            .ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!("unknown model: {profile_alias}"))
-            })?;
-
-        // Resolve the session's current profile using the same helper
-        // the agent loop uses — the two resolvers must never drift.
-        let events = self
-            .store
-            .load_session(&session_id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        let from_profile = crate::agent_loop::latest_model_profile_for(&events);
-
-        // Same-profile switch → silent no-op.
-        if from_profile == profile_alias {
-            return Ok(());
-        }
-
-        let workspace_id = events
-            .first()
-            .map(|e| e.workspace_id.clone())
-            .ok_or_else(|| agent_core::CoreError::InvalidState("session has no events".into()))?;
-
-        // Busy-gate — refuse when compacting (mirrors compact_session
-        // lines 374-388 of this file).
-        {
-            let states = self.session_states.lock().await;
-            if let Some(entry) = states.get(&session_id.to_string()) {
-                if entry.compacting {
-                    return Err(agent_core::CoreError::SessionBusy {
-                        session_id: session_id.to_string(),
-                        reason: "context compaction in progress".into(),
-                    });
-                }
-            }
-        }
-
-        // Resolve the new profile's limits (registry + user overrides).
-        let new_limits = agent_config::resolve_limits(&profile_def);
-        let limit_source_str = match new_limits.source {
-            agent_models::LimitSource::UserConfig => "user_config",
-            agent_models::LimitSource::BuiltinRegistry => "builtin_registry",
-            agent_models::LimitSource::RuntimeProbe => "runtime_probe",
-            agent_models::LimitSource::Fallback => "fallback",
-        };
-
-        let event = agent_core::DomainEvent::new(
-            workspace_id,
-            session_id.clone(),
-            agent_core::AgentId::system(),
-            agent_core::PrivacyClassification::MinimalTrace,
-            agent_core::EventPayload::ModelProfileSwitched {
-                from_profile,
-                to_profile: profile_alias.clone(),
-                effective_at: chrono::Utc::now(),
-                context_window: new_limits.context_window,
-                output_limit: new_limits.output_limit,
-                limit_source: limit_source_str.into(),
-            },
-        );
-        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
-
-        // Refresh cached limits so the next send_message's agent loop
-        // doesn't re-derive from the old profile.
-        self.set_session_limits(&session_id, new_limits.clone())
-            .await;
-
-        // Ollama probe for the new profile (fire-and-forget, 3s timeout) —
-        // mirrors the probe spawned by start_session around line 515.
-        if profile_def.provider == "ollama" {
-            if let Some(client) = self.ollama_clients.get(&profile_alias).cloned() {
-                let model_id = profile_def.model_id.clone();
-                let session_id_for_probe = session_id.clone();
-                let session_states = self.session_states.clone();
-                tokio::spawn(async move {
-                    let probe = tokio::time::timeout(
-                        std::time::Duration::from_secs(3),
-                        client.probe_context_window(&model_id),
-                    )
-                    .await;
-                    if let Ok(Some(window)) = probe {
-                        let mut states = session_states.lock().await;
-                        if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
-                            if let Some(ref mut l) = entry.model_limits {
-                                l.context_window = window;
-                                l.source = agent_models::LimitSource::RuntimeProbe;
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Rebuild the skill catalog aggregate from `skill_sources.toml` and
-    /// re-create providers. Called after every toml mutation so the runtime
-    /// always reflects the latest persisted configuration.
-    pub(crate) fn rebuild_skill_aggregate(&self) -> agent_core::Result<()> {
-        let Some(toml) = &self.skill_sources_toml else {
-            return Ok(());
-        };
-        let http = self.skill_catalog_http.clone().ok_or_else(|| {
-            agent_core::CoreError::InvalidState("skill catalog http not configured".into())
-        })?;
-        let sources = toml.merge_with_defaults(&toml.read());
-        let providers: Vec<(u32, Arc<dyn SkillCatalogProvider>)> = sources
-            .into_iter()
-            .filter(|s| s.enabled)
-            .filter_map(|s| {
-                let kind = SkillSourceKind::from_str(&s.kind)?;
-                let cfg = RemoteSkillSourceConfig {
-                    id: s.id.clone(),
-                    display_name: s.display_name.clone(),
-                    kind,
-                    url: s.url.clone(),
-                    search_template: s.search_template.clone(),
-                    download_template: s.download_template.clone(),
-                    list_template: s.list_template.clone(),
-                    detail_template: s.detail_template.clone(),
-                    enabled: s.enabled,
-                    priority: s.priority,
-                    cache_ttl_seconds: s.cache_ttl_seconds,
-                };
-                Some((s.priority, build_skill_provider(cfg, http.clone())))
-            })
-            .collect();
-        if let Some(catalog) = self.skill_catalog.get() {
-            catalog.reload(providers);
-        } else {
-            let agg = Arc::new(AggregateSkillCatalogProvider::new(providers));
-            let _ = self.skill_catalog.set(agg);
-        }
-        Ok(())
-    }
-
-    /// Get (or lazily build) the skill catalog aggregate. Returns `None`
-    /// only when the catalog has never been configured.
-    pub(crate) fn ensure_skill_catalog(&self) -> Option<Arc<AggregateSkillCatalogProvider>> {
-        if let Some(c) = self.skill_catalog.get() {
-            return Some(c.clone());
-        }
-        let _ = self.rebuild_skill_aggregate();
-        self.skill_catalog.get().cloned()
-    }
 }
 
 #[async_trait]
@@ -768,45 +253,8 @@ where
         )
         .await?;
 
-        // Resolve initial limits from config + builtin registry. If the
-        // session uses an Ollama profile and we have a typed client for it,
-        // spawn a bounded probe to refine `context_window` from the live
-        // server.
-        let profile_def = self
-            .config
-            .profiles
-            .iter()
-            .find(|(alias, _)| alias == &model_profile_alias)
-            .map(|(_, def)| def.clone());
-        if let Some(def) = profile_def {
-            let initial_limits = agent_config::resolve_limits(&def);
-            self.set_session_limits(&session_id, initial_limits.clone())
-                .await;
-
-            if def.provider == "ollama" {
-                if let Some(client) = self.ollama_clients.get(&model_profile_alias).cloned() {
-                    let model_id = def.model_id.clone();
-                    let session_id_for_probe = session_id.clone();
-                    let session_states = self.session_states.clone();
-                    tokio::spawn(async move {
-                        let probe = tokio::time::timeout(
-                            std::time::Duration::from_secs(3),
-                            client.probe_context_window(&model_id),
-                        )
-                        .await;
-                        if let Ok(Some(window)) = probe {
-                            let mut states = session_states.lock().await;
-                            if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
-                                if let Some(ref mut l) = entry.model_limits {
-                                    l.context_window = window;
-                                    l.source = agent_models::LimitSource::RuntimeProbe;
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-        }
+        self.initialize_session_limits(&session_id, &model_profile_alias)
+            .await;
 
         Ok(session_id)
     }
@@ -1058,54 +506,6 @@ where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-}
-
-pub(crate) fn parse_trust_str(s: &str) -> TrustLevel {
-    match s {
-        "verified" => TrustLevel::Verified,
-        "unverified" => TrustLevel::Unverified,
-        _ => TrustLevel::Community,
-    }
-}
-
-/// Build the aggregate catalog provider: builtin (priority 0) plus every
-/// enabled remote source. Wires a [`CatalogEventSink`] for failure
-/// observability.
-fn build_catalog_provider(
-    sources: &[agent_config::CatalogSourceConfig],
-    cache_dir: PathBuf,
-    event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
-) -> anyhow::Result<AggregateCatalogProvider> {
-    let http = SharedHttpClient::new()?;
-    let cache = Arc::new(HttpResponseCache::new(cache_dir));
-
-    let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();
-    let builtin = Arc::new(BuiltinCatalogProvider::new()?);
-    providers.push((0, builtin));
-
-    for s in sources.iter().filter(|s| s.enabled) {
-        let cfg = RemoteSourceConfig {
-            id: s.id.clone(),
-            display_name: s.display_name.clone(),
-            kind: match s.kind {
-                agent_config::CatalogSourceKind::McpRegistry => RemoteSourceKind::McpRegistry,
-            },
-            url: s.url.clone(),
-            api_key_env: s.api_key_env.clone(),
-            priority: s.priority,
-            default_trust: parse_trust_str(&s.default_trust),
-            enabled: true,
-            cache_ttl_seconds: s.cache_ttl_seconds,
-        };
-        let provider = build_remote_catalog_provider(cfg, http.clone(), cache.clone());
-        providers.push((s.priority, provider));
-    }
-
-    let sink: Arc<dyn agent_mcp::DomainEventSink> = CatalogEventSink::new(event_tx);
-    Ok(AggregateCatalogProvider::new_with_priority(
-        providers,
-        Some(sink),
-    ))
 }
 
 #[cfg(test)]
