@@ -151,8 +151,7 @@ pub async fn disable_mcp_server_at_scope(
     doc["disabled_mcp_servers"] = toml_edit::value(arr);
 
     if let Some(parent) = config_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("failed to create config dir: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("failed to create config dir: {e}"))?;
     }
     std::fs::write(&config_path, doc.to_string())
         .map_err(|e| format!("failed to write project config: {e}"))?;

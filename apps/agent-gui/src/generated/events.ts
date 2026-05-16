@@ -200,6 +200,7 @@ export type ServerEntry = {
   version: string | null;
   /**  Lower-case trust level: "unverified" | "community" | "verified". */
   trust: string;
+  verified: boolean;
   icon: string | null;
   /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
   install_spec_json: string;

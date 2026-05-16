@@ -78,6 +78,7 @@ fn map_entry_to_core(e: &ServerEntry) -> CoreServerEntry {
         homepage: e.homepage.clone(),
         version: e.version.clone(),
         trust: trust_to_str(e.trust).into(),
+        verified: e.verified,
         icon: e.icon.clone(),
         install_spec_json,
         requirements_json,

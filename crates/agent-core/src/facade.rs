@@ -63,6 +63,7 @@ pub struct ServerEntry {
     pub version: Option<String>,
     /// Lower-case trust level: "unverified" | "community" | "verified".
     pub trust: String,
+    pub verified: bool,
     pub icon: Option<String>,
     /// JSON-encoded `agent_mcp::catalog::InstallSpec`.
     pub install_spec_json: String,
