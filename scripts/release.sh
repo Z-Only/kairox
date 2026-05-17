@@ -65,7 +65,7 @@ fi
 echo "[3/7] Generating CHANGELOG.md"
 if command -v git-cliff &>/dev/null; then
   run git cliff --tag "$TAG" -o CHANGELOG.md
-  run pnpm exec prettier --write CHANGELOG.md
+  run pnpm exec oxfmt --write CHANGELOG.md
 else
   echo "⚠️  git-cliff not found. Install it: cargo install git-cliff"
   echo "   Skipping CHANGELOG.md generation. CI will still generate Release Notes."
