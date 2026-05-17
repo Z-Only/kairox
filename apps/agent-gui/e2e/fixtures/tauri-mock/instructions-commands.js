@@ -10,15 +10,28 @@
 
 /* ---- instructions commands ---- */
 
+var _savedInstructions = {
+  user: null,
+  project: null
+};
+
 registerCommandHandlers({
   get_instructions: function (args) {
+    var scope = args.scope;
     return Promise.resolve({
       system: "You are Kairox, an AI coding assistant.\n\nFollow the Memory Protocol.",
-      user: null,
-      project: null
+      user: _savedInstructions.user,
+      project: _savedInstructions.project
     });
   },
   upsert_instructions: function (args) {
+    var input = args.input;
+    var scope = input.scope;
+    if (scope === "User") {
+      _savedInstructions.user = input.text || null;
+    } else if (scope === "Project") {
+      _savedInstructions.project = input.text || null;
+    }
     return Promise.resolve(null);
   },
   get_system_prompt: function (args) {
