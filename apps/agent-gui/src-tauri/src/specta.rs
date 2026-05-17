@@ -4,7 +4,8 @@
 
 use crate::commands::*;
 use agent_core::facade::{
-    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
+    HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
     InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
     McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
@@ -90,6 +91,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_instructions,
             upsert_instructions,
             get_system_prompt,
+            get_hooks_settings,
+            upsert_hook_settings,
+            delete_hook_settings,
             // Profile settings commands
             list_profile_settings,
             upsert_profile_settings,
@@ -174,6 +178,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ProfileSettingsInput>()
         .typ::<InstructionsView>()
         .typ::<InstructionsUpdateInput>()
+        .typ::<HookSettingsInput>()
+        .typ::<HookSettingsView>()
+        .typ::<HookTemplateView>()
+        .typ::<HooksSettingsView>()
         .typ::<SkillSettingsView>()
         .typ::<SkillSettingsDetail>()
         .typ::<SkillSettingsScope>()

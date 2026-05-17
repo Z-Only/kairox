@@ -20,6 +20,8 @@ pub use profile::validate;
 #[derive(Debug, serde::Deserialize)]
 struct ConfigToml {
     #[serde(default)]
+    features: crate::FeatureFlags,
+    #[serde(default)]
     profiles: toml::value::Table,
     #[serde(default)]
     mcp_servers: toml::value::Table,
@@ -31,6 +33,8 @@ struct ConfigToml {
     /// Optional custom instructions appended to the system prompt at this layer.
     #[serde(default)]
     instructions: Option<String>,
+    #[serde(default)]
+    hooks: toml::value::Table,
 }
 
 /// Parse a TOML string into a Config.
@@ -47,7 +51,38 @@ pub fn load_from_str(content: &str, path_for_errors: &str) -> Result<Config, Con
         context: config_toml.context,
         disabled_mcp_servers: config_toml.disabled_mcp_servers,
         instructions: config_toml.instructions,
+        features: config_toml.features,
+        hooks: parse_hooks(&config_toml.hooks, path_for_errors)?,
     })
+}
+
+fn parse_hooks(
+    table: &toml::value::Table,
+    path_for_errors: &str,
+) -> Result<Vec<crate::HookConfig>, ConfigError> {
+    let mut hooks = Vec::new();
+    for (event_name, event_value) in table {
+        let event = crate::HookEvent::parse(event_name).ok_or_else(|| ConfigError::Parse {
+            path: path_for_errors.to_string(),
+            message: format!("unsupported hook event '{event_name}'"),
+        })?;
+        let event_table = event_value.as_table().ok_or_else(|| ConfigError::Parse {
+            path: path_for_errors.to_string(),
+            message: format!("hooks.{event_name} must be a table"),
+        })?;
+        for (id, hook_value) in event_table {
+            let hook: crate::HookConfigToml =
+                hook_value
+                    .clone()
+                    .try_into()
+                    .map_err(|e: toml::de::Error| ConfigError::Parse {
+                        path: path_for_errors.to_string(),
+                        message: format!("invalid hook '{event_name}.{id}': {e}"),
+                    })?;
+            hooks.push(hook.into_hook_config(event, id.clone()));
+        }
+    }
+    Ok(hooks)
 }
 
 #[cfg(test)]
@@ -151,5 +186,51 @@ max_tool_definition_tokens = 50000
             cfg_override.context.max_tool_definition_tokens,
             Some(50_000)
         );
+    }
+
+    #[test]
+    fn config_parse_includes_hooks() {
+        let cfg: crate::Config = crate::loader::load_from_str(
+            r#"
+[features]
+hooks = false
+
+[hooks.Stop.verify]
+matcher = "*"
+command = "cargo test --workspace --all-targets"
+status_message = "Running workspace tests"
+timeout_secs = 120
+enabled = true
+
+[hooks.PreToolUse.block_rm]
+matcher = "shell"
+command = "python3 .kairox/hooks/pre_tool.py"
+enabled = false
+"#,
+            "test.toml",
+        )
+        .unwrap();
+
+        assert!(!cfg.features.hooks);
+        assert_eq!(cfg.hooks.len(), 2);
+        let verify = cfg
+            .hooks
+            .iter()
+            .find(|hook| hook.event == crate::HookEvent::Stop && hook.id == "verify")
+            .expect("Stop.verify hook should parse");
+        assert_eq!(verify.matcher.as_deref(), Some("*"));
+        assert_eq!(verify.command, "cargo test --workspace --all-targets");
+        assert_eq!(
+            verify.status_message.as_deref(),
+            Some("Running workspace tests")
+        );
+        assert_eq!(verify.timeout_secs, Some(120));
+        assert!(verify.enabled);
+        let pre_tool = cfg
+            .hooks
+            .iter()
+            .find(|hook| hook.event == crate::HookEvent::PreToolUse && hook.id == "block_rm")
+            .expect("PreToolUse.block_rm hook should parse");
+        assert!(!pre_tool.enabled);
     }
 }

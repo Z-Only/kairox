@@ -36,6 +36,8 @@ pub async fn check_tool_permission<S: EventStore>(
     tool_id: &str,
     preview: &str,
     risk: &ToolRisk,
+    config: &agent_config::Config,
+    root_path: Option<&std::path::Path>,
 ) -> agent_core::Result<ToolPermissionResult> {
     let permission_outcome = permission_engine.lock().await.decide(risk);
     let (event, should_execute) = match &permission_outcome {
@@ -67,6 +69,21 @@ pub async fn check_tool_permission<S: EventStore>(
         PermissionOutcome::RequiresApproval
         | PermissionOutcome::Pending
         | PermissionOutcome::PromptWithTrust => {
+            crate::hooks::run_hooks_logged(
+                config,
+                agent_config::HookEvent::PermissionRequest,
+                tool_id,
+                root_path,
+                serde_json::json!({
+                    "workspace_id": workspace_id,
+                    "session_id": session_id,
+                    "tool_call_id": tool_call_id,
+                    "tool_id": tool_id,
+                    "preview": preview,
+                }),
+            )
+            .await;
+
             // Emit PermissionRequested so the UI can show a prompt,
             // then wait for the user's decision via resolve_permission.
             let request_event = DomainEvent::new(

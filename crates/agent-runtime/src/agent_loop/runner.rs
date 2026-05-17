@@ -143,6 +143,19 @@ where
     );
     append_and_broadcast(&**store, event_tx, &user_event).await?;
 
+    run_lifecycle_hooks(
+        config,
+        agent_config::HookEvent::UserPromptSubmit,
+        "*",
+        root_path.as_deref(),
+        serde_json::json!({
+            "workspace_id": request.workspace_id.as_str(),
+            "session_id": request.session_id.as_str(),
+            "content": request.content,
+        }),
+    )
+    .await;
+
     // Load session history for context
     let session_events = store
         .load_session(&request.session_id)
@@ -708,6 +721,18 @@ where
                 },
             );
             let _ = append_and_broadcast(&**store, event_tx, &root_done).await;
+            run_lifecycle_hooks(
+                config,
+                agent_config::HookEvent::Stop,
+                "complete",
+                root_path.as_deref(),
+                serde_json::json!({
+                    "workspace_id": request.workspace_id.as_str(),
+                    "session_id": request.session_id.as_str(),
+                    "reason": "complete",
+                }),
+            )
+            .await;
             break;
         }
 
@@ -723,6 +748,8 @@ where
             pending_permissions,
             task_graphs,
             &root_task_id,
+            config,
+            root_path.as_deref(),
         )
         .await?;
 
@@ -753,6 +780,16 @@ where
     *active_cancellation.lock().await = None;
 
     Ok(())
+}
+
+async fn run_lifecycle_hooks(
+    config: &agent_config::Config,
+    event: agent_config::HookEvent,
+    matcher_value: &str,
+    root_path: Option<&std::path::Path>,
+    payload: serde_json::Value,
+) {
+    crate::hooks::run_hooks_logged(config, event, matcher_value, root_path, payload).await;
 }
 
 #[cfg(test)]

@@ -18,6 +18,7 @@ const scriptFiles = [
   "fixtures/tauri-mock/mcp-commands.js",
   "fixtures/tauri-mock/skill-commands.js",
   "fixtures/tauri-mock/instructions-commands.js",
+  "fixtures/tauri-mock/hooks-commands.js",
   "fixtures/tauri-mock/marketplace-commands.js",
   "tauri-mock.js"
 ];

@@ -88,6 +88,8 @@ fn two_profile_config() -> Arc<Config> {
         context: ContextPolicy::default(),
         disabled_mcp_servers: vec![],
         instructions: None,
+        features: agent_config::FeatureFlags::default(),
+        hooks: vec![],
     })
 }
 

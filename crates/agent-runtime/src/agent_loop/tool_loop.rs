@@ -37,6 +37,8 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     >,
     task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
     root_task_id: &TaskId,
+    config: &agent_config::Config,
+    root_path: Option<&std::path::Path>,
 ) -> agent_core::Result<ToolLoopResult> {
     let mut tool_results: Vec<(String, String)> = Vec::new();
 
@@ -59,6 +61,19 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
         };
 
         let preview = format!("{}({})", tc.name, tc.arguments);
+        crate::hooks::run_hooks_logged(
+            config,
+            agent_config::HookEvent::PreToolUse,
+            &tc.name,
+            root_path,
+            serde_json::json!({
+                "tool_call_id": tc.id,
+                "tool_id": tc.name,
+                "arguments": tc.arguments,
+                "preview": preview,
+            }),
+        )
+        .await;
         let perm_result = crate::permission::check_tool_permission(
             &**store,
             event_tx,
@@ -70,6 +85,8 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             &tc.name,
             &preview,
             &risk,
+            config,
+            root_path,
         )
         .await?;
         let permission_event = perm_result.event;
@@ -172,6 +189,27 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
                 ),
             };
             append_and_broadcast(&**store, event_tx, &completion_event).await?;
+
+            crate::hooks::run_hooks_logged(
+                config,
+                agent_config::HookEvent::PostToolUse,
+                &tc.name,
+                root_path,
+                serde_json::json!({
+                    "tool_call_id": tc.id,
+                    "tool_id": tc.name,
+                    "arguments": tc.arguments,
+                    "success": matches!(
+                        completion_event.payload,
+                        EventPayload::ToolInvocationCompleted { .. }
+                    ),
+                    "error": match &completion_event.payload {
+                        EventPayload::ToolInvocationFailed { error, .. } => Some(error.clone()),
+                        _ => None,
+                    },
+                }),
+            )
+            .await;
 
             // Collect tool result for the next model request
             let result_text = match &completion_event.payload {
