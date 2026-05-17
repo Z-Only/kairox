@@ -24,7 +24,7 @@
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.4",
+    "lint-staged": "^17.0.5",
     "oxfmt": "^0.50.0",
     "oxlint": "^1.64.0",
     "postcss-html": "^1.8.1",
