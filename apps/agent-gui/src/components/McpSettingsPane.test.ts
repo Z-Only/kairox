@@ -23,7 +23,10 @@ vi.mock("@/generated/commands", () => ({
     openMcpConfigFile: vi.fn(),
     getEffectiveMcpServers: vi.fn(),
     checkMcpHealth: vi.fn(),
-    getMcpToolStates: vi.fn()
+    getMcpToolStates: vi.fn(),
+    listMcpResources: vi.fn(),
+    listMcpPrompts: vi.fn(),
+    readMcpResource: vi.fn()
   }
 }));
 
@@ -106,6 +109,24 @@ beforeEach(() => {
   );
   mockedCommands.getMcpToolStates.mockResolvedValue(ok({ disabled_tools: [] }));
   mockedInvoke.mockResolvedValue([]);
+  mockedCommands.listMcpResources.mockResolvedValue(
+    ok([
+      { uri: "file://logs/app.log", name: "App Log", description: null, mime_type: "text/plain" },
+      {
+        uri: "file://config/settings.json",
+        name: "Settings",
+        description: null,
+        mime_type: "application/json"
+      }
+    ])
+  );
+  mockedCommands.listMcpPrompts.mockResolvedValue(
+    ok([
+      { name: "analyze_code", description: "Analyze code", argument_count: 2 },
+      { name: "summarize_text", description: null, argument_count: 1 }
+    ])
+  );
+  mockedCommands.readMcpResource.mockResolvedValue(ok([{ type: "text", text: "Hello World" }]));
 });
 
 describe("McpSettingsPane", () => {
@@ -282,5 +303,58 @@ describe("McpSettingsPane", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "github" });
     expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "builtin-docs" });
     expect(wrapper.find('[data-test="mcp-tools-github"]').text()).toContain("1 tool");
+  });
+
+  it("shows resources accordion for non-builtin servers and loads on expand", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const resourcesSection = wrapper.find('[data-test="mcp-resources-github"]');
+    expect(resourcesSection.exists()).toBe(true);
+
+    // Click toggle to expand
+    const toggle = wrapper.find('[data-test="mcp-resources-toggle-github"]');
+    await toggle.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.listMcpResources).toHaveBeenCalledWith("github");
+    expect(wrapper.find('[data-test="mcp-resource-github-App Log"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-resource-github-Settings"]').exists()).toBe(true);
+  });
+
+  it("shows inline content when clicking a resource row", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    // Expand resources accordion
+    await wrapper.find('[data-test="mcp-resources-toggle-github"]').trigger("click");
+    await flushPromises();
+
+    // Click a resource row
+    await wrapper.find('[data-test="mcp-resource-github-App Log"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.readMcpResource).toHaveBeenCalledWith("github", "file://logs/app.log");
+    const content = wrapper.find('[data-test="mcp-resource-content-github-App Log"]');
+    expect(content.exists()).toBe(true);
+    expect(content.find(".content-block__text").text()).toBe("Hello World");
+  });
+
+  it("shows prompts accordion with name, args, and description", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const promptsSection = wrapper.find('[data-test="mcp-prompts-github"]');
+    expect(promptsSection.exists()).toBe(true);
+
+    // Expand prompts
+    await wrapper.find('[data-test="mcp-prompts-toggle-github"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.listMcpPrompts).toHaveBeenCalledWith("github");
+    const promptRow = wrapper.find('[data-test="mcp-prompt-github-analyze_code"]');
+    expect(promptRow.text()).toContain("analyze_code");
+    expect(promptRow.text()).toContain("2 args");
+    expect(promptRow.text()).toContain("Analyze code");
   });
 });
