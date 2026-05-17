@@ -99,12 +99,52 @@ registerCommandHandlers({
     return { status: "connected", tool_count: serverToTest.tool_count || 1 };
   },
   list_mcp_resources: function (args) {
+    var serverToFetch = findMcpSettingsServer(args.serverId);
+    if (!serverToFetch) return Promise.reject(new Error("MCP server not found: " + args.serverId));
+    if (serverToFetch.id === "github") {
+      return [
+        {
+          uri: "file://logs/app.log",
+          name: "App Log",
+          description: "Application log file",
+          mime_type: "text/plain"
+        },
+        {
+          uri: "file://config/settings.json",
+          name: "Settings",
+          description: "Configuration file",
+          mime_type: "application/json"
+        }
+      ];
+    }
     return [];
   },
   list_mcp_prompts: function (args) {
+    var serverToFetch = findMcpSettingsServer(args.serverId);
+    if (!serverToFetch) return Promise.reject(new Error("MCP server not found: " + args.serverId));
+    if (serverToFetch.id === "github") {
+      return [
+        {
+          name: "analyze_code",
+          description: "Analyze code for bugs and style issues",
+          argument_count: 2
+        },
+        {
+          name: "summarize_text",
+          description: "Summarize input text to key points",
+          argument_count: 1
+        },
+        { name: "format_output", description: "Format output as JSON or YAML", argument_count: 0 }
+      ];
+    }
     return [];
   },
   read_mcp_resource: function (args) {
-    return [];
+    return [
+      {
+        type: "text",
+        text: "[2026-05-17 10:30:00] INFO Server started\n[2026-05-17 10:30:01] INFO Listening on port 8080"
+      }
+    ];
   }
 });
