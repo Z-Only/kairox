@@ -6,7 +6,8 @@
 
 use agent_config::ProfileInfo;
 use agent_core::facade::{
-    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
+    EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
+    HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
     InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
     McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
@@ -103,6 +104,9 @@ fn main() {
             agent_gui_tauri::commands::get_instructions,
             agent_gui_tauri::commands::upsert_instructions,
             agent_gui_tauri::commands::get_system_prompt,
+            agent_gui_tauri::commands::get_hooks_settings,
+            agent_gui_tauri::commands::upsert_hook_settings,
+            agent_gui_tauri::commands::delete_hook_settings,
             // Profile settings commands
             agent_gui_tauri::commands::list_profile_settings,
             agent_gui_tauri::commands::upsert_profile_settings,
@@ -182,6 +186,10 @@ fn main() {
         // Instructions settings types
         .typ::<InstructionsView>()
         .typ::<InstructionsUpdateInput>()
+        .typ::<HookSettingsInput>()
+        .typ::<HookSettingsView>()
+        .typ::<HookTemplateView>()
+        .typ::<HooksSettingsView>()
         // Settings request/response types
         .typ::<McpServerSettingsView>()
         .typ::<McpServerSettingsInput>()

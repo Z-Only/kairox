@@ -26,7 +26,8 @@ pub use session::{
     SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use settings::{
-    EffectiveMcpServerView, EffectiveProfileView, InstructionsUpdateInput, InstructionsView,
+    EffectiveMcpServerView, EffectiveProfileView, HookSettingsInput, HookSettingsView,
+    HookTemplateView, HooksSettingsView, InstructionsUpdateInput, InstructionsView,
     McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
     ProfileSettingsInput, ProfileSettingsView,
 };

@@ -5,6 +5,7 @@ pub mod limits;
 pub mod loader;
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub use builder::{build_ollama_clients, build_router};
 pub use discovery::{find_config, find_config_upward, find_local_config};
@@ -104,6 +105,110 @@ fn default_true() -> bool {
 
 fn default_max_restart_attempts() -> u32 {
     3
+}
+
+fn default_hooks_enabled() -> bool {
+    true
+}
+
+/// Feature flags loaded from the optional top-level `[features]` table.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FeatureFlags {
+    #[serde(default = "default_hooks_enabled")]
+    pub hooks: bool,
+}
+
+impl Default for FeatureFlags {
+    fn default() -> Self {
+        Self {
+            hooks: default_hooks_enabled(),
+        }
+    }
+}
+
+/// Supported hook lifecycle events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum HookEvent {
+    SessionStart,
+    UserPromptSubmit,
+    PreToolUse,
+    PermissionRequest,
+    PostToolUse,
+    Stop,
+}
+
+impl HookEvent {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HookEvent::SessionStart => "SessionStart",
+            HookEvent::UserPromptSubmit => "UserPromptSubmit",
+            HookEvent::PreToolUse => "PreToolUse",
+            HookEvent::PermissionRequest => "PermissionRequest",
+            HookEvent::PostToolUse => "PostToolUse",
+            HookEvent::Stop => "Stop",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "SessionStart" => Some(Self::SessionStart),
+            "UserPromptSubmit" => Some(Self::UserPromptSubmit),
+            "PreToolUse" => Some(Self::PreToolUse),
+            "PermissionRequest" => Some(Self::PermissionRequest),
+            "PostToolUse" => Some(Self::PostToolUse),
+            "Stop" => Some(Self::Stop),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for HookEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Command hook loaded from `[hooks.<event>.<id>]` in `config.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HookConfig {
+    pub id: String,
+    pub event: HookEvent,
+    #[serde(default)]
+    pub matcher: Option<String>,
+    pub command: String,
+    #[serde(default)]
+    pub status_message: Option<String>,
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct HookConfigToml {
+    #[serde(default)]
+    pub matcher: Option<String>,
+    pub command: String,
+    #[serde(default)]
+    pub status_message: Option<String>,
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl HookConfigToml {
+    pub(crate) fn into_hook_config(self, event: HookEvent, id: String) -> HookConfig {
+        HookConfig {
+            id,
+            event,
+            matcher: self.matcher,
+            command: self.command,
+            status_message: self.status_message,
+            timeout_secs: self.timeout_secs,
+            enabled: self.enabled,
+        }
+    }
 }
 
 /// MCP server configuration from TOML.
@@ -222,6 +327,10 @@ pub struct Config {
     /// Merged custom instructions appended after the system prompt.
     /// Higher layers are concatenated with `\n\n` separator.
     pub instructions: Option<String>,
+    /// Feature flags from `[features]`.
+    pub features: FeatureFlags,
+    /// Command hooks loaded from `[hooks.<event>.<id>]` tables.
+    pub hooks: Vec<HookConfig>,
 }
 
 /// Errors that can occur during config loading.
@@ -297,16 +406,14 @@ impl Config {
         resolve_mcp_env(&mut overlay);
 
         // Merge profiles: overlay profiles replace base profiles with the same alias
-        let mut profile_map: std::collections::HashMap<String, ProfileDef> =
-            base.profiles.into_iter().collect();
+        let mut profile_map: HashMap<String, ProfileDef> = base.profiles.into_iter().collect();
         for (alias, def) in overlay.profiles {
             profile_map.insert(alias, def);
         }
         let merged_profiles: Vec<(String, ProfileDef)> = profile_map.into_iter().collect();
 
         // Merge MCP servers: overlay entries replace base entries with the same name
-        let mut mcp_map: std::collections::HashMap<String, McpServerConfig> =
-            base.mcp_servers.into_iter().collect();
+        let mut mcp_map: HashMap<String, McpServerConfig> = base.mcp_servers.into_iter().collect();
         for (name, config) in overlay.mcp_servers {
             mcp_map.insert(name, config);
         }
@@ -327,6 +434,22 @@ impl Config {
             _ => None,
         };
 
+        let mut hooks_map: HashMap<(HookEvent, String), HookConfig> = base
+            .hooks
+            .into_iter()
+            .map(|hook| ((hook.event, hook.id.clone()), hook))
+            .collect();
+        for hook in overlay.hooks {
+            hooks_map.insert((hook.event, hook.id.clone()), hook);
+        }
+        let mut merged_hooks: Vec<HookConfig> = hooks_map.into_values().collect();
+        merged_hooks.sort_by(|left, right| {
+            left.event
+                .as_str()
+                .cmp(right.event.as_str())
+                .then_with(|| left.id.cmp(&right.id))
+        });
+
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
@@ -334,6 +457,8 @@ impl Config {
             context: overlay.context,
             disabled_mcp_servers: merged_disabled,
             instructions: merged_instructions,
+            features: overlay.features,
+            hooks: merged_hooks,
         })
     }
 
@@ -424,6 +549,8 @@ impl Config {
             context: ContextPolicy::default(),
             disabled_mcp_servers: Vec::new(),
             instructions: None,
+            features: FeatureFlags::default(),
+            hooks: Vec::new(),
         }
     }
 

@@ -42,6 +42,11 @@ export const routes: RouteRecordRaw[] = [
         component: () => import("@/components/InstructionsSettingsPane.vue")
       },
       {
+        path: "hooks",
+        name: "settings-hooks",
+        component: () => import("@/components/HooksSettingsPane.vue")
+      },
+      {
         path: "archive",
         name: "settings-archive",
         component: () => import("@/components/ArchiveSettingsPane.vue")

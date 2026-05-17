@@ -179,6 +179,67 @@ pub struct InstructionsUpdateInput {
     pub text: String,
 }
 
+// -- hooks settings DTOs --
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct HookSettingsView {
+    pub id: String,
+    pub event: String,
+    pub matcher: Option<String>,
+    pub command: String,
+    #[serde(rename = "statusMessage")]
+    pub status_message: Option<String>,
+    #[serde(rename = "timeoutSecs")]
+    pub timeout_secs: Option<u32>,
+    pub enabled: bool,
+    pub source: crate::config_scope::ConfigScope,
+    #[serde(rename = "configPath")]
+    pub config_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct HookSettingsInput {
+    pub scope: crate::config_scope::ConfigScope,
+    pub id: String,
+    pub event: String,
+    pub matcher: Option<String>,
+    pub command: String,
+    #[serde(rename = "statusMessage")]
+    pub status_message: Option<String>,
+    #[serde(rename = "timeoutSecs")]
+    pub timeout_secs: Option<u32>,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct HookTemplateView {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub event: String,
+    pub matcher: Option<String>,
+    pub command: String,
+    #[serde(rename = "statusMessage")]
+    pub status_message: Option<String>,
+    #[serde(rename = "timeoutSecs")]
+    pub timeout_secs: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct HooksSettingsView {
+    pub user: Vec<HookSettingsView>,
+    pub project: Vec<HookSettingsView>,
+    pub templates: Vec<HookTemplateView>,
+    #[serde(rename = "userConfigPath")]
+    pub user_config_path: String,
+    #[serde(rename = "projectConfigPath")]
+    pub project_config_path: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

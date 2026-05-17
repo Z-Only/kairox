@@ -9,6 +9,19 @@ use futures::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+fn hook_test_config(hooks: Vec<agent_config::HookConfig>) -> Arc<agent_config::Config> {
+    Arc::new(agent_config::Config {
+        profiles: vec![],
+        mcp_servers: vec![],
+        source: agent_config::ConfigSource::Defaults,
+        context: agent_config::ContextPolicy::default(),
+        disabled_mcp_servers: vec![],
+        instructions: None,
+        features: agent_config::FeatureFlags { hooks: true },
+        hooks,
+    })
+}
+
 /// A fake model that returns a tool call on the first request,
 /// then a text response on the second request with tool results.
 #[derive(Debug, Clone)]
@@ -75,6 +88,43 @@ impl Tool for EchoTool {
             truncated: false,
         })
     }
+}
+
+#[tokio::test]
+async fn start_session_runs_session_start_hook() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["unused".into()]);
+    let hook_dir = tempfile::TempDir::new().expect("temp dir");
+    let hook_file = hook_dir.path().join("session-start-hook.txt");
+    let runtime = LocalRuntime::new(store, model).with_config(hook_test_config(vec![
+        agent_config::HookConfig {
+            id: "session_start_capture".into(),
+            event: agent_config::HookEvent::SessionStart,
+            matcher: Some("*".into()),
+            command: format!("printf session > {}", hook_file.display()),
+            status_message: None,
+            timeout_secs: Some(5),
+            enabled: true,
+        },
+    ]));
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-session-start-hook".into())
+        .await
+        .unwrap();
+    runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id,
+            model_profile: "fake".into(),
+            permission_mode: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(hook_file).expect("session start hook should write file"),
+        "session"
+    );
 }
 
 #[tokio::test]
@@ -153,6 +203,69 @@ async fn agent_loop_processes_tool_call_and_continues() {
 }
 
 #[tokio::test]
+async fn agent_loop_runs_pre_and_post_tool_hooks() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = ToolCallingModelClient::new();
+    let hook_dir = tempfile::TempDir::new().expect("temp dir");
+    let hook_file = hook_dir.path().join("tool-hooks.txt");
+    let mut runtime = LocalRuntime::new(store, model).with_config(hook_test_config(vec![
+        agent_config::HookConfig {
+            id: "pre_echo".into(),
+            event: agent_config::HookEvent::PreToolUse,
+            matcher: Some("echo".into()),
+            command: format!("printf pre > {}", hook_file.display()),
+            status_message: None,
+            timeout_secs: Some(5),
+            enabled: true,
+        },
+        agent_config::HookConfig {
+            id: "post_echo".into(),
+            event: agent_config::HookEvent::PostToolUse,
+            matcher: Some("echo".into()),
+            command: format!("printf post >> {}", hook_file.display()),
+            status_message: None,
+            timeout_secs: Some(5),
+            enabled: true,
+        },
+    ]));
+    runtime = runtime.with_permission_mode(PermissionMode::Agent);
+    runtime
+        .tool_registry()
+        .lock()
+        .await
+        .register(Box::new(EchoTool));
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-tool-hooks".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "test".into(),
+
+            permission_mode: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "read something".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(hook_file).expect("tool hooks should write file"),
+        "prepost"
+    );
+}
+
+#[tokio::test]
 async fn agent_loop_stops_when_no_tool_calls() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["Just a text response".into()]);
@@ -186,6 +299,54 @@ async fn agent_loop_stops_when_no_tool_calls() {
     assert_eq!(projection.messages.len(), 2);
     assert_eq!(projection.messages[0].content, "hello");
     assert_eq!(projection.messages[1].content, "Just a text response");
+}
+
+#[tokio::test]
+async fn agent_loop_runs_stop_hook_after_text_turn() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["Just a text response".into()]);
+    let hook_dir = tempfile::TempDir::new().expect("temp dir");
+    let hook_file = hook_dir.path().join("stop-hook.txt");
+    let runtime = LocalRuntime::new(store, model).with_config(hook_test_config(vec![
+        agent_config::HookConfig {
+            id: "stop_capture".into(),
+            event: agent_config::HookEvent::Stop,
+            matcher: Some("*".into()),
+            command: format!("printf stop > {}", hook_file.display()),
+            status_message: None,
+            timeout_secs: Some(5),
+            enabled: true,
+        },
+    ]));
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-stop-hook".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+
+            permission_mode: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "hello".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        std::fs::read_to_string(hook_file).expect("stop hook should write file"),
+        "stop"
+    );
 }
 
 #[tokio::test]

@@ -128,6 +128,8 @@ where
                 context: agent_config::ContextPolicy::default(),
                 disabled_mcp_servers: vec![],
                 instructions: None,
+                features: agent_config::FeatureFlags::default(),
+                hooks: vec![],
             }),
             ollama_clients: HashMap::new(),
             skill_catalog: std::sync::OnceLock::new(),
@@ -245,6 +247,7 @@ where
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
+        let workspace_id = request.workspace_id.clone();
         let model_profile_alias = request.model_profile.clone();
         let permission_mode = request.permission_mode.clone();
         let session_id = crate::session::start_session(
@@ -264,6 +267,19 @@ where
                 self.permission_engine.lock().await.set_mode(mode);
             }
         }
+
+        crate::hooks::run_hooks_logged(
+            &self.config,
+            agent_config::HookEvent::SessionStart,
+            "*",
+            None,
+            serde_json::json!({
+                "workspace_id": workspace_id,
+                "session_id": session_id,
+                "model_profile": model_profile_alias,
+            }),
+        )
+        .await;
 
         Ok(session_id)
     }
@@ -666,6 +682,8 @@ mod tests {
             context: ContextPolicy::default(),
             disabled_mcp_servers: vec![],
             instructions: None,
+            features: agent_config::FeatureFlags::default(),
+            hooks: vec![],
         })
     }
 

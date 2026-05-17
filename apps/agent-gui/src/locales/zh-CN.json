@@ -51,6 +51,7 @@
     "archiveProjects": "项目数：{count}",
     "archiveRestore": "恢复",
     "instructions": "指令",
+    "hooks": "Hooks",
     "archivePermanentDelete": "永久删除",
     "archiveDeleteConfirm": "确定要永久删除此会话吗？此操作不可撤销。",
     "configSource": "配置来源",

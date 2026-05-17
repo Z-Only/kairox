@@ -51,6 +51,7 @@
     "archiveProjects": "Projects: {count}",
     "archiveRestore": "Restore",
     "instructions": "Instructions",
+    "hooks": "Hooks",
     "archivePermanentDelete": "Delete Forever",
     "archiveDeleteConfirm": "Permanently delete this session? This cannot be undone.",
     "configSource": "Config Source",

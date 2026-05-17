@@ -158,6 +158,14 @@ export const commands = {
   upsertInstructions: (input: InstructionsUpdateInput, projectRoot: string | null) =>
     typedError<null, string>(__TAURI_INVOKE("upsert_instructions", { input, projectRoot })),
   getSystemPrompt: () => typedError<string, string>(__TAURI_INVOKE("get_system_prompt")),
+  getHooksSettings: (projectRoot: string | null) =>
+    typedError<HooksSettingsView, string>(__TAURI_INVOKE("get_hooks_settings", { projectRoot })),
+  upsertHookSettings: (input: HookSettingsInput, projectRoot: string | null) =>
+    typedError<null, string>(__TAURI_INVOKE("upsert_hook_settings", { input, projectRoot })),
+  deleteHookSettings: (scope: ConfigScope, event: string, id: string, projectRoot: string | null) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("delete_hook_settings", { scope, event, id, projectRoot })
+    ),
   listProfileSettings: (sourceFilter: string | null) =>
     typedError<ProfileSettingsView[], string>(
       __TAURI_INVOKE("list_profile_settings", { sourceFilter })
@@ -436,6 +444,48 @@ export type EffectiveSkillView = {
   disabledBy: ConfigScope | null;
   writable: boolean;
   deletable: boolean;
+};
+
+export type HookSettingsInput = {
+  scope: ConfigScope;
+  id: string;
+  event: string;
+  matcher: string | null;
+  command: string;
+  statusMessage: string | null;
+  timeoutSecs: number | null;
+  enabled: boolean;
+};
+
+export type HookSettingsView = {
+  id: string;
+  event: string;
+  matcher: string | null;
+  command: string;
+  statusMessage: string | null;
+  timeoutSecs: number | null;
+  enabled: boolean;
+  source: ConfigScope;
+  configPath: string | null;
+};
+
+export type HookTemplateView = {
+  id: string;
+  name: string;
+  description: string;
+  event: string;
+  matcher: string | null;
+  command: string;
+  statusMessage: string | null;
+  timeoutSecs: number | null;
+};
+
+export type HooksSettingsView = {
+  user: HookSettingsView[];
+  project: HookSettingsView[];
+  templates: HookTemplateView[];
+  userConfigPath: string;
+  projectConfigPath: string | null;
 };
 
 export type InstallGithubSkillRequest = {
