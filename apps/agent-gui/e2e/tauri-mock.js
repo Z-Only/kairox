@@ -165,7 +165,16 @@ function installMock() {
       state.initialized = false;
       state.workspace = null;
       state.sessions = [];
-      state.projects = [];
+      state.projects = [
+        {
+          project_id: "prj_mock",
+          display_name: "Mock Project",
+          root_path: "/mock/workspace",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        }
+      ];
       state.projectSessions.clear();
       state.archivedSessions = [];
       state.gitStatuses.clear();
@@ -181,6 +190,7 @@ function installMock() {
       state.drafts.clear();
       state.callbacks.clear();
       state.eventListeners.clear();
+      _savedInstructions = { user: null, project: null };
       try {
         localStorage.removeItem(persistedStateKey);
       } catch {}

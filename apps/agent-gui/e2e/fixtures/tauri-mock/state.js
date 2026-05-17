@@ -21,7 +21,16 @@ const state = {
   initialized: false,
   workspace: null,
   sessions: [],
-  projects: [],
+  projects: [
+    {
+      project_id: "prj_mock",
+      display_name: "Mock Project",
+      root_path: "/mock/workspace",
+      removed_at: null,
+      sort_order: 0,
+      expanded: true
+    }
+  ],
   projectSessions: new Map(),
   archivedSessions: [],
   gitStatuses: new Map(),
