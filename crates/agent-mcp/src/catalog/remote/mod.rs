@@ -72,7 +72,7 @@ pub enum RemoteSourceKind {
 
 /// A single remote catalog source as configured by the user.
 ///
-/// Sourced from `[[catalog_sources]]` entries in `~/.kairox/mcp_servers.toml`
+/// Sourced from `[[catalog_sources]]` entries in `~/.kairox/config.toml`
 /// and translated by `agent-config` into this struct before being handed to
 /// the runtime.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

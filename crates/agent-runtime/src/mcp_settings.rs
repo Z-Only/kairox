@@ -12,7 +12,7 @@ use toml_edit::{value, Array, DocumentMut, Item, Table};
 
 use crate::McpServerManager;
 
-const MCP_SERVERS_FILE_NAME: &str = "mcp_servers.toml";
+const CONFIG_FILE_NAME: &str = "config.toml";
 
 #[async_trait::async_trait]
 pub trait McpSettingsLifecycle {
@@ -22,7 +22,7 @@ pub trait McpSettingsLifecycle {
 }
 
 pub fn writable_mcp_config_path(config_dir: Option<&Path>) -> agent_core::Result<Option<PathBuf>> {
-    Ok(config_dir.map(|dir| dir.join(MCP_SERVERS_FILE_NAME)))
+    Ok(config_dir.map(|dir| dir.join(CONFIG_FILE_NAME)))
 }
 
 pub async fn list_mcp_server_settings(
@@ -183,7 +183,7 @@ pub async fn delete_mcp_server_settings(
     delete_mcp_server_settings_in_file(config_path, &mut lifecycle, server_id).await
 }
 
-/// Read disabled tool names for a server from `mcp_servers.toml`.
+/// Read disabled tool names for a server from `config.toml`.
 pub async fn get_mcp_disabled_tools(
     config_path: &Path,
     server_id: &str,
@@ -198,7 +198,7 @@ pub async fn get_mcp_disabled_tools(
     Ok(read_disabled_tools_from_document(&document, server_id))
 }
 
-/// Add or remove a tool from the `disabled_tools` array for a server in `mcp_servers.toml`.
+/// Add or remove a tool from the `disabled_tools` array for a server in `config.toml`.
 pub async fn set_mcp_tool_disabled_in_file(
     config_path: &Path,
     server_id: &str,
@@ -602,6 +602,14 @@ mod tests {
         let (_file, config_path) = file.keep().expect("temp file path should be kept");
         std::fs::write(&config_path, raw).expect("config fixture should be written");
         config_path
+    }
+
+    #[test]
+    fn writable_mcp_config_path_targets_main_config_toml() {
+        let dir = PathBuf::from("/tmp/kairox-test");
+        let path = writable_mcp_config_path(Some(&dir)).unwrap().expect("path");
+
+        assert_eq!(path, dir.join("config.toml"));
     }
 
     #[tokio::test]

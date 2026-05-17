@@ -59,7 +59,7 @@ fn sample_entry() -> ServerEntry {
 #[tokio::test]
 async fn install_writes_toml_and_marks_trust() {
     let dir = tempdir().unwrap();
-    let toml_path = dir.path().join("mcp_servers.toml");
+    let toml_path = dir.path().join("config.toml");
     let probe = Arc::new(StaticProbe {
         available: vec![RuntimeKind::Node],
     });
@@ -90,7 +90,7 @@ async fn install_writes_toml_and_marks_trust() {
 #[tokio::test]
 async fn install_runtime_missing_does_not_write_toml() {
     let dir = tempdir().unwrap();
-    let toml_path = dir.path().join("mcp_servers.toml");
+    let toml_path = dir.path().join("config.toml");
     let probe = Arc::new(StaticProbe { available: vec![] });
     let installer = Installer::new(toml_path.clone(), probe);
 
@@ -111,7 +111,7 @@ async fn install_runtime_missing_does_not_write_toml() {
 #[tokio::test]
 async fn install_invalid_env_when_required_missing() {
     let dir = tempdir().unwrap();
-    let toml_path = dir.path().join("mcp_servers.toml");
+    let toml_path = dir.path().join("config.toml");
     let probe = Arc::new(StaticProbe {
         available: vec![RuntimeKind::Node],
     });
@@ -134,7 +134,7 @@ async fn install_invalid_env_when_required_missing() {
 #[tokio::test]
 async fn install_id_collision_returns_already_installed() {
     let dir = tempdir().unwrap();
-    let toml_path = dir.path().join("mcp_servers.toml");
+    let toml_path = dir.path().join("config.toml");
     let probe = Arc::new(StaticProbe {
         available: vec![RuntimeKind::Node],
     });
@@ -157,7 +157,7 @@ async fn install_id_collision_returns_already_installed() {
 #[tokio::test]
 async fn uninstall_removes_section_and_trust() {
     let dir = tempdir().unwrap();
-    let toml_path = dir.path().join("mcp_servers.toml");
+    let toml_path = dir.path().join("config.toml");
     let probe = Arc::new(StaticProbe {
         available: vec![RuntimeKind::Node],
     });

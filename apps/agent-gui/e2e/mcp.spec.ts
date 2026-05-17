@@ -5,18 +5,26 @@
  * during UI polish (PR #120). MCP settings are now managed exclusively through
  * the Settings page's McpSettingsPane.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
   await installTauriMock(page);
 });
 
+async function openMcpSettings(page: Page) {
+  await page.goto("/");
+  await page.getByTestId("nav-settings").click();
+  await Promise.all([
+    page.waitForURL(/#\/settings\/mcp$/),
+    page.getByTestId("settings-tab-mcp").click()
+  ]);
+  await expect(page.getByTestId("mcp-settings-pane")).toBeVisible();
+}
+
 test.describe("MCP Settings", () => {
   test("opens the MCP settings page with a config file action", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
 
     const openConfigButton = page.getByTestId("mcp-open-config");
     await expect(openConfigButton).toContainText(/Open\s+[Cc]onfig\s+[Ff]ile/);
@@ -29,9 +37,7 @@ test.describe("MCP Settings", () => {
       // @ts-expect-error injected for tauri-mock to read
       window.__MCP_OPEN_CONFIG_SHOULD_FAIL__ = true;
     });
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
 
     await page.getByTestId("mcp-open-config").click();
     await expect(page.getByTestId("mcp-page-error")).toContainText(
@@ -40,9 +46,7 @@ test.describe("MCP Settings", () => {
   });
 
   test("shows Marketplace browse content without an inner Browse tab", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
     await page.getByTestId("mcp-subtab-marketplace").click();
 
     await expect(page.getByTestId("catalog-search")).toBeVisible();
@@ -52,9 +56,7 @@ test.describe("MCP Settings", () => {
 
 test.describe("MCP Resources and Prompts", () => {
   test("expands resources accordion and shows resource rows", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
 
     await page.getByTestId("mcp-resources-toggle-github").click();
     await expect(page.getByTestId("mcp-resource-github-App Log")).toBeVisible();
@@ -62,9 +64,7 @@ test.describe("MCP Resources and Prompts", () => {
   });
 
   test("clicks resource to show inline content", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
 
     await page.getByTestId("mcp-resources-toggle-github").click();
     await page.getByTestId("mcp-resource-github-App Log").click();
@@ -75,9 +75,7 @@ test.describe("MCP Resources and Prompts", () => {
   });
 
   test("expands prompts accordion and shows prompt rows", async ({ page }) => {
-    await page.goto("/");
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-mcp").click();
+    await openMcpSettings(page);
 
     await page.getByTestId("mcp-prompts-toggle-github").click();
     await expect(page.getByTestId("mcp-prompt-github-analyze_code")).toBeVisible();

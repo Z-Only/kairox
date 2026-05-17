@@ -1,29 +1,19 @@
 use crate::{Config, ConfigError};
 
-/// Load main config plus an optional marketplace `mcp_servers.toml` overlay.
+/// Load the main config, ignoring the removed marketplace MCP server overlay.
 ///
-/// Both sources contribute to `mcp_servers`. On id conflict, the main file
-/// wins. Profiles, base config, etc. come solely from the main file.
+/// `marketplace_content` is accepted only so older call sites that also parse
+/// catalog sources can keep a single loading path. MCP server definitions are
+/// loaded exclusively from `config.toml`.
 pub fn load_with_marketplace_overlay(
     main_content: &str,
     marketplace_content: Option<&str>,
     main_path: &str,
-    marketplace_path: &str,
+    _marketplace_path: &str,
 ) -> Result<Config, ConfigError> {
-    let mut cfg = super::load_from_str(main_content, main_path)?;
+    let cfg = super::load_from_str(main_content, main_path)?;
 
-    let Some(market) = marketplace_content else {
-        return Ok(cfg);
-    };
-
-    let market_cfg = super::load_from_str(market, marketplace_path)?;
-    let existing: std::collections::HashSet<String> =
-        cfg.mcp_servers.iter().map(|(id, _)| id.clone()).collect();
-    for (id, srv) in market_cfg.mcp_servers {
-        if !existing.contains(&id) {
-            cfg.mcp_servers.push((id, srv));
-        }
-    }
+    let _ = marketplace_content;
     Ok(cfg)
 }
 
@@ -32,7 +22,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn overlay_merges_marketplace_into_main_with_main_winning() {
+    fn overlay_ignores_marketplace_mcp_servers() {
         let main = r#"
 [profiles.fast]
 provider = "openai_compatible"
@@ -59,7 +49,7 @@ args = ["-y", "@mcp/brave"]
             .expect("merge ok");
         let names: Vec<_> = cfg.mcp_servers.iter().map(|(id, _)| id.clone()).collect();
         assert!(names.contains(&"filesystem".to_string()));
-        assert!(names.contains(&"brave-search".to_string()));
+        assert!(!names.contains(&"brave-search".to_string()));
         let fs = cfg
             .mcp_servers
             .iter()
@@ -86,8 +76,6 @@ base_url = "https://api.openai.com/v1"
 
     #[test]
     fn overlay_marketplace_only_servers_section_parses() {
-        // Marketplace file has no [profiles.*] section because ConfigToml
-        // defaults profiles.
         let main = r#"
 [profiles.fast]
 provider = "openai_compatible"
@@ -101,7 +89,9 @@ command = "foo"
 args = []
 "#;
         let cfg = load_with_marketplace_overlay(main, Some(market), "k.toml", "m.toml").unwrap();
-        assert_eq!(cfg.mcp_servers.len(), 1);
-        assert_eq!(cfg.mcp_servers[0].0, "foo");
+        assert!(
+            cfg.mcp_servers.is_empty(),
+            "MCP server definitions are only loaded from config.toml"
+        );
     }
 }
