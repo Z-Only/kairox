@@ -15,6 +15,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { useMcpStore } from "@/stores/mcp";
 import type {
   EffectiveMcpServerView,
+  McpContentBlockResponse,
+  McpPromptDefResponse,
+  McpResourceDefResponse,
   McpServerSettingsInput,
   McpServerSettingsView
 } from "@/generated/commands";
@@ -489,5 +492,148 @@ describe("effective servers", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("refresh_mcp_tools", { serverId: "files" });
     expect(store.serverHealth.files?.tools.map((tool) => tool.name)).toEqual(["read"]);
+  });
+});
+
+describe("fetchResources", () => {
+  it("fetches and caches resource list per server", async () => {
+    const mcp = useMcpStore();
+    const mockResources: McpResourceDefResponse[] = [
+      { uri: "file://logs/app.log", name: "App Log", description: null, mime_type: "text/plain" },
+      {
+        uri: "file://config/settings.json",
+        name: "Settings",
+        description: "Config",
+        mime_type: "application/json"
+      }
+    ];
+    mockedInvoke.mockResolvedValueOnce(mockResources);
+
+    await mcp.fetchResources("github");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_resources", { serverId: "github" });
+    expect(mcp.serverResources.github).toEqual(mockResources);
+    expect(mcp.resourcesError.github).toBeNull();
+    expect(mcp.loadingResources.has("github")).toBe(false);
+  });
+
+  it("skips fetch when resources already cached", async () => {
+    const mcp = useMcpStore();
+    mcp.serverResources = {
+      github: [{ uri: "file://x", name: "X", description: null, mime_type: null }]
+    };
+
+    await mcp.fetchResources("github");
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("sets error state on typedError error response", async () => {
+    const mcp = useMcpStore();
+    mockedInvoke.mockRejectedValueOnce(new Error("not connected"));
+
+    await mcp.fetchResources("github");
+
+    expect(mcp.resourcesError.github).toBe("Error: not connected");
+  });
+
+  it("sets error state on synchronous throw", async () => {
+    const mcp = useMcpStore();
+    mockedInvoke.mockImplementationOnce(() => {
+      throw new Error("timeout");
+    });
+
+    await mcp.fetchResources("github");
+
+    expect(mcp.resourcesError.github).toBe("Error: timeout");
+  });
+});
+
+describe("fetchPrompts", () => {
+  it("fetches and caches prompt list per server", async () => {
+    const mcp = useMcpStore();
+    const mockPrompts: McpPromptDefResponse[] = [
+      { name: "analyze", description: "Analyze code", argument_count: 2 },
+      { name: "summarize", description: null, argument_count: 0 }
+    ];
+    mockedInvoke.mockResolvedValueOnce(mockPrompts);
+
+    await mcp.fetchPrompts("github");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_mcp_prompts", { serverId: "github" });
+    expect(mcp.serverPrompts.github).toEqual(mockPrompts);
+    expect(mcp.promptsError.github).toBeNull();
+  });
+
+  it("skips fetch when prompts already cached", async () => {
+    const mcp = useMcpStore();
+    mcp.serverPrompts = { github: [{ name: "a", description: null, argument_count: 0 }] };
+
+    await mcp.fetchPrompts("github");
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+});
+
+describe("readResource", () => {
+  it("reads resource content and caches it", async () => {
+    const mcp = useMcpStore();
+    const contentBlocks: McpContentBlockResponse[] = [{ type: "text", text: "Hello World" }];
+    mockedInvoke.mockResolvedValueOnce(contentBlocks);
+
+    const result = await mcp.readResource("github", "file://logs/app.log");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("read_mcp_resource", {
+      serverId: "github",
+      uri: "file://logs/app.log"
+    });
+    expect(result).toEqual(contentBlocks);
+    expect(mcp.resourceContentCache["github:file://logs/app.log"]).toEqual(contentBlocks);
+  });
+
+  it("returns cached content on second call", async () => {
+    const mcp = useMcpStore();
+    const contentBlocks: McpContentBlockResponse[] = [{ type: "text", text: "cached" }];
+    mcp.resourceContentCache = { "github:file://logs/app.log": contentBlocks };
+
+    const result = await mcp.readResource("github", "file://logs/app.log");
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+    expect(result).toEqual(contentBlocks);
+  });
+
+  it("throws on typedError error response", async () => {
+    const mcp = useMcpStore();
+    mockedInvoke.mockRejectedValueOnce(new Error("not found"));
+
+    await expect(mcp.readResource("github", "file://missing")).rejects.toThrow("not found");
+  });
+});
+
+describe("toggleResourceExpand", () => {
+  it("sets expanded resource URI for a server", () => {
+    const mcp = useMcpStore();
+
+    mcp.toggleResourceExpand("github", "file://logs/app.log");
+
+    expect(mcp.expandedResourceUri.github).toBe("file://logs/app.log");
+  });
+
+  it("clears expanded URI when toggling same resource again", () => {
+    const mcp = useMcpStore();
+    mcp.expandedResourceUri = { github: "file://logs/app.log" };
+
+    mcp.toggleResourceExpand("github", "file://logs/app.log");
+
+    expect(mcp.expandedResourceUri.github).toBeNull();
+  });
+
+  it("switches expanded URI when toggling different resource", () => {
+    const mcp = useMcpStore();
+    mcp.expandedResourceUri = { github: "file://logs/app.log" };
+
+    mcp.toggleResourceExpand("github", "file://config/settings.json");
+
+    expect(mcp.expandedResourceUri.github).toBe("file://config/settings.json");
   });
 });
