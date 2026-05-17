@@ -21,10 +21,10 @@
 | agent-tools   | Tool registry & permissions, built-in tools                                                     | `ToolRegistry`, `PermissionEngine`, `Tool`            |
 | agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                              | `McpClient`, `Transport`, `ServerLifecycle`           |
 | agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery      | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`       |
-| agent-config  | TOML config, profile discovery, `.kairox/` discovery, skills/MCP config                         | `ProfileDef`, `build_router`                          |
+| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config           | `ProfileDef`, `build_router`                          |
 | agent-runtime | Agent loop, context budgets, compaction, model switching, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
 | agent-tui     | Terminal UI (ratatui)                                                                           | `App`                                                 |
-| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, skills, workspaces                                 | `commands.rs` → Pinia stores                          |
+| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, instructions, skills, workspaces                   | `commands.rs` → Pinia stores                          |
 
 > Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`). External tools come from MCP servers via `McpToolAdapter`.
 

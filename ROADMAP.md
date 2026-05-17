@@ -53,6 +53,11 @@
 - ✅ GUI interaction polish and UI primitives improvements
 - ✅ Comprehensive GUI UI polish — color system, typography scale, accessibility refinements, micro-interactions (#155)
 - ✅ Upgrade Rust and JS dependencies to latest versions (#156)
+- ✅ Add slash commands, file mentions, and durable chat draft behavior (#158)
+- ✅ Improve MCP server configuration and discovery (#160)
+- ✅ Improve skill marketplace discovery and SkillHub install support (#163, #166)
+- ✅ Add per-session permission mode with chat panel selector (#173)
+- ✅ Add instructions settings tab for user/project instruction editing (#174)
 
 ## Mid term
 
@@ -62,6 +67,7 @@
 - ✅ Improve GUI UX with richer interaction patterns, accessibility, and explainable agent state
 - Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
 - ✅ Design a first-class **Skills** system for reusable prompt/tool/workflow capabilities
+- ✅ Add first-class GUI management for user/project instructions
 - Design a signed **Plugin** manifest and installation flow that composes with MCP and the tool registry
 - Improve extension and manifest discovery flows, including local development and marketplace publishing paths
 - Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles

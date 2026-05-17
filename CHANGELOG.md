@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-05-17
+
+### 🚀 Features
+
+- **gui**: slash commands, file mentions, and draft persistence (#158)
+- **mcp**: improve server configuration and discovery (#160)
+- **gui**: improve skill marketplace discovery (#166)
+- **runtime,gui**: per-session permission mode with chat panel selector (#173)
+- **instructions**: add instructions settings tab (#174)
+
+### 🐛 Bug Fixes
+
+- **tools**: add shell quoting support to command parser
+- **skills**: support skillhub marketplace install (#163)
+- **gui**: preserve chat draft on send failure (#164)
+
+### 🧪 Testing
+
+- **gui**: cover chat composer e2e flows (#162)
+- **models**: add provider contract coverage (#171)
+
+### 🧹 Refactor
+
+- **gui**: split chat composer boundaries (#159)
+- **gui**: split tauri command modules (#161)
+- **gui**: split sessions sidebar boundaries (#165)
+- **runtime**: split facade and settings modules (#167)
+- **gui**: split e2e tauri mock fixtures (#168)
+- **core**: split facade DTO modules (#170)
+- **config**: split loader boundaries (#169)
+- **store**: split sqlite event store (#172)
+
+### 🔧 Miscellaneous Tasks
+
+- ignore local agent config
+
 ## [0.20.0] - 2026-05-14
 
 ### 🚀 Features
@@ -26,8 +62,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 📚 Documentation
 
 - refresh project documentation for v0.19.0 (#122)
-- update ROADMAP for v0.20.0
-- refresh AI docs for v0.20.0
 
 ### 📦 Dependencies
 
@@ -47,7 +81,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - resolve merge conflicts with main, sync McpFacade to main's profile settings API (#129)
 - remove unnecessary gitignore entries for generated files
 - add AI assistant local config to gitignore
-- remove deprecated pnpm config options
 
 ## [0.19.0] - 2026-05-11
 

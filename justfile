@@ -14,7 +14,7 @@ default:
 fmt-check:
     pnpm run format:check
 
-# Run all linters (clippy + eslint + stylelint)
+# Run all linters (clippy + oxlint + stylelint)
 lint:
     pnpm run lint
 
