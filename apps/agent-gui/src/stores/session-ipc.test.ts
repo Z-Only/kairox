@@ -188,6 +188,47 @@ describe("renameSession", () => {
   });
 });
 
+describe("setPermissionMode", () => {
+  it("calls set_permission_mode IPC and updates local state on success", async () => {
+    const session = useSessionStore();
+    expect(session.permissionMode).toBe("suggest");
+
+    mockedInvoke.mockResolvedValueOnce("agent");
+    await session.setPermissionMode("agent");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_permission_mode", { mode: "agent" });
+    expect(session.permissionMode).toBe("agent");
+  });
+
+  it("notifies on IPC failure and preserves previous mode", async () => {
+    const session = useSessionStore();
+    session.permissionMode = "suggest";
+
+    mockedInvoke.mockRejectedValueOnce(new Error("IPC offline"));
+    await session.setPermissionMode("autonomous");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_permission_mode", { mode: "autonomous" });
+    expect(session.permissionMode).toBe("suggest");
+    expect(pushNotificationSpy).toHaveBeenCalledWith(
+      "error",
+      expect.stringContaining("Failed to set permission mode")
+    );
+  });
+
+  it("round-trips each valid permission mode value", async () => {
+    const session = useSessionStore();
+    const modes = ["read_only", "suggest", "agent", "autonomous", "interactive"];
+
+    for (const mode of modes) {
+      mockedInvoke.mockResolvedValueOnce(mode);
+      await session.setPermissionMode(mode);
+      expect(session.permissionMode).toBe(mode);
+    }
+
+    expect(mockedInvoke).toHaveBeenCalledTimes(5);
+  });
+});
+
 describe("recoverSessions", () => {
   it("restores workspace and sessions on success", async () => {
     const session = useSessionStore();
