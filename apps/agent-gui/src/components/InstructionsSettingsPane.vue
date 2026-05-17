@@ -30,14 +30,31 @@ const effectiveInstructions = computed(() => {
 async function load(): Promise<void> {
   errorMsg.value = "";
   try {
-    const fetchedView = await commands.getInstructions(scope.value, projectRoot.value);
-    view.value = fetchedView;
-    userText.value = fetchedView.user ?? "";
-    projectText.value = fetchedView.project ?? "";
+    const result = await commands.getInstructions(scope.value, projectRoot.value);
+    if (isCommandResult(result)) {
+      if (result.status === "error") throw new Error(String(result.error));
+      view.value = (result as { data: InstructionsView }).data;
+    } else {
+      view.value = result;
+    }
+    userText.value = view.value.user ?? "";
+    projectText.value = view.value.project ?? "";
     loaded.value = true;
   } catch (e) {
     errorMsg.value = String(e);
   }
+}
+
+function isCommandResult(
+  value: unknown
+): value is { status: string; data?: unknown; error?: unknown } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    ((value as { status: string }).status === "ok" ||
+      (value as { status: string }).status === "error")
+  );
 }
 
 async function save(): Promise<void> {
@@ -46,7 +63,13 @@ async function save(): Promise<void> {
   try {
     const text =
       configSource?.value === "project" ? projectText.value.trim() : userText.value.trim();
-    await commands.upsertInstructions({ scope: scope.value, text }, projectRoot.value);
+    const result = await commands.upsertInstructions(
+      { scope: scope.value, text },
+      projectRoot.value
+    );
+    if (isCommandResult(result) && result.status === "error") {
+      throw new Error(String(result.error));
+    }
     await load();
   } catch (e) {
     errorMsg.value = String(e);
