@@ -6,7 +6,8 @@ import { setActivePinia, createPinia } from "pinia";
 // a Ref object would always be truthy, breaking the null check in allItems().)
 const sessionStore = {
   currentSessionId: "ses_1" as string | null,
-  resetProjection: vi.fn()
+  resetProjection: vi.fn(),
+  profileInfos: [] as { alias: string; provider: string; model_id: string }[]
 };
 
 // Mock Tauri invoke (compact command handler uses it)
@@ -15,7 +16,8 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("@/stores/session", () => ({
-  useSessionStore: () => sessionStore
+  useSessionStore: () => sessionStore,
+  formatProfileDisplay: (p: { alias: string }) => p.alias
 }));
 
 vi.mock("@/stores/skills", () => ({
@@ -124,15 +126,15 @@ describe("useCommandRegistry", () => {
   });
 
   describe("command shape", () => {
-    it("help command has insertText but no handler", () => {
+    it("help command has handler and always context", () => {
       const registry = useCommandRegistry();
       registry.setFilter("help");
       const items = registry.allItems();
       expect(items.length).toBe(1);
       expect(items[0].kind).toBe("command");
       if (items[0].kind === "command") {
-        expect(items[0].command.handler).toBeUndefined();
-        expect(items[0].command.insertText).toBe("/help");
+        expect(items[0].command.handler).toBeDefined();
+        expect(items[0].command.context).toBe("always");
       }
     });
 
@@ -146,6 +148,38 @@ describe("useCommandRegistry", () => {
         expect(items[0].command.handler).toBeDefined();
         expect(items[0].command.context).toBe("session-active");
       }
+    });
+  });
+
+  describe("model profiles", () => {
+    it("includes model-profile items in allItems when profiles are available", () => {
+      sessionStore.profileInfos = [
+        { alias: "fast", provider: "anthropic", model_id: "claude-3.5-sonnet" },
+        { alias: "smart", provider: "openai", model_id: "gpt-4o" }
+      ];
+      const registry = useCommandRegistry();
+      registry.setFilter("");
+      const items = registry.allItems();
+      const profileItems = items.filter((i) => i.kind === "model-profile");
+      expect(profileItems.length).toBe(2);
+      expect(profileItems[0]).toEqual({
+        kind: "model-profile",
+        alias: "fast",
+        displayName: expect.any(String)
+      });
+    });
+
+    it("filters model profiles by alias", () => {
+      sessionStore.profileInfos = [
+        { alias: "fast", provider: "anthropic", model_id: "claude-3.5-sonnet" },
+        { alias: "smart", provider: "openai", model_id: "gpt-4o" }
+      ];
+      const registry = useCommandRegistry();
+      registry.setFilter("fast");
+      const items = registry.allItems();
+      const profileItems = items.filter((i) => i.kind === "model-profile");
+      expect(profileItems.length).toBe(1);
+      expect(profileItems[0].alias).toBe("fast");
     });
   });
 });

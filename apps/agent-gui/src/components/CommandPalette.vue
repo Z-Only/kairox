@@ -16,6 +16,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: "select-command", command: CommandDef): void;
   (e: "select-skill", skillId: string): void;
+  (e: "select-model-profile", alias: string): void;
   (e: "close"): void;
 }>();
 
@@ -59,6 +60,10 @@ function selectItem(index: number) {
     }
   } else if (item.kind === "skill") {
     emit("select-skill", item.skillId);
+    emit("close");
+  } else if (item.kind === "model-profile") {
+    emit("select-model-profile", item.alias);
+    emit("close");
   }
 }
 
@@ -105,13 +110,25 @@ defineExpose({ handleKeydown });
     data-test="command-palette"
     @keydown="handleKeydown"
   >
-    <div class="command-palette__header">Commands & Skills</div>
+    <div class="command-palette__header">Commands, Models & Skills</div>
     <div
       v-for="(item, i) in displayedItems"
-      :key="item.kind === 'command' ? item.command.id : `skill-${item.skillId}`"
+      :key="
+        item.kind === 'command'
+          ? item.command.id
+          : item.kind === 'skill'
+            ? `skill-${item.skillId}`
+            : `model-${item.alias}`
+      "
       class="command-palette__item"
       :class="{ 'command-palette__item--selected': i === selectedIndex }"
-      :data-test="`palette-item-${item.kind === 'command' ? item.command.id : item.skillId}`"
+      :data-test="`palette-item-${
+        item.kind === 'command'
+          ? item.command.id
+          : item.kind === 'skill'
+            ? item.skillId
+            : item.alias
+      }`"
       @click="selectItem(i)"
       @mouseenter="selectedIndex = i"
     >
@@ -120,14 +137,26 @@ defineExpose({ handleKeydown });
         class="command-palette__label"
         v-html="
           highlightMatch(
-            item.kind === 'command' ? item.command.label : `/skills ${item.displayName}`
+            item.kind === 'command'
+              ? item.command.label
+              : item.kind === 'skill'
+                ? `/skills ${item.displayName}`
+                : item.displayName
           )
         "
       ></span>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <span
         class="command-palette__desc"
-        v-html="highlightMatch(item.kind === 'command' ? item.command.description : 'Run skill')"
+        v-html="
+          highlightMatch(
+            item.kind === 'command'
+              ? item.command.description
+              : item.kind === 'skill'
+                ? 'Run skill'
+                : 'Switch model'
+          )
+        "
       ></span>
     </div>
   </div>
