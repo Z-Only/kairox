@@ -87,6 +87,10 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("restore_workspace", { workspaceId })),
   getTaskGraph: (sessionId: string) =>
     typedError<TaskSnapshotResponse[], string>(__TAURI_INVOKE("get_task_graph", { sessionId })),
+  retryTask: (sessionId: string, taskId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("retry_task", { sessionId, taskId })),
+  cancelTask: (sessionId: string, taskId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("cancel_task", { sessionId, taskId })),
   cancelSession: () => typedError<null, string>(__TAURI_INVOKE("cancel_session")),
   compactSession: () => typedError<null, string>(__TAURI_INVOKE("compact_session")),
   /**

@@ -61,6 +61,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_profile_detail,
             restore_workspace,
             get_task_graph,
+            retry_task,
+            cancel_task,
             cancel_session,
             compact_session,
             switch_model,

@@ -347,6 +347,12 @@ registerCommandHandlers({
     if (task) {
       task.state = "Cancelled";
     }
+    var event = makeEvent(sessionId, {
+      type: "TaskCancelled",
+      task_id: taskId
+    });
+    getTrace(sessionId).push(event);
+    emitEvent("session-event", event);
     return Promise.resolve(undefined);
   }
 });

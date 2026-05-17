@@ -6,6 +6,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { EventPayload, TaskSnapshot, TaskState } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
+import { useToast } from "@/composables/useToast";
 
 /**
  * Extended task tree node with UI-relevant computed fields.
@@ -24,6 +25,7 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
   const tasks = ref<TaskSnapshot[]>([]);
   const currentSessionId = ref<string | null>(null);
   const loading = ref(false);
+  const toast = useToast();
 
   /** Set task graph data directly (e.g., from SessionProjection.task_graph). */
   function setTaskGraph(next: TaskSnapshot[], sessionId: string | null) {
@@ -157,6 +159,14 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
         }
         break;
       }
+      case "TaskCancelled": {
+        const task = tasks.value.find((t) => t.id === payload.task_id);
+        if (task) {
+          task.state = "Cancelled" as TaskState;
+          task.error = null;
+        }
+        break;
+      }
     }
   }
 
@@ -165,11 +175,16 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
    */
   async function retryTask(taskId: string): Promise<void> {
     const sessionId = currentSessionId.value;
-    if (!sessionId) return;
+    if (!sessionId) {
+      toast.warning("No active session");
+      return;
+    }
     try {
       await invoke("retry_task", { sessionId, taskId });
+      toast.success("Task retry started");
     } catch (e) {
       console.error("Failed to retry task:", e);
+      toast.error(`Failed to retry task: ${e}`);
     }
   }
 
@@ -178,11 +193,16 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
    */
   async function cancelTask(taskId: string): Promise<void> {
     const sessionId = currentSessionId.value;
-    if (!sessionId) return;
+    if (!sessionId) {
+      toast.warning("No active session");
+      return;
+    }
     try {
       await invoke("cancel_task", { sessionId, taskId });
+      toast.success("Task cancelled");
     } catch (e) {
       console.error("Failed to cancel task:", e);
+      toast.error(`Failed to cancel task: ${e}`);
     }
   }
 

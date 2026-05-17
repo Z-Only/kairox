@@ -199,6 +199,9 @@ pub enum EventPayload {
         #[cfg_attr(feature = "specta", specta(type = u32))]
         attempt: usize,
     },
+    TaskCancelled {
+        task_id: TaskId,
+    },
     SessionCancelled {
         reason: String,
     },
@@ -332,6 +335,7 @@ impl EventPayload {
             Self::AgentSpawned { .. } => "AgentSpawned",
             Self::AgentIdle { .. } => "AgentIdle",
             Self::TaskRetried { .. } => "TaskRetried",
+            Self::TaskCancelled { .. } => "TaskCancelled",
             Self::SessionCancelled { .. } => "SessionCancelled",
             Self::SkillDiscovered { .. } => "SkillDiscovered",
             Self::SkillValidationFailed { .. } => "SkillValidationFailed",
