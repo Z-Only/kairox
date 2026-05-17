@@ -31,11 +31,11 @@ where
         let user_config_path = std::env::var("HOME").ok().map(|h| {
             std::path::PathBuf::from(h)
                 .join(".kairox")
-                .join("mcp_servers.toml")
+                .join("config.toml")
         });
         let project_config_path = std::env::current_dir()
             .ok()
-            .map(|d| d.join(".kairox").join("mcp_servers.toml"));
+            .map(|d| d.join(".kairox").join("config.toml"));
         crate::mcp_settings::list_mcp_server_settings(
             &self.config,
             user_config_path.as_deref(),
@@ -433,7 +433,7 @@ where
     }
 
     // -----------------------------------------------------------------------
-    // Phase 2: catalog source mutations
+    // Catalog source mutations
     // -----------------------------------------------------------------------
 
     pub(crate) async fn list_catalog_sources(&self) -> agent_core::Result<Vec<CatalogSourceView>> {
@@ -442,9 +442,8 @@ where
         let user_sources = match self.marketplace_dir.as_ref() {
             Some(dir) => {
                 let mt = crate::marketplace_toml::MarketplaceToml::new(dir);
-                mt.read_sources().map_err(|e| {
-                    agent_core::CoreError::InvalidState(format!("marketplace toml: {e}"))
-                })?
+                mt.read_sources()
+                    .map_err(|e| agent_core::CoreError::InvalidState(format!("config toml: {e}")))?
             }
             None => Vec::new(),
         };
@@ -471,7 +470,7 @@ where
         let id = cfg.id.clone();
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         mt.add_source(cfg)
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("config toml: {e}")))?;
         self.rebuild_aggregate_from_disk().await?;
         emit_marketplace_event(
             &self.event_tx,
@@ -491,7 +490,7 @@ where
         })?;
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         mt.remove_source(&id)
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("config toml: {e}")))?;
         self.rebuild_aggregate_from_disk().await
     }
 
@@ -510,12 +509,12 @@ where
         })?;
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         mt.set_enabled(&id, enabled)
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("config toml: {e}")))?;
         self.rebuild_aggregate_from_disk().await
     }
 
-    /// Phase 2: rebuild the aggregate's remote provider list from
-    /// `<marketplace_dir>/mcp_servers.toml`, calling
+    /// Rebuild the aggregate's remote provider list from
+    /// `<marketplace_dir>/config.toml`, calling
     /// [`AggregateCatalogProvider::reload`]. The builtin provider is
     /// always re-added at priority 0.
     pub(crate) async fn rebuild_aggregate_from_disk(&self) -> agent_core::Result<()> {
@@ -535,7 +534,7 @@ where
         let mt = crate::marketplace_toml::MarketplaceToml::new(marketplace_dir);
         let user_sources = mt
             .read_sources()
-            .map_err(|e| agent_core::CoreError::InvalidState(format!("marketplace toml: {e}")))?;
+            .map_err(|e| agent_core::CoreError::InvalidState(format!("config toml: {e}")))?;
         let sources = agent_config::merge_with_defaults(user_sources);
 
         let mut providers: Vec<(u32, Arc<dyn CatalogProvider>)> = Vec::new();

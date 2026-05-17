@@ -1,8 +1,8 @@
 //! Installer for marketplace catalog entries.
 //!
 //! Validates env vars, expands `${VAR}` placeholders in `args`, probes host
-//! runtimes, atomically writes a `mcp_servers.toml`, and (optionally) marks
-//! the entry as trusted.
+//! runtimes, atomically writes MCP server sections to `config.toml`, and
+//! (optionally) marks the entry as trusted.
 
 use crate::catalog::{
     EnvVarSpec, InstallRequest, InstallSpec, RuntimeKind, RuntimeRequirement, ServerEntry,
@@ -68,7 +68,7 @@ pub enum InstallerError {
     Invalid(String),
 }
 
-/// Persists marketplace installations into a managed `mcp_servers.toml`.
+/// Persists marketplace installations into the unified `config.toml`.
 pub struct Installer {
     toml_path: PathBuf,
     probe: Arc<dyn RuntimeProbe>,
@@ -219,9 +219,6 @@ impl Installer {
         let mut tmp = tempfile::NamedTempFile::new_in(parent)
             .map_err(|e: std::io::Error| InstallerError::Io(e.to_string()))?;
         use std::io::Write;
-        let header = "# Managed by Kairox marketplace, schema=1\n# Edit at your own risk; entries here may be rewritten by the marketplace UI.\n\n";
-        tmp.write_all(header.as_bytes())
-            .map_err(|e: std::io::Error| InstallerError::Io(e.to_string()))?;
         tmp.write_all(body.as_bytes())
             .map_err(|e: std::io::Error| InstallerError::Io(e.to_string()))?;
         tmp.persist(&self.toml_path)
@@ -491,7 +488,7 @@ mod tests {
     #[test]
     fn installer_new_is_not_installed() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let toml_path = dir.path().join("mcp_servers.toml");
+        let toml_path = dir.path().join("config.toml");
         let probe = Arc::new(StaticProbe { available: vec![] });
         let installer = Installer::new(toml_path, probe);
 
@@ -507,7 +504,7 @@ mod tests {
     #[tokio::test]
     async fn installer_can_start_install() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let toml_path = dir.path().join("mcp_servers.toml");
+        let toml_path = dir.path().join("config.toml");
         let probe = Arc::new(StaticProbe { available: vec![] });
         let installer = Installer::new(toml_path.clone(), probe);
 
@@ -539,6 +536,10 @@ mod tests {
         // Verify the file contains valid TOML that both toml_edit and toml can parse.
         let raw = std::fs::read_to_string(&toml_path).unwrap();
         eprintln!("=== installer output ===\n{raw}===");
+        assert!(
+            !raw.contains("Managed by Kairox marketplace"),
+            "installer must not mark the unified config.toml as marketplace-owned"
+        );
         let _doc = raw
             .parse::<toml_edit::DocumentMut>()
             .unwrap_or_else(|e| panic!("installer output must be valid toml_edit: {e}\n{raw}"));
@@ -549,7 +550,7 @@ mod tests {
     #[tokio::test]
     async fn installer_lists_catalog_metadata_for_overridden_server_id() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let toml_path = dir.path().join("mcp_servers.toml");
+        let toml_path = dir.path().join("config.toml");
         let probe = Arc::new(StaticProbe { available: vec![] });
         let installer = Installer::new(toml_path, probe);
 

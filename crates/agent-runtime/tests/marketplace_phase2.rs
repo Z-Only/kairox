@@ -1,12 +1,12 @@
 //! Phase 2 runtime wiring tests: facade methods for catalog source
-//! mutations round-trip through the on-disk `mcp_servers.toml`.
+//! mutations round-trip through the on-disk `config.toml`.
 
 use agent_core::{AddCatalogSourceRequest, AppFacade};
 use agent_runtime::test_support::build_marketplace_runtime;
 
 #[tokio::test]
 async fn list_catalog_sources_returns_builtin_plus_defaults_when_toml_missing() {
-    // Cold start: no on-disk mcp_servers.toml. We expect the builtin
+    // Cold start: no on-disk config.toml. We expect the builtin
     // source plus the shipped default remote source (disabled).
     // The dedicated coverage for the default's identity / disabled state
     // lives in `list_seeds_default_remote_source_when_user_config_missing`;

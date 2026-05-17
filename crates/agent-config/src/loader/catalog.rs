@@ -9,7 +9,7 @@ pub enum CatalogSourceKind {
 }
 
 /// A user-configured remote catalog source, parsed from `[[catalog_sources]]`
-/// in the marketplace TOML. Mirrors `agent_mcp::RemoteSourceConfig`; the
+/// in `config.toml`. Mirrors `agent_mcp::RemoteSourceConfig`; the
 /// runtime layer translates between the two.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogSourceConfig {
@@ -99,7 +99,7 @@ fn raw_to_source(raw: RawCatalogSource) -> Result<Option<CatalogSourceConfig>, C
     }))
 }
 
-/// Parse only the `[[catalog_sources]]` array from a marketplace TOML
+/// Parse only the `[[catalog_sources]]` array from a config TOML
 /// string. Returns an empty `Vec` if the section is missing. Entries
 /// with unrecognised `kind` values are silently skipped so that old
 /// config files written by a newer (or older) version of Kairox don't
@@ -119,9 +119,7 @@ pub fn parse_catalog_sources(
         .collect()
 }
 
-/// Load main config + optional marketplace TOML, surfacing both MCP server
-/// overlays (via [`super::load_with_marketplace_overlay`]) and Phase 2 catalog
-/// sources.
+/// Load main config + optional catalog source TOML.
 pub fn load_with_marketplace_loaded(
     main_content: &str,
     marketplace_content: Option<&str>,
@@ -148,8 +146,8 @@ pub fn load_with_marketplace_loaded(
 /// marketplace tab has visible subscriptions out of the box.
 ///
 /// All defaults are `enabled = false`; users opt in by enabling them via
-/// the GUI settings page (or by adding overriding entries to
-/// `mcp_servers.toml`). User-defined sources with the same id replace the
+/// the GUI settings page (or by adding overriding entries to `config.toml`).
+/// User-defined sources with the same id replace the
 /// matching default — see [`merge_with_defaults`].
 pub fn default_catalog_sources() -> Vec<CatalogSourceConfig> {
     vec![CatalogSourceConfig {
@@ -282,7 +280,7 @@ url          = "ftp://x"
     }
 
     #[test]
-    fn marketplace_with_only_mcp_servers_yields_empty_sources() {
+    fn catalog_source_loader_ignores_mcp_server_sections() {
         let market = r#"
 [mcp_servers.foo]
 type      = "stdio"
@@ -290,7 +288,7 @@ command   = "echo"
 args      = []
 "#;
         let loaded = load_with_marketplace_loaded("", Some(market), "k.toml", "m.toml").unwrap();
-        assert_eq!(loaded.config.mcp_servers.len(), 1);
+        assert!(loaded.config.mcp_servers.is_empty());
         assert!(loaded.catalog_sources.is_empty());
     }
 

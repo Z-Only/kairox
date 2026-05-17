@@ -35,7 +35,7 @@ where
     }
 
     /// Wire the MCP marketplace: built-in catalog provider + on-disk installer
-    /// targeting `<config_dir>/mcp_servers.toml`.
+    /// targeting `<config_dir>/config.toml`.
     ///
     /// Without this, the catalog-related [`AppFacade`] methods return errors
     /// (or empty results) because they have nowhere to read from or write to.
@@ -60,7 +60,7 @@ where
         self.aggregate_handle = Some(aggregate_arc);
         self.catalog = Some(dyn_arc);
 
-        let toml_path = config_dir.join("mcp_servers.toml");
+        let toml_path = config_dir.join("config.toml");
         self.installer = Some(Arc::new(Installer::new(
             toml_path,
             Arc::new(OsRuntimeProbe),

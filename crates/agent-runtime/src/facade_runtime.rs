@@ -58,7 +58,7 @@ where
     /// Installer for marketplace entries. `None` when the marketplace has not
     /// been wired via [`Self::with_marketplace`].
     pub(crate) installer: Option<Arc<Installer>>,
-    /// Phase 2: directory containing `mcp_servers.toml` (used for atomic
+    /// Directory containing `config.toml` (used for atomic
     /// catalog source mutations + reloads). `None` when no marketplace has
     /// been wired.
     pub(crate) marketplace_dir: Option<PathBuf>,

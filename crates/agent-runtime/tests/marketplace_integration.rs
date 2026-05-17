@@ -3,7 +3,7 @@
 //!
 //! Exercises the full path: `AppFacade::list_catalog` →
 //! `BuiltinCatalogProvider` → `Installer` (writing/reading
-//! `mcp_servers.toml` in a tempdir) → `list_installed_entries` →
+//! `config.toml` in a tempdir) → `list_installed_entries` →
 //! `uninstall_catalog_entry`.
 
 use agent_core::{AppFacade, CatalogQuery, InstallRequest};
@@ -89,7 +89,7 @@ async fn install_then_list_then_uninstall_filesystem() {
 async fn list_installed_entries_uses_persisted_catalog_metadata_for_overrides() {
     let (rt, tmp) = build_marketplace_runtime().await;
     std::fs::write(
-        tmp.path().join("mcp_servers.toml"),
+        tmp.path().join("config.toml"),
         r#"
 [mcp_servers.fetch-local]
 type = "stdio"
@@ -99,7 +99,7 @@ __catalog_id = "fetch"
 __source = "builtin"
 "#,
     )
-    .expect("write mcp servers toml");
+    .expect("write config toml");
 
     let installed = rt
         .list_installed_entries()

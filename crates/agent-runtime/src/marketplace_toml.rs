@@ -1,10 +1,9 @@
 //! Atomic read/mutate/write for `[[catalog_sources]]` entries inside
-//! `mcp_servers.toml`.
+//! `config.toml`.
 //!
-//! Phase 2: this module owns the on-disk surface for catalog source
-//! mutations. It uses `toml_edit::DocumentMut` so that other top-level
-//! tables (notably `[mcp_servers.*]` written by the Phase 1 `Installer`)
-//! are preserved verbatim across edits.
+//! This module owns the on-disk surface for catalog source mutations. It uses
+//! `toml_edit::DocumentMut` so that other top-level tables (notably
+//! `[mcp_servers.*]` and `[profiles.*]`) are preserved verbatim across edits.
 
 use agent_config::{CatalogSourceConfig, CatalogSourceKind};
 use std::path::{Path, PathBuf};
@@ -26,7 +25,7 @@ pub enum MarketplaceTomlError {
 #[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 pub type Result<T> = std::result::Result<T, MarketplaceTomlError>;
 
-/// Owns `<config_dir>/mcp_servers.toml` for catalog source mutations.
+/// Owns `<config_dir>/config.toml` for catalog source mutations.
 #[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 pub struct MarketplaceToml {
     path: PathBuf,
@@ -36,7 +35,7 @@ pub struct MarketplaceToml {
 impl MarketplaceToml {
     pub fn new(config_dir: impl AsRef<Path>) -> Self {
         Self {
-            path: config_dir.as_ref().join("mcp_servers.toml"),
+            path: config_dir.as_ref().join("config.toml"),
         }
     }
 
@@ -255,7 +254,7 @@ mod tests {
     #[test]
     fn mutations_preserve_other_top_level_tables() {
         let tmp = tempfile::tempdir().unwrap();
-        let path = tmp.path().join("mcp_servers.toml");
+        let path = tmp.path().join("config.toml");
         std::fs::write(
             &path,
             r#"

@@ -70,11 +70,18 @@ pub fn run() {
                 let profiles_toml_path = db_dir.join("profiles.toml");
                 if profiles_toml_path.exists() {
                     if let Ok(raw) = std::fs::read_to_string(&profiles_toml_path) {
-                        if let Ok(overlay) =
-                            agent_config::load_from_str(&raw, &profiles_toml_path.display().to_string())
-                        {
-                            let mut profile_map: std::collections::HashMap<String, agent_config::ProfileDef> =
-                                config.profiles.iter().map(|(a, d)| (a.clone(), d.clone())).collect();
+                        if let Ok(overlay) = agent_config::load_from_str(
+                            &raw,
+                            &profiles_toml_path.display().to_string(),
+                        ) {
+                            let mut profile_map: std::collections::HashMap<
+                                String,
+                                agent_config::ProfileDef,
+                            > = config
+                                .profiles
+                                .iter()
+                                .map(|(a, d)| (a.clone(), d.clone()))
+                                .collect();
                             for (alias, def) in overlay.profiles {
                                 profile_map.entry(alias).or_insert(def);
                             }
@@ -94,12 +101,12 @@ pub fn run() {
                     .await
                     .expect("Failed to discover skills");
 
-                // Read catalog sources from disk so that remote providers
-                // (e.g. MCP Registry) configured in mcp_servers.toml are
-                // registered in the aggregate at startup — not only after
-                // the first explicit refresh.
+                // Read catalog sources from config.toml so that remote
+                // providers (e.g. MCP Registry) are registered in the
+                // aggregate at startup — not only after the first explicit
+                // refresh.
                 let catalog_sources = {
-                    let toml_path = db_dir.join("mcp_servers.toml");
+                    let toml_path = db_dir.join("config.toml");
                     let user_sources = match std::fs::read_to_string(&toml_path) {
                         Ok(raw) => agent_config::parse_catalog_sources(&raw).unwrap_or_else(|e| {
                             eprintln!("Catalog sources warning: {e}, using defaults");
@@ -115,38 +122,8 @@ pub fn run() {
                     catalog_sources.iter().filter(|s| s.enabled).count()
                 );
 
-                // Load MCP server definitions from both config.toml and
-                // mcp_servers.toml so the McpServerManager can start them
-                // on demand. config.toml entries take priority on id conflict.
-                let mcp_server_defs = {
-                    let toml_path = db_dir.join("mcp_servers.toml");
-                    let marketplace_defs = match std::fs::read_to_string(&toml_path) {
-                        Ok(raw) => {
-                            match agent_config::load_from_str(
-                                &raw,
-                                &toml_path.display().to_string(),
-                            ) {
-                                Ok(market_config) => market_config.mcp_server_defs(),
-                                Err(e) => {
-                                    eprintln!(
-                                        "MCP servers parse warning: {e}, skipping marketplace servers"
-                                    );
-                                    Vec::new()
-                                }
-                            }
-                        }
-                        Err(_) => Vec::new(),
-                    };
-                    let mut all_defs: std::collections::HashMap<String, agent_mcp::types::McpServerDef> =
-                        std::collections::HashMap::new();
-                    for def in marketplace_defs {
-                        all_defs.insert(def.name.clone(), def);
-                    }
-                    for def in config.mcp_server_defs() {
-                        all_defs.insert(def.name.clone(), def);
-                    }
-                    all_defs.into_values().collect::<Vec<_>>()
-                };
+                // Load MCP server definitions exclusively from config.toml.
+                let mcp_server_defs = config.mcp_server_defs();
                 eprintln!("MCP server definitions: {}", mcp_server_defs.len());
 
                 let ollama_clients = agent_config::build_ollama_clients(&config);
