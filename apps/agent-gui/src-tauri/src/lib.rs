@@ -234,6 +234,8 @@ pub fn run() {
             crate::commands::get_profile_detail,
             crate::commands::restore_workspace,
             crate::commands::get_task_graph,
+            crate::commands::retry_task,
+            crate::commands::cancel_task,
             crate::commands::cancel_session,
             crate::commands::compact_session,
             crate::commands::switch_model,

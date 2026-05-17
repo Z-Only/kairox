@@ -329,6 +329,46 @@ pub async fn get_task_graph(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn retry_task(
+    session_id: String,
+    task_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let sid: agent_core::SessionId = session_id.into();
+    let tid: agent_core::TaskId = task_id.into();
+    state
+        .runtime
+        .retry_task(workspace_id, sid, tid)
+        .await
+        .map_err(|e| format!("Failed to retry task: {e}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn cancel_task(
+    session_id: String,
+    task_id: String,
+    state: State<'_, GuiState>,
+) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let sid: agent_core::SessionId = session_id.into();
+    let tid: agent_core::TaskId = task_id.into();
+    state
+        .runtime
+        .cancel_task(workspace_id, sid, tid)
+        .await
+        .map_err(|e| format!("Failed to cancel task: {e}"))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn restore_workspace(
     workspace_id: String,
     state: State<'_, GuiState>,

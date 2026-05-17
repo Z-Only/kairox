@@ -1,11 +1,28 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
 import type { TaskSnapshot } from "@/types";
+import { invoke } from "@tauri-apps/api/core";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+
+const mockedInvoke = vi.mocked(invoke);
+
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn()
+};
+
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => mockToast
+}));
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  vi.clearAllMocks();
 });
 
 function makeTask(overrides: Partial<TaskSnapshot> & Pick<TaskSnapshot, "id">): TaskSnapshot {
@@ -162,5 +179,109 @@ describe("taskGraph store state management", () => {
 
     expect(taskGraph.tasks).toEqual([]);
     expect(taskGraph.currentSessionId).toBeNull();
+  });
+});
+
+describe("applyTaskEvent", () => {
+  it("TaskRetried resets task to Running and updates retry_count", () => {
+    const taskGraph = useTaskGraphStore();
+    const task = makeTask({ id: "T1", state: "Failed", error: "boom" });
+    taskGraph.setTaskGraph([task], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "TaskRetried",
+      task_id: "T1",
+      attempt: 2
+    } as any);
+
+    const updated = taskGraph.tasks.find((t) => t.id === "T1");
+    expect(updated?.state).toBe("Running");
+    expect(updated?.retry_count).toBe(2);
+    expect(updated?.error).toBeNull();
+  });
+
+  it("TaskCancelled sets task state to Cancelled", () => {
+    const taskGraph = useTaskGraphStore();
+    const task = makeTask({ id: "T1", state: "Failed", error: "boom" });
+    taskGraph.setTaskGraph([task], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "TaskCancelled",
+      task_id: "T1"
+    } as any);
+
+    const updated = taskGraph.tasks.find((t) => t.id === "T1");
+    expect(updated?.state).toBe("Cancelled");
+    expect(updated?.error).toBeNull();
+  });
+});
+
+describe("retryTask", () => {
+  it("invokes retry_task and shows success toast", async () => {
+    mockedInvoke.mockResolvedValue(undefined);
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    await taskGraph.retryTask("T1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("retry_task", {
+      sessionId: "session-1",
+      taskId: "T1"
+    });
+    expect(mockToast.success).toHaveBeenCalledWith("Task retry started");
+  });
+
+  it("shows warning when no active session", async () => {
+    const taskGraph = useTaskGraphStore();
+
+    await taskGraph.retryTask("T1");
+
+    expect(mockToast.warning).toHaveBeenCalledWith("No active session");
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("shows error toast on invoke failure", async () => {
+    mockedInvoke.mockRejectedValue(new Error("Backend error"));
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    await taskGraph.retryTask("T1");
+
+    expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Failed to retry task"));
+  });
+});
+
+describe("cancelTask", () => {
+  it("invokes cancel_task and shows success toast", async () => {
+    mockedInvoke.mockResolvedValue(undefined);
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    await taskGraph.cancelTask("T1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("cancel_task", {
+      sessionId: "session-1",
+      taskId: "T1"
+    });
+    expect(mockToast.success).toHaveBeenCalledWith("Task cancelled");
+  });
+
+  it("shows warning when no active session", async () => {
+    const taskGraph = useTaskGraphStore();
+
+    await taskGraph.cancelTask("T1");
+
+    expect(mockToast.warning).toHaveBeenCalledWith("No active session");
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("shows error toast on invoke failure", async () => {
+    mockedInvoke.mockRejectedValue(new Error("Backend error"));
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    await taskGraph.cancelTask("T1");
+
+    expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Failed to cancel task"));
   });
 });

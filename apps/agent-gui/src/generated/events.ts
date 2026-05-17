@@ -137,6 +137,7 @@ export type EventPayload =
   | { type: "AgentSpawned"; agent_id: string; role: string; task_id: string }
   | { type: "AgentIdle"; agent_id: string }
   | { type: "TaskRetried"; task_id: string; attempt: number }
+  | { type: "TaskCancelled"; task_id: string }
   | { type: "SessionCancelled"; reason: string }
   | { type: "SkillDiscovered"; skill_id: string; name: string; source: string }
   | { type: "SkillValidationFailed"; path: string; error: string }

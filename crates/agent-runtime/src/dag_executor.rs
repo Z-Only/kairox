@@ -838,6 +838,18 @@ where
         self.apply_failure_policy(workspace_id, session_id, graph, task_id)
             .await?;
 
+        // Emit TaskCancelled event
+        let event = DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::TaskCancelled {
+                task_id: task_id.clone(),
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+
         Ok(())
     }
 

@@ -1,6 +1,6 @@
 use crate::events::{DomainEvent, EventPayload};
 use crate::facade::TaskGraphSnapshot;
-use crate::{TaskSnapshot, TaskState};
+use crate::{TaskFailureReason, TaskSnapshot, TaskState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -149,6 +149,13 @@ impl SessionProjection {
                     t.retry_count = *attempt;
                     t.error = None;
                     t.failure_reason = None;
+                }
+            }
+            EventPayload::TaskCancelled { task_id } => {
+                if let Some(t) = self.task_graph.tasks.iter_mut().find(|t| t.id == *task_id) {
+                    t.state = TaskState::Cancelled;
+                    t.error = None;
+                    t.failure_reason = Some(TaskFailureReason::Cancelled);
                 }
             }
             EventPayload::ContextAssembled { usage } => {
