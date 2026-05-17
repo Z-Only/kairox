@@ -199,6 +199,76 @@ describe("project store", () => {
     ]);
   });
 
+  it("creates a worktree session with branch name", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_projects") {
+        return [
+          {
+            project_id: "p1",
+            display_name: "Demo",
+            root_path: "/tmp/demo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true
+          }
+        ];
+      }
+      if (command === "create_project_worktree_session") {
+        return "s-worktree";
+      }
+      if (command === "rename_session") {
+        return null;
+      }
+      return null;
+    });
+    const store = useProjectStore();
+    await store.loadProjects();
+
+    const worktreeSession = await store.createProjectWorktreeSession("p1", "feat/my-branch");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("create_project_worktree_session", {
+      projectId: "p1",
+      branchName: "feat/my-branch"
+    });
+    expect(worktreeSession.sessionId).toBe("s-worktree");
+    expect(worktreeSession.title).toBe("New Session (feat/my-branch)");
+    expect(worktreeSession.branch).toBe("feat/my-branch");
+    expect(worktreeSession.visibility).toBe("visible");
+    expect(store.sessionsByProject.get("p1")?.map((s) => s.sessionId)).toEqual(["s-worktree"]);
+  });
+
+  it("creates a worktree session with deduped title", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "create_project_worktree_session") {
+        return "s-worktree-2";
+      }
+      if (command === "rename_session") {
+        return null;
+      }
+      return null;
+    });
+    const store = useProjectStore();
+    store.sessionsByProject = new Map([
+      [
+        "p1",
+        [
+          {
+            sessionId: "s-existing",
+            title: "New Session (main)",
+            profile: "default",
+            projectId: "p1",
+            worktreePath: "/tmp/demo",
+            branch: "main",
+            visibility: "visible"
+          }
+        ]
+      ]
+    ]);
+
+    const session = await store.createProjectWorktreeSession("p1", "main");
+    expect(session.title).toBe("New Session (main) 1");
+  });
+
   it("loads project sessions and archived sessions into separate maps", async () => {
     const store = useProjectStore();
 

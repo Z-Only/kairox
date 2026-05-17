@@ -116,6 +116,8 @@
     "archive": "Archive",
     "confirmArchive": "Confirm archive?",
     "newSessionInProject": "New session in {name}",
+    "newWorktreeSessionInProject": "New worktree session in {name}",
+    "worktreeBranchPlaceholder": "Branch name...",
     "expandProject": "Expand {name}",
     "collapseProject": "Collapse {name}",
     "toggleProject": "Toggle {name}",

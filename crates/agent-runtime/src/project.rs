@@ -210,6 +210,37 @@ pub fn default_blank_project_root() -> PathBuf {
         .join("Kairox Projects")
 }
 
+pub fn worktree_dir(project_root: &str, branch: &str) -> PathBuf {
+    let safe_branch = branch.replace('/', "-");
+    Path::new(project_root)
+        .join(".kairox")
+        .join("worktrees")
+        .join(safe_branch)
+}
+
+pub fn create_git_worktree(
+    project_root: &str,
+    branch: &str,
+    worktree_path: &Path,
+) -> Result<(), String> {
+    let worktree_str = worktree_path.display().to_string();
+    if let Some(parent) = worktree_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("failed to create worktree parent directory: {error}"))?;
+    }
+    let output = Command::new("git")
+        .args(["-C", project_root, "worktree", "add", &worktree_str, branch])
+        .output()
+        .map_err(|error| format!("failed to run git worktree add: {error}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let message = if stderr.is_empty() { stdout } else { stderr };
+        return Err(format!("git worktree add failed: {message}"));
+    }
+    Ok(())
+}
+
 pub fn unique_blank_project_path(display_name: &str) -> PathBuf {
     let base_root = default_blank_project_root();
     let directory_name = sanitize_directory_name(display_name);
@@ -320,5 +351,29 @@ mod tests {
         let contents = summary.contents.unwrap();
         assert!(contents.contains("[...truncated]"));
         assert!(contents.len() < 70_000 + 200);
+    }
+
+    #[test]
+    fn worktree_dir_uses_project_kairox_path() {
+        let path = worktree_dir("/tmp/my-project", "feat/hello");
+        assert_eq!(
+            path,
+            Path::new("/tmp/my-project/.kairox/worktrees/feat-hello")
+        );
+    }
+
+    #[test]
+    fn worktree_dir_uses_branch_name_as_directory() {
+        let path = worktree_dir("/repo", "main");
+        assert_eq!(path, Path::new("/repo/.kairox/worktrees/main"));
+    }
+
+    #[test]
+    fn worktree_dir_replaces_slashes_with_dashes() {
+        let path = worktree_dir("/repo", "feature/my-cool/branch");
+        assert_eq!(
+            path,
+            Path::new("/repo/.kairox/worktrees/feature-my-cool-branch")
+        );
     }
 }

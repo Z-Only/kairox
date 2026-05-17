@@ -207,6 +207,50 @@ export const useProjectStore = defineStore("project", () => {
     );
   }
 
+  async function createProjectWorktreeSession(
+    projectId: string,
+    branchName: string
+  ): Promise<ProjectSessionInfo> {
+    const project = projects.value.find((entry) => entry.projectId === projectId);
+    if (project?.rootPath) {
+      await refreshConfigForProject(project.rootPath);
+    }
+    const sessionId = await invoke<string>("create_project_worktree_session", {
+      projectId,
+      branchName
+    });
+    const draftSession: ProjectSessionInfo = {
+      sessionId,
+      title: `New Session (${branchName})`,
+      profile: "default",
+      projectId: project?.projectId ?? null,
+      worktreePath: null,
+      branch: branchName,
+      visibility: "visible"
+    };
+
+    const projectSessions = sessionsByProject.value.get(projectId) ?? [];
+    const existingTitles = projectSessions.map((s) => s.title);
+    draftSession.title = uniqueSessionTitle(`New Session (${branchName})`, existingTitles);
+
+    try {
+      await invoke("rename_session", {
+        sessionId: draftSession.sessionId,
+        title: draftSession.title
+      });
+    } catch (e) {
+      console.error("Failed to set deduped worktree session title:", e);
+    }
+
+    const nextSessionsByProject = new Map(sessionsByProject.value);
+    nextSessionsByProject.set(projectId, [
+      draftSession,
+      ...projectSessions.filter((session) => session.sessionId !== sessionId)
+    ]);
+    sessionsByProject.value = nextSessionsByProject;
+    return draftSession;
+  }
+
   async function createProjectDraftSession(projectId: string): Promise<ProjectSessionInfo> {
     const project = projects.value.find((entry) => entry.projectId === projectId);
     if (project?.rootPath) {
@@ -350,6 +394,7 @@ export const useProjectStore = defineStore("project", () => {
     restoreProjectSession,
     updateProjectOrder,
     updateProjectExpanded,
+    createProjectWorktreeSession,
     createProjectDraftSession,
     loadProjectSessions,
     loadArchivedSessions,
