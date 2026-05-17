@@ -139,7 +139,7 @@ EOF
   else
     local pixelmatch_output diff_pixels pixelmatch_status
     set +e
-    pixelmatch_output="$(npx -y pixelmatch "$out/focus-blur.png" "$out/focus-focus.png" "$out/focus-diff.png" 2>&1)"
+    pixelmatch_output="$(bunx pixelmatch "$out/focus-blur.png" "$out/focus-focus.png" "$out/focus-diff.png" 2>&1)"
     pixelmatch_status=$?
     set -e
     diff_pixels="$(printf '%s\n' "$pixelmatch_output" | awk '/different pixels:/ { print $3; exit }')"

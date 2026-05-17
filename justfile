@@ -12,11 +12,11 @@ default:
 
 # Run all format checks (Rust + web)
 fmt-check:
-    pnpm run format:check
+    bun run format:check
 
 # Run all linters (clippy + oxlint + stylelint)
 lint:
-    pnpm run lint
+    bun run lint
 
 # Run all Rust tests
 test:
@@ -24,7 +24,7 @@ test:
 
 # Run GUI (Vitest) tests
 test-gui:
-    pnpm --filter agent-gui run test
+    bun --filter agent-gui test
 
 # Run everything: format check + lint + test (the full CI gate)
 check: fmt-check lint test
@@ -34,7 +34,7 @@ check: fmt-check lint test
 
 # Auto-format all code (Rust + web)
 fmt:
-    pnpm run format
+    bun run format
 
 # ─── Development ───────────────────────────────────────────────
 
@@ -44,23 +44,23 @@ tui:
 
 # Run the GUI dev server (Vite hot-reload)
 gui-dev: gen-types
-    pnpm --filter agent-gui run dev
+    bun --filter agent-gui dev
 
 # Run the Tauri desktop app in dev mode (Vite + native window)
 tauri-dev: gen-types
-    pnpm --filter agent-gui run tauri:dev
+    bun --filter agent-gui tauri:dev
 
 # Build GUI web assets
 gui-build: gen-types
-    pnpm --filter agent-gui run build
+    bun --filter agent-gui build
 
 # Build Tauri desktop app
 tauri-build: gen-types
-    pnpm --filter agent-gui run tauri:build
+    bun --filter agent-gui tauri:build
 
 # Build Tauri desktop app without generating installer bundles
 tauri-build-fast: gen-types
-    pnpm --filter agent-gui exec -- tauri build --no-bundle
+    bun --filter agent-gui tauri build --no-bundle
 
 # Build GUI web assets and print the largest generated files
 gui-size: gui-build
@@ -84,7 +84,7 @@ release-dry version:
 
 # Generate changelog for a tag (e.g.: just changelog v0.7.0)
 changelog tag:
-    git cliff --tag {{ tag }} -o CHANGELOG.md && npx oxfmt --write CHANGELOG.md
+    git cliff --tag {{ tag }} -o CHANGELOG.md && bunx oxfmt --write CHANGELOG.md
 
 # ─── Version ───────────────────────────────────────────────────
 
@@ -107,7 +107,7 @@ worktree name:
         mkdir -p .worktrees ; \
         git check-ignore -q .worktrees || { echo "❌ .worktrees/ must be ignored before creating worktrees"; exit 1; } ; \
         git worktree add ".worktrees/$safe_name" -b "{{ name }}" main ; \
-        cd ".worktrees/$safe_name" && pnpm install ; \
+        cd ".worktrees/$safe_name" && bun install ; \
         echo "✅ Worktree created at .worktrees/$safe_name for branch {{ name }}"
 
 # ─── Type sync check ──────────────────────────────────────────
@@ -124,22 +124,22 @@ check-types:
 gen-types:
     cargo run -p agent-gui-tauri --features typegen --bin export-specta -- apps/agent-gui/src/generated/commands.ts
     cargo run -p agent-gui-tauri --features typegen --bin export-events -- apps/agent-gui/src/generated/events.ts
-    npx oxfmt --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
+    bunx oxfmt --write apps/agent-gui/src/generated/commands.ts apps/agent-gui/src/generated/events.ts
     @echo "✅ TypeScript bindings regenerated"
 
 # ─── E2E / Integration tests ──────────────────────────────────
 
 # Run GUI frontend E2E tests with Playwright (requires dev server)
 test-e2e: gen-types
-    pnpm --filter agent-gui run test:e2e
+    bun --filter agent-gui test:e2e
 
 # Run GUI frontend E2E tests with Playwright (headed mode for debugging)
 test-e2e-headed: gen-types
-    pnpm --filter agent-gui run test:e2e:headed
+    bun --filter agent-gui test:e2e:headed
 
 # Run GUI frontend E2E tests with Playwright (UI mode)
 test-e2e-ui: gen-types
-    pnpm --filter agent-gui run test:e2e:ui
+    bun --filter agent-gui test:e2e:ui
 
 # Run TUI app logic integration tests (no terminal required)
 test-tui:
@@ -175,6 +175,6 @@ test-live:
 # On Linux you typically need to wrap this recipe in `xvfb-run -a just
 # test-pilot`; on macOS the Tauri window will appear briefly during the run.
 test-pilot:
-    pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot
+    bun --filter agent-gui tauri build --debug --no-bundle --features pilot
     scripts/run-pilot-tests.sh
     @echo "✅ tauri-pilot E2E scenarios passed"

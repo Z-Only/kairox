@@ -118,8 +118,8 @@ Markers are parsed by `agent-memory::extract_memory_markers`, stripped from disp
 kairox/
 ├── Cargo.toml              # Workspace root (shared version + deps)
 ├── Cargo.lock
-├── package.json            # pnpm tooling root (format, lint, prepare)
-├── pnpm-lock.yaml
+├── package.json            # Bun tooling root (format, lint, prepare)
+├── bun.lock
 ├── cliff.toml              # git-cliff changelog config
 ├── commitlint.config.js    # Conventional Commits enforcement
 ├── scripts/
@@ -197,7 +197,7 @@ Conventional Commits are enforced via commitlint + husky. Use these scopes:
 | `config`  | Changes to `agent-config`                 |
 | `tui`     | Changes to `agent-tui`                    |
 | `gui`     | Changes to `apps/agent-gui` (Rust or Vue) |
-| `deps`    | Dependency updates (Cargo or npm)         |
+| `deps`    | Dependency updates (Cargo or Bun)         |
 | `mcp`     | Changes to `agent-mcp`                    |
 | `skills`  | Changes to `agent-skills`                 |
 | `ci`      | CI/CD workflow changes                    |
@@ -235,7 +235,7 @@ For any non-trivial development task (new features, bug fixes, refactors), **alw
 **Quick branch creation with just:**
 
 ```bash
-just worktree feat/my-feature   # creates .worktrees/feat-my-feature and runs pnpm install
+just worktree feat/my-feature   # creates .worktrees/feat-my-feature and runs bun install
 ```
 
 Small fixes (typos, trivial one-liners) may be committed directly to `main`, but anything touching more than one file or requiring review should use a branch.
@@ -251,10 +251,10 @@ worktree=.worktrees/feat-my-feature
 git check-ignore -q .worktrees
 git worktree add "$worktree" -b "$branch" main
 cd "$worktree"
-pnpm install   # triggers prepare.cjs which links husky hooks
+bun install    # triggers prepare.cjs which links husky hooks
 ```
 
-Prefer `just worktree <branch>` for new worktrees. The recipe creates `.worktrees/<sanitized-branch-name>`, starts the branch from `main`, and runs `pnpm install`.
+Prefer `just worktree <branch>` for new worktrees. The recipe creates `.worktrees/<sanitized-branch-name>`, starts the branch from `main`, and runs `bun install`.
 
 The `.worktrees/` directory must remain ignored so nested worktree contents are never committed. The `prepare.cjs` script detects worktrees and creates a symlink from `GIT_DIR/.husky` to the worktree's `.husky` directory so that pre-commit and commit-msg hooks fire correctly.
 
@@ -263,8 +263,8 @@ The `.worktrees/` directory must remain ignored so nested worktree contents are 
 Run before opening a PR or pushing to main:
 
 ```bash
-pnpm run format:check
-pnpm run lint
+bun run format:check
+bun run lint
 cargo test --workspace --all-targets
 ```
 
@@ -321,7 +321,7 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 
 - **CI** (`ci.yml`) runs on push to `main` and on pull requests: format check, lint, cargo test, TUI build, GUI web build, type-sync, Playwright E2E, tauri-pilot desktop E2E, and live model smoke tests
 - **Release Build** (`release-build.yml`) runs on `v*` tags: publishes release notes via git-cliff, builds TUI binaries for all platforms, builds Tauri desktop bundles for all platforms
-- **Dependabot Auto Merge** automatically merges passing Dependabot PRs for npm, Cargo, and GitHub Actions dependencies
+- **Dependabot Auto Merge** automatically merges passing Dependabot PRs for Bun, Cargo, and GitHub Actions dependencies
 
 ## AI coding guidelines
 
@@ -428,7 +428,7 @@ The `apps/agent-gui/src-tauri/build.rs` mirrors this: it only loads the dedicate
 just test-pilot     # builds the Tauri debug binary with --features pilot, then runs the scenarios
 ```
 
-The recipe invokes `pnpm --filter agent-gui exec -- tauri build --debug --no-bundle --features pilot` followed by `scripts/run-pilot-tests.sh`. The script writes per-scenario JUnit XML to `pilot-results/<name>.xml` and dumps screenshots/logs into `tauri-pilot-failures/` on failure (both directories are gitignored). On Linux you usually need `xvfb-run -a just test-pilot`; on macOS the Tauri window appears briefly during the run.
+The recipe invokes `bun --filter agent-gui tauri build --debug --no-bundle --features pilot` followed by `scripts/run-pilot-tests.sh`. The script writes per-scenario JUnit XML to `pilot-results/<name>.xml` and dumps screenshots/logs into `tauri-pilot-failures/` on failure (both directories are gitignored). On Linux you usually need `xvfb-run -a just test-pilot`; on macOS the Tauri window appears briefly during the run.
 
 **Prerequisite**: `tauri-pilot-cli` must be on `PATH`. Install with:
 
@@ -467,8 +467,8 @@ The `-- --nocapture` flag is what surfaces the skip notice on stderr when `GITHU
 
 - **Don't add crate-level `version`**: all crates use `version.workspace = true`
 - **Don't skip `cargo clippy`**: CI denies warnings
-- **Don't use `npm`**: this project uses `pnpm` exclusively
-- **Don't forget `pnpm install` after creating a worktree**: husky hooks won't fire otherwise
+- **Don't use `npm`, `pnpm`, or `yarn`**: this project uses Bun for JavaScript package management
+- **Don't forget `bun install` after creating a worktree**: husky hooks won't fire otherwise
 - **Don't hardcode API keys**: use `agent-config`'s `api_key_env` to reference environment variables
 - **Don't forget to run `just gen-types`** when changing Rust event/domain types — the TypeScript types are auto-generated, not manually maintained
 - **Don't forget to register new Tauri commands in both `generate_handler!` (for invocation) and `collect_commands!` (for specta type generation)**; missing either one causes runtime or type-gen failures
@@ -510,7 +510,7 @@ A `justfile` is provided for common tasks. Install with `cargo install just` or 
 | `just test-mcp`           | Run MCP integration tests                                                              |
 | `just test-live`          | Run the live GitHub Models integration test (self-skips without `GITHUB_TOKEN`)        |
 | `just test-pilot`         | Build the Tauri debug binary with `--features pilot` and run the tauri-pilot scenarios |
-| `just worktree <name>`    | Create a git worktree with pnpm install                                                |
+| `just worktree <name>`    | Create a git worktree with bun install                                                 |
 
 ## Common workflow recipes
 

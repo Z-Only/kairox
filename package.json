@@ -2,19 +2,22 @@
   "name": "kairox-tooling",
   "version": "0.21.0",
   "private": true,
+  "workspaces": [
+    "apps/agent-gui"
+  ],
   "type": "module",
   "scripts": {
-    "format": "pnpm run format:web && pnpm run format:rust",
-    "format:check": "pnpm run format:check:web && pnpm run format:check:rust",
+    "format": "bun run format:web && bun run format:rust",
+    "format:check": "bun run format:check:web && bun run format:check:rust",
     "format:check:rust": "cargo fmt --all --check",
-    "format:check:web": "npx oxfmt --check .",
+    "format:check:web": "oxfmt --check .",
     "format:rust": "cargo fmt --all",
-    "format:web": "npx oxfmt --write .",
-    "lint": "pnpm run lint:web && pnpm run lint:rust",
-    "lint:oxlint": "npx oxlint",
+    "format:web": "oxfmt --write .",
+    "lint": "bun run lint:web && bun run lint:rust",
+    "lint:oxlint": "oxlint",
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
-    "lint:web": "npx oxlint && npx stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
+    "lint:web": "oxlint && stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "prepare": "node scripts/prepare.cjs"
   },
   "devDependencies": {
@@ -27,6 +30,9 @@
     "postcss-html": "^1.8.1",
     "stylelint": "^17.11.0",
     "stylelint-config-recommended-vue": "^1.6.1"
+  },
+  "overrides": {
+    "glob": ">=10.5.0"
   },
   "lint-staged": {
     "*.rs": [
@@ -52,13 +58,8 @@
       "stylelint --fix"
     ]
   },
-  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "vue-demi"
-    ],
-    "overrides": {
-      "glob": ">=10.5.0"
-    }
-  }
+  "packageManager": "bun@1.3.14",
+  "trustedDependencies": [
+    "vue-demi"
+  ]
 }

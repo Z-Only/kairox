@@ -4,13 +4,13 @@
 
 - Rust stable toolchain (pinned by `rust-toolchain.toml`)
 - Node.js 22+
-- pnpm 10+
+- Bun 1.3+
 - [just](https://github.com/casey/just) task runner (`cargo install just` or `brew install just`)
 
 ## Quick start
 
 ```bash
-pnpm install
+bun install
 just check      # format check + lint + test
 just tui        # run the TUI app
 just gui-dev    # run the GUI dev server
@@ -39,28 +39,28 @@ just tui
 Install frontend dependencies:
 
 ```bash
-pnpm install
+bun install
 ```
 
 Run Vue unit tests:
 
 ```bash
 just test-gui
-# or: pnpm --filter agent-gui run test
+# or: bun --filter agent-gui test
 ```
 
 Run the Vite development server:
 
 ```bash
 just gui-dev
-# or: pnpm --filter agent-gui run dev
+# or: bun --filter agent-gui dev
 ```
 
 Run the Tauri desktop app in development mode:
 
 ```bash
 just tauri-dev
-# or: pnpm --filter agent-gui run tauri:dev
+# or: bun --filter agent-gui tauri:dev
 ```
 
 ## Type synchronization

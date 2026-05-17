@@ -4,8 +4,8 @@
 Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI + ratatui TUI.
 
 ## Quick commands
-- Format check: `just fmt-check` or `pnpm run format:check`
-- Lint: `just lint` or `pnpm run lint`
+- Format check: `just fmt-check` or `bun run format:check`
+- Lint: `just lint` or `bun run lint`
 - Test: `just test` or `cargo test --workspace --all-targets`
 - Full CI gate: `just check`
 - Type sync check: `just check-types`
@@ -17,7 +17,7 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 
 ## Language & tooling
 - Rust workspace (edition 2021, resolver 2) + Vue 3 + TypeScript
-- Package manager: **pnpm only** (never npm or yarn)
+- Package manager: **Bun only** (never npm, pnpm, or yarn)
 - Lint: `cargo clippy -D warnings`, oxlint, Stylelint
 - Format: `cargo fmt`, oxfmt
 
@@ -57,11 +57,11 @@ Conventional Commits with scopes: core, runtime, models, tools, memory, store, c
 5. package.json (root)
 
 ## Common mistakes to avoid
-- Using `npm` instead of `pnpm`
+- Using `npm`, `pnpm`, or `yarn` instead of Bun
 - Setting `version` in individual crate Cargo.toml
 - Hardcoding API keys (use agent-config's `api_key_env`)
 - Forgetting to run `just gen-types` when changing Rust events, commands, or generated TypeScript bindings
 - Forgetting to register new Tauri commands in both `generate_handler!` (invocation) and `collect_commands!` (specta type-gen)
-- Skipping `pnpm install` after creating a git worktree
+- Skipping `bun install` after creating a git worktree
 - Editing `apps/agent-gui/src/generated/{commands,events}.ts` by hand — these are auto-generated, run `just gen-types`
 - Forgetting to update `apps/agent-gui/e2e/tauri-mock.js` when adding new `#[tauri::command]` or events

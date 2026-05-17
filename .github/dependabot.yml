@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -8,18 +8,7 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "npm"
-
-  - package-ecosystem: "npm"
-    directory: "/apps/agent-gui"
-    schedule:
-      interval: "weekly"
-    rebase-strategy: "auto"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "npm"
-      - "gui"
+      - "bun"
 
   - package-ecosystem: "cargo"
     directory: "/"

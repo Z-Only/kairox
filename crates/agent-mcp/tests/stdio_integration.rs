@@ -24,7 +24,7 @@ fn echo_fixture_available() -> bool {
         .map(|s| s.success())
         .unwrap_or(false);
     if !node_available {
-        eprintln!("skipping: node fixture dependencies not available; run pnpm install in crates/agent-mcp/tests/fixtures to enable these tests");
+        eprintln!("skipping: node fixture dependencies not available; run bun install --no-save in crates/agent-mcp/tests/fixtures to enable these tests");
     }
     node_available
 }
