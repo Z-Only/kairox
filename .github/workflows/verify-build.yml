@@ -24,15 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -52,7 +52,7 @@ jobs:
             patchelf
 
       - name: Install repo tooling deps
-        run: pnpm install --frozen-lockfile
+        run: bun ci
 
       - name: Setup Tauri signing key
         run: |
@@ -62,7 +62,7 @@ jobs:
 
       - name: Build Tauri app with updater artifacts
         working-directory: apps/agent-gui
-        run: pnpm tauri build
+        run: bun tauri build
 
       - name: List build artifacts
         if: always()

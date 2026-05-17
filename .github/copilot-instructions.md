@@ -7,7 +7,7 @@ Kairox is a local-first AI agent workbench: Rust workspace core + Tauri/Vue GUI 
 ## Language & tooling
 
 - Rust workspace (edition 2021, resolver 2) + Vue 3 + TypeScript
-- Package manager: **pnpm only** (never npm or yarn)
+- Package manager: **Bun only** (never npm, pnpm, or yarn)
 - Lint: `cargo clippy -D warnings`, oxlint, Stylelint
 - Format: `cargo fmt`, oxfmt
 - Test: `cargo test --workspace --all-targets`, `vitest run`
@@ -56,11 +56,11 @@ Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`
 
 ## Common mistakes to avoid
 
-- Using `npm` instead of `pnpm`
+- Using `npm`, `pnpm`, or `yarn` instead of Bun
 - Setting `version` in individual crate Cargo.toml
 - Hardcoding API keys (use `agent-config`'s `api_key_env`)
 - Forgetting to run `just gen-types` after changing `EventPayload`/domain types or `#[tauri::command]` signatures
 - Editing files under `apps/agent-gui/src/generated/` by hand
 - Forgetting to register new Tauri commands in **both** `generate_handler!` (in `lib.rs`) and `collect_commands!` (in `src/specta.rs`)
 - Forgetting to update `apps/agent-gui/e2e/tauri-mock.js` when adding new IPC commands or events
-- Skipping `pnpm install` after creating a git worktree
+- Skipping `bun install` after creating a git worktree

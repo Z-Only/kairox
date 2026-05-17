@@ -76,7 +76,7 @@ git push origin vX.Y.Z -f
 - Release Build uses git-cliff to generate categorized release notes from conventional commits
 - Release Build creates or updates the GitHub Release entry with git-cliff generated notes
 - Release Build uploads TUI binaries (with SHA256 checksums) and Tauri desktop bundles for macOS, Linux, and Windows as release assets
-- **Dependabot Auto Merge** automatically merges passing Dependabot PRs for npm, Cargo, and GitHub Actions dependency updates
+- **Dependabot Auto Merge** automatically merges passing Dependabot PRs for Bun, Cargo, and GitHub Actions dependency updates
 
 ## git-cliff configuration
 

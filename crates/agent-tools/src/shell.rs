@@ -28,8 +28,8 @@ const READONLY_COMMANDS: &[&str] = &[
     "ls", "cat", "head", "tail", "grep", "egrep", "rg", "find", "wc", "sort", "uniq", "diff",
     "echo", "pwd", "which", "whoami", "env", "printenv", "stat", "file", "du", "df", "free",
     "uptime", "ps", "curl", "wget", "git", "gh", "cargo", "rustc", "node", "python3", "python",
-    "java", "go", "make", "cmake", "npm", "npx", "pnpm", "yarn", "pip", "pip3", "test", "true",
-    "false", "date", "uname", "hostname", "id", "arch",
+    "java", "go", "make", "cmake", "bun", "npm", "npx", "pnpm", "yarn", "pip", "pip3", "test",
+    "true", "false", "date", "uname", "hostname", "id", "arch",
 ];
 
 const WRITE_COMMANDS: &[&str] = &[
@@ -52,6 +52,10 @@ fn is_write_subcommand(program: &str, sub: &str) -> bool {
                 | "tag"
                 | "stash"
                 | "cherry-pick"
+        ),
+        "bun" => matches!(
+            sub,
+            "add" | "install" | "remove" | "update" | "publish" | "pm"
         ),
         "npm" => matches!(sub, "install" | "uninstall" | "publish" | "update"),
         "pip" | "pip3" => matches!(sub, "install" | "uninstall"),
@@ -337,6 +341,10 @@ mod tests {
         assert_eq!(classify_command("cat", &[]), CommandRisk::ReadOnly);
         assert_eq!(classify_command("git", &["status"]), CommandRisk::ReadOnly);
         assert_eq!(classify_command("cargo", &["test"]), CommandRisk::ReadOnly);
+        assert_eq!(
+            classify_command("bun", &["run", "lint"]),
+            CommandRisk::ReadOnly
+        );
         assert_eq!(classify_command("echo", &[]), CommandRisk::ReadOnly);
         assert_eq!(classify_command("pwd", &[]), CommandRisk::ReadOnly);
     }
@@ -346,6 +354,7 @@ mod tests {
         assert_eq!(classify_command("cp", &[]), CommandRisk::Write);
         assert_eq!(classify_command("mkdir", &[]), CommandRisk::Write);
         assert_eq!(classify_command("git", &["commit"]), CommandRisk::Write);
+        assert_eq!(classify_command("bun", &["install"]), CommandRisk::Write);
         assert_eq!(classify_command("npm", &["install"]), CommandRisk::Write);
         assert_eq!(classify_command("docker", &["build"]), CommandRisk::Write);
     }

@@ -5,10 +5,10 @@
 ## Quick reference
 
 - **Language**: Rust workspace + Vue 3 / TypeScript (Tauri 2)
-- **Package manager**: pnpm only (never npm)
-- **Lint & format**: `pnpm run lint`, `pnpm run format:check`
+- **Package manager**: Bun only (never npm, pnpm, or yarn)
+- **Lint & format**: `bun run lint`, `bun run format:check`
 - **Test**: `cargo test --workspace --all-targets`
-- **GUI test**: `pnpm --filter agent-gui run test`
+- **GUI test**: `bun --filter agent-gui test`
 
 ## Crate map (dependency direction →)
 
@@ -31,8 +31,8 @@
 ## Before starting work
 
 1. Read [AGENTS.md](./AGENTS.md) for architecture, conventions, and pitfalls.
-2. Run `pnpm install` (required after worktree creation for husky hooks).
-3. Run `pnpm run format:check && pnpm run lint && cargo test --workspace --all-targets` to confirm a clean baseline.
+2. Run `bun install` (required after worktree creation for husky hooks).
+3. Run `bun run format:check && bun run lint && cargo test --workspace --all-targets` to confirm a clean baseline.
 
 ## When adding features
 
@@ -67,9 +67,9 @@ Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps):
 
 ## Common pitfalls
 
-- Don't use `npm` (this project is `pnpm` only).
+- Don't use `npm`, `pnpm`, or `yarn` for project package management; use Bun.
 - Don't set `version` in individual crate `Cargo.toml` — they inherit from `[workspace.package]`.
 - Don't edit files under `apps/agent-gui/src/generated/` by hand.
-- After creating a worktree, always run `pnpm install` so husky hooks fire.
+- After creating a worktree, always run `bun install` so husky hooks fire.
 - Register new Tauri commands in **both** `generate_handler!` (in `lib.rs`) **and** `collect_commands!` (in `src/specta.rs`).
 - Keep context-budget, compaction, and model-switching behavior in sync across `agent-core`, `agent-runtime`, `agent-memory`, `agent-models`, TUI, and GUI when touching session/model state.

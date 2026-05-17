@@ -5,7 +5,7 @@ Thanks for contributing to Kairox.
 ## Development setup
 
 ```bash
-pnpm install
+bun install
 ```
 
 Optionally install [just](https://github.com/casey/just) for shortcut commands:
@@ -29,8 +29,8 @@ Individual commands:
 
 | Task                 | Command                                                          |
 | -------------------- | ---------------------------------------------------------------- |
-| Format check         | `just fmt-check` or `pnpm run format:check`                      |
-| Lint                 | `just lint` or `pnpm run lint`                                   |
+| Format check         | `just fmt-check` or `bun run format:check`                       |
+| Lint                 | `just lint` or `bun run lint`                                    |
 | Rust tests           | `just test` or `cargo test --workspace --all-targets`            |
 | GUI unit tests       | `just test-gui`                                                  |
 | TUI integration      | `just test-tui`                                                  |
@@ -78,4 +78,4 @@ For full architecture context and per-feature recipes, see [AGENTS.md](./AGENTS.
 
 ## Dependency updates
 
-Dependabot is configured for the root npm workspace, the GUI workspace, Cargo dependencies, and GitHub Actions. Please keep dependency PRs scoped and green in CI.
+Dependabot is configured for the Bun workspace, Cargo dependencies, and GitHub Actions. Please keep dependency PRs scoped and green in CI.

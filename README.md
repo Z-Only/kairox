@@ -98,7 +98,7 @@ Kairox is in active development (current release `v0.21.0`) with a fully interac
 
 - Rust stable toolchain
 - Node.js 22+
-- pnpm 10+
+- Bun 1.3+
 
 For Tauri desktop packaging:
 
@@ -121,7 +121,7 @@ If you want to try Kairox quickly, start with the local setup and quality gates 
 ### Install dependencies
 
 ```bash
-pnpm install
+bun install
 ```
 
 ### Run quality gates
@@ -195,15 +195,15 @@ just gui-dev      # run the GUI dev server
 just bump-version X.Y.Z  # bump version in all config files
 just check-types  # verify Rust ↔ TypeScript EventPayload sync
 just gen-types    # regenerate Tauri command TypeScript bindings
-just worktree <branch>  # create .worktrees/<sanitized-branch> and run pnpm install
+just worktree <branch>  # create .worktrees/<sanitized-branch> and run bun install
 ```
 
-Or the underlying pnpm/cargo commands:
+Or the underlying Bun/cargo commands:
 
 ```bash
-pnpm run format
-pnpm run format:check
-pnpm run lint
+bun run format
+bun run format:check
+bun run lint
 ```
 
 ## Releases and packaging
@@ -230,7 +230,7 @@ For isolated development, use `just worktree feat/my-feature`. Worktrees are cre
 
 This repository also includes:
 
-- Dependabot for npm, Cargo, and GitHub Actions dependency updates
+- Dependabot for Bun, Cargo, and GitHub Actions dependency updates
 - GitHub Release Notes configuration via `.github/release.yml`
 - Automatic GitHub Release publishing on `v*` tags
 - GitHub Discussions for questions and design discussion

@@ -46,8 +46,8 @@ run() {
 # ─── Step 1: Checks ───
 if [[ "$SKIP_CHECKS" == false ]]; then
   echo "[1/7] Running checks"
-  run pnpm run format:check
-  run pnpm run lint
+  run bun run format:check
+  run bun run lint
   run cargo test --workspace --all-targets
 else
   echo "[1/7] Skipping checks (--skip-checks)"
@@ -56,7 +56,7 @@ fi
 # ─── Step 2: GUI build verification ───
 if [[ "$SKIP_BUILD" == false ]]; then
   echo "[2/7] Verifying GUI build"
-  run bash -c 'cd "$ROOT/apps/agent-gui" && pnpm run build && pnpm run tauri:build'
+  run bash -c "cd \"${ROOT}/apps/agent-gui\" && bun run build && bun run tauri:build"
 else
   echo "[2/7] Skipping GUI build (--skip-build)"
 fi
@@ -65,7 +65,7 @@ fi
 echo "[3/7] Generating CHANGELOG.md"
 if command -v git-cliff &>/dev/null; then
   run git cliff --tag "$TAG" -o CHANGELOG.md
-  run pnpm exec oxfmt --write CHANGELOG.md
+  run bunx oxfmt --write CHANGELOG.md
 else
   echo "⚠️  git-cliff not found. Install it: cargo install git-cliff"
   echo "   Skipping CHANGELOG.md generation. CI will still generate Release Notes."
