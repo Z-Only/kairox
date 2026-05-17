@@ -5467,8 +5467,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-pilot"
-version = "0.5.1"
-source = "git+https://github.com/mpiton/tauri-pilot?tag=v0.5.1#1d90a2b9292574f84955a3e446d84443ad3243a3"
+version = "0.5.2"
+source = "git+https://github.com/mpiton/tauri-pilot?tag=v0.5.2#645025f5244227b6213a710bae62d7ae5a1e62a6"
 dependencies = [
  "enigo",
  "libc",
@@ -6867,7 +6867,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
