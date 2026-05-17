@@ -1,4 +1,8 @@
 pub mod filesystem;
+pub mod fs_helpers;
+pub mod fs_list;
+pub mod fs_read;
+pub mod fs_write;
 pub mod patch;
 pub mod permission;
 pub mod provider;
