@@ -1,156 +1,35 @@
+pub mod config;
+pub mod request;
+pub mod streaming;
+pub mod tool_accumulator;
+
+pub use config::OpenAiCompatibleConfig;
+
 use crate::{ModelError, ModelEvent, ModelRequest, Result};
 use async_trait::async_trait;
 use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OpenAiCompatibleConfig {
-    pub base_url: String,
-    pub api_key_env: String,
-    pub default_model: String,
-    pub headers: Vec<(String, String)>,
-    pub capability_overrides: Option<crate::ModelCapabilities>,
-    #[serde(default)]
-    pub temperature: Option<f32>,
-    #[serde(default)]
-    pub top_p: Option<f32>,
-    #[serde(default)]
-    pub extra_params: Option<serde_json::Value>,
-}
-
-impl OpenAiCompatibleConfig {
-    pub fn default_capabilities(&self) -> crate::ModelCapabilities {
-        self.capability_overrides
-            .clone()
-            .unwrap_or(crate::ModelCapabilities {
-                streaming: true,
-                tool_calling: true,
-                json_schema: true,
-                vision: false,
-                reasoning_controls: false,
-                context_window: 128_000,
-                output_limit: 16_384,
-                local_model: false,
-            })
-    }
-
-    fn api_key(&self) -> Option<String> {
-        std::env::var(&self.api_key_env).ok()
-    }
-}
+use streaming::{parse_openai_chunk, OpenAiChunkEvent};
+use tool_accumulator::OpenAiToolCallAccumulator;
 
 #[derive(Debug, Clone)]
 pub struct OpenAiCompatibleClient {
     config: OpenAiCompatibleConfig,
-    http: Client,
+    http: reqwest::Client,
 }
 
 impl OpenAiCompatibleClient {
     pub fn new(config: OpenAiCompatibleConfig) -> Self {
-        let http = Client::builder()
+        let http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(300))
             .build()
             .expect("failed to build reqwest client");
         Self { config, http }
     }
 
-    pub fn from_config(config: OpenAiCompatibleConfig, http: Client) -> Self {
+    pub fn from_config(config: OpenAiCompatibleConfig, http: reqwest::Client) -> Self {
         Self { config, http }
-    }
-
-    fn build_chat_request(&self, request: &ModelRequest) -> Result<serde_json::Value> {
-        let mut messages = Vec::new();
-
-        if let Some(ref system_prompt) = request.system_prompt {
-            messages.push(serde_json::json!({
-                "role": "system",
-                "content": system_prompt,
-            }));
-        }
-
-        for msg in &request.messages {
-            if msg.role == "assistant" && !msg.tool_calls.is_empty() {
-                // Assistant message with tool calls — include tool_calls array
-                // in OpenAI format so the API can match tool results to their calls.
-                let tool_calls_json: Vec<serde_json::Value> = msg
-                    .tool_calls
-                    .iter()
-                    .map(|tc| {
-                        serde_json::json!({
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.name,
-                                "arguments": tc.arguments.to_string(),
-                            }
-                        })
-                    })
-                    .collect();
-                let mut msg_json = serde_json::json!({
-                    "role": "assistant",
-                    "content": if msg.content.is_empty() { serde_json::Value::Null } else { serde_json::json!(msg.content) },
-                });
-                msg_json["tool_calls"] = serde_json::json!(tool_calls_json);
-                messages.push(msg_json);
-            } else if msg.role == "tool" {
-                // Tool result message — include tool_call_id for OpenAI format.
-                let tool_call_id = msg.tool_call_id.as_deref().unwrap_or("");
-                messages.push(serde_json::json!({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": msg.content,
-                }));
-            } else {
-                messages.push(serde_json::json!({
-                    "role": msg.role,
-                    "content": msg.content,
-                }));
-            }
-        }
-
-        let mut body = serde_json::json!({
-            "model": self.config.default_model,
-            "messages": messages,
-            "stream": true,
-        });
-
-        if !request.tools.is_empty() {
-            let tools: Vec<_> = request
-                .tools
-                .iter()
-                .map(|t| {
-                    serde_json::json!({
-                        "type": "function",
-                        "function": {
-                            "name": t.name,
-                            "description": t.description,
-                            "parameters": t.parameters,
-                        }
-                    })
-                })
-                .collect();
-            body["tools"] = serde_json::json!(tools);
-        }
-
-        if let Some(temperature) = self.config.temperature {
-            body["temperature"] = serde_json::json!(temperature);
-        }
-        if let Some(top_p) = self.config.top_p {
-            body["top_p"] = serde_json::json!(top_p);
-        }
-        if let Some(ref extra) = self.config.extra_params {
-            if let Some(obj) = extra.as_object() {
-                for (key, value) in obj {
-                    body[key] = value.clone();
-                }
-            }
-        }
-
-        Ok(body)
     }
 
     async fn send_streaming(
@@ -236,183 +115,6 @@ impl OpenAiCompatibleClient {
 
         Ok(stream)
     }
-}
-
-// ---------------------------------------------------------------------------
-// Streaming tool call accumulation
-// ---------------------------------------------------------------------------
-
-/// Internal events during OpenAI SSE stream processing.
-/// Tool call arguments arrive across multiple chunks and must be accumulated
-/// before emitting a `ModelEvent::ToolCallRequested`.
-enum OpenAiChunkEvent {
-    /// A regular model event (text delta, completion — no accumulation needed).
-    Event(ModelEvent),
-    /// A tool call start chunk (has non-empty id + name, may also have partial arguments).
-    ToolCallStarted {
-        index: usize,
-        id: String,
-        name: String,
-    },
-    /// A tool call argument delta chunk (continuation of arguments).
-    ToolCallArgumentDelta {
-        index: usize,
-        partial_arguments: String,
-    },
-}
-
-/// Accumulates streaming tool call arguments across SSE chunks.
-///
-/// OpenAI sends tool calls as:
-/// 1. First chunk: `delta.tool_calls[i] = { id: "call_xxx", function: { name: "fs.read", arguments: "{\"pa" } }`
-/// 2. Subsequent chunks: `delta.tool_calls[i] = { function: { arguments: "th\": \"R" } }`
-/// 3. ... more argument chunks ...
-/// 4. `finish_reason: "tool_calls"` signals completion
-///
-/// Only after all argument chunks have arrived do we have the complete JSON and
-/// can emit a `ModelEvent::ToolCallRequested`.
-struct OpenAiToolCallAccumulator {
-    /// Tool calls being accumulated, keyed by their index in the `tool_calls` array.
-    pending: HashMap<usize, PendingOpenAiToolCall>,
-}
-
-struct PendingOpenAiToolCall {
-    id: String,
-    name: String,
-    arguments_buffer: String,
-}
-
-impl OpenAiToolCallAccumulator {
-    fn new() -> Self {
-        Self {
-            pending: HashMap::new(),
-        }
-    }
-
-    /// Process a raw chunk event and return zero or more completed model events.
-    fn process(&mut self, raw: OpenAiChunkEvent) -> Vec<ModelEvent> {
-        match raw {
-            OpenAiChunkEvent::Event(e) => vec![e],
-            OpenAiChunkEvent::ToolCallStarted { index, id, name } => {
-                // If there was a previous tool call at this index (shouldn't happen
-                // in normal streaming, but be safe), emit it before starting a new one.
-                let mut events = Vec::new();
-                if let Some(prev) = self.pending.remove(&index) {
-                    events.push(self.finalize_pending(prev));
-                }
-                self.pending.insert(
-                    index,
-                    PendingOpenAiToolCall {
-                        id,
-                        name,
-                        arguments_buffer: String::new(),
-                    },
-                );
-                events
-            }
-            OpenAiChunkEvent::ToolCallArgumentDelta {
-                index,
-                partial_arguments,
-            } => {
-                if let Some(pending) = self.pending.get_mut(&index) {
-                    pending.arguments_buffer.push_str(&partial_arguments);
-                }
-                vec![]
-            }
-        }
-    }
-
-    /// Finalize a pending tool call into a ModelEvent::ToolCallRequested.
-    fn finalize_pending(&self, pending: PendingOpenAiToolCall) -> ModelEvent {
-        let arguments: serde_json::Value =
-            serde_json::from_str(&pending.arguments_buffer).unwrap_or(serde_json::json!({}));
-        ModelEvent::ToolCallRequested {
-            tool_call_id: pending.id,
-            tool_id: pending.name,
-            arguments,
-        }
-    }
-
-    /// Flush all remaining pending tool calls into model events.
-    /// Called when the stream ends (finish_reason = "tool_calls" or "stop").
-    fn flush(&mut self) -> Vec<ModelEvent> {
-        let pending = std::mem::take(&mut self.pending);
-        pending
-            .into_values()
-            .map(|p| self.finalize_pending(p))
-            .collect()
-    }
-}
-
-fn parse_openai_chunk(data: &str) -> Result<Vec<OpenAiChunkEvent>> {
-    let chunk: serde_json::Value =
-        serde_json::from_str(data).map_err(|e| ModelError::StreamParse(e.to_string()))?;
-
-    let mut events = Vec::new();
-
-    if let Some(choices) = chunk["choices"].as_array() {
-        for choice in choices {
-            let delta = &choice["delta"];
-
-            // Content token delta
-            if let Some(content) = delta["content"].as_str() {
-                if !content.is_empty() {
-                    events.push(OpenAiChunkEvent::Event(ModelEvent::TokenDelta(
-                        content.to_string(),
-                    )));
-                }
-            }
-
-            // Tool calls — split into start and argument-delta events
-            if let Some(tool_calls) = delta["tool_calls"].as_array() {
-                for tc in tool_calls {
-                    let index = tc["index"].as_u64().unwrap_or(0) as usize;
-                    let id = tc["id"].as_str().unwrap_or("").to_string();
-                    let name = tc["function"]["name"].as_str().unwrap_or("").to_string();
-                    let arguments_str = tc["function"]["arguments"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string();
-
-                    if !id.is_empty() && !name.is_empty() {
-                        // First chunk for this tool call — has id and name
-                        events.push(OpenAiChunkEvent::ToolCallStarted { index, id, name });
-                        // If arguments are also present in this chunk, emit a delta
-                        if !arguments_str.is_empty() {
-                            events.push(OpenAiChunkEvent::ToolCallArgumentDelta {
-                                index,
-                                partial_arguments: arguments_str,
-                            });
-                        }
-                    } else if !arguments_str.is_empty() {
-                        // Continuation chunk — only argument delta
-                        events.push(OpenAiChunkEvent::ToolCallArgumentDelta {
-                            index,
-                            partial_arguments: arguments_str,
-                        });
-                    }
-                }
-            }
-
-            // Finish reason
-            if let Some(finish) = choice["finish_reason"].as_str() {
-                if finish == "stop" || finish == "tool_calls" {
-                    let usage_value = &chunk["usage"];
-                    let usage = if usage_value.is_object() {
-                        Some(crate::ModelUsage {
-                            input_tokens: usage_value["prompt_tokens"].as_u64().unwrap_or(0),
-                            output_tokens: usage_value["completion_tokens"].as_u64().unwrap_or(0),
-                        })
-                    } else {
-                        None
-                    };
-                    events.push(OpenAiChunkEvent::Event(ModelEvent::Completed { usage }));
-                }
-            }
-        }
-    }
-
-    Ok(events)
 }
 
 #[async_trait]
