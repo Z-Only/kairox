@@ -2,6 +2,7 @@
 import type { ProfileSettingsView, EffectiveProfileView } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
+import ModelParameterControls from "@/components/ModelParameterControls.vue";
 
 const { t } = useI18n();
 const { notify } = useNotifications();
@@ -506,76 +507,23 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
           </label>
         </fieldset>
 
-        <fieldset class="model-form__section">
-          <legend>
-            <button type="button" class="model-form__toggle" @click="advancedOpen = !advancedOpen">
-              {{ advancedOpen ? "▾" : "▸" }} {{ t("models.advancedOptions") }}
-            </button>
-          </legend>
-          <div v-if="advancedOpen" class="model-form__grid model-form__grid--3col">
-            <label>
-              <span>{{ t("models.contextWindow") }}</span>
-              <input
-                id="model-add-ctx"
-                v-model="formContextWindow"
-                type="number"
-                data-test="model-form-ctx"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.outputLimit") }}</span>
-              <input
-                id="model-add-out"
-                v-model="formOutputLimit"
-                type="number"
-                data-test="model-form-out"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.temperature") }}</span>
-              <input
-                id="model-add-temp"
-                v-model="formTemperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                data-test="model-form-temp"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.topP") }}</span>
-              <input
-                id="model-add-top-p"
-                v-model="formTopP"
-                type="number"
-                step="0.1"
-                min="0"
-                max="1"
-                data-test="model-form-top-p"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.topK") }}</span>
-              <input
-                id="model-add-top-k"
-                v-model="formTopK"
-                type="number"
-                min="0"
-                data-test="model-form-top-k"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.maxTokens") }}</span>
-              <input
-                id="model-add-max-tokens"
-                v-model="formMaxTokens"
-                type="number"
-                data-test="model-form-max-tokens"
-              />
-            </label>
-          </div>
-        </fieldset>
+        <ModelParameterControls
+          id-prefix="model-add"
+          :open="advancedOpen"
+          :context-window="formContextWindow"
+          :output-limit="formOutputLimit"
+          :temperature="formTemperature"
+          :top-p="formTopP"
+          :top-k="formTopK"
+          :max-tokens="formMaxTokens"
+          @update:context-window="formContextWindow = $event"
+          @update:output-limit="formOutputLimit = $event"
+          @update:temperature="formTemperature = $event"
+          @update:top-p="formTopP = $event"
+          @update:top-k="formTopK = $event"
+          @update:max-tokens="formMaxTokens = $event"
+          @toggle="advancedOpen = !advancedOpen"
+        />
       </form>
 
       <template #footer>
@@ -661,80 +609,23 @@ async function moveProfile(alias: string, direction: number): Promise<void> {
           </label>
         </fieldset>
 
-        <fieldset class="model-form__section">
-          <legend>
-            <button
-              type="button"
-              class="model-form__toggle"
-              @click="editAdvancedOpen = !editAdvancedOpen"
-            >
-              {{ editAdvancedOpen ? "▾" : "▸" }} {{ t("models.advancedOptions") }}
-            </button>
-          </legend>
-          <div v-if="editAdvancedOpen" class="model-form__grid model-form__grid--3col">
-            <label>
-              <span>{{ t("models.contextWindow") }}</span>
-              <input
-                id="model-edit-ctx"
-                v-model="formContextWindow"
-                type="number"
-                data-test="model-edit-ctx"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.outputLimit") }}</span>
-              <input
-                id="model-edit-out"
-                v-model="formOutputLimit"
-                type="number"
-                data-test="model-edit-out"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.temperature") }}</span>
-              <input
-                id="model-edit-temp"
-                v-model="formTemperature"
-                type="number"
-                step="0.1"
-                min="0"
-                max="2"
-                data-test="model-edit-temp"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.topP") }}</span>
-              <input
-                id="model-edit-top-p"
-                v-model="formTopP"
-                type="number"
-                step="0.1"
-                min="0"
-                max="1"
-                data-test="model-edit-top-p"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.topK") }}</span>
-              <input
-                id="model-edit-top-k"
-                v-model="formTopK"
-                type="number"
-                min="0"
-                data-test="model-edit-top-k"
-              />
-            </label>
-            <label>
-              <span>{{ t("models.maxTokens") }}</span>
-              <input
-                id="model-edit-max-tokens"
-                v-model="formMaxTokens"
-                type="number"
-                data-test="model-edit-max-tokens"
-              />
-            </label>
-          </div>
-        </fieldset>
+        <ModelParameterControls
+          id-prefix="model-edit"
+          :open="editAdvancedOpen"
+          :context-window="formContextWindow"
+          :output-limit="formOutputLimit"
+          :temperature="formTemperature"
+          :top-p="formTopP"
+          :top-k="formTopK"
+          :max-tokens="formMaxTokens"
+          @update:context-window="formContextWindow = $event"
+          @update:output-limit="formOutputLimit = $event"
+          @update:temperature="formTemperature = $event"
+          @update:top-p="formTopP = $event"
+          @update:top-k="formTopK = $event"
+          @update:max-tokens="formMaxTokens = $event"
+          @toggle="editAdvancedOpen = !editAdvancedOpen"
+        />
       </form>
 
       <template #footer>
