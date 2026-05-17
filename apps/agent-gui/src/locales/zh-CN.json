@@ -116,6 +116,8 @@
     "archive": "归档",
     "confirmArchive": "确认归档？",
     "newSessionInProject": "在 {name} 中新建会话",
+    "newWorktreeSessionInProject": "在 {name} 中创建工作树会话",
+    "worktreeBranchPlaceholder": "分支名称...",
     "expandProject": "展开 {name}",
     "collapseProject": "折叠 {name}",
     "toggleProject": "切换 {name}",

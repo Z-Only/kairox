@@ -85,6 +85,34 @@ export function useSidebarActions() {
     }
   }
 
+  const worktreeBranchInput = ref("");
+  const worktreeBranchProjectId = ref<string | null>(null);
+
+  function startWorktreeSession(projectId: string) {
+    worktreeBranchProjectId.value = projectId;
+    worktreeBranchInput.value = "";
+  }
+
+  function cancelWorktreeSession() {
+    worktreeBranchProjectId.value = null;
+    worktreeBranchInput.value = "";
+  }
+
+  async function confirmWorktreeSession() {
+    const projectId = worktreeBranchProjectId.value;
+    const branchName = worktreeBranchInput.value.trim();
+    if (!projectId || !branchName) return;
+    try {
+      const projectSession = await projects.createProjectWorktreeSession(projectId, branchName);
+      await activateProjectSession(projectSession);
+    } catch (e) {
+      console.error("Failed to start worktree session:", e);
+    } finally {
+      worktreeBranchProjectId.value = null;
+      worktreeBranchInput.value = "";
+    }
+  }
+
   async function createBlankProject() {
     resetDeleteConfirmation();
     try {
@@ -174,6 +202,11 @@ export function useSidebarActions() {
     getProjectSessions,
     switchToProjectSession,
     createProjectSession,
+    worktreeBranchInput,
+    worktreeBranchProjectId,
+    startWorktreeSession,
+    cancelWorktreeSession,
+    confirmWorktreeSession,
     createBlankProject,
     importExistingProject,
     requestArchiveProjectSession,

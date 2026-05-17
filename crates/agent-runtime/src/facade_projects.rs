@@ -189,7 +189,10 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-        let branch = branch_name.clone();
+        let worktree_path = crate::project::worktree_dir(&project.root_path, &branch_name);
+        crate::project::create_git_worktree(&project.root_path, &branch_name, &worktree_path)
+            .map_err(agent_core::CoreError::InvalidState)?;
+        let worktree_path_string = worktree_path.display().to_string();
         let model_profile = self.config.default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
@@ -203,8 +206,8 @@ where
             .bind_session(
                 session_id.as_str(),
                 project_id.as_str(),
-                &project.root_path,
-                Some(&branch),
+                &worktree_path_string,
+                Some(&branch_name),
             )
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
