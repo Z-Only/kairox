@@ -50,6 +50,42 @@ test.describe("MCP Settings", () => {
   });
 });
 
+test.describe("MCP Resources and Prompts", () => {
+  test("expands resources accordion and shows resource rows", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+
+    await page.getByTestId("mcp-resources-toggle-github").click();
+    await expect(page.getByTestId("mcp-resource-github-App Log")).toBeVisible();
+    await expect(page.getByTestId("mcp-resource-github-Settings")).toBeVisible();
+  });
+
+  test("clicks resource to show inline content", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+
+    await page.getByTestId("mcp-resources-toggle-github").click();
+    await page.getByTestId("mcp-resource-github-App Log").click();
+
+    const content = page.getByTestId("mcp-resource-content-github-App Log");
+    await expect(content).toBeVisible();
+    await expect(content.locator(".content-block__text")).toContainText("Server started");
+  });
+
+  test("expands prompts accordion and shows prompt rows", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-tab-mcp").click();
+
+    await page.getByTestId("mcp-prompts-toggle-github").click();
+    await expect(page.getByTestId("mcp-prompt-github-analyze_code")).toBeVisible();
+    await expect(page.getByTestId("mcp-prompt-github-analyze_code")).toContainText("analyze_code");
+    await expect(page.getByTestId("mcp-prompt-github-analyze_code")).toContainText("2 args");
+  });
+});
+
 test.describe("MCP Permission Prompt", () => {
   test("MCP-specific permission dialog appears for MCP tools", async ({ page }) => {
     await page.goto("/");

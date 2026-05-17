@@ -272,7 +272,18 @@
     "toolDisabled": "Disabled",
     "toolEnabled": "Enabled",
     "disableTool": "Disable tool",
-    "enableTool": "Enable tool"
+    "enableTool": "Enable tool",
+    "resources": "Resources",
+    "prompts": "Prompts",
+    "resourceCount": "{count} resources",
+    "promptCount": "{count} prompts",
+    "noResources": "No resources found",
+    "noPrompts": "No prompts found",
+    "loadingResources": "Loading resources...",
+    "loadingPrompts": "Loading prompts...",
+    "resourceFetchError": "Failed to load resources",
+    "promptFetchError": "Failed to load prompts",
+    "argumentsCount": "{count} args"
   },
   "models": {
     "tabModels": "Models",

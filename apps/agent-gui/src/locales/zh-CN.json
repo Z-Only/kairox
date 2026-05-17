@@ -272,7 +272,18 @@
     "toolDisabled": "已禁用",
     "toolEnabled": "已启用",
     "disableTool": "禁用工具",
-    "enableTool": "启用工具"
+    "enableTool": "启用工具",
+    "resources": "资源",
+    "prompts": "提示",
+    "resourceCount": "{count} 个资源",
+    "promptCount": "{count} 个提示",
+    "noResources": "未找到资源",
+    "noPrompts": "未找到提示",
+    "loadingResources": "加载资源中...",
+    "loadingPrompts": "加载提示中...",
+    "resourceFetchError": "加载资源失败",
+    "promptFetchError": "加载提示失败",
+    "argumentsCount": "{count} 个参数"
   },
   "skills": {
     "title": "Skills 设置",
