@@ -78,6 +78,39 @@ describe("useChatComposer", () => {
     composer.inputText.value = "open @src/mai";
     composer.onSelectFile("src/main.rs");
     expect(composer.inputText.value).toBe("open@src/main.rs ");
+
+    // without workspacePath: no attachment added
+    expect(composer.attachments.value).toEqual([]);
+
+    // with workspacePath: adds resolved path as attachment
+    composer.inputText.value = "check @src/li";
+    composer.onSelectFile("src/lib.rs", "/repo");
+    expect(composer.inputText.value).toBe("check@src/lib.rs ");
+    expect(composer.attachments.value).toHaveLength(1);
+    expect(composer.attachments.value[0].path).toBe("/repo/src/lib.rs");
+    expect(composer.attachments.value[0].name).toBe("lib.rs");
+    expect(composer.attachments.value[0].mimeType).toBe("text/x-rust");
+
+    // workspacePath trailing slash is normalized
+    composer.attachments.value = [];
+    composer.inputText.value = "see @docs/READ";
+    composer.onSelectFile("docs/README.md", "/repo/");
+    expect(composer.attachments.value[0].path).toBe("/repo/docs/README.md");
+
+    // absolute paths pass through unchanged
+    composer.attachments.value = [];
+    composer.inputText.value = "show @";
+    composer.onSelectFile("/abs/path/file.txt", "/repo");
+    expect(composer.attachments.value[0].path).toBe("/abs/path/file.txt");
+
+    // dedup: same file mentioned twice only attaches once
+    composer.attachments.value = [];
+    composer.inputText.value = "look @src/li";
+    composer.onSelectFile("src/lib.rs", "/repo");
+    expect(composer.attachments.value).toHaveLength(1);
+    composer.inputText.value = "also @src/li";
+    composer.onSelectFile("src/lib.rs", "/repo");
+    expect(composer.attachments.value).toHaveLength(1);
   });
 
   it("sends trimmed content with attachments then clears composer state and draft", async () => {
