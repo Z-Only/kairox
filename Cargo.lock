@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "agent-config"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "agent-mcp",
@@ -47,7 +47,7 @@ dependencies = [
 
 [[package]]
 name = "agent-core"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -64,7 +64,7 @@ dependencies = [
 
 [[package]]
 name = "agent-gui-tauri"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-config",
  "agent-core",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "agent-mcp"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "async-trait",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "agent-memory"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "agent-models",
@@ -137,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "agent-models"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "async-stream",
@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "agent-runtime"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-config",
  "agent-core",
@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "agent-skills"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "async-trait",
  "serde",
@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "agent-store"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "async-trait",
@@ -223,7 +223,7 @@ dependencies = [
 
 [[package]]
 name = "agent-tools"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-core",
  "agent-mcp",
@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "agent-tui"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "agent-config",
  "agent-core",
@@ -6867,7 +6867,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

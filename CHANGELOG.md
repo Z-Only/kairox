@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-05-17
+
+### 🚀 Features
+
+- **gui**: add mentioned files as attachments so backend reads their content (#193)
+- **gui**: wire retry_task and cancel_task Tauri IPC commands (#194)
+- **gui**: make slash commands executable from palette (#198)
+- **runtime**: create isolated git worktree for project worktree sessions (#195)
+- **gui**: add MCP resource and prompt accordions to server rows (#200)
+
+### 🐛 Bug Fixes
+
+- **gui**: unwrap Specta typedError in InstructionsSettingsPane (#177)
+
+### 🧪 Testing
+
+- **runtime**: add skill package manager integration tests (#178)
+- **gui**: add permission mode selector test coverage (#179)
+- **models**: expand provider contract coverage with trait-level tests (#180)
+- **gui**: harden E2E coverage for instructions and permission mode (#192)
+
+### 🧹 Refactor
+
+- **tools**: split filesystem module into per-tool files (#176)
+- **models**: split anthropic and openai_compatible into submodules (#191)
+- **gui**: extract ModelParameterControls and McpServerCard from settings panes (#196)
+- **runtime**: split dag_executor into submodules (#199)
+- **runtime**: split skill_package.rs into submodules (#197)
+
+### 📦 Dependencies
+
+- **deps**: migrate tooling to bun (#181)
+- **deps-dev**: bump vite from 8.0.12 to 8.0.13 (#184)
+- **deps-dev**: bump stylelint from 17.11.0 to 17.11.1 (#185)
+- **deps-dev**: bump @vitejs/plugin-vue from 6.0.6 to 6.0.7 (#188)
+- **deps-dev**: bump oxfmt from 0.49.0 to 0.50.0 (#182)
+- **deps-dev**: bump lint-staged from 17.0.4 to 17.0.5 (#183)
+- **deps-dev**: bump @tauri-apps/cli from 2.11.1 to 2.11.2 (#189)
+- **deps-dev**: bump oxlint from 1.64.0 to 1.65.0 (#186)
+- **deps**: bump zip from 2.4.2 to 4.6.1 (#190)
+- **deps**: bump tauri-plugin-pilot from v0.5.1 to v0.5.2 (#187)
+
 ## [0.21.0] - 2026-05-17
 
 ### 🚀 Features
