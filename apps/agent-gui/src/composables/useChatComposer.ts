@@ -177,7 +177,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     closePalettes();
   }
 
-  function onSelectFile(path: string) {
+  function onSelectFile(path: string, workspacePath?: string) {
     const cursorPos = inputText.value.length;
     const textBeforeCursor = inputText.value.slice(0, cursorPos);
     const match = textBeforeCursor.match(/(?:^|\s)@[^\s]*$/);
@@ -185,6 +185,12 @@ export function useChatComposer(options: UseChatComposerOptions) {
       const before = inputText.value.slice(0, match.index !== undefined ? match.index : 0);
       const after = inputText.value.slice(cursorPos);
       inputText.value = before + `@${path} ` + after;
+    }
+    if (workspacePath) {
+      const resolved = path.startsWith("/") ? path : `${workspacePath.replace(/\/$/, "")}/${path}`;
+      if (!attachments.value.some((a) => a.path === resolved)) {
+        addFilePaths([resolved]);
+      }
     }
     closePalettes();
   }

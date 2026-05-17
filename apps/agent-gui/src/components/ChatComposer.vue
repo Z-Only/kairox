@@ -118,7 +118,7 @@ onMounted(() => {
         :visible="showMentionPalette"
         :filter-text="paletteFilter"
         :workspace-path="props.workspacePath"
-        @select-file="onSelectFile"
+        @select-file="(path: string) => onSelectFile(path, props.workspacePath)"
         @close="closePalettes"
       />
     </div>
