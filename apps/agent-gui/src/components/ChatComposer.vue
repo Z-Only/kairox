@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatProfileDisplay, useSessionStore } from "@/stores/session";
+import { useSkillsStore } from "@/stores/skills";
 import { useNotifications } from "@/composables/useNotifications";
 import { useChatComposer } from "@/composables/useChatComposer";
 import type { ProfileInfo } from "@/types";
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const session = useSessionStore();
+const skillsStore = useSkillsStore();
 const { notify } = useNotifications();
 const modelPopoverOpen = ref(false);
 const permissionPopoverOpen = ref(false);
@@ -32,7 +34,6 @@ const {
   sendDisabled,
   handleInput,
   closePalettes,
-  onSelectSkill,
   onSelectFile,
   pickFiles,
   removeAttachment,
@@ -54,6 +55,15 @@ function onSelectCommand(cmd: CommandDef) {
 
 async function selectModelProfile(alias: string) {
   await composer.selectModelProfile(alias, modelPopoverOpen);
+}
+
+function onSelectSkill(skillId: string) {
+  void skillsStore.activateSkill(skillId);
+  closePalettes();
+}
+
+function onSelectModelProfile(alias: string) {
+  void selectModelProfile(alias);
 }
 
 const permissionOptions = [
@@ -111,6 +121,7 @@ onMounted(() => {
         :filter-text="paletteFilter"
         @select-command="onSelectCommand"
         @select-skill="onSelectSkill"
+        @select-model-profile="onSelectModelProfile"
         @close="closePalettes"
       />
       <FileMentionPalette

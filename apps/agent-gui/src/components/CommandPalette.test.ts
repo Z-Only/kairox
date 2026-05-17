@@ -9,8 +9,10 @@ import CommandPalette from "./CommandPalette.vue";
 vi.mock("@/stores/session", () => ({
   useSessionStore: () => ({
     currentSessionId: "ses_1",
-    resetProjection: vi.fn()
-  })
+    resetProjection: vi.fn(),
+    profileInfos: []
+  }),
+  formatProfileDisplay: (p: { alias: string }) => p.alias
 }));
 
 // Skills store: empty so only built-in commands show in initial render
@@ -55,7 +57,7 @@ describe("CommandPalette", () => {
     });
     const header = wrapper.find(".command-palette__header");
     expect(header.exists()).toBe(true);
-    expect(header.text()).toBe("Commands & Skills");
+    expect(header.text()).toBe("Commands, Models & Skills");
   });
 
   it("renders builtin command items with BEM class", () => {
@@ -147,14 +149,14 @@ describe("CommandPalette", () => {
       mount: { props: { visible: true, filterText: "" } },
       reusePinia: true
     });
-    // "help" command has insertText (no handler), so clicking emits select-command
-    const item = wrapper.find('[data-test="palette-item-help"]');
+    // "/model" command has insertText (no handler), so clicking emits select-command
+    const item = wrapper.find('[data-test="palette-item-model"]');
     expect(item.exists()).toBe(true);
     await item.trigger("click");
     expect(wrapper.emitted("select-command")).toBeTruthy();
     // The emitted payload should be a command object
     const emitted = wrapper.emitted("select-command")!;
-    expect(emitted[0][0]).toHaveProperty("id", "help");
+    expect(emitted[0][0]).toHaveProperty("id", "model");
   });
 
   it("updates selection on mouseenter", async () => {

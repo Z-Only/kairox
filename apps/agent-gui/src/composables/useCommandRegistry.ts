@@ -1,6 +1,6 @@
 import { ref, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { useSessionStore } from "@/stores/session";
+import { useSessionStore, formatProfileDisplay } from "@/stores/session";
 import { useSkillsStore } from "@/stores/skills";
 
 export interface CommandDef {
@@ -43,15 +43,18 @@ export function useCommandRegistry() {
     {
       id: "model",
       label: "/model",
-      description: "Switch the active model",
+      description: "Switch the active model — pick a profile below",
       context: "session-active",
       insertText: "/model "
     },
     {
       id: "help",
       label: "/help",
-      description: "Show available commands",
-      insertText: "/help"
+      description: "Show available commands and skills",
+      context: "always",
+      handler: async () => {
+        // palette itself serves as the help display
+      }
     }
   ];
 
@@ -78,6 +81,19 @@ export function useCommandRegistry() {
     );
   });
 
+  const matchingProfiles = computed(() => {
+    const q = filterText.value.toLowerCase();
+    const profiles = session.profileInfos;
+    if (!q) return profiles;
+
+    return profiles.filter(
+      (p) =>
+        p.alias.toLowerCase().includes(q) ||
+        (p.provider_display ?? p.provider).toLowerCase().includes(q) ||
+        (p.model_display ?? p.model_id).toLowerCase().includes(q)
+    );
+  });
+
   function setFilter(text: string) {
     filterText.value = text;
   }
@@ -86,6 +102,7 @@ export function useCommandRegistry() {
     const items: Array<
       | { kind: "command"; command: CommandDef }
       | { kind: "skill"; skillId: string; displayName: string }
+      | { kind: "model-profile"; alias: string; displayName: string }
     > = [];
 
     for (const cmd of matchingCommands.value) {
@@ -101,6 +118,14 @@ export function useCommandRegistry() {
       });
     }
 
+    for (const profile of matchingProfiles.value) {
+      items.push({
+        kind: "model-profile",
+        alias: profile.alias,
+        displayName: formatProfileDisplay(profile)
+      });
+    }
+
     return items;
   }
 
@@ -108,6 +133,7 @@ export function useCommandRegistry() {
     filterText,
     matchingCommands,
     matchingSkills,
+    matchingProfiles,
     setFilter,
     allItems
   };
