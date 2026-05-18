@@ -49,6 +49,55 @@ action = "assert-visible"
 target = "[data-test='trace-timeline']"
 
 [[step]]
+name = "fill audit attachment prompt"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Pilot attachment coverage from audit-chat"
+
+[[step]]
+name = "send audit attachment over IPC"
+action = "eval"
+script = """
+(async () => {
+  await window.__TAURI_INTERNALS__.invoke("send_message", {
+    content: "Pilot attachment coverage from audit-chat",
+    attachments: [{
+      path: "apps/agent-gui/e2e-pilot/audit-chat.toml",
+      name: "audit-chat.toml",
+      mime_type: "application/toml",
+    }],
+  });
+  return "sent";
+})()
+"""
+
+[[step]]
+name = "wait for audit attachment user message"
+action = "wait"
+selector = ".message-user .message-content"
+timeout_ms = 15000
+
+[[step]]
+name = "assert audit attachment message includes file metadata"
+action = "eval"
+script = """
+(() => {
+  const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
+  const text = messages.at(-1)?.textContent ?? "";
+  if (!text.includes("Pilot attachment coverage from audit-chat")) {
+    throw new Error(`attachment message missing prompt text: ${text}`);
+  }
+  if (!text.includes("audit-chat.toml")) {
+    throw new Error(`attachment message missing filename: ${text}`);
+  }
+  if (!text.includes("send audit attachment over IPC")) {
+    throw new Error(`attachment message missing real file content: ${text}`);
+  }
+  return text;
+})()
+"""
+
+[[step]]
 name = "open task steps tab"
 action = "click"
 target = "[data-test='trace-tab-tasks']"

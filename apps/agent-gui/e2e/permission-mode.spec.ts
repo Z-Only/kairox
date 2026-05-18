@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import type { Page } from "@playwright/test";
 import { installTauriMock } from "./helpers/tauriMock";
 
 test.describe("Permission mode selector", () => {
