@@ -2,6 +2,8 @@
 import { useMcpStore } from "@/stores/mcp";
 import { useProjectStore } from "@/stores/project";
 import type { EffectiveMcpServerView } from "@/generated/commands";
+import McpResourceAccordion from "@/components/McpResourceAccordion.vue";
+import McpPromptAccordion from "@/components/McpPromptAccordion.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -234,6 +236,18 @@ function serverToolCount(): number {
           </button>
         </div>
       </div>
+
+      <!-- Collapsible resource list at card bottom (non-builtin servers only) -->
+      <McpResourceAccordion
+        v-if="server.value.transport !== 'builtin'"
+        :server-id="server.value.id"
+      />
+
+      <!-- Collapsible prompt list at card bottom (non-builtin servers only) -->
+      <McpPromptAccordion
+        v-if="server.value.transport !== 'builtin'"
+        :server-id="server.value.id"
+      />
     </div>
   </article>
 </template>
