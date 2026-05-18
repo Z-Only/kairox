@@ -33,7 +33,7 @@
 
 1. Read [AGENTS.md](./AGENTS.md) for architecture, conventions, and pitfalls.
 2. Run `bun install` (required after worktree creation for husky hooks).
-3. Run `bun run format:check && bun run lint && cargo test --workspace --all-targets` to confirm a clean baseline.
+3. Run `cargo check --workspace && bun run format:check && bun run lint` to confirm the worktree compiles and is clean. Skip `cargo test --workspace --all-targets` — `origin/main` already passed CI before merge; local platform differences are rare and focused checks during development will catch them.
 
 ## When adding features
 
