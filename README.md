@@ -54,8 +54,8 @@ graph TD
 
 - Local-first architecture with a shared Rust core
 - Two user surfaces: TUI and Tauri + Vue desktop GUI
-- Context-aware runtime with per-model token budgets, compaction, and mid-session model switching
-- Structured runtime, memory, tools, MCP, and persistence layers
+- Context-aware runtime with per-model token budgets, compaction, mid-session model switching, and reasoning effort selection
+- Structured runtime, memory, tools, MCP, skills, plugins, and persistence layers
 - Real desktop and browser E2E coverage with CI, release automation, and community docs
 
 ## Features
@@ -63,14 +63,14 @@ graph TD
 - **Shared Rust core** — domain types, event-sourced runtime, facade trait, typed IDs
 - **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol, keyword retrieval, and context assembly
 - **Context management** — per-model context windows, budget-driven prompt assembly, manual/automatic compaction, busy-state guards, and GUI context usage meter
-- **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing, with mid-session model switching when profiles change
+- **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing, with mid-session model switching and reasoning effort selection when profiles support it
 - **Tool system** — built-in tools (shell, search, patch, fs.read, fs.write, fs.list) with 5-level permission control and MCP (Model Context Protocol) integration
 - **MCP marketplace** — built-in catalog plus remote sources with multi-source aggregation, one-click install, and runtime-missing hints (Phase 1 + 2)
-- **Skills and instructions** — native skills for reusable prompt/tool/workflow capabilities plus user/project instruction settings with effective-preview support
+- **Skills, plugins, and instructions** — native skills for reusable prompt/tool/workflow capabilities, plugin-namespaced skill discovery, plugin settings, hook settings, and user/project instruction settings with effective-preview support
 - **Config discovery** — TOML config with profile management, env-variable API keys, and per-project `.kairox/` directory discovery
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
-- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, per-session permission mode selection, instructions/skills settings, and MCP marketplace UI
+- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, per-session permission mode selection, model/agent/plugin/hook/instructions/skills settings, resizable workbench sidebars, and MCP marketplace UI
 - **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI with aggregation `ci-success` job, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests
@@ -84,6 +84,7 @@ graph TD
 - `crates/agent-tools` — tool registry, permission engine, built-in tools (shell, fs.read/write/list, patch, search), MCP tool adapter
 - `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources)
 - `crates/agent-skills` — native skills system for reusable prompt, tool, and workflow capabilities with config-driven discovery
+- `crates/agent-plugins` — plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers
 - `crates/agent-memory` — memory store, marker protocol, context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store + metadata tables
 - `crates/agent-config` — TOML config loading, model profile discovery, MCP server config, skills config, API key resolution, `.kairox/` project config discovery

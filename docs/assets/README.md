@@ -5,7 +5,7 @@ This directory is intended for public-facing repository assets used in the READM
 ## Recommended files
 
 - `logo.svg` — project logo
-- `banner.png` — repository social/banner image
+- `banner.svg` — repository social/banner image
 - `gui-main.png` — main desktop GUI screenshot
 - `gui-trace.png` — trace / timeline screenshot
 - `gui-permissions.png` — permission center screenshot
