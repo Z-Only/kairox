@@ -47,6 +47,7 @@ test.describe("Hooks Settings", () => {
     await navigateToHooks(page);
 
     await page.getByTestId("source-btn-project").click();
+    await page.getByTestId("hook-add").click();
     await page.getByTestId("hook-id").fill("project-stop");
     await page.getByTestId("hook-event").selectOption("Stop");
     await page.getByTestId("hook-matcher").fill("*");
