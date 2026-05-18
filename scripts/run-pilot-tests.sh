@@ -38,7 +38,7 @@ fi
 
 if ! command -v tauri-pilot >/dev/null 2>&1; then
     echo "ERROR: tauri-pilot CLI not on PATH." >&2
-    echo "       Install it: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli" >&2
+    echo "       Install it: cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli" >&2
     exit 1
 fi
 
