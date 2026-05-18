@@ -4,6 +4,7 @@
 
 use crate::commands::*;
 use agent_core::facade::{
+    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
     HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
     InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
@@ -104,6 +105,11 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             test_url_connectivity,
             open_config_dir,
             open_profiles_config_file,
+            open_agents_dir,
+            list_agent_settings,
+            upsert_agent_settings,
+            delete_agent_settings,
+            copy_agent_settings,
             open_skills_dir,
             list_skill_settings,
             get_skill_settings_detail,
@@ -168,6 +174,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         // Effective config types
         .typ::<ConfigScope>()
         .typ::<EffectiveMcpServerView>()
+        .typ::<EffectiveAgentView>()
         .typ::<EffectiveSkillView>()
         .typ::<EffectiveProfileView>()
         // Settings request/response types
@@ -176,6 +183,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<McpServerSettingsTransport>()
         .typ::<ProfileSettingsView>()
         .typ::<ProfileSettingsInput>()
+        .typ::<AgentSettingsScope>()
+        .typ::<AgentSettingsView>()
+        .typ::<AgentSettingsInput>()
         .typ::<InstructionsView>()
         .typ::<InstructionsUpdateInput>()
         .typ::<HookSettingsInput>()

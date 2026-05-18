@@ -187,6 +187,17 @@ export const commands = {
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   openProfilesConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_profiles_config_file")),
+  openAgentsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_agents_dir")),
+  listAgentSettings: () =>
+    typedError<AgentSettingsView[], string>(__TAURI_INVOKE("list_agent_settings")),
+  upsertAgentSettings: (input: AgentSettingsInput) =>
+    typedError<AgentSettingsView, string>(__TAURI_INVOKE("upsert_agent_settings", { input })),
+  deleteAgentSettings: (agentId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_agent_settings", { agentId })),
+  copyAgentSettings: (agentId: string, scope: AgentSettingsScope) =>
+    typedError<AgentSettingsView, string>(
+      __TAURI_INVOKE("copy_agent_settings", { agentId, scope })
+    ),
   openSkillsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_skills_dir")),
   listSkillSettings: () =>
     typedError<SkillSettingsView[], string>(__TAURI_INVOKE("list_skill_settings")),
@@ -335,6 +346,42 @@ export type AddCatalogSourceRequestPayload = {
   cache_ttl_seconds: number;
 };
 
+export type AgentSettingsInput = {
+  scope: AgentSettingsScope;
+  name: string;
+  description: string;
+  tools: string[];
+  modelProfile: string | null;
+  permissionMode: string | null;
+  skills: string[];
+  nicknameCandidates: string[];
+  enabled: boolean;
+  instructions: string;
+};
+
+export type AgentSettingsScope = "Builtin" | "User" | "Project";
+
+export type AgentSettingsView = {
+  settingsId: string;
+  name: string;
+  description: string;
+  scope: AgentSettingsScope;
+  path: string;
+  tools: string[];
+  modelProfile: string | null;
+  permissionMode: string | null;
+  skills: string[];
+  nicknameCandidates: string[];
+  enabled: boolean;
+  instructions: string;
+  effective: boolean;
+  shadowedBy: string | null;
+  valid: boolean;
+  validationError: string | null;
+  editable: boolean;
+  deletable: boolean;
+};
+
 /**  Metadata for a file attached to a user message. */
 export type AttachmentInfo = {
   /**  Absolute filesystem path. */
@@ -399,6 +446,16 @@ export type ConnectivityResult =
 export type ConnectivityTestResult = {
   ok: boolean;
   error: string | null;
+};
+
+export type EffectiveAgentView = {
+  value: AgentSettingsView;
+  source: ConfigScope;
+  overrides: ConfigScope | null;
+  enabled: boolean;
+  disabledBy: ConfigScope | null;
+  writable: boolean;
+  deletable: boolean;
 };
 
 /**

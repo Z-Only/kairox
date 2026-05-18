@@ -43,6 +43,18 @@ where
         self.skill_settings_roots.clone()
     }
 
+    pub fn with_agent_settings_roots(
+        mut self,
+        roots: crate::agent_settings::AgentSettingsRoots,
+    ) -> Self {
+        self.agent_settings_roots = roots;
+        self
+    }
+
+    pub(crate) fn agent_settings_roots(&self) -> crate::agent_settings::AgentSettingsRoots {
+        self.agent_settings_roots.clone()
+    }
+
     /// Legacy builder kept for compatibility. The `max_tokens` argument is
     /// ignored — Task 8 will replace this with per-session `ContextBudget`
     /// configuration. Until then call sites can keep passing their old value.
@@ -108,6 +120,17 @@ where
                 .unwrap_or_else(|| PathBuf::from("."));
             self.skill_settings_roots =
                 crate::skills::build_default_skill_settings_roots(&home_dir, &workspace_root);
+        }
+        if self.agent_settings_roots.workspace_root.is_none()
+            && self.agent_settings_roots.user_root.is_none()
+        {
+            let home_dir = std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            self.agent_settings_roots = crate::agent_settings::build_default_agent_settings_roots(
+                &home_dir,
+                &workspace_root,
+            );
         }
         let provider = BuiltinProvider::with_defaults(workspace_root);
         self.tool_registry

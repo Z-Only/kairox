@@ -158,6 +158,84 @@ function findSkillSetting(skillId) {
   return null;
 }
 
+function findAgentSetting(agentId) {
+  var settingsIdMatches = state.agentSettings.filter(function (agent) {
+    return agent.settingsId === agentId;
+  });
+  if (settingsIdMatches.length === 1) {
+    return settingsIdMatches[0];
+  }
+  if (settingsIdMatches.length > 1) {
+    throw new Error("ambiguous agent settings id: " + agentId);
+  }
+
+  var nameMatches = state.agentSettings.filter(function (agent) {
+    return agent.name === agentId;
+  });
+  if (nameMatches.length === 1) {
+    return nameMatches[0];
+  }
+  if (nameMatches.length > 1) {
+    throw new Error("ambiguous agent name: " + agentId);
+  }
+
+  return null;
+}
+
+function agentSettingsPath(scope, name) {
+  if (scope === "Builtin") return "builtin://" + name;
+  if (scope === "Project") return "/mock/workspace/.kairox/agents/" + name + ".md";
+  return "/Users/mock/.config/kairox/agents/" + name + ".md";
+}
+
+function refreshAgentSettingsEffectiveness() {
+  var rank = { Builtin: 0, User: 1, Project: 2 };
+  var grouped = new Map();
+  state.agentSettings.forEach(function (agent) {
+    if (!grouped.has(agent.name)) grouped.set(agent.name, []);
+    grouped.get(agent.name).push(agent);
+  });
+
+  grouped.forEach(function (agents) {
+    var winner = agents
+      .filter(function (agent) {
+        return agent.valid;
+      })
+      .sort(function (a, b) {
+        return rank[b.scope] - rank[a.scope];
+      })[0];
+    agents.forEach(function (agent) {
+      agent.effective = winner ? agent.settingsId === winner.settingsId : false;
+      agent.shadowedBy = winner && !agent.effective ? winner.settingsId : null;
+    });
+  });
+}
+
+function createAgentSetting(input) {
+  var name = slugify(input.name || "agent");
+  var scope = input.scope || "User";
+  return {
+    settingsId: scope + ":" + name,
+    name: name,
+    description: input.description || "",
+    scope: scope,
+    path: agentSettingsPath(scope, name),
+    tools: input.tools || [],
+    modelProfile: input.modelProfile || null,
+    permissionMode: input.permissionMode || null,
+    skills: input.skills || [],
+    nicknameCandidates: input.nicknameCandidates || [],
+    enabled: input.enabled !== false,
+    instructions: input.instructions || "",
+    effective: true,
+    shadowedBy: null,
+    valid: true,
+    validationError: null,
+    editable: scope !== "Builtin",
+    deletable: scope !== "Builtin"
+  };
+}
+
 function createMcpSettingsServer(input) {
   var serverId = slugify(input.name || "mcp-server");
   var transport =

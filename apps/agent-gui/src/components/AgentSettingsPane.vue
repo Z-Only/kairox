@@ -1,0 +1,441 @@
+<script setup lang="ts">
+import { useAgentSettingsStore } from "@/stores/agentSettings";
+import type {
+  AgentSettingsInput,
+  AgentSettingsScope,
+  AgentSettingsView
+} from "@/generated/commands";
+
+const store = useAgentSettingsStore();
+const configSource = inject<Ref<"user" | "project">>("configSource");
+
+const selectedAgentId = ref<string | null>(null);
+const form = reactive<AgentSettingsInput>({
+  scope: "User",
+  name: "",
+  description: "",
+  tools: [],
+  modelProfile: null,
+  permissionMode: null,
+  skills: [],
+  nicknameCandidates: [],
+  enabled: true,
+  instructions: ""
+});
+const toolsText = ref("");
+const skillsText = ref("");
+const nicknamesText = ref("");
+
+const selectedScope = computed<AgentSettingsScope>(() =>
+  configSource?.value === "project" ? "Project" : "User"
+);
+
+const canSave = computed(() => form.name.trim().length > 0 && form.description.trim().length > 0);
+
+function splitCsv(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function startCreate(): void {
+  selectedAgentId.value = null;
+  Object.assign(form, {
+    scope: selectedScope.value,
+    name: "",
+    description: "",
+    tools: [],
+    modelProfile: null,
+    permissionMode: null,
+    skills: [],
+    nicknameCandidates: [],
+    enabled: true,
+    instructions: ""
+  });
+  toolsText.value = "";
+  skillsText.value = "";
+  nicknamesText.value = "";
+}
+
+function editAgent(agent: AgentSettingsView): void {
+  selectedAgentId.value = agent.settingsId;
+  Object.assign(form, {
+    scope: agent.scope === "Builtin" ? selectedScope.value : agent.scope,
+    name: agent.name,
+    description: agent.description,
+    tools: [...agent.tools],
+    modelProfile: agent.modelProfile,
+    permissionMode: agent.permissionMode,
+    skills: [...agent.skills],
+    nicknameCandidates: [...agent.nicknameCandidates],
+    enabled: agent.enabled,
+    instructions: agent.instructions
+  });
+  toolsText.value = agent.tools.join(", ");
+  skillsText.value = agent.skills.join(", ");
+  nicknamesText.value = agent.nicknameCandidates.join(", ");
+}
+
+async function saveAgent(): Promise<void> {
+  if (!canSave.value) return;
+  await store.saveAgent({
+    ...form,
+    name: form.name.trim(),
+    description: form.description.trim(),
+    tools: splitCsv(toolsText.value),
+    skills: splitCsv(skillsText.value),
+    nicknameCandidates: splitCsv(nicknamesText.value),
+    modelProfile: form.modelProfile?.trim() || null,
+    permissionMode: form.permissionMode?.trim() || null,
+    instructions: form.instructions.trimEnd()
+  });
+}
+
+async function copyToUser(agent: AgentSettingsView): Promise<void> {
+  await store.copyAgent(agent.settingsId, "User");
+}
+
+async function deleteAgent(agent: AgentSettingsView): Promise<void> {
+  await store.deleteAgent(agent.settingsId);
+}
+
+onMounted(() => {
+  void store.loadAgents();
+});
+
+watch(
+  () => selectedScope.value,
+  (scope) => {
+    if (!selectedAgentId.value) form.scope = scope;
+  }
+);
+</script>
+
+<template>
+  <section class="agent-settings" aria-label="Agents settings" data-test="agent-settings-pane">
+    <p v-if="store.error" class="alert alert-error" role="alert" data-test="agent-error">
+      {{ store.error }}
+    </p>
+
+    <div class="agent-settings__toolbar">
+      <button
+        class="btn btn-primary btn-sm"
+        type="button"
+        data-test="agent-new"
+        @click="startCreate"
+      >
+        New agent
+      </button>
+      <button
+        class="btn btn-sm"
+        type="button"
+        data-test="agent-open-dir"
+        @click="store.openAgentsDir()"
+      >
+        Open agents folder
+      </button>
+      <button
+        class="btn btn-sm"
+        type="button"
+        :disabled="store.loading"
+        data-test="agent-refresh"
+        @click="store.loadAgents()"
+      >
+        {{ store.loading ? "Refreshing" : "Refresh" }}
+      </button>
+    </div>
+
+    <div class="agent-settings__layout">
+      <div class="agent-settings__list" data-test="agent-list">
+        <p v-if="store.loading" class="alert alert-info" role="status">Loading agents...</p>
+        <p v-else-if="store.agents.length === 0" class="empty-state">No agents configured.</p>
+
+        <article
+          v-for="agent in store.agents"
+          v-else
+          :key="agent.settingsId"
+          class="agent-row"
+          :data-test="`agent-row-${slugify(agent.name)}`"
+        >
+          <div class="agent-row__main">
+            <div class="agent-row__title">
+              <h3>{{ agent.name }}</h3>
+              <span class="tag">{{ agent.scope }}</span>
+              <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
+                {{ agent.enabled ? "Enabled" : "Disabled" }}
+              </span>
+              <span :class="['tag', agent.effective ? 'tag-success' : 'tag-warning']">
+                {{ agent.effective ? "Effective" : `Shadowed by ${agent.shadowedBy}` }}
+              </span>
+              <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
+                {{ agent.valid ? "Valid" : "Invalid" }}
+              </span>
+            </div>
+            <p>{{ agent.description }}</p>
+            <dl class="agent-row__meta">
+              <div>
+                <dt>Model</dt>
+                <dd>{{ agent.modelProfile || "Default" }}</dd>
+              </div>
+              <div>
+                <dt>Permission</dt>
+                <dd>{{ agent.permissionMode || "Default" }}</dd>
+              </div>
+              <div>
+                <dt>Tools</dt>
+                <dd>{{ agent.tools.length ? agent.tools.join(", ") : "Default" }}</dd>
+              </div>
+              <div>
+                <dt>Path</dt>
+                <dd>{{ agent.path }}</dd>
+              </div>
+            </dl>
+            <p v-if="agent.validationError" class="alert alert-error" role="alert">
+              {{ agent.validationError }}
+            </p>
+          </div>
+          <div class="agent-row__actions">
+            <button
+              class="btn btn-sm"
+              type="button"
+              :data-test="`agent-edit-${slugify(agent.name)}`"
+              @click="editAgent(agent)"
+            >
+              {{ agent.editable ? "Edit" : "View" }}
+            </button>
+            <button
+              v-if="!agent.editable"
+              class="btn btn-sm"
+              type="button"
+              :data-test="`agent-copy-${slugify(agent.name)}`"
+              @click="copyToUser(agent)"
+            >
+              Copy to user
+            </button>
+            <button
+              v-if="agent.deletable"
+              class="btn btn-danger btn-sm"
+              type="button"
+              :data-test="`agent-delete-${slugify(agent.name)}`"
+              @click="deleteAgent(agent)"
+            >
+              Delete
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
+        <header class="agent-editor__header">
+          <h3>{{ selectedAgentId ? "Edit agent" : "New agent" }}</h3>
+          <span class="tag">{{ form.scope }}</span>
+        </header>
+
+        <label>
+          Name
+          <input v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
+        </label>
+        <label>
+          Description
+          <input v-model="form.description" data-test="agent-form-description" />
+        </label>
+        <label>
+          Model profile
+          <input v-model="form.modelProfile" data-test="agent-form-model" placeholder="Default" />
+        </label>
+        <label>
+          Permission mode
+          <input
+            v-model="form.permissionMode"
+            data-test="agent-form-permission"
+            placeholder="Default"
+          />
+        </label>
+        <label>
+          Tools
+          <input
+            v-model="toolsText"
+            data-test="agent-form-tools"
+            placeholder="fs.read, search, shell"
+          />
+        </label>
+        <label>
+          Skills
+          <input
+            v-model="skillsText"
+            data-test="agent-form-skills"
+            placeholder="kairox-dev-workflow"
+          />
+        </label>
+        <label>
+          Nicknames
+          <input
+            v-model="nicknamesText"
+            data-test="agent-form-nicknames"
+            placeholder="Reviewer, Audit"
+          />
+        </label>
+        <label class="agent-editor__checkbox">
+          <input v-model="form.enabled" type="checkbox" data-test="agent-form-enabled" />
+          Enabled
+        </label>
+        <label>
+          Instructions
+          <textarea v-model="form.instructions" data-test="agent-form-instructions" rows="8" />
+        </label>
+        <button
+          class="btn btn-primary"
+          type="button"
+          :disabled="!canSave || store.saving"
+          data-test="agent-save"
+          @click="saveAgent"
+        >
+          {{ store.saving ? "Saving" : "Save agent" }}
+        </button>
+      </form>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.agent-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.agent-settings__toolbar,
+.agent-row__title,
+.agent-row__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.agent-settings__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agent-settings__list {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.agent-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.agent-row h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.agent-row p {
+  margin: 6px 0 0;
+  color: var(--app-text-color-2);
+}
+
+.agent-row__main {
+  min-width: 0;
+}
+
+.agent-row__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.agent-row__meta dt {
+  color: var(--app-text-color-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agent-row__meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-editor {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.agent-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-editor__header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.agent-editor label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.agent-editor input,
+.agent-editor textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font: inherit;
+}
+
+.agent-editor textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.agent-editor__checkbox {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+}
+
+.agent-editor__checkbox input {
+  width: auto;
+}
+
+@media (max-width: 860px) {
+  .agent-settings__layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+</style>

@@ -5,6 +5,76 @@ use std::collections::BTreeMap;
 
 use crate::EffectiveItem;
 
+// -- agent settings DTOs --
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub enum AgentSettingsScope {
+    Builtin,
+    User,
+    Project,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct AgentSettingsInput {
+    pub scope: AgentSettingsScope,
+    pub name: String,
+    pub description: String,
+    pub tools: Vec<String>,
+    #[serde(rename = "modelProfile")]
+    pub model_profile: Option<String>,
+    #[serde(rename = "permissionMode")]
+    pub permission_mode: Option<String>,
+    pub skills: Vec<String>,
+    #[serde(rename = "nicknameCandidates")]
+    pub nickname_candidates: Vec<String>,
+    pub enabled: bool,
+    pub instructions: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct AgentSettingsView {
+    #[serde(rename = "settingsId")]
+    pub settings_id: String,
+    pub name: String,
+    pub description: String,
+    pub scope: AgentSettingsScope,
+    pub path: String,
+    pub tools: Vec<String>,
+    #[serde(rename = "modelProfile")]
+    pub model_profile: Option<String>,
+    #[serde(rename = "permissionMode")]
+    pub permission_mode: Option<String>,
+    pub skills: Vec<String>,
+    #[serde(rename = "nicknameCandidates")]
+    pub nickname_candidates: Vec<String>,
+    pub enabled: bool,
+    pub instructions: String,
+    pub effective: bool,
+    #[serde(rename = "shadowedBy")]
+    pub shadowed_by: Option<String>,
+    pub valid: bool,
+    #[serde(rename = "validationError")]
+    pub validation_error: Option<String>,
+    pub editable: bool,
+    pub deletable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct EffectiveAgentView {
+    pub value: AgentSettingsView,
+    pub source: crate::config_scope::ConfigScope,
+    pub overrides: Option<crate::config_scope::ConfigScope>,
+    pub enabled: bool,
+    #[serde(rename = "disabledBy")]
+    pub disabled_by: Option<crate::config_scope::ConfigScope>,
+    pub writable: bool,
+    pub deletable: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "transport", rename_all = "snake_case")]

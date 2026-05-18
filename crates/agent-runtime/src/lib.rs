@@ -1,10 +1,12 @@
 pub mod agent_loop;
+pub mod agent_settings;
 pub mod agents;
 pub(crate) mod catalog_sink;
 pub mod compaction;
 pub mod context_budget;
 pub mod dag_executor;
 pub mod event_emitter;
+pub(crate) mod facade_agents;
 pub(crate) mod facade_bootstrap;
 pub(crate) mod facade_marketplace;
 pub(crate) mod facade_mcp;
