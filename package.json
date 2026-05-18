@@ -18,7 +18,7 @@
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "lint:web": "oxlint && stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
-    "prepare": "node scripts/prepare.cjs"
+    "prepare": "bun scripts/prepare.cjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
