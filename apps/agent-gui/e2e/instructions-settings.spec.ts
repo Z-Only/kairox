@@ -54,15 +54,16 @@ test.describe("Instructions Settings", () => {
     await page.getByTestId("source-btn-project").click();
     await page.waitForTimeout(500);
 
-    // Project textarea is available and editable in project scope
-    await expect(projectTextarea).not.toBeDisabled();
+    // System and user levels are hidden in project scope
+    await expect(page.getByTestId("instructions-level-system")).toHaveCount(0);
+    await expect(page.getByTestId("instructions-level-user")).toHaveCount(0);
 
-    // User textarea now readonly in project scope
-    await expect(userTextarea).toHaveAttribute("readonly");
+    // Project textarea is visible and editable in project scope
+    await expect(projectTextarea).toBeVisible();
+    await expect(projectTextarea).not.toBeDisabled();
 
     // Badge states in project scope
     await expect(page.getByTestId("badge-project-editable")).toContainText("Editable");
-    await expect(page.getByTestId("badge-user-readonly")).toContainText("Read-only");
   });
 
   test("edits user instructions and persists after save", async ({ page }) => {

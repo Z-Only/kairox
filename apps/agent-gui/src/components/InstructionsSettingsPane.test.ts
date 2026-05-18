@@ -71,6 +71,17 @@ describe("InstructionsSettingsPane", () => {
       expect(systemTextarea.element.readOnly).toBe(true);
       expect(wrapper.find('[data-test="badge-system"]').text()).toContain("Read-only");
     });
+
+    it("is hidden under Project scope", async () => {
+      mockGetInstructions();
+
+      const wrapper = mountPane("project");
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.find('[data-test="instructions-level-system"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="system-instructions"]').exists()).toBe(false);
+    });
   });
 
   describe("user level", () => {
@@ -88,17 +99,15 @@ describe("InstructionsSettingsPane", () => {
       expect(wrapper.find('[data-test="badge-user-readonly"]').exists()).toBe(false);
     });
 
-    it("is read-only under Project scope and shows read-only badge", async () => {
+    it("is hidden under Project scope", async () => {
       mockGetInstructions();
 
       const wrapper = mountPane("project");
       await nextTick();
       await nextTick();
 
-      const userTextarea = wrapper.find<HTMLTextAreaElement>('[data-test="user-instructions"]');
-      expect(userTextarea.element.readOnly).toBe(true);
-      expect(wrapper.find('[data-test="badge-user-readonly"]').exists()).toBe(true);
-      expect(wrapper.find('[data-test="badge-user-editable"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="user-instructions"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="instructions-level-user"]').exists()).toBe(false);
     });
 
     it("updates userText on input", async () => {
