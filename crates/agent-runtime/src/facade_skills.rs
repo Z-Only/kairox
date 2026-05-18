@@ -141,18 +141,27 @@ where
         let Some(registry) = &self.skill_registry else {
             return Ok(Vec::new());
         };
-        let skill_ids = {
-            let active_skills = self.active_skills.lock().await;
-            active_skills
-                .get(&session_id.to_string())
-                .cloned()
-                .unwrap_or_default()
+        let session_key = session_id.to_string();
+        let mut active_views = Vec::new();
+        let mut active_skills = self.active_skills.lock().await;
+        let Some(session_skills) = active_skills.get_mut(&session_key) else {
+            return Ok(active_views);
         };
-        Ok(skill_ids
-            .into_iter()
-            .filter_map(|skill_id| registry.get(&agent_skills::SkillId::new(skill_id)))
-            .map(|metadata| skill_metadata_to_active_view(&metadata))
-            .collect())
+
+        session_skills.retain(|skill_id| {
+            let skill_id_value = agent_skills::SkillId::new(skill_id.clone());
+            if let Some(metadata) = registry.get(&skill_id_value) {
+                active_views.push(skill_metadata_to_active_view(&metadata));
+                true
+            } else {
+                false
+            }
+        });
+        if session_skills.is_empty() {
+            active_skills.remove(&session_key);
+        }
+
+        Ok(active_views)
     }
 
     pub(crate) async fn list_skill_settings(&self) -> agent_core::Result<Vec<SkillSettingsView>> {

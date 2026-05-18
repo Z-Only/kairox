@@ -219,6 +219,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn build_plugin_skill_roots_keeps_valid_plugins_when_sibling_manifest_is_invalid() {
+        let root = tempfile::tempdir().expect("root");
+        let valid_plugin_dir = root.path().join("good-plugin");
+        std::fs::create_dir_all(&valid_plugin_dir).expect("valid plugin dir");
+        write_plugin_manifest(&valid_plugin_dir, "good-plugin");
+        write_plugin_skill(&valid_plugin_dir, "review");
+
+        let invalid_plugin_dir = root.path().join("bad-plugin");
+        std::fs::create_dir_all(&invalid_plugin_dir).expect("invalid plugin dir");
+        let manifest_dir = invalid_plugin_dir.join(".kairox-plugin");
+        std::fs::create_dir_all(&manifest_dir).expect("manifest dir");
+        std::fs::write(
+            manifest_dir.join("plugin.json"),
+            r#"{"description":"missing name field"}"#,
+        )
+        .expect("manifest");
+        write_plugin_skill(&invalid_plugin_dir, "review");
+
+        let plugin_roots = build_plugin_skill_roots(&PluginSettingsRoots {
+            user_root: Some(root.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await;
+
+        assert_eq!(plugin_roots.len(), 1);
+        assert_eq!(plugin_roots[0].namespace.as_deref(), Some("good-plugin"));
+        assert_eq!(plugin_roots[0].path, valid_plugin_dir.join("skills"));
+    }
+
+    #[tokio::test]
     async fn build_plugin_skill_roots_excludes_plugin_without_skills() {
         let root = tempfile::tempdir().expect("root");
         let plugin_dir = root.path().join("no-skill-plugin");
