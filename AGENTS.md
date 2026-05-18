@@ -433,7 +433,7 @@ The recipe invokes `bun --filter agent-gui tauri build --debug --no-bundle --fea
 **Prerequisite**: `tauri-pilot-cli` must be on `PATH`. Install with:
 
 ```bash
-cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli
+cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
 ```
 
 **CI** runs the matching `tauri-pilot-e2e` job in `.github/workflows/ci.yml` against the `ubuntu-latest` (with `xvfb-run`) and `macos-latest` runners; per-scenario JUnit XML is uploaded as a `pilot-results-${{ matrix.os }}` artifact, and on failure the `tauri-pilot-failures-${{ matrix.os }}` artifact preserves screenshots from the local `tauri-pilot-failures/` directory.

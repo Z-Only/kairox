@@ -171,7 +171,7 @@ test-live:
 # Build the Tauri debug binary with the pilot plugin enabled and run the
 # tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/. Requires the
 # tauri-pilot CLI on PATH; install via:
-#     cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli
+#     cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli
 # On Linux you typically need to wrap this recipe in `xvfb-run -a just
 # test-pilot`; on macOS the Tauri window will appear briefly during the run.
 test-pilot:
