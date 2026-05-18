@@ -34,6 +34,7 @@ function makeI18n() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 describe("WorkbenchView (Pre-work A regression)", () => {
@@ -135,5 +136,108 @@ describe("WorkbenchView (Pre-work A regression)", () => {
     const heading = wrapper.find('h1[data-test="workbench-heading"]');
     expect(heading.exists()).toBe(true);
     expect(heading.text()).toBe("Workbench");
+  });
+
+  it("toggles the left and right sidebar collapse state", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          PermissionCenter: true
+        }
+      }
+    });
+
+    const ui = useUiStore(pinia);
+    await wrapper.get('[data-test="left-sidebar-toggle"]').trigger("click");
+    await wrapper.get('[data-test="right-sidebar-toggle"]').trigger("click");
+
+    expect(ui.leftSidebarCollapsed).toBe(true);
+    expect(ui.rightSidebarCollapsed).toBe(true);
+    expect(wrapper.get('[data-test="view-workbench"]').classes()).toContain(
+      "workbench--left-collapsed"
+    );
+    expect(wrapper.get('[data-test="view-workbench"]').classes()).toContain(
+      "workbench--right-collapsed"
+    );
+  });
+
+  it("resizes the left sidebar and persists the new width", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      attachTo: document.body,
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          PermissionCenter: true
+        }
+      }
+    });
+
+    const ui = useUiStore(pinia);
+
+    wrapper
+      .get('[data-test="left-sidebar-resizer"]')
+      .element.dispatchEvent(new PointerEvent("pointerdown", { clientX: 220, bubbles: true }));
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 260 }));
+    window.dispatchEvent(new PointerEvent("pointerup"));
+    await nextTick();
+
+    expect(ui.leftSidebarWidth).toBe(260);
+    expect(window.localStorage.getItem("kairox.left-sidebar-width")).toBe("260");
+
+    wrapper.unmount();
+  });
+
+  it("resizes the right sidebar using inverse drag direction", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      attachTo: document.body,
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          PermissionCenter: true
+        }
+      }
+    });
+
+    const ui = useUiStore(pinia);
+
+    wrapper
+      .get('[data-test="right-sidebar-resizer"]')
+      .element.dispatchEvent(new PointerEvent("pointerdown", { clientX: 900, bubbles: true }));
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 850 }));
+    window.dispatchEvent(new PointerEvent("pointerup"));
+    await nextTick();
+
+    expect(ui.rightSidebarWidth).toBe(330);
+    expect(window.localStorage.getItem("kairox.right-sidebar-width")).toBe("330");
+
+    wrapper.unmount();
   });
 });

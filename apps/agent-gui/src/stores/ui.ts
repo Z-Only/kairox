@@ -17,6 +17,7 @@ export interface NotificationItem {
 }
 export type ThemeMode = "auto" | "light" | "dark";
 export type SupportedLocale = "system" | "en" | "zh-CN";
+export type WorkbenchSidebarSide = "left" | "right";
 
 export interface ToastItem {
   id: string;
@@ -26,6 +27,14 @@ export interface ToastItem {
 }
 
 export const useUiStore = defineStore("ui", () => {
+  const SIDEBAR_MIN_WIDTH = 180;
+  const SIDEBAR_MAX_WIDTH = 420;
+
+  function clampSidebarWidth(value: number): number {
+    if (!Number.isFinite(value)) return SIDEBAR_MIN_WIDTH;
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)));
+  }
+
   // ── Theme ───────────────────────────────────────────────
   // `colorMode` exposes the user's raw preference ("auto" | "light" | "dark"),
   // not the resolved system value. We avoid `useColorMode`/`useDark` directly
@@ -68,6 +77,51 @@ export const useUiStore = defineStore("ui", () => {
   const sidebarCollapsed = useStorage("kairox.sidebar-collapsed", false, undefined, {
     flush: "sync"
   });
+  const leftSidebarCollapsed = useStorage("kairox.left-sidebar-collapsed", false, undefined, {
+    flush: "sync"
+  });
+  const rightSidebarCollapsed = useStorage("kairox.right-sidebar-collapsed", false, undefined, {
+    flush: "sync"
+  });
+  const leftSidebarWidth = useStorage("kairox.left-sidebar-width", 220, undefined, {
+    flush: "sync",
+    serializer: {
+      read: (v) => clampSidebarWidth(Number(v ?? 220)),
+      write: (v) => String(clampSidebarWidth(v))
+    }
+  });
+  const rightSidebarWidth = useStorage("kairox.right-sidebar-width", 280, undefined, {
+    flush: "sync",
+    serializer: {
+      read: (v) => clampSidebarWidth(Number(v ?? 280)),
+      write: (v) => String(clampSidebarWidth(v))
+    }
+  });
+
+  function setSidebarCollapsed(side: WorkbenchSidebarSide, collapsed: boolean) {
+    if (side === "left") {
+      leftSidebarCollapsed.value = collapsed;
+      sidebarCollapsed.value = collapsed;
+      return;
+    }
+    rightSidebarCollapsed.value = collapsed;
+  }
+
+  function toggleSidebar(side: WorkbenchSidebarSide) {
+    if (side === "left") {
+      setSidebarCollapsed("left", !leftSidebarCollapsed.value);
+      return;
+    }
+    setSidebarCollapsed("right", !rightSidebarCollapsed.value);
+  }
+
+  function setSidebarWidth(side: WorkbenchSidebarSide, width: number) {
+    if (side === "left") {
+      leftSidebarWidth.value = clampSidebarWidth(width);
+      return;
+    }
+    rightSidebarWidth.value = clampSidebarWidth(width);
+  }
 
   // ── Notifications ───────────────────────────────────────
   const notifications = ref<NotificationItem[]>([]);
@@ -108,6 +162,13 @@ export const useUiStore = defineStore("ui", () => {
     locale,
     setLocale,
     sidebarCollapsed,
+    leftSidebarCollapsed,
+    rightSidebarCollapsed,
+    leftSidebarWidth,
+    rightSidebarWidth,
+    setSidebarCollapsed,
+    toggleSidebar,
+    setSidebarWidth,
     notifications,
     pushNotification,
     dismissNotification,
