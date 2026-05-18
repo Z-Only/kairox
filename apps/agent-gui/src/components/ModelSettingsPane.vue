@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
-import ModelParameterControls from "@/components/ModelParameterControls.vue";
+import ModelProfileCard from "@/components/ModelProfileCard.vue";
+import ModelProfileFormDialog from "@/components/ModelProfileFormDialog.vue";
 import { storeToRefs } from "pinia";
 import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
 
@@ -166,33 +167,8 @@ async function testFormConnectivity(): Promise<void> {
   }
 }
 
-function sourceClass(source: string): string {
-  switch (source) {
-    case "defaults":
-      return "builtin";
-    case "profiles_toml":
-    case "user_config":
-      return "user";
-    case "project_config":
-      return "project";
-    default:
-      return source.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-  }
-}
-
-function sourceLabel(source: string): string {
-  switch (source) {
-    case "defaults":
-      return t("models.sourceDefaults");
-    case "profiles_toml":
-      return t("models.sourceProfilesToml");
-    case "user_config":
-      return t("models.sourceUserConfig");
-    case "project_config":
-      return t("models.sourceProjectConfig");
-    default:
-      return source;
-  }
+function toggleProfile(profile: ProfileSettingsView): void {
+  void store.setProfileEnabled(profile.alias, !profile.enabled);
 }
 </script>
 
@@ -241,305 +217,63 @@ function sourceLabel(source: string): string {
     </p>
 
     <div v-else class="model-settings__list" role="list" aria-label="Configured model profiles">
-      <article
+      <ModelProfileCard
         v-for="(profile, index) in profiles"
         :key="profile.alias"
-        class="card model-settings__profile"
-        role="listitem"
-        :data-test="`model-row-${profile.alias}`"
-      >
-        <div class="card-body model-settings__profile-body">
-          <div class="model-settings__profile-main">
-            <h3>{{ profile.alias }}</h3>
-            <p>{{ profile.provider }} / {{ profile.model_id }}</p>
-            <div class="server__tags" aria-label="Profile metadata">
-              <span class="tag tag--source" :class="`tag--source-${sourceClass(profile.source)}`">
-                {{ sourceLabel(profile.source) }}
-              </span>
-              <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
-                {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
-              </span>
-              <span v-if="profile.context_window" class="tag">
-                {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
-              </span>
-              <span v-if="profile.output_limit" class="tag">
-                {{ t("models.outputLimit") }}: {{ profile.output_limit.toLocaleString() }}
-              </span>
-              <span v-if="profile.temperature != null" class="tag">
-                {{ t("models.temperature") }}: {{ profile.temperature }}
-              </span>
-            </div>
-          </div>
-
-          <div class="model-settings__actions" aria-label="Profile actions">
-            <div class="model-settings__reorder">
-              <button
-                class="btn btn-sm btn-icon"
-                type="button"
-                :disabled="busyAlias === profile.alias || index === 0"
-                :data-test="`model-move-up-${profile.alias}`"
-                :title="t('models.moveUp')"
-                @click="store.moveProfile(profile.alias, -1)"
-              >
-                ▲
-              </button>
-              <button
-                class="btn btn-sm btn-icon"
-                type="button"
-                :disabled="busyAlias === profile.alias || index === profiles.length - 1"
-                :data-test="`model-move-down-${profile.alias}`"
-                :title="t('models.moveDown')"
-                @click="store.moveProfile(profile.alias, 1)"
-              >
-                ▼
-              </button>
-            </div>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-edit-${profile.alias}`"
-              @click="openEditDialog(profile)"
-            >
-              {{ t("common.edit") }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-enable-${profile.alias}`"
-              @click="store.setProfileEnabled(profile.alias, !profile.enabled)"
-            >
-              {{ profile.enabled ? t("models.disable") : t("models.enable") }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-test-${profile.alias}`"
-              :title="t('models.testConnectivity')"
-              @click="testProfileConnectivity(profile)"
-            >
-              {{ t("models.testConnectivity") }}
-            </button>
-            <button
-              v-if="profile.writable"
-              class="btn btn-danger btn-sm"
-              type="button"
-              :disabled="busyAlias === profile.alias"
-              :data-test="`model-delete-${profile.alias}`"
-              @click="store.removeProfile(profile.alias)"
-            >
-              {{ t("common.delete") }}
-            </button>
-          </div>
-        </div>
-      </article>
+        :profile="profile"
+        :index="index"
+        :total="profiles.length"
+        :busy-alias="busyAlias"
+        @move="store.moveProfile"
+        @edit="openEditDialog"
+        @toggle="toggleProfile"
+        @test="testProfileConnectivity"
+        @remove="store.removeProfile"
+      />
     </div>
 
-    <!-- Add Profile Dialog -->
-    <ModalDialog
+    <ModelProfileFormDialog
       :open="addDialogOpen"
-      :title="t('models.addProfile')"
-      :description="t('models.addProfileDesc')"
-      data-test="model-add-dialog"
+      mode="add"
+      :loading="loading"
+      v-model:alias="formAlias"
+      v-model:provider="formProvider"
+      v-model:model-id="formModelId"
+      v-model:context-window="formContextWindow"
+      v-model:output-limit="formOutputLimit"
+      v-model:temperature="formTemperature"
+      v-model:top-p="formTopP"
+      v-model:top-k="formTopK"
+      v-model:max-tokens="formMaxTokens"
+      v-model:base-url="formBaseUrl"
+      v-model:api-key-env="formApiKeyEnv"
+      v-model:advanced-open="advancedOpen"
       @close="closeAddDialog"
-    >
-      <form class="model-form" data-test="model-add-form" @submit.prevent="saveNewProfile">
-        <fieldset class="model-form__section">
-          <legend>{{ t("models.basicOptions") }}</legend>
-          <div class="model-form__grid model-form__grid--2col">
-            <label>
-              <span>{{ t("models.alias") }} *</span>
-              <input
-                id="model-add-alias"
-                v-model="formAlias"
-                data-test="model-form-alias"
-                required
-              />
-            </label>
-            <label>
-              <span>{{ t("models.provider") }} *</span>
-              <input
-                id="model-add-provider"
-                v-model="formProvider"
-                data-test="model-form-provider"
-                required
-              />
-            </label>
-          </div>
-          <label>
-            <span>{{ t("models.modelId") }} *</span>
-            <input
-              id="model-add-model-id"
-              v-model="formModelId"
-              data-test="model-form-model-id"
-              required
-            />
-          </label>
-        </fieldset>
+      @save="saveNewProfile"
+      @test="testFormConnectivity"
+    />
 
-        <fieldset class="model-form__section">
-          <legend>{{ t("models.connectionOptions") }}</legend>
-          <label>
-            <span>{{ t("models.baseUrl") }}</span>
-            <input id="model-add-base-url" v-model="formBaseUrl" data-test="model-form-base-url" />
-          </label>
-          <label>
-            <span>{{ t("models.apiKeyEnv") }}</span>
-            <input
-              id="model-add-api-key-env"
-              v-model="formApiKeyEnv"
-              data-test="model-form-api-key-env"
-            />
-          </label>
-        </fieldset>
-
-        <ModelParameterControls
-          id-prefix="model-add"
-          :open="advancedOpen"
-          :context-window="formContextWindow"
-          :output-limit="formOutputLimit"
-          :temperature="formTemperature"
-          :top-p="formTopP"
-          :top-k="formTopK"
-          :max-tokens="formMaxTokens"
-          @update:context-window="formContextWindow = $event"
-          @update:output-limit="formOutputLimit = $event"
-          @update:temperature="formTemperature = $event"
-          @update:top-p="formTopP = $event"
-          @update:top-k="formTopK = $event"
-          @update:max-tokens="formMaxTokens = $event"
-          @toggle="advancedOpen = !advancedOpen"
-        />
-      </form>
-
-      <template #footer>
-        <button class="btn" type="button" @click="closeAddDialog">
-          {{ t("common.cancel") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
-          :disabled="!formBaseUrl.trim()"
-          data-test="model-test-form-btn"
-          @click="testFormConnectivity()"
-        >
-          {{ t("models.testConnectivity") }}
-        </button>
-        <button
-          class="btn btn-primary"
-          type="submit"
-          :disabled="loading || !formAlias.trim() || !formProvider.trim() || !formModelId.trim()"
-          data-test="model-save-button"
-          @click.prevent="saveNewProfile"
-        >
-          {{ loading ? t("models.saving") : t("models.saveProfile") }}
-        </button>
-      </template>
-    </ModalDialog>
-
-    <!-- Edit Profile Dialog -->
-    <ModalDialog
+    <ModelProfileFormDialog
       :open="editDialogOpen"
-      :title="t('models.editProfile')"
-      :description="t('models.editProfileDesc')"
-      data-test="model-edit-dialog"
+      mode="edit"
+      :loading="loading"
+      :can-test="Boolean(editingProfile)"
+      v-model:alias="formAlias"
+      v-model:provider="formProvider"
+      v-model:model-id="formModelId"
+      v-model:context-window="formContextWindow"
+      v-model:output-limit="formOutputLimit"
+      v-model:temperature="formTemperature"
+      v-model:top-p="formTopP"
+      v-model:top-k="formTopK"
+      v-model:max-tokens="formMaxTokens"
+      v-model:base-url="formBaseUrl"
+      v-model:api-key-env="formApiKeyEnv"
+      v-model:advanced-open="editAdvancedOpen"
       @close="closeEditDialog"
-    >
-      <form class="model-form" data-test="model-edit-form" @submit.prevent="saveEditProfile">
-        <fieldset class="model-form__section">
-          <legend>{{ t("models.basicOptions") }}</legend>
-          <div class="model-form__grid model-form__grid--2col">
-            <label>
-              <span>{{ t("models.alias") }}</span>
-              <input
-                id="model-edit-alias"
-                v-model="formAlias"
-                data-test="model-edit-alias"
-                readonly
-              />
-            </label>
-            <label>
-              <span>{{ t("models.provider") }} *</span>
-              <input
-                id="model-edit-provider"
-                v-model="formProvider"
-                data-test="model-edit-provider"
-                required
-              />
-            </label>
-          </div>
-          <label>
-            <span>{{ t("models.modelId") }} *</span>
-            <input
-              id="model-edit-model-id"
-              v-model="formModelId"
-              data-test="model-edit-model-id"
-              required
-            />
-          </label>
-        </fieldset>
-
-        <fieldset class="model-form__section">
-          <legend>{{ t("models.connectionOptions") }}</legend>
-          <label>
-            <span>{{ t("models.baseUrl") }}</span>
-            <input id="model-edit-base-url" v-model="formBaseUrl" data-test="model-edit-base-url" />
-          </label>
-          <label>
-            <span>{{ t("models.apiKeyEnv") }}</span>
-            <input
-              id="model-edit-api-key-env"
-              v-model="formApiKeyEnv"
-              data-test="model-edit-api-key-env"
-            />
-          </label>
-        </fieldset>
-
-        <ModelParameterControls
-          id-prefix="model-edit"
-          :open="editAdvancedOpen"
-          :context-window="formContextWindow"
-          :output-limit="formOutputLimit"
-          :temperature="formTemperature"
-          :top-p="formTopP"
-          :top-k="formTopK"
-          :max-tokens="formMaxTokens"
-          @update:context-window="formContextWindow = $event"
-          @update:output-limit="formOutputLimit = $event"
-          @update:temperature="formTemperature = $event"
-          @update:top-p="formTopP = $event"
-          @update:top-k="formTopK = $event"
-          @update:max-tokens="formMaxTokens = $event"
-          @toggle="editAdvancedOpen = !editAdvancedOpen"
-        />
-      </form>
-
-      <template #footer>
-        <button class="btn" type="button" @click="closeEditDialog">
-          {{ t("common.cancel") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
-          :disabled="!editingProfile"
-          data-test="model-edit-test-btn"
-          @click="editingProfile && testProfileConnectivity(editingProfile)"
-        >
-          {{ t("models.testConnectivity") }}
-        </button>
-        <button
-          class="btn btn-primary"
-          type="submit"
-          :disabled="loading || !formProvider.trim() || !formModelId.trim()"
-          data-test="model-edit-save-button"
-          @click.prevent="saveEditProfile"
-        >
-          {{ loading ? t("models.saving") : t("models.saveProfile") }}
-        </button>
-      </template>
-    </ModalDialog>
+      @save="saveEditProfile"
+      @test="editingProfile && testProfileConnectivity(editingProfile)"
+    />
   </section>
 </template>
 
@@ -572,171 +306,5 @@ function sourceLabel(source: string): string {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-}
-
-.model-settings__profile {
-  overflow: visible;
-}
-
-.model-settings__profile-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.model-settings__profile-main {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-  flex: 1;
-}
-
-.model-settings__profile h3 {
-  margin: 0 0 4px;
-}
-
-.model-settings__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.model-settings__reorder {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-right: 4px;
-}
-
-.btn-icon {
-  padding: 2px 6px;
-  line-height: 1;
-  font-size: 0.7rem;
-}
-
-/* Form styles */
-.model-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.model-form__section {
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-.model-form__section legend {
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
-  color: var(--app-text-color-2);
-  width: 100%;
-}
-
-.model-form__toggle {
-  all: unset;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--app-text-color-2);
-}
-
-.model-form__toggle:hover {
-  color: var(--color-text);
-}
-
-.model-form__toggle:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-.model-form__grid {
-  display: grid;
-  gap: 8px;
-}
-
-.model-form__grid--2col {
-  grid-template-columns: 1fr 1fr;
-}
-
-.model-form__grid--3col {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.model-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.model-form label > span {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--app-text-color-2);
-}
-
-.model-form input {
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 0.85rem;
-}
-
-.model-form input:focus {
-  border-color: var(--app-primary-color);
-  outline: none;
-}
-
-.model-form input:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
-}
-
-.model-settings button:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
-}
-
-/* Source tags for effective (unified) view */
-.tag--source {
-  font-weight: 600;
-}
-
-.tag--source-builtin {
-  background: var(--color-muted);
-  color: var(--color-text-muted);
-}
-
-.tag--source-user {
-  background: var(--color-secondary-light);
-  color: var(--color-secondary);
-}
-
-.tag--source-project {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.tag--source-local {
-  background: var(--color-accent-light, var(--color-primary-light));
-  color: var(--color-accent, var(--color-primary));
-}
-
-.tag--override {
-  background: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.tag--disabled-by {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
 }
 </style>
