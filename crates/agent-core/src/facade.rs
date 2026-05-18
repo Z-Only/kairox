@@ -7,6 +7,7 @@
 mod agents;
 mod catalog;
 mod mcp;
+mod plugins;
 mod project;
 mod session;
 mod settings;
@@ -19,6 +20,10 @@ pub use catalog::{
     InstalledEntry, ServerEntry,
 };
 pub use mcp::McpFacade;
+pub use plugins::{
+    InstallPluginRequest, PluginCatalogEntry, PluginComponentInventoryView, PluginDetailView,
+    PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView, PluginsFacade,
+};
 pub use project::{
     ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta,
     ProjectSessionBinding, ProjectSessionVisibility,
@@ -59,7 +64,7 @@ use crate::{ProjectId, SessionId, TaskId, WorkspaceId};
 /// the sub-traits and write `impl AppFacade for T {}`.
 #[async_trait::async_trait]
 pub trait AppFacade:
-    SessionFacade + SkillsFacade + McpFacade + ProjectFacade + AgentsFacade
+    SessionFacade + SkillsFacade + McpFacade + ProjectFacade + AgentsFacade + PluginsFacade
 {
     // ── Session ─────────────────────────────────────────────────────────
 
@@ -590,6 +595,9 @@ mod tests {
 
     #[async_trait]
     impl AgentsFacade for NoopFacade {}
+
+    #[async_trait]
+    impl PluginsFacade for NoopFacade {}
 
     impl AppFacade for NoopFacade {}
 

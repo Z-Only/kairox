@@ -7,8 +7,10 @@ use agent_core::facade::{
     AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
     HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
-    InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    InstallPluginRequest, InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView, PluginCatalogEntry,
+    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget,
+    PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
     SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
     SkillSettingsView, SkillSourceView, SkillUpdateState,
@@ -126,6 +128,15 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             remove_skill_source,
             set_skill_source_enabled,
             refresh_skill_catalog,
+            // Plugin commands
+            list_plugin_settings,
+            get_plugin_detail,
+            set_plugin_enabled,
+            delete_plugin_settings,
+            list_plugin_marketplace_sources,
+            set_plugin_marketplace_source_enabled,
+            list_plugin_catalog,
+            install_plugin,
             // MCP commands
             list_mcp_servers,
             start_mcp_server,
@@ -201,6 +212,13 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<SkillInstallTarget>()
         .typ::<InstallRemoteSkillRequest>()
         .typ::<InstallGithubSkillRequest>()
+        .typ::<PluginSettingsView>()
+        .typ::<PluginDetailView>()
+        .typ::<PluginComponentInventoryView>()
+        .typ::<PluginMarketplaceSourceView>()
+        .typ::<PluginCatalogEntry>()
+        .typ::<InstallPluginRequest>()
+        .typ::<PluginInstallTarget>()
         // MCP response types
         .typ::<McpServerStatusResponse>()
         .typ::<McpToolDefResponse>()

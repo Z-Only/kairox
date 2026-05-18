@@ -10,7 +10,8 @@ members = [
   "crates/agent-tui",
   "apps/agent-gui/src-tauri",
   "crates/agent-mcp",
-  "crates/agent-skills"
+  "crates/agent-skills",
+  "crates/agent-plugins"
 ]
 resolver = "2"
 

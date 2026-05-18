@@ -9,8 +9,10 @@ use agent_core::facade::{
     AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, HookSettingsInput,
     HookSettingsView, HookTemplateView, HooksSettingsView, InstallGithubSkillRequest,
-    InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ProfileSettingsInput, ProfileSettingsView,
+    InstallPluginRequest, InstallRemoteSkillRequest, InstructionsUpdateInput, InstructionsView,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView, PluginCatalogEntry,
+    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget,
+    PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
     SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
     SkillSettingsView, SkillSourceView, SkillUpdateState,
@@ -139,6 +141,15 @@ fn main() {
             agent_gui_tauri::commands::remove_skill_source,
             agent_gui_tauri::commands::set_skill_source_enabled,
             agent_gui_tauri::commands::refresh_skill_catalog,
+            // Plugin commands
+            agent_gui_tauri::commands::list_plugin_settings,
+            agent_gui_tauri::commands::get_plugin_detail,
+            agent_gui_tauri::commands::set_plugin_enabled,
+            agent_gui_tauri::commands::delete_plugin_settings,
+            agent_gui_tauri::commands::list_plugin_marketplace_sources,
+            agent_gui_tauri::commands::set_plugin_marketplace_source_enabled,
+            agent_gui_tauri::commands::list_plugin_catalog,
+            agent_gui_tauri::commands::install_plugin,
             // MCP commands
             agent_gui_tauri::commands::list_mcp_servers,
             agent_gui_tauri::commands::start_mcp_server,
@@ -215,6 +226,13 @@ fn main() {
         .typ::<SkillInstallTarget>()
         .typ::<InstallRemoteSkillRequest>()
         .typ::<InstallGithubSkillRequest>()
+        .typ::<PluginSettingsView>()
+        .typ::<PluginDetailView>()
+        .typ::<PluginComponentInventoryView>()
+        .typ::<PluginMarketplaceSourceView>()
+        .typ::<PluginCatalogEntry>()
+        .typ::<InstallPluginRequest>()
+        .typ::<PluginInstallTarget>()
         // Skill catalog types
         .typ::<SkillCatalogEntry>()
         .typ::<SkillCatalogQuery>()

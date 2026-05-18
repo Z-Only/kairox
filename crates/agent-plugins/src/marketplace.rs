@@ -1,0 +1,93 @@
+use serde::Deserialize;
+use serde_json::Value;
+
+use crate::{PluginError, Result};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MarketplaceFile {
+    pub name: String,
+    pub display_name: String,
+    pub plugins: Vec<MarketplacePluginEntry>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MarketplacePluginEntry {
+    pub name: String,
+    pub description: String,
+    pub version: Option<String>,
+    pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawMarketplaceFile {
+    name: String,
+    #[serde(default)]
+    display_name: Option<String>,
+    #[serde(default)]
+    plugins: Vec<RawMarketplacePluginEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawMarketplacePluginEntry {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    version: Option<String>,
+    source: Value,
+}
+
+pub fn parse_marketplace(raw: &str) -> Result<MarketplaceFile> {
+    let parsed: RawMarketplaceFile = serde_json::from_str(raw)
+        .map_err(|error| PluginError::InvalidManifest(error.to_string()))?;
+    Ok(MarketplaceFile {
+        display_name: parsed.display_name.unwrap_or_else(|| parsed.name.clone()),
+        name: parsed.name,
+        plugins: parsed
+            .plugins
+            .into_iter()
+            .map(|plugin| MarketplacePluginEntry {
+                name: plugin.name,
+                description: plugin.description.unwrap_or_default(),
+                version: plugin.version,
+                source: normalize_source(plugin.source),
+            })
+            .collect(),
+    })
+}
+
+fn normalize_source(source: Value) -> String {
+    match source {
+        Value::String(value) => value,
+        Value::Object(object) => serde_json::to_string(&object).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_claude_marketplace_json() {
+        let marketplace = parse_marketplace(
+            r#"{
+              "name": "my-plugins",
+              "owner": {"name": "Team"},
+              "plugins": [
+                {
+                  "name": "quality-review",
+                  "source": "./plugins/quality-review",
+                  "description": "Review code",
+                  "version": "1.0.0"
+                }
+              ]
+            }"#,
+        )
+        .expect("marketplace");
+
+        assert_eq!(marketplace.name, "my-plugins");
+        assert_eq!(marketplace.plugins.len(), 1);
+        assert_eq!(marketplace.plugins[0].source, "./plugins/quality-review");
+    }
+}
