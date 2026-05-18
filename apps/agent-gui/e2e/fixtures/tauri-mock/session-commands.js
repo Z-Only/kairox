@@ -49,6 +49,11 @@ registerCommandHandlers({
     var sessionId = state.currentSessionId;
     if (!sessionId) return Promise.reject(new Error("No active session"));
     var content = args.content;
+    state.sentMessages.push({
+      sessionId: sessionId,
+      content: content,
+      attachments: args.attachments || []
+    });
     var projection = getProjection(sessionId);
     var trace = getTrace(sessionId);
     // UserMessageAdded

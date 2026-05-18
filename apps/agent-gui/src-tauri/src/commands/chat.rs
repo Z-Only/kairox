@@ -224,7 +224,7 @@ fn enrich_content_with_attachments(
             }
             match std::fs::read_to_string(&att.path) {
                 Ok(text) => {
-                    let ext = std::path::Path::new(&att.path)
+                    let ext = std::path::Path::new(&att.name)
                         .extension()
                         .and_then(|e| e.to_str())
                         .unwrap_or("");
@@ -262,4 +262,74 @@ fn is_text_mime(mime: &str) -> bool {
                 | "application/x-sh"
                 | "application/x-shellscript"
         )
+}
+
+#[cfg(test)]
+mod chat_attachment_tests {
+    use super::*;
+
+    fn attachment(
+        path: &std::path::Path,
+        name: &str,
+        mime_type: &str,
+    ) -> agent_core::AttachmentInfo {
+        agent_core::AttachmentInfo {
+            path: path.display().to_string(),
+            name: name.to_string(),
+            mime_type: mime_type.to_string(),
+        }
+    }
+
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let unique = format!(
+            "kairox-chat-attachment-{}-{nanos}-{name}",
+            std::process::id(),
+        );
+        std::env::temp_dir().join(unique)
+    }
+
+    #[test]
+    fn enriches_text_attachment_using_display_name_extension() {
+        let path = temp_path("text-no-ext");
+        std::fs::write(&path, "alpha\nbeta\n").unwrap();
+
+        let enriched = enrich_content_with_attachments(
+            "summarize this",
+            &[attachment(&path, "report.md", "text/markdown")],
+        );
+
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(
+            enriched,
+            "```md\n// file: report.md\nalpha\nbeta\n\n```\n\nsummarize this"
+        );
+    }
+
+    #[test]
+    fn enriches_image_attachment_as_data_uri() {
+        let path = temp_path("image.bin");
+        std::fs::write(&path, [1_u8, 2, 3]).unwrap();
+
+        let enriched =
+            enrich_content_with_attachments("", &[attachment(&path, "pixel.png", "image/png")]);
+
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(enriched, "![pixel.png](data:image/png;base64,AQID)");
+    }
+
+    #[test]
+    fn enriches_binary_attachment_as_filename_reference() {
+        let path = temp_path("archive.zip");
+
+        let enriched = enrich_content_with_attachments(
+            "inspect metadata",
+            &[attachment(&path, "archive.zip", "application/zip")],
+        );
+
+        assert_eq!(enriched, "[attached file: archive.zip]\n\ninspect metadata");
+    }
 }
