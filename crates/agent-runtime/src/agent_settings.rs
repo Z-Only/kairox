@@ -1,9 +1,15 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use agent_core::facade::{AgentSettingsInput, AgentSettingsScope, AgentSettingsView};
 use agent_core::{CoreError, Result};
-use serde::{Deserialize, Serialize};
+
+mod parser;
+mod projection;
+
+pub use parser::{parse_agent_markdown, ParsedAgentMarkdown};
+pub(crate) use projection::effective_agent_by_name;
+
+use parser::{render_agent_markdown, validate_agent_name};
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct AgentSettingsRoots {
@@ -20,87 +26,8 @@ pub fn build_default_agent_settings_roots(home: &Path, workspace: &Path) -> Agen
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct ParsedAgentMarkdown {
-    pub name: String,
-    pub description: String,
-    pub tools: Vec<String>,
-    pub model_profile: Option<String>,
-    pub permission_mode: Option<String>,
-    pub skills: Vec<String>,
-    pub nickname_candidates: Vec<String>,
-    pub enabled: bool,
-    pub instructions: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct RawAgentFrontmatter {
-    name: Option<String>,
-    description: Option<String>,
-    #[serde(default)]
-    tools: Vec<String>,
-    #[serde(default)]
-    model_profile: Option<String>,
-    #[serde(default)]
-    permission_mode: Option<String>,
-    #[serde(default)]
-    skills: Vec<String>,
-    #[serde(default)]
-    nickname_candidates: Vec<String>,
-    #[serde(default = "default_true")]
-    enabled: bool,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-pub fn parse_agent_markdown(raw: &str) -> Result<ParsedAgentMarkdown> {
-    let frontmatter_block = raw
-        .strip_prefix("---\n")
-        .ok_or_else(|| CoreError::InvalidState("missing agent frontmatter".into()))?;
-    let (frontmatter_yaml, instructions) = frontmatter_block
-        .split_once("\n---\n")
-        .ok_or_else(|| CoreError::InvalidState("missing agent frontmatter".into()))?;
-
-    let frontmatter: RawAgentFrontmatter = serde_yaml::from_str(frontmatter_yaml)
-        .map_err(|error| CoreError::InvalidState(format!("invalid agent frontmatter: {error}")))?;
-    let name = frontmatter
-        .name
-        .ok_or_else(|| CoreError::InvalidState("missing required agent field: name".into()))?;
-    validate_agent_name(&name)?;
-    let description = frontmatter.description.ok_or_else(|| {
-        CoreError::InvalidState("missing required agent field: description".into())
-    })?;
-
-    Ok(ParsedAgentMarkdown {
-        name,
-        description,
-        tools: frontmatter.tools,
-        model_profile: frontmatter.model_profile,
-        permission_mode: frontmatter.permission_mode,
-        skills: frontmatter.skills,
-        nickname_candidates: frontmatter.nickname_candidates,
-        enabled: frontmatter.enabled,
-        instructions: instructions.to_string(),
-    })
-}
-
 pub async fn list_agent_settings(roots: AgentSettingsRoots) -> Result<Vec<AgentSettingsView>> {
-    let mut views = builtin_agent_views(&roots);
-    if let Some(root) = &roots.user_root {
-        views.extend(discover_agent_files(root, AgentSettingsScope::User).await?);
-    }
-    if let Some(root) = &roots.workspace_root {
-        views.extend(discover_agent_files(root, AgentSettingsScope::Project).await?);
-    }
-    mark_effective_agents(&mut views);
-    views.sort_by(|left, right| {
-        left.name
-            .cmp(&right.name)
-            .then_with(|| right.scope.cmp(&left.scope))
-    });
-    Ok(views)
+    projection::list_agent_settings(&roots).await
 }
 
 pub async fn upsert_agent_settings(
@@ -128,11 +55,11 @@ pub async fn upsert_agent_settings(
         .await
         .map_err(|error| CoreError::InvalidState(format!("failed to write agent: {error}")))?;
 
-    find_agent_settings_view(roots, &settings_id(input.scope, &input.name)).await
+    projection::find_agent_settings_view(&roots, &settings_id(input.scope, &input.name)).await
 }
 
 pub async fn delete_agent_settings(roots: AgentSettingsRoots, agent_id: &str) -> Result<()> {
-    let view = find_agent_settings_view(roots.clone(), agent_id).await?;
+    let view = projection::find_agent_settings_view(&roots, agent_id).await?;
     if view.scope == AgentSettingsScope::Builtin {
         return Err(CoreError::InvalidState(format!(
             "cannot delete built-in agent: {}",
@@ -162,7 +89,7 @@ pub async fn copy_agent_settings(
             "cannot copy agent to built-in scope".into(),
         ));
     }
-    let view = find_agent_settings_view(roots.clone(), agent_id).await?;
+    let view = projection::find_agent_settings_view(&roots, agent_id).await?;
     upsert_agent_settings(
         roots,
         AgentSettingsInput {
@@ -179,308 +106,6 @@ pub async fn copy_agent_settings(
         },
     )
     .await
-}
-
-async fn find_agent_settings_view(
-    roots: AgentSettingsRoots,
-    agent_identifier: &str,
-) -> Result<AgentSettingsView> {
-    let views = list_agent_settings(roots).await?;
-    let matching_settings_id_views = views
-        .iter()
-        .filter(|view| view.settings_id == agent_identifier)
-        .cloned()
-        .collect::<Vec<_>>();
-    match matching_settings_id_views.as_slice() {
-        [view] => return Ok(view.clone()),
-        [] => {}
-        _ => {
-            return Err(CoreError::InvalidState(format!(
-                "ambiguous agent settings id: {agent_identifier}"
-            )));
-        }
-    }
-
-    let matching_views = views
-        .into_iter()
-        .filter(|view| view.name == agent_identifier)
-        .collect::<Vec<_>>();
-    match matching_views.as_slice() {
-        [view] => Ok(view.clone()),
-        [] => Err(CoreError::InvalidState(format!(
-            "agent not found: {agent_identifier}"
-        ))),
-        views => Err(CoreError::InvalidState(format!(
-            "ambiguous agent name: {agent_identifier}; matching scopes: {}",
-            views
-                .iter()
-                .map(|view| scope_label(view.scope))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ))),
-    }
-}
-
-async fn discover_agent_files(
-    root: &Path,
-    scope: AgentSettingsScope,
-) -> Result<Vec<AgentSettingsView>> {
-    let mut views = Vec::new();
-    let mut entries = match tokio::fs::read_dir(root).await {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => {
-            return Err(CoreError::InvalidState(format!(
-                "failed to read agent dir: {error}"
-            )));
-        }
-    };
-
-    while let Some(entry) = entries
-        .next_entry()
-        .await
-        .map_err(|error| CoreError::InvalidState(format!("failed to read agent entry: {error}")))?
-    {
-        let path = entry.path();
-        if path.extension().and_then(|value| value.to_str()) != Some("md") {
-            continue;
-        }
-        let raw = tokio::fs::read_to_string(&path)
-            .await
-            .map_err(|error| CoreError::InvalidState(format!("failed to read agent: {error}")))?;
-        match parse_agent_markdown(&raw) {
-            Ok(agent) => views.push(view_from_parsed(scope, path, agent, true, None)),
-            Err(error) => views.push(invalid_view(scope, path, error.to_string())),
-        }
-    }
-
-    Ok(views)
-}
-
-fn builtin_agent_views(roots: &AgentSettingsRoots) -> Vec<AgentSettingsView> {
-    let builtin_root = roots.builtin_root.clone();
-    builtin_agents()
-        .into_iter()
-        .map(|agent| {
-            let path = builtin_root
-                .as_ref()
-                .map(|root| root.join(format!("{}.md", agent.name)))
-                .map(|path| path.display().to_string())
-                .unwrap_or_else(|| format!("builtin://{}", agent.name));
-            AgentSettingsView {
-                settings_id: settings_id(AgentSettingsScope::Builtin, &agent.name),
-                name: agent.name,
-                description: agent.description,
-                scope: AgentSettingsScope::Builtin,
-                path,
-                tools: agent.tools,
-                model_profile: agent.model_profile,
-                permission_mode: agent.permission_mode,
-                skills: agent.skills,
-                nickname_candidates: agent.nickname_candidates,
-                enabled: agent.enabled,
-                instructions: agent.instructions,
-                effective: false,
-                shadowed_by: None,
-                valid: true,
-                validation_error: None,
-                editable: false,
-                deletable: false,
-            }
-        })
-        .collect()
-}
-
-fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
-    vec![
-        ParsedAgentMarkdown {
-            name: "default".into(),
-            description: "General-purpose fallback agent.".into(),
-            tools: Vec::new(),
-            model_profile: None,
-            permission_mode: None,
-            skills: Vec::new(),
-            nickname_candidates: vec!["Default".into()],
-            enabled: true,
-            instructions: "Handle general tasks that do not need a more specific agent.".into(),
-        },
-        ParsedAgentMarkdown {
-            name: "worker".into(),
-            description: "Execution-focused agent for implementation and fixes.".into(),
-            tools: Vec::new(),
-            model_profile: None,
-            permission_mode: Some("workspace_write".into()),
-            skills: Vec::new(),
-            nickname_candidates: vec!["Worker".into()],
-            enabled: true,
-            instructions:
-                "Implement scoped changes, run focused validation, and report changed files."
-                    .into(),
-        },
-        ParsedAgentMarkdown {
-            name: "explorer".into(),
-            description: "Read-heavy codebase exploration agent.".into(),
-            tools: vec!["fs.read".into(), "search".into()],
-            model_profile: None,
-            permission_mode: Some("read_only".into()),
-            skills: Vec::new(),
-            nickname_candidates: vec!["Explorer".into()],
-            enabled: true,
-            instructions: "Map code paths, cite files and symbols, and avoid editing files.".into(),
-        },
-        ParsedAgentMarkdown {
-            name: "code-reviewer".into(),
-            description: "Review code for correctness, security, regressions, and missing tests."
-                .into(),
-            tools: vec!["fs.read".into(), "search".into(), "shell".into()],
-            model_profile: None,
-            permission_mode: Some("read_only".into()),
-            skills: Vec::new(),
-            nickname_candidates: vec!["Reviewer".into()],
-            enabled: true,
-            instructions: "Lead with concrete findings ordered by severity. Focus on bugs, regressions, security, and missing tests.".into(),
-        },
-        ParsedAgentMarkdown {
-            name: "test-runner".into(),
-            description: "Run focused tests, diagnose failures, and report validation evidence."
-                .into(),
-            tools: vec!["shell".into(), "fs.read".into(), "search".into()],
-            model_profile: None,
-            permission_mode: Some("workspace_write".into()),
-            skills: Vec::new(),
-            nickname_candidates: vec!["Test".into()],
-            enabled: true,
-            instructions: "Run the smallest useful test first, inspect failures, and preserve test intent when fixing issues.".into(),
-        },
-    ]
-}
-
-fn mark_effective_agents(views: &mut [AgentSettingsView]) {
-    let mut highest_by_name: HashMap<String, AgentSettingsScope> = HashMap::new();
-    for view in views.iter().filter(|view| view.valid && view.enabled) {
-        highest_by_name
-            .entry(view.name.clone())
-            .and_modify(|scope| {
-                if view.scope > *scope {
-                    *scope = view.scope;
-                }
-            })
-            .or_insert(view.scope);
-    }
-
-    for view in views {
-        let Some(active_scope) = highest_by_name.get(&view.name) else {
-            continue;
-        };
-        view.effective = view.valid && view.scope == *active_scope;
-        view.shadowed_by = if view.effective {
-            None
-        } else {
-            Some(scope_label(*active_scope).to_string())
-        };
-    }
-}
-
-fn view_from_parsed(
-    scope: AgentSettingsScope,
-    path: PathBuf,
-    agent: ParsedAgentMarkdown,
-    valid: bool,
-    validation_error: Option<String>,
-) -> AgentSettingsView {
-    AgentSettingsView {
-        settings_id: settings_id(scope, &agent.name),
-        name: agent.name,
-        description: agent.description,
-        scope,
-        path: path.display().to_string(),
-        tools: agent.tools,
-        model_profile: agent.model_profile,
-        permission_mode: agent.permission_mode,
-        skills: agent.skills,
-        nickname_candidates: agent.nickname_candidates,
-        enabled: agent.enabled,
-        instructions: agent.instructions,
-        effective: false,
-        shadowed_by: None,
-        valid,
-        validation_error,
-        editable: scope != AgentSettingsScope::Builtin,
-        deletable: scope != AgentSettingsScope::Builtin,
-    }
-}
-
-fn invalid_view(
-    scope: AgentSettingsScope,
-    path: PathBuf,
-    validation_error: String,
-) -> AgentSettingsView {
-    let name = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("invalid-agent")
-        .to_string();
-    AgentSettingsView {
-        settings_id: settings_id(scope, &name),
-        name,
-        description: String::new(),
-        scope,
-        path: path.display().to_string(),
-        tools: Vec::new(),
-        model_profile: None,
-        permission_mode: None,
-        skills: Vec::new(),
-        nickname_candidates: Vec::new(),
-        enabled: false,
-        instructions: String::new(),
-        effective: false,
-        shadowed_by: None,
-        valid: false,
-        validation_error: Some(validation_error),
-        editable: scope != AgentSettingsScope::Builtin,
-        deletable: scope != AgentSettingsScope::Builtin,
-    }
-}
-
-fn render_agent_markdown(input: &AgentSettingsInput) -> Result<String> {
-    let frontmatter = RawAgentFrontmatter {
-        name: Some(input.name.clone()),
-        description: Some(input.description.clone()),
-        tools: input.tools.clone(),
-        model_profile: input.model_profile.clone(),
-        permission_mode: input.permission_mode.clone(),
-        skills: input.skills.clone(),
-        nickname_candidates: input.nickname_candidates.clone(),
-        enabled: input.enabled,
-    };
-    let mut yaml = serde_yaml::to_string(&frontmatter)
-        .map_err(|error| CoreError::InvalidState(format!("failed to render agent: {error}")))?;
-    if let Some(stripped) = yaml.strip_prefix("---\n") {
-        yaml = stripped.to_string();
-    }
-    Ok(format!(
-        "---\n{}---\n{}\n",
-        yaml,
-        input.instructions.trim_end()
-    ))
-}
-
-fn validate_agent_name(name: &str) -> Result<()> {
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return Err(CoreError::InvalidState("invalid agent name: empty".into()));
-    };
-    if !first.is_ascii_lowercase() {
-        return Err(CoreError::InvalidState(format!(
-            "invalid agent name: {name}"
-        )));
-    }
-    if !chars.all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-' || ch == '_') {
-        return Err(CoreError::InvalidState(format!(
-            "invalid agent name: {name}"
-        )));
-    }
-    Ok(())
 }
 
 fn validate_file_under_root(path: &Path, root: &Path) -> Result<()> {
