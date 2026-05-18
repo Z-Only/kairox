@@ -6,6 +6,7 @@
 //! run in parallel up to `max_concurrency`. Failed tasks cascade `BlockDependents`
 //! by default, with `retry_task()` and `skip_task()` for recovery.
 
+pub(crate) mod agent_settings;
 pub mod config;
 pub(crate) mod events;
 pub(crate) mod execution;
@@ -30,9 +31,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent_settings::AgentSettingsRoots;
-use crate::agents::planner::PlannerStrategy;
-use crate::agents::reviewer::ReviewerStrategy;
-use crate::agents::worker::WorkerStrategy;
 use crate::agents::{AgentDecision, AgentStrategy, StepContext};
 use crate::task_graph::TaskGraph;
 
@@ -91,35 +89,7 @@ where
             .await
             .unwrap_or_default();
 
-        let mut strategies: HashMap<AgentRole, Arc<dyn AgentStrategy>> = HashMap::new();
-
-        // Resolve effective agent for each DAG role, falling back to defaults.
-        let planner_view = find_effective_agent(&agent_views, "default");
-        strategies.insert(
-            AgentRole::Planner,
-            match planner_view {
-                Some(view) => Arc::new(PlannerStrategy::from_agent_view(view)),
-                None => Arc::new(PlannerStrategy::new()),
-            },
-        );
-
-        let worker_view = find_effective_agent(&agent_views, "worker");
-        strategies.insert(
-            AgentRole::Worker,
-            match worker_view {
-                Some(view) => Arc::new(WorkerStrategy::from_agent_view(view)),
-                None => Arc::new(WorkerStrategy::new()),
-            },
-        );
-
-        let reviewer_view = find_effective_agent(&agent_views, "code-reviewer");
-        strategies.insert(
-            AgentRole::Reviewer,
-            match reviewer_view {
-                Some(view) => Arc::new(ReviewerStrategy::from_agent_view(view)),
-                None => Arc::new(ReviewerStrategy::new()),
-            },
-        );
+        let strategies = agent_settings::strategies_from_agent_settings(&agent_views);
 
         let events = EventEmitter {
             store: Arc::clone(&store),
@@ -426,16 +396,6 @@ where
             graph: graph.clone(),
         }
     }
-}
-
-/// Find the effective (highest-precedence, enabled) agent for a given name.
-fn find_effective_agent<'a>(
-    views: &'a [agent_core::facade::AgentSettingsView],
-    name: &str,
-) -> Option<&'a agent_core::facade::AgentSettingsView> {
-    views
-        .iter()
-        .find(|v| v.effective && v.valid && v.name == name)
 }
 
 #[cfg(test)]
