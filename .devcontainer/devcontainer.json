@@ -4,11 +4,11 @@
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {},
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "22",
-      "pnpm": true
-    }
+      "version": "22"
+    },
+    "ghcr.io/prulloac/devcontainer-features/bun:1": {}
   },
-  "postCreateCommand": "pnpm install",
+  "postCreateCommand": "bun install",
   "customizations": {
     "vscode": {
       "extensions": ["rust-lang.rust-analyzer", "tauri-apps.tauri-vscode"]

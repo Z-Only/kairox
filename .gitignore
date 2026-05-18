@@ -37,8 +37,10 @@ apps/agent-gui/src-tauri/target/
 # =============================================================================
 node_modules/
 apps/agent-gui/dist/
-# we use pnpm
+# Bun is the project package manager; ignore lockfiles from accidental npm/pnpm/yarn runs.
 package-lock.json
+pnpm-lock.yaml
+yarn.lock
 crates/agent-mcp/tests/fixtures/node_modules/
 
 # =============================================================================
