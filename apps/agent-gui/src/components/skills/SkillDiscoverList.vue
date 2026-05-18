@@ -23,7 +23,6 @@ const selectedSourceId = ref<string | null>(null);
 const sourceSettingsOpen = ref(false);
 
 const sourceFilters = computed(() => [
-  { id: null, display_name: t("skills.allSources") },
   { id: "builtin", display_name: t("skills.builtinSource") },
   ...store.catalogSources.map((source) => ({
     id: source.id,
@@ -81,7 +80,7 @@ async function refreshCatalog(): Promise<void> {
 }
 
 async function selectSource(sourceId: string | null): Promise<void> {
-  selectedSourceId.value = sourceId;
+  selectedSourceId.value = selectedSourceId.value === sourceId ? null : sourceId;
   await searchCatalog();
 }
 </script>

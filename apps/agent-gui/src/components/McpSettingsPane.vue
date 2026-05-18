@@ -2,13 +2,11 @@
 import { useMcpStore } from "@/stores/mcp";
 import { useProjectStore } from "@/stores/project";
 import type {
-  ConfigScope,
   EffectiveMcpServerView,
   McpContentBlockResponse,
   McpServerSettingsView
 } from "@/generated/commands";
 import MarketplacePane from "@/components/MarketplacePane.vue";
-import ScopeSelector from "@/components/ScopeSelector.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -19,12 +17,11 @@ const addServerMode = ref<"git" | "manual">("manual");
 const addServerDropdownOpen = ref(false);
 const serverName = ref("");
 const serverDescription = ref("");
-const transport = ref<"stdio" | "sse">("stdio");
+const transport = ref<"stdio" | "sse" | "streamable_http">("stdio");
 const stdioCommand = ref("");
 const stdioArgs = ref("");
 const sseUrl = ref("");
 const busyServerId = ref<string | null>(null);
-const installTarget = ref<ConfigScope>("User");
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -184,7 +181,7 @@ async function saveServer(): Promise<void> {
             env: {}
           }
         : {
-            transport: "sse",
+            transport: transport.value,
             url: sseUrl.value.trim(),
             headers: {}
           },
@@ -695,8 +692,6 @@ async function enableAtScope(serverId: string): Promise<void> {
       @close="closeAddServerDialog"
     >
       <form class="mcp-settings__form" data-test="mcp-save" @submit.prevent="saveServer">
-        <ScopeSelector v-model="installTarget" :show-local="true" />
-
         <label for="mcp-server-name">{{ t("mcp.serverName") }}</label>
         <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
 
@@ -728,6 +723,15 @@ async function enableAtScope(serverId: string): Promise<void> {
               <input v-model="transport" type="radio" value="sse" data-test="mcp-form-sse" />
               SSE
             </label>
+            <label>
+              <input
+                v-model="transport"
+                type="radio"
+                value="streamable_http"
+                data-test="mcp-form-streamable-http"
+              />
+              {{ t("mcp.streamableHttp") }}
+            </label>
           </fieldset>
 
           <template v-if="transport === 'stdio'">
@@ -737,7 +741,7 @@ async function enableAtScope(serverId: string): Promise<void> {
             <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
           </template>
           <template v-else>
-            <label for="mcp-server-url">{{ t("mcp.sseUrl") }}</label>
+            <label for="mcp-server-url">{{ t("mcp.url") }}</label>
             <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
           </template>
         </template>
