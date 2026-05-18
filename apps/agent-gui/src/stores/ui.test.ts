@@ -85,4 +85,30 @@ describe("ui store", () => {
       expect(ui.locale).toBe("system");
     });
   });
+
+  describe("workbench sidebars", () => {
+    it("persists independent collapse state for the left and right sidebars", () => {
+      const ui = useUiStore();
+
+      ui.setSidebarCollapsed("left", true);
+      ui.setSidebarCollapsed("right", true);
+
+      expect(ui.leftSidebarCollapsed).toBe(true);
+      expect(ui.rightSidebarCollapsed).toBe(true);
+      expect(window.localStorage.getItem("kairox.left-sidebar-collapsed")).toBe("true");
+      expect(window.localStorage.getItem("kairox.right-sidebar-collapsed")).toBe("true");
+    });
+
+    it("persists clamped sidebar widths", () => {
+      const ui = useUiStore();
+
+      ui.setSidebarWidth("left", 50);
+      ui.setSidebarWidth("right", 999);
+
+      expect(ui.leftSidebarWidth).toBe(180);
+      expect(ui.rightSidebarWidth).toBe(420);
+      expect(window.localStorage.getItem("kairox.left-sidebar-width")).toBe("180");
+      expect(window.localStorage.getItem("kairox.right-sidebar-width")).toBe("420");
+    });
+  });
 });
