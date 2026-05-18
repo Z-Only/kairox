@@ -14,18 +14,21 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::{stream, stream::BoxStream};
 use tokio::sync::Mutex;
 
 use agent_core::{
-    AgentId, AgentRole, AppFacade, DomainEvent, FailurePolicy, SendMessageRequest,
-    StartSessionRequest, TaskState, WorkspaceId,
+    AgentId, AgentRole, AppFacade, DomainEvent, EventPayload, FailurePolicy, PrivacyClassification,
+    SendMessageRequest, StartSessionRequest, TaskState, WorkspaceId,
 };
-use agent_models::{FakeModelClient, ModelMessage, ToolCall};
+use agent_models::{
+    FakeModelClient, ModelClient, ModelEvent, ModelMessage, ModelRequest, ToolCall,
+};
 use agent_runtime::{
     AgentDecision, AgentSettingsRoots, AgentStrategy, DagConfig, DagExecutor, LocalRuntime,
     StepContext, SubTaskDef, TaskGraph, ToolResultAction,
 };
-use agent_store::SqliteEventStore;
+use agent_store::{EventStore, SqliteEventStore};
 use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
 
 // ---------------------------------------------------------------------------
@@ -128,6 +131,31 @@ impl AgentStrategy for FixedDecisionStrategy {
         _iteration: usize,
     ) -> ToolResultAction {
         ToolResultAction::Continue
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RecordingModelClient {
+    requests: Arc<Mutex<Vec<ModelRequest>>>,
+}
+
+impl RecordingModelClient {
+    fn new(requests: Arc<Mutex<Vec<ModelRequest>>>) -> Self {
+        Self { requests }
+    }
+}
+
+#[async_trait]
+impl ModelClient for RecordingModelClient {
+    async fn stream(
+        &self,
+        request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        self.requests.lock().await.push(request);
+        Ok(Box::pin(stream::iter(vec![
+            Ok(ModelEvent::TokenDelta("worker reply".into())),
+            Ok(ModelEvent::Completed { usage: None }),
+        ])))
     }
 }
 
@@ -408,6 +436,104 @@ async fn dag_executor_execute_respond_directly() {
         !completed.is_empty(),
         "At least the root task should be completed"
     );
+}
+
+#[tokio::test]
+async fn dag_executor_request_model_uses_latest_reasoning_effort() {
+    let store = Arc::new(SqliteEventStore::in_memory().await.unwrap());
+    let captured_requests = Arc::new(Mutex::new(Vec::new()));
+    let model = Arc::new(RecordingModelClient::new(captured_requests.clone()));
+    let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+    let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+    let pending: Arc<
+        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
+    > = Arc::new(Mutex::new(HashMap::new()));
+
+    let executor = DagExecutor::new(
+        store.clone(),
+        model,
+        event_tx,
+        tool_registry,
+        permission_engine,
+        pending,
+        None,
+        DagConfig::default(),
+        AgentSettingsRoots::default(),
+    )
+    .await
+    .with_strategy(
+        AgentRole::Planner,
+        Arc::new(FixedDecisionStrategy::new(
+            AgentRole::Planner,
+            AgentDecision::Decompose {
+                sub_tasks: vec![SubTaskDef {
+                    title: "worker task".into(),
+                    role: AgentRole::Worker,
+                    dependencies: Vec::new(),
+                    description: "ask the model".into(),
+                }],
+            },
+        )),
+    )
+    .with_strategy(
+        AgentRole::Worker,
+        Arc::new(FixedDecisionStrategy::new(
+            AgentRole::Worker,
+            AgentDecision::RequestModel { tools: Vec::new() },
+        )),
+    );
+
+    let workspace_id = WorkspaceId::from_string("wrk_dag_reasoning".to_string());
+    let session_id = agent_core::SessionId::new();
+    store
+        .append(&DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::SessionInitialized {
+                model_profile: "fast".into(),
+            },
+        ))
+        .await
+        .unwrap();
+    store
+        .append(&DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::ModelProfileSwitched {
+                from_profile: "fast".into(),
+                to_profile: "reasoning".into(),
+                reasoning_effort: Some("xhigh".into()),
+                effective_at: chrono::Utc::now(),
+                context_window: 128_000,
+                output_limit: 16_384,
+                limit_source: "user_config".into(),
+            },
+        ))
+        .await
+        .unwrap();
+
+    executor
+        .execute(
+            &SendMessageRequest {
+                workspace_id,
+                session_id,
+                content: "/plan use reasoning effort".into(),
+                attachments: vec![],
+            },
+            &Arc::new(Mutex::new(HashMap::new())),
+        )
+        .await
+        .unwrap();
+
+    let requests = captured_requests.lock().await;
+    let request = requests.first().expect("worker should call the model");
+    assert_eq!(request.model_profile, "reasoning");
+    assert_eq!(request.reasoning_effort.as_deref(), Some("xhigh"));
 }
 
 // ===========================================================================
