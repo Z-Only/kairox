@@ -56,12 +56,22 @@ async fn load_active_skill_blocks(
     let Some(registry) = skill_registry else {
         return Ok(Vec::new());
     };
+    let session_key = session_id.to_string();
     let skill_ids = {
-        let active_skills = active_skills.lock().await;
-        active_skills
-            .get(&session_id.to_string())
-            .cloned()
-            .unwrap_or_default()
+        let mut active_skills = active_skills.lock().await;
+        let Some(session_skills) = active_skills.get_mut(&session_key) else {
+            return Ok(Vec::new());
+        };
+        session_skills.retain(|skill_id| {
+            registry
+                .get(&agent_skills::SkillId::new(skill_id.clone()))
+                .is_some()
+        });
+        let skill_ids = session_skills.clone();
+        if session_skills.is_empty() {
+            active_skills.remove(&session_key);
+        }
+        skill_ids
     };
 
     let mut rendered_skills = Vec::new();
