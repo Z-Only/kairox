@@ -60,6 +60,39 @@ test("sends a message and sees user message immediately", async ({ page }) => {
   await expect(page.locator(".message-user").first()).toContainText("Hello agent!");
 });
 
+test("sends attachment metadata over IPC and clears composer after accept", async ({ page }) => {
+  await openWorkbench(page);
+
+  await page.evaluate(() => {
+    (window as any).__KAIROX_MOCK__.setNextOpenDialogResult(["/mock/workspace/report.md"]);
+  });
+
+  const input = page.getByTestId("message-input");
+  await input.fill("Read this");
+  await page.getByTestId("attach-file-btn").click();
+  await expect(page.getByTestId("attachment-chip")).toHaveAttribute("data-filename", "report.md");
+
+  await page.getByTestId("send-button").click();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as any).__KAIROX_MOCK__.state.sentMessages.at(-1) ?? null)
+    )
+    .toEqual({
+      sessionId: expect.any(String),
+      content: "Read this",
+      attachments: [
+        {
+          path: "/mock/workspace/report.md",
+          name: "report.md",
+          mime_type: "text/markdown"
+        }
+      ]
+    });
+  await expect(input).toHaveValue("");
+  await expect(page.getByTestId("attachment-chip")).toHaveCount(0);
+});
+
 test("receives streaming assistant response", async ({ page }) => {
   await openWorkbench(page);
 

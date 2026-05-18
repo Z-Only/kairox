@@ -183,6 +183,7 @@ function installMock() {
       state.currentPermissionMode = "suggest";
       state.projections.clear();
       state.traces.clear();
+      state.sentMessages = [];
       state.memories = [];
       state.permissionRequests.clear();
       state.agents.clear();

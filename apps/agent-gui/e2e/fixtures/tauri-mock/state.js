@@ -40,6 +40,7 @@ const state = {
   currentPermissionMode: "suggest",
   projections: new Map(),
   traces: new Map(),
+  sentMessages: [],
   memories: [],
   permissionRequests: new Map(),
   agents: new Map(),
