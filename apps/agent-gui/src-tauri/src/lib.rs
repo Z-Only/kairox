@@ -272,6 +272,15 @@ pub fn run() {
             crate::commands::remove_skill_source,
             crate::commands::set_skill_source_enabled,
             crate::commands::refresh_skill_catalog,
+            // Plugin commands
+            crate::commands::list_plugin_settings,
+            crate::commands::get_plugin_detail,
+            crate::commands::set_plugin_enabled,
+            crate::commands::delete_plugin_settings,
+            crate::commands::list_plugin_marketplace_sources,
+            crate::commands::set_plugin_marketplace_source_enabled,
+            crate::commands::list_plugin_catalog,
+            crate::commands::install_plugin,
             // MCP commands
             crate::commands::list_mcp_servers,
             crate::commands::start_mcp_server,

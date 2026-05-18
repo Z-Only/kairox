@@ -230,6 +230,28 @@ export const commands = {
   setSkillSourceEnabled: (id: string, enabled: boolean) =>
     typedError<null, string>(__TAURI_INVOKE("set_skill_source_enabled", { id, enabled })),
   refreshSkillCatalog: () => typedError<null, string>(__TAURI_INVOKE("refresh_skill_catalog")),
+  listPluginSettings: () =>
+    typedError<PluginSettingsView[], string>(__TAURI_INVOKE("list_plugin_settings")),
+  getPluginDetail: (settingsId: string) =>
+    typedError<PluginDetailView, string>(__TAURI_INVOKE("get_plugin_detail", { settingsId })),
+  setPluginEnabled: (settingsId: string, enabled: boolean) =>
+    typedError<null, string>(__TAURI_INVOKE("set_plugin_enabled", { settingsId, enabled })),
+  deletePluginSettings: (settingsId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_plugin_settings", { settingsId })),
+  listPluginMarketplaceSources: () =>
+    typedError<PluginMarketplaceSourceView[], string>(
+      __TAURI_INVOKE("list_plugin_marketplace_sources")
+    ),
+  setPluginMarketplaceSourceEnabled: (sourceId: string, enabled: boolean) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("set_plugin_marketplace_source_enabled", { sourceId, enabled })
+    ),
+  listPluginCatalog: (marketplaceId: string | null, keyword: string | null) =>
+    typedError<PluginCatalogEntry[], string>(
+      __TAURI_INVOKE("list_plugin_catalog", { marketplaceId, keyword })
+    ),
+  installPlugin: (request: InstallPluginRequest) =>
+    typedError<PluginSettingsView, string>(__TAURI_INVOKE("install_plugin", { request })),
   listMcpServers: () =>
     typedError<McpServerStatusResponse[], string>(__TAURI_INVOKE("list_mcp_servers")),
   startMcpServer: (serverId: string) =>
@@ -559,6 +581,12 @@ export type InstallOutcomeResponse = {
   missing_env_keys: string[];
 };
 
+export type InstallPluginRequest = {
+  marketplace_id: string;
+  plugin_name: string;
+  target: PluginInstallTarget;
+};
+
 export type InstallRemoteSkillRequest = {
   package: string;
   source: string;
@@ -674,6 +702,61 @@ export type MemoryEntryResponse = {
   key: string | null;
   content: string;
   accepted: boolean;
+};
+
+export type PluginCatalogEntry = {
+  marketplace_id: string;
+  name: string;
+  description: string;
+  version: string | null;
+  source: string;
+};
+
+export type PluginComponentInventoryView = {
+  skill_count: number;
+  skill_names: string[];
+  mcp_server_count: number;
+  app_count: number;
+  agent_count: number;
+  hook_count: number;
+};
+
+export type PluginDetailView = {
+  view: PluginSettingsView;
+  manifest_path: string;
+  homepage: string | null;
+  repository: string | null;
+  license: string | null;
+  keywords: string[];
+};
+
+export type PluginInstallTarget = "user" | "project";
+
+export type PluginMarketplaceSourceView = {
+  id: string;
+  display_name: string;
+  source: string;
+  enabled: boolean;
+  builtin: boolean;
+};
+
+export type PluginSettingsView = {
+  settings_id: string;
+  id: string;
+  name: string;
+  description: string;
+  version: string | null;
+  scope: ConfigScope;
+  path: string;
+  enabled: boolean;
+  install_source: string | null;
+  marketplace: string | null;
+  effective: boolean;
+  shadowed_by: string | null;
+  valid: boolean;
+  validation_error: string | null;
+  inventory: PluginComponentInventoryView;
+  manifest_kind: string;
 };
 
 export type ProfileDetailResponse = {
