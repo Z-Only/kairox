@@ -12,6 +12,7 @@ pub(crate) mod facade_marketplace;
 pub(crate) mod facade_mcp;
 pub(crate) mod facade_models;
 pub(crate) mod facade_plugins;
+pub(crate) mod facade_profiles;
 pub(crate) mod facade_projects;
 pub mod facade_runtime;
 pub(crate) mod facade_sessions;
