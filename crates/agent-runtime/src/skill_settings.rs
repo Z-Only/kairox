@@ -19,6 +19,7 @@ pub struct SkillSettingsRoots {
     pub workspace_root: Option<PathBuf>,
     pub user_root: Option<PathBuf>,
     pub builtin_root: Option<PathBuf>,
+    pub plugin_roots: Vec<(String, PathBuf)>,
 }
 
 pub async fn list_skill_settings(
@@ -237,6 +238,13 @@ fn skill_roots(roots: &SkillSettingsRoots) -> Vec<SkillRoot> {
     if let Some(root) = &roots.workspace_root {
         skill_roots.push(SkillRoot::new(SkillSourceKind::Workspace, root));
     }
+    for (name, path) in &roots.plugin_roots {
+        skill_roots.push(SkillRoot::with_namespace(
+            SkillSourceKind::Plugin,
+            path,
+            name.clone(),
+        ));
+    }
     skill_roots
 }
 
@@ -258,8 +266,8 @@ fn local_view_to_core_view(view: LocalSkillSettingsView) -> SkillSettingsView {
         shadowed_by: view.shadowed_by,
         valid: view.valid,
         validation_error: view.validation_error,
-        editable: scope != SkillSettingsScope::Builtin,
-        deletable: scope != SkillSettingsScope::Builtin,
+        editable: scope != SkillSettingsScope::Builtin && scope != SkillSettingsScope::Plugin,
+        deletable: scope != SkillSettingsScope::Builtin && scope != SkillSettingsScope::Plugin,
     }
 }
 
@@ -268,6 +276,7 @@ fn skill_scope_to_settings_scope(scope: SkillSourceKind) -> SkillSettingsScope {
         SkillSourceKind::Builtin => SkillSettingsScope::Builtin,
         SkillSourceKind::User => SkillSettingsScope::User,
         SkillSourceKind::Workspace => SkillSettingsScope::Project,
+        SkillSourceKind::Plugin => SkillSettingsScope::Plugin,
     }
 }
 
@@ -348,9 +357,10 @@ fn skill_settings_id(scope: SkillSettingsScope, skill_id: &str) -> String {
 }
 
 fn reject_builtin_mutation(view: &SkillSettingsView, operation: &str) -> agent_core::Result<()> {
-    if view.scope == SkillSettingsScope::Builtin {
+    if view.scope == SkillSettingsScope::Builtin || view.scope == SkillSettingsScope::Plugin {
         return Err(CoreError::InvalidState(format!(
-            "cannot {operation} built-in skill: {}",
+            "cannot {operation} {}-scope skill: {}",
+            scope_label(view.scope),
             view.id
         )));
     }
@@ -362,6 +372,7 @@ fn root_for_scope(roots: &SkillSettingsRoots, scope: SkillSettingsScope) -> Opti
         SkillSettingsScope::Project => roots.workspace_root.clone(),
         SkillSettingsScope::User => roots.user_root.clone(),
         SkillSettingsScope::Builtin => roots.builtin_root.clone(),
+        SkillSettingsScope::Plugin => None,
     }
 }
 
@@ -434,11 +445,13 @@ fn roots_for_install_target(root: &Path, target: SkillInstallTarget) -> SkillSet
             workspace_root: Some(root.to_path_buf()),
             user_root: None,
             builtin_root: None,
+            plugin_roots: Vec::new(),
         },
         SkillInstallTarget::User => SkillSettingsRoots {
             workspace_root: None,
             user_root: Some(root.to_path_buf()),
             builtin_root: None,
+            plugin_roots: Vec::new(),
         },
     }
 }
@@ -489,6 +502,7 @@ fn scope_label(scope: SkillSettingsScope) -> &'static str {
         SkillSettingsScope::Project => "project",
         SkillSettingsScope::User => "user",
         SkillSettingsScope::Builtin => "builtin",
+        SkillSettingsScope::Plugin => "plugin",
     }
 }
 
@@ -526,6 +540,7 @@ mod tests {
             workspace_root: Some(workspace_root.path().to_path_buf()),
             user_root: None,
             builtin_root: None,
+            plugin_roots: Vec::new(),
         })
         .await
         .expect("settings should list");
@@ -583,6 +598,7 @@ mod tests {
                 workspace_root: Some(workspace_root.path().to_path_buf()),
                 user_root: None,
                 builtin_root: None,
+                plugin_roots: Vec::new(),
             },
             "review",
             "auto",
@@ -594,6 +610,7 @@ mod tests {
             workspace_root: Some(workspace_root.path().to_path_buf()),
             user_root: None,
             builtin_root: None,
+            plugin_roots: Vec::new(),
         })
         .await
         .expect("settings should list");
@@ -633,6 +650,7 @@ mod tests {
                 workspace_root: Some(workspace_root.path().to_path_buf()),
                 user_root: Some(user_root.path().to_path_buf()),
                 builtin_root: None,
+                plugin_roots: Vec::new(),
             },
             "review",
             false,
@@ -671,6 +689,7 @@ mod tests {
             workspace_root: Some(workspace_root.path().to_path_buf()),
             user_root: Some(user_root.path().to_path_buf()),
             builtin_root: None,
+            plugin_roots: Vec::new(),
         };
         let views = list_skill_settings_from_roots(roots.clone())
             .await

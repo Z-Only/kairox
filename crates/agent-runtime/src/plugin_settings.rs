@@ -147,7 +147,7 @@ pub fn local_view_to_core_view(view: agent_plugins::PluginSettingsView) -> Plugi
     }
 }
 
-fn plugin_roots(roots: &PluginSettingsRoots) -> Vec<PluginRoot> {
+pub(crate) fn plugin_roots(roots: &PluginSettingsRoots) -> Vec<PluginRoot> {
     let mut plugin_roots = Vec::new();
     if let Some(root) = &roots.builtin_root {
         plugin_roots.push(PluginRoot::new(PluginScope::Builtin, root));
