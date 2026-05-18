@@ -99,8 +99,12 @@ watch(
     </p>
 
     <div v-if="loaded" class="instructions-levels">
-      <!-- System level -->
-      <div class="instructions-level" data-test="instructions-level-system">
+      <!-- System level (hidden when editing project config) -->
+      <div
+        v-if="scope !== 'Project'"
+        class="instructions-level"
+        data-test="instructions-level-system"
+      >
         <header class="instructions-level__header">
           <h3>{{ t("instructions.system") }}</h3>
           <span class="instructions-level__badge" data-test="badge-system">{{
@@ -116,8 +120,12 @@ watch(
         />
       </div>
 
-      <!-- User level -->
-      <div class="instructions-level" data-test="instructions-level-user">
+      <!-- User level (hidden when editing project config) -->
+      <div
+        v-if="scope !== 'Project'"
+        class="instructions-level"
+        data-test="instructions-level-user"
+      >
         <header class="instructions-level__header">
           <h3>{{ t("instructions.user") }}</h3>
           <span

@@ -11,6 +11,7 @@ const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 
 const selectedAgentId = ref<string | null>(null);
+const showEditor = ref(false);
 const form = reactive<AgentSettingsInput>({
   scope: "User",
   name: "",
@@ -57,6 +58,7 @@ function scopeLabel(scope: AgentSettingsScope | "Builtin" | "Local"): string {
 
 function startCreate(): void {
   selectedAgentId.value = null;
+  showEditor.value = true;
   Object.assign(form, {
     scope: selectedScope.value,
     name: "",
@@ -76,6 +78,7 @@ function startCreate(): void {
 
 function editAgent(agent: AgentSettingsView): void {
   selectedAgentId.value = agent.settingsId;
+  showEditor.value = true;
   Object.assign(form, {
     scope: agent.scope === "Builtin" ? selectedScope.value : agent.scope,
     name: agent.name,
@@ -93,6 +96,11 @@ function editAgent(agent: AgentSettingsView): void {
   nicknamesText.value = agent.nicknameCandidates.join(", ");
 }
 
+function closeEditor(): void {
+  showEditor.value = false;
+  selectedAgentId.value = null;
+}
+
 async function saveAgent(): Promise<void> {
   if (!canSave.value) return;
   await store.saveAgent({
@@ -106,6 +114,7 @@ async function saveAgent(): Promise<void> {
     permissionMode: form.permissionMode?.trim() || null,
     instructions: form.instructions.trimEnd()
   });
+  closeEditor();
 }
 
 async function copyToUser(agent: AgentSettingsView): Promise<void> {
@@ -252,7 +261,12 @@ watch(
         </article>
       </div>
 
-      <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
+      <form
+        v-if="showEditor"
+        class="agent-editor"
+        data-test="agent-editor"
+        @submit.prevent="saveAgent"
+      >
         <header class="agent-editor__header">
           <h3>{{ selectedAgentId ? t("agents.editAgent") : t("agents.newAgent") }}</h3>
           <span class="tag">{{ scopeLabel(form.scope) }}</span>
@@ -314,15 +328,20 @@ watch(
           {{ t("settings.instructions") }}
           <textarea v-model="form.instructions" data-test="agent-form-instructions" rows="8" />
         </label>
-        <button
-          class="btn btn-primary"
-          type="button"
-          :disabled="!canSave || store.saving"
-          data-test="agent-save"
-          @click="saveAgent"
-        >
-          {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
-        </button>
+        <div class="agent-editor__actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            :disabled="!canSave || store.saving"
+            data-test="agent-save"
+            @click="saveAgent"
+          >
+            {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
+          </button>
+          <button class="btn" type="button" data-test="agent-cancel" @click="closeEditor">
+            {{ t("common.cancel") }}
+          </button>
+        </div>
       </form>
     </div>
   </section>
@@ -442,6 +461,11 @@ watch(
 .agent-editor textarea {
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.agent-editor__actions {
+  display: flex;
+  gap: 8px;
 }
 
 .agent-editor__checkbox {
