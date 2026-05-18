@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
+import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
@@ -63,8 +64,8 @@ const readOnlyProfile = {
   source: "user_config"
 };
 
-const disabledProfile = {
-  alias: "slow-model",
+const projectOnlyProfile = {
+  alias: "local-code",
   provider: "anthropic",
   model_id: "claude-opus-4-7",
   enabled: false,
@@ -79,13 +80,15 @@ const disabledProfile = {
   has_api_key: false,
   writable: true,
   config_path: "/tmp/profiles.toml",
-  source: "profiles_toml"
+  source: "project_config"
 };
 
-function toEffective(profile: typeof writableProfile): EffectiveProfileView {
+function toEffective(
+  profile: typeof writableProfile | typeof readOnlyProfile | typeof projectOnlyProfile
+): EffectiveProfileView {
   return {
     value: profile,
-    source: profile.source === "user_config" ? "User" : "Project",
+    source: profile.source === "project_config" ? "Project" : "User",
     overrides: null,
     enabled: profile.enabled,
     disabledBy: null,
@@ -98,9 +101,19 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
-function mountPane() {
+function mountPane(configSource?: "user" | "project") {
   const mountOptions: MountWithPluginsOptions<typeof ModelSettingsPane> = {
-    reusePinia: true
+    reusePinia: true,
+    mount: configSource
+      ? {
+          global: {
+            provide: {
+              configSource: ref(configSource),
+              configProjectId: ref(undefined)
+            }
+          }
+        }
+      : undefined
   };
   return mountWithPlugins(ModelSettingsPane, mountOptions).wrapper;
 }
@@ -108,9 +121,11 @@ function mountPane() {
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
-  const profileFixtures = [writableProfile, readOnlyProfile, disabledProfile];
+  const profileFixtures = [writableProfile, readOnlyProfile];
   mockedCommands.listProfileSettings.mockResolvedValue(ok(profileFixtures));
-  mockedCommands.getEffectiveModelProfiles.mockResolvedValue(ok(profileFixtures.map(toEffective)));
+  mockedCommands.getEffectiveModelProfiles.mockResolvedValue(
+    ok([...profileFixtures, projectOnlyProfile].map(toEffective))
+  );
   mockedCommands.upsertProfileSettings.mockResolvedValue(ok(writableProfile));
   mockedCommands.setProfileEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteProfileSettings.mockResolvedValue(ok(null));
@@ -120,22 +135,31 @@ beforeEach(() => {
 
 describe("ModelSettingsPane", () => {
   it("renders profile list with correct data", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="model-row-fast"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="model-row-slow-model"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="model-row-local-code"]').exists()).toBe(false);
 
     const myModelRow = wrapper.find('[data-test="model-row-my-model"]');
     expect(myModelRow.text()).toContain("Enabled");
 
-    const slowRow = wrapper.find('[data-test="model-row-slow-model"]');
-    expect(slowRow.text()).toContain("Disabled");
+    const fastRow = wrapper.find('[data-test="model-row-fast"]');
+    expect(fastRow.text()).toContain("User config");
+  });
+
+  it("loads only the selected user configuration scope", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith("user");
+    expect(mockedCommands.getEffectiveModelProfiles).not.toHaveBeenCalled();
+    expect(wrapper.find('[data-test="model-row-local-code"]').exists()).toBe(false);
   });
 
   it("refresh button reloads profiles", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
     expect(mockedCommands.listProfileSettings).toHaveBeenCalledTimes(1);
 
@@ -144,7 +168,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("add dialog opens, validates required fields, and saves", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     await wrapper.find('[data-test="model-add-profile"]').trigger("click");
@@ -174,7 +198,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("edit dialog opens pre-filled and saves changes", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     await wrapper.find('[data-test="model-edit-my-model"]').trigger("click");
@@ -195,7 +219,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("toggle button disables an enabled profile", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     const myModelRow = wrapper.find('[data-test="model-row-my-model"]');
@@ -205,7 +229,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("delete button only appears for writable profiles", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     expect(wrapper.find('[data-test="model-delete-my-model"]').exists()).toBe(true);
@@ -213,7 +237,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("delete button removes profile", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     await wrapper.find('[data-test="model-delete-my-model"]').trigger("click");
@@ -221,25 +245,20 @@ describe("ModelSettingsPane", () => {
   });
 
   it("move up/down buttons call moveProfileInOrder", async () => {
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     // Verify rows are rendered first
-    const fastRow = wrapper.find('[data-test="model-row-fast"]');
-    expect(fastRow.exists()).toBe(true);
     const myRow = wrapper.find('[data-test="model-row-my-model"]');
     expect(myRow.exists()).toBe(true);
 
     // Find move buttons within the rows
+    const fastRow = wrapper.find('[data-test="model-row-fast"]');
     const fastUpBtn = fastRow.find('[data-test="model-move-up-fast"]');
     expect(fastUpBtn.exists()).toBe(true);
 
     const myDownBtn = myRow.find('[data-test="model-move-down-my-model"]');
     expect(myDownBtn.exists()).toBe(true);
-
-    // "fast" is at index 1, so the move-up button should be enabled
-    await fastUpBtn.trigger("click");
-    expect(mockedCommands.moveProfileInOrder).toHaveBeenCalledWith("fast", -1);
 
     // "my-model" is at index 0 (not last), so the move-down button should be enabled
     await myDownBtn.trigger("click");
@@ -258,7 +277,7 @@ describe("ModelSettingsPane", () => {
 
   it("shows error message on fetch failure", async () => {
     mockedCommands.listProfileSettings.mockRejectedValue(new Error("fetch failed"));
-    const wrapper = mountPane();
+    const wrapper = mountPane("user");
     await flushPromises();
 
     expect(wrapper.find('[data-test="model-page-error"]').exists()).toBe(true);

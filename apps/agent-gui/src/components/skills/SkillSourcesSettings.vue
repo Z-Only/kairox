@@ -134,8 +134,12 @@ function formatError(caughtError: unknown): string {
           >
             {{ src.url }}
           </a>
-          <span v-if="src.last_error" class="src-error text-error" :title="src.last_error">
-            ⚠ {{ src.last_error }}
+          <span
+            v-if="src.last_error"
+            class="src-error text-error"
+            :title="t('skills.sourceErrorTitle', { error: src.last_error })"
+          >
+            {{ t("skills.sourceError", { error: src.last_error }) }}
           </span>
         </div>
         <div class="src-actions">
@@ -146,7 +150,7 @@ function formatError(caughtError: unknown): string {
               :disabled="src.id === 'skillhub'"
               @change="onToggle(src.id, ($event.target as HTMLInputElement).checked)"
             />
-            Enabled
+            {{ t("skills.sourceEnabled") }}
           </label>
           <button
             v-if="src.id !== 'skillhub'"
@@ -154,7 +158,7 @@ function formatError(caughtError: unknown): string {
             :data-test="`skill-src-remove-${src.id}`"
             @click="onRemove(src.id)"
           >
-            Remove
+            {{ t("common.delete") }}
           </button>
         </div>
       </li>
@@ -167,7 +171,7 @@ function formatError(caughtError: unknown): string {
       data-test="skill-add-source-toggle"
       @click="showAddForm = true"
     >
-      + Add source
+      {{ t("skills.addSource") }}
     </button>
 
     <div v-else class="add-form">
@@ -176,11 +180,11 @@ function formatError(caughtError: unknown): string {
         <input v-model="draft.id" class="input" data-test="skill-src-id" />
       </label>
       <label class="field">
-        <span class="field-label">display name</span>
+        <span class="field-label">{{ t("skills.displayName") }}</span>
         <input v-model="draft.display_name" class="input" data-test="skill-src-name" />
       </label>
       <label class="field">
-        <span class="field-label">kind</span>
+        <span class="field-label">{{ t("skills.kind") }}</span>
         <select v-model="draft.kind" class="input">
           <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
@@ -188,11 +192,11 @@ function formatError(caughtError: unknown): string {
         </select>
       </label>
       <label class="field">
-        <span class="field-label">url</span>
+        <span class="field-label">{{ t("skills.url") }}</span>
         <input v-model="draft.url" class="input" data-test="skill-src-url" />
       </label>
       <label class="field">
-        <span class="field-label">search template *</span>
+        <span class="field-label">{{ t("skills.searchTemplate") }} *</span>
         <input
           v-model="draft.search_template"
           class="input"
@@ -200,7 +204,7 @@ function formatError(caughtError: unknown): string {
         />
       </label>
       <label class="field">
-        <span class="field-label">download template *</span>
+        <span class="field-label">{{ t("skills.downloadTemplate") }} *</span>
         <input
           v-model="draft.download_template"
           class="input"
@@ -208,11 +212,11 @@ function formatError(caughtError: unknown): string {
         />
       </label>
       <label class="field">
-        <span class="field-label">list template</span>
+        <span class="field-label">{{ t("skills.listTemplate") }}</span>
         <input v-model="draft.list_template" class="input" data-test="skill-src-list-template" />
       </label>
       <label class="field">
-        <span class="field-label">detail template</span>
+        <span class="field-label">{{ t("skills.detailTemplate") }}</span>
         <input
           v-model="draft.detail_template"
           class="input"
@@ -224,7 +228,7 @@ function formatError(caughtError: unknown): string {
       </span>
       <div class="form-actions">
         <button class="btn btn-primary" type="button" data-test="skill-src-save" @click="save">
-          Save
+          {{ t("common.save") }}
         </button>
         <button
           class="btn"
@@ -234,7 +238,7 @@ function formatError(caughtError: unknown): string {
             formError = null;
           "
         >
-          Cancel
+          {{ t("common.cancel") }}
         </button>
       </div>
     </div>

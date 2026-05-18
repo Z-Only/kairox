@@ -85,7 +85,9 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
 <template>
   <div class="catalog-sources-settings">
-    <h3 class="header"><strong>Remote Catalog Sources</strong></h3>
+    <h3 class="header">
+      <strong>{{ t("marketplace.catalogSourcesTitle") }}</strong>
+    </h3>
 
     <div v-if="sources.length === 0" class="empty-state">
       {{ t("marketplace.sourcesEmpty") }}
@@ -111,9 +113,9 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
           <span
             v-if="failures[src.id]"
             class="src-error text-error"
-            :title="`Last error: ${failures[src.id]}`"
+            :title="t('marketplace.sourceErrorTitle', { error: failures[src.id] })"
           >
-            ⚠ {{ failures[src.id] }}
+            {{ t("marketplace.sourceError", { error: failures[src.id] }) }}
           </span>
         </div>
         <div class="src-actions">
@@ -124,7 +126,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
               :disabled="src.id === 'builtin'"
               @change="onToggleChecked(src.id, ($event.target as HTMLInputElement).checked)"
             />
-            Enabled
+            {{ t("marketplace.sourceEnabled") }}
           </label>
           <button
             v-if="src.id !== 'builtin'"
@@ -132,7 +134,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
             :data-test="`src-remove-${src.id}`"
             @click="onRemove(src.id)"
           >
-            Remove
+            {{ t("common.delete") }}
           </button>
         </div>
       </li>
@@ -144,7 +146,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       data-test="add-source-toggle"
       @click="showAddForm = true"
     >
-      + Add source
+      {{ t("marketplace.addSource") }}
     </button>
 
     <div v-else class="add-form">
@@ -153,11 +155,11 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         <input v-model="draft.id" class="input" data-test="src-id" />
       </label>
       <label class="field">
-        <span class="field-label">display name</span>
+        <span class="field-label">{{ t("marketplace.displayName") }}</span>
         <input v-model="draft.display_name" class="input" data-test="src-name" />
       </label>
       <label class="field">
-        <span class="field-label">kind</span>
+        <span class="field-label">{{ t("marketplace.kind") }}</span>
         <select
           :value="draft.kind"
           class="input"
@@ -169,18 +171,20 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         </select>
       </label>
       <label class="field">
-        <span class="field-label">url</span>
+        <span class="field-label">{{ t("marketplace.url") }}</span>
         <input v-model="draft.url" class="input" data-test="src-url" />
       </label>
       <label class="field">
-        <span class="field-label">api_key_env</span>
+        <span class="field-label">{{ t("marketplace.apiKeyEnv") }}</span>
         <input v-model="draft.api_key_env" class="input" />
       </label>
       <span v-if="formError" class="error text-error">
         {{ formError }}
       </span>
       <div class="form-actions">
-        <button class="btn btn-primary" data-test="src-save" @click="save">Save</button>
+        <button class="btn btn-primary" data-test="src-save" @click="save">
+          {{ t("common.save") }}
+        </button>
         <button
           class="btn"
           @click="
@@ -188,7 +192,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
             formError = null;
           "
         >
-          Cancel
+          {{ t("common.cancel") }}
         </button>
       </div>
     </div>

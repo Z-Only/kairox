@@ -25,6 +25,12 @@ watch(
 function onClose() {
   emit("close");
 }
+
+function onBackdropClick(event: MouseEvent) {
+  if (event.target === dialogRef.value) {
+    emit("close");
+  }
+}
 </script>
 
 <template>
@@ -32,6 +38,7 @@ function onClose() {
     v-if="open"
     ref="dialogRef"
     class="modal-dialog"
+    @click="onBackdropClick"
     @close="onClose"
     @cancel.prevent="onClose"
   >

@@ -115,20 +115,14 @@ describe("InstructionsSettingsPane", () => {
   });
 
   describe("project level", () => {
-    it("is disabled under User scope with muted badge", async () => {
+    it("is hidden under User scope", async () => {
       mockGetInstructions();
 
       const wrapper = mountPane("user");
       await nextTick();
       await nextTick();
 
-      const projectTextarea = wrapper.find<HTMLTextAreaElement>(
-        '[data-test="project-instructions"]'
-      );
-      expect(projectTextarea.element.value).toBe(projectInstructions);
-      expect(projectTextarea.element.disabled).toBe(true);
-      expect(projectTextarea.element.readOnly).toBe(true);
-      expect(wrapper.find('[data-test="badge-project-disabled"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="instructions-level-project"]').exists()).toBe(false);
       expect(wrapper.find('[data-test="badge-project-editable"]').exists()).toBe(false);
     });
 

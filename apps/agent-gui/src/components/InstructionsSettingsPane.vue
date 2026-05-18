@@ -143,25 +143,20 @@ watch(
       </div>
 
       <!-- Project level -->
-      <div class="instructions-level" data-test="instructions-level-project">
+      <div
+        v-if="scope === 'Project'"
+        class="instructions-level"
+        data-test="instructions-level-project"
+      >
         <header class="instructions-level__header">
           <h3>{{ t("instructions.project") }}</h3>
-          <span
-            v-if="scope === 'User'"
-            class="instructions-level__badge instructions-level__badge--muted"
-            data-test="badge-project-disabled"
-          >
-            {{ t("instructions.projectScopeRequired") }}
-          </span>
-          <span v-else class="instructions-level__badge" data-test="badge-project-editable">
+          <span class="instructions-level__badge" data-test="badge-project-editable">
             {{ t("instructions.editable") }}
           </span>
         </header>
         <textarea
           class="instructions-level__textarea"
           :value="projectText"
-          :readonly="scope === 'User'"
-          :disabled="scope === 'User'"
           :placeholder="t('instructions.projectPlaceholder')"
           rows="6"
           data-test="project-instructions"
