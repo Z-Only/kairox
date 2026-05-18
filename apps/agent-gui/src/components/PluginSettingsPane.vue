@@ -3,10 +3,12 @@ import { usePluginsStore } from "@/stores/plugins";
 import type { PluginInstallTarget, PluginSettingsView } from "@/generated/commands";
 
 const store = usePluginsStore();
+const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
-const activeSubTab = ref<"installed" | "discover" | "marketplaces">("installed");
+const activeSubTab = ref<"installed" | "marketplace">("installed");
 const search = ref("");
 const selectedMarketplaceId = ref<string | null>(null);
+const sourceSettingsOpen = ref(false);
 
 const installTarget = computed<PluginInstallTarget>(() =>
   configSource?.value === "project" ? "project" : "user"
@@ -44,17 +46,21 @@ onMounted(async () => {
 });
 
 watch(activeSubTab, (tab) => {
-  if (tab === "discover") void refreshCatalog();
+  if (tab === "marketplace") void refreshCatalog();
 });
 </script>
 
 <template>
-  <section class="plugin-settings" aria-label="Plugin settings" data-test="plugin-settings-pane">
+  <section
+    class="plugin-settings"
+    :aria-label="t('plugins.title')"
+    data-test="plugin-settings-pane"
+  >
     <p v-if="store.error" class="alert alert-error" role="alert" data-test="plugin-error">
       {{ store.error }}
     </p>
 
-    <div class="plugin-sub-tabs" role="tablist" aria-label="Plugin sections">
+    <div class="plugin-sub-tabs" role="tablist" :aria-label="t('plugins.sections')">
       <button
         class="sub-tab-btn"
         role="tab"
@@ -62,25 +68,16 @@ watch(activeSubTab, (tab) => {
         data-test="plugin-subtab-installed"
         @click="activeSubTab = 'installed'"
       >
-        Installed
+        {{ t("plugins.tabInstalled") }}
       </button>
       <button
         class="sub-tab-btn"
         role="tab"
-        :aria-selected="activeSubTab === 'discover'"
-        data-test="plugin-subtab-discover"
-        @click="activeSubTab = 'discover'"
+        :aria-selected="activeSubTab === 'marketplace'"
+        data-test="plugin-subtab-marketplace"
+        @click="activeSubTab = 'marketplace'"
       >
-        Discover
-      </button>
-      <button
-        class="sub-tab-btn"
-        role="tab"
-        :aria-selected="activeSubTab === 'marketplaces'"
-        data-test="plugin-subtab-marketplaces"
-        @click="activeSubTab = 'marketplaces'"
-      >
-        Marketplaces
+        {{ t("plugins.tabMarketplace") }}
       </button>
     </div>
 
@@ -93,12 +90,16 @@ watch(activeSubTab, (tab) => {
           data-test="plugin-refresh"
           @click="refreshInstalled"
         >
-          {{ store.loading ? "Refreshing" : "Refresh" }}
+          {{ store.loading ? t("plugins.refreshing") : t("common.refresh") }}
         </button>
       </div>
 
-      <p v-if="store.loading" class="alert alert-info" role="status">Loading plugins</p>
-      <p v-else-if="store.plugins.length === 0" class="empty-state">No plugins installed</p>
+      <p v-if="store.loading" class="alert alert-info" role="status">
+        {{ t("plugins.loading") }}
+      </p>
+      <p v-else-if="store.plugins.length === 0" class="empty-state">
+        {{ t("plugins.emptyInstalled") }}
+      </p>
 
       <article
         v-for="plugin in store.plugins"
@@ -112,31 +113,31 @@ watch(activeSubTab, (tab) => {
             <h4>{{ plugin.name }}</h4>
             <span class="tag">{{ plugin.scope }}</span>
             <span :class="['tag', plugin.enabled ? 'tag-success' : 'tag-warning']">
-              {{ plugin.enabled ? "Enabled" : "Disabled" }}
+              {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
             </span>
             <span :class="['tag', plugin.valid ? 'tag-success' : 'tag-error']">
-              {{ plugin.valid ? "Valid" : "Invalid" }}
+              {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
             </span>
             <span v-if="!plugin.effective" class="tag tag-warning">
-              Shadowed by {{ plugin.shadowed_by }}
+              {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
             </span>
           </div>
           <p>{{ plugin.description }}</p>
           <dl class="plugin-meta">
             <div>
-              <dt>Manifest</dt>
+              <dt>{{ t("plugins.manifest") }}</dt>
               <dd>{{ plugin.manifest_kind }}</dd>
             </div>
             <div>
-              <dt>Skills</dt>
+              <dt>{{ t("plugins.skills") }}</dt>
               <dd>{{ plugin.inventory.skill_count }}</dd>
             </div>
             <div>
-              <dt>MCP</dt>
+              <dt>{{ t("plugins.mcp") }}</dt>
               <dd>{{ plugin.inventory.mcp_server_count }}</dd>
             </div>
             <div>
-              <dt>Path</dt>
+              <dt>{{ t("plugins.path") }}</dt>
               <dd>{{ plugin.path }}</dd>
             </div>
           </dl>
@@ -152,7 +153,7 @@ watch(activeSubTab, (tab) => {
             :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
             @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
           >
-            {{ plugin.enabled ? "Disable" : "Enable" }}
+            {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
           </button>
           <button
             class="btn btn-danger btn-sm"
@@ -161,16 +162,16 @@ watch(activeSubTab, (tab) => {
             :data-test="`plugin-delete-${settingsTestId(plugin)}`"
             @click="store.deletePlugin(plugin.settings_id)"
           >
-            Delete
+            {{ t("common.delete") }}
           </button>
         </div>
       </article>
     </div>
 
-    <div v-if="activeSubTab === 'discover'" class="plugin-panel">
+    <div v-if="activeSubTab === 'marketplace'" class="plugin-panel">
       <div class="plugin-toolbar">
         <select v-model="selectedMarketplaceId" data-test="plugin-marketplace-filter">
-          <option :value="null">All marketplaces</option>
+          <option :value="null">{{ t("plugins.allMarketplaces") }}</option>
           <option v-for="source in store.sources" :key="source.id" :value="source.id">
             {{ source.display_name }}
           </option>
@@ -178,7 +179,7 @@ watch(activeSubTab, (tab) => {
         <input
           v-model="search"
           type="search"
-          placeholder="Search plugins"
+          :placeholder="t('plugins.searchPlaceholder')"
           data-test="plugin-catalog-search"
           @keyup.enter="refreshCatalog"
         />
@@ -189,11 +190,54 @@ watch(activeSubTab, (tab) => {
           data-test="plugin-catalog-refresh"
           @click="refreshCatalog"
         >
-          {{ store.catalogLoading ? "Searching" : "Search" }}
+          {{ store.catalogLoading ? t("plugins.searching") : t("common.search") }}
+        </button>
+        <button
+          class="btn btn-sm"
+          type="button"
+          data-test="plugin-source-settings-toggle"
+          @click="sourceSettingsOpen = !sourceSettingsOpen"
+        >
+          {{ t("plugins.sourceSettings") }}
         </button>
       </div>
 
-      <p v-if="store.catalog.length === 0" class="empty-state">No marketplace plugins found</p>
+      <div v-if="sourceSettingsOpen" class="plugin-source-panel" data-test="plugin-source-settings">
+        <p v-if="store.sources.length === 0" class="empty-state">
+          {{ t("plugins.emptySources") }}
+        </p>
+        <article
+          v-for="source in store.sources"
+          v-else
+          :key="source.id"
+          class="plugin-row"
+          :data-test="`plugin-source-${slugify(source.id)}`"
+        >
+          <div class="plugin-row__main">
+            <div class="plugin-row__title">
+              <h4>{{ source.display_name }}</h4>
+              <span class="tag">{{ source.id }}</span>
+              <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
+                {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
+              </span>
+              <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
+            </div>
+            <code>{{ source.source }}</code>
+          </div>
+          <button
+            class="btn btn-sm"
+            type="button"
+            :data-test="`plugin-source-enabled-${slugify(source.id)}`"
+            @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+          >
+            {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
+          </button>
+        </article>
+      </div>
+
+      <p v-if="store.catalog.length === 0" class="empty-state">
+        {{ t("plugins.emptyCatalog") }}
+      </p>
       <article
         v-for="entry in store.catalog"
         v-else
@@ -216,38 +260,7 @@ watch(activeSubTab, (tab) => {
           :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
           @click="installCatalogEntry(entry.marketplace_id, entry.name)"
         >
-          Install
-        </button>
-      </article>
-    </div>
-
-    <div v-if="activeSubTab === 'marketplaces'" class="plugin-panel">
-      <p v-if="store.sources.length === 0" class="empty-state">No plugin marketplaces configured</p>
-      <article
-        v-for="source in store.sources"
-        v-else
-        :key="source.id"
-        class="plugin-row"
-        :data-test="`plugin-source-${slugify(source.id)}`"
-      >
-        <div class="plugin-row__main">
-          <div class="plugin-row__title">
-            <h4>{{ source.display_name }}</h4>
-            <span class="tag">{{ source.id }}</span>
-            <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
-              {{ source.enabled ? "Enabled" : "Disabled" }}
-            </span>
-            <span v-if="source.builtin" class="tag">Built-in</span>
-          </div>
-          <code>{{ source.source }}</code>
-        </div>
-        <button
-          class="btn btn-sm"
-          type="button"
-          :data-test="`plugin-source-enabled-${slugify(source.id)}`"
-          @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
-        >
-          {{ source.enabled ? "Disable" : "Enable" }}
+          {{ t("plugins.install") }}
         </button>
       </article>
     </div>
@@ -287,6 +300,13 @@ watch(activeSubTab, (tab) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.plugin-source-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 6px;
 }
 .plugin-row {
   display: flex;

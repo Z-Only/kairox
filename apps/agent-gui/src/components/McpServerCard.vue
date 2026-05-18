@@ -102,7 +102,7 @@ function serverToolCount(): number {
             v-if="server.source === 'builtin' && !server.value.verified"
             class="tag tag--unverified"
           >
-            Unverified
+            {{ t("mcp.unverified") }}
           </span>
           <span
             v-if="server.value.transport !== 'builtin' && healthLabel()"

@@ -84,7 +84,7 @@ describe("AgentSettingsPane", () => {
 
     expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain("Builtin");
+    expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain("Built-in");
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("fast");
   });
 

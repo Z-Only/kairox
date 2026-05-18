@@ -64,6 +64,20 @@ beforeEach(() => {
 });
 
 describe("HooksSettingsPane", () => {
+  it("keeps the hook form collapsed until the user adds or edits a hook", async () => {
+    mockedInvoke.mockResolvedValueOnce(hooksSettings);
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="hook-add"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(true);
+  });
+
   it("loads and displays user hooks", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 
@@ -84,6 +98,7 @@ describe("HooksSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="hook-edit-verify"]').trigger("click");
+    await flushPromises();
     await wrapper.find<HTMLInputElement>('[data-test="hook-command"]').setValue("cargo fmt");
     await wrapper.find('[data-test="hook-save"]').trigger("click");
     await flushPromises();
@@ -129,7 +144,9 @@ describe("HooksSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="hook-template-stop-validation"]').trigger("click");
+    await flushPromises();
 
+    expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(true);
     expect(wrapper.find<HTMLInputElement>('[data-test="hook-id"]').element.value).toBe(
       "stop-validation"
     );

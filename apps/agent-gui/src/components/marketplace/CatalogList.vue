@@ -16,9 +16,9 @@ const selected = ref<ServerEntryResponse | null>(null);
 const searchInput = ref("");
 
 const trustOptions = computed<TrustOption[]>(() => [
-  { label: "All trust levels", value: null },
-  { label: "Verified+", value: "verified" },
-  { label: "Community+", value: "community" }
+  { label: t("marketplace.trustAll"), value: null },
+  { label: t("marketplace.trustVerified"), value: "verified" },
+  { label: t("marketplace.trustCommunity"), value: "community" }
 ]);
 
 async function handleRefresh() {
@@ -42,7 +42,7 @@ onMounted(async () => {
     <div class="filters">
       <input
         v-model="searchInput"
-        placeholder="Search servers…"
+        :placeholder="t('marketplace.searchServers')"
         data-test="catalog-search"
         class="filter-keyword"
         autocapitalize="off"
@@ -67,7 +67,7 @@ onMounted(async () => {
 
     <div v-if="catalog.loading" class="loading">
       <span class="spinner" />
-      <span class="text-secondary">Loading…</span>
+      <span class="text-secondary">{{ t("common.loading") }}</span>
     </div>
     <span v-else-if="catalog.error" class="text-error error">
       {{ catalog.error }}

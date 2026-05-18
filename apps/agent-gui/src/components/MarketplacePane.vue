@@ -67,7 +67,7 @@ onMounted(async () => {
             :title="catalog.sourceFailures[chip.id]"
             class="tag tag-error warn"
           >
-            ⚠
+            !
           </span>
         </button>
         <button
@@ -76,7 +76,11 @@ onMounted(async () => {
           :aria-label="t('marketplace.sourceSettingsAria')"
           @click="settingsOpen = !settingsOpen"
         >
-          <span aria-hidden="true">⚙</span>
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path
+              d="M8.95 2h2.1l.32 2.15c.5.17.97.42 1.4.73l2.01-.81 1.05 1.82-1.69 1.35c.05.25.08.51.08.76s-.03.51-.08.76l1.69 1.35-1.05 1.82-2.01-.81c-.43.31-.9.56-1.4.73L11.05 14h-2.1l-.32-2.15c-.5-.17-.97-.42-1.4-.73l-2.01.81-1.05-1.82 1.69-1.35A3.87 3.87 0 0 1 5.78 8c0-.25.03-.51.08-.76L4.17 5.89l1.05-1.82 2.01.81c.43-.31.9-.56 1.4-.73L8.95 2Zm1.05 4.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z"
+            />
+          </svg>
         </button>
       </div>
 
@@ -153,6 +157,11 @@ onMounted(async () => {
 }
 .settings-icon {
   margin-left: auto;
+}
+.settings-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 .settings-drawer {
   margin-bottom: 12px;

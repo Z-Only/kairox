@@ -7,6 +7,7 @@ import type {
 } from "@/generated/commands";
 
 const store = useAgentSettingsStore();
+const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 
 const selectedAgentId = ref<string | null>(null);
@@ -45,6 +46,13 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function scopeLabel(scope: AgentSettingsScope | "Builtin" | "Local"): string {
+  if (scope === "Builtin") return t("agents.scopeBuiltin");
+  if (scope === "Project") return t("agents.scopeProject");
+  if (scope === "Local") return t("agents.scopeLocal");
+  return t("agents.scopeUser");
 }
 
 function startCreate(): void {
@@ -121,7 +129,7 @@ watch(
 </script>
 
 <template>
-  <section class="agent-settings" aria-label="Agents settings" data-test="agent-settings-pane">
+  <section class="agent-settings" :aria-label="t('agents.title')" data-test="agent-settings-pane">
     <p v-if="store.error" class="alert alert-error" role="alert" data-test="agent-error">
       {{ store.error }}
     </p>
@@ -133,7 +141,7 @@ watch(
         data-test="agent-new"
         @click="startCreate"
       >
-        New agent
+        {{ t("agents.newAgent") }}
       </button>
       <button
         class="btn btn-sm"
@@ -141,7 +149,7 @@ watch(
         data-test="agent-open-dir"
         @click="store.openAgentsDir()"
       >
-        Open agents folder
+        {{ t("agents.openFolder") }}
       </button>
       <button
         class="btn btn-sm"
@@ -150,14 +158,18 @@ watch(
         data-test="agent-refresh"
         @click="store.loadAgents()"
       >
-        {{ store.loading ? "Refreshing" : "Refresh" }}
+        {{ store.loading ? t("agents.refreshing") : t("common.refresh") }}
       </button>
     </div>
 
     <div class="agent-settings__layout">
       <div class="agent-settings__list" data-test="agent-list">
-        <p v-if="store.loading" class="alert alert-info" role="status">Loading agents...</p>
-        <p v-else-if="store.agents.length === 0" class="empty-state">No agents configured.</p>
+        <p v-if="store.loading" class="alert alert-info" role="status">
+          {{ t("agents.loading") }}
+        </p>
+        <p v-else-if="store.agents.length === 0" class="empty-state">
+          {{ t("agents.empty") }}
+        </p>
 
         <article
           v-for="agent in store.agents"
@@ -169,33 +181,39 @@ watch(
           <div class="agent-row__main">
             <div class="agent-row__title">
               <h3>{{ agent.name }}</h3>
-              <span class="tag">{{ agent.scope }}</span>
+              <span class="tag">{{ scopeLabel(agent.scope) }}</span>
               <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
-                {{ agent.enabled ? "Enabled" : "Disabled" }}
+                {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
               </span>
               <span :class="['tag', agent.effective ? 'tag-success' : 'tag-warning']">
-                {{ agent.effective ? "Effective" : `Shadowed by ${agent.shadowedBy}` }}
+                {{
+                  agent.effective
+                    ? t("agents.effective")
+                    : t("agents.shadowedBy", { source: agent.shadowedBy })
+                }}
               </span>
               <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
-                {{ agent.valid ? "Valid" : "Invalid" }}
+                {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
               </span>
             </div>
             <p>{{ agent.description }}</p>
             <dl class="agent-row__meta">
               <div>
-                <dt>Model</dt>
-                <dd>{{ agent.modelProfile || "Default" }}</dd>
+                <dt>{{ t("agents.model") }}</dt>
+                <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
               </div>
               <div>
-                <dt>Permission</dt>
-                <dd>{{ agent.permissionMode || "Default" }}</dd>
+                <dt>{{ t("agents.permission") }}</dt>
+                <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
               </div>
               <div>
-                <dt>Tools</dt>
-                <dd>{{ agent.tools.length ? agent.tools.join(", ") : "Default" }}</dd>
+                <dt>{{ t("agents.tools") }}</dt>
+                <dd>
+                  {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
+                </dd>
               </div>
               <div>
-                <dt>Path</dt>
+                <dt>{{ t("agents.path") }}</dt>
                 <dd>{{ agent.path }}</dd>
               </div>
             </dl>
@@ -210,7 +228,7 @@ watch(
               :data-test="`agent-edit-${slugify(agent.name)}`"
               @click="editAgent(agent)"
             >
-              {{ agent.editable ? "Edit" : "View" }}
+              {{ agent.editable ? t("common.edit") : t("agents.view") }}
             </button>
             <button
               v-if="!agent.editable"
@@ -219,7 +237,7 @@ watch(
               :data-test="`agent-copy-${slugify(agent.name)}`"
               @click="copyToUser(agent)"
             >
-              Copy to user
+              {{ t("agents.copyToUser") }}
             </button>
             <button
               v-if="agent.deletable"
@@ -228,7 +246,7 @@ watch(
               :data-test="`agent-delete-${slugify(agent.name)}`"
               @click="deleteAgent(agent)"
             >
-              Delete
+              {{ t("common.delete") }}
             </button>
           </div>
         </article>
@@ -236,32 +254,36 @@ watch(
 
       <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
         <header class="agent-editor__header">
-          <h3>{{ selectedAgentId ? "Edit agent" : "New agent" }}</h3>
-          <span class="tag">{{ form.scope }}</span>
+          <h3>{{ selectedAgentId ? t("agents.editAgent") : t("agents.newAgent") }}</h3>
+          <span class="tag">{{ scopeLabel(form.scope) }}</span>
         </header>
 
         <label>
-          Name
+          {{ t("agents.name") }}
           <input v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
         </label>
         <label>
-          Description
+          {{ t("agents.description") }}
           <input v-model="form.description" data-test="agent-form-description" />
         </label>
         <label>
-          Model profile
-          <input v-model="form.modelProfile" data-test="agent-form-model" placeholder="Default" />
-        </label>
-        <label>
-          Permission mode
+          {{ t("agents.modelProfile") }}
           <input
-            v-model="form.permissionMode"
-            data-test="agent-form-permission"
-            placeholder="Default"
+            v-model="form.modelProfile"
+            data-test="agent-form-model"
+            :placeholder="t('agents.defaultValue')"
           />
         </label>
         <label>
-          Tools
+          {{ t("agents.permissionMode") }}
+          <input
+            v-model="form.permissionMode"
+            data-test="agent-form-permission"
+            :placeholder="t('agents.defaultValue')"
+          />
+        </label>
+        <label>
+          {{ t("agents.tools") }}
           <input
             v-model="toolsText"
             data-test="agent-form-tools"
@@ -269,7 +291,7 @@ watch(
           />
         </label>
         <label>
-          Skills
+          {{ t("agents.skills") }}
           <input
             v-model="skillsText"
             data-test="agent-form-skills"
@@ -277,7 +299,7 @@ watch(
           />
         </label>
         <label>
-          Nicknames
+          {{ t("agents.nicknames") }}
           <input
             v-model="nicknamesText"
             data-test="agent-form-nicknames"
@@ -286,10 +308,10 @@ watch(
         </label>
         <label class="agent-editor__checkbox">
           <input v-model="form.enabled" type="checkbox" data-test="agent-form-enabled" />
-          Enabled
+          {{ t("agents.enabled") }}
         </label>
         <label>
-          Instructions
+          {{ t("settings.instructions") }}
           <textarea v-model="form.instructions" data-test="agent-form-instructions" rows="8" />
         </label>
         <button
@@ -299,7 +321,7 @@ watch(
           data-test="agent-save"
           @click="saveAgent"
         >
-          {{ store.saving ? "Saving" : "Save agent" }}
+          {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
         </button>
       </form>
     </div>

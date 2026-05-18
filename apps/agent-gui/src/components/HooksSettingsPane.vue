@@ -9,6 +9,7 @@ import type {
 import { commands } from "@/generated/commands";
 import { useProjectStore } from "@/stores/project";
 
+const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 const projectStore = useProjectStore();
@@ -17,6 +18,7 @@ const view = ref<HooksSettingsView | null>(null);
 const loading = ref(true);
 const saving = ref(false);
 const errorMsg = ref("");
+const formOpen = ref(false);
 
 const form = ref({
   id: "",
@@ -38,6 +40,9 @@ const events = [
 ];
 
 const scope = computed<ConfigScope>(() => (configSource?.value === "project" ? "Project" : "User"));
+const scopeLabel = computed(() =>
+  scope.value === "Project" ? t("settings.projectConfig") : t("settings.userConfig")
+);
 
 const projectRoot = computed(() => {
   if (configSource?.value !== "project") return null;
@@ -93,6 +98,7 @@ function editHook(hook: HookSettingsView): void {
     timeoutSecs: hook.timeoutSecs ?? 600,
     enabled: hook.enabled
   };
+  formOpen.value = true;
 }
 
 function applyTemplate(template: HookTemplateView): void {
@@ -105,6 +111,29 @@ function applyTemplate(template: HookTemplateView): void {
     timeoutSecs: template.timeoutSecs ?? 600,
     enabled: true
   };
+  formOpen.value = true;
+}
+
+function resetForm(): void {
+  form.value = {
+    id: "",
+    event: "Stop",
+    matcher: "*",
+    command: "",
+    statusMessage: "",
+    timeoutSecs: 600,
+    enabled: true
+  };
+}
+
+function openNewHookForm(): void {
+  resetForm();
+  formOpen.value = true;
+}
+
+function closeForm(): void {
+  formOpen.value = false;
+  resetForm();
 }
 
 function buildInput(): HookSettingsInput {
@@ -127,6 +156,7 @@ async function saveHook(): Promise<void> {
     const result = await commands.upsertHookSettings(buildInput(), projectRoot.value);
     unwrapCommand(result);
     await load();
+    closeForm();
   } catch (error) {
     errorMsg.value = String(error);
   } finally {
@@ -177,7 +207,9 @@ watch(
       {{ errorMsg }}
     </p>
 
-    <p v-if="loading" class="hooks-pane__loading" data-test="hooks-loading">Loading…</p>
+    <p v-if="loading" class="hooks-pane__loading" data-test="hooks-loading">
+      {{ t("common.loading") }}
+    </p>
 
     <template v-else>
       <div class="hooks-pane__templates" data-test="hook-templates">
@@ -196,12 +228,12 @@ watch(
       <div class="hooks-pane__grid">
         <section class="hooks-pane__list" data-test="hooks-list">
           <div class="hooks-pane__list-header">
-            <h3>{{ scope }} hooks</h3>
+            <h3>{{ t("hooks.scopeHooks", { scope: scopeLabel }) }}</h3>
             <span class="tag">{{ currentHooks.length }}</span>
           </div>
 
           <p v-if="currentHooks.length === 0" class="hooks-pane__empty" data-test="hooks-empty">
-            No hooks configured.
+            {{ t("hooks.empty") }}
           </p>
 
           <article
@@ -213,7 +245,7 @@ watch(
             <div class="hook-row__main">
               <strong>{{ hook.id }}</strong>
               <span class="tag">{{ hook.event }}</span>
-              <span v-if="!hook.enabled" class="tag tag-muted">Disabled</span>
+              <span v-if="!hook.enabled" class="tag tag-muted">{{ t("hooks.disabled") }}</span>
             </div>
             <code>{{ hook.command }}</code>
             <div class="hook-row__actions">
@@ -223,7 +255,7 @@ watch(
                 type="button"
                 @click="editHook(hook)"
               >
-                Edit
+                {{ t("common.edit") }}
               </button>
               <button
                 class="btn btn-danger"
@@ -232,42 +264,56 @@ watch(
                 type="button"
                 @click="deleteHook(hook)"
               >
-                Delete
+                {{ t("common.delete") }}
               </button>
             </div>
           </article>
         </section>
 
-        <form class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
+        <button
+          v-if="!formOpen"
+          class="btn btn-primary hooks-pane__add"
+          data-test="hook-add"
+          type="button"
+          @click="openNewHookForm"
+        >
+          {{ t("hooks.add") }}
+        </button>
+
+        <form v-else class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
           <label>
-            <span>ID</span>
+            <span>{{ t("hooks.id") }}</span>
             <input v-model="form.id" data-test="hook-id" required />
           </label>
 
           <label>
-            <span>Event</span>
+            <span>{{ t("hooks.event") }}</span>
             <select v-model="form.event" data-test="hook-event">
               <option v-for="event in events" :key="event" :value="event">{{ event }}</option>
             </select>
           </label>
 
           <label>
-            <span>Matcher</span>
-            <input v-model="form.matcher" data-test="hook-matcher" placeholder="* or tool name" />
+            <span>{{ t("hooks.matcher") }}</span>
+            <input
+              v-model="form.matcher"
+              data-test="hook-matcher"
+              :placeholder="t('hooks.matcherPlaceholder')"
+            />
           </label>
 
           <label>
-            <span>Command</span>
+            <span>{{ t("hooks.command") }}</span>
             <input v-model="form.command" data-test="hook-command" required />
           </label>
 
           <label>
-            <span>Status</span>
+            <span>{{ t("hooks.status") }}</span>
             <input v-model="form.statusMessage" data-test="hook-status" />
           </label>
 
           <label>
-            <span>Timeout</span>
+            <span>{{ t("hooks.timeout") }}</span>
             <input
               v-model.number="form.timeoutSecs"
               data-test="hook-timeout"
@@ -278,18 +324,23 @@ watch(
 
           <label class="hooks-pane__toggle">
             <input v-model="form.enabled" data-test="hook-enabled" type="checkbox" />
-            <span>Enabled</span>
+            <span>{{ t("hooks.enabled") }}</span>
           </label>
 
-          <button
-            class="btn btn-primary"
-            data-test="hook-save"
-            :disabled="saving"
-            type="button"
-            @click="saveHook"
-          >
-            Save
-          </button>
+          <div class="hooks-pane__form-actions">
+            <button class="btn" type="button" @click="closeForm">
+              {{ t("common.cancel") }}
+            </button>
+            <button
+              class="btn btn-primary"
+              data-test="hook-save"
+              :disabled="saving"
+              type="button"
+              @click="saveHook"
+            >
+              {{ t("common.save") }}
+            </button>
+          </div>
         </form>
       </div>
     </template>
@@ -313,6 +364,10 @@ watch(
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
   gap: 16px;
   align-items: start;
+}
+
+.hooks-pane__add {
+  justify-self: start;
 }
 
 .hooks-pane__list,
@@ -385,6 +440,12 @@ watch(
   grid-template-columns: none !important;
   flex-direction: row;
   align-items: center;
+}
+
+.hooks-pane__form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .hooks-pane__empty,

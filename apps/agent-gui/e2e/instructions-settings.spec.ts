@@ -34,12 +34,9 @@ test.describe("Instructions Settings", () => {
     await expect(userTextarea).toBeVisible();
     await expect(userTextarea).not.toHaveAttribute("readonly");
 
-    // Project level: visible, disabled (user scope)
-    const projectBadge = page.getByTestId("badge-project-disabled");
-    await expect(projectBadge).toBeVisible();
+    // Project level: hidden in user scope
     const projectTextarea = page.getByTestId("project-instructions");
-    await expect(projectTextarea).toBeVisible();
-    await expect(projectTextarea).toBeDisabled();
+    await expect(projectTextarea).toHaveCount(0);
 
     // Effective preview visible
     const effectivePreview = page.getByTestId("effective-instructions");
@@ -57,7 +54,7 @@ test.describe("Instructions Settings", () => {
     await page.getByTestId("source-btn-project").click();
     await page.waitForTimeout(500);
 
-    // Project textarea now editable (not disabled)
+    // Project textarea is available and editable in project scope
     await expect(projectTextarea).not.toBeDisabled();
 
     // User textarea now readonly in project scope

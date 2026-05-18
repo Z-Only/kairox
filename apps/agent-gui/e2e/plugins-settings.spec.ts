@@ -22,7 +22,7 @@ test.describe("Plugin Settings", () => {
     page
   }) => {
     await page.getByTestId("source-btn-project").click();
-    await page.getByTestId("plugin-subtab-discover").click();
+    await page.getByTestId("plugin-subtab-marketplace").click();
     await page.getByTestId("plugin-catalog-search").fill("quality");
     await page.getByTestId("plugin-catalog-refresh").click();
 
@@ -36,7 +36,8 @@ test.describe("Plugin Settings", () => {
   });
 
   test("shows configured plugin marketplaces", async ({ page }) => {
-    await page.getByTestId("plugin-subtab-marketplaces").click();
+    await page.getByTestId("plugin-subtab-marketplace").click();
+    await page.getByTestId("plugin-source-settings-toggle").click();
     await expect(page.getByTestId("plugin-source-claude-plugins-official")).toContainText(
       "Claude Plugins Official"
     );

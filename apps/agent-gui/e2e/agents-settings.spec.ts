@@ -18,7 +18,7 @@ test.describe("Agents Settings", () => {
   test("renders agents and edits a user-scoped agent", async ({ page }) => {
     await navigateToAgents(page);
 
-    await expect(page.getByTestId("agent-row-worker")).toContainText("Builtin");
+    await expect(page.getByTestId("agent-row-worker")).toContainText("Built-in");
     await expect(page.getByTestId("agent-row-code-reviewer")).toContainText("smart");
 
     await page.getByTestId("agent-edit-code-reviewer").click();
@@ -40,7 +40,7 @@ test.describe("Agents Settings", () => {
 
     const workerRows = page.locator('[data-test="agent-row-worker"]');
     await expect(workerRows).toHaveCount(2);
-    await expect(workerRows.nth(0)).toContainText("Builtin");
+    await expect(workerRows.nth(0)).toContainText("Built-in");
     await expect(workerRows.nth(1)).toContainText("User");
   });
 });

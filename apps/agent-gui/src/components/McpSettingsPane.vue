@@ -370,7 +370,7 @@ async function enableAtScope(serverId: string): Promise<void> {
                     v-if="server.source === 'builtin' && !server.value.verified"
                     class="tag tag--unverified"
                   >
-                    Unverified
+                    {{ t("mcp.unverified") }}
                   </span>
                   <!-- Health badge (non-builtin servers only) -->
                   <span
