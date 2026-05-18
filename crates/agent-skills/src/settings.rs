@@ -196,6 +196,7 @@ fn scope_priority(scope: SkillSourceKind) -> u8 {
         SkillSourceKind::Builtin => 0,
         SkillSourceKind::User => 1,
         SkillSourceKind::Workspace => 2,
+        SkillSourceKind::Plugin => 3,
     }
 }
 
@@ -204,6 +205,7 @@ fn scope_label(scope: SkillSourceKind) -> &'static str {
         SkillSourceKind::Builtin => "builtin",
         SkillSourceKind::User => "user",
         SkillSourceKind::Workspace => "workspace",
+        SkillSourceKind::Plugin => "plugin",
     }
 }
 
@@ -221,6 +223,7 @@ fn default_install_source(scope: SkillSourceKind) -> &'static str {
     match scope {
         SkillSourceKind::Builtin => "builtin",
         SkillSourceKind::User | SkillSourceKind::Workspace => "local",
+        SkillSourceKind::Plugin => "plugin",
     }
 }
 

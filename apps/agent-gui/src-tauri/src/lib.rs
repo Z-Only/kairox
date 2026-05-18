@@ -96,7 +96,15 @@ pub fn run() {
                 eprintln!("Permission mode: Interactive");
 
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
-                let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &cwd);
+                let mut skill_roots =
+                    agent_runtime::skills::build_default_skill_roots(&home_dir, &cwd);
+                let plugin_settings_roots =
+                    agent_runtime::plugin_settings::build_default_plugin_settings_roots(
+                        &home_dir, &cwd,
+                    );
+                let plugin_skill_roots =
+                    agent_runtime::skills::build_plugin_skill_roots(&plugin_settings_roots).await;
+                skill_roots.extend(plugin_skill_roots);
                 let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots)
                     .await
                     .expect("Failed to discover skills");

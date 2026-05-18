@@ -18,6 +18,7 @@ pub trait SkillRegistry: Send + Sync {
 pub struct SkillRoot {
     pub kind: SkillSourceKind,
     pub path: PathBuf,
+    pub namespace: Option<String>,
 }
 
 impl SkillRoot {
@@ -25,6 +26,19 @@ impl SkillRoot {
         Self {
             kind,
             path: path.into(),
+            namespace: None,
+        }
+    }
+
+    pub fn with_namespace(
+        kind: SkillSourceKind,
+        path: impl Into<PathBuf>,
+        namespace: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            path: path.into(),
+            namespace: Some(namespace.into()),
         }
     }
 }
@@ -76,7 +90,12 @@ impl FileSkillRegistry {
                         continue;
                     }
                 };
-                let skill_id = SkillId::new(parsed_skill.frontmatter.name.clone());
+                let raw_name = &parsed_skill.frontmatter.name;
+                let skill_id = if let Some(ref ns) = root.namespace {
+                    SkillId::new(format!("{ns}:{raw_name}"))
+                } else {
+                    SkillId::new(raw_name.clone())
+                };
 
                 skills.insert(
                     skill_id.clone(),

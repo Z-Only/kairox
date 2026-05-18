@@ -28,6 +28,7 @@ pub enum SkillSourceKind {
     Builtin,
     User,
     Workspace,
+    Plugin,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -131,6 +132,10 @@ mod tests {
         assert_eq!(
             serde_json::to_value(SkillSourceKind::Workspace).unwrap(),
             serde_json::json!("workspace")
+        );
+        assert_eq!(
+            serde_json::to_value(SkillSourceKind::Plugin).unwrap(),
+            serde_json::json!("plugin")
         );
     }
 

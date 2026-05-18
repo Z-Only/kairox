@@ -941,7 +941,7 @@ export type SkillSettingsDetail = {
   source_chain: SkillSettingsView[];
 };
 
-export type SkillSettingsScope = "project" | "user" | "builtin";
+export type SkillSettingsScope = "project" | "user" | "builtin" | "plugin";
 
 export type SkillSettingsView = {
   settings_id: string;

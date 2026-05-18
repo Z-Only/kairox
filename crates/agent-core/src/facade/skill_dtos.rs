@@ -72,6 +72,7 @@ impl EffectiveSkillView {
             SkillSettingsScope::Project => crate::config_scope::ConfigScope::Project,
             SkillSettingsScope::User => crate::config_scope::ConfigScope::User,
             SkillSettingsScope::Builtin => crate::config_scope::ConfigScope::Builtin,
+            SkillSettingsScope::Plugin => crate::config_scope::ConfigScope::Local,
         };
         let effectively_enabled = view.effective && view.enabled;
         Self {
@@ -97,6 +98,7 @@ pub enum SkillSettingsScope {
     Project,
     User,
     Builtin,
+    Plugin,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

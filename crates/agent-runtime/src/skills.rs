@@ -2,6 +2,7 @@ use std::path::Path;
 
 use agent_core::{ActiveSkillView, SkillDetail, SkillView};
 
+use crate::plugin_settings::PluginSettingsRoots;
 use crate::skill_settings::SkillSettingsRoots;
 use agent_skills::{SkillActivationMode, SkillDocument, SkillMetadata, SkillRoot, SkillSourceKind};
 
@@ -17,7 +18,26 @@ pub fn build_default_skill_settings_roots(home: &Path, workspace: &Path) -> Skil
         workspace_root: Some(workspace.join(".kairox/skills")),
         user_root: Some(home.join(".config/kairox/skills")),
         builtin_root: None,
+        plugin_roots: Vec::new(),
     }
+}
+
+pub async fn build_plugin_skill_roots(
+    plugin_settings_roots: &PluginSettingsRoots,
+) -> Vec<SkillRoot> {
+    let plugin_roots = crate::plugin_settings::plugin_roots(plugin_settings_roots);
+    let Ok(projection) = agent_plugins::discover_plugin_settings(plugin_roots).await else {
+        return vec![];
+    };
+    projection
+        .plugins
+        .into_iter()
+        .filter(|p| p.valid && p.manifest.inventory.skill_count > 0)
+        .map(|p| {
+            let skill_dir = p.manifest.plugin_root.join("skills");
+            SkillRoot::with_namespace(SkillSourceKind::Plugin, skill_dir, p.manifest.name.clone())
+        })
+        .collect()
 }
 
 pub fn render_active_skill_block(name: &str, source: &str, body_markdown: &str) -> String {
@@ -64,6 +84,7 @@ pub fn skill_source_kind_to_string(kind: SkillSourceKind) -> String {
         SkillSourceKind::Builtin => "builtin",
         SkillSourceKind::User => "user",
         SkillSourceKind::Workspace => "workspace",
+        SkillSourceKind::Plugin => "plugin",
     }
     .to_string()
 }
