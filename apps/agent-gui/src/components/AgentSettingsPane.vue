@@ -186,6 +186,8 @@ watch(
         :key="agent.settingsId"
         class="agent-row"
         :data-test="`agent-row-${slugify(agent.name)}`"
+        :data-agent-settings-id="agent.settingsId"
+        :data-agent-scope="agent.scope"
       >
         <div class="agent-row__main">
           <div class="agent-row__title">

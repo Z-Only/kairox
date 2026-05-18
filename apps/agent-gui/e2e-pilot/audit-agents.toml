@@ -4,13 +4,30 @@ timeout_ms = 10000
 [scenario]
 name = "Audit agents settings"
 fail_fast = true
-global_timeout_ms = 60000
+global_timeout_ms = 90000
 
 [[step]]
 name = "wait for app shell"
 action = "wait"
 selector = "[data-test='app-shell']"
 timeout_ms = 15000
+
+[[step]]
+name = "remove stale pilot audit agents"
+action = "eval"
+script = """
+(async () => {
+  const invoke = window.__TAURI_INTERNALS__.invoke;
+  for (const agentId of ["User:pilot-settings-audit", "Project:pilot-settings-audit"]) {
+    try {
+      await invoke("delete_agent_settings", { agentId });
+    } catch {
+      // The audit agent may not exist before the scenario starts.
+    }
+  }
+  return "clean";
+})()
+"""
 
 [[step]]
 name = "open settings"
@@ -42,18 +59,219 @@ target = "[data-test='agent-settings-pane']"
 [[step]]
 name = "wait for built-in worker"
 action = "wait"
-selector = "[data-test='agent-row-worker']"
+selector = "[data-test='agent-row-worker'][data-agent-scope='Builtin']"
 timeout_ms = 15000
 
 [[step]]
 name = "built-in worker visible"
 action = "assert-visible"
-target = "[data-test='agent-row-worker']"
+target = "[data-test='agent-row-worker'][data-agent-scope='Builtin']"
 
 [[step]]
 name = "new agent button visible"
 action = "assert-visible"
 target = "[data-test='agent-new']"
+
+[[step]]
+name = "switch to project settings source"
+action = "click"
+target = "[data-test='source-btn-project']"
+
+[[step]]
+name = "project source active"
+action = "eval"
+script = """
+(() => {
+  const button = document.querySelector("[data-test='source-btn-project']");
+  if (!button?.classList.contains("active")) {
+    throw new Error("project source button is not active");
+  }
+  return button.textContent;
+})()
+"""
+
+[[step]]
+name = "start project agent creation"
+action = "click"
+target = "[data-test='agent-new']"
+
+[[step]]
+name = "project editor opened"
+action = "assert-visible"
+target = "[data-test='agent-editor-dialog']"
+
+[[step]]
+name = "fill pilot agent name"
+action = "fill"
+target = "[data-test='agent-form-name']"
+value = "pilot-settings-audit"
+
+[[step]]
+name = "fill pilot agent description"
+action = "fill"
+target = "[data-test='agent-form-description']"
+value = "Project-scoped pilot audit agent."
+
+[[step]]
+name = "fill pilot agent model"
+action = "fill"
+target = "[data-test='agent-form-model']"
+value = "fast"
+
+[[step]]
+name = "fill pilot agent permission"
+action = "fill"
+target = "[data-test='agent-form-permission']"
+value = "read_only"
+
+[[step]]
+name = "fill pilot agent tools"
+action = "fill"
+target = "[data-test='agent-form-tools']"
+value = "fs.read, shell"
+
+[[step]]
+name = "fill pilot agent skills"
+action = "fill"
+target = "[data-test='agent-form-skills']"
+value = "kairox-dev-workflow"
+
+[[step]]
+name = "fill pilot agent nicknames"
+action = "fill"
+target = "[data-test='agent-form-nicknames']"
+value = "Pilot"
+
+[[step]]
+name = "disable pilot agent"
+action = "click"
+target = "[data-test='agent-form-enabled']"
+
+[[step]]
+name = "fill pilot agent instructions"
+action = "fill"
+target = "[data-test='agent-form-instructions']"
+value = "Validate the desktop settings workflow."
+
+[[step]]
+name = "save project pilot agent"
+action = "click"
+target = "[data-test='agent-save']"
+
+[[step]]
+name = "wait for project pilot agent row"
+action = "wait"
+selector = "[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project']"
+timeout_ms = 15000
+
+[[step]]
+name = "project pilot agent row has saved settings"
+action = "eval"
+script = """
+(() => {
+  const row = document.querySelector("[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project']");
+  const text = row?.textContent ?? "";
+  for (const expected of [
+    "Project",
+    "Disabled",
+    "Project-scoped pilot audit agent.",
+    "fast",
+    "read_only",
+    "fs.read, shell",
+  ]) {
+    if (!text.includes(expected)) {
+      throw new Error(`project pilot agent row missing ${expected}: ${text}`);
+    }
+  }
+  return text;
+})()
+"""
+
+[[step]]
+name = "reopen project pilot agent"
+action = "click"
+target = "[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project'] [data-test='agent-edit-pilot-settings-audit']"
+
+[[step]]
+name = "project pilot agent form retained settings"
+action = "eval"
+script = """
+(() => {
+  const expected = {
+    "agent-form-name": "pilot-settings-audit",
+    "agent-form-model": "fast",
+    "agent-form-permission": "read_only",
+    "agent-form-tools": "fs.read, shell",
+    "agent-form-skills": "kairox-dev-workflow",
+    "agent-form-nicknames": "Pilot",
+  };
+  for (const [testId, value] of Object.entries(expected)) {
+    const el = document.querySelector(`[data-test='${testId}']`);
+    if (el?.value !== value) {
+      throw new Error(`${testId} expected ${value}, got ${el?.value}`);
+    }
+  }
+  const instructions = document.querySelector("[data-test='agent-form-instructions']");
+  if (instructions?.value.trimEnd() !== "Validate the desktop settings workflow.") {
+    throw new Error(`agent-form-instructions did not retain expected text: ${instructions?.value}`);
+  }
+  const enabled = document.querySelector("[data-test='agent-form-enabled']");
+  if (enabled?.checked) {
+    throw new Error("pilot agent should remain disabled");
+  }
+  return "form retained settings";
+})()
+"""
+
+[[step]]
+name = "edit pilot agent description"
+action = "fill"
+target = "[data-test='agent-form-description']"
+value = "Edited project-scoped pilot audit agent."
+
+[[step]]
+name = "save edited project pilot agent"
+action = "click"
+target = "[data-test='agent-save']"
+
+[[step]]
+name = "edited project pilot agent row updated"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const row = document.querySelector("[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project']");
+    const text = row?.textContent ?? "";
+    if (text.includes("Edited project-scoped pilot audit agent.")) {
+      return text;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const row = document.querySelector("[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project']");
+  throw new Error(`edited project pilot agent row missing updated description: ${row?.textContent ?? ""}`);
+})()
+"""
+
+[[step]]
+name = "delete project pilot agent"
+action = "click"
+target = "[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project'] [data-test='agent-delete-pilot-settings-audit']"
+
+[[step]]
+name = "project pilot agent removed"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const row = document.querySelector("[data-test='agent-row-pilot-settings-audit'][data-agent-scope='Project']");
+    if (!row) {
+      return "removed";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("project pilot audit agent row still exists after delete");
+})()
+"""
 
 [[step]]
 name = "return to workbench"
