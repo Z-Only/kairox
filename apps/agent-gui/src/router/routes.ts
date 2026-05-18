@@ -32,6 +32,11 @@ export const routes: RouteRecordRaw[] = [
         component: () => import("@/components/SkillSettingsPane.vue")
       },
       {
+        path: "agents",
+        name: "settings-agents",
+        component: () => import("@/components/AgentSettingsPane.vue")
+      },
+      {
         path: "models",
         name: "settings-models",
         component: () => import("@/components/ModelSettingsPane.vue")

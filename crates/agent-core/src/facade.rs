@@ -4,6 +4,7 @@
 //! This trait provides a stable, object-safe interface for workspace management,
 //! session lifecycle, messaging, permissions, and event streaming.
 
+mod agents;
 mod catalog;
 mod mcp;
 mod project;
@@ -12,6 +13,7 @@ mod settings;
 mod skill_dtos;
 mod skills;
 
+pub use agents::AgentsFacade;
 pub use catalog::{
     AddCatalogSourceRequest, CatalogQuery, CatalogSourceView, InstallOutcomeView, InstallRequest,
     InstalledEntry, ServerEntry,
@@ -26,6 +28,7 @@ pub use session::{
     SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
 };
 pub use settings::{
+    AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
     EffectiveMcpServerView, EffectiveProfileView, HookSettingsInput, HookSettingsView,
     HookTemplateView, HooksSettingsView, InstructionsUpdateInput, InstructionsView,
     McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView,
@@ -55,7 +58,9 @@ use crate::{ProjectId, SessionId, TaskId, WorkspaceId};
 /// corresponding sub-trait, so implementors only need to implement
 /// the sub-traits and write `impl AppFacade for T {}`.
 #[async_trait::async_trait]
-pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
+pub trait AppFacade:
+    SessionFacade + SkillsFacade + McpFacade + ProjectFacade + AgentsFacade
+{
     // ── Session ─────────────────────────────────────────────────────────
 
     async fn open_workspace(&self, path: String) -> crate::Result<WorkspaceInfo> {
@@ -248,6 +253,35 @@ pub trait AppFacade: SessionFacade + SkillsFacade + McpFacade + ProjectFacade {
     }
     async fn open_skills_dir(&self) -> crate::Result<Option<String>> {
         SkillsFacade::open_skills_dir(self).await
+    }
+
+    // ── Agents ─────────────────────────────────────────────────────────
+
+    async fn list_agent_settings(&self) -> crate::Result<Vec<AgentSettingsView>> {
+        AgentsFacade::list_agent_settings(self).await
+    }
+
+    async fn upsert_agent_settings(
+        &self,
+        input: AgentSettingsInput,
+    ) -> crate::Result<AgentSettingsView> {
+        AgentsFacade::upsert_agent_settings(self, input).await
+    }
+
+    async fn delete_agent_settings(&self, agent_id: String) -> crate::Result<()> {
+        AgentsFacade::delete_agent_settings(self, agent_id).await
+    }
+
+    async fn copy_agent_settings(
+        &self,
+        agent_id: String,
+        scope: AgentSettingsScope,
+    ) -> crate::Result<AgentSettingsView> {
+        AgentsFacade::copy_agent_settings(self, agent_id, scope).await
+    }
+
+    async fn open_agents_dir(&self) -> crate::Result<Option<String>> {
+        AgentsFacade::open_agents_dir(self).await
     }
 
     // ── MCP / Marketplace / Profile ─────────────────────────────────────
@@ -553,6 +587,9 @@ mod tests {
 
     #[async_trait]
     impl ProjectFacade for NoopFacade {}
+
+    #[async_trait]
+    impl AgentsFacade for NoopFacade {}
 
     impl AppFacade for NoopFacade {}
 

@@ -70,6 +70,7 @@ where
     pub(crate) catalog_cache: Option<Arc<HttpResponseCache>>,
     pub(crate) skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub(crate) skill_settings_roots: crate::skill_settings::SkillSettingsRoots,
+    pub(crate) agent_settings_roots: crate::agent_settings::AgentSettingsRoots,
     pub(crate) skill_package_manager: Arc<dyn SkillPackageManager>,
     pub(crate) active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
     /// Per-session in-memory state. Inserted lazily on first access.
@@ -118,6 +119,7 @@ where
             catalog_cache: None,
             skill_registry: None,
             skill_settings_roots: crate::skill_settings::SkillSettingsRoots::default(),
+            agent_settings_roots: crate::agent_settings::AgentSettingsRoots::default(),
             skill_package_manager: Arc::new(DirectDownloadPackageManager),
             active_skills: Arc::new(Mutex::new(HashMap::new())),
             session_states: Arc::new(Mutex::new(HashMap::new())),

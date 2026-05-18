@@ -1,0 +1,66 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit agents settings"
+fail_fast = true
+global_timeout_ms = 60000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "open agents settings tab"
+action = "click"
+target = "[data-test='settings-tab-agents']"
+
+[[step]]
+name = "wait for agents settings"
+action = "wait"
+selector = "[data-test='agent-settings-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "agents settings visible"
+action = "assert-visible"
+target = "[data-test='agent-settings-pane']"
+
+[[step]]
+name = "wait for built-in worker"
+action = "wait"
+selector = "[data-test='agent-row-worker']"
+timeout_ms = 15000
+
+[[step]]
+name = "built-in worker visible"
+action = "assert-visible"
+target = "[data-test='agent-row-worker']"
+
+[[step]]
+name = "new agent button visible"
+action = "assert-visible"
+target = "[data-test='agent-new']"
+
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
