@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
-import { commands } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
 import ModelParameterControls from "@/components/ModelParameterControls.vue";
+import { storeToRefs } from "pinia";
+import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
 
 const { t } = useI18n();
 const { notify } = useNotifications();
-const profiles = ref<ProfileSettingsView[]>([]);
-const loading = ref(false);
-const error = ref<string | null>(null);
-const busyAlias = ref<string | null>(null);
+const store = useModelProfilesStore();
+const { profiles, loading, error, busyAlias } = storeToRefs(store);
+
 const addDialogOpen = ref(false);
 const editDialogOpen = ref(false);
 const editingProfile = ref<ProfileSettingsView | null>(null);
@@ -33,49 +33,10 @@ const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 watch(
   [() => configSource?.value, () => configProjectId?.value],
   () => {
-    void fetchProfiles();
+    void store.loadProfiles(configSource?.value);
   },
   { immediate: true }
 );
-
-function formatError(caughtError: unknown): string {
-  return caughtError instanceof Error ? caughtError.message : String(caughtError);
-}
-
-function isCommandResult<T>(result: T | { status: string }): result is { status: string } {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    "status" in result &&
-    (result.status === "ok" || result.status === "error")
-  );
-}
-
-async function unwrapCommandResult<T>(
-  resultPromise: Promise<T | { status: string; data?: T; error?: string }>
-): Promise<T> {
-  const result = await resultPromise;
-  if (!isCommandResult(result)) {
-    return result;
-  }
-  if (result.status === "error") {
-    throw new Error((result as { error?: string }).error);
-  }
-  return (result as { data: T }).data;
-}
-
-async function fetchProfiles(): Promise<void> {
-  loading.value = true;
-  error.value = null;
-  try {
-    const sourceFilter = configSource?.value ?? null;
-    profiles.value = await unwrapCommandResult(commands.listProfileSettings(sourceFilter));
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    loading.value = false;
-  }
-}
 
 function resetForm(): void {
   formAlias.value = "";
@@ -133,95 +94,42 @@ function parseOptionalNumber(val: string): number | null {
   return Number.isNaN(num) ? null : num;
 }
 
+function buildProfileInput(alias: string, enabled: boolean) {
+  return {
+    alias,
+    provider: formProvider.value.trim(),
+    model_id: formModelId.value.trim(),
+    enabled,
+    context_window: parseOptionalNumber(formContextWindow.value),
+    output_limit: parseOptionalNumber(formOutputLimit.value),
+    temperature: parseOptionalNumber(formTemperature.value),
+    top_p: parseOptionalNumber(formTopP.value),
+    top_k: parseOptionalNumber(formTopK.value)
+      ? Math.trunc(parseOptionalNumber(formTopK.value)!)
+      : null,
+    max_tokens: parseOptionalNumber(formMaxTokens.value),
+    base_url: formBaseUrl.value.trim() || null,
+    api_key_env: formApiKeyEnv.value.trim() || null
+  };
+}
+
 async function saveNewProfile(): Promise<void> {
   const alias = formAlias.value.trim();
-  if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) {
-    return;
-  }
-
-  loading.value = true;
-  error.value = null;
-  try {
-    await unwrapCommandResult(
-      commands.upsertProfileSettings({
-        alias,
-        provider: formProvider.value.trim(),
-        model_id: formModelId.value.trim(),
-        enabled: true,
-        context_window: parseOptionalNumber(formContextWindow.value),
-        output_limit: parseOptionalNumber(formOutputLimit.value),
-        temperature: parseOptionalNumber(formTemperature.value),
-        top_p: parseOptionalNumber(formTopP.value),
-        top_k: parseOptionalNumber(formTopK.value)
-          ? Math.trunc(parseOptionalNumber(formTopK.value)!)
-          : null,
-        max_tokens: parseOptionalNumber(formMaxTokens.value),
-        base_url: formBaseUrl.value.trim() || null,
-        api_key_env: formApiKeyEnv.value.trim() || null
-      })
-    );
-    closeAddDialog();
-    await fetchProfiles();
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    loading.value = false;
-  }
+  if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) return;
+  await store.upsertProfile(buildProfileInput(alias, true));
+  if (!store.error) closeAddDialog();
 }
 
 async function saveEditProfile(): Promise<void> {
   const alias = formAlias.value.trim();
-  if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) {
-    return;
-  }
-
-  loading.value = true;
-  error.value = null;
-  try {
-    await unwrapCommandResult(
-      commands.upsertProfileSettings({
-        alias,
-        provider: formProvider.value.trim(),
-        model_id: formModelId.value.trim(),
-        enabled: editingProfile.value?.enabled ?? true,
-        context_window: parseOptionalNumber(formContextWindow.value),
-        output_limit: parseOptionalNumber(formOutputLimit.value),
-        temperature: parseOptionalNumber(formTemperature.value),
-        top_p: parseOptionalNumber(formTopP.value),
-        top_k: parseOptionalNumber(formTopK.value)
-          ? Math.trunc(parseOptionalNumber(formTopK.value)!)
-          : null,
-        max_tokens: parseOptionalNumber(formMaxTokens.value),
-        base_url: formBaseUrl.value.trim() || null,
-        api_key_env: formApiKeyEnv.value.trim() || null
-      })
-    );
-    closeEditDialog();
-    await fetchProfiles();
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    loading.value = false;
-  }
+  if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) return;
+  await store.upsertProfile(buildProfileInput(alias, editingProfile.value?.enabled ?? true));
+  if (!store.error) closeEditDialog();
 }
 
-async function toggleProfile(profile: ProfileSettingsView): Promise<void> {
-  busyAlias.value = profile.alias;
-  error.value = null;
+async function testProfileConnectivity(profile: ProfileSettingsView): Promise<void> {
   try {
-    await unwrapCommandResult(commands.setProfileEnabled(profile.alias, !profile.enabled));
-    await fetchProfiles();
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    busyAlias.value = null;
-  }
-}
-
-async function testConnectivity(profile: ProfileSettingsView): Promise<void> {
-  busyAlias.value = profile.alias;
-  try {
-    const result = await commands.testModelConnectivity(profile.alias);
+    const result = await store.testModelConnectivity(profile.alias);
     if (result.status === "ok" && result.data.ok === true) {
       notify("success", t("models.testSuccess", { alias: profile.alias }));
     } else {
@@ -236,21 +144,6 @@ async function testConnectivity(profile: ProfileSettingsView): Promise<void> {
       "error",
       t("models.testFailed", { alias: profile.alias, error: formatError(caughtError) })
     );
-  } finally {
-    busyAlias.value = null;
-  }
-}
-
-async function deleteProfile(profile: ProfileSettingsView): Promise<void> {
-  busyAlias.value = profile.alias;
-  error.value = null;
-  try {
-    await unwrapCommandResult(commands.deleteProfileSettings(profile.alias));
-    await fetchProfiles();
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    busyAlias.value = null;
   }
 }
 
@@ -258,7 +151,7 @@ async function testFormConnectivity(): Promise<void> {
   const url = formBaseUrl.value.trim();
   if (!url) return;
   try {
-    const result = await commands.testUrlConnectivity(url);
+    const result = await store.testUrlConnectivity(url);
     if (result.status === "ok" && result.data.ok === true) {
       notify("success", t("models.testSuccess", { alias: url }));
     } else {
@@ -270,27 +163,6 @@ async function testFormConnectivity(): Promise<void> {
     }
   } catch (caughtError) {
     notify("error", t("models.testFailed", { alias: url, error: formatError(caughtError) }));
-  }
-}
-
-async function openConfigFile(): Promise<void> {
-  try {
-    await commands.openProfilesConfigFile();
-  } catch {
-    // best-effort
-  }
-}
-
-async function moveProfile(alias: string, direction: number): Promise<void> {
-  busyAlias.value = alias;
-  error.value = null;
-  try {
-    await unwrapCommandResult(commands.moveProfileInOrder(alias, direction));
-    await fetchProfiles();
-  } catch (caughtError) {
-    error.value = formatError(caughtError);
-  } finally {
-    busyAlias.value = null;
   }
 }
 
@@ -337,7 +209,7 @@ function sourceLabel(source: string): string {
           type="button"
           data-test="model-open-config-file"
           :title="t('models.openConfigFile')"
-          @click="openConfigFile()"
+          @click="store.openConfigFile()"
         >
           {{ t("models.openConfigFile") }}
         </button>
@@ -346,7 +218,7 @@ function sourceLabel(source: string): string {
           type="button"
           :disabled="loading"
           data-test="model-refresh"
-          @click="fetchProfiles()"
+          @click="store.loadProfiles()"
         >
           {{ loading ? t("common.loading") : t("common.refresh") }}
         </button>
@@ -407,7 +279,7 @@ function sourceLabel(source: string): string {
                 :disabled="busyAlias === profile.alias || index === 0"
                 :data-test="`model-move-up-${profile.alias}`"
                 :title="t('models.moveUp')"
-                @click="moveProfile(profile.alias, -1)"
+                @click="store.moveProfile(profile.alias, -1)"
               >
                 ▲
               </button>
@@ -417,7 +289,7 @@ function sourceLabel(source: string): string {
                 :disabled="busyAlias === profile.alias || index === profiles.length - 1"
                 :data-test="`model-move-down-${profile.alias}`"
                 :title="t('models.moveDown')"
-                @click="moveProfile(profile.alias, 1)"
+                @click="store.moveProfile(profile.alias, 1)"
               >
                 ▼
               </button>
@@ -436,7 +308,7 @@ function sourceLabel(source: string): string {
               type="button"
               :disabled="busyAlias === profile.alias"
               :data-test="`model-enable-${profile.alias}`"
-              @click="toggleProfile(profile)"
+              @click="store.setProfileEnabled(profile.alias, !profile.enabled)"
             >
               {{ profile.enabled ? t("models.disable") : t("models.enable") }}
             </button>
@@ -446,7 +318,7 @@ function sourceLabel(source: string): string {
               :disabled="busyAlias === profile.alias"
               :data-test="`model-test-${profile.alias}`"
               :title="t('models.testConnectivity')"
-              @click="testConnectivity(profile)"
+              @click="testProfileConnectivity(profile)"
             >
               {{ t("models.testConnectivity") }}
             </button>
@@ -456,7 +328,7 @@ function sourceLabel(source: string): string {
               type="button"
               :disabled="busyAlias === profile.alias"
               :data-test="`model-delete-${profile.alias}`"
-              @click="deleteProfile(profile)"
+              @click="store.removeProfile(profile.alias)"
             >
               {{ t("common.delete") }}
             </button>
@@ -653,7 +525,7 @@ function sourceLabel(source: string): string {
           type="button"
           :disabled="!editingProfile"
           data-test="model-edit-test-btn"
-          @click="editingProfile && testConnectivity(editingProfile)"
+          @click="editingProfile && testProfileConnectivity(editingProfile)"
         >
           {{ t("models.testConnectivity") }}
         </button>
