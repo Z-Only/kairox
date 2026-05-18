@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-05-18
+
+### 🚀 Features
+
+- **gui**: add hooks settings (#202)
+- **gui**: add configurable agent settings (#204)
+- **gui**: add resizable workbench sidebars (#205)
+- **gui**: add plugin settings marketplace (#206)
+- **skills**: wire plugin skill roots into discovery chain (#213)
+- **runtime**: wire agent settings into DAG executor strategies
+- add reasoning effort switching (#222)
+
+### 🐛 Bug Fixes
+
+- **gui**: polish settings workflows (#208)
+- **gui**: fix agent editor visibility, instructions project scope display (#209)
+- **skills**: skip non-directory skill entries
+- **gui**: polish settings dialogs for MCP, skills marketplace, and agents (#210)
+- **docs**: remove hardcoded tauri-pilot v0.5.1 version pin from install instructions (#216)
+- **runtime**: exclude disabled plugins from skill discovery (#217)
+
+### 🧪 Testing
+
+- **gui**: add plugin store command-flow, component, and E2E tests (#211)
+- **runtime**: add agent settings → DAG executor integration tests (#219)
+
+### 🧹 Refactor
+
+- **config**: unify MCP settings in config.toml (#203)
+- **gui**: split McpSettingsPane into focused sub-components (#212)
+- **runtime**: split MCP facade into mcp/profiles/marketplace modules (#214)
+- **runtime**: split facade_marketplace into catalog/sources/install/skill_catalog modules (#218)
+- **gui**: extract ModelSettingsPane store from component (#220)
+- **runtime**: split agents.rs into agents/{mod,planner,worker,reviewer}.rs (#221)
+
+### 🔧 Miscellaneous Tasks
+
+- align Bun tooling setup (#207)
+
 ## [0.22.0] - 2026-05-17
 
 ### 🚀 Features
