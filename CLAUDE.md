@@ -12,19 +12,20 @@
 
 ## Crate map (dependency direction →)
 
-| Crate         | Role                                                                                            | Key trait/type                                        |
-| ------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| agent-core    | Domain types, events, facade, build info                                                        | `AppFacade`, `EventPayload`, `TaskSnapshot`           |
-| agent-store   | SQLite event store + metadata                                                                   | `EventStore`, `SqliteEventStore`                      |
-| agent-memory  | Memory, context assembly, and compaction                                                        | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
-| agent-models  | LLM adapters + model metadata/context windows                                                   | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
-| agent-tools   | Tool registry & permissions, built-in tools                                                     | `ToolRegistry`, `PermissionEngine`, `Tool`            |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                              | `McpClient`, `Transport`, `ServerLifecycle`           |
-| agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery      | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`       |
-| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config           | `ProfileDef`, `build_router`                          |
-| agent-runtime | Agent loop, context budgets, compaction, model switching, DAG execution, multi-agent strategies | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
-| agent-tui     | Terminal UI (ratatui)                                                                           | `App`                                                 |
-| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, instructions, skills, workspaces                   | `commands.rs` → Pinia stores                          |
+| Crate         | Role                                                                                             | Key trait/type                                        |
+| ------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| agent-core    | Domain types, events, facade, build info                                                         | `AppFacade`, `EventPayload`, `TaskSnapshot`           |
+| agent-store   | SQLite event store + metadata                                                                    | `EventStore`, `SqliteEventStore`                      |
+| agent-memory  | Memory, context assembly, and compaction                                                         | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
+| agent-models  | LLM adapters + model metadata/context windows                                                    | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
+| agent-tools   | Tool registry & permissions, built-in tools                                                      | `ToolRegistry`, `PermissionEngine`, `Tool`            |
+| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                               | `McpClient`, `Transport`, `ServerLifecycle`           |
+| agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`       |
+| agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers  | `PluginManifest`, plugin inventory helpers            |
+| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config            | `ProfileDef`, `build_router`                          |
+| agent-runtime | Agent loop, context budgets, compaction, model switching, configurable agents, DAG execution     | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
+| agent-tui     | Terminal UI (ratatui)                                                                            | `App`                                                 |
+| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces | `commands.rs` → Pinia stores                          |
 
 > Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`). External tools come from MCP servers via `McpToolAdapter`.
 
@@ -40,7 +41,7 @@
 2. Follow dependency direction — never create reverse deps.
 3. Add tests first: use `FakeModelClient` for runtime, in-memory SQLite for stores.
 4. Wire to UIs last: Tauri commands for GUI, `app.rs` handlers for TUI.
-5. If model/profile behavior changes, update model metadata/context-window tests and verify mid-session model switching still respects budget limits.
+5. If model/profile behavior changes, update model metadata/context-window tests and verify mid-session model switching and reasoning effort selection still respect budget limits.
 6. After changing any `#[tauri::command]` or `EventPayload`/domain type, run `just gen-types` to regenerate `apps/agent-gui/src/generated/{commands,events}.ts` (do not edit those files manually).
 7. If you add new IPC commands or events, also update the Playwright mock at `apps/agent-gui/e2e/tauri-mock.js`.
 
