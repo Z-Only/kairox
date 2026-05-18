@@ -8,6 +8,7 @@
 //! - Retry (reset_to_pending, retry_task with unblocking dependents)
 //! - Cancel (cancel_task with policy cascade)
 //! - Execute with planner responding directly (no decomposition)
+//! - Agent settings → strategy overrides (model profile, permission, user/project precedence)
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -804,4 +805,441 @@ fn task_graph_find_blocked_dependents_cascades_transitively() {
     assert!(dep_ids.contains(&b.to_string()));
     assert!(dep_ids.contains(&c.to_string()));
     assert!(dep_ids.contains(&d.to_string()));
+}
+
+// ===========================================================================
+// Agent settings → DAG executor integration tests
+// ===========================================================================
+
+/// Write an agent .md file with optional overrides into a scope directory.
+#[allow(clippy::too_many_arguments)]
+async fn write_agent_settings(
+    root: &std::path::Path,
+    name: &str,
+    description: &str,
+    instructions: &str,
+    model_profile: Option<&str>,
+    permission_mode: Option<&str>,
+    tools: &[&str],
+    enabled: bool,
+) {
+    tokio::fs::create_dir_all(root).await.unwrap();
+    let mp = model_profile
+        .map(|v| format!("model_profile: \"{v}\"\n"))
+        .unwrap_or_default();
+    let pm = permission_mode
+        .map(|v| format!("permission_mode: \"{v}\"\n"))
+        .unwrap_or_default();
+    let tools_yaml = if tools.is_empty() {
+        "tools: []\n".to_string()
+    } else {
+        let items: Vec<String> = tools.iter().map(|t| format!("\"{t}\"")).collect();
+        format!("tools: [{}]\n", items.join(", "))
+    };
+    let enabled_line = if enabled {
+        String::new()
+    } else {
+        "enabled: false\n".to_string()
+    };
+    let content = format!(
+        "---\nname: {name}\ndescription: {description}\n{mp}{pm}{tools_yaml}{enabled_line}---\n{instructions}\n"
+    );
+    tokio::fs::write(root.join(format!("{name}.md")), content)
+        .await
+        .unwrap();
+}
+
+/// Build a DagExecutor with agent settings roots pointing at temp dirs.
+async fn make_executor_with_roots(
+    roots: AgentSettingsRoots,
+) -> DagExecutor<SqliteEventStore, FakeModelClient> {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["test response".into()]);
+    let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+    let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+    let pending: Arc<
+        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
+    > = Arc::new(Mutex::new(HashMap::new()));
+
+    DagExecutor::new(
+        Arc::new(store),
+        Arc::new(model),
+        event_tx,
+        tool_registry,
+        permission_engine,
+        pending,
+        None,
+        DagConfig::default(),
+        roots,
+    )
+    .await
+}
+
+// --- model profile override ---
+
+#[tokio::test]
+async fn agent_settings_model_profile_override() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // Project-level "default" agent with model_profile override
+    write_agent_settings(
+        &ws_agents,
+        "default",
+        "Custom default",
+        "Custom planner instructions.",
+        Some("fast"),
+        None,
+        &[],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    let overrides = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    assert_eq!(overrides.0.as_deref(), Some("fast"));
+    assert_eq!(overrides.1, None);
+}
+
+// --- permission mode override ---
+
+#[tokio::test]
+async fn agent_settings_permission_mode_override() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    write_agent_settings(
+        &ws_agents,
+        "default",
+        "Read-only planner",
+        "Read-only instructions.",
+        None,
+        Some("read_only"),
+        &[],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    let overrides = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    assert_eq!(overrides.1.as_deref(), Some("read_only"));
+    assert_eq!(overrides.0, None);
+}
+
+// --- user/project override priority (Project > User > Builtin) ---
+
+#[tokio::test]
+async fn agent_settings_project_overrides_user() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // User level: model_profile = "slow"
+    write_agent_settings(
+        &usr_agents,
+        "default",
+        "User default",
+        "User instructions.",
+        Some("slow"),
+        Some("agent"),
+        &[],
+        true,
+    )
+    .await;
+    // Project level: model_profile = "fast", permission_mode = "read_only"
+    write_agent_settings(
+        &ws_agents,
+        "default",
+        "Project default",
+        "Project instructions.",
+        Some("fast"),
+        Some("read_only"),
+        &[],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    let overrides = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    // Project wins → model_profile = "fast", permission_mode = "read_only"
+    assert_eq!(
+        overrides.0.as_deref(),
+        Some("fast"),
+        "project model_profile should override user"
+    );
+    assert_eq!(
+        overrides.1.as_deref(),
+        Some("read_only"),
+        "project permission_mode should override user"
+    );
+}
+
+#[tokio::test]
+async fn agent_settings_disabled_project_falls_back_to_user() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // User level: model_profile = "balanced"
+    write_agent_settings(
+        &usr_agents,
+        "default",
+        "User default",
+        "User instructions.",
+        Some("balanced"),
+        Some("agent"),
+        &[],
+        true,
+    )
+    .await;
+    // Project level: disabled
+    write_agent_settings(
+        &ws_agents,
+        "default",
+        "Disabled project default",
+        "Project instructions.",
+        Some("fast"),
+        Some("read_only"),
+        &[],
+        false,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    let overrides = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    // Disabled project → user wins
+    assert_eq!(overrides.0.as_deref(), Some("balanced"));
+    assert_eq!(overrides.1.as_deref(), Some("agent"));
+}
+
+#[tokio::test]
+async fn agent_settings_role_specific_worker_and_reviewer() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // Worker agent with permission override
+    write_agent_settings(
+        &ws_agents,
+        "worker",
+        "Custom worker",
+        "Worker instructions.",
+        None,
+        Some("workspace_write"),
+        &[],
+        true,
+    )
+    .await;
+    // Code-reviewer agent with model profile + tools
+    write_agent_settings(
+        &ws_agents,
+        "code-reviewer",
+        "Custom reviewer",
+        "Reviewer instructions.",
+        Some("fast"),
+        None,
+        &["shell", "fs.read"],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    // Worker: permission_mode = "workspace_write"
+    let worker_overrides = executor
+        .agent_settings_overrides(AgentRole::Worker)
+        .expect("worker strategy must exist");
+    assert_eq!(worker_overrides.1.as_deref(), Some("workspace_write"));
+
+    // Reviewer: model_profile = "fast", tools = ["shell", "fs.read"]
+    let reviewer_overrides = executor
+        .agent_settings_overrides(AgentRole::Reviewer)
+        .expect("reviewer strategy must exist");
+    assert_eq!(reviewer_overrides.0.as_deref(), Some("fast"));
+    assert_eq!(reviewer_overrides.3, vec!["shell", "fs.read"]);
+}
+
+// --- user-only project-only coverage ---
+
+#[tokio::test]
+async fn agent_settings_user_only_agent_applied() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // Only user-level "default" with model_profile = "slow"
+    write_agent_settings(
+        &usr_agents,
+        "default",
+        "User-only default",
+        "User-only instructions.",
+        Some("slow"),
+        None,
+        &[],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    let overrides = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    assert_eq!(overrides.0.as_deref(), Some("slow"));
+}
+
+#[tokio::test]
+async fn agent_settings_no_custom_agents_falls_back_to_builtins() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // No custom agent files — only builtins are available
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    // Builtin defaults have no model_profile override
+    let planner = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+    assert_eq!(planner.0, None, "builtin default has no model_profile");
+    assert_eq!(planner.1, None, "builtin default has no permission_mode");
+
+    // Builtin worker has permission_mode = "workspace_write"
+    let worker = executor
+        .agent_settings_overrides(AgentRole::Worker)
+        .expect("worker strategy must exist");
+    assert_eq!(worker.1.as_deref(), Some("workspace_write"));
+
+    // Builtin code-reviewer has permission_mode = "read_only"
+    let reviewer = executor
+        .agent_settings_overrides(AgentRole::Reviewer)
+        .expect("reviewer strategy must exist");
+    assert_eq!(reviewer.1.as_deref(), Some("read_only"));
+    assert_eq!(
+        reviewer.3,
+        vec!["fs.read", "search", "shell"],
+        "builtin code-reviewer tools"
+    );
+}
+
+#[tokio::test]
+async fn agent_settings_instructions_override_wired_into_context() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    write_agent_settings(
+        &ws_agents,
+        "default",
+        "Custom planner",
+        "Custom system prompt override.",
+        None,
+        None,
+        &[],
+        true,
+    )
+    .await;
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    let executor = make_executor_with_roots(roots).await;
+
+    // The planner strategy should build context with the custom instructions
+    let planner = executor
+        .agent_settings_overrides(AgentRole::Planner)
+        .expect("planner strategy must exist");
+
+    // Verify no model or permission override — the instructions override is
+    // tested via build_context in the unit tests (agents::tests)
+    assert_eq!(planner.0, None);
+    assert_eq!(planner.1, None);
+}
+
+// --- Invalid agent settings are excluded from effective resolution ---
+
+#[tokio::test]
+async fn agent_settings_invalid_agent_not_used() {
+    let workspace = tempfile::tempdir().unwrap();
+    let user = tempfile::tempdir().unwrap();
+    let ws_agents = workspace.path().join(".kairox/agents");
+    let usr_agents = user.path().join(".config/kairox/agents");
+
+    // Write an invalid agent file (no frontmatter) — should not crash but skip
+    tokio::fs::create_dir_all(&ws_agents).await.unwrap();
+    tokio::fs::write(
+        ws_agents.join("default.md"),
+        "This file has no frontmatter — it's invalid.\n",
+    )
+    .await
+    .unwrap();
+
+    let roots = AgentSettingsRoots {
+        workspace_root: Some(ws_agents),
+        user_root: Some(usr_agents),
+        builtin_root: None,
+    };
+    // Should not panic; falls back to builtin defaults
+    let executor = make_executor_with_roots(roots).await;
+    assert!(executor.is_available());
 }
