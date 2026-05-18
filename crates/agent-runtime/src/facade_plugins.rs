@@ -92,7 +92,17 @@ where
             if marketplace_id.as_ref().is_some_and(|id| id != &source.id) {
                 continue;
             }
-            entries.extend(read_catalog_source(&source).await?);
+            match read_catalog_source(&source).await {
+                Ok(source_entries) => entries.extend(source_entries),
+                Err(error) => {
+                    tracing::warn!(
+                        source_id = %source.id,
+                        source = %source.source,
+                        error = %error,
+                        "skipping unreadable plugin marketplace source"
+                    );
+                }
+            }
         }
         if let Some(keyword) = keyword.filter(|value| !value.trim().is_empty()) {
             let keyword = keyword.to_lowercase();
