@@ -7,12 +7,9 @@ pub use config::AnthropicConfig;
 
 use crate::{ModelError, ModelEvent, ModelRequest, Result};
 use async_trait::async_trait;
-use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
-use futures::{StreamExt, TryStreamExt};
-use std::collections::HashMap;
-use streaming::{parse_anthropic_raw_events, AnthropicRawEvent};
-use tool_accumulator::AnthropicToolCallAccumulator;
+use streaming::stream_anthropic_response;
+use tool_accumulator::anthropic_tool_name_map;
 
 #[derive(Debug, Clone)]
 pub struct AnthropicClient {
@@ -65,84 +62,8 @@ impl AnthropicClient {
             return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
         }
 
-        // Build a reverse name map so we can map Anthropic-safe tool names
-        // (e.g. "shell_exec") back to the original names (e.g. "shell.exec")
-        // when the model requests a tool_use.
-        let name_map: HashMap<String, String> = request
-            .tools
-            .iter()
-            .map(|t| {
-                let safe_name: String = t
-                    .name
-                    .chars()
-                    .map(|c| {
-                        if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                            c
-                        } else {
-                            '_'
-                        }
-                    })
-                    .collect();
-                (safe_name, t.name.clone())
-            })
-            .collect();
-
-        // Collect raw SSE events into a type-erased boxed stream.
-        let raw_stream: BoxStream<'static, Result<AnthropicRawEvent>> = response
-            .bytes_stream()
-            .eventsource()
-            .map_err(|e| ModelError::StreamParse(e.to_string()))
-            .and_then(|event| async move {
-                if event.data == "[DONE]" {
-                    Ok(None)
-                } else {
-                    parse_anthropic_raw_events(&event.data).map(Some)
-                }
-            })
-            .filter_map(
-                |result: std::result::Result<Option<Vec<AnthropicRawEvent>>, ModelError>| async move {
-                    match result {
-                        Ok(Some(raw_events)) => {
-                            Some(futures::stream::iter(raw_events.into_iter().map(Ok)).boxed())
-                        }
-                        Ok(None) => Some(futures::stream::empty::<Result<AnthropicRawEvent>>().boxed()),
-                        Err(e) => Some(futures::stream::once(async { Err(e) }).boxed()),
-                    }
-                },
-            )
-            .flatten()
-            .boxed();
-
-        // Process raw events through the accumulator and flush any pending
-        // tool calls when the stream ends. Anthropic sends tool_use blocks
-        // as content_block_start → content_block_delta (input_json_delta) →
-        // content_block_stop, so we accumulate arguments across chunks and
-        // emit ToolCallRequested when content_block_stop fires.
-        let stream: BoxStream<'static, Result<ModelEvent>> = {
-            let mut acc = AnthropicToolCallAccumulator::new(name_map);
-            Box::pin(async_stream::stream! {
-                let mut raw_stream = raw_stream;
-
-                while let Some(item) = raw_stream.next().await {
-                    let events: Vec<Result<ModelEvent>> = match item {
-                        Ok(raw) => acc.process(raw).into_iter().map(Ok).collect(),
-                        Err(e) => vec![Err(e)],
-                    };
-                    for event in events {
-                        yield event;
-                    }
-                }
-
-                // Flush any pending tool calls that haven't been emitted yet.
-                // This handles edge cases where content_block_stop might be
-                // missed or the stream ends unexpectedly.
-                for event in acc.flush() {
-                    yield Ok(event);
-                }
-            })
-        };
-
-        Ok(stream)
+        let name_map = anthropic_tool_name_map(&request.tools);
+        Ok(stream_anthropic_response(response, name_map))
     }
 }
 
@@ -160,6 +81,7 @@ impl crate::ModelClient for AnthropicClient {
 mod tests {
     use super::*;
     use crate::ModelClient;
+    use futures::StreamExt;
 
     struct EnvVarGuard {
         key: &'static str,
@@ -352,216 +274,6 @@ file2.rs",
         let result_blocks = messages[2]["content"].as_array().unwrap();
         assert_eq!(result_blocks[0]["type"], "tool_result");
         assert_eq!(result_blocks[0]["tool_use_id"], "toolu_02");
-    }
-
-    #[test]
-    fn parses_content_block_delta_text() {
-        let data = r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::Event(ModelEvent::TokenDelta(t)) => assert_eq!(t, "Hello"),
-            _ => panic!("expected TokenDelta event"),
-        }
-    }
-
-    #[test]
-    fn parses_content_block_start_tool_use() {
-        let data = r#"{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_01","name":"shell_exec"}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::ToolUseStarted { id, name } => {
-                assert_eq!(id, "toolu_01");
-                assert_eq!(name, "shell_exec");
-            }
-            _ => panic!("expected ToolUseStarted event"),
-        }
-    }
-
-    #[test]
-    fn parses_content_block_delta_input_json() {
-        let data = r#"{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"command\":"}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::ToolUseArgumentDelta { partial_json } => {
-                assert_eq!(partial_json, "{\"command\":");
-            }
-            _ => panic!("expected ToolUseArgumentDelta event"),
-        }
-    }
-
-    #[test]
-    fn parses_content_block_stop() {
-        let data = r#"{"type":"content_block_stop","index":1}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::ToolUseFinished => {}
-            _ => panic!("expected ToolUseFinished event"),
-        }
-    }
-
-    #[test]
-    fn parses_message_delta_end_turn() {
-        let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":10,"output_tokens":5}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
-                assert_eq!(u.input_tokens, 10);
-                assert_eq!(u.output_tokens, 5);
-            }
-            _ => panic!("expected Completed event"),
-        }
-    }
-
-    #[test]
-    fn parses_message_delta_tool_use_stop() {
-        let data = r#"{"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":20,"output_tokens":10}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::Event(ModelEvent::Completed { usage }) => {
-                assert_eq!(usage.as_ref().unwrap().output_tokens, 10);
-            }
-            _ => panic!("expected Completed event"),
-        }
-    }
-
-    #[test]
-    fn parses_error_event() {
-        let data = r#"{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            AnthropicRawEvent::Event(ModelEvent::Failed { message }) => {
-                assert_eq!(message, "Overloaded");
-            }
-            _ => panic!("expected Failed event"),
-        }
-    }
-
-    #[test]
-    fn ignores_ping_and_start_events() {
-        let data = r#"{"type":"ping"}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert!(events.is_empty());
-
-        let data = r#"{"type":"message_start","message":{"id":"msg_123"}}"#;
-        let events = parse_anthropic_raw_events(data).unwrap();
-        assert!(events.is_empty());
-    }
-
-    #[test]
-    fn accumulator_accumulates_tool_call_across_chunks() {
-        let name_map = HashMap::from([
-            ("shell_exec".to_string(), "shell.exec".to_string()),
-            ("fs_read".to_string(), "fs.read".to_string()),
-        ]);
-        let mut acc = AnthropicToolCallAccumulator::new(name_map);
-
-        // Text delta passes through immediately
-        let events = acc.process(AnthropicRawEvent::Event(ModelEvent::TokenDelta(
-            "I'll list files.".into(),
-        )));
-        assert_eq!(events.len(), 1);
-        assert!(matches!(&events[0], ModelEvent::TokenDelta(t) if t == "I'll list files."));
-
-        // Tool use starts — no output yet
-        let events = acc.process(AnthropicRawEvent::ToolUseStarted {
-            id: "toolu_01".into(),
-            name: "shell_exec".into(),
-        });
-        assert!(events.is_empty());
-
-        // Argument fragments — still accumulating
-        let events = acc.process(AnthropicRawEvent::ToolUseArgumentDelta {
-            partial_json: "{\"command\":".into(),
-        });
-        assert!(events.is_empty());
-        let events = acc.process(AnthropicRawEvent::ToolUseArgumentDelta {
-            partial_json: " \"ls\"}".into(),
-        });
-        assert!(events.is_empty());
-
-        // Content block stop — flush the completed tool call
-        let events = acc.process(AnthropicRawEvent::ToolUseFinished);
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            ModelEvent::ToolCallRequested {
-                tool_call_id,
-                tool_id,
-                arguments,
-            } => {
-                assert_eq!(tool_call_id, "toolu_01");
-                assert_eq!(tool_id, "shell.exec"); // name mapped back from shell_exec
-                assert_eq!(arguments["command"], "ls");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
-
-        // Text block stop — no pending tool call, so nothing to emit
-        let events = acc.process(AnthropicRawEvent::ToolUseFinished);
-        assert!(events.is_empty());
-    }
-
-    #[test]
-    fn accumulator_handles_unknown_tool_name() {
-        let name_map = HashMap::new(); // empty map
-        let mut acc = AnthropicToolCallAccumulator::new(name_map);
-
-        acc.process(AnthropicRawEvent::ToolUseStarted {
-            id: "toolu_02".into(),
-            name: "custom_tool".into(),
-        });
-        acc.process(AnthropicRawEvent::ToolUseArgumentDelta {
-            partial_json: "{}".into(),
-        });
-        let events = acc.process(AnthropicRawEvent::ToolUseFinished);
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            ModelEvent::ToolCallRequested { tool_id, .. } => {
-                // Unknown name stays as-is (no mapping available)
-                assert_eq!(tool_id, "custom_tool");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
-    }
-
-    #[test]
-    fn parse_anthropic_json_response_handles_tool_use() {
-        let data = r#"{
-            "id": "msg_01",
-            "type": "message",
-            "role": "assistant",
-            "content": [
-                {"type": "text", "text": "I'll list the files."},
-                {"type": "tool_use", "id": "toolu_01", "name": "shell_exec", "input": {"command": "ls"}}
-            ],
-            "model": "claude-sonnet-4-20250514",
-            "stop_reason": "tool_use",
-            "usage": {"input_tokens": 100, "output_tokens": 50}
-        }"#;
-        let events = streaming::parse_anthropic_json_response(data).unwrap();
-        assert_eq!(events.len(), 3); // TokenDelta + ToolCallRequested + Completed
-        assert!(matches!(&events[0], ModelEvent::TokenDelta(t) if t == "I'll list the files."));
-        match &events[1] {
-            ModelEvent::ToolCallRequested {
-                tool_call_id,
-                tool_id,
-                arguments,
-            } => {
-                assert_eq!(tool_call_id, "toolu_01");
-                assert_eq!(tool_id, "shell_exec");
-                assert_eq!(arguments["command"], "ls");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
-        assert!(
-            matches!(&events[2], ModelEvent::Completed { usage: Some(u) } if u.input_tokens == 100 && u.output_tokens == 50)
-        );
     }
 
     #[tokio::test]

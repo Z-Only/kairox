@@ -7,11 +7,8 @@ pub use config::OpenAiCompatibleConfig;
 
 use crate::{ModelError, ModelEvent, ModelRequest, Result};
 use async_trait::async_trait;
-use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
-use futures::{StreamExt, TryStreamExt};
-use streaming::{parse_openai_chunk, OpenAiChunkEvent};
-use tool_accumulator::OpenAiToolCallAccumulator;
+use streaming::stream_openai_response;
 
 #[derive(Debug, Clone)]
 pub struct OpenAiCompatibleClient {
@@ -60,60 +57,7 @@ impl OpenAiCompatibleClient {
             return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
         }
 
-        // Collect raw SSE events into a type-erased boxed stream.
-        let raw_stream: BoxStream<'static, Result<OpenAiChunkEvent>> = response
-            .bytes_stream()
-            .eventsource()
-            .map_err(|e| ModelError::StreamParse(e.to_string()))
-            .and_then(|event| async move {
-                if event.data == "[DONE]" {
-                    Ok(None)
-                } else {
-                    parse_openai_chunk(&event.data).map(Some)
-                }
-            })
-            .filter_map(
-                |result: std::result::Result<Option<Vec<OpenAiChunkEvent>>, ModelError>| async move {
-                    match result {
-                        Ok(Some(events)) => {
-                            Some(futures::stream::iter(events.into_iter().map(Ok)).boxed())
-                        }
-                        Ok(None) => Some(futures::stream::empty::<Result<OpenAiChunkEvent>>().boxed()),
-                        Err(e) => Some(futures::stream::once(async { Err(e) }).boxed()),
-                    }
-                },
-            )
-            .flatten()
-            .boxed();
-
-        // Use async_stream to process raw events through the accumulator and
-        // flush any pending tool calls when the input stream ends.
-        let stream: BoxStream<'static, Result<ModelEvent>> = {
-            let mut acc = OpenAiToolCallAccumulator::new();
-            Box::pin(async_stream::stream! {
-                let mut raw_stream = raw_stream;
-
-                while let Some(item) = raw_stream.next().await {
-                    let events: Vec<Result<ModelEvent>> = match item {
-                        Ok(raw) => acc.process(raw).into_iter().map(Ok).collect(),
-                        Err(e) => vec![Err(e)],
-                    };
-                    for event in events {
-                        yield event;
-                    }
-                }
-
-                // Flush any pending tool calls that haven't been emitted yet.
-                // This is critical: OpenAI finishes tool_calls with finish_reason
-                // but doesn't signal "end of arguments" per tool — we only know
-                // the arguments are complete when the stream ends.
-                for event in acc.flush() {
-                    yield Ok(event);
-                }
-            })
-        };
-
-        Ok(stream)
+        Ok(stream_openai_response(response))
     }
 }
 
@@ -131,6 +75,7 @@ impl crate::ModelClient for OpenAiCompatibleClient {
 mod tests {
     use super::*;
     use crate::ModelClient;
+    use futures::StreamExt;
 
     struct EnvVarGuard {
         key: &'static str,
@@ -326,188 +271,6 @@ file2.rs",
         assert!(messages[1]["content"].is_null());
         let tool_calls = messages[1]["tool_calls"].as_array().unwrap();
         assert_eq!(tool_calls[0]["id"], "call_xyz");
-    }
-
-    #[test]
-    fn parses_token_delta_from_chunk() {
-        let data = r#"{"choices":[{"delta":{"content":"Hello"},"index":0}]}"#;
-        let events = parse_openai_chunk(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            OpenAiChunkEvent::Event(ModelEvent::TokenDelta(t)) => assert_eq!(t, "Hello"),
-            _ => panic!("expected TokenDelta event"),
-        }
-    }
-
-    #[test]
-    fn parses_tool_call_start_from_chunk() {
-        let data = r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"fs.read","arguments":"{\"pa"}}]},"index":0}]}"#;
-        let events = parse_openai_chunk(data).unwrap();
-        assert_eq!(events.len(), 2); // ToolCallStarted + ToolCallArgumentDelta
-        match &events[0] {
-            OpenAiChunkEvent::ToolCallStarted { index, id, name } => {
-                assert_eq!(*index, 0);
-                assert_eq!(id, "call_1");
-                assert_eq!(name, "fs.read");
-            }
-            _ => panic!("expected ToolCallStarted"),
-        }
-        match &events[1] {
-            OpenAiChunkEvent::ToolCallArgumentDelta {
-                index,
-                partial_arguments,
-            } => {
-                assert_eq!(*index, 0);
-                assert_eq!(partial_arguments, "{\"pa");
-            }
-            _ => panic!("expected ToolCallArgumentDelta"),
-        }
-    }
-
-    #[test]
-    fn parses_tool_call_argument_delta_chunk() {
-        let data = r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"th\": \"README.md\"}"}}]},"index":0}]}"#;
-        let events = parse_openai_chunk(data).unwrap();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            OpenAiChunkEvent::ToolCallArgumentDelta {
-                index,
-                partial_arguments,
-            } => {
-                assert_eq!(*index, 0);
-                assert_eq!(partial_arguments, "th\": \"README.md\"}");
-            }
-            _ => panic!("expected ToolCallArgumentDelta"),
-        }
-    }
-
-    #[test]
-    fn parses_completion_event() {
-        let data = r#"{"choices":[{"finish_reason":"stop","index":0}],"usage":{"prompt_tokens":10,"completion_tokens":5}}"#;
-        let events = parse_openai_chunk(data).unwrap();
-        assert!(matches!(
-            &events[0],
-            OpenAiChunkEvent::Event(ModelEvent::Completed { usage: Some(u) })
-            if u.input_tokens == 10 && u.output_tokens == 5
-        ));
-    }
-
-    #[test]
-    fn accumulator_accumulates_tool_call_across_chunks() {
-        let mut acc = OpenAiToolCallAccumulator::new();
-
-        // Text delta passes through immediately
-        let events = acc.process(OpenAiChunkEvent::Event(ModelEvent::TokenDelta(
-            "Reading file...".into(),
-        )));
-        assert_eq!(events.len(), 1);
-        assert!(matches!(&events[0], ModelEvent::TokenDelta(t) if t == "Reading file..."));
-
-        // Tool call start — no ToolCallRequested yet
-        let events = acc.process(OpenAiChunkEvent::ToolCallStarted {
-            index: 0,
-            id: "call_abc".into(),
-            name: "fs.read".into(),
-        });
-        assert!(events.is_empty());
-
-        // First argument fragment
-        let events = acc.process(OpenAiChunkEvent::ToolCallArgumentDelta {
-            index: 0,
-            partial_arguments: "{\"pa".into(),
-        });
-        assert!(events.is_empty());
-
-        // Second argument fragment
-        let events = acc.process(OpenAiChunkEvent::ToolCallArgumentDelta {
-            index: 0,
-            partial_arguments: "th\": \"README.md\"}".into(),
-        });
-        assert!(events.is_empty());
-
-        // Completion event passes through
-        let events = acc.process(OpenAiChunkEvent::Event(ModelEvent::Completed {
-            usage: None,
-        }));
-        assert_eq!(events.len(), 1);
-
-        // Flush remaining pending tool calls
-        let events = acc.flush();
-        assert_eq!(events.len(), 1);
-        match &events[0] {
-            ModelEvent::ToolCallRequested {
-                tool_call_id,
-                tool_id,
-                arguments,
-            } => {
-                assert_eq!(tool_call_id, "call_abc");
-                assert_eq!(tool_id, "fs.read");
-                assert_eq!(arguments["path"], "README.md");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
-    }
-
-    #[test]
-    fn accumulator_handles_multiple_tool_calls() {
-        let mut acc = OpenAiToolCallAccumulator::new();
-
-        // First tool call starts
-        acc.process(OpenAiChunkEvent::ToolCallStarted {
-            index: 0,
-            id: "call_1".into(),
-            name: "fs.read".into(),
-        });
-        acc.process(OpenAiChunkEvent::ToolCallArgumentDelta {
-            index: 0,
-            partial_arguments: "{\"path\":\"README.md\"}".into(),
-        });
-
-        // Second tool call starts
-        acc.process(OpenAiChunkEvent::ToolCallStarted {
-            index: 1,
-            id: "call_2".into(),
-            name: "shell.exec".into(),
-        });
-        acc.process(OpenAiChunkEvent::ToolCallArgumentDelta {
-            index: 1,
-            partial_arguments: "{\"command\":\"ls\"}".into(),
-        });
-
-        // Flush all
-        let mut events = acc.flush();
-        assert_eq!(events.len(), 2);
-
-        // Order may vary since HashMap doesn't preserve insertion order
-        events.sort_by_key(|e| match e {
-            ModelEvent::ToolCallRequested { tool_call_id, .. } => tool_call_id.clone(),
-            _ => String::new(),
-        });
-
-        match &events[0] {
-            ModelEvent::ToolCallRequested {
-                tool_call_id,
-                tool_id,
-                arguments,
-            } => {
-                assert_eq!(tool_call_id, "call_1");
-                assert_eq!(tool_id, "fs.read");
-                assert_eq!(arguments["path"], "README.md");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
-        match &events[1] {
-            ModelEvent::ToolCallRequested {
-                tool_call_id,
-                tool_id,
-                arguments,
-            } => {
-                assert_eq!(tool_call_id, "call_2");
-                assert_eq!(tool_id, "shell.exec");
-                assert_eq!(arguments["command"], "ls");
-            }
-            _ => panic!("expected ToolCallRequested"),
-        }
     }
 
     #[tokio::test]
