@@ -8,8 +8,10 @@ use agent_core::{
 };
 use agent_models::ModelClient;
 use agent_store::EventStore;
+use agent_tools::{PermissionEngine, PermissionMode};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Execute a single task using its assigned strategy.
 #[allow(clippy::too_many_arguments)]
@@ -17,6 +19,7 @@ pub(crate) async fn execute_task_with_strategy<S, M>(
     events: &EventEmitter<S>,
     model: &Arc<M>,
     strategies: &HashMap<AgentRole, Arc<dyn AgentStrategy>>,
+    permission_engine: &Arc<Mutex<PermissionEngine>>,
     workspace_id: &WorkspaceId,
     session_id: &agent_core::SessionId,
     graph: &TaskGraph,
@@ -36,10 +39,24 @@ where
         ))
     })?;
 
+    // Apply per-agent permission mode if the strategy provides an override.
+    let previous_permission_mode = if let Some(mode_str) = strategy.permission_mode_override() {
+        if let Ok(mode) = mode_str.parse::<PermissionMode>() {
+            let mut engine = permission_engine.lock().await;
+            let prev = *engine.mode();
+            engine.set_mode(mode);
+            Some(prev)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let messages = strategy.build_context(task, graph, session_events).await;
     let decision = strategy.decide(ctx, messages).await;
 
-    match decision {
+    let result = match decision {
         AgentDecision::Respond(text) => {
             let event = DomainEvent::new(
                 workspace_id.clone(),
@@ -55,7 +72,12 @@ where
             Ok(())
         }
         AgentDecision::RequestModel { .. } => {
-            let model_profile = crate::agent_loop::latest_model_profile_for(session_events);
+            // Agent-specific model profile override takes precedence over session-level.
+            let model_profile = strategy
+                .model_profile_override()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| crate::agent_loop::latest_model_profile_for(session_events));
+
             let model_request = agent_models::ModelRequest {
                 model_profile,
                 messages: strategy.build_context(task, graph, session_events).await,
@@ -138,7 +160,14 @@ where
                 )))
             }
         }
+    };
+
+    // Restore previous permission mode if it was overridden.
+    if let Some(prev_mode) = previous_permission_mode {
+        permission_engine.lock().await.set_mode(prev_mode);
     }
+
+    result
 }
 
 /// Run the reviewer on completed worker outputs, if a reviewer task exists.
@@ -147,6 +176,7 @@ pub(crate) async fn run_reviewer_if_needed<S, M>(
     events: &EventEmitter<S>,
     model: &Arc<M>,
     strategies: &HashMap<AgentRole, Arc<dyn AgentStrategy>>,
+    permission_engine: &Arc<Mutex<PermissionEngine>>,
     workspace_id: &WorkspaceId,
     session_id: &agent_core::SessionId,
     graph: &mut TaskGraph,
@@ -199,6 +229,7 @@ where
             events,
             model,
             strategies,
+            permission_engine,
             workspace_id,
             session_id,
             graph,

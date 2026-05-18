@@ -563,7 +563,7 @@ mod tests {
     async fn plan_prefix_triggers_dag_mode() {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let model = FakeModelClient::new(vec!["hi".into()]);
-        let runtime = LocalRuntime::new(store, model).with_dag_execution();
+        let runtime = LocalRuntime::new(store, model).with_dag_execution().await;
 
         let request = SendMessageRequest {
             workspace_id: WorkspaceId::new(),
@@ -871,7 +871,7 @@ mod tests {
     async fn no_plan_prefix_uses_single_step_even_with_dag() {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let model = FakeModelClient::new(vec!["hi".into()]);
-        let runtime = LocalRuntime::new(store, model).with_dag_execution();
+        let runtime = LocalRuntime::new(store, model).with_dag_execution().await;
 
         let request = SendMessageRequest {
             workspace_id: WorkspaceId::new(),
