@@ -42,9 +42,9 @@ pub use agent_core::{
     AgentRole, BackoffStrategy, FailurePolicy, RetryConfig, TaskFailureReason, TaskState,
 };
 pub use agent_settings::AgentSettingsRoots;
-pub use agents::planner_agent::PlannerStrategy;
-pub use agents::reviewer_agent::ReviewerStrategy;
-pub use agents::worker_agent::WorkerStrategy;
+pub use agents::planner::PlannerStrategy;
+pub use agents::reviewer::ReviewerStrategy;
+pub use agents::worker::WorkerStrategy;
 pub use agents::{
     AgentDecision, AgentStrategy, PlannerAgent, ReviewerAgent, ReviewerFinding, StepContext,
     StepOutcome, SubTaskDef, ToolResultAction, WorkerAgent,
