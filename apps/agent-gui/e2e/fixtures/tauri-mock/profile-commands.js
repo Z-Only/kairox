@@ -40,7 +40,8 @@ registerCommandHandlers({
           context_window: window,
           output_limit: output,
           limit_source: "builtin_registry",
-          has_api_key: p.has_api_key
+          has_api_key: p.has_api_key,
+          supports_reasoning: p.supports_reasoning === true
         };
       })
     );

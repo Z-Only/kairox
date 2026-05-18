@@ -83,6 +83,7 @@ where
                 messages: strategy.build_context(task, graph, session_events).await,
                 system_prompt: None,
                 tools: Vec::new(),
+                reasoning_effort: None,
             };
 
             let mut stream = model

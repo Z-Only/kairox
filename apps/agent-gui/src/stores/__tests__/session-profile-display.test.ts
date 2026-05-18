@@ -55,6 +55,87 @@ describe("session profile display", () => {
     expect(session.activeProfileDisplay).not.toBe("default");
   });
 
+  it("shows reasoning effort for profiles that support reasoning controls", () => {
+    const session = useSessionStore();
+    session.currentProfile = "smart";
+    session.currentReasoningEffort = "high";
+    session.profileInfos = [
+      {
+        alias: "smart",
+        provider: "openai",
+        model_id: "gpt-5.2",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+
+    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-5.2 · high");
+  });
+
+  it("omits reasoning effort for profiles without reasoning controls", () => {
+    const session = useSessionStore();
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = "high";
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "openai",
+        model_id: "gpt-4o-mini",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      }
+    ];
+
+    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-4o Mini");
+  });
+
+  it("defaults reasoning-capable profile display to low when no effort is set", () => {
+    const session = useSessionStore();
+    session.currentProfile = "smart";
+    session.currentReasoningEffort = null;
+    session.profileInfos = [
+      {
+        alias: "smart",
+        provider: "openai",
+        model_id: "gpt-5.2",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+
+    expect(session.activeProfileDisplay).toBe("OpenAI · GPT-5.2 · low");
+  });
+
+  it("updates current reasoning effort from ModelProfileSwitched events", () => {
+    const session = useSessionStore();
+
+    session.applyEvent({
+      schema_version: 1,
+      workspace_id: "wrk_test",
+      session_id: "ses_test",
+      timestamp: new Date().toISOString(),
+      source_agent_id: "agent_system",
+      privacy: "minimal_trace",
+      event_type: "ModelProfileSwitched",
+      payload: {
+        type: "ModelProfileSwitched",
+        from_profile: "fast",
+        to_profile: "smart",
+        reasoning_effort: "xhigh",
+        effective_at: "2026-05-18T10:00:00Z",
+        context_window: 200_000,
+        output_limit: 16_384,
+        limit_source: "builtin_registry"
+      }
+    });
+
+    expect(session.currentProfile).toBe("smart");
+    expect(session.currentReasoningEffort).toBe("xhigh");
+  });
+
   it("keeps alias fallback and allows retry when profile loading fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {

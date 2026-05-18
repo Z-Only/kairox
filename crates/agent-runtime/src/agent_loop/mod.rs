@@ -5,9 +5,9 @@ mod tool_loop;
 
 pub(crate) use budget::{build_model_messages_within_budget, should_trigger_auto_compaction};
 pub(crate) use messages::build_model_messages;
-pub(crate) use runner::latest_model_profile_for;
 pub(crate) use runner::run_agent_loop;
 pub(crate) use runner::AgentLoopDeps;
+pub(crate) use runner::{latest_model_profile_for, latest_model_reasoning_effort_for};
 pub(crate) use tool_loop::execute_tool_calls;
 
 pub const SYSTEM_PROMPT: &str = "\

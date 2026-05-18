@@ -133,7 +133,7 @@ async fn model_switch_takes_effect_on_next_send_message() {
         .unwrap();
 
     runtime
-        .switch_model(session_id.clone(), "opus".into())
+        .switch_model(session_id.clone(), "opus".into(), None)
         .await
         .unwrap();
 
@@ -255,7 +255,7 @@ async fn switch_model_rejects_unknown_alias_in_running_session() {
         .unwrap();
 
     let err = runtime
-        .switch_model(session_id, "ghost".into())
+        .switch_model(session_id, "ghost".into(), None)
         .await
         .unwrap_err();
     let msg = format!("{err}");

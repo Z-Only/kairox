@@ -19,6 +19,9 @@ import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
 
+export const DEFAULT_REASONING_EFFORT = "low";
+export const DEFAULT_REASONING_EFFORTS = ["low", "middle", "high", "xhigh"] as const;
+
 function emptyProjection(): SessionProjection {
   return {
     messages: [],
@@ -125,6 +128,7 @@ export const useSessionStore = defineStore("session", () => {
   const workspaceId = ref<string | null>(null);
   const projection = ref<SessionProjection>(emptyProjection());
   const currentProfile = ref<string>("fast");
+  const currentReasoningEffort = ref<string | null>(null);
   const lastContextUsage = ref<ContextUsage | null>(null);
   const modelLimits = ref<ProjectedModelLimits | null>(null);
   const compacting = ref(false);
@@ -178,7 +182,9 @@ export const useSessionStore = defineStore("session", () => {
       if (firstProfile) return formatProfileDisplay(firstProfile);
       return currentProfile.value;
     }
-    return formatProfileDisplay(profile);
+    const display = formatProfileDisplay(profile);
+    if (!profile.supports_reasoning) return display;
+    return `${display} · ${currentReasoningEffort.value ?? DEFAULT_REASONING_EFFORT}`;
   });
 
   // ── actions ──────────────────────────────────────────────────────
@@ -292,6 +298,7 @@ export const useSessionStore = defineStore("session", () => {
       }
       case "ModelProfileSwitched": {
         currentProfile.value = p.to_profile;
+        currentReasoningEffort.value = p.reasoning_effort ?? null;
         modelLimits.value = {
           context_window: p.context_window,
           output_limit: p.output_limit,
@@ -367,6 +374,7 @@ export const useSessionStore = defineStore("session", () => {
     currentSessionId.value = sessionId;
     localStorage.setItem("kairox.last-active-session-id", sessionId);
     currentProfile.value = target.profile;
+    currentReasoningEffort.value = null;
     if (target.permission_mode) {
       permissionMode.value = target.permission_mode;
     }
@@ -377,7 +385,11 @@ export const useSessionStore = defineStore("session", () => {
     const traceStrings = await invoke<string[]>("get_trace", { sessionId });
     for (const jsonStr of traceStrings) {
       try {
-        applyTraceEvent(JSON.parse(jsonStr));
+        const event = JSON.parse(jsonStr) as DomainEvent;
+        if (event.payload.type === "ModelProfileSwitched") {
+          currentReasoningEffort.value = event.payload.reasoning_effort ?? null;
+        }
+        applyTraceEvent(event);
       } catch {
         // Skip malformed trace entries
       }
@@ -433,6 +445,7 @@ export const useSessionStore = defineStore("session", () => {
     }
 
     currentProfile.value = result.profile;
+    currentReasoningEffort.value = null;
     resetProjection();
     clearTrace();
     useTaskGraphStore().clearTaskGraph();
@@ -576,6 +589,7 @@ export const useSessionStore = defineStore("session", () => {
     workspaceId,
     projection,
     currentProfile,
+    currentReasoningEffort,
     lastContextUsage,
     modelLimits,
     compacting,

@@ -20,6 +20,7 @@ export interface DraftStore {
 export interface ChatComposerSession {
   currentSessionId: string | null;
   currentProfile: string;
+  currentReasoningEffort?: string | null;
   isStreaming: boolean;
   reportSendError?: (message: string) => void;
 }
@@ -269,9 +270,16 @@ export function useChatComposer(options: UseChatComposerOptions) {
     }
   }
 
-  async function selectModelProfile(alias: string, modelPopoverOpen: Ref<boolean>) {
+  async function selectModelProfile(
+    alias: string,
+    modelPopoverOpen: Ref<boolean>,
+    reasoningEffort?: string
+  ) {
     if (switchingModel.value) return;
-    if (alias === session.currentProfile) {
+    if (
+      alias === session.currentProfile &&
+      (reasoningEffort === undefined || reasoningEffort === session.currentReasoningEffort)
+    ) {
       modelPopoverOpen.value = false;
       return;
     }
@@ -279,11 +287,20 @@ export function useChatComposer(options: UseChatComposerOptions) {
 
     switchingModel.value = true;
     try {
-      await invokeFn("switch_model", {
+      const payload: {
+        sessionId: string;
+        profileAlias: string;
+        reasoningEffort?: string;
+      } = {
         sessionId: session.currentSessionId,
         profileAlias: alias
-      });
+      };
+      if (reasoningEffort !== undefined) {
+        payload.reasoningEffort = reasoningEffort;
+      }
+      await invokeFn("switch_model", payload);
       session.currentProfile = alias;
+      session.currentReasoningEffort = reasoningEffort ?? null;
       modelPopoverOpen.value = false;
     } catch (e) {
       console.error("Failed to switch model:", e);

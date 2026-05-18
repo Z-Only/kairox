@@ -440,11 +440,12 @@ pub async fn switch_model(
     state: State<'_, GuiState>,
     session_id: String,
     profile_alias: String,
+    reasoning_effort: Option<String>,
 ) -> Result<(), String> {
     let session_id = agent_core::SessionId::from_string(session_id);
     state
         .runtime
-        .switch_model(session_id, profile_alias)
+        .switch_model(session_id, profile_alias, reasoning_effort)
         .await
         .map_err(|e| e.to_string())
 }

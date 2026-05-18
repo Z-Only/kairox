@@ -82,6 +82,9 @@ impl OpenAiCompatibleClient {
         if let Some(top_p) = self.config.top_p {
             body["top_p"] = serde_json::json!(top_p);
         }
+        if let Some(ref effort) = request.reasoning_effort {
+            body["reasoning_effort"] = serde_json::json!(effort);
+        }
         if let Some(ref extra) = self.config.extra_params {
             if let Some(obj) = extra.as_object() {
                 for (key, value) in obj {
