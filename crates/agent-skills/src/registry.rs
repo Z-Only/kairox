@@ -342,4 +342,174 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].id, SkillId::new("valid"));
     }
+
+    // ── namespaced plugin skill tests ──
+
+    #[tokio::test]
+    async fn plugin_skill_has_namespaced_id() {
+        let root = tempfile::tempdir().expect("plugin root");
+        write_skill(
+            root.path(),
+            "review",
+            "review",
+            "Review code changes",
+            "Review body.\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![SkillRoot::with_namespace(
+            SkillSourceKind::Plugin,
+            root.path(),
+            "my-plugin",
+        )])
+        .await
+        .expect("discover should succeed");
+
+        let skill_id = SkillId::new("my-plugin:review");
+        let metadata = registry
+            .get(&skill_id)
+            .expect("plugin skill should be found by namespaced id");
+        assert_eq!(metadata.id, skill_id);
+        assert_eq!(metadata.name, "review");
+        assert_eq!(metadata.source.kind, SkillSourceKind::Plugin);
+        assert_eq!(metadata.source.root, root.path());
+
+        // Plain "review" id should NOT match
+        assert!(registry.get(&SkillId::new("review")).is_none());
+    }
+
+    #[tokio::test]
+    async fn plugin_skills_from_different_plugins_dont_collide() {
+        let plugin_a = tempfile::tempdir().expect("plugin a root");
+        let plugin_b = tempfile::tempdir().expect("plugin b root");
+        write_skill(
+            plugin_a.path(),
+            "review",
+            "review",
+            "Review from plugin A",
+            "Body A.\n",
+        );
+        write_skill(
+            plugin_b.path(),
+            "review",
+            "review",
+            "Review from plugin B",
+            "Body B.\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![
+            SkillRoot::with_namespace(SkillSourceKind::Plugin, plugin_a.path(), "plugin-a"),
+            SkillRoot::with_namespace(SkillSourceKind::Plugin, plugin_b.path(), "plugin-b"),
+        ])
+        .await
+        .expect("discover should succeed");
+
+        let list = registry.list();
+        assert_eq!(list.len(), 2);
+
+        let a = registry
+            .get(&SkillId::new("plugin-a:review"))
+            .expect("plugin-a:review");
+        assert_eq!(a.description, "Review from plugin A");
+
+        let b = registry
+            .get(&SkillId::new("plugin-b:review"))
+            .expect("plugin-b:review");
+        assert_eq!(b.description, "Review from plugin B");
+    }
+
+    #[tokio::test]
+    async fn load_document_for_plugin_skill() {
+        let root = tempfile::tempdir().expect("plugin root");
+        write_skill(
+            root.path(),
+            "review",
+            "review",
+            "Plugin review skill",
+            "Plugin review body.\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![SkillRoot::with_namespace(
+            SkillSourceKind::Plugin,
+            root.path(),
+            "my-plugin",
+        )])
+        .await
+        .expect("discover should succeed");
+
+        let document = registry
+            .load_document(&SkillId::new("my-plugin:review"))
+            .await
+            .expect("plugin skill document should load");
+
+        assert_eq!(document.metadata.id, SkillId::new("my-plugin:review"));
+        assert_eq!(document.metadata.source.kind, SkillSourceKind::Plugin);
+        assert_eq!(document.body_markdown, "Plugin review body.\n");
+    }
+
+    #[tokio::test]
+    async fn plugin_skill_workspace_override_does_not_affect_namespaced_id() {
+        let plugin_root = tempfile::tempdir().expect("plugin root");
+        let workspace_root = tempfile::tempdir().expect("workspace root");
+        write_skill(
+            plugin_root.path(),
+            "review",
+            "review",
+            "Plugin review skill",
+            "Plugin body.\n",
+        );
+        write_skill(
+            workspace_root.path(),
+            "ws-review",
+            "review",
+            "Workspace review skill",
+            "Workspace body.\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![
+            SkillRoot::with_namespace(SkillSourceKind::Plugin, plugin_root.path(), "my-plugin"),
+            SkillRoot::new(SkillSourceKind::Workspace, workspace_root.path()),
+        ])
+        .await
+        .expect("discover should succeed");
+
+        // Workspace "review" and plugin "my-plugin:review" are different IDs
+        let plugin_skill = registry
+            .get(&SkillId::new("my-plugin:review"))
+            .expect("plugin skill");
+        assert_eq!(plugin_skill.description, "Plugin review skill");
+
+        let workspace_skill = registry
+            .get(&SkillId::new("review"))
+            .expect("workspace skill");
+        assert_eq!(workspace_skill.description, "Workspace review skill");
+
+        assert_eq!(registry.list().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn plugin_skill_list_includes_all_namespaced_skills() {
+        let root = tempfile::tempdir().expect("plugin root");
+        write_skill(root.path(), "review", "review", "Review code", "Body.\n");
+        write_skill(
+            root.path(),
+            "brainstorm",
+            "brainstorm",
+            "Brainstorm ideas",
+            "Body.\n",
+        );
+
+        let registry = FileSkillRegistry::discover(vec![SkillRoot::with_namespace(
+            SkillSourceKind::Plugin,
+            root.path(),
+            "my-plugin",
+        )])
+        .await
+        .expect("discover should succeed");
+
+        let list = registry.list();
+        assert_eq!(list.len(), 2);
+        let ids: Vec<&str> = list.iter().map(|m| m.id.as_str()).collect();
+        assert!(ids.contains(&"my-plugin:review"));
+        assert!(ids.contains(&"my-plugin:brainstorm"));
+    }
 }

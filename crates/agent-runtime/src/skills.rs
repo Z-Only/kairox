@@ -32,7 +32,7 @@ pub async fn build_plugin_skill_roots(
     projection
         .plugins
         .into_iter()
-        .filter(|p| p.valid && p.manifest.inventory.skill_count > 0)
+        .filter(|p| p.enabled && p.valid && p.manifest.inventory.skill_count > 0)
         .map(|p| {
             let skill_dir = p.manifest.plugin_root.join("skills");
             SkillRoot::with_namespace(SkillSourceKind::Plugin, skill_dir, p.manifest.name.clone())
@@ -117,5 +117,124 @@ mod tests {
         assert_eq!(roots[0].path, home.join(".config/kairox/skills"));
         assert_eq!(roots[1].kind, SkillSourceKind::Workspace);
         assert_eq!(roots[1].path, workspace.join(".kairox/skills"));
+    }
+
+    // ── build_plugin_skill_roots tests ──
+
+    use super::build_plugin_skill_roots;
+    use crate::plugin_settings::PluginSettingsRoots;
+
+    fn write_plugin_manifest(plugin_dir: &std::path::Path, name: &str) {
+        let manifest_dir = plugin_dir.join(".kairox-plugin");
+        std::fs::create_dir_all(&manifest_dir).expect("manifest dir");
+        std::fs::write(
+            manifest_dir.join("plugin.json"),
+            format!(r#"{{"name":"{name}","description":"Plugin {name}"}}"#),
+        )
+        .expect("manifest");
+    }
+
+    fn write_plugin_skill(plugin_dir: &std::path::Path, skill_name: &str) {
+        let skill_dir = plugin_dir.join("skills").join(skill_name);
+        std::fs::create_dir_all(&skill_dir).expect("skill dir");
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            format!("---\nname: {skill_name}\ndescription: {skill_name} skill\n---\nSkill body.\n"),
+        )
+        .expect("skill file");
+    }
+
+    #[tokio::test]
+    async fn build_plugin_skill_roots_includes_valid_plugin_skills() {
+        let root = tempfile::tempdir().expect("root");
+        let plugin_dir = root.path().join("my-plugin");
+        std::fs::create_dir_all(&plugin_dir).expect("plugin dir");
+        write_plugin_manifest(&plugin_dir, "my-plugin");
+        write_plugin_skill(&plugin_dir, "review");
+
+        let plugin_roots = build_plugin_skill_roots(&PluginSettingsRoots {
+            user_root: Some(root.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await;
+
+        assert_eq!(plugin_roots.len(), 1);
+        assert_eq!(plugin_roots[0].kind, SkillSourceKind::Plugin);
+        assert_eq!(plugin_roots[0].namespace.as_deref(), Some("my-plugin"));
+        assert_eq!(plugin_roots[0].path, plugin_dir.join("skills"));
+    }
+
+    #[tokio::test]
+    async fn build_plugin_skill_roots_excludes_disabled_plugin() {
+        let root = tempfile::tempdir().expect("root");
+        let plugin_dir = root.path().join("disabled-plugin");
+        std::fs::create_dir_all(&plugin_dir).expect("plugin dir");
+        write_plugin_manifest(&plugin_dir, "disabled-plugin");
+        write_plugin_skill(&plugin_dir, "review");
+
+        // Write plugin state with enabled = false
+        std::fs::write(
+            root.path().join("plugins-state.toml"),
+            "[plugins.disabled-plugin]\nenabled = false\n",
+        )
+        .expect("state file");
+
+        let plugin_roots = build_plugin_skill_roots(&PluginSettingsRoots {
+            user_root: Some(root.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await;
+
+        assert!(
+            plugin_roots.is_empty(),
+            "disabled plugin skills should be excluded"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_plugin_skill_roots_excludes_invalid_plugin() {
+        let root = tempfile::tempdir().expect("root");
+        let plugin_dir = root.path().join("bad-plugin");
+        std::fs::create_dir_all(&plugin_dir).expect("plugin dir");
+        // Write a manifest with no name — will be marked invalid
+        let manifest_dir = plugin_dir.join(".kairox-plugin");
+        std::fs::create_dir_all(&manifest_dir).expect("manifest dir");
+        std::fs::write(
+            manifest_dir.join("plugin.json"),
+            r#"{"description":"missing name field"}"#,
+        )
+        .expect("manifest");
+        write_plugin_skill(&plugin_dir, "review");
+
+        let plugin_roots = build_plugin_skill_roots(&PluginSettingsRoots {
+            user_root: Some(root.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await;
+
+        assert!(
+            plugin_roots.is_empty(),
+            "invalid plugin skills should be excluded"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_plugin_skill_roots_excludes_plugin_without_skills() {
+        let root = tempfile::tempdir().expect("root");
+        let plugin_dir = root.path().join("no-skill-plugin");
+        std::fs::create_dir_all(&plugin_dir).expect("plugin dir");
+        write_plugin_manifest(&plugin_dir, "no-skill-plugin");
+        // No skills directory — inventory.skill_count will be 0
+
+        let plugin_roots = build_plugin_skill_roots(&PluginSettingsRoots {
+            user_root: Some(root.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await;
+
+        assert!(
+            plugin_roots.is_empty(),
+            "plugins without skills should be excluded"
+        );
     }
 }
