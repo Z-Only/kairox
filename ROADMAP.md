@@ -58,6 +58,11 @@
 - ✅ Improve skill marketplace discovery and SkillHub install support (#163, #166)
 - ✅ Add per-session permission mode with chat panel selector (#173)
 - ✅ Add instructions settings tab for user/project instruction editing (#174)
+- ✅ Add hook settings UI for user/project automation hooks (#202)
+- ✅ Add configurable agent settings and wire agent overrides into DAG execution (#204, #219)
+- ✅ Add resizable workbench sidebars (#205)
+- ✅ Add plugin settings marketplace and plugin-namespaced skill discovery (#206, #213)
+- ✅ Add reasoning effort selection for reasoning-capable profiles (#222)
 
 ## Mid term
 
