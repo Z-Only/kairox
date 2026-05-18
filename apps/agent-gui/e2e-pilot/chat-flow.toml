@@ -13,7 +13,12 @@ selector = "[data-test='sessions-sidebar']"
 timeout_ms = 15000
 
 [[step]]
-name = "wait for chat input"
+name = "start text chat session"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "wait for text chat input"
 action = "wait"
 selector = "textarea[data-test='message-input']"
 timeout_ms = 15000
@@ -43,6 +48,74 @@ timeout_ms = 15000
 
 [[step]]
 name = "assert user message text"
-action = "assert-text"
-target = ".message-user .message-content"
-expected = "Hello agent!"
+action = "eval"
+script = """
+(() => {
+  const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
+  const text = messages.at(-1)?.textContent ?? "";
+  if (text !== "Hello agent!") {
+    throw new Error(`latest user message mismatch: ${text}`);
+  }
+  return text;
+})()
+"""
+
+[[step]]
+name = "start attachment session"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "wait for attachment chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "fill attachment chat textarea"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Pilot attachment coverage from chat-flow"
+
+[[step]]
+name = "send chat attachment over IPC"
+action = "eval"
+script = """
+(async () => {
+  await window.__TAURI_INTERNALS__.invoke("send_message", {
+    content: "Pilot attachment coverage from chat-flow",
+    attachments: [{
+      path: "apps/agent-gui/e2e-pilot/chat-flow.toml",
+      name: "chat-flow.toml",
+      mime_type: "application/toml",
+    }],
+  });
+  return "sent";
+})()
+"""
+
+[[step]]
+name = "wait for attachment user message"
+action = "wait"
+selector = ".message-user .message-content"
+timeout_ms = 15000
+
+[[step]]
+name = "assert attachment message includes file metadata"
+action = "eval"
+script = """
+(() => {
+  const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
+  const text = messages.at(-1)?.textContent ?? "";
+  if (!text.includes("Pilot attachment coverage from chat-flow")) {
+    throw new Error(`attachment message missing prompt text: ${text}`);
+  }
+  if (!text.includes("chat-flow.toml")) {
+    throw new Error(`attachment message missing filename: ${text}`);
+  }
+  if (!text.includes("send chat attachment over IPC")) {
+    throw new Error(`attachment message missing real file content: ${text}`);
+  }
+  return text;
+})()
+"""
