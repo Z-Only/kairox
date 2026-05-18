@@ -280,34 +280,42 @@ where
     }
 
     /// Enable DAG execution mode with the default configuration.
-    pub fn with_dag_execution(mut self) -> Self {
+    pub async fn with_dag_execution(mut self) -> Self {
         self.dag_config = DagConfig::default();
-        self.dag_executor = Some(Arc::new(DagExecutor::new(
-            self.store.clone(),
-            self.model.clone(),
-            self.event_tx.clone(),
-            self.tool_registry.clone(),
-            self.permission_engine.clone(),
-            self.pending_permissions.clone(),
-            self.memory_store.clone(),
-            self.dag_config.clone(),
-        )));
+        self.dag_executor = Some(Arc::new(
+            DagExecutor::new(
+                self.store.clone(),
+                self.model.clone(),
+                self.event_tx.clone(),
+                self.tool_registry.clone(),
+                self.permission_engine.clone(),
+                self.pending_permissions.clone(),
+                self.memory_store.clone(),
+                self.dag_config.clone(),
+                self.agent_settings_roots.clone(),
+            )
+            .await,
+        ));
         self
     }
 
     /// Enable DAG execution mode with a custom configuration.
-    pub fn with_dag_config(mut self, config: DagConfig) -> Self {
+    pub async fn with_dag_config(mut self, config: DagConfig) -> Self {
         self.dag_config = config.clone();
-        self.dag_executor = Some(Arc::new(DagExecutor::new(
-            self.store.clone(),
-            self.model.clone(),
-            self.event_tx.clone(),
-            self.tool_registry.clone(),
-            self.permission_engine.clone(),
-            self.pending_permissions.clone(),
-            self.memory_store.clone(),
-            config,
-        )));
+        self.dag_executor = Some(Arc::new(
+            DagExecutor::new(
+                self.store.clone(),
+                self.model.clone(),
+                self.event_tx.clone(),
+                self.tool_registry.clone(),
+                self.permission_engine.clone(),
+                self.pending_permissions.clone(),
+                self.memory_store.clone(),
+                config,
+                self.agent_settings_roots.clone(),
+            )
+            .await,
+        ));
         self
     }
 

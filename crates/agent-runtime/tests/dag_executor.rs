@@ -21,8 +21,8 @@ use agent_core::{
 };
 use agent_models::{FakeModelClient, ModelMessage, ToolCall};
 use agent_runtime::{
-    AgentDecision, AgentStrategy, DagConfig, DagExecutor, LocalRuntime, StepContext, SubTaskDef,
-    TaskGraph, ToolResultAction,
+    AgentDecision, AgentSettingsRoots, AgentStrategy, DagConfig, DagExecutor, LocalRuntime,
+    StepContext, SubTaskDef, TaskGraph, ToolResultAction,
 };
 use agent_store::SqliteEventStore;
 use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
@@ -51,7 +51,9 @@ async fn make_executor() -> DagExecutor<SqliteEventStore, FakeModelClient> {
         pending,
         None,
         DagConfig::default(),
+        AgentSettingsRoots::default(),
     )
+    .await
 }
 
 /// Create a LocalRuntime wired with DAG execution enabled, plus workspace and session.
@@ -62,7 +64,7 @@ async fn make_runtime_with_session() -> (
 ) {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["done".into()]);
-    let runtime = LocalRuntime::new(store, model).with_dag_execution();
+    let runtime = LocalRuntime::new(store, model).with_dag_execution().await;
 
     let workspace = runtime
         .open_workspace("/tmp/dag-test".into())
@@ -548,7 +550,9 @@ async fn dag_executor_failure_policy_allow_orphans() {
         pending,
         None,
         config,
-    );
+        AgentSettingsRoots::default(),
+    )
+    .await;
 
     let mut graph = TaskGraph::default();
     let a = graph.add_task("A", AgentRole::Planner, vec![]);
@@ -589,7 +593,9 @@ async fn dag_executor_failure_policy_fail_fast() {
         pending,
         None,
         config,
-    );
+        AgentSettingsRoots::default(),
+    )
+    .await;
 
     let mut graph = TaskGraph::default();
     let a = graph.add_task("A", AgentRole::Planner, vec![]);

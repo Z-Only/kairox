@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::agent_settings::AgentSettingsRoots;
 use crate::agents::planner_agent::PlannerStrategy;
 use crate::agents::reviewer_agent::ReviewerStrategy;
 use crate::agents::worker_agent::WorkerStrategy;
@@ -56,6 +57,7 @@ where
     permission_engine: Arc<Mutex<PermissionEngine>>,
     memory_store: Option<Arc<dyn MemoryStore>>,
     config: DagConfig,
+    agent_settings_roots: AgentSettingsRoots,
     strategies: HashMap<AgentRole, Arc<dyn AgentStrategy>>,
     pending_permissions:
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>>,
@@ -66,9 +68,13 @@ where
     S: EventStore + 'static,
     M: ModelClient + 'static,
 {
-    /// Create a new DagExecutor with default strategies.
+    /// Create a new DagExecutor.
+    ///
+    /// Loads effective agent settings from the provided roots and constructs
+    /// strategies from matching agents. Falls back to hardcoded defaults for
+    /// roles that have no matching effective agent.
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub async fn new(
         store: Arc<S>,
         model: Arc<M>,
         event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
@@ -79,11 +85,41 @@ where
         >,
         memory_store: Option<Arc<dyn MemoryStore>>,
         config: DagConfig,
+        agent_settings_roots: AgentSettingsRoots,
     ) -> Self {
+        let agent_views = crate::agent_settings::list_agent_settings(agent_settings_roots.clone())
+            .await
+            .unwrap_or_default();
+
         let mut strategies: HashMap<AgentRole, Arc<dyn AgentStrategy>> = HashMap::new();
-        strategies.insert(AgentRole::Planner, Arc::new(PlannerStrategy::new()));
-        strategies.insert(AgentRole::Worker, Arc::new(WorkerStrategy::new()));
-        strategies.insert(AgentRole::Reviewer, Arc::new(ReviewerStrategy::new()));
+
+        // Resolve effective agent for each DAG role, falling back to defaults.
+        let planner_view = find_effective_agent(&agent_views, "default");
+        strategies.insert(
+            AgentRole::Planner,
+            match planner_view {
+                Some(view) => Arc::new(PlannerStrategy::from_agent_view(view)),
+                None => Arc::new(PlannerStrategy::new()),
+            },
+        );
+
+        let worker_view = find_effective_agent(&agent_views, "worker");
+        strategies.insert(
+            AgentRole::Worker,
+            match worker_view {
+                Some(view) => Arc::new(WorkerStrategy::from_agent_view(view)),
+                None => Arc::new(WorkerStrategy::new()),
+            },
+        );
+
+        let reviewer_view = find_effective_agent(&agent_views, "code-reviewer");
+        strategies.insert(
+            AgentRole::Reviewer,
+            match reviewer_view {
+                Some(view) => Arc::new(ReviewerStrategy::from_agent_view(view)),
+                None => Arc::new(ReviewerStrategy::new()),
+            },
+        );
 
         let events = EventEmitter {
             store: Arc::clone(&store),
@@ -98,6 +134,7 @@ where
             permission_engine,
             memory_store,
             config,
+            agent_settings_roots,
             strategies,
             pending_permissions,
         }
@@ -220,6 +257,7 @@ where
                     &self.events,
                     &self.model,
                     &self.strategies,
+                    &self.permission_engine,
                     &self.config,
                     &request.workspace_id,
                     &request.session_id,
@@ -234,6 +272,7 @@ where
                     &self.events,
                     &self.model,
                     &self.strategies,
+                    &self.permission_engine,
                     &request.workspace_id,
                     &request.session_id,
                     &mut graph,
@@ -372,6 +411,16 @@ where
     }
 }
 
+/// Find the effective (highest-precedence, enabled) agent for a given name.
+fn find_effective_agent<'a>(
+    views: &'a [agent_core::facade::AgentSettingsView],
+    name: &str,
+) -> Option<&'a agent_core::facade::AgentSettingsView> {
+    views
+        .iter()
+        .find(|v| v.effective && v.valid && v.name == name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,8 +429,28 @@ mod tests {
     use agent_store::SqliteEventStore;
     use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
 
-    fn make_config() -> DagConfig {
-        DagConfig::default()
+    async fn make_executor() -> DagExecutor<SqliteEventStore, FakeModelClient> {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["test".into()]);
+        let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+        let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
+        let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+        let pending: Arc<
+            Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
+        > = Arc::new(Mutex::new(HashMap::new()));
+
+        DagExecutor::new(
+            Arc::new(store),
+            Arc::new(model),
+            event_tx,
+            tool_registry,
+            permission_engine,
+            pending,
+            None,
+            DagConfig::default(),
+            AgentSettingsRoots::default(),
+        )
+        .await
     }
 
     #[test]
@@ -414,49 +483,13 @@ mod tests {
 
     #[tokio::test]
     async fn is_available_with_planner() {
-        let store = SqliteEventStore::in_memory().await.unwrap();
-        let model = FakeModelClient::new(vec!["test".into()]);
-        let (event_tx, _) = tokio::sync::broadcast::channel(1024);
-        let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
-        let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
-        let pending: Arc<
-            Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-        > = Arc::new(Mutex::new(HashMap::new()));
-
-        let executor = DagExecutor::new(
-            Arc::new(store),
-            Arc::new(model),
-            event_tx,
-            tool_registry,
-            permission_engine,
-            pending,
-            None,
-            make_config(),
-        );
+        let executor = make_executor().await;
         assert!(executor.is_available());
     }
 
     #[tokio::test]
     async fn agent_status_from_graph() {
-        let store = SqliteEventStore::in_memory().await.unwrap();
-        let model = FakeModelClient::new(vec!["test".into()]);
-        let (event_tx, _) = tokio::sync::broadcast::channel(1024);
-        let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
-        let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
-        let pending: Arc<
-            Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
-        > = Arc::new(Mutex::new(HashMap::new()));
-
-        let executor = DagExecutor::new(
-            Arc::new(store),
-            Arc::new(model),
-            event_tx,
-            tool_registry,
-            permission_engine,
-            pending,
-            None,
-            make_config(),
-        );
+        let executor = make_executor().await;
 
         let mut graph = TaskGraph::default();
         let task_id = graph.add_task_with_config(

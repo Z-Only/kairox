@@ -109,6 +109,26 @@ pub trait AgentStrategy: Send + Sync {
         result: &str,
         iteration: usize,
     ) -> ToolResultAction;
+
+    /// Optional model profile override from agent settings.
+    fn model_profile_override(&self) -> Option<&str> {
+        None
+    }
+
+    /// Optional permission mode override from agent settings.
+    fn permission_mode_override(&self) -> Option<&str> {
+        None
+    }
+
+    /// Skills configured for this agent.
+    fn skills(&self) -> &[String] {
+        &[]
+    }
+
+    /// Tool allowlist configured for this agent (empty = all allowed).
+    fn tools_allowlist(&self) -> &[String] {
+        &[]
+    }
 }
 
 // Sub-modules for the three built-in strategies.
@@ -152,12 +172,35 @@ Rules:
     /// Full AgentStrategy implementation for the PlannerAgent.
     pub struct PlannerStrategy {
         system_prompt: String,
+        model_profile: Option<String>,
+        permission_mode: Option<String>,
+        skills: Vec<String>,
+        tools_allowlist: Vec<String>,
     }
 
     impl PlannerStrategy {
         pub fn new() -> Self {
             Self {
                 system_prompt: PLANNER_SYSTEM_PROMPT.to_string(),
+                model_profile: None,
+                permission_mode: None,
+                skills: Vec::new(),
+                tools_allowlist: Vec::new(),
+            }
+        }
+
+        /// Construct a PlannerStrategy from an effective agent settings view.
+        pub fn from_agent_view(view: &agent_core::facade::AgentSettingsView) -> Self {
+            Self {
+                system_prompt: if view.instructions.trim().is_empty() {
+                    PLANNER_SYSTEM_PROMPT.to_string()
+                } else {
+                    view.instructions.clone()
+                },
+                model_profile: view.model_profile.clone(),
+                permission_mode: view.permission_mode.clone(),
+                skills: view.skills.clone(),
+                tools_allowlist: view.tools.clone(),
             }
         }
 
@@ -276,6 +319,22 @@ Rules:
             // Planner doesn't call tools
             ToolResultAction::Continue
         }
+
+        fn model_profile_override(&self) -> Option<&str> {
+            self.model_profile.as_deref()
+        }
+
+        fn permission_mode_override(&self) -> Option<&str> {
+            self.permission_mode.as_deref()
+        }
+
+        fn skills(&self) -> &[String] {
+            &self.skills
+        }
+
+        fn tools_allowlist(&self) -> &[String] {
+            &self.tools_allowlist
+        }
     }
 
     #[cfg(test)]
@@ -386,6 +445,86 @@ Rules:
             let decision = strategy.decide(&ctx, messages).await;
             assert!(matches!(decision, AgentDecision::Respond(_)));
         }
+
+        #[tokio::test]
+        async fn from_agent_view_sets_model_profile_permission_mode_skills_and_instructions() {
+            let view = agent_core::facade::AgentSettingsView {
+                settings_id: "Builtin:default".into(),
+                name: "default".into(),
+                description: "test".into(),
+                scope: agent_core::facade::AgentSettingsScope::Builtin,
+                path: "builtin://default".into(),
+                tools: vec!["fs.read".into(), "search".into()],
+                model_profile: Some("fast".into()),
+                permission_mode: Some("read_only".into()),
+                skills: vec!["kairox-dev-workflow".into()],
+                nickname_candidates: vec!["Default".into()],
+                enabled: true,
+                instructions: "Custom planner instructions.".into(),
+                effective: true,
+                shadowed_by: None,
+                valid: true,
+                validation_error: None,
+                editable: false,
+                deletable: false,
+            };
+
+            let strategy = PlannerStrategy::from_agent_view(&view);
+
+            assert_eq!(strategy.model_profile_override(), Some("fast"));
+            assert_eq!(strategy.permission_mode_override(), Some("read_only"));
+            assert_eq!(strategy.skills(), &["kairox-dev-workflow"]);
+            assert_eq!(strategy.tools_allowlist(), &["fs.read", "search"]);
+
+            let task = AgentTask {
+                id: agent_core::TaskId::new(),
+                title: "test".into(),
+                description: String::new(),
+                role: AgentRole::Planner,
+                state: agent_core::TaskState::Pending,
+                dependencies: vec![],
+                error: None,
+                retry_count: 0,
+                max_retries: 2,
+                assigned_agent_id: None,
+                failure_reason: None,
+            };
+            let graph = TaskGraph::default();
+            assert!(strategy.build_context(&task, &graph, &[]).await[0]
+                .content
+                .contains("Custom planner instructions."));
+        }
+
+        #[test]
+        fn from_agent_view_falls_back_to_default_prompt_when_instructions_empty() {
+            let view = agent_core::facade::AgentSettingsView {
+                settings_id: "Builtin:default".into(),
+                name: "default".into(),
+                description: "test".into(),
+                scope: agent_core::facade::AgentSettingsScope::Builtin,
+                path: "builtin://default".into(),
+                tools: vec![],
+                model_profile: None,
+                permission_mode: None,
+                skills: vec![],
+                nickname_candidates: vec![],
+                enabled: true,
+                instructions: String::new(),
+                effective: true,
+                shadowed_by: None,
+                valid: true,
+                validation_error: None,
+                editable: false,
+                deletable: false,
+            };
+
+            let strategy = PlannerStrategy::from_agent_view(&view);
+
+            assert_eq!(strategy.model_profile_override(), None);
+            assert_eq!(strategy.permission_mode_override(), None);
+            assert!(strategy.skills().is_empty());
+            assert!(strategy.tools_allowlist().is_empty());
+        }
     }
 }
 
@@ -407,12 +546,35 @@ If a tool call fails, you may retry with different parameters. If you cannot com
     /// Full AgentStrategy implementation for the WorkerAgent.
     pub struct WorkerStrategy {
         system_prompt: String,
+        model_profile: Option<String>,
+        permission_mode: Option<String>,
+        skills: Vec<String>,
+        tools_allowlist: Vec<String>,
     }
 
     impl WorkerStrategy {
         pub fn new() -> Self {
             Self {
                 system_prompt: WORKER_SYSTEM_PROMPT.to_string(),
+                model_profile: None,
+                permission_mode: None,
+                skills: Vec::new(),
+                tools_allowlist: Vec::new(),
+            }
+        }
+
+        /// Construct a WorkerStrategy from an effective agent settings view.
+        pub fn from_agent_view(view: &agent_core::facade::AgentSettingsView) -> Self {
+            Self {
+                system_prompt: if view.instructions.trim().is_empty() {
+                    WORKER_SYSTEM_PROMPT.to_string()
+                } else {
+                    view.instructions.clone()
+                },
+                model_profile: view.model_profile.clone(),
+                permission_mode: view.permission_mode.clone(),
+                skills: view.skills.clone(),
+                tools_allowlist: view.tools.clone(),
             }
         }
 
@@ -526,6 +688,22 @@ If a tool call fails, you may retry with different parameters. If you cannot com
             } else {
                 ToolResultAction::Continue
             }
+        }
+
+        fn model_profile_override(&self) -> Option<&str> {
+            self.model_profile.as_deref()
+        }
+
+        fn permission_mode_override(&self) -> Option<&str> {
+            self.permission_mode.as_deref()
+        }
+
+        fn skills(&self) -> &[String] {
+            &self.skills
+        }
+
+        fn tools_allowlist(&self) -> &[String] {
+            &self.tools_allowlist
         }
     }
 
@@ -699,12 +877,35 @@ If issues found:
     /// Full AgentStrategy implementation for the ReviewerAgent.
     pub struct ReviewerStrategy {
         system_prompt: String,
+        model_profile: Option<String>,
+        permission_mode: Option<String>,
+        skills: Vec<String>,
+        tools_allowlist: Vec<String>,
     }
 
     impl ReviewerStrategy {
         pub fn new() -> Self {
             Self {
                 system_prompt: REVIEWER_SYSTEM_PROMPT.to_string(),
+                model_profile: None,
+                permission_mode: None,
+                skills: Vec::new(),
+                tools_allowlist: Vec::new(),
+            }
+        }
+
+        /// Construct a ReviewerStrategy from an effective agent settings view.
+        pub fn from_agent_view(view: &agent_core::facade::AgentSettingsView) -> Self {
+            Self {
+                system_prompt: if view.instructions.trim().is_empty() {
+                    REVIEWER_SYSTEM_PROMPT.to_string()
+                } else {
+                    view.instructions.clone()
+                },
+                model_profile: view.model_profile.clone(),
+                permission_mode: view.permission_mode.clone(),
+                skills: view.skills.clone(),
+                tools_allowlist: view.tools.clone(),
             }
         }
 
@@ -819,6 +1020,22 @@ If issues found:
         ) -> ToolResultAction {
             // Reviewer doesn't call tools
             ToolResultAction::Continue
+        }
+
+        fn model_profile_override(&self) -> Option<&str> {
+            self.model_profile.as_deref()
+        }
+
+        fn permission_mode_override(&self) -> Option<&str> {
+            self.permission_mode.as_deref()
+        }
+
+        fn skills(&self) -> &[String] {
+            &self.skills
+        }
+
+        fn tools_allowlist(&self) -> &[String] {
+            &self.tools_allowlist
         }
     }
 

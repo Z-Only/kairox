@@ -10,8 +10,10 @@ use agent_core::{
 };
 use agent_models::ModelClient;
 use agent_store::EventStore;
+use agent_tools::PermissionEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Run the scheduling loop until all tasks are in terminal states.
 #[allow(clippy::too_many_arguments)]
@@ -19,6 +21,7 @@ pub(crate) async fn run_scheduling_loop<S, M>(
     events: &EventEmitter<S>,
     model: &Arc<M>,
     strategies: &HashMap<AgentRole, Arc<dyn AgentStrategy>>,
+    permission_engine: &Arc<Mutex<PermissionEngine>>,
     config: &super::config::DagConfig,
     workspace_id: &WorkspaceId,
     session_id: &agent_core::SessionId,
@@ -81,6 +84,7 @@ where
                         events,
                         model,
                         strategies,
+                        permission_engine,
                         workspace_id,
                         session_id,
                         graph,
