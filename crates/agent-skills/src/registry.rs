@@ -45,6 +45,10 @@ impl FileSkillRegistry {
 
             let mut child_entries = tokio::fs::read_dir(&root.path).await?;
             while let Some(child_entry) = child_entries.next_entry().await? {
+                if !child_entry.file_type().await?.is_dir() {
+                    continue;
+                }
+
                 let skill_path = child_entry.path().join("SKILL.md");
                 if !tokio::fs::try_exists(&skill_path).await? {
                     continue;
