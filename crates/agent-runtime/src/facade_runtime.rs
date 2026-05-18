@@ -655,7 +655,7 @@ mod tests {
             headers: None,
             supports_tools: None,
             supports_vision: None,
-            supports_reasoning: None,
+            supports_reasoning: Some(true),
             extra_params: None,
             enabled: true,
         };
@@ -675,7 +675,7 @@ mod tests {
             headers: None,
             supports_tools: None,
             supports_vision: None,
-            supports_reasoning: None,
+            supports_reasoning: Some(true),
             extra_params: None,
             enabled: true,
         };
@@ -714,7 +714,7 @@ mod tests {
         .unwrap();
 
         runtime
-            .switch_model(session_id.clone(), "opus".into())
+            .switch_model(session_id.clone(), "opus".into(), None)
             .await
             .expect("switch should succeed");
 
@@ -775,11 +775,57 @@ mod tests {
         .await
         .unwrap();
 
-        let result = runtime.switch_model(session_id, "nonexistent".into()).await;
+        let result = runtime
+            .switch_model(session_id, "nonexistent".into(), None)
+            .await;
         assert!(matches!(
             result,
             Err(agent_core::CoreError::InvalidState(ref msg)) if msg.contains("nonexistent")
         ));
+    }
+
+    #[tokio::test]
+    async fn switch_model_appends_event_for_reasoning_only_change() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+        let rt = &runtime as &dyn AppFacade;
+
+        let workspace = AppFacade::open_workspace(rt, "/tmp/ws".into())
+            .await
+            .unwrap();
+        let session_id = AppFacade::start_session(
+            rt,
+            StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "opus".into(),
+
+                permission_mode: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        runtime
+            .switch_model(session_id.clone(), "opus".into(), Some("xhigh".into()))
+            .await
+            .expect("reasoning-only switch should succeed");
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        let switched = events
+            .iter()
+            .find_map(|event| match &event.payload {
+                agent_core::EventPayload::ModelProfileSwitched {
+                    reasoning_effort, ..
+                } => reasoning_effort.as_deref(),
+                _ => None,
+            })
+            .expect("reasoning switch event present");
+        assert_eq!(switched, "xhigh");
     }
 
     #[tokio::test]
@@ -805,7 +851,7 @@ mod tests {
         .unwrap();
 
         runtime
-            .switch_model(session_id.clone(), "fast".into())
+            .switch_model(session_id.clone(), "fast".into(), None)
             .await
             .expect("same-profile switch is a no-op, not an error");
 
@@ -857,7 +903,7 @@ mod tests {
         }
 
         let result = runtime
-            .switch_model(session_id.clone(), "opus".into())
+            .switch_model(session_id.clone(), "opus".into(), None)
             .await;
         match result {
             Err(agent_core::CoreError::SessionBusy { session_id: id, .. }) => {

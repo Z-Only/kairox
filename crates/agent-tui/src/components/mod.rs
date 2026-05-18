@@ -142,8 +142,9 @@ pub enum Command {
     },
     /// P4: user typed `:model <alias>` in the chat panel; ask the runtime
     /// to switch the active model profile mid-session. `workspace_id` is
-    /// carried for symmetry with sibling variants even though
-    /// `LocalRuntime::switch_model` only needs `(SessionId, alias)`.
+    /// carried for symmetry with sibling variants. The TUI command leaves
+    /// reasoning effort unset and uses the runtime default for reasoning
+    /// models.
     SwitchModel {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,

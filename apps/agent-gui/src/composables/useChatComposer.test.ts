@@ -6,6 +6,7 @@ function createSession(overrides: Partial<ChatComposerSession> = {}): ChatCompos
   return reactive({
     currentSessionId: "ses_1",
     currentProfile: "fast",
+    currentReasoningEffort: null,
     isStreaming: false,
     ...overrides
   }) as ChatComposerSession;
@@ -166,5 +167,39 @@ describe("useChatComposer", () => {
 
     expect(draftStore.saveDraft).toHaveBeenCalledWith("ses_1", "draft before switch");
     expect(draftStore.loadDraft).toHaveBeenCalledWith("ses_2");
+  });
+
+  it("switches models with a selected reasoning effort", async () => {
+    const session = createSession();
+    const modelPopoverOpen = { value: true };
+    const { composer, invokeFn } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen, "xhigh");
+
+    expect(invokeFn).toHaveBeenCalledWith("switch_model", {
+      sessionId: "ses_1",
+      profileAlias: "smart",
+      reasoningEffort: "xhigh"
+    });
+    expect(session.currentProfile).toBe("smart");
+    expect(session.currentReasoningEffort).toBe("xhigh");
+    expect(modelPopoverOpen.value).toBe(false);
+  });
+
+  it("allows changing reasoning effort without changing the model alias", async () => {
+    const session = createSession({ currentProfile: "smart", currentReasoningEffort: "low" });
+    const modelPopoverOpen = { value: true };
+    const { composer, invokeFn } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen, "high");
+
+    expect(invokeFn).toHaveBeenCalledWith("switch_model", {
+      sessionId: "ses_1",
+      profileAlias: "smart",
+      reasoningEffort: "high"
+    });
+    expect(session.currentProfile).toBe("smart");
+    expect(session.currentReasoningEffort).toBe("high");
+    expect(modelPopoverOpen.value).toBe(false);
   });
 });

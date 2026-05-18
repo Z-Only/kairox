@@ -42,6 +42,7 @@ pub struct ModelRequest {
     pub messages: Vec<ModelMessage>,
     pub system_prompt: Option<String>,
     pub tools: Vec<ToolDefinition>,
+    pub reasoning_effort: Option<String>,
 }
 
 impl ModelRequest {
@@ -56,6 +57,7 @@ impl ModelRequest {
             }],
             system_prompt: None,
             tools: Vec::new(),
+            reasoning_effort: None,
         }
     }
 
@@ -66,6 +68,11 @@ impl ModelRequest {
 
     pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
         self.tools = tools;
+        self
+    }
+
+    pub fn with_reasoning_effort(mut self, effort: impl Into<String>) -> Self {
+        self.reasoning_effort = Some(effort.into());
         self
     }
 

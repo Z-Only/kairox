@@ -104,6 +104,20 @@ pub(crate) fn latest_model_profile_for(events: &[agent_core::DomainEvent]) -> St
     "fake".to_string()
 }
 
+pub(crate) fn latest_model_reasoning_effort_for(
+    events: &[agent_core::DomainEvent],
+) -> Option<String> {
+    for event in events.iter().rev() {
+        if let agent_core::EventPayload::ModelProfileSwitched {
+            reasoning_effort, ..
+        } = &event.payload
+        {
+            return reasoning_effort.clone();
+        }
+    }
+    None
+}
+
 pub async fn run_agent_loop<S, M>(
     deps: AgentLoopDeps<'_, S, M>,
     request: &SendMessageRequest,
@@ -166,6 +180,15 @@ where
     // Uses the shared `latest_model_profile_for` helper so mid-session
     // `ModelProfileSwitched` events take effect on the very next iteration.
     let model_profile_alias: String = latest_model_profile_for(&session_events);
+    let reasoning_effort = config
+        .profiles
+        .iter()
+        .find(|(alias, def)| alias == &model_profile_alias && def.enabled)
+        .and_then(|(_, def)| {
+            def.supports_reasoning.unwrap_or(false).then(|| {
+                latest_model_reasoning_effort_for(&session_events).unwrap_or_else(|| "low".into())
+            })
+        });
 
     // Resolve ModelLimits: prefer per-session cached limits (Task 10's probe may
     // have refined them), otherwise re-resolve from config + registry.
@@ -385,6 +408,7 @@ where
         messages,
         system_prompt: Some(system_prompt),
         tools: tool_defs,
+        reasoning_effort,
     };
 
     // Create cancellation token for this send_message call
@@ -820,6 +844,7 @@ mod model_profile_resolution_tests {
             EventPayload::ModelProfileSwitched {
                 from_profile: from.into(),
                 to_profile: to.into(),
+                reasoning_effort: None,
                 effective_at: chrono::Utc::now(),
                 context_window: 0,
                 output_limit: 0,

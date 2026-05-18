@@ -105,6 +105,7 @@ impl Compactor {
             messages,
             system_prompt: None,
             tools: Vec::new(),
+            reasoning_effort: None,
         };
 
         let mut backoff = LLM_RETRY_INITIAL_BACKOFF;

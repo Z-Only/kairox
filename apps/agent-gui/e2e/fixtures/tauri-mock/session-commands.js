@@ -211,6 +211,7 @@ registerCommandHandlers({
   },
   switch_model: function (args) {
     var alias = args && (args.profileAlias || args.profile_alias);
+    var reasoningEffort = args && (args.reasoningEffort || args.reasoning_effort || null);
     var switchSid = (args && (args.sessionId || args.session_id)) || state.currentSessionId;
     if (!alias) {
       return Promise.reject(new Error("profileAlias required"));
@@ -220,7 +221,9 @@ registerCommandHandlers({
     }
     var fromProfile = state.currentProfile;
     if (fromProfile === alias) {
-      return Promise.resolve(null); // same-profile: silent no-op (mirrors runtime)
+      if (!reasoningEffort || reasoningEffort === state.currentReasoningEffort) {
+        return Promise.resolve(null); // same-profile: silent no-op (mirrors runtime)
+      }
     }
     // Resolve new limits from the same table list_profiles_with_limits uses.
     var newWindow;
@@ -237,10 +240,12 @@ registerCommandHandlers({
       return Promise.reject(new Error("Unknown model profile: " + alias));
     }
     state.currentProfile = alias;
+    state.currentReasoningEffort = reasoningEffort;
     var switchedEvent = makeEvent(switchSid, {
       type: "ModelProfileSwitched",
       from_profile: fromProfile,
       to_profile: alias,
+      reasoning_effort: reasoningEffort,
       effective_at: new Date().toISOString(),
       context_window: newWindow,
       output_limit: newOutput,

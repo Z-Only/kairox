@@ -79,6 +79,7 @@ export type EventPayload =
       type: "ModelProfileSwitched";
       from_profile: string;
       to_profile: string;
+      reasoning_effort?: string | null;
       effective_at: string;
       /**
        *  Mirrors `agent_models::ModelLimits.context_window` so this

@@ -71,6 +71,7 @@ pub struct ProfileInfo {
     pub model_id: String,
     pub local: bool,
     pub has_api_key: bool,
+    pub supports_reasoning: bool,
     #[serde(default)]
     pub provider_display: String,
     #[serde(default)]
@@ -599,6 +600,7 @@ impl Config {
                     model_id: def.model_id.clone(),
                     local,
                     has_api_key,
+                    supports_reasoning: def.supports_reasoning.unwrap_or(false),
                     provider_display: def.provider.clone(),
                     model_display: def.model_id.clone(),
                 }

@@ -581,6 +581,7 @@ file2.rs",
 
         let request = ModelRequest::user_text("fast", "list files")
             .with_system_prompt("Use tools when useful.")
+            .with_reasoning_effort("xhigh")
             .with_tools(vec![shell_tool()])
             .add_assistant_with_tools(
                 "I will run ls.",
@@ -609,6 +610,7 @@ file2.rs",
         assert_eq!(body["stream"], true);
         assert!((body["temperature"].as_f64().unwrap() - 0.2).abs() < 1e-6);
         assert!((body["top_p"].as_f64().unwrap() - 0.8).abs() < 1e-6);
+        assert_eq!(body["reasoning_effort"], "xhigh");
         assert_eq!(body["seed"], 42);
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][0]["content"], "Use tools when useful.");

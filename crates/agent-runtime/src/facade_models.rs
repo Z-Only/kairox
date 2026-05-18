@@ -105,12 +105,13 @@ where
     /// - `CoreError::InvalidState` if the alias is unknown.
     /// - `CoreError::SessionBusy` if the session is currently compacting.
     ///
-    /// Same-profile switches (alias equals the current profile) are a
-    /// silent no-op — they return `Ok(())` without appending an event.
+    /// Same-profile switches are a silent no-op unless they also change
+    /// the profile's reasoning effort.
     pub async fn switch_model(
         &self,
         session_id: agent_core::SessionId,
         profile_alias: String,
+        reasoning_effort: Option<String>,
     ) -> agent_core::Result<()> {
         // Validate alias exists in the loaded Config.
         let profile_def = self
@@ -131,9 +132,18 @@ where
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
         let from_profile = crate::agent_loop::latest_model_profile_for(&events);
+        let from_reasoning_effort = crate::agent_loop::latest_model_reasoning_effort_for(&events);
+        let requested_reasoning_effort = if profile_def.supports_reasoning.unwrap_or(false) {
+            reasoning_effort.filter(|effort| !effort.trim().is_empty())
+        } else {
+            None
+        };
 
-        // Same-profile switch → silent no-op.
-        if from_profile == profile_alias {
+        // Same profile + unchanged/no requested reasoning → silent no-op.
+        if from_profile == profile_alias
+            && (requested_reasoning_effort.is_none()
+                || requested_reasoning_effort == from_reasoning_effort)
+        {
             return Ok(());
         }
 
@@ -173,6 +183,7 @@ where
             agent_core::EventPayload::ModelProfileSwitched {
                 from_profile,
                 to_profile: profile_alias.clone(),
+                reasoning_effort: requested_reasoning_effort,
                 effective_at: chrono::Utc::now(),
                 context_window: new_limits.context_window,
                 output_limit: new_limits.output_limit,

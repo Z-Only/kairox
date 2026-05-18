@@ -36,6 +36,7 @@ const state = {
   gitStatuses: new Map(),
   currentSessionId: null,
   currentProfile: "fast",
+  currentReasoningEffort: null,
   currentPermissionMode: "suggest",
   projections: new Map(),
   traces: new Map(),
@@ -60,21 +61,24 @@ const state = {
       provider: "openai",
       model_id: "gpt-4o-mini",
       local: false,
-      has_api_key: true
+      has_api_key: true,
+      supports_reasoning: false
     },
     {
       alias: "smart",
       provider: "openai",
       model_id: "gpt-4o",
       local: false,
-      has_api_key: true
+      has_api_key: true,
+      supports_reasoning: true
     },
     {
       alias: "fake",
       provider: "fake",
       model_id: "fake-model",
       local: true,
-      has_api_key: false
+      has_api_key: false,
+      supports_reasoning: false
     }
   ],
   /** Callback registry for transformCallback */

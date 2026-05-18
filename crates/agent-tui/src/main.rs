@@ -160,7 +160,7 @@ async fn dispatch_commands(
                 session_id,
                 alias,
             } => {
-                if let Err(e) = runtime.switch_model(session_id, alias).await {
+                if let Err(e) = runtime.switch_model(session_id, alias, None).await {
                     app.state.current_session.messages.push(
                         agent_core::projection::ProjectedMessage {
                             role: agent_core::projection::ProjectedRole::Assistant,

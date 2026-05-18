@@ -100,8 +100,10 @@ export const commands = {
    *  streams keep using the old profile end-to-end. Returns an error
    *  when the alias is unknown or the session is currently compacting.
    */
-  switchModel: (sessionId: string, profileAlias: string) =>
-    typedError<null, string>(__TAURI_INVOKE("switch_model", { sessionId, profileAlias })),
+  switchModel: (sessionId: string, profileAlias: string, reasoningEffort: string | null) =>
+    typedError<null, string>(
+      __TAURI_INVOKE("switch_model", { sessionId, profileAlias, reasoningEffort })
+    ),
   getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
   setPermissionMode: (mode: string) =>
     typedError<string, string>(__TAURI_INVOKE("set_permission_mode", { mode })),
@@ -774,6 +776,7 @@ export type ProfileInfo = {
   model_id: string;
   local: boolean;
   has_api_key: boolean;
+  supports_reasoning: boolean;
   provider_display?: string;
   model_display?: string;
 };

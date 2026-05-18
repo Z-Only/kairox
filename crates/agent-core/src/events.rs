@@ -84,6 +84,8 @@ pub enum EventPayload {
     ModelProfileSwitched {
         from_profile: String,
         to_profile: String,
+        #[serde(default)]
+        reasoning_effort: Option<String>,
         effective_at: DateTime<Utc>,
         /// Mirrors `agent_models::ModelLimits.context_window` so this
         /// event can be consumed by `agent-core` projections without
@@ -745,6 +747,7 @@ fn model_profile_switched_event_round_trips() {
     let payload = EventPayload::ModelProfileSwitched {
         from_profile: "fast".into(),
         to_profile: "claude-opus".into(),
+        reasoning_effort: Some("high".into()),
         effective_at,
         context_window: 200_000,
         output_limit: 16_384,
@@ -755,6 +758,7 @@ fn model_profile_switched_event_round_trips() {
     assert_eq!(json["type"], "ModelProfileSwitched");
     assert_eq!(json["from_profile"], "fast");
     assert_eq!(json["to_profile"], "claude-opus");
+    assert_eq!(json["reasoning_effort"], "high");
     assert_eq!(json["context_window"], 200_000);
     assert_eq!(json["output_limit"], 16_384);
     assert_eq!(json["limit_source"], "builtin_registry");
@@ -765,6 +769,7 @@ fn model_profile_switched_event_round_trips() {
         EventPayload::ModelProfileSwitched {
             from_profile,
             to_profile,
+            reasoning_effort,
             effective_at: at,
             context_window,
             output_limit,
@@ -772,6 +777,7 @@ fn model_profile_switched_event_round_trips() {
         } => {
             assert_eq!(from_profile, "fast");
             assert_eq!(to_profile, "claude-opus");
+            assert_eq!(reasoning_effort.as_deref(), Some("high"));
             assert_eq!(at, effective_at);
             assert_eq!(context_window, 200_000);
             assert_eq!(output_limit, 16_384);
@@ -786,6 +792,7 @@ fn event_type_method_covers_model_profile_switched() {
     let p = EventPayload::ModelProfileSwitched {
         from_profile: "a".into(),
         to_profile: "b".into(),
+        reasoning_effort: None,
         effective_at: chrono::Utc::now(),
         context_window: 0,
         output_limit: 0,

@@ -32,6 +32,9 @@ vi.mock("@/composables/useNotifications", () => ({
 }));
 
 import { useSessionStore } from "@/stores/session";
+import { invoke } from "@tauri-apps/api/core";
+
+const mockedInvoke = vi.mocked(invoke);
 
 function mountChatComposer() {
   const pinia = createPinia();
@@ -133,5 +136,104 @@ describe("permission mode selector", () => {
 
     const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
     expect(trigger.attributes("aria-label")).toBe("Select permission level. Current: Agent");
+  });
+});
+
+describe("model reasoning selector", () => {
+  it("shows reasoning levels when hovering a reasoning-capable model", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "smart";
+    session.currentReasoningEffort = "middle";
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "openai",
+        model_id: "gpt-4o-mini",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      },
+      {
+        alias: "smart",
+        provider: "openai",
+        model_id: "gpt-5.2",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("mouseenter");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="chat-reasoning-option-middle"]').classes()).toContain(
+      "selected"
+    );
+    expect(wrapper.find('[data-test="chat-reasoning-custom-input"]').exists()).toBe(true);
+  });
+
+  it("hides reasoning levels when hovering a non-reasoning model", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "smart";
+    session.currentReasoningEffort = "high";
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "openai",
+        model_id: "gpt-4o-mini",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      },
+      {
+        alias: "smart",
+        provider: "openai",
+        model_id: "gpt-5.2",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="chat-model-option-fast"]').trigger("mouseenter");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(false);
+  });
+
+  it("switches to a custom reasoning effort from the hovered model", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "fast";
+    session.currentReasoningEffort = null;
+    session.profileInfos = [
+      {
+        alias: "smart",
+        provider: "openai",
+        model_id: "gpt-5.2",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("mouseenter");
+    await wrapper.find('[data-test="chat-reasoning-custom-input"]').setValue("reasoning-max");
+    await wrapper.find('[data-test="chat-reasoning-custom-apply"]').trigger("click");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "ses_1",
+      profileAlias: "smart",
+      reasoningEffort: "reasoning-max"
+    });
   });
 });

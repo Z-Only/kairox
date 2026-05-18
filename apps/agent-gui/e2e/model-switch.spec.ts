@@ -43,6 +43,20 @@ test.describe("Mid-session model switch (P4)", () => {
     await expect(page.locator('[data-test="chat-model-option-smart"]')).toContainText(/current/i);
   });
 
+  test("reasoning-capable models expose default and custom effort choices", async ({ page }) => {
+    await page.click('[data-test="chat-model-trigger"]');
+    await page.hover('[data-test="chat-model-option-smart"]');
+
+    await expect(page.locator('[data-test="chat-reasoning-panel"]')).toBeVisible();
+    await expect(page.locator('[data-test="chat-reasoning-option-low"]')).toBeVisible();
+    await expect(page.locator('[data-test="chat-reasoning-option-xhigh"]')).toBeVisible();
+
+    await page.fill('[data-test="chat-reasoning-custom-input"]', "reasoning-max");
+    await page.click('[data-test="chat-reasoning-custom-apply"]');
+
+    await expect(page.locator('[data-test="chat-model-trigger"]')).toContainText("reasoning-max");
+  });
+
   // Tests for the context-meter switch-model button were removed because
   // that feature was intentionally pulled out of the context meter popover
   // (see PR #120 / fix(gui): UI polish round 2).

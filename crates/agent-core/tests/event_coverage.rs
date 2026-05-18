@@ -82,6 +82,7 @@ fn every_event_payload_variant_has_event_type() {
         EventPayload::ModelProfileSwitched {
             from_profile: "fast".into(),
             to_profile: "opus".into(),
+            reasoning_effort: Some("high".into()),
             effective_at: ts("2026-05-01T00:00:00Z"),
             context_window: 200_000,
             output_limit: 16_384,
@@ -347,6 +348,7 @@ fn payload_serde_roundtrip_for_all_variants() {
         EventPayload::ModelProfileSwitched {
             from_profile: "fast".into(),
             to_profile: "opus".into(),
+            reasoning_effort: Some("high".into()),
             effective_at: ts("2026-05-09T10:00:00Z"),
             context_window: 200_000,
             output_limit: 16_384,
