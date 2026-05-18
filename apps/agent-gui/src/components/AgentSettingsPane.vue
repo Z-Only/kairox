@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAgentSettingsStore } from "@/stores/agentSettings";
+import ModalDialog from "@/components/ui/ModalDialog.vue";
 import type {
   AgentSettingsInput,
   AgentSettingsScope,
@@ -11,7 +12,7 @@ const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 
 const selectedAgentId = ref<string | null>(null);
-const showEditor = ref(false);
+const editorDialogOpen = ref(false);
 const form = reactive<AgentSettingsInput>({
   scope: "User",
   name: "",
@@ -58,7 +59,7 @@ function scopeLabel(scope: AgentSettingsScope | "Builtin" | "Local"): string {
 
 function startCreate(): void {
   selectedAgentId.value = null;
-  showEditor.value = true;
+  editorDialogOpen.value = true;
   Object.assign(form, {
     scope: selectedScope.value,
     name: "",
@@ -78,7 +79,7 @@ function startCreate(): void {
 
 function editAgent(agent: AgentSettingsView): void {
   selectedAgentId.value = agent.settingsId;
-  showEditor.value = true;
+  editorDialogOpen.value = true;
   Object.assign(form, {
     scope: agent.scope === "Builtin" ? selectedScope.value : agent.scope,
     name: agent.name,
@@ -97,7 +98,7 @@ function editAgent(agent: AgentSettingsView): void {
 }
 
 function closeEditor(): void {
-  showEditor.value = false;
+  editorDialogOpen.value = false;
   selectedAgentId.value = null;
 }
 
@@ -171,107 +172,103 @@ watch(
       </button>
     </div>
 
-    <div class="agent-settings__layout">
-      <div class="agent-settings__list" data-test="agent-list">
-        <p v-if="store.loading" class="alert alert-info" role="status">
-          {{ t("agents.loading") }}
-        </p>
-        <p v-else-if="store.agents.length === 0" class="empty-state">
-          {{ t("agents.empty") }}
-        </p>
+    <div class="agent-settings__list" data-test="agent-list">
+      <p v-if="store.loading" class="alert alert-info" role="status">
+        {{ t("agents.loading") }}
+      </p>
+      <p v-else-if="store.agents.length === 0" class="empty-state">
+        {{ t("agents.empty") }}
+      </p>
 
-        <article
-          v-for="agent in store.agents"
-          v-else
-          :key="agent.settingsId"
-          class="agent-row"
-          :data-test="`agent-row-${slugify(agent.name)}`"
-        >
-          <div class="agent-row__main">
-            <div class="agent-row__title">
-              <h3>{{ agent.name }}</h3>
-              <span class="tag">{{ scopeLabel(agent.scope) }}</span>
-              <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
-                {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
-              </span>
-              <span :class="['tag', agent.effective ? 'tag-success' : 'tag-warning']">
-                {{
-                  agent.effective
-                    ? t("agents.effective")
-                    : t("agents.shadowedBy", { source: agent.shadowedBy })
-                }}
-              </span>
-              <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
-                {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
-              </span>
-            </div>
-            <p>{{ agent.description }}</p>
-            <dl class="agent-row__meta">
-              <div>
-                <dt>{{ t("agents.model") }}</dt>
-                <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("agents.permission") }}</dt>
-                <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("agents.tools") }}</dt>
-                <dd>
-                  {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
-                </dd>
-              </div>
-              <div>
-                <dt>{{ t("agents.path") }}</dt>
-                <dd>{{ agent.path }}</dd>
-              </div>
-            </dl>
-            <p v-if="agent.validationError" class="alert alert-error" role="alert">
-              {{ agent.validationError }}
-            </p>
-          </div>
-          <div class="agent-row__actions">
-            <button
-              class="btn btn-sm"
-              type="button"
-              :data-test="`agent-edit-${slugify(agent.name)}`"
-              @click="editAgent(agent)"
-            >
-              {{ agent.editable ? t("common.edit") : t("agents.view") }}
-            </button>
-            <button
-              v-if="!agent.editable"
-              class="btn btn-sm"
-              type="button"
-              :data-test="`agent-copy-${slugify(agent.name)}`"
-              @click="copyToUser(agent)"
-            >
-              {{ t("agents.copyToUser") }}
-            </button>
-            <button
-              v-if="agent.deletable"
-              class="btn btn-danger btn-sm"
-              type="button"
-              :data-test="`agent-delete-${slugify(agent.name)}`"
-              @click="deleteAgent(agent)"
-            >
-              {{ t("common.delete") }}
-            </button>
-          </div>
-        </article>
-      </div>
-
-      <form
-        v-if="showEditor"
-        class="agent-editor"
-        data-test="agent-editor"
-        @submit.prevent="saveAgent"
+      <article
+        v-for="agent in store.agents"
+        v-else
+        :key="agent.settingsId"
+        class="agent-row"
+        :data-test="`agent-row-${slugify(agent.name)}`"
       >
-        <header class="agent-editor__header">
-          <h3>{{ selectedAgentId ? t("agents.editAgent") : t("agents.newAgent") }}</h3>
-          <span class="tag">{{ scopeLabel(form.scope) }}</span>
-        </header>
+        <div class="agent-row__main">
+          <div class="agent-row__title">
+            <h3>{{ agent.name }}</h3>
+            <span class="tag">{{ scopeLabel(agent.scope) }}</span>
+            <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
+              {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
+            </span>
+            <span :class="['tag', agent.effective ? 'tag-success' : 'tag-warning']">
+              {{
+                agent.effective
+                  ? t("agents.effective")
+                  : t("agents.shadowedBy", { source: agent.shadowedBy })
+              }}
+            </span>
+            <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
+              {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
+            </span>
+          </div>
+          <p>{{ agent.description }}</p>
+          <dl class="agent-row__meta">
+            <div>
+              <dt>{{ t("agents.model") }}</dt>
+              <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
+            </div>
+            <div>
+              <dt>{{ t("agents.permission") }}</dt>
+              <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
+            </div>
+            <div>
+              <dt>{{ t("agents.tools") }}</dt>
+              <dd>
+                {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
+              </dd>
+            </div>
+            <div>
+              <dt>{{ t("agents.path") }}</dt>
+              <dd>{{ agent.path }}</dd>
+            </div>
+          </dl>
+          <p v-if="agent.validationError" class="alert alert-error" role="alert">
+            {{ agent.validationError }}
+          </p>
+        </div>
+        <div class="agent-row__actions">
+          <button
+            class="btn btn-sm"
+            type="button"
+            :data-test="`agent-edit-${slugify(agent.name)}`"
+            @click="editAgent(agent)"
+          >
+            {{ agent.editable ? t("common.edit") : t("agents.view") }}
+          </button>
+          <button
+            v-if="!agent.editable"
+            class="btn btn-sm"
+            type="button"
+            :data-test="`agent-copy-${slugify(agent.name)}`"
+            @click="copyToUser(agent)"
+          >
+            {{ t("agents.copyToUser") }}
+          </button>
+          <button
+            v-if="agent.deletable"
+            class="btn btn-danger btn-sm"
+            type="button"
+            :data-test="`agent-delete-${slugify(agent.name)}`"
+            @click="deleteAgent(agent)"
+          >
+            {{ t("common.delete") }}
+          </button>
+        </div>
+      </article>
+    </div>
 
+    <ModalDialog
+      :open="editorDialogOpen"
+      :title="selectedAgentId ? t('agents.editAgent') : t('agents.newAgent')"
+      :description="scopeLabel(form.scope)"
+      data-test="agent-editor-dialog"
+      @close="closeEditor"
+    >
+      <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
         <label>
           {{ t("agents.name") }}
           <input v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
@@ -328,22 +325,23 @@ watch(
           {{ t("settings.instructions") }}
           <textarea v-model="form.instructions" data-test="agent-form-instructions" rows="8" />
         </label>
-        <div class="agent-editor__actions">
-          <button
-            class="btn btn-primary"
-            type="button"
-            :disabled="!canSave || store.saving"
-            data-test="agent-save"
-            @click="saveAgent"
-          >
-            {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
-          </button>
-          <button class="btn" type="button" data-test="agent-cancel" @click="closeEditor">
-            {{ t("common.cancel") }}
-          </button>
-        </div>
       </form>
-    </div>
+
+      <template #footer>
+        <button class="btn" type="button" data-test="agent-cancel" @click="closeEditor">
+          {{ t("common.cancel") }}
+        </button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          :disabled="!canSave || store.saving"
+          data-test="agent-save"
+          @click="saveAgent"
+        >
+          {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
+        </button>
+      </template>
+    </ModalDialog>
   </section>
 </template>
 
@@ -364,20 +362,13 @@ watch(
   flex-wrap: wrap;
 }
 
-.agent-settings__layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .agent-settings__list {
   display: grid;
   gap: 12px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
+  flex: 1;
 }
 
 .agent-row {
@@ -427,18 +418,6 @@ watch(
   min-width: 0;
 }
 
-.agent-editor__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agent-editor__header h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
 .agent-editor label {
   display: grid;
   gap: 4px;
@@ -463,11 +442,6 @@ watch(
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
-.agent-editor__actions {
-  display: flex;
-  gap: 8px;
-}
-
 .agent-editor__checkbox {
   display: flex !important;
   grid-template-columns: none;
@@ -476,12 +450,5 @@ watch(
 
 .agent-editor__checkbox input {
   width: auto;
-}
-
-@media (max-width: 860px) {
-  .agent-settings__layout {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
 }
 </style>
