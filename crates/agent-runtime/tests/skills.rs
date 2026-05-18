@@ -894,7 +894,7 @@ async fn get_skill_detail_returns_plugin_skill_body() {
     .expect("registry should discover plugin skill");
     let runtime = build_runtime_with_skill_registry(Arc::new(registry)).await;
 
-    let workspace = runtime
+    let _workspace = runtime
         .open_workspace(".".into())
         .await
         .expect("workspace should open");
