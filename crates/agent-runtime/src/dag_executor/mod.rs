@@ -30,9 +30,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent_settings::AgentSettingsRoots;
-use crate::agents::planner_agent::PlannerStrategy;
-use crate::agents::reviewer_agent::ReviewerStrategy;
-use crate::agents::worker_agent::WorkerStrategy;
+use crate::agents::planner::PlannerStrategy;
+use crate::agents::reviewer::ReviewerStrategy;
+use crate::agents::worker::WorkerStrategy;
 use crate::agents::{AgentDecision, AgentStrategy, StepContext};
 use crate::task_graph::TaskGraph;
 
