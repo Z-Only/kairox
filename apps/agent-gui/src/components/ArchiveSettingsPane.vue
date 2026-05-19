@@ -125,9 +125,9 @@ onMounted(() => {
           </p>
         </div>
         <div class="archive-row__actions">
-          <button
-            class="btn btn-sm btn-primary"
-            type="button"
+          <KxButton
+            variant="primary"
+            size="sm"
             :disabled="busySessionId === session.sessionId"
             :data-test="`archive-restore-${session.sessionId}`"
             @click="restoreSession(session.sessionId)"
@@ -137,16 +137,16 @@ onMounted(() => {
                 ? t("common.loading")
                 : t("settings.archiveRestore")
             }}
-          </button>
-          <button
-            class="btn btn-sm btn-danger"
-            type="button"
+          </KxButton>
+          <KxButton
+            variant="danger"
+            size="sm"
             :disabled="busySessionId === session.sessionId"
             :data-test="`archive-delete-${session.sessionId}`"
             @click="permanentlyDelete(session.sessionId)"
           >
             {{ t("settings.archivePermanentDelete") }}
-          </button>
+          </KxButton>
         </div>
       </SettingsCardItem>
     </SettingsCardList>

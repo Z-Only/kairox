@@ -137,27 +137,26 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
     </form>
 
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">
+      <KxButton @click="emit('close')">
         {{ t("common.cancel") }}
-      </button>
-      <button
-        class="btn btn-sm"
-        type="button"
+      </KxButton>
+      <KxButton
+        size="sm"
         :disabled="testDisabled"
         :data-test="testButtonTestId"
         @click="emit('test')"
       >
         {{ t("models.testConnectivity") }}
-      </button>
-      <button
-        class="btn btn-primary"
+      </KxButton>
+      <KxButton
+        variant="primary"
         type="submit"
         :disabled="saveDisabled"
         :data-test="saveButtonTestId"
         @click.prevent="emit('save')"
       >
         {{ loading ? t("models.saving") : t("models.saveProfile") }}
-      </button>
+      </KxButton>
     </template>
   </ModalDialog>
 </template>

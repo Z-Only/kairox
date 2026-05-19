@@ -74,9 +74,9 @@ const targetLabel = computed(() =>
     </div>
 
     <template #footer>
-      <button
-        class="btn btn-primary btn-sm"
-        type="button"
+      <KxButton
+        variant="primary"
+        size="sm"
         :disabled="installing"
         data-test="skill-catalog-detail-install"
         @click="emit('install', entry)"
@@ -84,10 +84,10 @@ const targetLabel = computed(() =>
         {{
           installing ? t("skills.installing") : t("skills.installToTarget", { target: targetLabel })
         }}
-      </button>
-      <button class="btn btn-sm" type="button" @click="emit('close')">
+      </KxButton>
+      <KxButton size="sm" @click="emit('close')">
         {{ t("common.close") }}
-      </button>
+      </KxButton>
     </template>
   </KxDrawer>
 </template>

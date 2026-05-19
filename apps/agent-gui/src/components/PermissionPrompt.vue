@@ -142,14 +142,12 @@ async function deny() {
           </div>
         </div>
         <div class="permission-actions">
-          <!-- NButton renders an inner <button>; the .btn-allow / .btn-deny
-               wrapper classes preserve the existing test selectors. -->
-          <button class="btn btn-allow" data-test="permission-allow" @click="allow">
+          <KxButton variant="primary" size="xs" data-test="permission-allow" @click="allow">
             {{ allowLabel }}
-          </button>
-          <button class="btn btn-deny" data-test="permission-deny" @click="deny">
+          </KxButton>
+          <KxButton size="xs" data-test="permission-deny" @click="deny">
             {{ denyLabel }}
-          </button>
+          </KxButton>
         </div>
       </div>
     </div>
@@ -254,28 +252,6 @@ async function deny() {
   gap: 6px;
   flex-wrap: nowrap;
   flex-shrink: 0;
-}
-
-/* Button base & variants */
-.btn {
-  padding: 2px 10px;
-  border-radius: 4px;
-  border: 1px solid var(--app-border-color, #e0e0e0);
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--app-button-color, #fff);
-  color: var(--app-text-color, #333);
-  line-height: 1.6;
-}
-
-.btn-allow {
-  background: var(--app-success-color, #18a058);
-  border-color: var(--app-success-color, #18a058);
-  color: #fff;
-}
-
-.btn-deny {
-  background: var(--app-button-color, #fff);
 }
 
 .mcp-permission-info {

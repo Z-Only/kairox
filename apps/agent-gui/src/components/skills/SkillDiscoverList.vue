@@ -93,20 +93,20 @@ async function selectSource(sourceId: string | null): Promise<void> {
           v-for="source in sourceFilters"
           :key="source.id ?? 'all'"
           type="button"
-          :class="['btn', 'chip', { active: selectedSourceId === source.id }]"
+          :class="['chip', { active: selectedSourceId === source.id }]"
           :data-test="`skill-source-filter-${source.id ?? 'all'}`"
           @click="selectSource(source.id)"
         >
           {{ source.display_name }}
         </button>
-        <button
-          class="btn settings-icon"
+        <KxIconButton
+          class="settings-icon"
+          :label="t('marketplace.sourceSettingsAria')"
           data-test="skill-source-settings-btn"
-          :aria-label="t('marketplace.sourceSettingsAria')"
           @click="sourceSettingsOpen = true"
         >
           <span aria-hidden="true">⚙</span>
-        </button>
+        </KxIconButton>
       </div>
 
       <form role="search" @submit.prevent="searchCatalog()">
@@ -117,23 +117,22 @@ async function selectSource(sourceId: string | null): Promise<void> {
           data-test="skill-catalog-search"
           size="compact"
         />
-        <button
-          class="btn btn-primary btn-sm"
-          type="button"
+        <KxButton
+          variant="primary"
+          size="sm"
           data-test="skill-catalog-search-btn"
           @click="searchCatalog()"
         >
           {{ t("common.search") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           data-test="skill-catalog-refresh"
           :disabled="store.catalogLoading"
           @click="refreshCatalog"
         >
           {{ store.catalogLoading ? t("skills.refreshing") : t("common.refresh") }}
-        </button>
+        </KxButton>
       </form>
     </SettingsFilterBar>
 
@@ -155,14 +154,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
     <SettingsState v-else-if="store.error" tone="error" data-test="skill-catalog-error">
       {{ store.error }}
       <template #actions>
-        <button
-          class="btn btn-sm"
-          type="button"
-          data-test="skill-catalog-retry"
-          @click="searchCatalog({ force: true })"
-        >
+        <KxButton size="sm" data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
           {{ t("common.retry") }}
-        </button>
+        </KxButton>
       </template>
     </SettingsState>
     <SettingsState
@@ -172,14 +166,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
     >
       {{ t("skills.catalogEmpty") }}
       <template #actions>
-        <button
-          class="btn btn-sm"
-          type="button"
-          data-test="skill-catalog-retry"
-          @click="searchCatalog({ force: true })"
-        >
+        <KxButton size="sm" data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
           {{ t("common.retry") }}
-        </button>
+        </KxButton>
       </template>
     </SettingsState>
     <div v-else class="grid">

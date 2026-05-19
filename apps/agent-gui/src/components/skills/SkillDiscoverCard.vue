@@ -79,15 +79,15 @@ const installButtonLabel = computed<string>(() => {
       >
         {{ t("skills.viewSource") }}
       </a>
-      <button
-        class="btn btn-primary btn-sm"
-        type="button"
+      <KxButton
+        variant="primary"
+        size="sm"
         :disabled="installing || installed"
         :data-test="`skill-catalog-install-${entry.catalog_id}`"
         @click.stop="emit('install')"
       >
         {{ installButtonLabel }}
-      </button>
+      </KxButton>
     </div>
   </div>
 </template>

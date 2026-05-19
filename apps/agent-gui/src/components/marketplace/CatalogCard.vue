@@ -56,15 +56,16 @@ async function onInstall() {
       <span v-if="isInstalled" class="installed-badge">
         {{ t("marketplace.install.installed") }}
       </span>
-      <button
+      <KxButton
         v-else
-        class="btn btn-primary btn-xs"
+        variant="primary"
+        size="xs"
         data-test="catalog-card-install"
         :disabled="installDisabled"
         @click.stop="onInstall"
       >
         {{ t("marketplace.install.buttonInstall") }}
-      </button>
+      </KxButton>
     </div>
   </div>
 </template>
@@ -143,44 +144,5 @@ async function onInstall() {
 .installed-badge {
   font-size: 12px;
   color: var(--app-text-color-3);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.btn:hover {
-  background: var(--app-hover-color);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color);
-  border-color: var(--app-primary-color);
-}
-
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-.btn-xs {
-  height: 24px;
-  font-size: 12px;
-  padding: 0 8px;
 }
 </style>

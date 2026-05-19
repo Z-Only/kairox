@@ -76,65 +76,62 @@ function sourceLabel(source: string): string {
 
       <div class="model-settings__actions" aria-label="Profile actions">
         <div class="model-settings__reorder">
-          <button
-            class="btn btn-sm btn-icon"
-            type="button"
+          <KxIconButton
+            :label="t('models.moveUp')"
+            size="sm"
             :disabled="busyAlias === profile.alias || index === 0"
             :data-test="`model-move-up-${profile.alias}`"
             :title="t('models.moveUp')"
             @click="emit('move', profile.alias, -1)"
           >
             ▲
-          </button>
-          <button
-            class="btn btn-sm btn-icon"
-            type="button"
+          </KxIconButton>
+          <KxIconButton
+            :label="t('models.moveDown')"
+            size="sm"
             :disabled="busyAlias === profile.alias || index === total - 1"
             :data-test="`model-move-down-${profile.alias}`"
             :title="t('models.moveDown')"
             @click="emit('move', profile.alias, 1)"
           >
             ▼
-          </button>
+          </KxIconButton>
         </div>
-        <button
-          class="btn btn-sm"
-          type="button"
+        <KxButton
+          size="sm"
           :disabled="busyAlias === profile.alias"
           :data-test="`model-edit-${profile.alias}`"
           @click="emit('edit', profile)"
         >
           {{ t("common.edit") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           :disabled="busyAlias === profile.alias"
           :data-test="`model-enable-${profile.alias}`"
           @click="emit('toggle', profile)"
         >
           {{ profile.enabled ? t("models.disable") : t("models.enable") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           :disabled="busyAlias === profile.alias"
           :data-test="`model-test-${profile.alias}`"
           :title="t('models.testConnectivity')"
           @click="emit('test', profile)"
         >
           {{ t("models.testConnectivity") }}
-        </button>
-        <button
+        </KxButton>
+        <KxButton
           v-if="profile.writable"
-          class="btn btn-danger btn-sm"
-          type="button"
+          variant="danger"
+          size="sm"
           :disabled="busyAlias === profile.alias"
           :data-test="`model-delete-${profile.alias}`"
           @click="emit('remove', profile.alias)"
         >
           {{ t("common.delete") }}
-        </button>
+        </KxButton>
       </div>
     </div>
   </SettingsCardItem>
@@ -176,12 +173,6 @@ function sourceLabel(source: string): string {
   flex-direction: column;
   gap: 2px;
   margin-right: 4px;
-}
-
-.btn-icon {
-  padding: 2px 6px;
-  line-height: 1;
-  font-size: 0.7rem;
 }
 
 button:focus-visible {

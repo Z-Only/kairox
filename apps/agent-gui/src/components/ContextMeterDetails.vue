@@ -48,9 +48,9 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
     </tbody>
   </table>
   <div class="context-meter-actions">
-    <button
-      type="button"
-      class="btn btn-primary btn-sm"
+    <KxButton
+      variant="primary"
+      size="sm"
       data-test="context-meter-compact"
       :disabled="compacting || compressionRatioTooLow"
       :title="
@@ -71,7 +71,7 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
       <template v-else>
         {{ t("context.compactNow") }}
       </template>
-    </button>
+    </KxButton>
   </div>
 </template>
 

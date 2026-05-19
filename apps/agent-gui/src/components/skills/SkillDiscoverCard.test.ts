@@ -31,7 +31,9 @@ describe("SkillDiscoverCard", () => {
     expect(wrapper.text()).toContain("1,234 installs");
     expect(wrapper.find(".sec-tag").attributes("title")).toBe("Security score: 91");
     expect(wrapper.find("a").text()).toBe("View source");
-    expect(wrapper.find("button.btn-primary").text()).toBe("Install");
+    expect(wrapper.find('[data-test="skill-catalog-install-skillhub/docs-helper"]').text()).toBe(
+      "Install"
+    );
   });
 
   it("shows installed feedback and disables reinstall", () => {
@@ -43,7 +45,7 @@ describe("SkillDiscoverCard", () => {
       }
     });
 
-    const installButton = wrapper.find("button.btn-primary");
+    const installButton = wrapper.find('[data-test="skill-catalog-install-skillhub/docs-helper"]');
     expect(installButton.text()).toBe("Installed");
     expect(installButton.attributes("disabled")).toBeDefined();
   });

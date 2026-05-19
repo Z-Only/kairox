@@ -232,22 +232,22 @@ onMounted(() => {
         @input="handleInput"
       />
       <ContextMeter variant="ring" />
-      <button
+      <KxButton
         v-if="session.isStreaming"
-        class="btn btn-error"
+        variant="danger"
         data-test="cancel-button"
         @click="cancelSession"
       >
         {{ t("common.cancel") }}
-      </button>
-      <button
-        class="btn btn-primary"
+      </KxButton>
+      <KxButton
+        variant="primary"
         data-test="send-button"
         :disabled="sendDisabled"
         @click="sendMessage"
       >
         {{ isQueueing ? t("chat.queueSend") : t("common.send") }}
-      </button>
+      </KxButton>
     </div>
   </div>
 </template>
@@ -337,29 +337,6 @@ onMounted(() => {
 .queued-message-attachments {
   flex: 0 0 auto;
   color: var(--app-muted-text-color, var(--app-text-color));
-}
-.btn {
-  padding: 6px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
-  border-color: var(--app-primary-color);
-}
-.btn-error {
-  background: var(--app-error-color, #d03050);
-  color: var(--app-inverse-text-color, #fff);
-  border-color: var(--app-error-color, #d03050);
 }
 .attach-btn {
   flex-shrink: 0;

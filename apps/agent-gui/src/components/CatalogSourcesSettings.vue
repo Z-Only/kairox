@@ -128,26 +128,22 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
             />
             {{ t("marketplace.sourceEnabled") }}
           </label>
-          <button
+          <KxButton
             v-if="src.id !== 'builtin'"
-            class="btn btn-error-ghost"
+            variant="danger-ghost"
+            size="sm"
             :data-test="`src-remove-${src.id}`"
             @click="onRemove(src.id)"
           >
             {{ t("common.delete") }}
-          </button>
+          </KxButton>
         </div>
       </li>
     </ul>
 
-    <button
-      v-if="!showAddForm"
-      class="btn"
-      data-test="add-source-toggle"
-      @click="showAddForm = true"
-    >
+    <KxButton v-if="!showAddForm" data-test="add-source-toggle" @click="showAddForm = true">
       {{ t("marketplace.addSource") }}
-    </button>
+    </KxButton>
 
     <div v-else class="add-form">
       <KxFormField label="id">
@@ -173,18 +169,17 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         {{ formError }}
       </span>
       <KxFormActions>
-        <button class="btn btn-primary" data-test="src-save" @click="save">
+        <KxButton variant="primary" data-test="src-save" @click="save">
           {{ t("common.save") }}
-        </button>
-        <button
-          class="btn"
+        </KxButton>
+        <KxButton
           @click="
             showAddForm = false;
             formError = null;
           "
         >
           {{ t("common.cancel") }}
-        </button>
+        </KxButton>
       </KxFormActions>
     </div>
   </div>
@@ -278,25 +273,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   font-size: 0.85em;
   cursor: pointer;
   color: var(--app-text-color);
-}
-.btn {
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  cursor: pointer;
-  font-size: 0.85em;
-  color: var(--app-text-color);
-}
-.btn-primary {
-  background: var(--app-primary-color);
-  color: #fff;
-  border-color: var(--app-primary-color);
-}
-.btn-error-ghost {
-  color: var(--app-error-color);
-  border-color: var(--app-error-color);
-  background: transparent;
 }
 .add-form {
   display: flex;

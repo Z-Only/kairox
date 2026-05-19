@@ -91,7 +91,7 @@ test("task retry button appears for failed tasks", async ({ page }) => {
   });
 
   // Should show retry button for failed task
-  await expect(page.locator(".btn-retry").first()).toBeVisible({
+  await expect(page.getByTestId("task-retry").first()).toBeVisible({
     timeout: 3_000
   });
 });

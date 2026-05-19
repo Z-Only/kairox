@@ -145,31 +145,20 @@ watch(
     </SettingsState>
 
     <SettingsToolbar :aria-label="t('agents.title')">
-      <button
-        class="btn btn-primary btn-sm"
-        type="button"
-        data-test="agent-new"
-        @click="startCreate"
-      >
+      <KxButton variant="primary" size="sm" data-test="agent-new" @click="startCreate">
         {{ t("agents.newAgent") }}
-      </button>
-      <button
-        class="btn btn-sm"
-        type="button"
-        data-test="agent-open-dir"
-        @click="store.openAgentsDir()"
-      >
+      </KxButton>
+      <KxButton size="sm" data-test="agent-open-dir" @click="store.openAgentsDir()">
         {{ t("agents.openFolder") }}
-      </button>
-      <button
-        class="btn btn-sm"
-        type="button"
+      </KxButton>
+      <KxButton
+        size="sm"
         :disabled="store.loading"
         data-test="agent-refresh"
         @click="store.loadAgents()"
       >
         {{ store.loading ? t("agents.refreshing") : t("common.refresh") }}
-      </button>
+      </KxButton>
     </SettingsToolbar>
 
     <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
@@ -232,32 +221,30 @@ watch(
           </KxInlineAlert>
         </div>
         <div class="agent-row__actions">
-          <button
-            class="btn btn-sm"
-            type="button"
+          <KxButton
+            size="sm"
             :data-test="`agent-edit-${slugify(agent.name)}`"
             @click="editAgent(agent)"
           >
             {{ agent.editable ? t("common.edit") : t("agents.view") }}
-          </button>
-          <button
+          </KxButton>
+          <KxButton
             v-if="!agent.editable"
-            class="btn btn-sm"
-            type="button"
+            size="sm"
             :data-test="`agent-copy-${slugify(agent.name)}`"
             @click="copyToUser(agent)"
           >
             {{ t("agents.copyToUser") }}
-          </button>
-          <button
+          </KxButton>
+          <KxButton
             v-if="agent.deletable"
-            class="btn btn-danger btn-sm"
-            type="button"
+            variant="danger"
+            size="sm"
             :data-test="`agent-delete-${slugify(agent.name)}`"
             @click="deleteAgent(agent)"
           >
             {{ t("common.delete") }}
-          </button>
+          </KxButton>
         </div>
       </SettingsCardItem>
     </SettingsCardList>
@@ -326,18 +313,17 @@ watch(
       </form>
 
       <template #footer>
-        <button class="btn" type="button" data-test="agent-cancel" @click="closeEditor">
+        <KxButton data-test="agent-cancel" @click="closeEditor">
           {{ t("common.cancel") }}
-        </button>
-        <button
-          class="btn btn-primary"
-          type="button"
+        </KxButton>
+        <KxButton
+          variant="primary"
           :disabled="!canSave || store.saving"
           data-test="agent-save"
           @click="saveAgent"
         >
           {{ store.saving ? t("agents.saving") : t("agents.saveAgent") }}
-        </button>
+        </KxButton>
       </template>
     </ModalDialog>
   </section>

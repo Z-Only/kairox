@@ -17,33 +17,36 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
            panel below is a 3-way switch over heterogeneous components
            (TraceEntry list / TaskSteps / MemoryBrowser) — a tab-pane
            teleport approach would force every panel to render, which we
-           don't want here. The buttons use shared CSS utility classes
+           don't want here. The buttons use Kairox button chrome
            for consistent theming without touching the tests' active-class
            assertion. -->
       <div class="tab-group">
-        <button
-          class="btn btn-sm"
-          :class="{ 'btn-primary': rightPanelTab === 'trace', active: rightPanelTab === 'trace' }"
+        <KxButton
+          size="sm"
+          :variant="rightPanelTab === 'trace' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'trace' }"
           @click="rightPanelTab = 'trace'"
         >
           {{ t("trace.tabTrace") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          :class="{ 'btn-primary': rightPanelTab === 'tasks', active: rightPanelTab === 'tasks' }"
+        </KxButton>
+        <KxButton
+          size="sm"
+          :variant="rightPanelTab === 'tasks' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'tasks' }"
           data-test="trace-tab-tasks"
           @click="rightPanelTab = 'tasks'"
         >
           {{ t("trace.tabTasks") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          :class="{ 'btn-primary': rightPanelTab === 'memory', active: rightPanelTab === 'memory' }"
+        </KxButton>
+        <KxButton
+          size="sm"
+          :variant="rightPanelTab === 'memory' ? 'primary' : 'default'"
+          :class="{ active: rightPanelTab === 'memory' }"
           data-test="trace-tab-memory"
           @click="rightPanelTab = 'memory'"
         >
           {{ t("trace.tabMemory") }}
-        </button>
+        </KxButton>
       </div>
     </header>
     <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">

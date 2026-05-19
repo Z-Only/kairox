@@ -46,7 +46,7 @@ test("granting permission updates the permission entry status", async ({ page })
   });
 
   // Click Allow
-  await page.locator(".permission-prompt .btn-allow").first().click();
+  await page.getByTestId("permission-allow").first().click();
 
   // Permission prompt should disappear (status changes from pending to completed)
   await expect(page.locator(".permission-prompt")).toHaveCount(0, {
@@ -70,7 +70,7 @@ test("denying permission shows denied status", async ({ page }) => {
   });
 
   // Click Deny
-  await page.locator(".permission-prompt .btn-deny").first().click();
+  await page.getByTestId("permission-deny").first().click();
 
   // Permission prompt should disappear
   await expect(page.locator(".permission-prompt")).toHaveCount(0, {
@@ -132,7 +132,7 @@ test("accepting memory removes the prompt", async ({ page }) => {
   }, memoryId);
 
   // Click Accept
-  await page.locator(".memory-prompt .btn-allow").first().click();
+  await page.locator(".memory-prompt").first().getByTestId("permission-allow").click();
 
   // Prompt should disappear
   await expect(page.locator(".memory-prompt")).toHaveCount(0, {
@@ -168,7 +168,7 @@ test("rejecting memory removes the prompt", async ({ page }) => {
   }, memoryId);
 
   // Click Reject
-  await page.locator(".memory-prompt .btn-deny").first().click();
+  await page.locator(".memory-prompt").first().getByTestId("permission-deny").click();
 
   // Prompt should disappear
   await expect(page.locator(".memory-prompt")).toHaveCount(0, {

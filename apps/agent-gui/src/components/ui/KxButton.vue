@@ -1,5 +1,12 @@
 <script setup lang="ts">
-type ButtonVariant = "default" | "primary" | "danger" | "ghost";
+type ButtonVariant =
+  | "default"
+  | "primary"
+  | "danger"
+  | "danger-ghost"
+  | "ghost"
+  | "success"
+  | "warning";
 type ButtonSize = "default" | "sm" | "xs";
 
 const props = withDefaults(
@@ -96,6 +103,17 @@ const props = withDefaults(
   box-shadow: 0 2px 8px color-mix(in srgb, var(--app-error-color) 24%, transparent);
 }
 
+.kx-button--danger-ghost {
+  border-color: color-mix(in srgb, var(--app-error-color) 45%, transparent);
+  background: color-mix(in srgb, var(--app-error-color) 8%, transparent);
+  color: var(--app-error-color);
+}
+
+.kx-button--danger-ghost:hover:not(:disabled) {
+  border-color: var(--app-error-color);
+  background: color-mix(in srgb, var(--app-error-color) 14%, transparent);
+}
+
 .kx-button--ghost {
   border-color: transparent;
   background: transparent;
@@ -103,6 +121,28 @@ const props = withDefaults(
 
 .kx-button--ghost:hover:not(:disabled) {
   background: var(--app-hover-color);
+}
+
+.kx-button--success {
+  border-color: color-mix(in srgb, var(--app-success-color) 50%, transparent);
+  background: color-mix(in srgb, var(--app-success-color) 12%, transparent);
+  color: var(--app-success-color);
+}
+
+.kx-button--success:hover:not(:disabled) {
+  border-color: var(--app-success-color);
+  background: color-mix(in srgb, var(--app-success-color) 18%, transparent);
+}
+
+.kx-button--warning {
+  border-color: color-mix(in srgb, var(--app-warning-color) 55%, transparent);
+  background: color-mix(in srgb, var(--app-warning-color) 12%, transparent);
+  color: var(--app-warning-color);
+}
+
+.kx-button--warning:hover:not(:disabled) {
+  border-color: var(--app-warning-color);
+  background: color-mix(in srgb, var(--app-warning-color) 18%, transparent);
 }
 
 .kx-button--size-default {

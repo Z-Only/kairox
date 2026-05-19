@@ -14,7 +14,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
-const componentsCss = readFileSync("src/styles/components.css", "utf8");
+const kxButtonSource = readFileSync("src/components/ui/KxButton.vue", "utf8");
 const themeCss = readFileSync("src/styles/theme.css", "utf8");
 
 function getCustomProperties(css: string, selector: string) {
@@ -93,7 +93,7 @@ describe("TraceTimeline", () => {
     const wrapper = mountTimeline();
     useTaskGraphStore().clearTaskGraph();
     const buttons = wrapper.findAll(".tab-group button");
-    expect(buttons[0].classes()).toEqual(expect.arrayContaining(["active", "btn-primary"]));
+    expect(buttons[0].classes()).toEqual(expect.arrayContaining(["active", "kx-button--primary"]));
     expect(buttons[0].text()).toBe("Trace");
   });
 
@@ -158,7 +158,7 @@ describe("TraceTimeline", () => {
   it("audit contrast tokens: keeps active trace controls and density labels readable in dark theme", () => {
     const darkThemeProperties = getCustomProperties(themeCss, "html.dark");
 
-    expect(componentsCss).toContain("color: var(--app-primary-contrast-color);");
+    expect(kxButtonSource).toContain("color: var(--app-primary-contrast-color, #fff);");
     expect(
       getContrastRatio(
         darkThemeProperties["--app-primary-contrast-color"],
