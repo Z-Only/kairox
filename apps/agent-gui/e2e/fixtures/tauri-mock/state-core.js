@@ -26,6 +26,7 @@ const state = {
   sentMessages: [],
   memories: [],
   permissionRequests: new Map(),
+  agents: new Map(),
   nextOpenDialogResult: null,
   /** Tauri v2 event system: eventName → Map<eventId, handler> */
   eventListeners: new Map(),
