@@ -328,6 +328,10 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).not.toContain(".skill-settings__row {");
     expect(skillSettingsPaneSource).toContain("SettingsCardList");
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
+    expect(skillSettingsPaneSource).toContain("SettingsItemSummary");
+    expect(skillSettingsPaneSource).toContain("SettingsItemMeta");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings__title-row");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings__meta");
   });
 
   it("uses a compact installed skill card layout without path-driven blank space", async () => {
@@ -338,15 +342,10 @@ describe("SkillSettingsPane", () => {
     const row = wrapper.find('[data-test="skill-row-project-code-review"]');
 
     expect(list.classes()).toContain("settings-card-list--dense");
-    expect(row.classes()).toContain("skill-settings__item");
+    expect(row.classes()).toContain("settings-card-item--compact");
     expect(skillSettingsPaneSource).toContain('layout="stack"');
-    expect(skillSettingsPaneSource).toContain("-webkit-line-clamp: 2");
-    expect(skillSettingsPaneSource).toContain("overflow: hidden");
-    expect(skillSettingsPaneSource).toContain("text-overflow: ellipsis");
-    expect(skillSettingsPaneSource).toContain("padding: 10px 12px");
-    expect(skillSettingsPaneSource).not.toContain(
-      "grid-template-columns: repeat(auto-fit, minmax(120px, 1fr))"
-    );
+    expect(skillSettingsPaneSource).toContain(':description-lines="2"');
+    expect(skillSettingsPaneSource).toContain('density="compact"');
   });
 
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {

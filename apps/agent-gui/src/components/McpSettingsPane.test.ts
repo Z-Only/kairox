@@ -12,6 +12,7 @@ import {
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
 import mcpSettingsPaneSource from "./McpSettingsPane.vue?raw";
+import mcpServerCardSource from "./McpServerCard.vue?raw";
 import mcpResourceAccordionSource from "./McpResourceAccordion.vue?raw";
 import mcpPromptAccordionSource from "./McpPromptAccordion.vue?raw";
 
@@ -162,6 +163,12 @@ describe("McpSettingsPane", () => {
       "connection refused"
     );
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
+  });
+
+  it("uses shared card content hierarchy for server rows", () => {
+    expect(mcpServerCardSource).toContain("SettingsItemSummary");
+    expect(mcpServerCardSource).not.toContain(".mcp-settings__server-main");
+    expect(mcpServerCardSource).not.toContain(".server__tags");
   });
 
   it("labels the config action as a file opener and delegates to the MCP store", async () => {

@@ -6,6 +6,7 @@ import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mou
 import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
+import modelProfileCardSource from "./ModelProfileCard.vue?raw";
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= vi.fn();
@@ -152,6 +153,12 @@ describe("ModelSettingsPane", () => {
 
     const fastRow = wrapper.find('[data-test="model-row-fast"]');
     expect(fastRow.text()).toContain("User config");
+  });
+
+  it("uses shared card content hierarchy for profile rows", () => {
+    expect(modelProfileCardSource).toContain("SettingsItemSummary");
+    expect(modelProfileCardSource).not.toContain(".model-settings__profile-main");
+    expect(modelProfileCardSource).not.toContain(".server__tags");
   });
 
   it("loads only the selected user configuration scope", async () => {

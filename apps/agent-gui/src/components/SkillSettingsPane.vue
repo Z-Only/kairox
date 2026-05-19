@@ -5,6 +5,8 @@ import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
+import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -162,13 +164,18 @@ async function installFromGithub(): Promise<void> {
           <SettingsCardItem
             v-for="skill in skillsStore.effectiveSkills"
             :key="skill.value.settings_id"
-            class="skill-settings__item"
             layout="stack"
+            density="compact"
             :data-test="`skill-row-${skillSettingsTestId(skill)}`"
           >
-            <div class="skill-settings__main">
-              <div class="skill-settings__title-row">
-                <h4>{{ skill.value.name }}</h4>
+            <SettingsItemSummary
+              :title="skill.value.name"
+              :description="skill.value.description"
+              :description-lines="2"
+              :heading-level="4"
+              :tags-label="t('skills.tabInstalled')"
+            >
+              <template #tags>
                 <span class="tag tag--source" :class="`tag--source-${skill.source.toLowerCase()}`">
                   {{ skill.source }}
                 </span>
@@ -192,9 +199,9 @@ async function installFromGithub(): Promise<void> {
                 <span :class="['tag', skill.value.valid ? 'tag-success' : 'tag-error']">
                   {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
                 </span>
-              </div>
-              <p>{{ skill.value.description }}</p>
-              <dl class="skill-settings__meta">
+              </template>
+
+              <SettingsItemMeta columns="four">
                 <div>
                   <dt>{{ t("skills.activation") }}</dt>
                   <dd>{{ skill.value.activation_mode }}</dd>
@@ -211,7 +218,7 @@ async function installFromGithub(): Promise<void> {
                   <dt>{{ t("skills.path") }}</dt>
                   <dd>{{ skill.value.path }}</dd>
                 </div>
-              </dl>
+              </SettingsItemMeta>
               <KxInlineAlert
                 v-if="skill.value.validation_error"
                 tone="error"
@@ -220,7 +227,7 @@ async function installFromGithub(): Promise<void> {
               >
                 {{ skill.value.validation_error }}
               </KxInlineAlert>
-            </div>
+            </SettingsItemSummary>
 
             <template #actions>
               <KxInlineAction
@@ -340,11 +347,6 @@ async function installFromGithub(): Promise<void> {
   padding-right: 4px;
 }
 
-.skill-settings__item {
-  padding: 10px 12px;
-}
-
-.skill-settings__title-row,
 .skill-settings__remote,
 .skill-settings__inline-form {
   display: flex;
@@ -360,23 +362,9 @@ async function installFromGithub(): Promise<void> {
   margin: 0;
 }
 
-.skill-settings__title-row h4 {
-  margin: 0;
-}
-
 .skill-settings__remote p {
   margin: 4px 0 0;
   color: var(--app-text-color-2, #6b7280);
-}
-
-.skill-settings__main > p {
-  margin: 4px 0 0;
-  color: var(--app-text-color-2, #6b7280);
-  display: -webkit-box;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .skill-settings__section .card-header h3 {
@@ -384,7 +372,6 @@ async function installFromGithub(): Promise<void> {
 }
 
 .skill-settings__body,
-.skill-settings__main,
 .skill-settings__remote-list {
   display: grid;
   gap: 8px;
@@ -393,32 +380,6 @@ async function installFromGithub(): Promise<void> {
 .skill-settings__remote:last-child {
   padding-bottom: 0;
   border-bottom-style: none;
-}
-
-.skill-settings__title-row {
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.skill-settings__meta {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px 8px;
-  margin: 0;
-}
-
-.skill-settings__meta dt {
-  color: var(--app-text-color-2, #6b7280);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.skill-settings__meta dd {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .skill-settings__inline-form {

@@ -6,12 +6,14 @@ const props = withDefaults(
     dataTest?: string;
     role?: string;
     layout?: "split" | "stack";
+    density?: "normal" | "compact";
     actionsLabel?: string;
   }>(),
   {
     dataTest: undefined,
     role: "listitem",
     layout: "split",
+    density: "normal",
     actionsLabel: undefined
   }
 );
@@ -22,6 +24,7 @@ const props = withDefaults(
     :class="[
       'settings-card-item',
       `settings-card-item--${props.layout}`,
+      `settings-card-item--${props.density}`,
       { 'settings-card-item--with-actions': $slots.actions }
     ]"
     :role="props.role"
@@ -55,6 +58,10 @@ const props = withDefaults(
   border-radius: 6px;
   padding: 12px;
   background: var(--app-card-color);
+}
+
+.settings-card-item--compact {
+  padding: 10px 12px;
 }
 
 .settings-card-item--split:not(.settings-card-item--with-actions) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useSkillsStore } from "@/stores/skills";
 import type { SkillSourceView } from "@/generated/commands";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const store = useSkillsStore();
@@ -133,12 +134,15 @@ function formatError(caughtError: unknown): string {
         :key="src.id"
         :data-test="`skill-source-row-${src.id}`"
       >
-        <div class="src-meta">
-          <div class="src-meta-row">
-            <strong>{{ src.display_name }}</strong>
-            <code class="src-id">{{ src.id }}</code>
+        <SettingsItemSummary
+          :title="src.display_name"
+          :heading-level="4"
+          :tags-label="t('skills.allSources')"
+        >
+          <template #tags>
+            <code>{{ src.id }}</code>
             <span class="tag tag-info src-kind">{{ src.kind }}</span>
-          </div>
+          </template>
           <a
             v-if="src.url"
             :href="src.url"
@@ -155,7 +159,7 @@ function formatError(caughtError: unknown): string {
           >
             {{ t("skills.sourceError", { error: src.last_error }) }}
           </span>
-        </div>
+        </SettingsItemSummary>
 
         <template #actions>
           <label class="src-enable" :data-test="`skill-src-enable-${src.id}`">
@@ -244,24 +248,6 @@ function formatError(caughtError: unknown): string {
   font-size: 14px;
   margin: 0;
   font-weight: normal;
-}
-
-.src-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.src-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.src-id {
-  font-size: 0.85em;
-  color: var(--app-text-color-2);
 }
 
 .tag {

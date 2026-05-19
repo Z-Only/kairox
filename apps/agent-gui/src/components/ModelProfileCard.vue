@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const props = defineProps<{
   profile: ProfileSettingsView;
@@ -51,10 +52,12 @@ function sourceLabel(source: string): string {
 
 <template>
   <SettingsCardItem class="model-settings__profile" :data-test="`model-row-${profile.alias}`">
-    <div class="model-settings__profile-main">
-      <h3>{{ profile.alias }}</h3>
-      <p>{{ profile.provider }} / {{ profile.model_id }}</p>
-      <div class="server__tags" aria-label="Profile metadata">
+    <SettingsItemSummary
+      :title="profile.alias"
+      :description="`${profile.provider} / ${profile.model_id}`"
+      :tags-label="t('models.title')"
+    >
+      <template #tags>
         <span class="tag tag--source" :class="`tag--source-${sourceClass(profile.source)}`">
           {{ sourceLabel(profile.source) }}
         </span>
@@ -70,8 +73,8 @@ function sourceLabel(source: string): string {
         <span v-if="profile.temperature != null" class="tag">
           {{ t("models.temperature") }}: {{ profile.temperature }}
         </span>
-      </div>
-    </div>
+      </template>
+    </SettingsItemSummary>
 
     <template #actions>
       <div class="model-settings__reorder">
@@ -134,16 +137,6 @@ function sourceLabel(source: string): string {
 <style scoped>
 .model-settings__profile {
   overflow: visible;
-}
-
-.model-settings__profile-main {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.model-settings__profile h3 {
-  margin: 0 0 4px;
 }
 
 .model-settings__reorder {

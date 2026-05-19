@@ -2,6 +2,7 @@
 import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const catalog = useCatalogStore();
@@ -105,12 +106,15 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         :key="src.id"
         :data-test="`catalog-source-row-${src.id}`"
       >
-        <div class="src-meta">
-          <div class="src-meta-row">
-            <strong>{{ src.display_name }}</strong>
-            <code class="src-id">{{ src.id }}</code>
+        <SettingsItemSummary
+          :title="src.display_name"
+          :heading-level="4"
+          :tags-label="t('marketplace.sourceSettingsAria')"
+        >
+          <template #tags>
+            <code>{{ src.id }}</code>
             <span class="tag tag-info src-kind">{{ src.kind }}</span>
-          </div>
+          </template>
           <a
             v-if="src.url"
             :href="src.url"
@@ -127,7 +131,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
           >
             {{ t("marketplace.sourceError", { error: failures[src.id] }) }}
           </span>
-        </div>
+        </SettingsItemSummary>
 
         <template #actions>
           <label class="src-enable" :data-test="`src-enable-${src.id}`">
@@ -206,21 +210,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   font-size: 14px;
   margin: 0;
   font-weight: normal;
-}
-.src-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.src-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.src-id {
-  font-size: 0.85em;
-  color: var(--app-text-color-2);
 }
 .tag {
   display: inline-block;
