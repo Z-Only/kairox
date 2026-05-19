@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsCardList from "./SettingsCardList.vue";
+import settingsCardListSource from "./SettingsCardList.vue?raw";
 
 describe("SettingsCardList", () => {
   it("renders shared list chrome with stable accessibility attributes", () => {
@@ -32,5 +33,9 @@ describe("SettingsCardList", () => {
 
     expect(wrapper.classes()).not.toContain("settings-card-list--scroll");
     expect(wrapper.classes()).toContain("settings-card-list--dense");
+  });
+
+  it("does not stretch a single card to fill available list height", () => {
+    expect(settingsCardListSource).toContain("align-items: start");
   });
 });

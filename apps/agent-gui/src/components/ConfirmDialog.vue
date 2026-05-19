@@ -57,16 +57,16 @@ provide(confirmDialogKey, api);
     </div>
 
     <template #footer>
-      <button class="btn" data-test="confirm-cancel" @click="handleCancel">
+      <KxButton data-test="confirm-cancel" @click="handleCancel">
         {{ currentOptions.cancelText }}
-      </button>
-      <button
-        :class="['btn', currentOptions.type === 'error' ? 'btn-danger' : 'btn-primary']"
+      </KxButton>
+      <KxButton
+        :variant="currentOptions.type === 'error' ? 'danger' : 'primary'"
         data-test="confirm-ok"
         @click="handleConfirm"
       >
         {{ currentOptions.confirmText }}
-      </button>
+      </KxButton>
     </template>
   </KxModal>
   <slot />

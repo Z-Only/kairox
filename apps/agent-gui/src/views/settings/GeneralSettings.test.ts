@@ -9,7 +9,8 @@ describe("GeneralSettings", () => {
 
     expect(wrapper.find('[data-test="settings-locale"]').classes()).toContain("settings__select");
     expect(wrapper.find('[data-test="settings-theme"]').classes()).toContain("settings__select");
-    expect(generalSettingsSource).toContain("max-width: 220px");
-    expect(generalSettingsSource).toContain("flex: 0 1 220px");
+    expect(generalSettingsSource).toContain("max-width: 160px");
+    expect(generalSettingsSource).toContain("flex: 0 1 160px");
+    expect(generalSettingsSource).toContain("text-align: center");
   });
 });

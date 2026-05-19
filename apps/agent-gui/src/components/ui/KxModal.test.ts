@@ -47,6 +47,11 @@ describe("KxModal", () => {
     expect(kxModalSource).toContain("margin: 0");
   });
 
+  it("uses KxIconButton for the close control instead of global btn chrome", () => {
+    expect(kxModalSource).toContain("KxIconButton");
+    expect(kxModalSource).not.toContain('class="btn kx-modal__close"');
+  });
+
   it("emits close from close button and backdrop", async () => {
     const wrapper = mount(KxModal, {
       props: { open: true, title: "Install" }

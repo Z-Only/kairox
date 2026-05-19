@@ -121,24 +121,24 @@ async function installFromGithub(): Promise<void> {
 
     <div v-if="activeSubTab === 'installed'" class="skill-settings__installed">
       <SettingsToolbar :aria-label="t('skills.tabInstalled')">
-        <button
-          class="btn btn-sm"
+        <KxButton
+          size="sm"
           type="button"
           data-test="skill-open-config-dir"
           :title="t('settings.openConfigDir')"
           @click="openSkillsDir()"
         >
           {{ t("settings.openConfigDir") }}
-        </button>
-        <button
-          class="btn btn-sm"
+        </KxButton>
+        <KxButton
+          size="sm"
           type="button"
           :disabled="skillsStore.settingsLoading"
           data-test="skill-refresh"
           @click="skillsStore.loadSkillSettings()"
         >
           {{ skillsStore.settingsLoading ? t("skills.refreshing") : t("skills.refreshSkills") }}
-        </button>
+        </KxButton>
       </SettingsToolbar>
 
       <div class="skill-settings__body">
@@ -161,10 +161,13 @@ async function installFromGithub(): Promise<void> {
           v-else
           :aria-label="t('skills.tabInstalled')"
           data-test="skill-installed-list"
+          dense
         >
           <SettingsCardItem
             v-for="skill in skillsStore.effectiveSkills"
             :key="skill.value.settings_id"
+            class="skill-settings__item"
+            layout="stack"
             :data-test="`skill-row-${skillSettingsTestId(skill)}`"
           >
             <div class="skill-settings__main">
@@ -224,8 +227,8 @@ async function installFromGithub(): Promise<void> {
             </div>
 
             <div class="skill-settings__actions" aria-label="Skill actions">
-              <button
-                class="btn btn-sm"
+              <KxButton
+                size="sm"
                 type="button"
                 :disabled="!skill.writable || busySkillId === skill.value.settings_id"
                 :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
@@ -236,9 +239,9 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
-              </button>
-              <button
-                class="btn btn-sm"
+              </KxButton>
+              <KxButton
+                size="sm"
                 type="button"
                 :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
                 :data-test="`skill-update-${skillSettingsTestId(skill)}`"
@@ -249,9 +252,10 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ t("skills.updateSkill") }}
-              </button>
-              <button
-                class="btn btn-danger btn-sm"
+              </KxButton>
+              <KxButton
+                variant="danger"
+                size="sm"
                 type="button"
                 :disabled="!skill.writable || busySkillId === skill.value.settings_id"
                 :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
@@ -262,7 +266,7 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ t("skills.delete") }}
-              </button>
+              </KxButton>
             </div>
           </SettingsCardItem>
         </SettingsCardList>
@@ -286,14 +290,14 @@ async function installFromGithub(): Promise<void> {
               placeholder="https://github.com/org/repo/tree/main/path/to/skill"
             />
           </KxFormField>
-          <button
-            class="btn btn-primary"
+          <KxButton
+            variant="primary"
             type="submit"
             :disabled="skillsStore.settingsLoading || !githubSource.trim()"
             data-test="skill-github-submit"
           >
             {{ skillsStore.settingsLoading ? t("skills.installing") : t("skills.installButton") }}
-          </button>
+          </KxButton>
         </form>
       </details>
 
@@ -343,6 +347,10 @@ async function installFromGithub(): Promise<void> {
   padding-right: 4px;
 }
 
+.skill-settings__item {
+  padding: 10px 12px;
+}
+
 .skill-settings__title-row,
 .skill-settings__remote,
 .skill-settings__inline-form,
@@ -372,6 +380,11 @@ async function installFromGithub(): Promise<void> {
 .skill-settings__main > p {
   margin: 4px 0 0;
   color: var(--app-text-color-2, #6b7280);
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .skill-settings__section .card-header h3 {
@@ -382,7 +395,7 @@ async function installFromGithub(): Promise<void> {
 .skill-settings__main,
 .skill-settings__remote-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .skill-settings__remote:last-child {
@@ -402,8 +415,8 @@ async function installFromGithub(): Promise<void> {
 
 .skill-settings__meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 8px;
   margin: 0;
 }
 
@@ -415,7 +428,10 @@ async function installFromGithub(): Promise<void> {
 
 .skill-settings__meta dd {
   margin: 0;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .skill-settings__inline-form {

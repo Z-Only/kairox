@@ -330,6 +330,25 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
   });
 
+  it("uses a compact installed skill card layout without path-driven blank space", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const list = wrapper.find('[data-test="skill-installed-list"]');
+    const row = wrapper.find('[data-test="skill-row-project-code-review"]');
+
+    expect(list.classes()).toContain("settings-card-list--dense");
+    expect(row.classes()).toContain("skill-settings__item");
+    expect(skillSettingsPaneSource).toContain('layout="stack"');
+    expect(skillSettingsPaneSource).toContain("-webkit-line-clamp: 2");
+    expect(skillSettingsPaneSource).toContain("overflow: hidden");
+    expect(skillSettingsPaneSource).toContain("text-overflow: ellipsis");
+    expect(skillSettingsPaneSource).toContain("padding: 10px 12px");
+    expect(skillSettingsPaneSource).not.toContain(
+      "grid-template-columns: repeat(auto-fit, minmax(120px, 1fr))"
+    );
+  });
+
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
     expect(skillSettingsPaneSource).toContain("SettingsSubtabs");
     expect(skillSettingsPaneSource).toContain("SettingsToolbar");

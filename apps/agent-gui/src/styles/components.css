@@ -62,15 +62,6 @@
   box-shadow: 0 2px 8px color-mix(in srgb, var(--app-error-color) 30%, transparent);
 }
 
-.btn-ghost {
-  background: transparent;
-  border-color: transparent;
-}
-
-.btn-ghost:hover {
-  background: var(--app-hover-color);
-}
-
 .btn-sm {
   padding: 3px 8px;
   font-size: var(--app-text-sm);
