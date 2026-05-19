@@ -3,6 +3,8 @@ import { useSkillsStore } from "@/stores/skills";
 import type { ConfigScope, EffectiveSkillView, SkillInstallTarget } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
+import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
+import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -156,111 +158,115 @@ async function installFromGithub(): Promise<void> {
           {{ t("skills.noSkills") }}
         </KxStateBlock>
 
-        <article
-          v-for="skill in skillsStore.effectiveSkills"
+        <SettingsCardList
           v-else
-          :key="skill.value.settings_id"
-          class="skill-settings__row"
-          :data-test="`skill-row-${skillSettingsTestId(skill)}`"
+          :aria-label="t('skills.tabInstalled')"
+          data-test="skill-installed-list"
         >
-          <div class="skill-settings__main">
-            <div class="skill-settings__title-row">
-              <h4>{{ skill.value.name }}</h4>
-              <span class="tag tag--source" :class="`tag--source-${skill.source.toLowerCase()}`">
-                {{ skill.source }}
-              </span>
-              <span v-if="skill.overrides" class="tag tag--override">
-                {{ t("skills.overrides", { source: skill.overrides }) }}
-              </span>
-              <span v-if="skill.disabledBy" class="tag tag--disabled-by">
-                {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
-              </span>
-              <span class="tag">{{ skill.value.scope }}</span>
-              <span :class="['tag', skill.enabled ? 'tag-success' : 'tag-warning']">
-                {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
-              </span>
-              <span :class="['tag', skill.value.effective ? 'tag-success' : 'tag-warning']">
-                {{
-                  skill.value.effective
-                    ? t("skills.effective")
-                    : t("skills.shadowedBy", { name: skill.value.shadowed_by })
-                }}
-              </span>
-              <span :class="['tag', skill.value.valid ? 'tag-success' : 'tag-error']">
-                {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
-              </span>
+          <SettingsCardItem
+            v-for="skill in skillsStore.effectiveSkills"
+            :key="skill.value.settings_id"
+            :data-test="`skill-row-${skillSettingsTestId(skill)}`"
+          >
+            <div class="skill-settings__main">
+              <div class="skill-settings__title-row">
+                <h4>{{ skill.value.name }}</h4>
+                <span class="tag tag--source" :class="`tag--source-${skill.source.toLowerCase()}`">
+                  {{ skill.source }}
+                </span>
+                <span v-if="skill.overrides" class="tag tag--override">
+                  {{ t("skills.overrides", { source: skill.overrides }) }}
+                </span>
+                <span v-if="skill.disabledBy" class="tag tag--disabled-by">
+                  {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
+                </span>
+                <span class="tag">{{ skill.value.scope }}</span>
+                <span :class="['tag', skill.enabled ? 'tag-success' : 'tag-warning']">
+                  {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
+                </span>
+                <span :class="['tag', skill.value.effective ? 'tag-success' : 'tag-warning']">
+                  {{
+                    skill.value.effective
+                      ? t("skills.effective")
+                      : t("skills.shadowedBy", { name: skill.value.shadowed_by })
+                  }}
+                </span>
+                <span :class="['tag', skill.value.valid ? 'tag-success' : 'tag-error']">
+                  {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
+                </span>
+              </div>
+              <p>{{ skill.value.description }}</p>
+              <dl class="skill-settings__meta">
+                <div>
+                  <dt>{{ t("skills.activation") }}</dt>
+                  <dd>{{ skill.value.activation_mode }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("skills.source") }}</dt>
+                  <dd>{{ skill.value.install_source }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("skills.update") }}</dt>
+                  <dd>{{ formatUpdateState(skill.value.update_state) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("skills.path") }}</dt>
+                  <dd>{{ skill.value.path }}</dd>
+                </div>
+              </dl>
+              <KxInlineAlert
+                v-if="skill.value.validation_error"
+                tone="error"
+                compact
+                :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
+              >
+                {{ skill.value.validation_error }}
+              </KxInlineAlert>
             </div>
-            <p>{{ skill.value.description }}</p>
-            <dl class="skill-settings__meta">
-              <div>
-                <dt>{{ t("skills.activation") }}</dt>
-                <dd>{{ skill.value.activation_mode }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("skills.source") }}</dt>
-                <dd>{{ skill.value.install_source }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("skills.update") }}</dt>
-                <dd>{{ formatUpdateState(skill.value.update_state) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("skills.path") }}</dt>
-                <dd>{{ skill.value.path }}</dd>
-              </div>
-            </dl>
-            <KxInlineAlert
-              v-if="skill.value.validation_error"
-              tone="error"
-              compact
-              :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
-            >
-              {{ skill.value.validation_error }}
-            </KxInlineAlert>
-          </div>
 
-          <div class="skill-settings__actions" aria-label="Skill actions">
-            <button
-              class="btn btn-sm"
-              type="button"
-              :disabled="!skill.writable || busySkillId === skill.value.settings_id"
-              :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
-              @click="
-                runSkillAction(skill.value.settings_id, () =>
-                  skillsStore.setSkillEnabled(skill.value.settings_id, !skill.enabled)
-                )
-              "
-            >
-              {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
-            </button>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
-              :data-test="`skill-update-${skillSettingsTestId(skill)}`"
-              @click="
-                runSkillAction(skill.value.settings_id, () =>
-                  skillsStore.updateSkill(skill.value.settings_id)
-                )
-              "
-            >
-              {{ t("skills.updateSkill") }}
-            </button>
-            <button
-              class="btn btn-danger btn-sm"
-              type="button"
-              :disabled="!skill.writable || busySkillId === skill.value.settings_id"
-              :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
-              @click="
-                runSkillAction(skill.value.settings_id, () =>
-                  skillsStore.deleteSkill(skill.value.settings_id)
-                )
-              "
-            >
-              {{ t("skills.delete") }}
-            </button>
-          </div>
-        </article>
+            <div class="skill-settings__actions" aria-label="Skill actions">
+              <button
+                class="btn btn-sm"
+                type="button"
+                :disabled="!skill.writable || busySkillId === skill.value.settings_id"
+                :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
+                @click="
+                  runSkillAction(skill.value.settings_id, () =>
+                    skillsStore.setSkillEnabled(skill.value.settings_id, !skill.enabled)
+                  )
+                "
+              >
+                {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
+              </button>
+              <button
+                class="btn btn-sm"
+                type="button"
+                :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
+                :data-test="`skill-update-${skillSettingsTestId(skill)}`"
+                @click="
+                  runSkillAction(skill.value.settings_id, () =>
+                    skillsStore.updateSkill(skill.value.settings_id)
+                  )
+                "
+              >
+                {{ t("skills.updateSkill") }}
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                type="button"
+                :disabled="!skill.writable || busySkillId === skill.value.settings_id"
+                :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
+                @click="
+                  runSkillAction(skill.value.settings_id, () =>
+                    skillsStore.deleteSkill(skill.value.settings_id)
+                  )
+                "
+              >
+                {{ t("skills.delete") }}
+              </button>
+            </div>
+          </SettingsCardItem>
+        </SettingsCardList>
       </div>
     </div>
 
@@ -378,7 +384,6 @@ async function installFromGithub(): Promise<void> {
 }
 
 .skill-settings__title-row,
-.skill-settings__row,
 .skill-settings__remote,
 .skill-settings__inline-form,
 .skill-settings__actions {
@@ -386,19 +391,25 @@ async function installFromGithub(): Promise<void> {
   gap: 12px;
 }
 
-.skill-settings__row,
 .skill-settings__remote {
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.skill-settings__row h4,
 .skill-settings__remote h4 {
   margin: 0;
 }
 
-.skill-settings__row p,
+.skill-settings__title-row h4 {
+  margin: 0;
+}
+
 .skill-settings__remote p {
+  margin: 4px 0 0;
+  color: var(--app-text-color-2, #6b7280);
+}
+
+.skill-settings__main > p {
   margin: 4px 0 0;
   color: var(--app-text-color-2, #6b7280);
 }
@@ -414,7 +425,6 @@ async function installFromGithub(): Promise<void> {
   gap: 12px;
 }
 
-.skill-settings__row:last-child,
 .skill-settings__remote:last-child {
   padding-bottom: 0;
   border-bottom-style: none;

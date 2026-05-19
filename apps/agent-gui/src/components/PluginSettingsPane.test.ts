@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import PluginSettingsPane from "./PluginSettingsPane.vue";
+import pluginSettingsPaneSource from "./PluginSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@/generated/commands", () => ({
@@ -108,6 +109,10 @@ describe("PluginSettingsPane", () => {
 
       const row = wrapper.find('[data-test="plugin-row-user-github"]');
       expect(row.exists()).toBe(true);
+      expect(row.classes()).toContain("settings-card-item");
+      expect(wrapper.find('[data-test="plugin-installed-list"]').classes()).toContain(
+        "settings-card-list"
+      );
       expect(row.text()).toContain("GitHub");
       expect(row.text()).toContain("User");
     });
@@ -403,6 +408,14 @@ describe("PluginSettingsPane", () => {
       const errorBanner = wrapper.find('[data-test="plugin-error"]');
       expect(errorBanner.exists()).toBe(true);
       expect(errorBanner.text()).toContain("plugins unavailable");
+    });
+  });
+
+  describe("shared settings card primitives", () => {
+    it("does not keep local plugin row chrome after moving to SettingsCardItem", () => {
+      expect(pluginSettingsPaneSource).not.toContain(".plugin-row {");
+      expect(pluginSettingsPaneSource).toContain("SettingsCardList");
+      expect(pluginSettingsPaneSource).toContain("SettingsCardItem");
     });
   });
 });

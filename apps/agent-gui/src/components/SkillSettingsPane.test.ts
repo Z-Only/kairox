@@ -5,6 +5,7 @@ import { ref } from "vue";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { commands, type SkillCatalogEntry, type EffectiveSkillView } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
+import skillSettingsPaneSource from "./SkillSettingsPane.vue?raw";
 import SkillSourcesSettings from "./skills/SkillSourcesSettings.vue";
 
 vi.mock("@/generated/commands", () => ({
@@ -176,6 +177,12 @@ describe("SkillSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.listSkillSettings).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-test="skill-installed-list"]').classes()).toContain(
+      "settings-card-list"
+    );
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').classes()).toContain(
+      "settings-card-item"
+    );
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("project");
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("manual");
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain(
@@ -314,6 +321,13 @@ describe("SkillSettingsPane", () => {
       target: "user"
     });
     expect(mockedCommands.getEffectiveSkills).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not keep local skill row chrome after moving to SettingsCardItem", () => {
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings__row,");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings__row {");
+    expect(skillSettingsPaneSource).toContain("SettingsCardList");
+    expect(skillSettingsPaneSource).toContain("SettingsCardItem");
   });
 
   it("adds a skill source with required search and download templates", async () => {

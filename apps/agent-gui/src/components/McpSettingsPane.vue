@@ -4,6 +4,7 @@ import { useProjectStore } from "@/stores/project";
 import MarketplacePane from "@/components/MarketplacePane.vue";
 import McpServerCard from "@/components/McpServerCard.vue";
 import McpServerFormDialog from "@/components/McpServerFormDialog.vue";
+import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -153,13 +154,19 @@ function closeAddServerDialog(): void {
           {{ t("mcp.noServers") }}
         </KxStateBlock>
 
-        <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
+        <SettingsCardList
+          v-else
+          :aria-label="t('mcp.tabInstalled')"
+          data-test="mcp-server-list"
+          class="mcp-settings__list"
+          :scroll="false"
+        >
           <McpServerCard
             v-for="server in mcp.effectiveServers"
             :key="server.value.id"
             :server="server"
           />
-        </div>
+        </SettingsCardList>
       </div>
     </section>
 
@@ -246,11 +253,6 @@ function closeAddServerDialog(): void {
   align-items: center;
   margin-bottom: 12px;
   flex: none;
-}
-
-.mcp-settings__list {
-  display: grid;
-  gap: 12px;
 }
 
 .mcp-settings button:focus-visible {
