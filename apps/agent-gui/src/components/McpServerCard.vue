@@ -114,14 +114,14 @@ function serverToolCount(): number {
             {{ healthLabel() }}
           </span>
         </div>
-        <p
+        <KxInlineAlert
           v-if="server.value.last_error"
-          class="alert alert-error"
-          role="alert"
+          tone="error"
+          compact
           :data-test="`mcp-row-error-${server.value.id}`"
         >
           {{ server.value.last_error }}
-        </p>
+        </KxInlineAlert>
       </div>
 
       <div class="mcp-settings__actions" aria-label="Server actions">

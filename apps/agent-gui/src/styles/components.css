@@ -131,36 +131,6 @@
   padding: 12px 16px;
 }
 
-/* === Alerts === */
-.alert {
-  display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: var(--app-radius-md);
-  font-size: var(--app-text-base);
-  border-left: 3px solid;
-}
-
-.alert-info {
-  border-color: var(--app-info-color);
-  background: color-mix(in srgb, var(--app-info-color) 8%, transparent);
-}
-
-.alert-warning {
-  border-color: var(--app-warning-color);
-  background: color-mix(in srgb, var(--app-warning-color) 8%, transparent);
-}
-
-.alert-error {
-  border-color: var(--app-error-color);
-  background: color-mix(in srgb, var(--app-error-color) 8%, transparent);
-}
-
-.alert-success {
-  border-color: var(--app-success-color);
-  background: color-mix(in srgb, var(--app-success-color) 8%, transparent);
-}
-
 /* === Empty state === */
 .empty-state {
   display: flex;

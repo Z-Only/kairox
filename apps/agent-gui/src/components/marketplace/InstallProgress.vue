@@ -75,7 +75,7 @@ const modalTitle = computed<string>(() => {
         </header>
 
         <div data-test="install-progress" class="install-progress">
-          <div v-if="!inFlight" :class="['alert', `alert-${alertType}`]">
+          <KxInlineAlert v-if="!inFlight" :tone="alertType">
             <span v-if="outcome?.kind === 'installed'">
               {{ t("marketplace.install.alertInstalled") }}
             </span>
@@ -97,7 +97,7 @@ const modalTitle = computed<string>(() => {
               }}
             </span>
             <span v-else>{{ t("marketplace.install.alertUnexpected") }}</span>
-          </div>
+          </KxInlineAlert>
           <div v-else class="spinner" />
 
           <ul class="steps">
@@ -166,27 +166,6 @@ const modalTitle = computed<string>(() => {
 .modal-footer {
   padding: 10px 16px;
   border-top: 1px solid var(--app-border-color);
-}
-.alert {
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-.alert-success {
-  background: var(--app-success-bg);
-  color: var(--app-success-color);
-}
-.alert-info {
-  background: var(--app-bg-color);
-  color: var(--app-info-color);
-}
-.alert-warning {
-  background: var(--app-warning-bg);
-  color: var(--app-warning-color);
-}
-.alert-error {
-  background: var(--app-error-bg);
-  color: var(--app-error-color);
 }
 .btn {
   display: inline-flex;

@@ -209,14 +209,14 @@ async function installFromGithub(): Promise<void> {
                 <dd>{{ skill.value.path }}</dd>
               </div>
             </dl>
-            <p
+            <KxInlineAlert
               v-if="skill.value.validation_error"
-              class="alert alert-error"
-              role="alert"
+              tone="error"
+              compact
               :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
             >
               {{ skill.value.validation_error }}
-            </p>
+            </KxInlineAlert>
           </div>
 
           <div class="skill-settings__actions" aria-label="Skill actions">

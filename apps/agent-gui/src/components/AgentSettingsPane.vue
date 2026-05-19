@@ -232,9 +232,9 @@ watch(
               <dd>{{ agent.path }}</dd>
             </div>
           </dl>
-          <p v-if="agent.validationError" class="alert alert-error" role="alert">
+          <KxInlineAlert v-if="agent.validationError" tone="error" compact>
             {{ agent.validationError }}
-          </p>
+          </KxInlineAlert>
         </div>
         <div class="agent-row__actions">
           <button
