@@ -34,99 +34,101 @@ defineProps<{
         </KxTooltip>
       </div>
     </div>
-    <template v-if="sessions.length > 0">
-      <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
-      <ul class="session-list">
-        <li
-          v-for="item in sessions"
-          :key="item.id"
-          :class="['session-item', { active: item.id === activeSessionId }]"
-          data-test="session-item"
-          @click="rename.editingId.value ? undefined : switchToSession(item.id)"
-        >
-          <span class="session-indicator">●</span>
+    <div class="sidebar-section-scroll" data-test="sessions-scroll-region">
+      <template v-if="sessions.length > 0">
+        <!-- Kept hand-rolled because NListItem #suffix slot cannot express the current compact row layout. -->
+        <ul class="session-list">
+          <li
+            v-for="item in sessions"
+            :key="item.id"
+            :class="['session-item', { active: item.id === activeSessionId }]"
+            data-test="session-item"
+            @click="rename.editingId.value ? undefined : switchToSession(item.id)"
+          >
+            <span class="session-indicator">●</span>
 
-          <template v-if="rename.editingId.value === item.id">
-            <input
-              :ref="(el) => rename.bindInput(el as Element | null, item.id)"
-              v-model="rename.title.value"
-              class="rename-input"
-              data-test="session-rename-input"
-              @keydown.enter="rename.confirm"
-              @keydown.escape="rename.cancel"
-              @blur="rename.confirm"
-              @click.stop
-            />
-            <KxTooltip :text="t('common.confirm')">
-              <KxIconButton
-                :label="t('common.confirm')"
-                :title="t('common.confirm')"
-                data-test="session-rename-confirm"
-                @mousedown.prevent
-                @click.stop="rename.confirm"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                </svg>
-              </KxIconButton>
-            </KxTooltip>
-          </template>
-
-          <template v-else>
-            <span class="session-title truncate" :title="item.title">{{ item.title }}</span>
-            <span class="row-actions session-actions">
-              <KxTooltip :text="t('sessions.renameTitle')">
+            <template v-if="rename.editingId.value === item.id">
+              <input
+                :ref="(el) => rename.bindInput(el as Element | null, item.id)"
+                v-model="rename.title.value"
+                class="rename-input"
+                data-test="session-rename-input"
+                @keydown.enter="rename.confirm"
+                @keydown.escape="rename.cancel"
+                @blur="rename.confirm"
+                @click.stop
+              />
+              <KxTooltip :text="t('common.confirm')">
                 <KxIconButton
-                  :label="t('sessions.renameTitle')"
-                  data-test="session-rename-btn"
-                  @click.stop="rename.start(item.id, item.title)"
+                  :label="t('common.confirm')"
+                  :title="t('common.confirm')"
+                  data-test="session-rename-confirm"
+                  @mousedown.prevent
+                  @click.stop="rename.confirm"
                 >
                   <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path
-                      d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
-                    />
+                    <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
                   </svg>
                 </KxIconButton>
               </KxTooltip>
-              <KxTooltip
-                :text="
-                  pendingDeleteSessionId === item.id
-                    ? t('sessions.confirmArchive')
-                    : t('sessions.archive')
-                "
-              >
-                <KxIconButton
-                  :label="
+            </template>
+
+            <template v-else>
+              <span class="session-title truncate" :title="item.title">{{ item.title }}</span>
+              <span class="row-actions session-actions">
+                <KxTooltip :text="t('sessions.renameTitle')">
+                  <KxIconButton
+                    :label="t('sessions.renameTitle')"
+                    data-test="session-rename-btn"
+                    @click.stop="rename.start(item.id, item.title)"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path
+                        d="M13.7 2.3a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-9.45 9.45L4 16l.25-4.25L13.7 2.3Zm.7 1.4-8.7 8.7-.12 2.02 2.02-.12 8.7-8.7-1.9-1.9Z"
+                      />
+                    </svg>
+                  </KxIconButton>
+                </KxTooltip>
+                <KxTooltip
+                  :text="
                     pendingDeleteSessionId === item.id
                       ? t('sessions.confirmArchive')
                       : t('sessions.archive')
                   "
-                  :class="{ 'confirm-action': pendingDeleteSessionId === item.id }"
-                  data-test="session-archive-btn"
-                  @click.stop="requestDeleteSession(item.id)"
                 >
-                  <svg
-                    v-if="pendingDeleteSessionId === item.id"
-                    viewBox="0 0 20 20"
-                    aria-hidden="true"
-                    focusable="false"
+                  <KxIconButton
+                    :label="
+                      pendingDeleteSessionId === item.id
+                        ? t('sessions.confirmArchive')
+                        : t('sessions.archive')
+                    "
+                    :class="{ 'confirm-action': pendingDeleteSessionId === item.id }"
+                    data-test="session-archive-btn"
+                    @click.stop="requestDeleteSession(item.id)"
                   >
-                    <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                  </svg>
-                  <svg v-else viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path
-                      d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
-                    />
-                  </svg>
-                </KxIconButton>
-              </KxTooltip>
-            </span>
-          </template>
-        </li>
-      </ul>
-    </template>
-    <div v-else class="empty-state empty-hint" data-test="sessions-empty">
-      {{ t("sessions.emptyHint") }}
+                    <svg
+                      v-if="pendingDeleteSessionId === item.id"
+                      viewBox="0 0 20 20"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+                    </svg>
+                    <svg v-else viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path
+                        d="M4 3h12v3H4V3Zm1.5 1.5v.75h9v-.75h-9ZM5 7h10v8.5A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5V7Zm3 2v1.5h4V9H8Z"
+                      />
+                    </svg>
+                  </KxIconButton>
+                </KxTooltip>
+              </span>
+            </template>
+          </li>
+        </ul>
+      </template>
+      <div v-else class="empty-state empty-hint" data-test="sessions-empty">
+        {{ t("sessions.emptyHint") }}
+      </div>
     </div>
   </section>
 </template>

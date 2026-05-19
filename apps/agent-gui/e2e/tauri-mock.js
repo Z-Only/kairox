@@ -160,6 +160,9 @@ function installMock() {
     setNextOpenDialogResult: function (selected) {
       state.nextOpenDialogResult = selected;
     },
+    setResponseDelayScale: function (scale) {
+      state.responseDelayScale = scale || 1;
+    },
     persistForReload: persistMockState,
     reset: function () {
       state.initialized = false;
@@ -184,6 +187,7 @@ function installMock() {
       state.projections.clear();
       state.traces.clear();
       state.sentMessages = [];
+      state.responseDelayScale = 1;
       state.memories = [];
       state.permissionRequests.clear();
       state.agents.clear();

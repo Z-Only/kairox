@@ -17,6 +17,8 @@ export interface QueuedMessage {
   attachments: Attachment[];
 }
 
+export const QUEUED_MESSAGE_LIMIT = 10;
+
 export interface DraftStore {
   loadDraft(sessionId: string): Promise<string>;
   saveDraft(sessionId: string, text: string): Promise<void>;
@@ -278,6 +280,10 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   async function enqueueMessage(content: string, attachmentsToQueue: Attachment[]) {
+    if (queuedMessages.value.length >= QUEUED_MESSAGE_LIMIT) {
+      notify("error", t("chat.queueFull", { limit: QUEUED_MESSAGE_LIMIT }));
+      return;
+    }
     queuedMessages.value = [
       ...queuedMessages.value,
       {
@@ -339,6 +345,20 @@ export function useChatComposer(options: UseChatComposerOptions) {
 
   function deleteQueuedMessage(id: string) {
     queuedMessages.value = queuedMessages.value.filter((message) => message.id !== id);
+  }
+
+  function moveQueuedMessage(id: string, targetIndex: number): boolean {
+    const currentIndex = queuedMessages.value.findIndex((message) => message.id === id);
+    if (currentIndex === -1 || targetIndex < 0 || targetIndex >= queuedMessages.value.length) {
+      return false;
+    }
+    if (currentIndex === targetIndex) return true;
+
+    const nextMessages = [...queuedMessages.value];
+    const [moved] = nextMessages.splice(currentIndex, 1);
+    nextMessages.splice(targetIndex, 0, moved);
+    queuedMessages.value = nextMessages;
+    return true;
   }
 
   function restoreQueuedMessage(id: string): boolean {
@@ -435,6 +455,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     sendQueuedMessageNow,
     sendNextQueuedMessage,
     deleteQueuedMessage,
+    moveQueuedMessage,
     restoreQueuedMessage,
     restoreLastQueuedMessage,
     cancelSession,
