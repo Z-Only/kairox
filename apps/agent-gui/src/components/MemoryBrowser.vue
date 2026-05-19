@@ -105,16 +105,23 @@ async function promptDelete(id: string, content: string) {
       />
     </div>
 
-    <div v-if="loading" class="memory-empty">
-      <span>{{ t("common.loading") }}</span>
-    </div>
-    <div
+    <KxAsyncState
+      v-if="loading"
+      class="memory-panel-state memory-empty"
+      tone="loading"
+      data-test="memory-loading-state"
+      compact
+    >
+      {{ t("common.loading") }}
+    </KxAsyncState>
+    <KxEmptyState
       v-else-if="memories.length === 0"
-      class="empty-state memory-empty memory-empty-state"
+      class="memory-panel-state memory-empty memory-empty-state"
       data-test="memory-empty-state"
+      compact
     >
       {{ t("memory.emptyHint") }}
-    </div>
+    </KxEmptyState>
     <ul v-else class="memory-list" data-test="memory-list">
       <li v-for="mem in memories" :key="mem.id" class="memory-item" data-test="memory-item">
         <div class="memory-meta">
@@ -186,16 +193,9 @@ async function promptDelete(id: string, content: string) {
   align-items: center;
   width: 100%;
 }
-.empty-state {
-  color: var(--app-text-disabled-color, #999);
-}
-.memory-empty-state {
-  color: var(--app-text-color-2, #555);
-}
-.memory-empty {
-  padding: 16px;
+.memory-panel-state {
+  margin: 12px;
   font-size: 12px;
-  text-align: center;
 }
 .memory-list {
   list-style: none;

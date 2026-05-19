@@ -20,7 +20,7 @@ const resolvedCompact = computed(() => props.compact ?? props.tone !== "empty");
 </script>
 
 <template>
-  <KxStateBlock
+  <KxAsyncState
     :class="['settings-state', `settings-state--${tone}`]"
     :tone="tone"
     :role="role"
@@ -33,7 +33,7 @@ const resolvedCompact = computed(() => props.compact ?? props.tone !== "empty");
     <div v-if="$slots.actions" class="settings-state__actions">
       <slot name="actions" />
     </div>
-  </KxStateBlock>
+  </KxAsyncState>
 </template>
 
 <style scoped>

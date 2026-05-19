@@ -206,23 +206,6 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
   color: var(--app-text-color, #333);
 }
 
-/* Close button */
-/* Empty state */
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.mcp-empty-wrap {
-  padding: 16px 0;
-}
-.mcp-empty {
-  font-size: 12px;
-  margin: 0;
-  text-align: center;
-  color: var(--app-text-color-3, #999);
-}
-
 /* List */
 .list {
   list-style: none;

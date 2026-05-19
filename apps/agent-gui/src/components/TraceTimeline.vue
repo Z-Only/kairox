@@ -71,9 +71,9 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         :entry="entry"
         :density="traceState.density"
       />
-      <div v-if="traceState.entries.length === 0" class="empty-state empty-hint">
+      <KxEmptyState v-if="traceState.entries.length === 0" class="trace-empty" compact>
         {{ t("trace.emptyTrace") }}
-      </div>
+      </KxEmptyState>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
     <MemoryBrowser v-if="rightPanelTab === 'memory'" />
@@ -134,9 +134,8 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   color: var(--app-primary-contrast-color);
   border-color: var(--app-primary-color);
 }
-.empty-hint {
-  padding: 12px;
-  color: var(--app-text-color-3);
+.trace-empty {
+  margin: 12px;
   font-size: 12px;
 }
 </style>
