@@ -59,15 +59,16 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
     </button>
 
     <div v-if="expanded" class="mcp-resources-list">
-      <p v-if="mcp.resourcesError[serverId]" class="alert alert-error" role="alert">
+      <KxStateBlock v-if="mcp.resourcesError[serverId]" tone="error" compact>
         {{ mcp.resourcesError[serverId] }}
-      </p>
-      <p
+      </KxStateBlock>
+      <KxStateBlock
         v-else-if="resourceCount() === 0 && !mcp.loadingResources.has(serverId)"
-        class="empty-state"
+        tone="empty"
+        compact
       >
         {{ t("mcp.noResources") }}
-      </p>
+      </KxStateBlock>
       <template v-for="resource in mcp.serverResources[serverId] ?? []" :key="resource.uri">
         <button
           class="mcp-resources-row"

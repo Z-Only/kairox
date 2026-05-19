@@ -83,4 +83,21 @@ describe("ArchiveSettingsPane", () => {
 
     expect(mockedCommands.permanentlyDeleteSession).toHaveBeenCalledWith("ses_archived");
   });
+
+  it("uses the shared state block for an empty archive", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_archived_sessions") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    const empty = wrapper.find('[data-test="archive-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("kx-state-block--empty");
+    expect(empty.text()).toContain("No archived sessions.");
+  });
 });

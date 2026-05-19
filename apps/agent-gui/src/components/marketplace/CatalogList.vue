@@ -65,16 +65,20 @@ onMounted(async () => {
       </button>
     </div>
 
-    <div v-if="catalog.loading" class="loading">
+    <KxStateBlock v-if="catalog.loading" tone="loading" compact data-test="catalog-loading-state">
       <span class="spinner" />
       <span class="text-secondary">{{ t("common.loading") }}</span>
-    </div>
-    <span v-else-if="catalog.error" class="text-error error">
+    </KxStateBlock>
+    <KxStateBlock v-else-if="catalog.error" tone="error" compact data-test="catalog-error-state">
       {{ catalog.error }}
-    </span>
-    <div v-else-if="catalog.visibleEntries.length === 0" class="empty-state">
+    </KxStateBlock>
+    <KxStateBlock
+      v-else-if="catalog.visibleEntries.length === 0"
+      tone="empty"
+      data-test="catalog-empty-state"
+    >
       {{ t("marketplace.catalogEmpty") }}
-    </div>
+    </KxStateBlock>
     <div v-else class="scrollable-area">
       <div class="grid">
         <CatalogCard

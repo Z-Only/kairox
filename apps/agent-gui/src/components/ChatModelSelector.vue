@@ -29,11 +29,18 @@ const hoveredModel = computed(() =>
   props.modelOptions.find((profile) => profile.alias === hoveredModelAlias.value)
 );
 
+const selectedModelAlias = computed(() => {
+  if (props.modelOptions.some((profile) => profile.alias === props.currentProfile)) {
+    return props.currentProfile;
+  }
+  return props.modelOptions[0]?.alias ?? props.currentProfile;
+});
+
 const reasoningModel = computed(() => {
   if (hoveredModelAlias.value) {
     return hoveredModel.value?.supports_reasoning ? hoveredModel.value : null;
   }
-  const current = props.modelOptions.find((profile) => profile.alias === props.currentProfile);
+  const current = props.modelOptions.find((profile) => profile.alias === selectedModelAlias.value);
   return current?.supports_reasoning ? current : null;
 });
 
@@ -101,12 +108,12 @@ function selectModelProfile(alias: string) {
                 :class="[
                   'chat-model-option',
                   {
-                    selected: profile.alias === props.currentProfile,
+                    selected: profile.alias === selectedModelAlias,
                     hovered: profile.alias === hoveredModelAlias
                   }
                 ]"
                 :data-test="`chat-model-option-${profile.alias}`"
-                :aria-current="profile.alias === props.currentProfile ? 'true' : undefined"
+                :aria-current="profile.alias === selectedModelAlias ? 'true' : undefined"
                 :disabled="props.switchingModel"
                 @mouseenter="onModelHover(profile)"
                 @focus="onModelHover(profile)"
@@ -117,7 +124,7 @@ function selectModelProfile(alias: string) {
                 </span>
                 <span class="chat-model-option-meta">
                   {{ profile.alias }}
-                  <span v-if="profile.alias === props.currentProfile">
+                  <span v-if="profile.alias === selectedModelAlias">
                     · {{ t("chat.currentModel") }}</span
                   >
                 </span>
