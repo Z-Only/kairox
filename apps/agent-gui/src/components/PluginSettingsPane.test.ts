@@ -125,7 +125,9 @@ describe("PluginSettingsPane", () => {
       await flushPromises();
 
       expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(false);
-      expect(wrapper.text()).toContain("No plugins installed");
+      const empty = wrapper.find('[data-test="plugin-empty-state"]');
+      expect(empty.classes()).toContain("settings-state");
+      expect(empty.text()).toContain("No plugins installed");
     });
   });
 
@@ -407,6 +409,7 @@ describe("PluginSettingsPane", () => {
 
       const errorBanner = wrapper.find('[data-test="plugin-error"]');
       expect(errorBanner.exists()).toBe(true);
+      expect(errorBanner.classes()).toContain("settings-state");
       expect(errorBanner.text()).toContain("plugins unavailable");
     });
   });

@@ -58,9 +58,9 @@ watch(activeSubTab, (tab) => {
     :aria-label="t('plugins.title')"
     data-test="plugin-settings-pane"
   >
-    <KxStateBlock v-if="store.error" tone="error" compact data-test="plugin-error">
+    <SettingsState v-if="store.error" tone="error" data-test="plugin-error">
       {{ store.error }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div class="plugin-sub-tabs" role="tablist" :aria-label="t('plugins.sections')">
       <button
@@ -96,16 +96,16 @@ watch(activeSubTab, (tab) => {
         </button>
       </div>
 
-      <KxStateBlock v-if="store.loading" tone="loading" compact data-test="plugin-loading-state">
+      <SettingsState v-if="store.loading" tone="loading" data-test="plugin-loading-state">
         {{ t("plugins.loading") }}
-      </KxStateBlock>
-      <KxStateBlock
+      </SettingsState>
+      <SettingsState
         v-else-if="store.plugins.length === 0"
         tone="empty"
         data-test="plugin-empty-state"
       >
         {{ t("plugins.emptyInstalled") }}
-      </KxStateBlock>
+      </SettingsState>
 
       <SettingsCardList
         v-else
@@ -220,13 +220,13 @@ watch(activeSubTab, (tab) => {
         @close="sourceSettingsOpen = false"
       >
         <div class="plugin-source-panel">
-          <KxStateBlock
+          <SettingsState
             v-if="store.sources.length === 0"
             tone="empty"
             data-test="plugin-source-empty-state"
           >
             {{ t("plugins.emptySources") }}
-          </KxStateBlock>
+          </SettingsState>
           <SettingsCardList
             v-else
             :aria-label="t('plugins.sourceSettings')"
@@ -274,13 +274,13 @@ watch(activeSubTab, (tab) => {
         </template>
       </ModalDialog>
 
-      <KxStateBlock
+      <SettingsState
         v-if="store.catalog.length === 0"
         tone="empty"
         data-test="plugin-catalog-empty-state"
       >
         {{ t("plugins.emptyCatalog") }}
-      </KxStateBlock>
+      </SettingsState>
       <SettingsCardList
         v-else
         :aria-label="t('plugins.tabMarketplace')"

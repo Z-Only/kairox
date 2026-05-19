@@ -330,6 +330,19 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
   });
 
+  it("uses shared settings state chrome for empty installed skills", async () => {
+    mockedCommands.listSkillSettings.mockResolvedValue([]);
+    mockedCommands.getEffectiveSkills.mockResolvedValue([]);
+
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const empty = wrapper.find('[data-test="skill-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("settings-state");
+    expect(empty.text()).toContain("No skills installed yet.");
+  });
+
   it("adds a skill source with required search and download templates", async () => {
     const wrapper = mountWithPlugins(SkillSourcesSettings, { reusePinia: true }).wrapper;
     await flushPromises();

@@ -140,9 +140,9 @@ watch(
 
 <template>
   <section class="agent-settings" :aria-label="t('agents.title')" data-test="agent-settings-pane">
-    <KxStateBlock v-if="store.error" tone="error" compact data-test="agent-error">
+    <SettingsState v-if="store.error" tone="error" data-test="agent-error">
       {{ store.error }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div class="agent-settings__toolbar">
       <button
@@ -173,16 +173,16 @@ watch(
     </div>
 
     <div class="agent-settings__list" data-test="agent-list">
-      <KxStateBlock v-if="store.loading" tone="loading" compact data-test="agent-loading-state">
+      <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
         {{ t("agents.loading") }}
-      </KxStateBlock>
-      <KxStateBlock
+      </SettingsState>
+      <SettingsState
         v-else-if="store.agents.length === 0"
         tone="empty"
         data-test="agent-empty-state"
       >
         {{ t("agents.empty") }}
-      </KxStateBlock>
+      </SettingsState>
 
       <article
         v-for="agent in store.agents"

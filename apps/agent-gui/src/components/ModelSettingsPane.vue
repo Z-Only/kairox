@@ -175,9 +175,9 @@ function toggleProfile(profile: ProfileSettingsView): void {
 
 <template>
   <section class="model-settings" aria-label="Model settings" data-test="model-settings-pane">
-    <KxStateBlock v-if="error" tone="error" compact data-test="model-page-error">
+    <SettingsState v-if="error" tone="error" data-test="model-page-error">
       {{ error }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div class="model-toolbar">
       <div class="model-toolbar__actions">
@@ -210,12 +210,12 @@ function toggleProfile(profile: ProfileSettingsView): void {
       </div>
     </div>
 
-    <KxStateBlock v-if="loading" tone="loading" compact data-test="model-loading-state">
+    <SettingsState v-if="loading" tone="loading" data-test="model-loading-state">
       {{ t("models.loading") }}
-    </KxStateBlock>
-    <KxStateBlock v-else-if="profiles.length === 0" tone="empty" data-test="model-empty-state">
+    </SettingsState>
+    <SettingsState v-else-if="profiles.length === 0" tone="empty" data-test="model-empty-state">
       {{ t("models.noProfiles") }}
-    </KxStateBlock>
+    </SettingsState>
 
     <SettingsCardList
       v-else

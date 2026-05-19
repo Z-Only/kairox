@@ -72,6 +72,7 @@ describe("HooksSettingsPane", () => {
 
     const loading = wrapper.find('[data-test="hooks-loading"]');
     expect(loading.exists()).toBe(true);
+    expect(loading.classes()).toContain("settings-state");
     expect(loading.classes()).toContain("kx-state-block--loading");
   });
 
@@ -83,8 +84,21 @@ describe("HooksSettingsPane", () => {
 
     const error = wrapper.find('[data-test="hooks-error"]');
     expect(error.exists()).toBe(true);
+    expect(error.classes()).toContain("settings-state");
     expect(error.classes()).toContain("kx-state-block--error");
     expect(error.text()).toContain("hooks unavailable");
+  });
+
+  it("uses shared settings state chrome for an empty hook scope", async () => {
+    mockedInvoke.mockResolvedValueOnce({ ...hooksSettings, user: [] });
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    const empty = wrapper.find('[data-test="hooks-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("settings-state");
+    expect(empty.text()).toContain("No hooks configured.");
   });
 
   it("keeps the hook form collapsed until the user adds or edits a hook", async () => {

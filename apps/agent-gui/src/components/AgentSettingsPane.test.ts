@@ -130,4 +130,16 @@ describe("AgentSettingsPane", () => {
 
     expect(mockedCommands.deleteAgentSettings).toHaveBeenCalledWith("User:code-reviewer");
   });
+
+  it("uses shared settings state chrome when no agents are configured", async () => {
+    mockedCommands.listAgentSettings.mockResolvedValueOnce(ok([]));
+
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const empty = wrapper.find('[data-test="agent-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("settings-state");
+    expect(empty.text()).toContain("No agents configured.");
+  });
 });
