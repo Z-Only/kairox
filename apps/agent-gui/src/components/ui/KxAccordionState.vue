@@ -15,9 +15,9 @@ const props = withDefaults(
 
 <template>
   <div class="kx-accordion-state" :data-test="props.dataTest">
-    <KxStateBlock :tone="props.tone" compact>
+    <KxAsyncState :tone="props.tone" compact>
       <slot />
-    </KxStateBlock>
+    </KxAsyncState>
   </div>
 </template>
 

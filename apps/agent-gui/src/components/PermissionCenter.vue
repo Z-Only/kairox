@@ -20,9 +20,14 @@ const pendingEntries = computed(() =>
       <h2>{{ t("permission.panelTitle") }}</h2>
     </div>
     <div class="card-content">
-      <div v-if="pendingEntries.length === 0" class="empty-state">
+      <KxEmptyState
+        v-if="pendingEntries.length === 0"
+        class="permission-empty"
+        data-test="permission-empty-state"
+        compact
+      >
         {{ t("permission.emptyState") }}
-      </div>
+      </KxEmptyState>
       <ul v-else class="permission-list">
         <li v-for="entry in pendingEntries" :key="entry.id" class="permission-list-item">
           <PermissionPrompt :entry="entry" />
@@ -48,8 +53,7 @@ const pendingEntries = computed(() =>
   margin: 0;
   font-size: 14px;
 }
-.empty-state {
-  color: var(--app-text-disabled-color, #999);
+.permission-empty {
   font-size: 13px;
 }
 .permission-list {

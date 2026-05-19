@@ -60,13 +60,13 @@ async function onUninstall(serverId: string) {
         </tr>
       </tbody>
     </table>
-    <SettingsState
+    <KxEmptyState
       v-if="catalog.installed.length === 0"
-      tone="empty"
+      class="installed-empty"
       data-test="installed-empty-state"
     >
       {{ t("marketplace.installedEmpty") }}
-    </SettingsState>
+    </KxEmptyState>
   </div>
 </template>
 
@@ -91,7 +91,7 @@ async function onUninstall(serverId: string) {
 .text-tertiary {
   color: var(--app-text-color-3);
 }
-.empty {
+.installed-empty {
   margin-top: 24px;
 }
 </style>

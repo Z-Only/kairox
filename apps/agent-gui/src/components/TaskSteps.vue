@@ -36,10 +36,7 @@ function toggleExpand(taskId: string) {
 
 <template>
   <div class="task-steps" data-test="task-steps">
-    <!-- The "No tasks yet" copy is preserved verbatim because the existing
-         unit test asserts on its presence; switching to NEmpty's
-         description prop keeps both the visual upgrade and the assertion. -->
-    <div v-if="tree.length === 0" class="empty-state empty-hint">No tasks yet</div>
+    <KxEmptyState v-if="tree.length === 0" class="task-empty" compact>No tasks yet</KxEmptyState>
     <div v-else class="task-tree-scroll" :style="{ overflowY: 'auto' }">
       <TaskNode
         v-for="root in tree"
@@ -64,9 +61,8 @@ function toggleExpand(taskId: string) {
   flex: 1;
   min-height: 0;
 }
-.empty-hint {
-  padding: 12px;
-  color: var(--app-text-color-3);
+.task-empty {
+  margin: 12px;
   font-size: 12px;
 }
 </style>

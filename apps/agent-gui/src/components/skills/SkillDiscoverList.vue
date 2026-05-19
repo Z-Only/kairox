@@ -208,39 +208,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
   gap: 8px;
 }
 
-.catalog-state {
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  padding: 24px 0;
-  text-align: center;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 0;
-}
-
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--app-border-color);
-  border-top-color: var(--app-primary-color);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

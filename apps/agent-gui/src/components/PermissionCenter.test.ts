@@ -60,7 +60,9 @@ describe("PermissionCenter", () => {
 
   it("renders No pending requests when trace entries are empty", () => {
     const wrapper = mount(PermissionCenter);
-    expect(wrapper.find(".empty-state").text()).toBe("No pending requests");
+    const empty = wrapper.get('[data-test="permission-empty-state"]');
+    expect(empty.text()).toBe("No pending requests");
+    expect(empty.classes()).toContain("kx-empty-state");
   });
 
   it("renders No pending requests when there are only completed permission entries", () => {
@@ -69,7 +71,7 @@ describe("PermissionCenter", () => {
       makeEntry({ id: "perm_2", kind: "permission", status: "failed" })
     );
     const wrapper = mount(PermissionCenter);
-    expect(wrapper.find(".empty-state").text()).toBe("No pending requests");
+    expect(wrapper.get('[data-test="permission-empty-state"]').text()).toBe("No pending requests");
   });
 
   it("renders PermissionPrompt for each pending permission entry", () => {
@@ -88,7 +90,7 @@ describe("PermissionCenter", () => {
       })
     );
     const wrapper = mount(PermissionCenter);
-    expect(wrapper.find(".empty-state").exists()).toBe(false);
+    expect(wrapper.find('[data-test="permission-empty-state"]').exists()).toBe(false);
     const prompts = wrapper.findAllComponents({ name: "PermissionPrompt" });
     expect(prompts).toHaveLength(2);
   });
@@ -105,7 +107,7 @@ describe("PermissionCenter", () => {
       })
     );
     const wrapper = mount(PermissionCenter);
-    expect(wrapper.find(".empty-state").exists()).toBe(false);
+    expect(wrapper.find('[data-test="permission-empty-state"]').exists()).toBe(false);
     const prompts = wrapper.findAllComponents({ name: "PermissionPrompt" });
     expect(prompts).toHaveLength(1);
   });
@@ -128,7 +130,7 @@ describe("PermissionCenter", () => {
       })
     );
     const wrapper = mount(PermissionCenter);
-    expect(wrapper.find(".empty-state").exists()).toBe(false);
+    expect(wrapper.find('[data-test="permission-empty-state"]').exists()).toBe(false);
     const prompts = wrapper.findAllComponents({ name: "PermissionPrompt" });
     expect(prompts).toHaveLength(2);
   });
