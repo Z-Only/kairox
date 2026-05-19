@@ -94,9 +94,9 @@ watch(
     aria-label="Instructions settings"
     data-test="instructions-settings-pane"
   >
-    <p v-if="errorMsg" class="alert alert-error" role="alert" data-test="instructions-error">
+    <KxStateBlock v-if="errorMsg" tone="error" compact data-test="instructions-error">
       {{ errorMsg }}
-    </p>
+    </KxStateBlock>
 
     <div v-if="loaded" class="instructions-levels">
       <!-- System level (hidden when editing project config) -->
@@ -196,9 +196,9 @@ watch(
       </div>
     </div>
 
-    <p v-else class="instructions__loading" data-test="instructions-loading">
+    <KxStateBlock v-else tone="loading" compact data-test="instructions-loading">
       {{ t("common.loading") }}
-    </p>
+    </KxStateBlock>
   </section>
 </template>
 
@@ -287,20 +287,5 @@ watch(
 
 .instructions__save-btn:hover:not(:disabled) {
   opacity: 0.85;
-}
-
-.instructions__loading {
-  color: var(--app-text-color-2);
-  font-size: 0.84rem;
-}
-
-.alert-error {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-error-color, #e53e3e) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--app-error-color, #e53e3e) 30%, transparent);
-  color: var(--app-error-color, #e53e3e);
-  font-size: 0.84rem;
-  margin-bottom: 12px;
 }
 </style>

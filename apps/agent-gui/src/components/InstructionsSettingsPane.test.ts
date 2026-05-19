@@ -52,7 +52,9 @@ describe("InstructionsSettingsPane", () => {
       const wrapper = mountPane("user");
       await nextTick();
 
-      expect(wrapper.find('[data-test="instructions-loading"]').exists()).toBe(true);
+      const loading = wrapper.find('[data-test="instructions-loading"]');
+      expect(loading.exists()).toBe(true);
+      expect(loading.classes()).toContain("kx-state-block--loading");
       expect(wrapper.find('[data-test="instructions-level-system"]').exists()).toBe(false);
     });
   });
@@ -258,6 +260,7 @@ describe("InstructionsSettingsPane", () => {
 
       const error = wrapper.find('[data-test="instructions-error"]');
       expect(error.exists()).toBe(true);
+      expect(error.classes()).toContain("kx-state-block--error");
       expect(error.text()).toContain("fetch failed");
     });
 

@@ -56,9 +56,9 @@ watch(activeSubTab, (tab) => {
     :aria-label="t('plugins.title')"
     data-test="plugin-settings-pane"
   >
-    <p v-if="store.error" class="alert alert-error" role="alert" data-test="plugin-error">
+    <KxStateBlock v-if="store.error" tone="error" compact data-test="plugin-error">
       {{ store.error }}
-    </p>
+    </KxStateBlock>
 
     <div class="plugin-sub-tabs" role="tablist" :aria-label="t('plugins.sections')">
       <button
@@ -94,12 +94,16 @@ watch(activeSubTab, (tab) => {
         </button>
       </div>
 
-      <p v-if="store.loading" class="alert alert-info" role="status">
+      <KxStateBlock v-if="store.loading" tone="loading" compact data-test="plugin-loading-state">
         {{ t("plugins.loading") }}
-      </p>
-      <p v-else-if="store.plugins.length === 0" class="empty-state">
+      </KxStateBlock>
+      <KxStateBlock
+        v-else-if="store.plugins.length === 0"
+        tone="empty"
+        data-test="plugin-empty-state"
+      >
         {{ t("plugins.emptyInstalled") }}
-      </p>
+      </KxStateBlock>
 
       <article
         v-for="plugin in store.plugins"
@@ -203,9 +207,13 @@ watch(activeSubTab, (tab) => {
       </div>
 
       <div v-if="sourceSettingsOpen" class="plugin-source-panel" data-test="plugin-source-settings">
-        <p v-if="store.sources.length === 0" class="empty-state">
+        <KxStateBlock
+          v-if="store.sources.length === 0"
+          tone="empty"
+          data-test="plugin-source-empty-state"
+        >
           {{ t("plugins.emptySources") }}
-        </p>
+        </KxStateBlock>
         <article
           v-for="source in store.sources"
           v-else
@@ -235,9 +243,13 @@ watch(activeSubTab, (tab) => {
         </article>
       </div>
 
-      <p v-if="store.catalog.length === 0" class="empty-state">
+      <KxStateBlock
+        v-if="store.catalog.length === 0"
+        tone="empty"
+        data-test="plugin-catalog-empty-state"
+      >
         {{ t("plugins.emptyCatalog") }}
-      </p>
+      </KxStateBlock>
       <article
         v-for="entry in store.catalog"
         v-else

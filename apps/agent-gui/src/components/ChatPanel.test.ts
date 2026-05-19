@@ -193,6 +193,63 @@ describe("ChatPanel", () => {
     expect(currentOption.text()).toContain("Current");
   });
 
+  it("marks the displayed fallback model as current when the session profile is unavailable", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") {
+        return [
+          {
+            alias: "deepseek",
+            provider: "deepseek",
+            model_id: "deepseek-chat",
+            local: false,
+            has_api_key: true
+          },
+          {
+            alias: "fake",
+            provider: "fake",
+            model_id: "fake-model",
+            local: true,
+            has_api_key: true
+          }
+        ];
+      }
+      if (command === "get_project_instruction_summary") {
+        return { source_paths: [], warning: null };
+      }
+      return undefined;
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.currentProfile = "deep";
+      session.profileInfos = [
+        {
+          alias: "deepseek",
+          provider: "deepseek",
+          model_id: "deepseek-chat",
+          local: false,
+          has_api_key: true
+        },
+        {
+          alias: "fake",
+          provider: "fake",
+          model_id: "fake-model",
+          local: true,
+          has_api_key: true
+        }
+      ] as never;
+    });
+    await flushPromises();
+
+    const modelTrigger = wrapper.find('[data-test="chat-model-trigger"]');
+    expect(modelTrigger.text()).toContain("Deepseek");
+
+    await modelTrigger.trigger("click");
+    await flushPromises();
+
+    const fallbackOption = wrapper.find('[data-test="chat-model-option-deepseek"]');
+    expect(fallbackOption.attributes("aria-current")).toBe("true");
+    expect(fallbackOption.text()).toContain("Current");
+  });
+
   it("shows current session worktree and branch metadata in the composer", async () => {
     const wrapper = mountChatPanel((session) => {
       session.sessions = [

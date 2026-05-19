@@ -60,9 +60,13 @@ async function onUninstall(serverId: string) {
         </tr>
       </tbody>
     </table>
-    <div v-if="catalog.installed.length === 0" class="empty-state empty">
+    <KxStateBlock
+      v-if="catalog.installed.length === 0"
+      tone="empty"
+      data-test="installed-empty-state"
+    >
       {{ t("marketplace.installedEmpty") }}
-    </div>
+    </KxStateBlock>
   </div>
 </template>
 

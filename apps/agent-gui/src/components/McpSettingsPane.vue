@@ -50,9 +50,9 @@ function closeAddServerDialog(): void {
 
 <template>
   <section class="mcp-settings" aria-label="MCP settings" data-test="mcp-settings-pane">
-    <p v-if="mcp.settingsError" class="alert alert-error" role="alert" data-test="mcp-page-error">
+    <KxStateBlock v-if="mcp.settingsError" tone="error" compact data-test="mcp-page-error">
       {{ mcp.settingsError }}
-    </p>
+    </KxStateBlock>
 
     <div class="mcp-sub-tabs" role="tablist" aria-label="MCP sections">
       <button
@@ -137,12 +137,21 @@ function closeAddServerDialog(): void {
       </div>
 
       <div class="mcp-settings__body">
-        <p v-if="mcp.settingsLoading" class="alert alert-info" role="status">
+        <KxStateBlock
+          v-if="mcp.settingsLoading"
+          tone="loading"
+          compact
+          data-test="mcp-loading-state"
+        >
           {{ t("mcp.loading") }}
-        </p>
-        <p v-else-if="mcp.effectiveServers.length === 0" class="empty-state">
+        </KxStateBlock>
+        <KxStateBlock
+          v-else-if="mcp.effectiveServers.length === 0"
+          tone="empty"
+          data-test="mcp-settings-empty-state"
+        >
           {{ t("mcp.noServers") }}
-        </p>
+        </KxStateBlock>
 
         <div v-else class="mcp-settings__list" role="list" aria-label="Configured MCP servers">
           <McpServerCard

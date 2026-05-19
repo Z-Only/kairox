@@ -280,7 +280,9 @@ describe("ModelSettingsPane", () => {
     const wrapper = mountPane("user");
     await flushPromises();
 
-    expect(wrapper.find('[data-test="model-page-error"]').exists()).toBe(true);
+    const error = wrapper.find('[data-test="model-page-error"]');
+    expect(error.exists()).toBe(true);
+    expect(error.classes()).toContain("kx-state-block--error");
   });
 
   it("shows empty state when no profiles", async () => {
@@ -289,6 +291,9 @@ describe("ModelSettingsPane", () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    expect(wrapper.text()).toContain("No model profiles configured");
+    const empty = wrapper.find('[data-test="model-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("kx-state-block--empty");
+    expect(empty.text()).toContain("No model profiles configured");
   });
 });

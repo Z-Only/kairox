@@ -113,9 +113,14 @@ function formatError(caughtError: unknown): string {
       <strong>{{ t("skills.catalogSourcesTitle") }}</strong>
     </h3>
 
-    <p v-if="store.catalogSources.length === 0" class="empty-state">
+    <KxStateBlock
+      v-if="store.catalogSources.length === 0"
+      tone="empty"
+      compact
+      data-test="skill-sources-empty-state"
+    >
       {{ t("skills.sourcesEmpty") }}
-    </p>
+    </KxStateBlock>
 
     <ul v-else class="sources-list">
       <li v-for="src in store.catalogSources" :key="src.id" class="src-row">

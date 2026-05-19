@@ -84,21 +84,25 @@ onMounted(() => {
 
 <template>
   <section class="archive-settings" aria-label="Archive" data-test="archive-settings-pane">
-    <p v-if="error" class="alert alert-error" role="alert" data-test="archive-page-error">
+    <KxStateBlock v-if="error" tone="error" compact data-test="archive-page-error">
       {{ error }}
-    </p>
+    </KxStateBlock>
 
     <div v-if="stats.total > 0" class="archive-stats" data-test="archive-stats">
       <span class="tag">{{ t("settings.archiveTotal", { count: stats.total }) }}</span>
       <span class="tag">{{ t("settings.archiveProjects", { count: stats.projects }) }}</span>
     </div>
 
-    <p v-if="loading" class="alert alert-info" role="status">
+    <KxStateBlock v-if="loading" tone="loading" compact data-test="archive-loading-state">
       {{ t("common.loading") }}
-    </p>
-    <p v-else-if="projectStore.archivedSessions.length === 0" class="empty-state">
+    </KxStateBlock>
+    <KxStateBlock
+      v-else-if="projectStore.archivedSessions.length === 0"
+      tone="empty"
+      data-test="archive-empty-state"
+    >
       {{ t("settings.archiveEmpty") }}
-    </p>
+    </KxStateBlock>
 
     <div v-else class="archive-list" role="list" aria-label="Archived sessions">
       <article
@@ -185,6 +189,18 @@ onMounted(() => {
   gap: 8px;
   align-items: center;
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .archive-row__body {
+    flex-direction: column;
+  }
+
+  .archive-row__actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 }
 
 .archive-settings button:focus-visible {

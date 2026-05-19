@@ -203,13 +203,13 @@ watch(
     aria-label="Hooks settings"
     data-test="hooks-settings-pane"
   >
-    <p v-if="errorMsg" class="alert alert-error" role="alert" data-test="hooks-error">
+    <KxStateBlock v-if="errorMsg" tone="error" compact data-test="hooks-error">
       {{ errorMsg }}
-    </p>
+    </KxStateBlock>
 
-    <p v-if="loading" class="hooks-pane__loading" data-test="hooks-loading">
+    <KxStateBlock v-if="loading" tone="loading" compact data-test="hooks-loading">
       {{ t("common.loading") }}
-    </p>
+    </KxStateBlock>
 
     <template v-else>
       <div class="hooks-pane__templates" data-test="hook-templates">
@@ -448,8 +448,7 @@ watch(
   gap: 8px;
 }
 
-.hooks-pane__empty,
-.hooks-pane__loading {
+.hooks-pane__empty {
   color: var(--app-text-color-2);
 }
 

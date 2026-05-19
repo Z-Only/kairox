@@ -146,11 +146,16 @@ async function selectSource(sourceId: string | null): Promise<void> {
       {{ installSuccessMessage }}
     </p>
 
-    <div v-if="store.catalogLoading" class="loading" role="status">
+    <KxStateBlock
+      v-if="store.catalogLoading"
+      tone="loading"
+      compact
+      data-test="skill-catalog-loading-state"
+    >
       <span class="spinner" />
       <span class="text-secondary">{{ t("common.loading") }}</span>
-    </div>
-    <div v-else-if="store.error" class="catalog-state" role="alert" data-test="skill-catalog-error">
+    </KxStateBlock>
+    <KxStateBlock v-else-if="store.error" tone="error" compact data-test="skill-catalog-error">
       <p class="text-error error">{{ store.error }}</p>
       <button
         class="btn btn-sm"
@@ -160,15 +165,13 @@ async function selectSource(sourceId: string | null): Promise<void> {
       >
         {{ t("common.retry") }}
       </button>
-    </div>
-    <div
+    </KxStateBlock>
+    <KxStateBlock
       v-else-if="store.catalogEntries.length === 0"
-      class="catalog-state"
+      tone="empty"
       data-test="skill-catalog-empty"
     >
-      <p class="empty-state">
-        {{ t("skills.catalogEmpty") }}
-      </p>
+      <span>{{ t("skills.catalogEmpty") }}</span>
       <button
         class="btn btn-sm"
         type="button"
@@ -177,7 +180,7 @@ async function selectSource(sourceId: string | null): Promise<void> {
       >
         {{ t("common.retry") }}
       </button>
-    </div>
+    </KxStateBlock>
     <div v-else class="grid">
       <SkillDiscoverCard
         v-for="entry in store.catalogEntries"

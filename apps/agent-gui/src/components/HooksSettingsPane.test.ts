@@ -64,6 +64,29 @@ beforeEach(() => {
 });
 
 describe("HooksSettingsPane", () => {
+  it("shows loading with the shared state block", async () => {
+    mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    const loading = wrapper.find('[data-test="hooks-loading"]');
+    expect(loading.exists()).toBe(true);
+    expect(loading.classes()).toContain("kx-state-block--loading");
+  });
+
+  it("shows errors with the shared state block", async () => {
+    mockedInvoke.mockRejectedValueOnce("hooks unavailable");
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    const error = wrapper.find('[data-test="hooks-error"]');
+    expect(error.exists()).toBe(true);
+    expect(error.classes()).toContain("kx-state-block--error");
+    expect(error.text()).toContain("hooks unavailable");
+  });
+
   it("keeps the hook form collapsed until the user adds or edits a hook", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 

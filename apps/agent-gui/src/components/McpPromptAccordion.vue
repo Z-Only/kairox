@@ -41,12 +41,16 @@ function promptCount(): number {
     </button>
 
     <div v-if="expanded" class="mcp-prompts-list">
-      <p v-if="mcp.promptsError[serverId]" class="alert alert-error" role="alert">
+      <KxStateBlock v-if="mcp.promptsError[serverId]" tone="error" compact>
         {{ mcp.promptsError[serverId] }}
-      </p>
-      <p v-else-if="promptCount() === 0 && !mcp.loadingPrompts.has(serverId)" class="empty-state">
+      </KxStateBlock>
+      <KxStateBlock
+        v-else-if="promptCount() === 0 && !mcp.loadingPrompts.has(serverId)"
+        tone="empty"
+        compact
+      >
         {{ t("mcp.noPrompts") }}
-      </p>
+      </KxStateBlock>
       <div
         v-for="prompt in mcp.serverPrompts[serverId] ?? []"
         :key="prompt.name"

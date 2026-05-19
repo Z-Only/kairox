@@ -92,9 +92,9 @@ async function installFromGithub(): Promise<void> {
 
 <template>
   <section class="skill-settings" aria-label="Skills settings" data-test="skill-settings-pane">
-    <p v-if="skillsStore.error" class="alert alert-error" role="alert" data-test="skill-page-error">
+    <KxStateBlock v-if="skillsStore.error" tone="error" compact data-test="skill-page-error">
       {{ skillsStore.error }}
-    </p>
+    </KxStateBlock>
 
     <div class="skill-sub-tabs" role="tablist" aria-label="Skill sections">
       <button
@@ -140,12 +140,21 @@ async function installFromGithub(): Promise<void> {
       </div>
 
       <div class="skill-settings__body">
-        <p v-if="skillsStore.settingsLoading" class="alert alert-info" role="status">
+        <KxStateBlock
+          v-if="skillsStore.settingsLoading"
+          tone="loading"
+          compact
+          data-test="skill-loading-state"
+        >
           {{ t("skills.loading") }}
-        </p>
-        <p v-else-if="skillsStore.effectiveSkills.length === 0" class="empty-state">
+        </KxStateBlock>
+        <KxStateBlock
+          v-else-if="skillsStore.effectiveSkills.length === 0"
+          tone="empty"
+          data-test="skill-empty-state"
+        >
           {{ t("skills.noSkills") }}
-        </p>
+        </KxStateBlock>
 
         <article
           v-for="skill in skillsStore.effectiveSkills"
