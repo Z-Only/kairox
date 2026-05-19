@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ContextMeter from "@/components/ContextMeter.vue";
+import contextMeterDetailsSource from "@/components/ContextMeterDetails.vue?raw";
 import { useSessionStore } from "@/stores/session";
 import type { ContextUsage } from "@/types";
 
@@ -55,6 +56,7 @@ describe("ContextMeter ring mode", () => {
   beforeEach(() => {
     invokeMock.mockReset();
     setActivePinia(createPinia());
+    document.body.innerHTML = "";
   });
 
   it("renders KxProgressRing inside the interactive ring trigger", async () => {
@@ -87,6 +89,9 @@ describe("ContextMeter ring mode", () => {
 
     const popover = wrapper.find('[data-test="context-meter-popover"]');
     expect(popover.exists()).toBe(true);
+    expect(popover.classes()).toContain("kx-popover-content");
+    expect(popover.classes()).toContain("context-meter-popover");
+    expect(popover.find(".kx-popover-panel__header").exists()).toBe(true);
     expect(popover.text()).toContain("Used tokens");
     expect(popover.text()).toContain("Max tokens");
     expect(popover.text()).toContain("Percentage");
@@ -148,12 +153,26 @@ describe("ContextMeter ring mode", () => {
     expect(ringWrapper.find('[data-test="context-meter-row-history"]').text()).toContain("0");
     ringWrapper.unmount();
 
-    const { wrapper: barWrapper } = mountWithPlugins(ContextMeter, { reusePinia: true });
+    const { wrapper: barWrapper } = mountWithPlugins(ContextMeter, {
+      reusePinia: true,
+      mount: {
+        global: {
+          stubs: {
+            Teleport: true
+          }
+        }
+      }
+    });
     await barWrapper.vm.$nextTick();
     await barWrapper.find('[data-test="context-meter-bar"]').trigger("click");
     await barWrapper.vm.$nextTick();
 
-    const barPopoverText = barWrapper.find('[data-test="context-meter-popover"]').text();
+    const barPopover = barWrapper.find('[data-test="context-meter-popover"]');
+    expect(barPopover.exists()).toBe(true);
+    const barPopoverText = barPopover.text();
+    expect(barPopover.classes()).toContain("kx-popover-content");
+    expect(barPopover.classes()).toContain("context-meter-popover");
+    expect(barPopover.find(".kx-popover-panel__header").exists()).toBe(true);
     expect(barPopoverText).not.toContain("Infinity");
     expect(barPopoverText).not.toContain("NaN");
     expect(barWrapper.find('[data-test="context-meter-row-history"]').text()).toContain("0");
@@ -176,5 +195,12 @@ describe("ContextMeter ring mode", () => {
     const unknownRow = wrapper.find('[data-test="context-meter-row-future_source"]');
     expect(unknownRow.exists()).toBe(true);
     expect(unknownRow.text()).toContain("future_source");
+  });
+
+  it("keeps context details on component-specific classes instead of legacy popover CSS", () => {
+    expect(contextMeterDetailsSource).toContain("context-meter-detail-table");
+    expect(contextMeterDetailsSource).toContain("context-meter-actions");
+    expect(contextMeterDetailsSource).not.toContain("popover-table");
+    expect(contextMeterDetailsSource).not.toContain("popover-actions");
   });
 });

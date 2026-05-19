@@ -20,7 +20,7 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
 </script>
 
 <template>
-  <table class="popover-table by-source-table">
+  <table class="context-meter-detail-table by-source-table">
     <tbody>
       <tr
         v-for="[source, tokens] in bySource"
@@ -47,10 +47,10 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
       </tr>
     </tbody>
   </table>
-  <div class="popover-actions">
+  <div class="context-meter-actions">
     <button
       type="button"
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm"
       data-test="context-meter-compact"
       :disabled="compacting || compressionRatioTooLow"
       :title="
@@ -80,16 +80,16 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
   border-top: 1px solid var(--app-border-color);
   padding-top: 6px;
 }
-.popover-table {
+.context-meter-detail-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.popover-table td {
+.context-meter-detail-table td {
   padding: 3px 0;
 }
-.popover-table td + td {
+.context-meter-detail-table td + td {
   text-align: right;
 }
 .swatch {
@@ -100,28 +100,10 @@ const { formatTokens, formatSourceColor, formatSourceLabel, formatSourcePercent 
   margin-right: 6px;
   vertical-align: middle;
 }
-.popover-actions {
+.context-meter-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
-}
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
-  border-color: var(--app-primary-color);
 }
 </style>
