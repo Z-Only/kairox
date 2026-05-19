@@ -189,9 +189,13 @@ describe("SkillDiscoverList", () => {
 
   it("uses shared filter bar instead of local discover toolbar chrome", () => {
     expect(skillDiscoverListSource).toContain("SettingsFilterBar");
+    expect(skillDiscoverListSource).toContain("KxChipGroup");
+    expect(skillDiscoverListSource).toContain("KxChipButton");
+    expect(skillDiscoverListSource).toContain("KxToolbarAction");
     expect(skillDiscoverListSource).not.toContain('class="discover-toolbar"');
     expect(skillDiscoverListSource).not.toContain(".discover-toolbar {");
     expect(skillDiscoverListSource).not.toContain(".discover-search-row {");
     expect(skillDiscoverListSource).not.toContain(".discover-search-input {");
+    expect(skillDiscoverListSource).not.toContain(".source-filter .chip");
   });
 });

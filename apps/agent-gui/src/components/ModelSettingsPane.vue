@@ -180,25 +180,19 @@ function toggleProfile(profile: ProfileSettingsView): void {
     </SettingsState>
 
     <SettingsToolbar :aria-label="t('models.title')">
-      <KxButton
-        size="sm"
+      <KxToolbarAction
         data-test="model-open-config-file"
         :title="t('models.openConfigFile')"
         @click="store.openConfigFile()"
       >
         {{ t("models.openConfigFile") }}
-      </KxButton>
-      <KxButton
-        size="sm"
-        :disabled="loading"
-        data-test="model-refresh"
-        @click="store.loadProfiles()"
-      >
+      </KxToolbarAction>
+      <KxToolbarAction :disabled="loading" data-test="model-refresh" @click="store.loadProfiles()">
         {{ loading ? t("common.loading") : t("common.refresh") }}
-      </KxButton>
-      <KxButton variant="primary" size="sm" data-test="model-add-profile" @click="openAddDialog()">
+      </KxToolbarAction>
+      <KxToolbarAction variant="primary" data-test="model-add-profile" @click="openAddDialog()">
         {{ t("models.addProfile") }}
-      </KxButton>
+      </KxToolbarAction>
     </SettingsToolbar>
 
     <SettingsState v-if="loading" tone="loading" data-test="model-loading-state">

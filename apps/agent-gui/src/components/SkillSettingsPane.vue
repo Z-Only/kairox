@@ -121,24 +121,20 @@ async function installFromGithub(): Promise<void> {
 
     <div v-if="activeSubTab === 'installed'" class="skill-settings__installed">
       <SettingsToolbar :aria-label="t('skills.tabInstalled')">
-        <KxButton
-          size="sm"
-          type="button"
+        <KxToolbarAction
           data-test="skill-open-config-dir"
           :title="t('settings.openConfigDir')"
           @click="openSkillsDir()"
         >
           {{ t("settings.openConfigDir") }}
-        </KxButton>
-        <KxButton
-          size="sm"
-          type="button"
+        </KxToolbarAction>
+        <KxToolbarAction
           :disabled="skillsStore.settingsLoading"
           data-test="skill-refresh"
           @click="skillsStore.loadSkillSettings()"
         >
           {{ skillsStore.settingsLoading ? t("skills.refreshing") : t("skills.refreshSkills") }}
-        </KxButton>
+        </KxToolbarAction>
       </SettingsToolbar>
 
       <div class="skill-settings__body">
@@ -227,8 +223,7 @@ async function installFromGithub(): Promise<void> {
             </div>
 
             <div class="skill-settings__actions" aria-label="Skill actions">
-              <KxButton
-                size="sm"
+              <KxInlineAction
                 type="button"
                 :disabled="!skill.writable || busySkillId === skill.value.settings_id"
                 :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
@@ -239,9 +234,8 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
-              </KxButton>
-              <KxButton
-                size="sm"
+              </KxInlineAction>
+              <KxInlineAction
                 type="button"
                 :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
                 :data-test="`skill-update-${skillSettingsTestId(skill)}`"
@@ -252,10 +246,9 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ t("skills.updateSkill") }}
-              </KxButton>
-              <KxButton
+              </KxInlineAction>
+              <KxInlineAction
                 variant="danger"
-                size="sm"
                 type="button"
                 :disabled="!skill.writable || busySkillId === skill.value.settings_id"
                 :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
@@ -266,7 +259,7 @@ async function installFromGithub(): Promise<void> {
                 "
               >
                 {{ t("skills.delete") }}
-              </KxButton>
+              </KxInlineAction>
             </div>
           </SettingsCardItem>
         </SettingsCardList>

@@ -145,20 +145,19 @@ watch(
     </SettingsState>
 
     <SettingsToolbar :aria-label="t('agents.title')">
-      <KxButton variant="primary" size="sm" data-test="agent-new" @click="startCreate">
+      <KxToolbarAction variant="primary" data-test="agent-new" @click="startCreate">
         {{ t("agents.newAgent") }}
-      </KxButton>
-      <KxButton size="sm" data-test="agent-open-dir" @click="store.openAgentsDir()">
+      </KxToolbarAction>
+      <KxToolbarAction data-test="agent-open-dir" @click="store.openAgentsDir()">
         {{ t("agents.openFolder") }}
-      </KxButton>
-      <KxButton
-        size="sm"
+      </KxToolbarAction>
+      <KxToolbarAction
         :disabled="store.loading"
         data-test="agent-refresh"
         @click="store.loadAgents()"
       >
         {{ store.loading ? t("agents.refreshing") : t("common.refresh") }}
-      </KxButton>
+      </KxToolbarAction>
     </SettingsToolbar>
 
     <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
@@ -221,30 +220,27 @@ watch(
           </KxInlineAlert>
         </div>
         <div class="agent-row__actions">
-          <KxButton
-            size="sm"
+          <KxInlineAction
             :data-test="`agent-edit-${slugify(agent.name)}`"
             @click="editAgent(agent)"
           >
             {{ agent.editable ? t("common.edit") : t("agents.view") }}
-          </KxButton>
-          <KxButton
+          </KxInlineAction>
+          <KxInlineAction
             v-if="!agent.editable"
-            size="sm"
             :data-test="`agent-copy-${slugify(agent.name)}`"
             @click="copyToUser(agent)"
           >
             {{ t("agents.copyToUser") }}
-          </KxButton>
-          <KxButton
+          </KxInlineAction>
+          <KxInlineAction
             v-if="agent.deletable"
             variant="danger"
-            size="sm"
             :data-test="`agent-delete-${slugify(agent.name)}`"
             @click="deleteAgent(agent)"
           >
             {{ t("common.delete") }}
-          </KxButton>
+          </KxInlineAction>
         </div>
       </SettingsCardItem>
     </SettingsCardList>
