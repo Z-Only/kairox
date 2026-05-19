@@ -152,7 +152,6 @@
     "queuedEditAria": "编辑这条队列消息",
     "queuedDeleteAria": "删除这条队列消息",
     "queuedAttachments": "{count} 个文件",
-    "queueFull": "队列已满。请先编辑或删除一条队列消息再继续添加。",
     "emptyState": "开始对话"
   },
   "context": {
@@ -439,6 +438,8 @@
     "scopeHooks": "{scope} Hooks",
     "empty": "尚未配置 Hook。",
     "add": "添加 Hook",
+    "editorTitle": "Hook 设置",
+    "editorDescription": "正在编辑 {scope} Hooks。",
     "enabled": "已启用",
     "disabled": "已禁用",
     "id": "ID",

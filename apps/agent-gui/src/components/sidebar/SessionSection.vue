@@ -48,29 +48,16 @@ defineProps<{
             <span class="session-indicator">●</span>
 
             <template v-if="rename.editingId.value === item.id">
-              <input
-                :ref="(el) => rename.bindInput(el as Element | null, item.id)"
+              <KxEditableLabel
                 v-model="rename.title.value"
-                class="rename-input"
-                data-test="session-rename-input"
-                @keydown.enter="rename.confirm"
-                @keydown.escape="rename.cancel"
-                @blur="rename.confirm"
+                :input-ref="(el) => rename.bindInput(el, item.id)"
+                input-data-test="session-rename-input"
+                confirm-data-test="session-rename-confirm"
+                :confirm-label="t('common.confirm')"
+                @confirm="rename.confirm"
+                @cancel="rename.cancel"
                 @click.stop
               />
-              <KxTooltip :text="t('common.confirm')">
-                <KxIconButton
-                  :label="t('common.confirm')"
-                  :title="t('common.confirm')"
-                  data-test="session-rename-confirm"
-                  @mousedown.prevent
-                  @click.stop="rename.confirm"
-                >
-                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                  </svg>
-                </KxIconButton>
-              </KxTooltip>
             </template>
 
             <template v-else>

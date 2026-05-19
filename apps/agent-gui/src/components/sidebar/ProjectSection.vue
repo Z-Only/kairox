@@ -99,29 +99,16 @@ defineProps<{
               {{ project.expanded ? "▾" : "▸" }}
             </button>
             <template v-if="projectRename.editingId.value === project.projectId">
-              <input
-                :ref="(el) => projectRename.bindInput(el as Element | null, project.projectId)"
+              <KxEditableLabel
                 v-model="projectRename.title.value"
-                class="rename-input project-rename-input"
-                :data-test="`project-rename-input-${project.projectId}`"
-                @keydown.enter="projectRename.confirm"
-                @keydown.escape="projectRename.cancel"
-                @blur="projectRename.confirm"
+                :input-ref="(el) => projectRename.bindInput(el, project.projectId)"
+                :input-data-test="`project-rename-input-${project.projectId}`"
+                confirm-data-test="project-rename-confirm"
+                :confirm-label="t('common.confirm')"
+                @confirm="projectRename.confirm"
+                @cancel="projectRename.cancel"
                 @click.stop
               />
-              <KxTooltip :text="t('common.confirm')">
-                <KxIconButton
-                  :label="t('common.confirm')"
-                  :title="t('common.confirm')"
-                  data-test="project-rename-confirm"
-                  @mousedown.prevent
-                  @click.stop="projectRename.confirm"
-                >
-                  <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                    <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                  </svg>
-                </KxIconButton>
-              </KxTooltip>
             </template>
             <template v-else>
               <button
@@ -258,32 +245,16 @@ defineProps<{
               class="project-session-row"
             >
               <template v-if="projectSessionRename.editingId.value === projectSession.sessionId">
-                <input
-                  :ref="
-                    (el) =>
-                      projectSessionRename.bindInput(el as Element | null, projectSession.sessionId)
-                  "
+                <KxEditableLabel
                   v-model="projectSessionRename.title.value"
-                  class="rename-input project-session-rename-input"
-                  :data-test="`project-session-rename-input-${projectSession.sessionId}`"
-                  @keydown.enter="projectSessionRename.confirm"
-                  @keydown.escape="projectSessionRename.cancel"
-                  @blur="projectSessionRename.confirm"
+                  :input-ref="(el) => projectSessionRename.bindInput(el, projectSession.sessionId)"
+                  :input-data-test="`project-session-rename-input-${projectSession.sessionId}`"
+                  :confirm-data-test="`project-session-rename-confirm-${projectSession.sessionId}`"
+                  :confirm-label="t('common.confirm')"
+                  @confirm="projectSessionRename.confirm"
+                  @cancel="projectSessionRename.cancel"
                   @click.stop
                 />
-                <KxTooltip :text="t('common.confirm')">
-                  <KxIconButton
-                    :label="t('common.confirm')"
-                    :title="t('common.confirm')"
-                    :data-test="`project-session-rename-confirm-${projectSession.sessionId}`"
-                    @mousedown.prevent
-                    @click.stop="projectSessionRename.confirm"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                    </svg>
-                  </KxIconButton>
-                </KxTooltip>
               </template>
               <template v-else>
                 <button

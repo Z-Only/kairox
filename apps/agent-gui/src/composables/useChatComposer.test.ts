@@ -8,6 +8,7 @@ function createSession(overrides: Partial<ChatComposerSession> = {}): ChatCompos
     currentProfile: "fast",
     currentReasoningEffort: null,
     isStreaming: false,
+    compacting: false,
     ...overrides
   }) as ChatComposerSession;
 }
@@ -175,32 +176,34 @@ describe("useChatComposer", () => {
     expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_1");
   });
 
-  it("caps queued messages and reports when the queue is full", async () => {
-    const session = createSession({ isStreaming: true });
-    const { composer, notify } = createComposer({ session });
+  it("queues messages submitted while context compaction is running", async () => {
+    const session = createSession({ compacting: true });
+    const { composer, invokeFn, draftStore } = createComposer({ session });
 
-    for (let i = 1; i <= 10; i += 1) {
-      composer.inputText.value = `queued ${i}`;
-      await composer.sendMessage();
-    }
-    composer.inputText.value = "queued 11";
+    composer.inputText.value = "  compacting follow up  ";
 
     await composer.sendMessage();
 
-    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual([
-      "queued 1",
-      "queued 2",
-      "queued 3",
-      "queued 4",
-      "queued 5",
-      "queued 6",
-      "queued 7",
-      "queued 8",
-      "queued 9",
-      "queued 10"
-    ]);
-    expect(composer.inputText.value).toBe("queued 11");
-    expect(notify).toHaveBeenCalledWith("error", "chat.queueFull");
+    expect(invokeFn).not.toHaveBeenCalled();
+    expect(composer.queuedMessages.value).toHaveLength(1);
+    expect(composer.queuedMessages.value[0].content).toBe("compacting follow up");
+    expect(composer.inputText.value).toBe("");
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_1");
+  });
+
+  it("does not cap queued messages or report a queue-full error", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, notify } = createComposer({ session });
+
+    for (let i = 1; i <= 15; i += 1) {
+      composer.inputText.value = `queued ${i}`;
+      await composer.sendMessage();
+    }
+
+    expect(composer.queuedMessages.value).toHaveLength(15);
+    expect(composer.queuedMessages.value.at(-1)?.content).toBe("queued 15");
+    expect(composer.inputText.value).toBe("");
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it("reorders queued messages by moving one item to a target index", async () => {
@@ -240,6 +243,27 @@ describe("useChatComposer", () => {
       attachments: []
     });
     expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual(["second queued"]);
+  });
+
+  it("waits for both streaming and compaction to finish before auto-sending queued messages", async () => {
+    const session = createSession({ compacting: true });
+    const { composer, invokeFn } = createComposer({ session });
+
+    composer.inputText.value = "queued during compaction";
+    await composer.sendMessage();
+
+    session.isStreaming = false;
+    await vi.runAllTimersAsync();
+    expect(invokeFn).not.toHaveBeenCalled();
+
+    session.compacting = false;
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "queued during compaction",
+      attachments: []
+    });
+    expect(composer.queuedMessages.value).toEqual([]);
   });
 
   it("can guide-send a queued message immediately while streaming", async () => {

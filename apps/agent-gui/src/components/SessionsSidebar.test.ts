@@ -310,6 +310,7 @@ describe("SessionsSidebar", () => {
     await renameButton.trigger("click");
     await flushPromises();
 
+    expect(wrapper.find(".kx-editable-label").exists()).toBe(true);
     const renameInput = wrapper.find('[data-test="session-rename-input"]');
     const renameConfirm = wrapper.find('[data-test="session-rename-confirm"]');
     expect(renameInput.exists()).toBe(true);

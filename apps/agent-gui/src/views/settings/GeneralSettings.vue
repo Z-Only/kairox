@@ -26,6 +26,7 @@ const isThemeSelectFocused = ref(false);
       <KxSelect
         id="settings-locale"
         :model-value="locale"
+        class="settings__select"
         data-test="settings-locale"
         @update:model-value="ui.setLocale($event as SupportedLocale)"
       >
@@ -39,7 +40,7 @@ const isThemeSelectFocused = ref(false);
       <KxSelect
         id="settings-theme"
         :model-value="colorMode"
-        :class="{ 'settings__select--focused': isThemeSelectFocused }"
+        :class="['settings__select', { 'settings__select--focused': isThemeSelectFocused }]"
         data-test="settings-theme"
         @focus="isThemeSelectFocused = true"
         @blur="isThemeSelectFocused = false"
@@ -67,5 +68,9 @@ const isThemeSelectFocused = ref(false);
 }
 .settings__row label {
   min-width: 100px;
+}
+.settings__select {
+  flex: 0 1 220px;
+  max-width: 220px;
 }
 </style>

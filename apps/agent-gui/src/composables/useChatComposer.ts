@@ -17,8 +17,6 @@ export interface QueuedMessage {
   attachments: Attachment[];
 }
 
-export const QUEUED_MESSAGE_LIMIT = 10;
-
 export interface DraftStore {
   loadDraft(sessionId: string): Promise<string>;
   saveDraft(sessionId: string, text: string): Promise<void>;
@@ -30,6 +28,7 @@ export interface ChatComposerSession {
   currentProfile: string;
   currentReasoningEffort?: string | null;
   isStreaming: boolean;
+  compacting?: boolean;
   reportSendError?: (message: string) => void;
 }
 
@@ -132,17 +131,18 @@ export function useChatComposer(options: UseChatComposerOptions) {
     onScopeDispose(clearDraftTimer);
   }
 
+  const isQueueing = computed(() => session.isStreaming || Boolean(session.compacting));
+  const sendDisabled = computed(() => !inputText.value.trim() && attachments.value.length === 0);
+
   watch(
-    () => session.isStreaming,
-    (isStreaming) => {
-      if (!isStreaming) {
+    () => [session.isStreaming, Boolean(session.compacting)] as const,
+    ([isStreaming, compacting]) => {
+      if (!isStreaming && !compacting) {
         void sendNextQueuedMessage();
       }
     },
     { flush: "sync" }
   );
-
-  const sendDisabled = computed(() => !inputText.value.trim() && attachments.value.length === 0);
 
   function updatePaletteForCursor(text: string, cursorPos: number) {
     const textBeforeCursor = text.slice(0, cursorPos);
@@ -280,10 +280,6 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   async function enqueueMessage(content: string, attachmentsToQueue: Attachment[]) {
-    if (queuedMessages.value.length >= QUEUED_MESSAGE_LIMIT) {
-      notify("error", t("chat.queueFull", { limit: QUEUED_MESSAGE_LIMIT }));
-      return;
-    }
     queuedMessages.value = [
       ...queuedMessages.value,
       {
@@ -301,7 +297,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     const content = draftAtSend.trim();
     if (!content && attachmentsAtSend.length === 0) return;
 
-    if (session.isStreaming) {
+    if (isQueueing.value) {
       await enqueueMessage(content, attachmentsAtSend);
       return;
     }
@@ -339,7 +335,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   async function sendNextQueuedMessage() {
-    if (session.isStreaming || sendingQueuedId.value || queuedMessages.value.length === 0) return;
+    if (isQueueing.value || sendingQueuedId.value || queuedMessages.value.length === 0) return;
     await sendQueuedMessageNow(queuedMessages.value[0].id);
   }
 
@@ -441,6 +437,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     queuedMessages,
     sendingQueuedId,
     switchingModel,
+    isQueueing,
     sendDisabled,
     updatePaletteForCursor,
     handleInput,

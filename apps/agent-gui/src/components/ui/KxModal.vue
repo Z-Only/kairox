@@ -101,16 +101,18 @@ function onBackdropClick(event: MouseEvent): void {
 .kx-modal {
   position: fixed;
   inset: 0;
-  width: min(var(--kx-modal-width), calc(100vw - 48px));
-  max-width: calc(100vw - 48px);
-  max-height: min(85vh, calc(100vh - 48px));
+  display: grid;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  place-items: center;
   padding: 0;
-  margin: auto;
+  margin: 0;
   border: 0;
-  border-radius: var(--app-radius-md);
   background: transparent;
   color: var(--app-text-color);
-  overflow: visible;
+  overflow: auto;
 }
 
 .kx-modal::backdrop {
