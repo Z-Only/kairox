@@ -156,4 +156,10 @@ describe("AgentSettingsPane", () => {
       "border-bottom: 1px solid var(--app-border-color)"
     );
   });
+
+  it("uses shared settings toolbar instead of local agent toolbar chrome", () => {
+    expect(agentSettingsPaneSource).toContain("SettingsToolbar");
+    expect(agentSettingsPaneSource).not.toContain('class="agent-settings__toolbar"');
+    expect(agentSettingsPaneSource).not.toContain(".agent-settings__toolbar,");
+  });
 });

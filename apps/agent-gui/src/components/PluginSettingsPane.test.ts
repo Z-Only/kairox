@@ -420,5 +420,16 @@ describe("PluginSettingsPane", () => {
       expect(pluginSettingsPaneSource).toContain("SettingsCardList");
       expect(pluginSettingsPaneSource).toContain("SettingsCardItem");
     });
+
+    it("uses shared settings toolbar, subtabs, and filter bar instead of local plugin chrome", () => {
+      expect(pluginSettingsPaneSource).toContain("SettingsSubtabs");
+      expect(pluginSettingsPaneSource).toContain("SettingsToolbar");
+      expect(pluginSettingsPaneSource).toContain("SettingsFilterBar");
+      expect(pluginSettingsPaneSource).not.toContain('class="plugin-sub-tabs"');
+      expect(pluginSettingsPaneSource).not.toContain('class="plugin-toolbar"');
+      expect(pluginSettingsPaneSource).not.toContain(".plugin-sub-tabs,");
+      expect(pluginSettingsPaneSource).not.toContain(".plugin-toolbar {");
+      expect(pluginSettingsPaneSource).not.toContain(".sub-tab-btn {");
+    });
   });
 });

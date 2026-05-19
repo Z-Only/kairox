@@ -98,7 +98,7 @@ async function installFromGithub(): Promise<void> {
       {{ skillsStore.error }}
     </SettingsState>
 
-    <div class="skill-sub-tabs" role="tablist" aria-label="Skill sections">
+    <SettingsSubtabs aria-label="Skill sections">
       <button
         class="sub-tab-btn"
         role="tab"
@@ -117,10 +117,10 @@ async function installFromGithub(): Promise<void> {
       >
         {{ t("skills.tabDiscover") }}
       </button>
-    </div>
+    </SettingsSubtabs>
 
     <div v-if="activeSubTab === 'installed'" class="skill-settings__installed">
-      <div class="skill-toolbar">
+      <SettingsToolbar :aria-label="t('skills.tabInstalled')">
         <button
           class="btn btn-sm"
           type="button"
@@ -139,7 +139,7 @@ async function installFromGithub(): Promise<void> {
         >
           {{ skillsStore.settingsLoading ? t("skills.refreshing") : t("skills.refreshSkills") }}
         </button>
-      </div>
+      </SettingsToolbar>
 
       <div class="skill-settings__body">
         <SettingsState
@@ -310,46 +310,6 @@ async function installFromGithub(): Promise<void> {
   gap: 16px;
   min-height: 0;
   overflow: hidden;
-}
-
-.skill-sub-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
-}
-
-.sub-tab-btn {
-  padding: 6px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--app-text-color-2, #6b7280);
-  border-bottom: 2px solid transparent;
-  transition:
-    color 0.2s,
-    border-color 0.2s;
-}
-
-.sub-tab-btn[aria-selected="true"] {
-  color: var(--app-primary-color, #18a058);
-  border-bottom-color: var(--app-primary-color, #18a058);
-}
-
-.sub-tab-btn:hover {
-  color: var(--app-primary-color, #18a058);
-}
-
-.sub-tab-btn:focus-visible {
-  outline: 2px solid var(--app-primary-color, #3b82f6);
-  outline-offset: 2px;
-}
-
-.skill-toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex: none;
 }
 
 .skill-settings__installed {

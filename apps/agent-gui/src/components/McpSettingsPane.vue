@@ -55,7 +55,7 @@ function closeAddServerDialog(): void {
       {{ mcp.settingsError }}
     </SettingsState>
 
-    <div class="mcp-sub-tabs" role="tablist" aria-label="MCP sections">
+    <SettingsSubtabs aria-label="MCP sections">
       <button
         class="sub-tab-btn"
         role="tab"
@@ -74,14 +74,14 @@ function closeAddServerDialog(): void {
       >
         {{ t("mcp.tabMarketplace") }}
       </button>
-    </div>
+    </SettingsSubtabs>
 
     <section
       v-if="activeSubTab === 'installed'"
       class="mcp-settings__installed"
       data-test="mcp-installed-servers"
     >
-      <div class="mcp-toolbar">
+      <SettingsToolbar :aria-label="t('mcp.tabInstalled')">
         <button
           class="btn btn-sm"
           type="button"
@@ -135,7 +135,7 @@ function closeAddServerDialog(): void {
             </button>
           </template>
         </KxDropdownMenu>
-      </div>
+      </SettingsToolbar>
 
       <div class="mcp-settings__body">
         <SettingsState v-if="mcp.settingsLoading" tone="loading" data-test="mcp-loading-state">
@@ -200,54 +200,13 @@ function closeAddServerDialog(): void {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
 }
 
 .mcp-settings__body {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-}
-
-.mcp-sub-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--app-border-color, #e0e0e0);
-}
-
-.sub-tab-btn {
-  padding: 6px 14px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--app-text-color-2, #6b7280);
-  border-bottom: 2px solid transparent;
-  transition:
-    color 0.2s,
-    border-color 0.2s;
-}
-
-.sub-tab-btn[aria-selected="true"] {
-  color: var(--app-primary-color, #18a058);
-  border-bottom-color: var(--app-primary-color, #18a058);
-}
-
-.sub-tab-btn:hover {
-  color: var(--app-primary-color, #18a058);
-}
-
-.sub-tab-btn:focus-visible {
-  outline: 2px solid var(--app-primary-color, #3b82f6);
-  outline-offset: 2px;
-}
-
-.mcp-toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 12px;
-  flex: none;
 }
 
 .mcp-settings button:focus-visible {
