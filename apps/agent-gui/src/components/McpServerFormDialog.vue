@@ -81,26 +81,37 @@ watch(
     @close="emit('close')"
   >
     <form class="form" data-test="mcp-save" @submit.prevent="saveServer">
-      <label for="mcp-server-name">{{ t("mcp.serverName") }}</label>
-      <input id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
+      <KxFormField :label="t('mcp.serverName')">
+        <input
+          id="mcp-server-name"
+          v-model="serverName"
+          class="kx-form-control"
+          data-test="mcp-form-name"
+          required
+        />
+      </KxFormField>
 
       <template v-if="mode === 'git'">
-        <label for="mcp-server-git-url">{{ t("mcp.gitUrl") }}</label>
-        <input
-          id="mcp-server-git-url"
-          v-model="stdioCommand"
-          data-test="mcp-form-git-url"
-          placeholder="https://github.com/..."
-        />
+        <KxFormField :label="t('mcp.gitUrl')">
+          <input
+            id="mcp-server-git-url"
+            v-model="stdioCommand"
+            class="kx-form-control"
+            data-test="mcp-form-git-url"
+            placeholder="https://github.com/..."
+          />
+        </KxFormField>
       </template>
 
       <template v-if="mode === 'manual'">
-        <label for="mcp-server-description">{{ t("mcp.description") }}</label>
-        <input
-          id="mcp-server-description"
-          v-model="serverDescription"
-          data-test="mcp-form-description"
-        />
+        <KxFormField :label="t('mcp.description')">
+          <input
+            id="mcp-server-description"
+            v-model="serverDescription"
+            class="kx-form-control"
+            data-test="mcp-form-description"
+          />
+        </KxFormField>
 
         <fieldset class="form-fieldset">
           <legend>{{ t("mcp.transport") }}</legend>
@@ -124,14 +135,33 @@ watch(
         </fieldset>
 
         <template v-if="transport === 'stdio'">
-          <label for="mcp-server-command">{{ t("mcp.command") }}</label>
-          <input id="mcp-server-command" v-model="stdioCommand" data-test="mcp-form-command" />
-          <label for="mcp-server-args">{{ t("mcp.arguments") }}</label>
-          <input id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
+          <KxFormField :label="t('mcp.command')">
+            <input
+              id="mcp-server-command"
+              v-model="stdioCommand"
+              class="kx-form-control"
+              data-test="mcp-form-command"
+            />
+          </KxFormField>
+          <KxFormField :label="t('mcp.arguments')">
+            <input
+              id="mcp-server-args"
+              v-model="stdioArgs"
+              class="kx-form-control"
+              data-test="mcp-form-args"
+            />
+          </KxFormField>
         </template>
         <template v-else>
-          <label for="mcp-server-url">{{ t("mcp.url") }}</label>
-          <input id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
+          <KxFormField :label="t('mcp.url')">
+            <input
+              id="mcp-server-url"
+              v-model="sseUrl"
+              class="kx-form-control"
+              type="url"
+              data-test="mcp-form-url"
+            />
+          </KxFormField>
         </template>
       </template>
     </form>
@@ -159,22 +189,6 @@ watch(
   flex-direction: column;
   gap: 12px;
   margin-bottom: 0;
-}
-
-.form label + input {
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
-  background: var(--app-card-color, #fff);
-  color: var(--app-text-color, #111827);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.form label + input:focus {
-  outline: 2px solid var(--app-primary-color, #3b82f6);
-  outline-offset: 2px;
 }
 
 .form-fieldset {

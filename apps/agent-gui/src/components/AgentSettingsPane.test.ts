@@ -162,4 +162,12 @@ describe("AgentSettingsPane", () => {
     expect(agentSettingsPaneSource).not.toContain('class="agent-settings__toolbar"');
     expect(agentSettingsPaneSource).not.toContain(".agent-settings__toolbar,");
   });
+
+  it("uses shared form fields and controls in the agent editor", () => {
+    expect(agentSettingsPaneSource).toContain("KxFormField");
+    expect(agentSettingsPaneSource).toContain("kx-form-control");
+    expect(agentSettingsPaneSource).toContain("kx-form-control--textarea");
+    expect(agentSettingsPaneSource).not.toContain(".agent-editor input,");
+    expect(agentSettingsPaneSource).not.toContain(".agent-editor textarea {");
+  });
 });
