@@ -51,89 +51,83 @@ function sourceLabel(source: string): string {
 
 <template>
   <SettingsCardItem class="model-settings__profile" :data-test="`model-row-${profile.alias}`">
-    <div class="model-settings__profile-body">
-      <div class="model-settings__profile-main">
-        <h3>{{ profile.alias }}</h3>
-        <p>{{ profile.provider }} / {{ profile.model_id }}</p>
-        <div class="server__tags" aria-label="Profile metadata">
-          <span class="tag tag--source" :class="`tag--source-${sourceClass(profile.source)}`">
-            {{ sourceLabel(profile.source) }}
-          </span>
-          <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
-            {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
-          </span>
-          <span v-if="profile.context_window" class="tag">
-            {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
-          </span>
-          <span v-if="profile.output_limit" class="tag">
-            {{ t("models.outputLimit") }}: {{ profile.output_limit.toLocaleString() }}
-          </span>
-          <span v-if="profile.temperature != null" class="tag">
-            {{ t("models.temperature") }}: {{ profile.temperature }}
-          </span>
-        </div>
-      </div>
-
-      <div class="model-settings__actions" aria-label="Profile actions">
-        <div class="model-settings__reorder">
-          <KxIconButton
-            :label="t('models.moveUp')"
-            size="sm"
-            :disabled="busyAlias === profile.alias || index === 0"
-            :data-test="`model-move-up-${profile.alias}`"
-            :title="t('models.moveUp')"
-            @click="emit('move', profile.alias, -1)"
-          >
-            ▲
-          </KxIconButton>
-          <KxIconButton
-            :label="t('models.moveDown')"
-            size="sm"
-            :disabled="busyAlias === profile.alias || index === total - 1"
-            :data-test="`model-move-down-${profile.alias}`"
-            :title="t('models.moveDown')"
-            @click="emit('move', profile.alias, 1)"
-          >
-            ▼
-          </KxIconButton>
-        </div>
-        <KxButton
-          size="sm"
-          :disabled="busyAlias === profile.alias"
-          :data-test="`model-edit-${profile.alias}`"
-          @click="emit('edit', profile)"
-        >
-          {{ t("common.edit") }}
-        </KxButton>
-        <KxButton
-          size="sm"
-          :disabled="busyAlias === profile.alias"
-          :data-test="`model-enable-${profile.alias}`"
-          @click="emit('toggle', profile)"
-        >
-          {{ profile.enabled ? t("models.disable") : t("models.enable") }}
-        </KxButton>
-        <KxButton
-          size="sm"
-          :disabled="busyAlias === profile.alias"
-          :data-test="`model-test-${profile.alias}`"
-          :title="t('models.testConnectivity')"
-          @click="emit('test', profile)"
-        >
-          {{ t("models.testConnectivity") }}
-        </KxButton>
-        <KxButton
-          v-if="profile.writable"
-          variant="danger"
-          size="sm"
-          :disabled="busyAlias === profile.alias"
-          :data-test="`model-delete-${profile.alias}`"
-          @click="emit('remove', profile.alias)"
-        >
-          {{ t("common.delete") }}
-        </KxButton>
+    <div class="model-settings__profile-main">
+      <h3>{{ profile.alias }}</h3>
+      <p>{{ profile.provider }} / {{ profile.model_id }}</p>
+      <div class="server__tags" aria-label="Profile metadata">
+        <span class="tag tag--source" :class="`tag--source-${sourceClass(profile.source)}`">
+          {{ sourceLabel(profile.source) }}
+        </span>
+        <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
+          {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
+        </span>
+        <span v-if="profile.context_window" class="tag">
+          {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
+        </span>
+        <span v-if="profile.output_limit" class="tag">
+          {{ t("models.outputLimit") }}: {{ profile.output_limit.toLocaleString() }}
+        </span>
+        <span v-if="profile.temperature != null" class="tag">
+          {{ t("models.temperature") }}: {{ profile.temperature }}
+        </span>
       </div>
     </div>
+
+    <template #actions>
+      <div class="model-settings__reorder">
+        <KxIconButton
+          :label="t('models.moveUp')"
+          size="sm"
+          :disabled="busyAlias === profile.alias || index === 0"
+          :data-test="`model-move-up-${profile.alias}`"
+          :title="t('models.moveUp')"
+          @click="emit('move', profile.alias, -1)"
+        >
+          ▲
+        </KxIconButton>
+        <KxIconButton
+          :label="t('models.moveDown')"
+          size="sm"
+          :disabled="busyAlias === profile.alias || index === total - 1"
+          :data-test="`model-move-down-${profile.alias}`"
+          :title="t('models.moveDown')"
+          @click="emit('move', profile.alias, 1)"
+        >
+          ▼
+        </KxIconButton>
+      </div>
+      <KxInlineAction
+        :disabled="busyAlias === profile.alias"
+        :data-test="`model-edit-${profile.alias}`"
+        @click="emit('edit', profile)"
+      >
+        {{ t("common.edit") }}
+      </KxInlineAction>
+      <KxInlineAction
+        :disabled="busyAlias === profile.alias"
+        :data-test="`model-enable-${profile.alias}`"
+        @click="emit('toggle', profile)"
+      >
+        {{ profile.enabled ? t("models.disable") : t("models.enable") }}
+      </KxInlineAction>
+      <KxInlineAction
+        :disabled="busyAlias === profile.alias"
+        :data-test="`model-test-${profile.alias}`"
+        :title="t('models.testConnectivity')"
+        @click="emit('test', profile)"
+      >
+        {{ t("models.testConnectivity") }}
+      </KxInlineAction>
+      <KxInlineAction
+        v-if="profile.writable"
+        variant="danger"
+        :disabled="busyAlias === profile.alias"
+        :data-test="`model-delete-${profile.alias}`"
+        @click="emit('remove', profile.alias)"
+      >
+        {{ t("common.delete") }}
+      </KxInlineAction>
+    </template>
   </SettingsCardItem>
 </template>
 
@@ -142,30 +136,14 @@ function sourceLabel(source: string): string {
   overflow: visible;
 }
 
-.model-settings__profile-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
 .model-settings__profile-main {
   min-width: 0;
   display: grid;
   gap: 8px;
-  flex: 1;
 }
 
 .model-settings__profile h3 {
   margin: 0 0 4px;
-}
-
-.model-settings__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
 }
 
 .model-settings__reorder {

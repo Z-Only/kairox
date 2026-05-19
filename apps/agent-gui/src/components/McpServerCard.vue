@@ -76,118 +76,110 @@ function serverToolCount(): number {
 
 <template>
   <SettingsCardItem class="mcp-settings__server" :data-test="`mcp-server-row-${server.value.id}`">
-    <div class="mcp-settings__server-body">
-      <div class="mcp-settings__server-main">
-        <h3>{{ server.value.name }}</h3>
-        <p>{{ server.value.description || t("mcp.noDescription") }}</p>
-        <div class="server__tags" aria-label="Server metadata">
-          <span class="tag tag--source" :class="`tag--source-${server.source.toLowerCase()}`">
-            {{ server.source }}
-          </span>
-          <span v-if="server.overrides" class="tag tag--override">
-            {{ t("mcp.overrides", { source: server.overrides }) }}
-          </span>
-          <span v-if="server.disabledBy" class="tag tag--disabled-by">
-            {{ t("mcp.disabledBy", { source: server.disabledBy }) }}
-          </span>
-          <span class="tag">{{ server.value.transport }}</span>
-          <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
-            {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
-          </span>
-          <span :class="['tag', server.value.trusted ? 'tag-success' : 'tag-warning']">
-            {{ server.value.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
-          </span>
-          <span
-            v-if="server.source === 'builtin' && !server.value.verified"
-            class="tag tag--unverified"
-          >
-            {{ t("mcp.unverified") }}
-          </span>
-          <span
-            v-if="server.value.transport !== 'builtin' && healthLabel()"
-            :class="['tag', healthClass()]"
-            :data-test="`mcp-health-${server.value.id}`"
-          >
-            {{ healthLabel() }}
-          </span>
-        </div>
-        <KxInlineAlert
-          v-if="server.value.last_error"
-          tone="error"
-          compact
-          :data-test="`mcp-row-error-${server.value.id}`"
+    <div class="mcp-settings__server-main">
+      <h3>{{ server.value.name }}</h3>
+      <p>{{ server.value.description || t("mcp.noDescription") }}</p>
+      <div class="server__tags" aria-label="Server metadata">
+        <span class="tag tag--source" :class="`tag--source-${server.source.toLowerCase()}`">
+          {{ server.source }}
+        </span>
+        <span v-if="server.overrides" class="tag tag--override">
+          {{ t("mcp.overrides", { source: server.overrides }) }}
+        </span>
+        <span v-if="server.disabledBy" class="tag tag--disabled-by">
+          {{ t("mcp.disabledBy", { source: server.disabledBy }) }}
+        </span>
+        <span class="tag">{{ server.value.transport }}</span>
+        <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
+          {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
+        </span>
+        <span :class="['tag', server.value.trusted ? 'tag-success' : 'tag-warning']">
+          {{ server.value.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
+        </span>
+        <span
+          v-if="server.source === 'builtin' && !server.value.verified"
+          class="tag tag--unverified"
         >
-          {{ server.value.last_error }}
-        </KxInlineAlert>
+          {{ t("mcp.unverified") }}
+        </span>
+        <span
+          v-if="server.value.transport !== 'builtin' && healthLabel()"
+          :class="['tag', healthClass()]"
+          :data-test="`mcp-health-${server.value.id}`"
+        >
+          {{ healthLabel() }}
+        </span>
       </div>
+      <KxInlineAlert
+        v-if="server.value.last_error"
+        tone="error"
+        compact
+        :data-test="`mcp-row-error-${server.value.id}`"
+      >
+        {{ server.value.last_error }}
+      </KxInlineAlert>
+    </div>
 
-      <div class="mcp-settings__actions" aria-label="Server actions">
-        <KxButton
-          v-if="server.value.transport !== 'builtin'"
-          size="sm"
-          :disabled="mcp.checkingHealth.has(server.value.id) || busy"
-          :data-test="`mcp-recheck-${server.value.id}`"
-          @click="mcp.checkHealth(server.value.id)"
-        >
-          {{
-            mcp.checkingHealth.has(server.value.id)
-              ? t("mcp.checkingHealth")
-              : t("mcp.recheckHealth")
-          }}
-        </KxButton>
-        <KxButton
-          size="sm"
-          :disabled="busy"
-          :data-test="`mcp-enable-${server.value.id}`"
-          @click="runAction(() => mcp.setServerEnabled(server.value.id, !server.enabled))"
-        >
-          {{ server.enabled ? t("mcp.disable") : t("mcp.enable") }}
-        </KxButton>
-        <KxButton
-          size="sm"
-          :disabled="busy"
-          :data-test="`mcp-trust-${server.value.id}`"
-          @click="
-            runAction(() =>
-              server.value.trusted
-                ? mcp.revokeTrust(server.value.id)
-                : mcp.trustServer(server.value.id)
-            )
-          "
-        >
-          {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
-        </KxButton>
-        <KxButton
-          v-if="canDisableAtScope()"
-          variant="warning"
-          size="sm"
-          :disabled="busy"
-          :data-test="`mcp-disable-scope-${server.value.id}`"
-          @click="runAction(() => mcp.disableServerAtScope(server.value.id, currentProjectRoot!))"
-        >
-          {{ t("mcp.disableInProject") }}
-        </KxButton>
-        <KxButton
-          v-if="canEnableAtScope()"
-          variant="success"
-          size="sm"
-          :disabled="busy"
-          :data-test="`mcp-enable-scope-${server.value.id}`"
-          @click="runAction(() => mcp.enableServerAtScope(server.value.id, currentProjectRoot!))"
-        >
-          {{ t("mcp.enableInProject") }}
-        </KxButton>
-        <KxButton
-          variant="danger"
-          size="sm"
-          :disabled="!server.writable || busy"
-          :data-test="`mcp-delete-${server.value.id}`"
-          @click="runAction(() => mcp.deleteServerSettings(server.value.id))"
-        >
-          {{ t("common.delete") }}
-        </KxButton>
-      </div>
+    <template #actions>
+      <KxInlineAction
+        v-if="server.value.transport !== 'builtin'"
+        :disabled="mcp.checkingHealth.has(server.value.id) || busy"
+        :data-test="`mcp-recheck-${server.value.id}`"
+        @click="mcp.checkHealth(server.value.id)"
+      >
+        {{
+          mcp.checkingHealth.has(server.value.id) ? t("mcp.checkingHealth") : t("mcp.recheckHealth")
+        }}
+      </KxInlineAction>
+      <KxInlineAction
+        :disabled="busy"
+        :data-test="`mcp-enable-${server.value.id}`"
+        @click="runAction(() => mcp.setServerEnabled(server.value.id, !server.enabled))"
+      >
+        {{ server.enabled ? t("mcp.disable") : t("mcp.enable") }}
+      </KxInlineAction>
+      <KxInlineAction
+        :disabled="busy"
+        :data-test="`mcp-trust-${server.value.id}`"
+        @click="
+          runAction(() =>
+            server.value.trusted
+              ? mcp.revokeTrust(server.value.id)
+              : mcp.trustServer(server.value.id)
+          )
+        "
+      >
+        {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
+      </KxInlineAction>
+      <KxInlineAction
+        v-if="canDisableAtScope()"
+        variant="warning"
+        :disabled="busy"
+        :data-test="`mcp-disable-scope-${server.value.id}`"
+        @click="runAction(() => mcp.disableServerAtScope(server.value.id, currentProjectRoot!))"
+      >
+        {{ t("mcp.disableInProject") }}
+      </KxInlineAction>
+      <KxInlineAction
+        v-if="canEnableAtScope()"
+        variant="success"
+        :disabled="busy"
+        :data-test="`mcp-enable-scope-${server.value.id}`"
+        @click="runAction(() => mcp.enableServerAtScope(server.value.id, currentProjectRoot!))"
+      >
+        {{ t("mcp.enableInProject") }}
+      </KxInlineAction>
+      <KxInlineAction
+        variant="danger"
+        :disabled="!server.writable || busy"
+        :data-test="`mcp-delete-${server.value.id}`"
+        @click="runAction(() => mcp.deleteServerSettings(server.value.id))"
+      >
+        {{ t("common.delete") }}
+      </KxInlineAction>
+    </template>
 
+    <template #details>
       <!-- Collapsible tool list at card bottom (non-builtin servers only) -->
       <div
         v-if="server.value.transport !== 'builtin' && serverToolCount() > 0"
@@ -242,7 +234,7 @@ function serverToolCount(): number {
         v-if="server.value.transport !== 'builtin'"
         :server-id="server.value.id"
       />
-    </div>
+    </template>
   </SettingsCardItem>
 </template>
 
@@ -251,29 +243,16 @@ function serverToolCount(): number {
   margin: 0 0 4px;
 }
 
-.mcp-settings__server-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
 .mcp-settings__server-main {
   min-width: 0;
   display: grid;
   gap: 8px;
 }
 
-.server__tags,
-.mcp-settings__actions {
+.server__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.mcp-settings__actions {
-  justify-content: flex-end;
 }
 
 /* Source tags for effective (unified) view */
