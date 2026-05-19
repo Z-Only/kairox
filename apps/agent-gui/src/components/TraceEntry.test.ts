@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import TraceEntry from "./TraceEntry.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
@@ -59,6 +60,7 @@ const baseEntry: TraceEntryData = {
 };
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   clearTrace();
 });
 

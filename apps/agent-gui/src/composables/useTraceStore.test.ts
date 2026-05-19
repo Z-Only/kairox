@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import { traceState, applyTraceEvent, clearTrace } from "./useTraceStore";
 import type { DomainEvent } from "../types";
 
@@ -25,6 +26,7 @@ function makeEvent(payload: DomainEvent["payload"]): DomainEvent {
 
 describe("useTraceStore", () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     clearTrace();
   });
 

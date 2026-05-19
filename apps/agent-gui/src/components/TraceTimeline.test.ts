@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
@@ -64,6 +65,7 @@ function getContrastRatio(foregroundColor: string, backgroundColor: string) {
 // confirm injection via `mount.global.provide`.
 function mountTimeline() {
   return mountWithPlugins(TraceTimeline, {
+    reusePinia: true,
     mount: {
       global: {
         provide: {
@@ -75,6 +77,7 @@ function mountTimeline() {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   clearTrace();
   // MemoryBrowser calls `invoke('query_memories', ...)` on mount and
   // assigns the result to `memories.value`. Without a default resolved
@@ -83,10 +86,6 @@ beforeEach(() => {
   // default so any invoke call this test file does not override stays
   // well-typed.
   mockedInvoke.mockResolvedValue([]);
-  // The Pinia-bound `useTaskGraphStore().clearTaskGraph()` reset is now
-  // done *after* mount inside each test (see `mountTimeline()` helper
-  // calls below); the shared helper installs a fresh Pinia per mount so
-  // there is no module-level state to reset before mount.
 });
 
 describe("TraceTimeline", () => {
