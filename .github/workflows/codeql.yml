@@ -12,9 +12,77 @@ env:
   # Keep file coverage information on PR analyses (opt out of April 2026 change)
   CODEQL_ACTION_FILE_COVERAGE_ON_PRS: true
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    name: Detect CodeQL changes
+    runs-on: ubuntu-latest
+    outputs:
+      actions: ${{ steps.paths.outputs.actions }}
+      javascript_typescript: ${{ steps.paths.outputs.javascript_typescript }}
+      rust: ${{ steps.paths.outputs.rust }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            {
+              echo "actions=true"
+              echo "javascript_typescript=true"
+              echo "rust=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+          git cat-file -e "$base^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$base"
+          files="$(git diff --name-only "$base" "$head")"
+
+          actions=false
+          javascript_typescript=false
+          rust=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/**)
+                actions=true
+                ;;
+            esac
+
+            case "$file" in
+              package.json|bun.lock|apps/agent-gui/package.json|apps/agent-gui/bun.lock|apps/agent-gui/index.html|apps/agent-gui/*.config.*|apps/agent-gui/tsconfig*.json|apps/agent-gui/src/**|apps/agent-gui/e2e/**|apps/agent-gui/e2e-pilot/**|apps/agent-gui/public/**|scripts/*.js|scripts/*.cjs|scripts/*.mjs)
+                javascript_typescript=true
+                ;;
+            esac
+
+            case "$file" in
+              Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/src-tauri/**)
+                rust=true
+                ;;
+            esac
+          done <<< "$files"
+
+          {
+            echo "actions=$actions"
+            echo "javascript_typescript=$javascript_typescript"
+            echo "rust=$rust"
+          } >> "$GITHUB_OUTPUT"
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: changes
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -34,21 +102,34 @@ jobs:
             build-mode: none
 
     steps:
+      - name: Decide whether this language changed
+        id: should-run
+        shell: bash
+        run: |
+          case "${{ matrix.language }}" in
+            actions) changed="${{ needs.changes.outputs.actions }}" ;;
+            javascript-typescript) changed="${{ needs.changes.outputs.javascript_typescript }}" ;;
+            rust) changed="${{ needs.changes.outputs.rust }}" ;;
+            *) changed=true ;;
+          esac
+          echo "value=$changed" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
+        if: steps.should-run.outputs.value == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Rust
-        if: matrix.language == 'rust'
+        if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
-        if: matrix.language == 'rust'
+        if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
       - name: Install Linux system deps for Tauri crates
-        if: matrix.language == 'rust'
+        if: matrix.language == 'rust' && steps.should-run.outputs.value == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -60,12 +141,14 @@ jobs:
             patchelf
 
       - name: Initialize CodeQL
+        if: steps.should-run.outputs.value == 'true'
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
       - name: Perform CodeQL Analysis
+        if: steps.should-run.outputs.value == 'true'
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
