@@ -147,7 +147,24 @@
     "fileMentionHeader": "Files",
     "fileMentionNoWorkspace": "Open a project session to mention workspace files.",
     "fileMentionNoMatches": "No matching files",
+    "commandPaletteHeader": "Commands, Models & Skills",
     "commandPaletteNoMatches": "No commands, models, or skills match",
+    "commandPaletteRunSkill": "Run skill",
+    "commandPaletteSwitchModel": "Switch model",
+    "commands": {
+      "clear": {
+        "description": "Clear the current conversation"
+      },
+      "compact": {
+        "description": "Compact context to save tokens"
+      },
+      "model": {
+        "description": "Switch the active model - pick a profile below"
+      },
+      "help": {
+        "description": "Show available commands and skills"
+      }
+    },
     "queueSend": "Queue",
     "queuedGuide": "Guide",
     "queuedGuideAria": "Send this queued message now",

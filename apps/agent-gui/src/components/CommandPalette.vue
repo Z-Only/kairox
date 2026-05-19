@@ -20,8 +20,8 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const registry = useCommandRegistry();
 const { t } = useI18n();
+const registry = useCommandRegistry(t);
 
 const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
@@ -95,6 +95,12 @@ function highlightMatch(text: string): string {
   return escaped.replace(new RegExp(`(${escapedPattern})`, "gi"), "<mark>$1</mark>");
 }
 
+function itemDescription(item: (typeof displayedItems.value)[number]): string {
+  if (item.kind === "command") return item.command.description;
+  if (item.kind === "skill") return t("chat.commandPaletteRunSkill");
+  return t("chat.commandPaletteSwitchModel");
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -114,7 +120,9 @@ defineExpose({ handleKeydown });
     data-test="command-palette"
     @keydown="handleKeydown"
   >
-    <div class="kx-popover-panel__header command-palette__header">Commands, Models & Skills</div>
+    <div class="kx-popover-panel__header command-palette__header">
+      {{ t("chat.commandPaletteHeader") }}
+    </div>
     <KxEmptyState
       v-if="displayedItems.length === 0"
       class="command-palette__empty"
@@ -164,15 +172,7 @@ defineExpose({ handleKeydown });
         <!-- eslint-disable-next-line vue/no-v-html -->
         <span
           class="kx-popover-option__meta command-palette__desc"
-          v-html="
-            highlightMatch(
-              item.kind === 'command'
-                ? item.command.description
-                : item.kind === 'skill'
-                  ? 'Run skill'
-                  : 'Switch model'
-            )
-          "
+          v-html="highlightMatch(itemDescription(item))"
         ></span>
       </div>
     </template>

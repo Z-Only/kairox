@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import commandRegistrySource from "./useCommandRegistry.ts?raw";
 
 // Plain mutable object so individual tests can toggle session presence.
 // (The mock returns a plain POJO, so Vue ref auto-unwrap does NOT apply;
@@ -126,6 +127,37 @@ describe("useCommandRegistry", () => {
   });
 
   describe("command shape", () => {
+    it("localizes builtin command descriptions through the provided translator", () => {
+      const t = (key: string) =>
+        ({
+          "chat.commands.clear.description": "清空当前对话",
+          "chat.commands.compact.description": "压缩上下文以节省 token",
+          "chat.commands.model.description": "切换当前模型",
+          "chat.commands.help.description": "显示可用命令和技能"
+        })[key] ?? key;
+      const registry = useCommandRegistry(t);
+      registry.setFilter("");
+
+      const descriptions = registry
+        .allItems()
+        .filter((item) => item.kind === "command")
+        .map((item) => (item.kind === "command" ? item.command.description : ""));
+
+      expect(descriptions).toEqual([
+        "清空当前对话",
+        "压缩上下文以节省 token",
+        "切换当前模型",
+        "显示可用命令和技能"
+      ]);
+    });
+
+    it("does not keep builtin command descriptions inline in the registry source", () => {
+      expect(commandRegistrySource).not.toContain("Clear the current conversation");
+      expect(commandRegistrySource).not.toContain("Compact context to save tokens");
+      expect(commandRegistrySource).not.toContain("Switch the active model");
+      expect(commandRegistrySource).not.toContain("Show available commands and skills");
+    });
+
     it("help command has handler and always context", () => {
       const registry = useCommandRegistry();
       registry.setFilter("help");

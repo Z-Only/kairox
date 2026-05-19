@@ -15,15 +15,21 @@ export interface CommandDef {
   context?: "always" | "session-active";
 }
 
-export function useCommandRegistry() {
+export type CommandTranslator = (key: string) => string;
+
+interface BuiltinCommandDef extends Omit<CommandDef, "description"> {
+  descriptionKey: string;
+}
+
+export function useCommandRegistry(t: CommandTranslator = (key) => key) {
   const session = useSessionStore();
   const skills = useSkillsStore();
 
-  const builtinCommands: CommandDef[] = [
+  const builtinCommandDefs: BuiltinCommandDef[] = [
     {
       id: "clear",
       label: "/clear",
-      description: "Clear the current conversation",
+      descriptionKey: "chat.commands.clear.description",
       context: "session-active",
       handler: async () => {
         session.resetProjection();
@@ -32,7 +38,7 @@ export function useCommandRegistry() {
     {
       id: "compact",
       label: "/compact",
-      description: "Compact context to save tokens",
+      descriptionKey: "chat.commands.compact.description",
       context: "session-active",
       handler: async () => {
         if (session.currentSessionId) {
@@ -43,14 +49,14 @@ export function useCommandRegistry() {
     {
       id: "model",
       label: "/model",
-      description: "Switch the active model — pick a profile below",
+      descriptionKey: "chat.commands.model.description",
       context: "session-active",
       insertText: "/model "
     },
     {
       id: "help",
       label: "/help",
-      description: "Show available commands and skills",
+      descriptionKey: "chat.commands.help.description",
       context: "always",
       handler: async () => {
         // palette itself serves as the help display
@@ -60,11 +66,18 @@ export function useCommandRegistry() {
 
   const filterText = ref("");
 
+  const builtinCommands = computed<CommandDef[]>(() =>
+    builtinCommandDefs.map(({ descriptionKey, ...command }) => ({
+      ...command,
+      description: t(descriptionKey)
+    }))
+  );
+
   const matchingCommands = computed(() => {
     const q = filterText.value.toLowerCase();
-    if (!q) return builtinCommands;
+    if (!q) return builtinCommands.value;
 
-    return builtinCommands.filter(
+    return builtinCommands.value.filter(
       (cmd) =>
         cmd.id.toLowerCase().includes(q) ||
         cmd.label.toLowerCase().includes(q) ||
