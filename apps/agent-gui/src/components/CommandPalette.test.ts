@@ -91,6 +91,23 @@ describe("CommandPalette", () => {
     expect(items[0].find(".command-palette__label").text()).toBe("/clear");
   });
 
+  it("keeps the palette visible with a shared popover empty state when nothing matches", async () => {
+    const { wrapper } = mountWithPlugins(CommandPalette, {
+      mount: { props: { visible: true, filterText: "definitely-no-command-match" } },
+      reusePinia: true
+    });
+    await wrapper.vm.$nextTick();
+
+    const palette = wrapper.find('[data-test="command-palette"]');
+    const empty = wrapper.find('[data-test="command-palette-empty"]');
+    expect(palette.exists()).toBe(true);
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toBe("No commands, models, or skills match");
+    expect(empty.classes()).toContain("kx-empty-state");
+    expect(empty.classes()).toContain("kx-empty-state--popover");
+    expect(empty.classes()).toContain("kx-popover-empty");
+  });
+
   // ---- Keyboard events ----
 
   it("emits close on Escape keydown", async () => {

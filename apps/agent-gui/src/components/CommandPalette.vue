@@ -21,9 +21,11 @@ const emit = defineEmits<{
 }>();
 
 const registry = useCommandRegistry();
+const { t } = useI18n();
 
 const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
+registry.setFilter(props.filterText);
 
 watch(
   () => props.filterText,
@@ -70,9 +72,11 @@ function selectItem(index: number) {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "ArrowDown") {
     e.preventDefault();
+    if (displayedItems.value.length === 0) return;
     selectedIndex.value = Math.min(selectedIndex.value + 1, displayedItems.value.length - 1);
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
+    if (displayedItems.value.length === 0) return;
     selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
   } else if (e.key === "Enter") {
     e.preventDefault();
@@ -105,63 +109,73 @@ defineExpose({ handleKeydown });
 <template>
   <div
     ref="paletteEl"
-    v-if="visible && displayedItems.length > 0"
+    v-if="visible"
     class="kx-popover-content kx-popover-content--palette command-palette"
     data-test="command-palette"
     @keydown="handleKeydown"
   >
     <div class="kx-popover-panel__header command-palette__header">Commands, Models & Skills</div>
-    <div
-      v-for="(item, i) in displayedItems"
-      :key="
-        item.kind === 'command'
-          ? item.command.id
-          : item.kind === 'skill'
-            ? `skill-${item.skillId}`
-            : `model-${item.alias}`
-      "
-      class="kx-popover-option command-palette__item"
-      :class="{
-        'command-palette__item--selected': i === selectedIndex,
-        'kx-popover-option--selected': i === selectedIndex
-      }"
-      :data-test="`palette-item-${
-        item.kind === 'command'
-          ? item.command.id
-          : item.kind === 'skill'
-            ? item.skillId
-            : item.alias
-      }`"
-      @click="selectItem(i)"
-      @mouseenter="selectedIndex = i"
+    <KxEmptyState
+      v-if="displayedItems.length === 0"
+      class="command-palette__empty"
+      density="popover"
+      data-test="command-palette-empty"
     >
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <span
-        class="kx-popover-option__label command-palette__label"
-        v-html="
-          highlightMatch(
-            item.kind === 'command'
-              ? item.command.label
-              : item.kind === 'skill'
-                ? `/skills ${item.displayName}`
-                : item.displayName
-          )
+      {{ t("chat.commandPaletteNoMatches") }}
+    </KxEmptyState>
+    <template v-else>
+      <div
+        v-for="(item, i) in displayedItems"
+        :key="
+          item.kind === 'command'
+            ? item.command.id
+            : item.kind === 'skill'
+              ? `skill-${item.skillId}`
+              : `model-${item.alias}`
         "
-      ></span>
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <span
-        class="kx-popover-option__meta command-palette__desc"
-        v-html="
-          highlightMatch(
-            item.kind === 'command'
-              ? item.command.description
-              : item.kind === 'skill'
-                ? 'Run skill'
-                : 'Switch model'
-          )
-        "
-      ></span>
-    </div>
+        class="kx-popover-option command-palette__item"
+        :class="{
+          'command-palette__item--selected': i === selectedIndex,
+          'kx-popover-option--selected': i === selectedIndex
+        }"
+        :data-test="`palette-item-${
+          item.kind === 'command'
+            ? item.command.id
+            : item.kind === 'skill'
+              ? item.skillId
+              : item.alias
+        }`"
+        @click="selectItem(i)"
+        @mouseenter="selectedIndex = i"
+      >
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <span
+          class="kx-popover-option__label command-palette__label"
+          v-html="
+            highlightMatch(
+              item.kind === 'command'
+                ? item.command.label
+                : item.kind === 'skill'
+                  ? `/skills ${item.displayName}`
+                  : item.displayName
+            )
+          "
+        ></span>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <span
+          class="kx-popover-option__meta command-palette__desc"
+          v-html="
+            highlightMatch(
+              item.kind === 'command'
+                ? item.command.description
+                : item.kind === 'skill'
+                  ? 'Run skill'
+                  : 'Switch model'
+            )
+          "
+        ></span>
+      </div>
+    </template>
   </div>
 </template>
 

@@ -153,20 +153,23 @@ defineExpose({ handleKeydown });
     <div class="kx-popover-panel__header file-mention-palette__header">
       {{ t("chat.fileMentionHeader") }}
     </div>
-    <div
+    <KxAsyncState
       v-if="showLoading"
-      class="kx-popover-empty file-mention-palette__empty"
+      class="file-mention-palette__empty"
+      tone="loading"
+      density="popover"
       data-test="file-mention-loading"
     >
       {{ t("common.loading") }}
-    </div>
-    <div
+    </KxAsyncState>
+    <KxEmptyState
       v-else-if="displayedFiles.length === 0"
-      class="kx-popover-empty file-mention-palette__empty"
+      class="file-mention-palette__empty"
+      density="popover"
       data-test="file-mention-empty"
     >
       {{ emptyMessage }}
-    </div>
+    </KxEmptyState>
     <template v-else>
       <div
         v-for="(path, i) in displayedFiles"

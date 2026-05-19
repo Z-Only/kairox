@@ -10,6 +10,11 @@ import installedListSource from "@/components/marketplace/InstalledList.vue?raw"
 import skillDiscoverListSource from "@/components/skills/SkillDiscoverList.vue?raw";
 import mcpResourceAccordionSource from "@/components/McpResourceAccordion.vue?raw";
 import mcpPromptAccordionSource from "@/components/McpPromptAccordion.vue?raw";
+import chatPanelSource from "@/components/ChatPanel.vue?raw";
+import sessionsSidebarSource from "@/components/SessionsSidebar.vue?raw";
+import sessionSectionSource from "@/components/sidebar/SessionSection.vue?raw";
+import commandPaletteSource from "@/components/CommandPalette.vue?raw";
+import fileMentionPaletteSource from "@/components/FileMentionPalette.vue?raw";
 
 const migratedSources = [
   ["SettingsState.vue", settingsStateSource],
@@ -21,7 +26,12 @@ const migratedSources = [
   ["InstalledList.vue", installedListSource],
   ["SkillDiscoverList.vue", skillDiscoverListSource],
   ["McpResourceAccordion.vue", mcpResourceAccordionSource],
-  ["McpPromptAccordion.vue", mcpPromptAccordionSource]
+  ["McpPromptAccordion.vue", mcpPromptAccordionSource],
+  ["ChatPanel.vue", chatPanelSource],
+  ["SessionsSidebar.vue", sessionsSidebarSource],
+  ["SessionSection.vue", sessionSectionSource],
+  ["CommandPalette.vue", commandPaletteSource],
+  ["FileMentionPalette.vue", fileMentionPaletteSource]
 ] as const;
 
 describe("Kx async state migration", () => {
@@ -40,5 +50,10 @@ describe("Kx async state migration", () => {
     expect(permissionCenterSource).not.toContain(".empty-state {");
     expect(skillDiscoverListSource).not.toContain(".catalog-state {");
     expect(skillDiscoverListSource).not.toContain(".spinner {");
+    expect(chatPanelSource).not.toContain(".empty-state {");
+    expect(sessionsSidebarSource).not.toContain(".sessions-empty-state {");
+    expect(sessionsSidebarSource).not.toContain(".empty-hint {");
+    expect(sessionSectionSource).not.toContain('class="empty-state empty-hint"');
+    expect(fileMentionPaletteSource).not.toContain('class="kx-popover-empty');
   });
 });

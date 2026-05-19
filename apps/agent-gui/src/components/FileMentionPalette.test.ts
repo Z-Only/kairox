@@ -50,6 +50,10 @@ describe("FileMentionPalette", () => {
     expect(wrapper.find('[data-test="file-mention-empty"]').classes()).toContain(
       "kx-popover-empty"
     );
+    expect(wrapper.find('[data-test="file-mention-empty"]').classes()).toContain("kx-empty-state");
+    expect(wrapper.find('[data-test="file-mention-empty"]').classes()).toContain(
+      "kx-empty-state--popover"
+    );
   });
 
   it("explains that file mentions need a project workspace", async () => {

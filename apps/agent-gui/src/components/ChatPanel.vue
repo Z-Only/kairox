@@ -90,32 +90,27 @@ watch(
     </header>
 
     <div ref="scrollbar" class="message-list" data-test="message-list">
-      <div
-        class="message-list-inner"
-        :data-test="
-          session.projection.messages.length === 0 && !session.projection.token_stream
-            ? 'chat-empty-state'
-            : undefined
-        "
-      >
-        <div
+      <div class="message-list-inner">
+        <KxEmptyState
           v-if="session.projection.messages.length === 0 && !session.projection.token_stream"
-          class="empty-state"
+          class="chat-empty-state"
           data-test="chat-empty-state"
         >
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            aria-hidden="true"
-          >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <p>{{ t("chat.emptyState") }}</p>
-        </div>
+          <template #icon>
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </template>
+          {{ t("chat.emptyState") }}
+        </KxEmptyState>
         <div
           v-for="(msg, i) in session.projection.messages"
           :key="i"
@@ -216,19 +211,8 @@ watch(
   font-size: 12px;
   line-height: 1.5;
 }
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px 16px;
-  color: var(--app-muted-text-color, var(--app-text-color));
-  opacity: 0.72;
-}
-.empty-state p {
-  margin: 0;
-  font-size: 13px;
+.chat-empty-state {
+  margin: 28px 0;
 }
 .message-content {
   max-width: min(760px, 82%);
