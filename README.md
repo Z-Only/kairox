@@ -32,6 +32,7 @@ graph TD
     TOOLS["agent-tools"]
     MCP["agent-mcp"]
     SKILLS["agent-skills"]
+    PLUGINS["agent-plugins"]
     MEMORY["agent-memory"]
     STORE["agent-store"]
     CONFIG["agent-config"]
@@ -45,6 +46,7 @@ graph TD
     RUNTIME --> TOOLS
     RUNTIME --> MCP
     RUNTIME --> SKILLS
+    RUNTIME --> PLUGINS
     RUNTIME --> MEMORY
     RUNTIME --> STORE
     RUNTIME --> CONFIG
