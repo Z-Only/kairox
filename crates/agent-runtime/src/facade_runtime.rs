@@ -2,10 +2,10 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
-use agent_core::facade::SessionFacade;
+#[allow(unused_imports)]
 use agent_core::{
-    AgentStatusInfo, AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
-    StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
+    AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId, StartSessionRequest,
+    WorkspaceId,
 };
 use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
@@ -14,13 +14,14 @@ use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::EventStore;
 use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
-use async_trait::async_trait;
-use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
+
+#[path = "facade_session_ops.rs"]
+mod facade_session_ops;
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
 
@@ -237,296 +238,6 @@ where
             reason,
         )
         .await
-    }
-}
-
-#[async_trait]
-impl<S, M> SessionFacade for LocalRuntime<S, M>
-where
-    S: EventStore + 'static,
-    M: agent_models::ModelClient + 'static,
-{
-    async fn open_workspace(&self, path: String) -> agent_core::Result<WorkspaceInfo> {
-        crate::session::open_workspace(&*self.store, &self.event_tx, path).await
-    }
-
-    async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
-        let workspace_id = request.workspace_id.clone();
-        let model_profile_alias = request.model_profile.clone();
-        let permission_mode = request.permission_mode.clone();
-        let session_id = crate::session::start_session(
-            &*self.store,
-            &self.event_tx,
-            request.workspace_id,
-            request.model_profile,
-            request.permission_mode,
-        )
-        .await?;
-
-        self.initialize_session_limits(&session_id, &model_profile_alias)
-            .await;
-
-        if let Some(ref mode_str) = permission_mode {
-            if let Ok(mode) = mode_str.parse::<PermissionMode>() {
-                self.permission_engine.lock().await.set_mode(mode);
-            }
-        }
-
-        crate::hooks::run_hooks_logged(
-            &self.config,
-            agent_config::HookEvent::SessionStart,
-            "*",
-            None,
-            serde_json::json!({
-                "workspace_id": workspace_id,
-                "session_id": session_id,
-                "model_profile": model_profile_alias,
-            }),
-        )
-        .await;
-
-        Ok(session_id)
-    }
-
-    async fn send_message(&self, request: SendMessageRequest) -> agent_core::Result<()> {
-        // Reject sends while a compaction is in flight (P2 busy gate).
-        // The state is cleared by `compaction::compact_session` on exit.
-        {
-            let states = self.session_states.lock().await;
-            if let Some(entry) = states.get(&request.session_id.to_string()) {
-                if entry.compacting {
-                    return Err(agent_core::CoreError::SessionBusy {
-                        session_id: request.session_id.to_string(),
-                        reason: "context compaction in progress".into(),
-                    });
-                }
-            }
-        }
-
-        if let Ok(repository) = self.project_repository() {
-            if let Ok(Some(_binding)) = repository
-                .get_session_binding(request.session_id.as_str())
-                .await
-            {
-                let visibility = repository
-                    .get_session_visibility(request.session_id.as_str())
-                    .await
-                    .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-                if visibility.as_deref() == Some("draft_hidden") {
-                    self.mark_session_visible(&request.session_id, request.content.clone())
-                        .await?;
-                }
-            }
-        }
-
-        match self.execution_mode(&request) {
-            ExecutionMode::DagExecution => {
-                let executor = self.dag_executor.as_ref().ok_or_else(|| {
-                    agent_core::CoreError::InvalidState("DAG executor not available".into())
-                })?;
-                let result = executor.execute(&request, &self.task_graphs).await?;
-                tracing::info!(
-                    "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
-                    result.total_tasks,
-                    result.completed,
-                    result.failed,
-                    result.skipped,
-                );
-                Ok(())
-            }
-            ExecutionMode::SingleStep => {
-                let root_path = match self.project_repository() {
-                    Ok(repo) => match repo.get_session_binding(request.session_id.as_str()).await {
-                        Ok(Some(binding)) => repo
-                            .get_project(&binding.project_id)
-                            .await
-                            .ok()
-                            .map(|project| std::path::PathBuf::from(project.root_path)),
-                        _ => None,
-                    },
-                    Err(_) => None,
-                };
-
-                crate::agent_loop::run_agent_loop(
-                    crate::agent_loop::AgentLoopDeps {
-                        store: &self.store,
-                        model: &self.model,
-                        event_tx: &self.event_tx,
-                        tool_registry: &self.tool_registry,
-                        permission_engine: &self.permission_engine,
-                        pending_permissions: &self.pending_permissions,
-                        memory_store: &self.memory_store,
-                        task_graphs: &self.task_graphs,
-                        active_cancellation: &self.active_cancellation,
-                        config: &self.config,
-                        session_states: &self.session_states,
-                        skill_registry: &self.skill_registry,
-                        active_skills: &self.active_skills,
-                        root_path,
-                    },
-                    &request,
-                )
-                .await
-            }
-        }
-    }
-
-    async fn decide_permission(&self, decision: PermissionDecision) -> agent_core::Result<()> {
-        let _ = decision;
-        Ok(())
-    }
-
-    async fn cancel_session(
-        &self,
-        workspace_id: WorkspaceId,
-        session_id: SessionId,
-    ) -> agent_core::Result<()> {
-        crate::session::cancel_session(
-            &*self.store,
-            &self.event_tx,
-            &self.active_cancellation,
-            workspace_id,
-            session_id,
-        )
-        .await
-    }
-
-    async fn get_session_projection(
-        &self,
-        session_id: SessionId,
-    ) -> agent_core::Result<agent_core::projection::SessionProjection> {
-        crate::session::get_session_projection(&*self.store, session_id).await
-    }
-
-    async fn get_trace(&self, session_id: SessionId) -> agent_core::Result<Vec<TraceEntry>> {
-        crate::session::get_trace(&*self.store, session_id).await
-    }
-
-    fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent> {
-        crate::session::subscribe_session(&self.event_tx, session_id)
-    }
-
-    fn subscribe_all(&self) -> BoxStream<'static, DomainEvent> {
-        crate::session::subscribe_all(&self.event_tx)
-    }
-
-    async fn list_workspaces(&self) -> agent_core::Result<Vec<WorkspaceInfo>> {
-        crate::session::list_workspaces(&*self.store).await
-    }
-
-    async fn list_sessions(
-        &self,
-        workspace_id: &WorkspaceId,
-    ) -> agent_core::Result<Vec<agent_core::SessionMeta>> {
-        crate::session::list_sessions(&*self.store, workspace_id).await
-    }
-
-    async fn rename_session(
-        &self,
-        session_id: &SessionId,
-        title: String,
-    ) -> agent_core::Result<()> {
-        crate::session::rename_session(&*self.store, session_id, title).await
-    }
-
-    async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
-        crate::session::soft_delete_session(&*self.store, session_id).await
-    }
-
-    async fn permanently_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
-        crate::session::permanently_delete_session(&*self.store, session_id.as_str()).await
-    }
-
-    async fn restore_archived_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
-        crate::session::restore_archived_session(&*self.store, session_id.as_str()).await
-    }
-
-    async fn cleanup_expired_sessions(
-        &self,
-        older_than: std::time::Duration,
-    ) -> agent_core::Result<usize> {
-        crate::session::cleanup_expired_sessions(&*self.store, older_than).await
-    }
-
-    async fn get_task_graph(
-        &self,
-        session_id: SessionId,
-    ) -> agent_core::Result<agent_core::TaskGraphSnapshot> {
-        crate::session::get_task_graph(&self.task_graphs, session_id).await
-    }
-
-    async fn retry_task(
-        &self,
-        workspace_id: WorkspaceId,
-        session_id: SessionId,
-        task_id: TaskId,
-    ) -> agent_core::Result<()> {
-        if let Some(executor) = &self.dag_executor {
-            let mut graphs = self.task_graphs.lock().await;
-            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!(
-                    "No task graph found for session {}",
-                    session_id
-                ))
-            })?;
-            executor
-                .retry_task(&workspace_id, &session_id, graph, &task_id)
-                .await
-        } else {
-            Err(agent_core::CoreError::InvalidState(
-                "DAG executor not available".into(),
-            ))
-        }
-    }
-
-    async fn cancel_task(
-        &self,
-        workspace_id: WorkspaceId,
-        session_id: SessionId,
-        task_id: TaskId,
-    ) -> agent_core::Result<()> {
-        if let Some(executor) = &self.dag_executor {
-            let mut graphs = self.task_graphs.lock().await;
-            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!(
-                    "No task graph found for session {}",
-                    session_id
-                ))
-            })?;
-            executor
-                .cancel_task(&workspace_id, &session_id, graph, &task_id)
-                .await
-        } else {
-            Err(agent_core::CoreError::InvalidState(
-                "DAG executor not available".into(),
-            ))
-        }
-    }
-
-    async fn get_agent_status(
-        &self,
-        session_id: SessionId,
-    ) -> agent_core::Result<Vec<AgentStatusInfo>> {
-        let graphs = self.task_graphs.lock().await;
-        match graphs.get(&session_id.to_string()) {
-            Some(graph) => {
-                if let Some(executor) = &self.dag_executor {
-                    let statuses = executor.get_agent_status(graph);
-                    Ok(statuses
-                        .into_iter()
-                        .map(|s| AgentStatusInfo {
-                            agent_id: s.agent_id,
-                            role: s.role,
-                            task_id: s.task_id,
-                            status: s.status,
-                        })
-                        .collect())
-                } else {
-                    Ok(Vec::new())
-                }
-            }
-            None => Ok(Vec::new()),
-        }
     }
 }
 
