@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -12,6 +16,115 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.paths.outputs.rust }}
+      web: ${{ steps.paths.outputs.web }}
+      typegen: ${{ steps.paths.outputs.typegen }}
+      tui: ${{ steps.paths.outputs.tui }}
+      desktop: ${{ steps.paths.outputs.desktop }}
+      live_models: ${{ steps.paths.outputs.live_models }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          head="${{ github.sha }}"
+
+          if [[ -z "$base" || "$base" == "0000000000000000000000000000000000000000" ]]; then
+            files="$(git ls-tree -r --name-only "$head")"
+          else
+            git cat-file -e "$base^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$base"
+            git cat-file -e "$head^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$head"
+            files="$(git diff --name-only "$base" "$head")"
+          fi
+
+          if [[ -z "$files" ]]; then
+            rust=true
+            web=true
+            typegen=true
+            tui=true
+            desktop=true
+            live_models=true
+          else
+            rust=false
+            web=false
+            typegen=false
+            tui=false
+            desktop=false
+            live_models=false
+
+            while IFS= read -r file; do
+              case "$file" in
+                .github/workflows/ci.yml)
+                  rust=true
+                  web=true
+                  typegen=true
+                  tui=true
+                  desktop=true
+                  live_models=true
+                  ;;
+                Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/src-tauri/**)
+                  rust=true
+                  desktop=true
+                  ;;
+              esac
+
+              case "$file" in
+                package.json|bun.lock|apps/agent-gui/package.json|apps/agent-gui/bun.lock|apps/agent-gui/index.html|apps/agent-gui/playwright.config.*|apps/agent-gui/vite.config.*|apps/agent-gui/vitest.config.*|apps/agent-gui/tsconfig*.json|apps/agent-gui/src/**|apps/agent-gui/e2e/**|apps/agent-gui/public/**)
+                  web=true
+                  ;;
+              esac
+
+              case "$file" in
+                Cargo.toml|Cargo.lock|Justfile|crates/agent-core/**|crates/agent-config/**|crates/agent-memory/**|crates/agent-mcp/**|crates/agent-models/**|apps/agent-gui/src-tauri/**|apps/agent-gui/src/generated/**)
+                  typegen=true
+                  ;;
+              esac
+
+              case "$file" in
+                Cargo.toml|Cargo.lock|crates/**)
+                  tui=true
+                  ;;
+              esac
+
+              case "$file" in
+                package.json|bun.lock|Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/package.json|apps/agent-gui/src/**|apps/agent-gui/src-tauri/**|apps/agent-gui/e2e-pilot/**|scripts/run-pilot-tests.sh)
+                  desktop=true
+                  ;;
+              esac
+
+              case "$file" in
+                Cargo.toml|Cargo.lock|crates/agent-core/**|crates/agent-models/**|crates/agent-runtime/**)
+                  live_models=true
+                  ;;
+              esac
+            done <<< "$files"
+          fi
+
+          {
+            echo "rust=$rust"
+            echo "web=$web"
+            echo "typegen=$typegen"
+            echo "tui=$tui"
+            echo "desktop=$desktop"
+            echo "live_models=$live_models"
+          } >> "$GITHUB_OUTPUT"
+
   format:
     name: Format
     runs-on: ubuntu-latest
@@ -41,6 +154,8 @@ jobs:
 
   lint-rust:
     name: Clippy
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -73,6 +188,8 @@ jobs:
 
   lint-web:
     name: Lint (web)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -98,6 +215,8 @@ jobs:
 
   test:
     name: Test
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -140,6 +259,8 @@ jobs:
 
   test-e2e:
     name: E2E Tests
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -182,6 +303,8 @@ jobs:
 
   type-sync:
     name: Type sync check
+    needs: changes
+    if: needs.changes.outputs.typegen == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -230,6 +353,8 @@ jobs:
 
   build-tui:
     name: Build TUI
+    needs: changes
+    if: needs.changes.outputs.tui == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -249,6 +374,8 @@ jobs:
 
   build-gui:
     name: Build GUI web
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -272,6 +399,8 @@ jobs:
 
   live-model-tests:
     name: Live model tests (GitHub Models)
+    needs: changes
+    if: needs.changes.outputs.live_models == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -297,6 +426,8 @@ jobs:
 
   tauri-pilot-e2e:
     name: Tauri pilot E2E (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -399,6 +530,7 @@ jobs:
     if: ${{ always() }}
     needs:
       [
+        changes,
         format,
         lint-rust,
         lint-web,
