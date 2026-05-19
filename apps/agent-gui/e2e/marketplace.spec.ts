@@ -112,13 +112,13 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     // The new remote chip starts active.
     const remote = page.getByTestId("source-chip-smithery");
     await expect(remote).toBeVisible();
-    await expect(remote).toHaveClass(/active/);
+    await expect(remote).toHaveClass(/kx-chip-button--selected/);
 
     // Deselect the remote chip → only builtin entries remain.
     await remote.click();
-    await expect(remote).not.toHaveClass(/active/);
+    await expect(remote).not.toHaveClass(/kx-chip-button--selected/);
     // Builtin chip stays active and filesystem card is still visible.
-    await expect(page.getByTestId("source-chip-builtin")).toHaveClass(/active/);
+    await expect(page.getByTestId("source-chip-builtin")).toHaveClass(/kx-chip-button--selected/);
     await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toBeVisible();
   });
 

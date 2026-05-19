@@ -88,26 +88,27 @@ async function selectSource(sourceId: string | null): Promise<void> {
 <template>
   <div class="discover-list">
     <SettingsFilterBar :aria-label="t('skills.tabDiscover')">
-      <div class="source-filter" :aria-label="t('skills.sourceFilter')">
-        <button
+      <KxChipGroup :aria-label="t('skills.sourceFilter')" data-test="skill-source-filter">
+        <KxChipButton
           v-for="source in sourceFilters"
           :key="source.id ?? 'all'"
-          type="button"
-          :class="['chip', { active: selectedSourceId === source.id }]"
+          size="compact"
+          :selected="selectedSourceId === source.id"
           :data-test="`skill-source-filter-${source.id ?? 'all'}`"
           @click="selectSource(source.id)"
         >
           {{ source.display_name }}
-        </button>
-        <KxIconButton
-          class="settings-icon"
-          :label="t('marketplace.sourceSettingsAria')"
-          data-test="skill-source-settings-btn"
-          @click="sourceSettingsOpen = true"
-        >
-          <span aria-hidden="true">⚙</span>
-        </KxIconButton>
-      </div>
+        </KxChipButton>
+        <template #actions>
+          <KxIconButton
+            :label="t('marketplace.sourceSettingsAria')"
+            data-test="skill-source-settings-btn"
+            @click="sourceSettingsOpen = true"
+          >
+            <span aria-hidden="true">⚙</span>
+          </KxIconButton>
+        </template>
+      </KxChipGroup>
 
       <form role="search" @submit.prevent="searchCatalog()">
         <KxInput
@@ -117,22 +118,20 @@ async function selectSource(sourceId: string | null): Promise<void> {
           data-test="skill-catalog-search"
           size="compact"
         />
-        <KxButton
+        <KxToolbarAction
           variant="primary"
-          size="sm"
           data-test="skill-catalog-search-btn"
           @click="searchCatalog()"
         >
           {{ t("common.search") }}
-        </KxButton>
-        <KxButton
-          size="sm"
+        </KxToolbarAction>
+        <KxToolbarAction
           data-test="skill-catalog-refresh"
           :disabled="store.catalogLoading"
           @click="refreshCatalog"
         >
           {{ store.catalogLoading ? t("skills.refreshing") : t("common.refresh") }}
-        </KxButton>
+        </KxToolbarAction>
       </form>
     </SettingsFilterBar>
 
@@ -154,9 +153,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
     <SettingsState v-else-if="store.error" tone="error" data-test="skill-catalog-error">
       {{ store.error }}
       <template #actions>
-        <KxButton size="sm" data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
+        <KxInlineAction data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
           {{ t("common.retry") }}
-        </KxButton>
+        </KxInlineAction>
       </template>
     </SettingsState>
     <SettingsState
@@ -166,9 +165,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
     >
       {{ t("skills.catalogEmpty") }}
       <template #actions>
-        <KxButton size="sm" data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
+        <KxInlineAction data-test="skill-catalog-retry" @click="searchCatalog({ force: true })">
           {{ t("common.retry") }}
-        </KxButton>
+        </KxInlineAction>
       </template>
     </SettingsState>
     <div v-else class="grid">
@@ -207,35 +206,6 @@ async function selectSource(sourceId: string | null): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.source-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.source-filter .chip {
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 14px;
-  background: var(--app-card-color);
-  cursor: pointer;
-  color: var(--app-text-color);
-  font-size: 13px;
-}
-
-.source-filter .chip.active {
-  background: var(--app-primary-color, #18a058);
-  color: #fff;
-  border-color: var(--app-primary-color, #18a058);
-}
-
-.source-filter .settings-icon {
-  padding: 4px 8px;
-  font-size: 16px;
-  margin-left: auto;
 }
 
 .catalog-state {

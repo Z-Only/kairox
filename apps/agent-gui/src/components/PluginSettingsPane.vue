@@ -85,14 +85,13 @@ watch(activeSubTab, (tab) => {
 
     <div v-if="activeSubTab === 'installed'" class="plugin-panel">
       <SettingsToolbar :aria-label="t('plugins.tabInstalled')">
-        <KxButton
-          size="sm"
+        <KxToolbarAction
           :disabled="store.loading"
           data-test="plugin-refresh"
           @click="refreshInstalled"
         >
           {{ store.loading ? t("plugins.refreshing") : t("common.refresh") }}
-        </KxButton>
+        </KxToolbarAction>
       </SettingsToolbar>
 
       <SettingsState v-if="store.loading" tone="loading" data-test="plugin-loading-state">
@@ -154,23 +153,21 @@ watch(activeSubTab, (tab) => {
             </KxInlineAlert>
           </div>
           <div class="plugin-actions">
-            <KxButton
-              size="sm"
+            <KxInlineAction
               :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
               :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
               @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
             >
               {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
-            </KxButton>
-            <KxButton
+            </KxInlineAction>
+            <KxInlineAction
               variant="danger"
-              size="sm"
               :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
               :data-test="`plugin-delete-${settingsTestId(plugin)}`"
               @click="store.deletePlugin(plugin.settings_id)"
             >
               {{ t("common.delete") }}
-            </KxButton>
+            </KxInlineAction>
           </div>
         </SettingsCardItem>
       </SettingsCardList>
@@ -197,21 +194,19 @@ watch(activeSubTab, (tab) => {
           size="compact"
           @keyup.enter="refreshCatalog"
         />
-        <KxButton
-          size="sm"
+        <KxToolbarAction
           :disabled="store.catalogLoading"
           data-test="plugin-catalog-refresh"
           @click="refreshCatalog"
         >
           {{ store.catalogLoading ? t("plugins.searching") : t("common.search") }}
-        </KxButton>
-        <KxButton
-          size="sm"
+        </KxToolbarAction>
+        <KxToolbarAction
           data-test="plugin-source-settings-toggle"
           @click="sourceSettingsOpen = !sourceSettingsOpen"
         >
           {{ t("plugins.sourceSettings") }}
-        </KxButton>
+        </KxToolbarAction>
       </SettingsFilterBar>
 
       <ModalDialog
@@ -252,25 +247,23 @@ watch(activeSubTab, (tab) => {
                 </div>
                 <code>{{ source.source }}</code>
               </div>
-              <KxButton
-                size="sm"
+              <KxInlineAction
                 :data-test="`plugin-source-enabled-${slugify(source.id)}`"
                 @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
               >
                 {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
-              </KxButton>
+              </KxInlineAction>
             </SettingsCardItem>
           </SettingsCardList>
         </div>
 
         <template #footer>
-          <KxButton
-            size="sm"
+          <KxInlineAction
             data-test="plugin-source-settings-close"
             @click="sourceSettingsOpen = false"
           >
             {{ t("common.close") }}
-          </KxButton>
+          </KxInlineAction>
         </template>
       </ModalDialog>
 
@@ -300,14 +293,13 @@ watch(activeSubTab, (tab) => {
             <p>{{ entry.description }}</p>
             <code>{{ entry.source }}</code>
           </div>
-          <KxButton
+          <KxInlineAction
             variant="primary"
-            size="sm"
             :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
             @click="installCatalogEntry(entry.marketplace_id, entry.name)"
           >
             {{ t("plugins.install") }}
-          </KxButton>
+          </KxInlineAction>
         </SettingsCardItem>
       </SettingsCardList>
     </div>

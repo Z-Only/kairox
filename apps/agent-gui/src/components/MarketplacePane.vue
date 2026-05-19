@@ -52,12 +52,13 @@ onMounted(async () => {
 <template>
   <div class="marketplace-pane">
     <div>
-      <div class="source-filter">
-        <button
+      <KxChipGroup :aria-label="t('marketplace.title')" data-test="marketplace-source-filter">
+        <KxChipButton
           v-for="chip in sourceChips"
           :key="chip.id"
           :data-test="`source-chip-${chip.id}`"
-          :class="['chip', { active: catalog.isSourceEnabled(chip.id) }]"
+          size="compact"
+          :selected="catalog.isSourceEnabled(chip.id)"
           @click="catalog.toggleSource(chip.id)"
         >
           {{ chip.display_name }}
@@ -69,20 +70,21 @@ onMounted(async () => {
           >
             !
           </span>
-        </button>
-        <KxIconButton
-          class="settings-icon"
-          :label="t('marketplace.sourceSettingsAria')"
-          data-test="catalog-source-settings"
-          @click="settingsOpen = !settingsOpen"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-            <path
-              d="M8.95 2h2.1l.32 2.15c.5.17.97.42 1.4.73l2.01-.81 1.05 1.82-1.69 1.35c.05.25.08.51.08.76s-.03.51-.08.76l1.69 1.35-1.05 1.82-2.01-.81c-.43.31-.9.56-1.4.73L11.05 14h-2.1l-.32-2.15c-.5-.17-.97-.42-1.4-.73l-2.01.81-1.05-1.82 1.69-1.35A3.87 3.87 0 0 1 5.78 8c0-.25.03-.51.08-.76L4.17 5.89l1.05-1.82 2.01.81c.43-.31.9-.56 1.4-.73L8.95 2Zm1.05 4.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z"
-            />
-          </svg>
-        </KxIconButton>
-      </div>
+        </KxChipButton>
+        <template #actions>
+          <KxIconButton
+            :label="t('marketplace.sourceSettingsAria')"
+            data-test="catalog-source-settings"
+            @click="settingsOpen = !settingsOpen"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path
+                d="M8.95 2h2.1l.32 2.15c.5.17.97.42 1.4.73l2.01-.81 1.05 1.82-1.69 1.35c.05.25.08.51.08.76s-.03.51-.08.76l1.69 1.35-1.05 1.82-2.01-.81c-.43.31-.9.56-1.4.73L11.05 14h-2.1l-.32-2.15c-.5-.17-.97-.42-1.4-.73l-2.01.81-1.05-1.82 1.69-1.35A3.87 3.87 0 0 1 5.78 8c0-.25.03-.51.08-.76L4.17 5.89l1.05-1.82 2.01.81c.43-.31.9-.56 1.4-.73L8.95 2Zm1.05 4.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z"
+              />
+            </svg>
+          </KxIconButton>
+        </template>
+      </KxChipGroup>
 
       <ModalDialog
         :open="settingsOpen"
@@ -120,21 +122,6 @@ onMounted(async () => {
   flex-direction: column;
   overflow: hidden;
 }
-.chip {
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 14px;
-  background: var(--app-card-color);
-  cursor: pointer;
-  color: var(--app-text-color);
-  font-size: 0.85em;
-  font-family: inherit;
-}
-.chip.active {
-  background: var(--app-primary-color, #18a058);
-  color: #fff;
-  border-color: var(--app-primary-color, #18a058);
-}
 .tag-error {
   color: var(--app-error-color, #d03050);
   font-size: 0.85em;
@@ -144,20 +131,13 @@ onMounted(async () => {
   border-radius: 4px;
   padding: 12px;
 }
-.source-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+.kx-chip-group {
   margin-bottom: 12px;
 }
 .warn {
   margin-left: 4px;
 }
-.settings-icon {
-  margin-left: auto;
-}
-.settings-icon svg {
+.kx-icon-button svg {
   width: 16px;
   height: 16px;
   fill: currentColor;
