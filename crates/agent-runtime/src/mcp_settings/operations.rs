@@ -134,7 +134,10 @@ where
     }
 
     mutate_mcp_config(config_path, |document| {
-        if let Some(servers) = document["mcp_servers"].as_table_mut() {
+        if let Some(servers) = document
+            .get_mut("mcp_servers")
+            .and_then(|v| v.as_table_mut())
+        {
             servers.remove(server_id);
         }
         Ok(())
