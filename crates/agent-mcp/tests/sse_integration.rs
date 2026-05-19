@@ -4,6 +4,7 @@ use agent_mcp::transport::sse::SseTransport;
 use agent_mcp::transport::Transport;
 use agent_mcp::types::JsonRpcRequest;
 use std::collections::HashMap;
+use std::time::Duration;
 
 /// Helper: create a minimal JSON-RPC success response as SSE event.
 fn sse_event(data: &str) -> String {
@@ -161,6 +162,56 @@ async fn sse_send_notification() {
             panic!("send_notification timed out");
         }
     }
+
+    transport.close().await.ok();
+}
+
+#[tokio::test]
+async fn sse_request_timeout_when_no_matching_response() {
+    use serde_json::json;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    // SSE stream returns events for a different id — id=1 times out.
+    let other_response =
+        json!({"jsonrpc": "2.0", "id": 999, "result": {"ignored": true}}).to_string();
+
+    Mock::given(method("GET"))
+        .and(path("/sse"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(sse_event(&other_response)),
+        )
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/message"))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&mock_server)
+        .await;
+
+    let url = mock_server.uri();
+    let mut transport = SseTransport::new(&url, HashMap::new(), None)
+        .await
+        .expect("Failed to create SseTransport")
+        .with_request_timeout(Duration::from_millis(100));
+
+    let request = JsonRpcRequest::new(1, "initialize", Some(json!({})));
+    let result = transport.send_request(request).await;
+
+    assert!(
+        result.is_err(),
+        "send_request should time out when SSE delivers no matching response"
+    );
+    let err_msg = format!("{}", result.unwrap_err());
+    assert!(
+        err_msg.to_lowercase().contains("timed out"),
+        "error should mention timeout, got: {err_msg}"
+    );
 
     transport.close().await.ok();
 }
