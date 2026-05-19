@@ -2,7 +2,7 @@
 import { provide, ref } from "vue";
 import { confirmDialogKey, type ConfirmOptions, type ConfirmAPI } from "@/composables/useConfirm";
 
-const dialogRef = ref<HTMLDialogElement | null>(null);
+const open = ref(false);
 const currentOptions = ref<ConfirmOptions>({
   message: "",
   title: "",
@@ -21,20 +21,20 @@ function confirm(options: ConfirmOptions): Promise<boolean> {
     cancelText: options.cancelText ?? "Cancel",
     type: options.type ?? "info"
   };
-  dialogRef.value?.showModal();
+  open.value = true;
   return new Promise<boolean>((resolve) => {
     resolvePromise = resolve;
   });
 }
 
 function handleConfirm() {
-  dialogRef.value?.close();
+  open.value = false;
   resolvePromise?.(true);
   resolvePromise = null;
 }
 
 function handleCancel() {
-  dialogRef.value?.close();
+  open.value = false;
   resolvePromise?.(false);
   resolvePromise = null;
 }
@@ -44,14 +44,19 @@ provide(confirmDialogKey, api);
 </script>
 
 <template>
-  <dialog ref="dialogRef" class="confirm-dialog" @cancel="handleCancel">
-    <div v-if="currentOptions.title" class="confirm-dialog__header">
-      {{ currentOptions.title }}
-    </div>
+  <KxModal
+    :open="open"
+    :title="currentOptions.title"
+    :close-label="currentOptions.cancelText"
+    width="420px"
+    data-test="confirm-dialog"
+    @close="handleCancel"
+  >
     <div class="confirm-dialog__body">
       {{ currentOptions.message }}
     </div>
-    <div class="confirm-dialog__footer">
+
+    <template #footer>
       <button class="btn" data-test="confirm-cancel" @click="handleCancel">
         {{ currentOptions.cancelText }}
       </button>
@@ -62,29 +67,15 @@ provide(confirmDialogKey, api);
       >
         {{ currentOptions.confirmText }}
       </button>
-    </div>
-  </dialog>
+    </template>
+  </KxModal>
   <slot />
 </template>
 
 <style scoped>
-.confirm-dialog__header {
-  padding: 16px 20px 0;
-  font-weight: 600;
-  font-size: 15px;
-}
-
 .confirm-dialog__body {
-  padding: 16px 20px;
   font-size: 14px;
   line-height: 1.5;
   color: var(--app-text-color-2);
-}
-
-.confirm-dialog__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 0 20px 16px;
 }
 </style>
