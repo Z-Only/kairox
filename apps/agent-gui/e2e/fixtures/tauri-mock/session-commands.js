@@ -66,6 +66,7 @@ registerCommandHandlers({
     trace.push(userEvent);
     emitEvent("session-event", userEvent);
     // Simulate agent response asynchronously
+    var responseDelayScale = state.responseDelayScale || 1;
     setTimeout(function () {
       var ctxEvent = makeEvent(sessionId, {
         type: "ContextAssembled",
@@ -102,22 +103,25 @@ registerCommandHandlers({
             });
             trace.push(deltaEvent);
             emitEvent("session-event", deltaEvent);
-          }, d);
+          }, d * responseDelayScale);
         })(tokens[i], delay);
         delay += 100;
       }
-      setTimeout(function () {
-        var assistantMsgId = nextId("msg");
-        var fullContent = "Hello! I'm a mock assistant.";
-        var completedEvent = makeEvent(sessionId, {
-          type: "AssistantMessageCompleted",
-          message_id: assistantMsgId,
-          content: fullContent
-        });
-        trace.push(completedEvent);
-        emitEvent("session-event", completedEvent);
-      }, delay + 50);
-    }, 30);
+      setTimeout(
+        function () {
+          var assistantMsgId = nextId("msg");
+          var fullContent = "Hello! I'm a mock assistant.";
+          var completedEvent = makeEvent(sessionId, {
+            type: "AssistantMessageCompleted",
+            message_id: assistantMsgId,
+            content: fullContent
+          });
+          trace.push(completedEvent);
+          emitEvent("session-event", completedEvent);
+        },
+        (delay + 50) * responseDelayScale
+      );
+    }, 30 * responseDelayScale);
     return Promise.resolve(undefined);
   },
   switch_session: function (args) {

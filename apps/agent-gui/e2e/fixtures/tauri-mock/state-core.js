@@ -24,6 +24,7 @@ const state = {
   currentReasoningEffort: null,
   currentPermissionMode: "suggest",
   sentMessages: [],
+  responseDelayScale: 1,
   memories: [],
   permissionRequests: new Map(),
   agents: new Map(),

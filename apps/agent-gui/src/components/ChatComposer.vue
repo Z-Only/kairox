@@ -44,10 +44,11 @@ const {
   sendMessage,
   sendQueuedMessageNow,
   deleteQueuedMessage,
+  moveQueuedMessage,
   restoreQueuedMessage,
-  restoreLastQueuedMessage,
   cancelSession
 } = composer;
+const draggedQueuedMessageId = ref<string | null>(null);
 
 const modelOptions = computed<ProfileInfo[]>(() =>
   [...session.profileInfos].sort((a, b) => a.alias.localeCompare(b.alias))
@@ -89,17 +90,6 @@ function handleKeydown(e: KeyboardEvent) {
     }
   }
 
-  if (
-    e.key === "ArrowUp" &&
-    !inputText.value.trim() &&
-    attachments.value.length === 0 &&
-    queuedMessages.value.length > 0
-  ) {
-    e.preventDefault();
-    restoreLastQueuedMessage();
-    return;
-  }
-
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     if (showCommandPalette.value || showMentionPalette.value) {
@@ -111,6 +101,17 @@ function handleKeydown(e: KeyboardEvent) {
 
 function queuedAttachmentLabel(count: number): string {
   return count > 0 ? t("chat.queuedAttachments", { count }) : "";
+}
+
+function startQueuedMessageDrag(messageId: string): void {
+  draggedQueuedMessageId.value = messageId;
+}
+
+function dropQueuedMessage(targetIndex: number): void {
+  const draggedId = draggedQueuedMessageId.value;
+  draggedQueuedMessageId.value = null;
+  if (!draggedId) return;
+  moveQueuedMessage(draggedId, targetIndex);
 }
 
 onMounted(() => {
@@ -169,7 +170,13 @@ onMounted(() => {
         v-for="(message, index) in queuedMessages"
         :key="message.id"
         class="queued-message-item"
+        :class="{ dragging: draggedQueuedMessageId === message.id }"
         data-test="queued-message-item"
+        draggable="true"
+        @dragstart="startQueuedMessageDrag(message.id)"
+        @dragend="draggedQueuedMessageId = null"
+        @dragover.prevent
+        @drop.prevent="dropQueuedMessage(index)"
       >
         <span class="queued-message-index">{{ index + 1 }}</span>
         <span class="queued-message-content" :title="message.content">
@@ -298,6 +305,9 @@ onMounted(() => {
   border-radius: 6px;
   background: var(--app-muted-surface-color, var(--app-card-color));
   font-size: 12px;
+}
+.queued-message-item.dragging {
+  opacity: 0.55;
 }
 .queued-message-index {
   flex: 0 0 auto;

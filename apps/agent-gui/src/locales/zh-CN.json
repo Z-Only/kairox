@@ -152,6 +152,7 @@
     "queuedEditAria": "编辑这条队列消息",
     "queuedDeleteAria": "删除这条队列消息",
     "queuedAttachments": "{count} 个文件",
+    "queueFull": "队列已满。请先编辑或删除一条队列消息再继续添加。",
     "emptyState": "开始对话"
   },
   "context": {

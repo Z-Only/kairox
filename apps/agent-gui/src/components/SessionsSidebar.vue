@@ -132,14 +132,27 @@ onMounted(() => {
   overflow: hidden;
 }
 .sessions-sidebar .session-scroll {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sessions-sidebar .sidebar-section {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  max-height: 50%;
+  flex-direction: column;
+  border-bottom: 1px solid var(--app-border-color);
+}
+.sessions-sidebar .sidebar-section-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
-.sessions-sidebar .sidebar-section {
-  border-bottom: 1px solid var(--app-border-color);
-}
 .sessions-sidebar .section-heading {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;

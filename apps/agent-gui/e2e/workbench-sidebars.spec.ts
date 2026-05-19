@@ -66,3 +66,32 @@ test("collapses and resizes both workbench sidebars with persisted widths", asyn
       width: 320
     });
 });
+
+test("keeps project and regular session navigation in separate scroll panes", async ({ page }) => {
+  await openWorkbench(page);
+
+  await expect(page.getByTestId("projects-scroll-region")).toBeVisible();
+  await expect(page.getByTestId("sessions-scroll-region")).toBeVisible();
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        outerOverflow: getComputedStyle(document.querySelector(".session-scroll")!).overflowY,
+        projectOverflow: getComputedStyle(
+          document.querySelector('[data-test="projects-scroll-region"]')!
+        ).overflowY,
+        sessionsOverflow: getComputedStyle(
+          document.querySelector('[data-test="sessions-scroll-region"]')!
+        ).overflowY,
+        sectionMaxHeights: Array.from(
+          document.querySelectorAll(".sessions-sidebar .sidebar-section")
+        ).map((section) => getComputedStyle(section).maxHeight)
+      }))
+    )
+    .toEqual({
+      outerOverflow: "hidden",
+      projectOverflow: "auto",
+      sessionsOverflow: "auto",
+      sectionMaxHeights: ["50%", "50%"]
+    });
+});

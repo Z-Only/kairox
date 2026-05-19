@@ -258,7 +258,7 @@ describe("conversation queue", () => {
     );
   });
 
-  it("restores queued messages into the input with ArrowUp, and supports guide-send and delete", async () => {
+  it("supports edit, guide-send, delete, drag sorting, and leaves ArrowUp to the textarea", async () => {
     const { wrapper, session } = mountChatComposer();
     session.isStreaming = true;
     await wrapper.vm.$nextTick();
@@ -278,6 +278,25 @@ describe("conversation queue", () => {
     await wrapper.find('textarea[data-test="message-input"]').setValue("queued again");
     await wrapper.find('textarea[data-test="message-input"]').trigger("keydown", { key: "Enter" });
     await wrapper.vm.$nextTick();
+    await wrapper.find('textarea[data-test="message-input"]').setValue("drag first");
+    await wrapper.find('textarea[data-test="message-input"]').trigger("keydown", { key: "Enter" });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('textarea[data-test="message-input"]').setValue("drag second");
+    await wrapper.find('textarea[data-test="message-input"]').trigger("keydown", { key: "Enter" });
+    await wrapper.vm.$nextTick();
+
+    const queuedItems = wrapper.findAll('[data-test="queued-message-item"]');
+    await queuedItems[2].trigger("dragstart");
+    await queuedItems[1].trigger("drop");
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll('[data-test="queued-message-item"]').map((item) => item.text())).toEqual(
+      [
+        expect.stringContaining("queued again"),
+        expect.stringContaining("drag second"),
+        expect.stringContaining("drag first")
+      ]
+    );
+
     await wrapper.find('[data-test="queued-message-guide"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("send_message", {
       content: "queued again",
@@ -287,9 +306,10 @@ describe("conversation queue", () => {
     await wrapper.find('textarea[data-test="message-input"]').setValue("delete me");
     await wrapper.find('textarea[data-test="message-input"]').trigger("keydown", { key: "Enter" });
     await wrapper.vm.$nextTick();
-    await wrapper.find('[data-test="queued-message-delete"]').trigger("click");
+    const deleteButtons = wrapper.findAll('[data-test="queued-message-delete"]');
+    await deleteButtons.at(-1)?.trigger("click");
     await wrapper.vm.$nextTick();
-    expect(wrapper.find('[data-test="queued-message-list"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="queued-message-list"]').text()).not.toContain("delete me");
 
     await wrapper.find('textarea[data-test="message-input"]').setValue("arrow restore");
     await wrapper.find('textarea[data-test="message-input"]').trigger("keydown", { key: "Enter" });
@@ -298,9 +318,7 @@ describe("conversation queue", () => {
       .find('textarea[data-test="message-input"]')
       .trigger("keydown", { key: "ArrowUp" });
     await wrapper.vm.$nextTick();
-    expect(wrapper.find('textarea[data-test="message-input"]').element).toHaveProperty(
-      "value",
-      "arrow restore"
-    );
+    expect(wrapper.find('textarea[data-test="message-input"]').element).toHaveProperty("value", "");
+    expect(wrapper.find('[data-test="queued-message-list"]').text()).toContain("arrow restore");
   });
 });

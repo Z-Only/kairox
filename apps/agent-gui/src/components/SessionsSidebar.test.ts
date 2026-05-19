@@ -348,6 +348,17 @@ describe("SessionsSidebar", () => {
     );
   });
 
+  it("keeps project and regular session lists in independent scroll regions", () => {
+    expect(projectSectionSource).toContain('data-test="projects-scroll-region"');
+    expect(sessionSectionSource).toContain('data-test="sessions-scroll-region"');
+    expect(sessionsSidebarSource).toMatch(
+      /\.sessions-sidebar \.sidebar-section\s*\{[\s\S]*max-height:/
+    );
+    expect(sessionsSidebarSource).toMatch(
+      /\.sessions-sidebar \.sidebar-section-scroll\s*\{[\s\S]*overflow-y:\s*auto/
+    );
+  });
+
   it("keeps project-bound sessions inside expanded projects and out of the regular session list", async () => {
     mockInvokeCommandResponses({
       list_projects: [

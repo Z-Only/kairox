@@ -152,6 +152,7 @@
     "queuedEditAria": "Edit this queued message",
     "queuedDeleteAria": "Delete this queued message",
     "queuedAttachments": "{count} file(s)",
+    "queueFull": "Queue is full. Edit or delete a queued message before adding another.",
     "emptyState": "Start a conversation"
   },
   "context": {

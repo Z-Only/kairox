@@ -175,6 +175,53 @@ describe("useChatComposer", () => {
     expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_1");
   });
 
+  it("caps queued messages and reports when the queue is full", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, notify } = createComposer({ session });
+
+    for (let i = 1; i <= 10; i += 1) {
+      composer.inputText.value = `queued ${i}`;
+      await composer.sendMessage();
+    }
+    composer.inputText.value = "queued 11";
+
+    await composer.sendMessage();
+
+    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual([
+      "queued 1",
+      "queued 2",
+      "queued 3",
+      "queued 4",
+      "queued 5",
+      "queued 6",
+      "queued 7",
+      "queued 8",
+      "queued 9",
+      "queued 10"
+    ]);
+    expect(composer.inputText.value).toBe("queued 11");
+    expect(notify).toHaveBeenCalledWith("error", "chat.queueFull");
+  });
+
+  it("reorders queued messages by moving one item to a target index", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer } = createComposer({ session });
+
+    for (const content of ["first", "second", "third"]) {
+      composer.inputText.value = content;
+      await composer.sendMessage();
+    }
+
+    const thirdId = composer.queuedMessages.value[2].id;
+    composer.moveQueuedMessage(thirdId, 0);
+
+    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual([
+      "third",
+      "first",
+      "second"
+    ]);
+  });
+
   it("auto-sends the oldest queued message when streaming stops", async () => {
     const session = createSession({ isStreaming: true });
     const { composer, invokeFn } = createComposer({ session });
@@ -225,6 +272,22 @@ describe("useChatComposer", () => {
     expect(composer.inputText.value).toBe("second");
     expect(composer.attachments.value[0].name).toBe("notes.md");
     expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual(["first"]);
+  });
+
+  it("restores a selected queued message into the composer for editing", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer } = createComposer({ session });
+
+    composer.inputText.value = "first";
+    await composer.sendMessage();
+    composer.inputText.value = "second";
+    await composer.sendMessage();
+
+    const firstId = composer.queuedMessages.value[0].id;
+    expect(composer.restoreQueuedMessage(firstId)).toBe(true);
+
+    expect(composer.inputText.value).toBe("first");
+    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual(["second"]);
   });
 
   it("deletes queued messages without changing the current draft", async () => {

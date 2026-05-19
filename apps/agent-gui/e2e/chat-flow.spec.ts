@@ -172,6 +172,49 @@ test("queues messages while streaming and auto-sends them when idle", async ({ p
   ).toBeVisible();
 });
 
+test("manages multiple queued messages with edit delete drag order and no ArrowUp restore", async ({
+  page
+}) => {
+  await openWorkbench(page);
+  await page.evaluate(() => {
+    (window as any).__KAIROX_MOCK__.setResponseDelayScale(20);
+  });
+
+  const input = page.getByTestId("message-input");
+  await input.fill("first turn");
+  await input.press("Enter");
+  await expect(page.getByTestId("cancel-button")).toBeVisible({ timeout: 3_000 });
+
+  await input.fill("queued first");
+  await input.press("Enter");
+  await input.fill("queued second");
+  await input.press("Enter");
+
+  const queuedItems = page.getByTestId("queued-message-item");
+  await expect(queuedItems).toHaveCount(2);
+  await expect(queuedItems.nth(0)).toContainText("queued first");
+  await expect(queuedItems.nth(1)).toContainText("queued second");
+
+  await queuedItems.nth(1).dragTo(queuedItems.nth(0));
+  await expect(queuedItems.nth(0)).toContainText("queued second");
+  await expect(queuedItems.nth(1)).toContainText("queued first");
+
+  await page.getByTestId("queued-message-edit").first().click();
+  await expect(input).toHaveValue("queued second");
+  await expect(queuedItems).toHaveCount(1);
+  await expect(queuedItems.first()).toContainText("queued first");
+
+  await input.fill("queued second edited");
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  await input.press("ArrowUp");
+  await expect(input).toHaveValue("");
+  await expect(page.getByTestId("queued-message-list")).toContainText("queued second edited");
+
+  await page.getByTestId("queued-message-delete").last().click();
+  await expect(page.getByTestId("queued-message-list")).not.toContainText("queued second edited");
+});
+
 test("cancels a streaming session", async ({ page }) => {
   await openWorkbench(page);
 
