@@ -111,11 +111,11 @@ watch(
             t("instructions.readOnly")
           }}</span>
         </header>
-        <textarea
-          class="instructions-level__textarea"
-          :value="view.system"
+        <KxTextarea
+          :model-value="view.system"
           readonly
           rows="6"
+          variant="mono"
           data-test="system-instructions"
         />
       </div>
@@ -139,14 +139,13 @@ watch(
             {{ t("instructions.editable") }}
           </span>
         </header>
-        <textarea
-          class="instructions-level__textarea"
-          :value="userText"
+        <KxTextarea
+          v-model="userText"
           :readonly="scope === 'Project'"
           :placeholder="t('instructions.userPlaceholder')"
           rows="6"
+          variant="mono"
           data-test="user-instructions"
-          @input="userText = ($event.target as HTMLTextAreaElement).value"
         />
       </div>
 
@@ -162,13 +161,12 @@ watch(
             {{ t("instructions.editable") }}
           </span>
         </header>
-        <textarea
-          class="instructions-level__textarea"
-          :value="projectText"
+        <KxTextarea
+          v-model="projectText"
           :placeholder="t('instructions.projectPlaceholder')"
           rows="6"
+          variant="mono"
           data-test="project-instructions"
-          @input="projectText = ($event.target as HTMLTextAreaElement).value"
         />
       </div>
 
@@ -186,11 +184,11 @@ watch(
         <header class="instructions-level__header">
           <h3>{{ t("instructions.effectivePreview") }}</h3>
         </header>
-        <textarea
-          class="instructions-level__textarea instructions-level__textarea--preview"
-          :value="effectiveInstructions"
+        <KxTextarea
+          :model-value="effectiveInstructions"
           readonly
           rows="12"
+          variant="preview"
           data-test="effective-instructions"
         />
       </div>
@@ -237,35 +235,6 @@ watch(
 .instructions-level__badge--muted {
   background: color-mix(in srgb, var(--app-text-color-2) 15%, transparent);
   color: var(--app-text-color-2);
-}
-
-.instructions-level__textarea {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font: inherit;
-  font-size: 0.84rem;
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.instructions-level__textarea:read-only {
-  background: color-mix(in srgb, var(--app-card-color) 60%, transparent);
-  color: var(--app-text-color-2);
-  cursor: default;
-}
-
-.instructions-level__textarea:disabled {
-  background: color-mix(in srgb, var(--app-card-color) 40%, transparent);
-  color: var(--app-text-color-2);
-  cursor: not-allowed;
-}
-
-.instructions-level__textarea--preview {
-  border-color: var(--app-primary-color);
 }
 
 .instructions__save-btn {

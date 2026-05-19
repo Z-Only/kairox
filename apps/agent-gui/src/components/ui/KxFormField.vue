@@ -73,14 +73,4 @@ withDefaults(
 .kx-form-field :deep(.kx-form-control[readonly]) {
   opacity: 0.68;
 }
-
-.kx-form-field :deep(.kx-form-control--textarea) {
-  min-height: 96px;
-  resize: vertical;
-  line-height: 1.45;
-}
-
-.kx-form-field :deep(.kx-form-control--mono) {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
 </style>
