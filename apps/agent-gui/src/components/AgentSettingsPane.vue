@@ -172,21 +172,16 @@ watch(
       </button>
     </div>
 
-    <div class="agent-settings__list" data-test="agent-list">
-      <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
-        {{ t("agents.loading") }}
-      </SettingsState>
-      <SettingsState
-        v-else-if="store.agents.length === 0"
-        tone="empty"
-        data-test="agent-empty-state"
-      >
-        {{ t("agents.empty") }}
-      </SettingsState>
+    <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
+      {{ t("agents.loading") }}
+    </SettingsState>
+    <SettingsState v-else-if="store.agents.length === 0" tone="empty" data-test="agent-empty-state">
+      {{ t("agents.empty") }}
+    </SettingsState>
 
-      <article
+    <SettingsCardList v-else :aria-label="t('agents.title')" data-test="agent-list">
+      <SettingsCardItem
         v-for="agent in store.agents"
-        v-else
         :key="agent.settingsId"
         class="agent-row"
         :data-test="`agent-row-${slugify(agent.name)}`"
@@ -264,8 +259,8 @@ watch(
             {{ t("common.delete") }}
           </button>
         </div>
-      </article>
-    </div>
+      </SettingsCardItem>
+    </SettingsCardList>
 
     <ModalDialog
       :open="editorDialogOpen"
@@ -366,23 +361,6 @@ watch(
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.agent-settings__list {
-  display: grid;
-  gap: 12px;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-  flex: 1;
-}
-
-.agent-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--app-border-color);
 }
 
 .agent-row h3 {

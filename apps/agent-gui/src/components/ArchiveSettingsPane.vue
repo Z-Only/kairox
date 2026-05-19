@@ -104,50 +104,52 @@ onMounted(() => {
       {{ t("settings.archiveEmpty") }}
     </SettingsState>
 
-    <div v-else class="archive-list" role="list" aria-label="Archived sessions">
-      <article
+    <SettingsCardList
+      v-else
+      aria-label="Archived sessions"
+      data-test="archive-list"
+      :scroll="false"
+    >
+      <SettingsCardItem
         v-for="session in projectStore.archivedSessions"
         :key="session.sessionId"
-        class="card archive-row"
-        role="listitem"
+        class="archive-row"
         :data-test="`archive-row-${session.sessionId}`"
       >
-        <div class="card-body archive-row__body">
-          <div class="archive-row__main">
-            <h4>{{ session.title }}</h4>
-            <p class="archive-row__meta">
-              <span>{{ getProjectDisplayName(session) }}</span>
-              <span v-if="session.profile">{{ session.profile }}</span>
-              <span v-if="session.branch">{{ session.branch }}</span>
-            </p>
-          </div>
-          <div class="archive-row__actions">
-            <button
-              class="btn btn-sm btn-primary"
-              type="button"
-              :disabled="busySessionId === session.sessionId"
-              :data-test="`archive-restore-${session.sessionId}`"
-              @click="restoreSession(session.sessionId)"
-            >
-              {{
-                busySessionId === session.sessionId
-                  ? t("common.loading")
-                  : t("settings.archiveRestore")
-              }}
-            </button>
-            <button
-              class="btn btn-sm btn-danger"
-              type="button"
-              :disabled="busySessionId === session.sessionId"
-              :data-test="`archive-delete-${session.sessionId}`"
-              @click="permanentlyDelete(session.sessionId)"
-            >
-              {{ t("settings.archivePermanentDelete") }}
-            </button>
-          </div>
+        <div class="archive-row__main">
+          <h4>{{ session.title }}</h4>
+          <p class="archive-row__meta">
+            <span>{{ getProjectDisplayName(session) }}</span>
+            <span v-if="session.profile">{{ session.profile }}</span>
+            <span v-if="session.branch">{{ session.branch }}</span>
+          </p>
         </div>
-      </article>
-    </div>
+        <div class="archive-row__actions">
+          <button
+            class="btn btn-sm btn-primary"
+            type="button"
+            :disabled="busySessionId === session.sessionId"
+            :data-test="`archive-restore-${session.sessionId}`"
+            @click="restoreSession(session.sessionId)"
+          >
+            {{
+              busySessionId === session.sessionId
+                ? t("common.loading")
+                : t("settings.archiveRestore")
+            }}
+          </button>
+          <button
+            class="btn btn-sm btn-danger"
+            type="button"
+            :disabled="busySessionId === session.sessionId"
+            :data-test="`archive-delete-${session.sessionId}`"
+            @click="permanentlyDelete(session.sessionId)"
+          >
+            {{ t("settings.archivePermanentDelete") }}
+          </button>
+        </div>
+      </SettingsCardItem>
+    </SettingsCardList>
   </section>
 </template>
 
@@ -161,16 +163,6 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-.archive-list {
-  display: grid;
-  gap: 12px;
-}
-.archive-row__body {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
 }
 .archive-row__main {
   min-width: 0;
@@ -192,10 +184,6 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .archive-row__body {
-    flex-direction: column;
-  }
-
   .archive-row__actions {
     width: 100%;
     justify-content: flex-end;

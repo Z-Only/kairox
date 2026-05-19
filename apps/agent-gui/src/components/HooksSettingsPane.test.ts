@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import HooksSettingsPane from "./HooksSettingsPane.vue";
+import hooksSettingsPaneSource from "./HooksSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -121,7 +122,9 @@ describe("HooksSettingsPane", () => {
     const wrapper = mountPane("user");
     await flushPromises();
 
+    expect(wrapper.find('[data-test="hooks-list"]').classes()).toContain("settings-card-list");
     expect(wrapper.find('[data-test="hook-row-verify"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="hook-row-verify"]').classes()).toContain("settings-card-item");
     expect(wrapper.find('[data-test="hook-row-verify"]').text()).toContain("Stop");
     expect(wrapper.find('[data-test="hook-row-verify"]').text()).toContain("cargo test");
   });
@@ -189,6 +192,15 @@ describe("HooksSettingsPane", () => {
     );
     expect(wrapper.find<HTMLInputElement>('[data-test="hook-command"]').element.value).toContain(
       "cargo test --workspace"
+    );
+  });
+
+  it("does not keep local hook row chrome after moving to SettingsCardItem", () => {
+    expect(hooksSettingsPaneSource).toContain("SettingsCardList");
+    expect(hooksSettingsPaneSource).toContain("SettingsCardItem");
+    expect(hooksSettingsPaneSource).not.toContain(".hook-row {");
+    expect(hooksSettingsPaneSource).not.toContain(
+      "border-bottom: 1px solid var(--app-border-color)"
     );
   });
 });

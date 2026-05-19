@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { commands, type AgentSettingsView } from "@/generated/commands";
 import AgentSettingsPane from "./AgentSettingsPane.vue";
+import agentSettingsPaneSource from "./AgentSettingsPane.vue?raw";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -84,6 +85,10 @@ describe("AgentSettingsPane", () => {
 
     expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="agent-row-worker"]').classes()).toContain(
+      "settings-card-item"
+    );
     expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain("Built-in");
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("fast");
   });
@@ -141,5 +146,14 @@ describe("AgentSettingsPane", () => {
     expect(empty.exists()).toBe(true);
     expect(empty.classes()).toContain("settings-state");
     expect(empty.text()).toContain("No agents configured.");
+  });
+
+  it("does not keep local agent row chrome after moving to SettingsCardItem", () => {
+    expect(agentSettingsPaneSource).toContain("SettingsCardList");
+    expect(agentSettingsPaneSource).toContain("SettingsCardItem");
+    expect(agentSettingsPaneSource).not.toContain(".agent-row {");
+    expect(agentSettingsPaneSource).not.toContain(
+      "border-bottom: 1px solid var(--app-border-color)"
+    );
   });
 });
