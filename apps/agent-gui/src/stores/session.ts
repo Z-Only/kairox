@@ -12,28 +12,27 @@ import type {
   ProjectedModelLimits,
   ProfileInfo
 } from "@/types";
-import { agentRoleToProjectedRole } from "@/types";
-import { clearTrace, applyTraceEvent } from "@/composables/useTraceStore";
 import { useUiStore } from "@/stores/ui";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
+import {
+  emptyProjection,
+  applySessionEvent,
+  setProjectionFromSnapshot,
+  resetProjectionState,
+  type EventReducerContext
+} from "@/stores/sessionEvents";
+import {
+  switchToKnownSession as switchToKnownSessionImpl,
+  createSession as createSessionImpl,
+  deleteSession as deleteSessionImpl,
+  renameSession as renameSessionImpl,
+  type SessionActionDeps
+} from "@/stores/sessionActions";
 
 export const DEFAULT_REASONING_EFFORT = "low";
 export const DEFAULT_REASONING_EFFORTS = ["low", "middle", "high", "xhigh"] as const;
-
-function emptyProjection(): SessionProjection {
-  return {
-    messages: [],
-    task_titles: [],
-    task_graph: { tasks: [] },
-    token_stream: "",
-    cancelled: false,
-    last_context_usage: null,
-    model_limits: null,
-    compaction: { type: "Idle" }
-  };
-}
 
 export function uniqueSessionTitle(base: string, existingTitles: string[]): string {
   if (!existingTitles.includes(base)) return base;
@@ -142,9 +141,38 @@ export const useSessionStore = defineStore("session", () => {
   const lastSendError = ref<string | null>(null);
   const permissionMode = ref<string>("suggest");
 
-  function resolveSessionProfile(profile?: string): string {
-    return profile ?? currentProfile.value;
-  }
+  const eventCtx: EventReducerContext = {
+    projection,
+    isStreaming,
+    lastSendError,
+    lastContextUsage,
+    compacting,
+    lastCompactionError,
+    currentProfile,
+    currentReasoningEffort,
+    modelLimits
+  };
+
+  const sessionActionDeps: SessionActionDeps = {
+    sessions,
+    currentSessionId,
+    currentProfile,
+    currentReasoningEffort,
+    permissionMode,
+    profileInfos,
+    resetProjection() {
+      resetProjectionState(eventCtx, useAgentsStore(), streamsByTask);
+    },
+    setProjection(next: SessionProjection) {
+      setProjectionFromSnapshot(next, eventCtx, useTaskGraphStore(), currentSessionId.value);
+    },
+    getTaskGraphStore() {
+      return useTaskGraphStore();
+    },
+    getUiStore() {
+      return useUiStore();
+    }
+  };
 
   function findProjectSessionInfo(sessionId: string): SessionInfoResponse | undefined {
     const projectStore = useProjectStore();
@@ -199,201 +227,22 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   function applyEvent(event: DomainEvent) {
-    const p = event.payload;
-    const sourceAgentId = event.source_agent_id;
-    const agents = useAgentsStore();
-
-    switch (p.type) {
-      case "UserMessageAdded": {
-        lastSendError.value = null;
-        projection.value.messages.push({
-          role: "user",
-          content: p.content
-        });
-        isStreaming.value = true;
-        break;
-      }
-      case "ModelTokenDelta": {
-        projection.value.token_stream += p.delta;
-        break;
-      }
-      case "AssistantMessageCompleted": {
-        const msg: (typeof projection.value.messages)[0] = {
-          role: "assistant",
-          content: p.content
-        };
-        if (sourceAgentId && sourceAgentId !== "agent_system") {
-          msg.sourceAgentId = sourceAgentId;
-          const agent = agents.agents.get(sourceAgentId);
-          if (agent) {
-            msg.role = agentRoleToProjectedRole(agent.role);
-          }
-        }
-        projection.value.messages.push(msg);
-        projection.value.token_stream = "";
-        isStreaming.value = false;
-        break;
-      }
-      case "SessionCancelled":
-        projection.value.cancelled = true;
-        isStreaming.value = false;
-        break;
-      case "AgentTaskCreated": {
-        projection.value.task_titles.push(p.title);
-        break;
-      }
-      case "AgentTaskStarted":
-        break;
-      case "AgentTaskCompleted": {
-        isStreaming.value = false;
-        break;
-      }
-      case "AgentTaskFailed": {
-        projection.value.messages.push({
-          role: "assistant",
-          content: `[error] ${p.error || "Unknown error"}`
-        });
-        projection.value.token_stream = "";
-        isStreaming.value = false;
-        break;
-      }
-      case "TaskDecomposed": {
-        projection.value.messages.push({
-          role: "system",
-          content: `Task decomposed into ${p.sub_task_ids.length} sub-tasks`
-        });
-        break;
-      }
-      case "TaskBlocked": {
-        projection.value.messages.push({
-          role: "system",
-          content: `Task blocked: ${p.reason || "dependency failed"}`
-        });
-        break;
-      }
-      case "TaskRetried": {
-        projection.value.messages.push({
-          role: "system",
-          content: `Task retry attempt ${p.attempt}`
-        });
-        break;
-      }
-      case "ContextAssembled": {
-        lastContextUsage.value = p.usage;
-        break;
-      }
-      case "ContextCompactionStarted": {
-        compacting.value = true;
-        lastCompactionError.value = null;
-        break;
-      }
-      case "ContextCompactionCompleted": {
-        compacting.value = false;
-        break;
-      }
-      case "ContextCompactionFailed": {
-        compacting.value = false;
-        lastCompactionError.value = p.error;
-        break;
-      }
-      case "ModelProfileSwitched": {
-        currentProfile.value = p.to_profile;
-        currentReasoningEffort.value = p.reasoning_effort ?? null;
-        modelLimits.value = {
-          context_window: p.context_window,
-          output_limit: p.output_limit,
-          source: p.limit_source
-        };
-        break;
-      }
-      case "AgentSpawned":
-      case "AgentIdle":
-        break;
-      case "SessionInitialized":
-      case "ModelRequestStarted":
-      case "ModelToolCallRequested":
-      case "ToolInvocationStarted":
-      case "ToolInvocationCompleted":
-      case "ToolInvocationFailed":
-      case "PermissionRequested":
-      case "PermissionGranted":
-      case "PermissionDenied":
-      case "FilePatchProposed":
-      case "FilePatchApplied":
-      case "MemoryProposed":
-      case "MemoryAccepted":
-      case "MemoryRejected":
-      case "ReviewerFindingAdded":
-      case "WorkspaceOpened":
-        break;
-    }
+    applySessionEvent(event, eventCtx, useAgentsStore());
   }
 
   function setProjection(next: SessionProjection) {
-    projection.value = next;
-    isStreaming.value = false;
-    if (next.task_graph?.tasks) {
-      useTaskGraphStore().setTaskGraph(next.task_graph.tasks, currentSessionId.value);
-    }
-    // P3: hydrate context refs from the projection snapshot. The three P3
-    // fields are `#[serde(default)]` on the Rust side (see
-    // `crates/agent-core/src/projection.rs`), so they may be missing when a
-    // legacy backend / test fixture sends a pre-P3 shape. Treat any missing
-    // value as the same default the Rust side would emit.
-    lastContextUsage.value = next.last_context_usage ?? null;
-    modelLimits.value = next.model_limits ?? null;
-    const status = next.compaction ?? { type: "Idle" };
-    compacting.value = status.type === "Running";
-    lastCompactionError.value = status.type === "Failed" ? status.error : null;
+    setProjectionFromSnapshot(next, eventCtx, useTaskGraphStore(), currentSessionId.value);
   }
 
   function resetProjection() {
-    projection.value = emptyProjection();
-    lastSendError.value = null;
-    isStreaming.value = false;
-    streamsByTask.value.clear();
-    useAgentsStore().clearAgents();
-    // P3: clear context refs.
-    lastContextUsage.value = null;
-    modelLimits.value = null;
-    compacting.value = false;
-    lastCompactionError.value = null;
+    resetProjectionState(eventCtx, useAgentsStore(), streamsByTask);
   }
 
   async function switchToKnownSession(
     sessionId: string,
     target: SessionInfoResponse
   ): Promise<void> {
-    if (sessionId === currentSessionId.value) return;
-    resetProjection();
-    clearTrace();
-    useTaskGraphStore().clearTaskGraph();
-    const next = await invoke<SessionProjection>("switch_session", {
-      sessionId
-    });
-    currentSessionId.value = sessionId;
-    localStorage.setItem("kairox.last-active-session-id", sessionId);
-    currentProfile.value = target.profile;
-    currentReasoningEffort.value = null;
-    if (target.permission_mode) {
-      permissionMode.value = target.permission_mode;
-    }
-    if (currentProfile.value === "default" && profileInfos.value.length > 0) {
-      currentProfile.value = profileInfos.value[0].alias;
-    }
-    setProjection(next);
-    const traceStrings = await invoke<string[]>("get_trace", { sessionId });
-    for (const jsonStr of traceStrings) {
-      try {
-        const event = JSON.parse(jsonStr) as DomainEvent;
-        if (event.payload.type === "ModelProfileSwitched") {
-          currentReasoningEffort.value = event.payload.reasoning_effort ?? null;
-        }
-        applyTraceEvent(event);
-      } catch {
-        // Skip malformed trace entries
-      }
-    }
+    await switchToKnownSessionImpl(sessionId, target, sessionActionDeps);
   }
 
   async function switchSession(sessionId: string): Promise<void> {
@@ -425,66 +274,15 @@ export const useSessionStore = defineStore("session", () => {
     profile?: string,
     permissionModeParam?: string
   ): Promise<{ id: string; title: string; profile: string }> {
-    const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
-      profile: resolveSessionProfile(profile),
-      permissionMode: permissionModeParam ?? permissionMode.value
-    });
-
-    // Dedup: check all existing sessions (excluding the one just created)
-    sessions.value = await listOrdinarySessions();
-    const existingTitles = sessions.value.filter((s) => s.id !== result.id).map((s) => s.title);
-    const title = uniqueSessionTitle("New Session", existingTitles);
-
-    // Persist the deduped title if different from default
-    if (title !== result.title) {
-      try {
-        await invoke("rename_session", { sessionId: result.id, title });
-      } catch (e) {
-        console.error("Failed to set deduped session title:", e);
-      }
-    }
-
-    currentProfile.value = result.profile;
-    currentReasoningEffort.value = null;
-    resetProjection();
-    clearTrace();
-    useTaskGraphStore().clearTaskGraph();
-    return { id: result.id, title, profile: result.profile };
+    return createSessionImpl(profile, permissionModeParam, sessionActionDeps);
   }
 
   async function deleteSession(sessionId: string) {
-    const ui = useUiStore();
-    try {
-      await invoke("delete_session", { sessionId });
-      sessions.value = sessions.value.filter((s) => s.id !== sessionId);
-      if (currentSessionId.value === sessionId) {
-        if (sessions.value.length > 0) {
-          await switchSession(sessions.value[0].id);
-        } else {
-          currentSessionId.value = null;
-          resetProjection();
-          clearTrace();
-          useTaskGraphStore().clearTaskGraph();
-        }
-      }
-    } catch (e) {
-      console.error("Failed to delete session:", e);
-      ui.pushNotification("error", `Failed to delete session: ${e}`);
-    }
+    await deleteSessionImpl(sessionId, sessionActionDeps, switchSession);
   }
 
   async function renameSession(sessionId: string, title: string) {
-    const ui = useUiStore();
-    try {
-      await invoke("rename_session", { sessionId, title });
-      const session = sessions.value.find((s) => s.id === sessionId);
-      if (session) {
-        session.title = title;
-      }
-    } catch (e) {
-      console.error("Failed to rename session:", e);
-      ui.pushNotification("error", `Failed to rename session: ${e}`);
-    }
+    await renameSessionImpl(sessionId, title, sessionActionDeps);
   }
 
   /**
