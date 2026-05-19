@@ -102,7 +102,7 @@ describe("HooksSettingsPane", () => {
     expect(empty.text()).toContain("No hooks configured.");
   });
 
-  it("keeps the hook form collapsed until the user adds or edits a hook", async () => {
+  it("opens the hook editor in a centered modal instead of the right grid column", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 
     const wrapper = mountPane("user");
@@ -114,6 +114,9 @@ describe("HooksSettingsPane", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="hook-editor-dialog"]').exists()).toBe(true);
+    expect(wrapper.find(".kx-modal__panel").exists()).toBe(true);
+    expect(hooksSettingsPaneSource).not.toContain("grid-template-columns: minmax(0, 1fr)");
   });
 
   it("loads and displays user hooks", async () => {
@@ -186,6 +189,7 @@ describe("HooksSettingsPane", () => {
     await wrapper.find('[data-test="hook-template-stop-validation"]').trigger("click");
     await flushPromises();
 
+    expect(wrapper.find('[data-test="hook-editor-dialog"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(true);
     expect(wrapper.find<HTMLInputElement>('[data-test="hook-id"]').element.value).toBe(
       "stop-validation"

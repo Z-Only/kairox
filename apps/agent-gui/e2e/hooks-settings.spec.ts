@@ -20,6 +20,7 @@ test.describe("Hooks Settings", () => {
 
     await expect(page.getByTestId("hook-template-stop-validation")).toBeVisible();
     await page.getByTestId("hook-template-stop-validation").click();
+    await expect(page.getByTestId("hook-editor-dialog")).toBeVisible();
     await expect(page.getByTestId("hook-id")).toHaveValue("stop-validation");
     await expect(page.getByTestId("hook-command")).toHaveValue(
       "cargo test --workspace --all-targets"
@@ -48,6 +49,7 @@ test.describe("Hooks Settings", () => {
 
     await page.getByTestId("source-btn-project").click();
     await page.getByTestId("hook-add").click();
+    await expect(page.getByTestId("hook-editor-dialog")).toBeVisible();
     await page.getByTestId("hook-id").fill("project-stop");
     await page.getByTestId("hook-event").selectOption("Stop");
     await page.getByTestId("hook-matcher").fill("*");

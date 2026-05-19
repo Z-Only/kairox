@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import KxModal from "./KxModal.vue";
+import kxModalSource from "./KxModal.vue?raw";
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = vi.fn();
@@ -37,6 +38,13 @@ describe("KxModal", () => {
     expect(wrapper.get(".kx-modal__description").text()).toBe("Manage sources");
     expect(wrapper.get('[data-test="source-body"]').text()).toContain("Catalog source content");
     expect(wrapper.get(".kx-modal__footer").text()).toContain("Apply");
+  });
+
+  it("uses a full-viewport centering dialog so modal cards open in the page center", () => {
+    expect(kxModalSource).toContain("place-items: center");
+    expect(kxModalSource).toContain("width: 100vw");
+    expect(kxModalSource).toContain("height: 100dvh");
+    expect(kxModalSource).toContain("margin: 0");
   });
 
   it("emits close from close button and backdrop", async () => {

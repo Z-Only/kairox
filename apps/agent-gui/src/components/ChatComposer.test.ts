@@ -290,6 +290,36 @@ describe("conversation queue", () => {
     );
   });
 
+  it("keeps send available during compaction and queues instead of sending immediately", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.compacting = true;
+    await wrapper.vm.$nextTick();
+
+    const textarea = wrapper.find('textarea[data-test="message-input"]');
+    await textarea.setValue("send after compact");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="send-button"]').attributes("disabled")).toBeUndefined();
+
+    await textarea.trigger("keydown", { key: "Enter" });
+    await wrapper.vm.$nextTick();
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("send_message", expect.anything());
+    expect(wrapper.find('[data-test="queued-message-list"]').text()).toContain(
+      "send after compact"
+    );
+  });
+
+  it("renders queued messages in a capped-height fixed-row scroller", () => {
+    expect(chatComposerSource).toContain("KxActionButton");
+    expect(chatComposerSource).toContain("max-height: var(--queued-message-list-max-height");
+    expect(chatComposerSource).toContain("overflow-y: auto");
+    expect(chatComposerSource).toContain("--queued-message-row-height");
+    expect(chatComposerSource).toContain("height: var(--queued-message-row-height");
+    expect(chatComposerSource).toContain("-webkit-line-clamp: 1");
+    expect(chatComposerSource).not.toContain(".queued-message-action {");
+  });
+
   it("supports edit, guide-send, delete, drag sorting, and leaves ArrowUp to the textarea", async () => {
     const { wrapper, session } = mountChatComposer();
     session.isStreaming = true;

@@ -35,6 +35,7 @@ const {
   queuedMessages,
   sendingQueuedId,
   switchingModel,
+  isQueueing,
   sendDisabled,
   handleInput,
   closePalettes,
@@ -185,34 +186,29 @@ onMounted(() => {
         <span v-if="message.attachments.length" class="queued-message-attachments">
           {{ queuedAttachmentLabel(message.attachments.length) }}
         </span>
-        <button
-          class="queued-message-action"
-          type="button"
+        <KxActionButton
           data-test="queued-message-guide"
           :aria-label="t('chat.queuedGuideAria')"
           :disabled="sendingQueuedId === message.id"
           @click="sendQueuedMessageNow(message.id)"
         >
           {{ t("chat.queuedGuide") }}
-        </button>
-        <button
-          class="queued-message-action"
-          type="button"
+        </KxActionButton>
+        <KxActionButton
           data-test="queued-message-edit"
           :aria-label="t('chat.queuedEditAria')"
           @click="restoreQueuedMessage(message.id)"
         >
           {{ t("common.edit") }}
-        </button>
-        <button
-          class="queued-message-action queued-message-action--danger"
-          type="button"
+        </KxActionButton>
+        <KxActionButton
+          variant="danger"
           data-test="queued-message-delete"
           :aria-label="t('chat.queuedDeleteAria')"
           @click="deleteQueuedMessage(message.id)"
         >
           {{ t("common.delete") }}
-        </button>
+        </KxActionButton>
       </div>
     </div>
     <div class="input-row">
@@ -250,7 +246,7 @@ onMounted(() => {
         :disabled="sendDisabled"
         @click="sendMessage"
       >
-        {{ session.isStreaming ? t("chat.queueSend") : t("common.send") }}
+        {{ isQueueing ? t("chat.queueSend") : t("common.send") }}
       </button>
     </div>
   </div>
@@ -290,17 +286,25 @@ onMounted(() => {
   align-items: flex-end;
 }
 .queued-message-list {
+  --queued-message-row-height: 34px;
+  --queued-message-list-max-height: 148px;
+
   display: flex;
+  max-height: var(--queued-message-list-max-height);
   flex-direction: column;
   gap: 6px;
   margin-bottom: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .queued-message-item {
   display: flex;
   min-width: 0;
+  height: var(--queued-message-row-height);
+  min-height: var(--queued-message-row-height);
   gap: 6px;
   align-items: center;
-  padding: 5px 6px;
+  padding: 4px 6px;
   border: 1px solid var(--app-border-color, #d7d7d7);
   border-radius: 6px;
   background: var(--app-muted-surface-color, var(--app-card-color));
@@ -325,34 +329,14 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  display: -webkit-box;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 .queued-message-attachments {
   flex: 0 0 auto;
   color: var(--app-muted-text-color, var(--app-text-color));
-}
-.queued-message-action {
-  flex: 0 0 auto;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 4px;
-  padding: 2px 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  cursor: pointer;
-  font-size: 12px;
-}
-.queued-message-action:hover:not(:disabled) {
-  border-color: var(--app-primary-color);
-  color: var(--app-primary-color);
-}
-.queued-message-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.queued-message-action--danger:hover:not(:disabled) {
-  border-color: var(--app-error-color, #d03050);
-  color: var(--app-error-color, #d03050);
 }
 .btn {
   padding: 6px 12px;

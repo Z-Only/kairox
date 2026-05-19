@@ -288,8 +288,17 @@ watch(
         >
           {{ t("hooks.add") }}
         </button>
+      </div>
 
-        <form v-else class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
+      <KxModal
+        :open="formOpen"
+        :title="t('hooks.editorTitle')"
+        :description="t('hooks.editorDescription', { scope: scopeLabel })"
+        data-test="hook-editor-dialog"
+        width="520px"
+        @close="closeForm"
+      >
+        <form class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
           <KxFormField :label="t('hooks.id')">
             <KxInput v-model="form.id" data-test="hook-id" required />
           </KxFormField>
@@ -345,7 +354,7 @@ watch(
             </button>
           </KxFormActions>
         </form>
-      </div>
+      </KxModal>
     </template>
   </section>
 </template>
@@ -363,8 +372,8 @@ watch(
 }
 
 .hooks-pane__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   align-items: start;
 }
@@ -422,7 +431,7 @@ watch(
 
 @media (max-width: 760px) {
   .hooks-pane__grid {
-    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 </style>
