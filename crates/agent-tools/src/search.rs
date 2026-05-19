@@ -69,6 +69,36 @@ impl RipgrepSearchTool {
         None
     }
 
+    /// Resolve a user-provided path relative to workspace root.
+    /// Rejects paths that escape the workspace via `..`, absolute paths,
+    /// or symlinks pointing outside.
+    pub fn resolve_search_path(
+        workspace_root: &Path,
+        rel_path: Option<&str>,
+    ) -> crate::Result<PathBuf> {
+        let candidate = match rel_path {
+            Some(p) => workspace_root.join(p),
+            None => workspace_root.to_path_buf(),
+        };
+
+        let resolved = candidate.canonicalize().map_err(|e| {
+            ToolError::ExecutionFailed(format!("cannot resolve search path: {}", e))
+        })?;
+
+        let root_resolved = workspace_root.canonicalize().map_err(|e| {
+            ToolError::ExecutionFailed(format!("cannot resolve workspace root: {}", e))
+        })?;
+
+        if !resolved.starts_with(&root_resolved) {
+            return Err(ToolError::ExecutionFailed(format!(
+                "search path escapes workspace: {}",
+                rel_path.unwrap_or(".")
+            )));
+        }
+
+        Ok(resolved)
+    }
+
     /// Search using ripgrep binary.
     async fn search_with_rg(
         &self,
@@ -80,10 +110,7 @@ impl RipgrepSearchTool {
         let rg_path = Self::find_rg_binary()
             .ok_or_else(|| ToolError::ExecutionFailed("rg binary not found".into()))?;
 
-        let search_dir = match path {
-            Some(p) => self.workspace_root.join(p),
-            None => self.workspace_root.clone(),
-        };
+        let search_dir = Self::resolve_search_path(&self.workspace_root, path)?;
 
         let mut cmd = tokio::process::Command::new(&rg_path);
         cmd.arg("--json")
@@ -208,10 +235,7 @@ impl RipgrepSearchTool {
         let re = Regex::new(pattern)
             .map_err(|e| ToolError::ExecutionFailed(format!("invalid regex pattern: {}", e)))?;
 
-        let search_dir = match path {
-            Some(p) => self.workspace_root.join(p),
-            None => self.workspace_root.clone(),
-        };
+        let search_dir = Self::resolve_search_path(&self.workspace_root, path)?;
 
         let mut results = Vec::new();
         let mut files_visited = 0usize;
@@ -799,5 +823,83 @@ mod tests {
         let inv = make_invocation("test", None, None, 10);
         let risk = tool.risk(&inv);
         assert_eq!(risk, ToolRisk::read(crate::shell::SEARCH_TOOL_ID));
+    }
+
+    // ── resolve_search_path ─────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_valid_relative_path() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("subdir")).unwrap();
+        let resolved = RipgrepSearchTool::resolve_search_path(root.path(), Some("subdir")).unwrap();
+        let root_canonical = root.path().canonicalize().unwrap();
+        assert!(resolved.ends_with("subdir"));
+        assert!(resolved.starts_with(&root_canonical));
+    }
+
+    #[test]
+    fn resolve_none_path_returns_workspace_root() {
+        let root = tempfile::tempdir().unwrap();
+        let resolved = RipgrepSearchTool::resolve_search_path(root.path(), None).unwrap();
+        assert_eq!(resolved, root.path().canonicalize().unwrap());
+    }
+
+    #[test]
+    fn resolve_rejects_dot_dot_traversal() {
+        let root = tempfile::tempdir().unwrap();
+        let result = RipgrepSearchTool::resolve_search_path(root.path(), Some("../outside"));
+        assert!(
+            result.is_err(),
+            "dot-dot traversal should be rejected, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn resolve_rejects_dot_dot_inside_path() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("a")).unwrap();
+        let result = RipgrepSearchTool::resolve_search_path(root.path(), Some("a/../../outside"));
+        assert!(
+            result.is_err(),
+            "dot-dot inside path should be rejected, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn resolve_rejects_absolute_path() {
+        let root = tempfile::tempdir().unwrap();
+        let result = RipgrepSearchTool::resolve_search_path(root.path(), Some("/etc/passwd"));
+        assert!(
+            result.is_err(),
+            "absolute path should be rejected, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn resolve_rejects_symlink_outside_workspace() {
+        let root = tempfile::tempdir().unwrap();
+        // Create a symlink inside workspace pointing to /tmp
+        let symlink_path = root.path().join("escape");
+        std::os::unix::fs::symlink("/tmp", &symlink_path).unwrap();
+        let result = RipgrepSearchTool::resolve_search_path(root.path(), Some("escape"));
+        assert!(
+            result.is_err(),
+            "symlink outside workspace should be rejected, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn resolve_allows_symlink_inside_workspace() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("real")).unwrap();
+        std::os::unix::fs::symlink("real", root.path().join("link")).unwrap();
+        let resolved = RipgrepSearchTool::resolve_search_path(root.path(), Some("link")).unwrap();
+        let root_canonical = root.path().canonicalize().unwrap();
+        assert!(resolved.ends_with("real"));
+        assert!(resolved.starts_with(&root_canonical));
     }
 }
