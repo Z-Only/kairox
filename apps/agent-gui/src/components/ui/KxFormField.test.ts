@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import KxFormField from "./KxFormField.vue";
+import kxFormFieldSource from "./KxFormField.vue?raw";
 
 describe("KxFormField", () => {
   it("renders a labelled control with optional description", () => {
@@ -34,5 +35,19 @@ describe("KxFormField", () => {
 
     expect(wrapper.find(".kx-form-field__label").text()).toBe("Search template *");
     expect(wrapper.find(".kx-form-field__required").attributes("aria-hidden")).toBe("true");
+  });
+
+  it("owns shared control density for slotted setting controls", () => {
+    const wrapper = mount(KxFormField, {
+      props: { label: "Provider" },
+      slots: {
+        default: '<input class="kx-form-control" data-test="provider-input" />'
+      }
+    });
+
+    expect(wrapper.find(".kx-form-control").exists()).toBe(true);
+    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control)");
+    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control:focus-visible)");
+    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control--textarea)");
   });
 });

@@ -75,47 +75,55 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
       <fieldset class="model-form__section">
         <legend>{{ t("models.basicOptions") }}</legend>
         <div class="model-form__grid model-form__grid--2col">
-          <label>
-            <span>{{ t("models.alias") }}{{ isAddMode ? " *" : "" }}</span>
+          <KxFormField :label="t('models.alias')" :required="isAddMode">
             <input
               :id="`${idPrefix}-alias`"
               v-model="alias"
+              class="kx-form-control"
               :data-test="aliasTestId"
               :required="isAddMode"
               :readonly="!isAddMode"
             />
-          </label>
-          <label>
-            <span>{{ t("models.provider") }} *</span>
+          </KxFormField>
+          <KxFormField :label="t('models.provider')" required>
             <input
               :id="`${idPrefix}-provider`"
               v-model="provider"
+              class="kx-form-control"
               :data-test="providerTestId"
               required
             />
-          </label>
+          </KxFormField>
         </div>
-        <label>
-          <span>{{ t("models.modelId") }} *</span>
+        <KxFormField :label="t('models.modelId')" required>
           <input
             :id="`${idPrefix}-model-id`"
             v-model="modelId"
+            class="kx-form-control"
             :data-test="modelIdTestId"
             required
           />
-        </label>
+        </KxFormField>
       </fieldset>
 
       <fieldset class="model-form__section">
         <legend>{{ t("models.connectionOptions") }}</legend>
-        <label>
-          <span>{{ t("models.baseUrl") }}</span>
-          <input :id="`${idPrefix}-base-url`" v-model="baseUrl" :data-test="baseUrlTestId" />
-        </label>
-        <label>
-          <span>{{ t("models.apiKeyEnv") }}</span>
-          <input :id="`${idPrefix}-api-key-env`" v-model="apiKeyEnv" :data-test="apiKeyEnvTestId" />
-        </label>
+        <KxFormField :label="t('models.baseUrl')">
+          <input
+            :id="`${idPrefix}-base-url`"
+            v-model="baseUrl"
+            class="kx-form-control"
+            :data-test="baseUrlTestId"
+          />
+        </KxFormField>
+        <KxFormField :label="t('models.apiKeyEnv')">
+          <input
+            :id="`${idPrefix}-api-key-env`"
+            v-model="apiKeyEnv"
+            class="kx-form-control"
+            :data-test="apiKeyEnvTestId"
+          />
+        </KxFormField>
       </fieldset>
 
       <ModelParameterControls
@@ -191,37 +199,6 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
 
 .model-form__grid--2col {
   grid-template-columns: 1fr 1fr;
-}
-
-.model-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.model-form label > span {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--app-text-color-2);
-}
-
-.model-form input {
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 0.85rem;
-}
-
-.model-form input:focus {
-  border-color: var(--app-primary-color);
-  outline: none;
-}
-
-.model-form input:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
 }
 
 button:focus-visible {

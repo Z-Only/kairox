@@ -31,17 +31,56 @@ withDefaults(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--app-space-1);
 }
 
 .kx-form-field__label {
   color: var(--app-text-color-2);
-  font-size: 0.85em;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
 }
 
 .kx-form-field__description {
   color: var(--app-text-color-3);
-  font-size: 0.8em;
+  font-size: var(--app-text-xs);
   line-height: 1.4;
+}
+
+.kx-form-field :deep(.kx-form-control) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border-color);
+  border-radius: var(--app-radius-md);
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  font: inherit;
+  font-size: var(--app-text-sm);
+}
+
+.kx-form-field :deep(.kx-form-control:focus) {
+  border-color: var(--app-primary-color);
+  outline: none;
+}
+
+.kx-form-field :deep(.kx-form-control:focus-visible) {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+}
+
+.kx-form-field :deep(.kx-form-control:disabled),
+.kx-form-field :deep(.kx-form-control[readonly]) {
+  opacity: 0.68;
+}
+
+.kx-form-field :deep(.kx-form-control--textarea) {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.kx-form-field :deep(.kx-form-control--mono) {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 </style>

@@ -340,6 +340,14 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).not.toContain(".sub-tab-btn {");
   });
 
+  it("uses shared form controls in the GitHub advanced install form", () => {
+    expect(skillSettingsPaneSource).toContain("KxFormField");
+    expect(skillSettingsPaneSource).toContain("kx-form-control");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings input,");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings select");
+    expect(skillSettingsPaneSource).not.toContain(".skill-settings__search-form input");
+  });
+
   it("uses shared settings state chrome for empty installed skills", async () => {
     mockedCommands.listSkillSettings.mockResolvedValue([]);
     mockedCommands.getEffectiveSkills.mockResolvedValue([]);

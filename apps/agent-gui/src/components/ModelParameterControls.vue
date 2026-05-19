@@ -41,31 +41,31 @@ const emit = defineEmits<{
       </button>
     </legend>
     <div v-if="open" class="model-form__grid model-form__grid--3col">
-      <label>
-        <span>{{ t("models.contextWindow") }}</span>
+      <KxFormField :label="t('models.contextWindow')">
         <input
           :id="`${idPrefix}-ctx`"
           :value="contextWindow"
+          class="kx-form-control"
           type="number"
           :data-test="`${idPrefix}-ctx`"
           @input="emit('update:contextWindow', ($event.target as HTMLInputElement).value)"
         />
-      </label>
-      <label>
-        <span>{{ t("models.outputLimit") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('models.outputLimit')">
         <input
           :id="`${idPrefix}-out`"
           :value="outputLimit"
+          class="kx-form-control"
           type="number"
           :data-test="`${idPrefix}-out`"
           @input="emit('update:outputLimit', ($event.target as HTMLInputElement).value)"
         />
-      </label>
-      <label>
-        <span>{{ t("models.temperature") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('models.temperature')">
         <input
           :id="`${idPrefix}-temp`"
           :value="temperature"
+          class="kx-form-control"
           type="number"
           step="0.1"
           min="0"
@@ -73,12 +73,12 @@ const emit = defineEmits<{
           :data-test="`${idPrefix}-temp`"
           @input="emit('update:temperature', ($event.target as HTMLInputElement).value)"
         />
-      </label>
-      <label>
-        <span>{{ t("models.topP") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('models.topP')">
         <input
           :id="`${idPrefix}-top-p`"
           :value="topP"
+          class="kx-form-control"
           type="number"
           step="0.1"
           min="0"
@@ -86,28 +86,28 @@ const emit = defineEmits<{
           :data-test="`${idPrefix}-top-p`"
           @input="emit('update:topP', ($event.target as HTMLInputElement).value)"
         />
-      </label>
-      <label>
-        <span>{{ t("models.topK") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('models.topK')">
         <input
           :id="`${idPrefix}-top-k`"
           :value="topK"
+          class="kx-form-control"
           type="number"
           min="0"
           :data-test="`${idPrefix}-top-k`"
           @input="emit('update:topK', ($event.target as HTMLInputElement).value)"
         />
-      </label>
-      <label>
-        <span>{{ t("models.maxTokens") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('models.maxTokens')">
         <input
           :id="`${idPrefix}-max-tokens`"
           :value="maxTokens"
+          class="kx-form-control"
           type="number"
           :data-test="`${idPrefix}-max-tokens`"
           @input="emit('update:maxTokens', ($event.target as HTMLInputElement).value)"
         />
-      </label>
+      </KxFormField>
     </div>
   </fieldset>
 </template>
@@ -152,37 +152,5 @@ const emit = defineEmits<{
 
 .model-form__grid--3col {
   grid-template-columns: 1fr 1fr 1fr;
-}
-
-.model-form__section label,
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-label > span {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--app-text-color-2);
-}
-
-input {
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 0.85rem;
-}
-
-input:focus {
-  border-color: var(--app-primary-color);
-  outline: none;
-}
-
-input:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
 }
 </style>

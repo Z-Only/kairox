@@ -277,14 +277,16 @@ async function installFromGithub(): Promise<void> {
           data-test="skill-github-form"
           @submit.prevent="installFromGithub"
         >
-          <label for="skill-github-source">{{ t("skills.githubUrl") }}</label>
-          <input
-            id="skill-github-source"
-            v-model="githubSource"
-            type="text"
-            data-test="skill-github-source"
-            placeholder="https://github.com/org/repo/tree/main/path/to/skill"
-          />
+          <KxFormField class="advanced-install__field" :label="t('skills.githubUrl')">
+            <input
+              id="skill-github-source"
+              v-model="githubSource"
+              class="kx-form-control"
+              type="text"
+              data-test="skill-github-source"
+              placeholder="https://github.com/org/repo/tree/main/path/to/skill"
+            />
+          </KxFormField>
           <button
             class="btn btn-primary"
             type="submit"
@@ -422,44 +424,10 @@ async function installFromGithub(): Promise<void> {
   align-items: end;
 }
 
-.skill-settings__inline-form label {
-  display: grid;
-  gap: 4px;
-  font-weight: 600;
-}
-
-.skill-settings__search-form {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.skill-settings__search-form input {
-  flex: 1;
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
-  background: var(--app-card-color, #fff);
-  color: var(--app-text-color, #111827);
-}
-
 .skill-settings__remote-list {
   margin-top: 16px;
 }
 
-.skill-settings input,
-.skill-settings select {
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
-  background: var(--app-card-color, #fff);
-  color: var(--app-text-color, #111827);
-}
-
-.skill-settings input:focus,
-.skill-settings select:focus,
 .skill-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color, #3b82f6);
   outline-offset: 2px;
@@ -478,6 +446,10 @@ async function installFromGithub(): Promise<void> {
 
 .advanced-install__form {
   margin-top: 12px;
+}
+
+.advanced-install__field {
+  flex: 1 1 320px;
 }
 
 /* Source tags for effective (unified) view */

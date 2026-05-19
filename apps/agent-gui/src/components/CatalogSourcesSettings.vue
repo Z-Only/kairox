@@ -151,15 +151,15 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
     <div v-else class="add-form">
       <KxFormField label="id">
-        <input v-model="draft.id" class="input" data-test="src-id" />
+        <input v-model="draft.id" class="kx-form-control" data-test="src-id" />
       </KxFormField>
       <KxFormField :label="t('marketplace.displayName')">
-        <input v-model="draft.display_name" class="input" data-test="src-name" />
+        <input v-model="draft.display_name" class="kx-form-control" data-test="src-name" />
       </KxFormField>
       <KxFormField :label="t('marketplace.kind')">
         <select
           :value="draft.kind"
-          class="input"
+          class="kx-form-control"
           @change="draft.kind = ($event.target as HTMLSelectElement).value"
         >
           <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
@@ -168,15 +168,15 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         </select>
       </KxFormField>
       <KxFormField :label="t('marketplace.url')">
-        <input v-model="draft.url" class="input" data-test="src-url" />
+        <input v-model="draft.url" class="kx-form-control" data-test="src-url" />
       </KxFormField>
       <KxFormField :label="t('marketplace.apiKeyEnv')">
-        <input v-model="draft.api_key_env" class="input" />
+        <input v-model="draft.api_key_env" class="kx-form-control" />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}
       </span>
-      <div class="form-actions">
+      <KxFormActions>
         <button class="btn btn-primary" data-test="src-save" @click="save">
           {{ t("common.save") }}
         </button>
@@ -189,7 +189,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         >
           {{ t("common.cancel") }}
         </button>
-      </div>
+      </KxFormActions>
     </div>
   </div>
 </template>
@@ -310,20 +310,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   border: 1px dashed var(--app-border-color);
   border-radius: 4px;
 }
-.input {
-  padding: 4px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  font-size: 0.85em;
-  background: var(--app-body-color);
-  color: var(--app-text-color);
-}
 .error {
   margin: 0;
-}
-.form-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
 }
 </style>

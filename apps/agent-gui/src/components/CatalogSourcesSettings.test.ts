@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { flushPromises } from "@vue/test-utils";
 import CatalogSourcesSettings from "./CatalogSourcesSettings.vue";
+import catalogSourcesSettingsSource from "./CatalogSourcesSettings.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 // `CatalogSourcesSettings.vue` calls `useI18n()`, which requires a Vue plugin
@@ -103,5 +104,13 @@ describe("CatalogSourcesSettings.vue", () => {
     const removeCall = mockedInvoke.mock.calls.find((c) => c[0] === "remove_catalog_source");
     expect(removeCall).toBeDefined();
     expect(removeCall![1]).toMatchObject({ id: "x" });
+  });
+
+  it("uses shared form controls and action rows in the add-source form", () => {
+    expect(catalogSourcesSettingsSource).toContain("KxFormActions");
+    expect(catalogSourcesSettingsSource).toContain("kx-form-control");
+    expect(catalogSourcesSettingsSource).not.toContain('class="input"');
+    expect(catalogSourcesSettingsSource).not.toContain(".input {");
+    expect(catalogSourcesSettingsSource).not.toContain(".form-actions {");
   });
 });

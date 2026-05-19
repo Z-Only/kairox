@@ -180,49 +180,53 @@ function formatError(caughtError: unknown): string {
 
     <div v-else class="add-form">
       <KxFormField label="id">
-        <input v-model="draft.id" class="input" data-test="skill-src-id" />
+        <input v-model="draft.id" class="kx-form-control" data-test="skill-src-id" />
       </KxFormField>
       <KxFormField :label="t('skills.displayName')">
-        <input v-model="draft.display_name" class="input" data-test="skill-src-name" />
+        <input v-model="draft.display_name" class="kx-form-control" data-test="skill-src-name" />
       </KxFormField>
       <KxFormField :label="t('skills.kind')">
-        <select v-model="draft.kind" class="input">
+        <select v-model="draft.kind" class="kx-form-control">
           <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </select>
       </KxFormField>
       <KxFormField :label="t('skills.url')">
-        <input v-model="draft.url" class="input" data-test="skill-src-url" />
+        <input v-model="draft.url" class="kx-form-control" data-test="skill-src-url" />
       </KxFormField>
       <KxFormField :label="t('skills.searchTemplate')" required>
         <input
           v-model="draft.search_template"
-          class="input"
+          class="kx-form-control"
           data-test="skill-src-search-template"
         />
       </KxFormField>
       <KxFormField :label="t('skills.downloadTemplate')" required>
         <input
           v-model="draft.download_template"
-          class="input"
+          class="kx-form-control"
           data-test="skill-src-download-template"
         />
       </KxFormField>
       <KxFormField :label="t('skills.listTemplate')">
-        <input v-model="draft.list_template" class="input" data-test="skill-src-list-template" />
+        <input
+          v-model="draft.list_template"
+          class="kx-form-control"
+          data-test="skill-src-list-template"
+        />
       </KxFormField>
       <KxFormField :label="t('skills.detailTemplate')">
         <input
           v-model="draft.detail_template"
-          class="input"
+          class="kx-form-control"
           data-test="skill-src-detail-template"
         />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}
       </span>
-      <div class="form-actions">
+      <KxFormActions>
         <button class="btn btn-primary" type="button" data-test="skill-src-save" @click="save">
           {{ t("common.save") }}
         </button>
@@ -236,7 +240,7 @@ function formatError(caughtError: unknown): string {
         >
           {{ t("common.cancel") }}
         </button>
-      </div>
+      </KxFormActions>
     </div>
   </div>
 </template>
@@ -357,22 +361,7 @@ function formatError(caughtError: unknown): string {
   border-radius: 4px;
 }
 
-.input {
-  padding: 4px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  font-size: 0.85em;
-  background: var(--app-body-color);
-  color: var(--app-text-color);
-}
-
 .error {
   margin: 0;
-}
-
-.form-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
 }
 </style>

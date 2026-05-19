@@ -290,53 +290,54 @@ watch(
         </button>
 
         <form v-else class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
-          <label>
-            <span>{{ t("hooks.id") }}</span>
-            <input v-model="form.id" data-test="hook-id" required />
-          </label>
+          <KxFormField :label="t('hooks.id')">
+            <input v-model="form.id" class="kx-form-control" data-test="hook-id" required />
+          </KxFormField>
 
-          <label>
-            <span>{{ t("hooks.event") }}</span>
-            <select v-model="form.event" data-test="hook-event">
+          <KxFormField :label="t('hooks.event')">
+            <select v-model="form.event" class="kx-form-control" data-test="hook-event">
               <option v-for="event in events" :key="event" :value="event">{{ event }}</option>
             </select>
-          </label>
+          </KxFormField>
 
-          <label>
-            <span>{{ t("hooks.matcher") }}</span>
+          <KxFormField :label="t('hooks.matcher')">
             <input
               v-model="form.matcher"
+              class="kx-form-control"
               data-test="hook-matcher"
               :placeholder="t('hooks.matcherPlaceholder')"
             />
-          </label>
+          </KxFormField>
 
-          <label>
-            <span>{{ t("hooks.command") }}</span>
-            <input v-model="form.command" data-test="hook-command" required />
-          </label>
+          <KxFormField :label="t('hooks.command')">
+            <input
+              v-model="form.command"
+              class="kx-form-control"
+              data-test="hook-command"
+              required
+            />
+          </KxFormField>
 
-          <label>
-            <span>{{ t("hooks.status") }}</span>
-            <input v-model="form.statusMessage" data-test="hook-status" />
-          </label>
+          <KxFormField :label="t('hooks.status')">
+            <input v-model="form.statusMessage" class="kx-form-control" data-test="hook-status" />
+          </KxFormField>
 
-          <label>
-            <span>{{ t("hooks.timeout") }}</span>
+          <KxFormField :label="t('hooks.timeout')">
             <input
               v-model.number="form.timeoutSecs"
+              class="kx-form-control"
               data-test="hook-timeout"
               min="1"
               type="number"
             />
-          </label>
+          </KxFormField>
 
           <label class="hooks-pane__toggle">
             <input v-model="form.enabled" data-test="hook-enabled" type="checkbox" />
             <span>{{ t("hooks.enabled") }}</span>
           </label>
 
-          <div class="hooks-pane__form-actions">
+          <KxFormActions align="end">
             <button class="btn" type="button" @click="closeForm">
               {{ t("common.cancel") }}
             </button>
@@ -349,7 +350,7 @@ watch(
             >
               {{ t("common.save") }}
             </button>
-          </div>
+          </KxFormActions>
         </form>
       </div>
     </template>
@@ -419,35 +420,11 @@ watch(
   gap: 10px;
 }
 
-.hooks-pane__form label {
-  display: grid;
-  gap: 4px;
-  color: var(--app-text-color-2);
-  font-size: 0.82rem;
-}
-
-.hooks-pane__form input,
-.hooks-pane__form select {
-  min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font: inherit;
-}
-
 .hooks-pane__toggle {
   display: flex !important;
   grid-template-columns: none !important;
   flex-direction: row;
   align-items: center;
-}
-
-.hooks-pane__form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 @media (max-width: 760px) {

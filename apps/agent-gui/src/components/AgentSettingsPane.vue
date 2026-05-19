@@ -270,62 +270,73 @@ watch(
       @close="closeEditor"
     >
       <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
-        <label>
-          {{ t("agents.name") }}
-          <input v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
-        </label>
-        <label>
-          {{ t("agents.description") }}
-          <input v-model="form.description" data-test="agent-form-description" />
-        </label>
-        <label>
-          {{ t("agents.modelProfile") }}
+        <KxFormField :label="t('agents.name')">
+          <input
+            v-model="form.name"
+            class="kx-form-control"
+            data-test="agent-form-name"
+            placeholder="code-reviewer"
+          />
+        </KxFormField>
+        <KxFormField :label="t('agents.description')">
+          <input
+            v-model="form.description"
+            class="kx-form-control"
+            data-test="agent-form-description"
+          />
+        </KxFormField>
+        <KxFormField :label="t('agents.modelProfile')">
           <input
             v-model="form.modelProfile"
+            class="kx-form-control"
             data-test="agent-form-model"
             :placeholder="t('agents.defaultValue')"
           />
-        </label>
-        <label>
-          {{ t("agents.permissionMode") }}
+        </KxFormField>
+        <KxFormField :label="t('agents.permissionMode')">
           <input
             v-model="form.permissionMode"
+            class="kx-form-control"
             data-test="agent-form-permission"
             :placeholder="t('agents.defaultValue')"
           />
-        </label>
-        <label>
-          {{ t("agents.tools") }}
+        </KxFormField>
+        <KxFormField :label="t('agents.tools')">
           <input
             v-model="toolsText"
+            class="kx-form-control"
             data-test="agent-form-tools"
             placeholder="fs.read, search, shell"
           />
-        </label>
-        <label>
-          {{ t("agents.skills") }}
+        </KxFormField>
+        <KxFormField :label="t('agents.skills')">
           <input
             v-model="skillsText"
+            class="kx-form-control"
             data-test="agent-form-skills"
             placeholder="kairox-dev-workflow"
           />
-        </label>
-        <label>
-          {{ t("agents.nicknames") }}
+        </KxFormField>
+        <KxFormField :label="t('agents.nicknames')">
           <input
             v-model="nicknamesText"
+            class="kx-form-control"
             data-test="agent-form-nicknames"
             placeholder="Reviewer, Audit"
           />
-        </label>
+        </KxFormField>
         <label class="agent-editor__checkbox">
           <input v-model="form.enabled" type="checkbox" data-test="agent-form-enabled" />
           {{ t("agents.enabled") }}
         </label>
-        <label>
-          {{ t("settings.instructions") }}
-          <textarea v-model="form.instructions" data-test="agent-form-instructions" rows="8" />
-        </label>
+        <KxFormField :label="t('settings.instructions')">
+          <textarea
+            v-model="form.instructions"
+            class="kx-form-control kx-form-control--textarea kx-form-control--mono"
+            data-test="agent-form-instructions"
+            rows="8"
+          />
+        </KxFormField>
       </form>
 
       <template #footer>
@@ -399,30 +410,6 @@ watch(
   align-content: start;
   gap: 10px;
   min-width: 0;
-}
-
-.agent-editor label {
-  display: grid;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.agent-editor input,
-.agent-editor textarea {
-  width: 100%;
-  min-height: 34px;
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font: inherit;
-}
-
-.agent-editor textarea {
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 .agent-editor__checkbox {
