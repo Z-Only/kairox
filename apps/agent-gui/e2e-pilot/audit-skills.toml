@@ -13,20 +13,20 @@ selector = "[data-test='app-shell']"
 timeout_ms = 15000
 
 [[step]]
-name = "open skills settings route"
-action = "eval"
-script = """
-(() => {
-  window.location.hash = "#/settings/skills";
-  return window.location.hash;
-})()
-"""
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
 
 [[step]]
 name = "wait for settings view"
 action = "wait"
 selector = "[data-test='view-settings']"
 timeout_ms = 15000
+
+[[step]]
+name = "open skills settings tab"
+action = "click"
+target = "[data-test='settings-tab-skills']"
 
 [[step]]
 name = "wait for skills settings"
