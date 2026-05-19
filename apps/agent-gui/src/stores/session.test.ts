@@ -264,6 +264,7 @@ describe("filterOrdinarySessions", () => {
       project_id: null,
       worktree_path: null,
       branch: null,
+      deleted_at: null,
       visibility: null
     };
     const projectSession: SessionInfoResponse = {
@@ -273,6 +274,7 @@ describe("filterOrdinarySessions", () => {
       project_id: "p1",
       worktree_path: "/tmp/demo",
       branch: null,
+      deleted_at: null,
       visibility: "draft_hidden"
     };
 
@@ -292,6 +294,7 @@ describe("project session metadata", () => {
         project_id: null,
         worktree_path: null,
         branch: null,
+        deleted_at: null,
         visibility: null
       }
     ];
@@ -306,6 +309,7 @@ describe("project session metadata", () => {
             projectId: "project-1",
             worktreePath: "/repo/.worktrees/project-task",
             branch: "feat/project-task",
+            deletedAt: null,
             visibility: "draft_hidden"
           }
         ]

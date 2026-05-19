@@ -35,6 +35,24 @@ describe("SettingsCardList", () => {
     expect(wrapper.classes()).toContain("settings-card-list--dense");
   });
 
+  it("supports an auto-column layout for lightweight settings rows", () => {
+    const wrapper = mount(SettingsCardList, {
+      props: {
+        columns: "auto",
+        dense: true,
+        scroll: false,
+        dataTest: "light-list"
+      },
+      slots: {
+        default: "<article>One</article><article>Two</article>"
+      }
+    });
+
+    expect(wrapper.attributes("data-test")).toBe("light-list");
+    expect(wrapper.classes()).toContain("settings-card-list--auto-columns");
+    expect(wrapper.classes()).toContain("settings-card-list--dense");
+  });
+
   it("does not stretch a single card to fill available list height", () => {
     expect(settingsCardListSource).toContain("align-items: start");
   });

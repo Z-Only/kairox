@@ -93,8 +93,18 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       {{ t("marketplace.sourcesEmpty") }}
     </SettingsState>
 
-    <ul v-else class="list src-list">
-      <li v-for="src in sources" :key="src.id" class="src-row">
+    <SettingsCardList
+      v-else
+      aria-label="Catalog sources"
+      data-test="catalog-sources-list"
+      :scroll="false"
+      dense
+    >
+      <SettingsCardItem
+        v-for="src in sources"
+        :key="src.id"
+        :data-test="`catalog-source-row-${src.id}`"
+      >
         <div class="src-meta">
           <div class="src-meta-row">
             <strong>{{ src.display_name }}</strong>
@@ -118,7 +128,8 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
             {{ t("marketplace.sourceError", { error: failures[src.id] }) }}
           </span>
         </div>
-        <div class="src-actions">
+
+        <template #actions>
           <label class="src-enable" :data-test="`src-enable-${src.id}`">
             <input
               type="checkbox"
@@ -137,9 +148,9 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
           >
             {{ t("common.delete") }}
           </KxButton>
-        </div>
-      </li>
-    </ul>
+        </template>
+      </SettingsCardItem>
+    </SettingsCardList>
 
     <KxButton v-if="!showAddForm" data-test="add-source-toggle" @click="showAddForm = true">
       {{ t("marketplace.addSource") }}
@@ -196,26 +207,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   margin: 0;
   font-weight: normal;
 }
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-}
-.src-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--app-border-color);
-}
-.src-row:last-child {
-  border-bottom: none;
-}
-.src-row:hover {
-  background: var(--app-hover-color);
-}
 .src-meta {
   display: flex;
   flex-direction: column;
@@ -259,12 +250,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 }
 .text-error {
   color: var(--app-error-color);
-}
-.src-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 .src-enable {
   display: flex;

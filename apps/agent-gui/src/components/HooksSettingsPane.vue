@@ -254,6 +254,7 @@ watch(
             :aria-label="t('hooks.scopeHooks', { scope: scopeLabel })"
             data-test="hooks-list"
             :scroll="false"
+            columns="auto"
             dense
           >
             <SettingsCardItem
@@ -378,7 +379,6 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 16px;
-  align-items: start;
 }
 
 .hooks-pane__add {
@@ -391,8 +391,7 @@ watch(
 }
 
 .hooks-pane__list {
-  width: min(100%, 760px);
-  max-width: 760px;
+  width: 100%;
 }
 
 .hooks-pane__list-header {

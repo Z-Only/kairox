@@ -2,6 +2,7 @@
 const props = withDefaults(
   defineProps<{
     ariaLabel?: string;
+    columns?: "single" | "auto";
     dataTest?: string;
     role?: string;
     scroll?: boolean;
@@ -9,6 +10,7 @@ const props = withDefaults(
   }>(),
   {
     ariaLabel: undefined,
+    columns: "single",
     dataTest: undefined,
     role: "list",
     scroll: true,
@@ -23,7 +25,8 @@ const props = withDefaults(
       'settings-card-list',
       {
         'settings-card-list--scroll': props.scroll,
-        'settings-card-list--dense': props.dense
+        'settings-card-list--dense': props.dense,
+        'settings-card-list--auto-columns': props.columns === 'auto'
       }
     ]"
     :role="props.role"
@@ -50,5 +53,9 @@ const props = withDefaults(
 
 .settings-card-list--dense {
   gap: 10px;
+}
+
+.settings-card-list--auto-columns {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
 }
 </style>

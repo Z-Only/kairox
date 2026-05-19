@@ -49,6 +49,7 @@
     "archiveEmpty": "暂无归档会话。",
     "archiveTotal": "总计：{count}",
     "archiveProjects": "项目数：{count}",
+    "archiveArchivedAt": "归档于 {time}",
     "archiveRestore": "恢复",
     "instructions": "指令",
     "hooks": "Hooks",

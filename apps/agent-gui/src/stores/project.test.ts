@@ -47,6 +47,7 @@ function mockDefaultInvoke(): void {
             project_id: "p1",
             worktree_path: "/tmp/demo",
             branch: null,
+            deleted_at: null,
             visibility: "draft_hidden"
           }
         ];
@@ -60,6 +61,7 @@ function mockDefaultInvoke(): void {
             project_id: "p1",
             worktree_path: "/tmp/demo",
             branch: "main",
+            deleted_at: "2026-01-02T03:04:05Z",
             visibility: "archived"
           }
         ];
@@ -173,6 +175,7 @@ describe("project store", () => {
             project_id: "p1",
             worktree_path: "/tmp/demo",
             branch: null,
+            deleted_at: null,
             visibility: "visible"
           }
         ];
@@ -191,6 +194,7 @@ describe("project store", () => {
       projectId: "p1",
       worktreePath: "/tmp/demo",
       branch: null,
+      deletedAt: null,
       visibility: "draft_hidden"
     });
     expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", { projectId: "p1" });
@@ -259,6 +263,7 @@ describe("project store", () => {
             projectId: "p1",
             worktreePath: "/tmp/demo",
             branch: "main",
+            deletedAt: null,
             visibility: "visible"
           }
         ]
@@ -292,6 +297,7 @@ describe("project store", () => {
             projectId: "p1",
             worktreePath: "/tmp/demo",
             branch: null,
+            deletedAt: null,
             visibility: "visible"
           }
         ]

@@ -34,6 +34,7 @@ pub struct SessionInfoResponse {
     pub worktree_path: Option<String>,
     pub branch: Option<String>,
     pub visibility: Option<String>,
+    pub deleted_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -145,6 +146,7 @@ impl From<SessionMeta> for SessionInfoResponse {
             worktree_path: session.worktree_path,
             branch: session.branch,
             visibility: session.visibility.map(project_visibility_to_string),
+            deleted_at: session.deleted_at,
         }
     }
 }
@@ -162,6 +164,34 @@ impl From<MemoryEntry> for MemoryEntryResponse {
             content: e.content,
             accepted: e.accepted,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_core::{SessionId, WorkspaceId};
+
+    #[test]
+    fn session_info_response_exposes_deleted_at_for_archive_display() {
+        let response = SessionInfoResponse::from(SessionMeta {
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
+            permission_mode: None,
+            session_id: SessionId::from_string("ses_archived".to_string()),
+            workspace_id: WorkspaceId::from_string("wrk_default".to_string()),
+            title: "Archived task".into(),
+            model_profile: "default".into(),
+            model_id: None,
+            provider: None,
+            deleted_at: Some("2026-01-02T03:04:05Z".into()),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-02T03:04:05Z".into(),
+        });
+
+        assert_eq!(response.deleted_at.as_deref(), Some("2026-01-02T03:04:05Z"));
     }
 }
 

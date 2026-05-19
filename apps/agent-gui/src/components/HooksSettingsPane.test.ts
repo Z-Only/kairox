@@ -132,7 +132,7 @@ describe("HooksSettingsPane", () => {
     expect(wrapper.find('[data-test="hook-row-verify"]').text()).toContain("cargo test");
   });
 
-  it("keeps the hook add action in the list header and constrains the list width", async () => {
+  it("keeps the hook add action in the list header and lets the list use the full card width", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 
     const wrapper = mountPane("user");
@@ -141,8 +141,12 @@ describe("HooksSettingsPane", () => {
     const header = wrapper.find(".hooks-pane__list-header");
     expect(header.find('[data-test="hook-add"]').exists()).toBe(true);
     expect(wrapper.find('.hooks-pane__grid > [data-test="hook-add"]').exists()).toBe(false);
-    expect(hooksSettingsPaneSource).toContain("max-width: 760px");
-    expect(hooksSettingsPaneSource).toContain("width: min(100%, 760px)");
+    expect(wrapper.find('[data-test="hooks-list"]').classes()).toContain(
+      "settings-card-list--auto-columns"
+    );
+    expect(hooksSettingsPaneSource).not.toMatch(/\.hooks-pane__list\s*\{[^}]*max-width:/);
+    expect(hooksSettingsPaneSource).not.toContain("width: min(100%, 760px)");
+    expect(hooksSettingsPaneSource).toContain("width: 100%");
   });
 
   it("saves the edited hook in user scope", async () => {

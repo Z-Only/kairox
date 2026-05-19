@@ -895,6 +895,7 @@ export type SessionInfoResponse = {
   worktree_path: string | null;
   branch: string | null;
   visibility: string | null;
+  deleted_at: string | null;
 };
 
 /**  A single skill entry returned by the skills catalog. */
