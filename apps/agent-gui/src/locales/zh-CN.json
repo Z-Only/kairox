@@ -143,6 +143,12 @@
     "permission": "权限",
     "attachFileAria": "附加文件",
     "removeFileAria": "移除 {name}",
+    "queueSend": "排队",
+    "queuedGuide": "引导",
+    "queuedGuideAria": "立即发送这条队列消息",
+    "queuedEditAria": "编辑这条队列消息",
+    "queuedDeleteAria": "删除这条队列消息",
+    "queuedAttachments": "{count} 个文件",
     "emptyState": "开始对话"
   },
   "context": {

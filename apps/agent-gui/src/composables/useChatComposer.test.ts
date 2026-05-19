@@ -157,6 +157,90 @@ describe("useChatComposer", () => {
     expect(notify).toHaveBeenCalledWith("error", "chat.sendFailed: Error: IPC offline");
   });
 
+  it("queues messages submitted while the session is streaming", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, invokeFn, draftStore } = createComposer({ session });
+
+    composer.inputText.value = "  follow up  ";
+    composer.addFilePaths(["/repo/src/main.rs"]);
+
+    await composer.sendMessage();
+
+    expect(invokeFn).not.toHaveBeenCalled();
+    expect(composer.queuedMessages.value).toHaveLength(1);
+    expect(composer.queuedMessages.value[0].content).toBe("follow up");
+    expect(composer.queuedMessages.value[0].attachments[0].name).toBe("main.rs");
+    expect(composer.inputText.value).toBe("");
+    expect(composer.attachments.value).toEqual([]);
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_1");
+  });
+
+  it("auto-sends the oldest queued message when streaming stops", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, invokeFn } = createComposer({ session });
+
+    composer.inputText.value = "first queued";
+    await composer.sendMessage();
+    composer.inputText.value = "second queued";
+    await composer.sendMessage();
+
+    session.isStreaming = false;
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledTimes(1);
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "first queued",
+      attachments: []
+    });
+    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual(["second queued"]);
+  });
+
+  it("can guide-send a queued message immediately while streaming", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, invokeFn } = createComposer({ session });
+
+    composer.inputText.value = "correction";
+    await composer.sendMessage();
+    await composer.sendQueuedMessageNow(composer.queuedMessages.value[0].id);
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "correction",
+      attachments: []
+    });
+    expect(composer.queuedMessages.value).toEqual([]);
+  });
+
+  it("restores the newest queued message into the composer for editing", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer } = createComposer({ session });
+
+    composer.inputText.value = "first";
+    await composer.sendMessage();
+    composer.inputText.value = "second";
+    composer.addFilePaths(["/repo/notes.md"]);
+    await composer.sendMessage();
+
+    expect(composer.restoreLastQueuedMessage()).toBe(true);
+
+    expect(composer.inputText.value).toBe("second");
+    expect(composer.attachments.value[0].name).toBe("notes.md");
+    expect(composer.queuedMessages.value.map((msg) => msg.content)).toEqual(["first"]);
+  });
+
+  it("deletes queued messages without changing the current draft", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer } = createComposer({ session });
+
+    composer.inputText.value = "queued";
+    await composer.sendMessage();
+    composer.inputText.value = "current draft";
+
+    composer.deleteQueuedMessage(composer.queuedMessages.value[0].id);
+
+    expect(composer.queuedMessages.value).toEqual([]);
+    expect(composer.inputText.value).toBe("current draft");
+  });
+
   it("saves the outgoing session draft before loading the next session draft", async () => {
     const session = createSession();
     const { composer, draftStore } = createComposer({ session });

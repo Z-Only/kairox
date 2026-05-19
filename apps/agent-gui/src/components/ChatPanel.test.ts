@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
+import chatModelSelectorSource from "./ChatModelSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 // jsdom does not implement `Element.prototype.scrollTo`. The scrollbar
@@ -216,18 +217,26 @@ describe("ChatPanel", () => {
   it("keeps model selector and git metadata stable with long labels", () => {
     expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*min-width:\s*0/);
     expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatComposerSource).toMatch(
+    expect(chatModelSelectorSource).toMatch(
       /\.chat-model-trigger\s*\{[\s\S]*max-width:\s*min\(100%,\s*280px\)/
     );
-    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/);
-    expect(chatComposerSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/);
-    expect(chatComposerSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/);
-    expect(chatComposerSource).toMatch(/\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatComposerSource).toMatch(
+    expect(chatModelSelectorSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
+    expect(chatModelSelectorSource).toMatch(
+      /\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/
+    );
+    expect(chatModelSelectorSource).toMatch(
+      /\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/
+    );
+    expect(chatModelSelectorSource).toMatch(
+      /\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/
+    );
+    expect(chatModelSelectorSource).toMatch(
+      /\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/
+    );
+    expect(chatModelSelectorSource).toMatch(
       /\.chat-model-option-label\s*\{[\s\S]*text-overflow:\s*ellipsis/
     );
-    expect(chatComposerSource).toMatch(
+    expect(chatModelSelectorSource).toMatch(
       /\.chat-model-option-label\s*\{[\s\S]*white-space:\s*nowrap/
     );
     expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
@@ -269,7 +278,8 @@ describe("ChatPanel", () => {
     });
     await flushPromises();
     expect(wrapper.find('[data-test="cancel-button"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="send-button"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="send-button"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="send-button"]').text()).toBe("Queue");
   });
 
   it("shows Send button when not streaming", async () => {
@@ -281,7 +291,7 @@ describe("ChatPanel", () => {
     expect(wrapper.find('[data-test="cancel-button"]').exists()).toBe(false);
   });
 
-  it("disables the textarea when isStreaming", async () => {
+  it("keeps the textarea enabled when isStreaming so messages can queue", async () => {
     const wrapper = mountChatPanel((s) => {
       s.isStreaming = true;
     });
@@ -291,7 +301,7 @@ describe("ChatPanel", () => {
     // <textarea> itself (not a wrapper), so we select it directly.
     const textarea = wrapper.find('textarea[data-test="message-input"]');
     expect(textarea.exists()).toBe(true);
-    expect(textarea.attributes("disabled")).toBeDefined();
+    expect(textarea.attributes("disabled")).toBeUndefined();
   });
 
   it("invokes cancel_session on Cancel click", async () => {
