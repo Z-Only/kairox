@@ -1,0 +1,264 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Model switch and reasoning effort"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "start new session"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "wait for chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "model trigger visible with default profile"
+action = "assert-visible"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "permission trigger visible"
+action = "assert-visible"
+target = "[data-test='chat-permission-trigger']"
+
+[[step]]
+name = "open model selector popover"
+action = "click"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "model popover visible"
+action = "assert-visible"
+target = "[data-test='chat-model-popover']"
+
+[[step]]
+name = "at least one model option in popover"
+action = "eval"
+script = """
+(() => {
+  const options = document.querySelectorAll("[data-test^='chat-model-option-']");
+  if (options.length === 0) {
+    throw new Error("no model options found in popover");
+  }
+  return options.length + " model option(s)";
+})()
+"""
+
+[[step]]
+name = "discover models and pick switch target if multiple"
+action = "eval"
+script = """
+(() => {
+  const options = document.querySelectorAll("[data-test^='chat-model-option-']");
+  const current = Array.from(options).find(
+    (el) => el.getAttribute("aria-current") === "true"
+  );
+  if (!current) throw new Error("no current model found");
+
+  var currentAttr = current.getAttribute("data-test") || "";
+  var currentAlias = currentAttr.replace("chat-model-option-", "");
+  window.__pilotCurrentAlias = currentAlias;
+
+  if (options.length < 2) {
+    window.__pilotCanSwitch = false;
+    window.__pilotOtherAlias = null;
+    return "single model: " + currentAlias + " — skipping switch";
+  }
+
+  var other = Array.from(options).find(
+    (el) => el.getAttribute("aria-current") !== "true"
+  );
+  if (!other) {
+    window.__pilotCanSwitch = false;
+    window.__pilotOtherAlias = null;
+    return "only one enabled model — skipping switch";
+  }
+
+  var otherAttr = other.getAttribute("data-test") || "";
+  var otherAlias = otherAttr.replace("chat-model-option-", "");
+  window.__pilotCanSwitch = true;
+  window.__pilotOtherAlias = otherAlias;
+  return "current: " + currentAlias + " → target: " + otherAlias;
+})()
+"""
+
+[[step]]
+name = "switch to different model profile"
+action = "eval"
+script = """
+(() => {
+  if (!window.__pilotCanSwitch) return "skipped - only one model available";
+  var alias = window.__pilotOtherAlias;
+  var btn = document.querySelector("[data-test='chat-model-option-' + alias + '']");
+  if (!btn) throw new Error("option " + alias + " not clickable");
+  btn.click();
+  return "clicked " + alias;
+})()
+"""
+
+[[step]]
+name = "trigger label reflects switched model"
+action = "eval"
+script = """
+(async () => {
+  if (!window.__pilotCanSwitch) return "skipped";
+  var expectedAlias = window.__pilotOtherAlias;
+  for (var i = 0; i < 30; i++) {
+    var trigger = document.querySelector("[data-test='chat-model-trigger']");
+    if (trigger && trigger.textContent && trigger.textContent.indexOf(expectedAlias) !== -1) {
+      return trigger.textContent.trim();
+    }
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  var trigger = document.querySelector("[data-test='chat-model-trigger']");
+  throw new Error("trigger missing alias " + expectedAlias + ": " + (trigger ? trigger.textContent : ""));
+})()
+"""
+
+[[step]]
+name = "reopen model selector to verify current marker"
+action = "eval"
+script = """
+(() => {
+  if (!window.__pilotCanSwitch) return "skipped";
+  var trigger = document.querySelector("[data-test='chat-model-trigger']");
+  if (trigger) trigger.click();
+  return "reopened";
+})()
+"""
+
+[[step]]
+name = "switched model marked as aria-current"
+action = "eval"
+script = """
+(() => {
+  if (!window.__pilotCanSwitch) return "skipped";
+  var alias = window.__pilotOtherAlias;
+  var option = document.querySelector("[data-test='chat-model-option-' + alias + '']");
+  if (!option || option.getAttribute("aria-current") !== "true") {
+    throw new Error("model " + alias + " should be aria-current=true");
+  }
+  var prevAlias = window.__pilotCurrentAlias;
+  var previous = document.querySelector("[data-test='chat-model-option-' + prevAlias + '']");
+  if (previous && previous.getAttribute("aria-current") === "true") {
+    throw new Error("previous model should no longer be current");
+  }
+  return alias + " is current";
+})()
+"""
+
+[[step]]
+name = "explore reasoning support for hovered model"
+action = "eval"
+script = """
+(async () => {
+  if (!window.__pilotCanSwitch) {
+    window.__pilotHasReasoning = false;
+    return "skipped";
+  }
+  var alias = window.__pilotOtherAlias;
+  var option = document.querySelector("[data-test='chat-model-option-' + alias + '']");
+  if (!option) throw new Error("option " + alias + " not found");
+  option.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+  await new Promise(function (r) { setTimeout(r, 200); });
+  var panel = document.querySelector("[data-test='chat-reasoning-panel']");
+  window.__pilotHasReasoning = !!panel;
+  if (!panel) return "no reasoning support on current model";
+
+  var low = document.querySelector("[data-test='chat-reasoning-option-low']");
+  var xhigh = document.querySelector("[data-test='chat-reasoning-option-xhigh']");
+  if (!low) throw new Error("reasoning-option-low missing");
+  if (!xhigh) throw new Error("reasoning-option-xhigh missing");
+  return "reasoning panel visible with expected effort options";
+})()
+"""
+
+[[step]]
+name = "fill custom reasoning effort"
+action = "eval"
+script = """
+(() => {
+  if (!window.__pilotHasReasoning) return "skipped - no reasoning model";
+  var input = document.querySelector("[data-test='chat-reasoning-custom-input']");
+  if (!input) throw new Error("custom reasoning input not found");
+  var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype, "value"
+  );
+  if (nativeInputValueSetter && nativeInputValueSetter.set) {
+    nativeInputValueSetter.set.call(input, "reasoning-max");
+  }
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  return "filled reasoning-max";
+})()
+"""
+
+[[step]]
+name = "apply custom reasoning effort"
+action = "eval"
+script = """
+(async () => {
+  if (!window.__pilotHasReasoning) return "skipped";
+  var btn = document.querySelector("[data-test='chat-reasoning-custom-apply']");
+  if (!btn) throw new Error("custom apply button not found");
+  btn.click();
+
+  for (var i = 0; i < 30; i++) {
+    var trigger = document.querySelector("[data-test='chat-model-trigger']");
+    if (trigger && trigger.textContent && trigger.textContent.indexOf("reasoning-max") !== -1) {
+      return trigger.textContent.trim();
+    }
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  var trigger = document.querySelector("[data-test='chat-model-trigger']");
+  throw new Error("trigger missing reasoning-max: " + (trigger ? trigger.textContent : ""));
+})()
+"""
+
+[[step]]
+name = "reopen popover and switch back to original model"
+action = "eval"
+script = """
+(async () => {
+  if (!window.__pilotCanSwitch) return "skipped";
+  var trigger = document.querySelector("[data-test='chat-model-trigger']");
+  if (!trigger) throw new Error("trigger not found");
+  trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await new Promise(function (r) { setTimeout(r, 300); });
+
+  var alias = window.__pilotCurrentAlias;
+  var btn = document.querySelector("[data-test='chat-model-option-' + alias + '']");
+  if (!btn) throw new Error("option " + alias + " not clickable");
+  btn.click();
+  return "switched back to " + alias;
+})()
+"""
+
+[[step]]
+name = "original model restored in trigger label"
+action = "eval"
+script = """
+(async () => {
+  if (!window.__pilotCanSwitch) return "skipped";
+  var expectedAlias = window.__pilotCurrentAlias;
+  for (var i = 0; i < 30; i++) {
+    var trigger = document.querySelector("[data-test='chat-model-trigger']");
+    var text = trigger ? trigger.textContent || "" : "";
+    if (text.indexOf(expectedAlias) !== -1) return text.trim();
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  var trigger = document.querySelector("[data-test='chat-model-trigger']");
+  throw new Error("trigger did not restore " + expectedAlias + ": " + (trigger ? trigger.textContent : ""));
+})()
+"""
