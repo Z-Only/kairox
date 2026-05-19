@@ -213,23 +213,36 @@ watch(
 
     <template v-else>
       <div class="hooks-pane__templates" data-test="hook-templates">
-        <button
+        <KxButton
           v-for="template in view?.templates ?? []"
           :key="template.id"
-          class="btn btn-secondary"
+          size="sm"
           :data-test="`hook-template-${template.id}`"
           type="button"
           @click="applyTemplate(template)"
         >
           {{ template.name }}
-        </button>
+        </KxButton>
       </div>
 
       <div class="hooks-pane__grid">
         <section class="hooks-pane__list">
           <div class="hooks-pane__list-header">
-            <h3>{{ t("hooks.scopeHooks", { scope: scopeLabel }) }}</h3>
-            <span class="tag">{{ currentHooks.length }}</span>
+            <div class="hooks-pane__list-title">
+              <h3>{{ t("hooks.scopeHooks", { scope: scopeLabel }) }}</h3>
+              <span class="tag">{{ currentHooks.length }}</span>
+            </div>
+            <KxButton
+              v-if="!formOpen"
+              variant="primary"
+              size="sm"
+              class="hooks-pane__add"
+              data-test="hook-add"
+              type="button"
+              @click="openNewHookForm"
+            >
+              {{ t("hooks.add") }}
+            </KxButton>
           </div>
 
           <SettingsState v-if="currentHooks.length === 0" tone="empty" data-test="hooks-empty">
@@ -257,37 +270,28 @@ watch(
               </div>
               <code>{{ hook.command }}</code>
               <div class="hook-row__actions">
-                <button
-                  class="btn btn-secondary"
+                <KxButton
+                  size="sm"
                   :data-test="`hook-edit-${hook.id}`"
                   type="button"
                   @click="editHook(hook)"
                 >
                   {{ t("common.edit") }}
-                </button>
-                <button
-                  class="btn btn-danger"
+                </KxButton>
+                <KxButton
+                  variant="danger"
+                  size="sm"
                   :data-test="`hook-delete-${hook.id}`"
                   :disabled="saving"
                   type="button"
                   @click="deleteHook(hook)"
                 >
                   {{ t("common.delete") }}
-                </button>
+                </KxButton>
               </div>
             </SettingsCardItem>
           </SettingsCardList>
         </section>
-
-        <button
-          v-if="!formOpen"
-          class="btn btn-primary hooks-pane__add"
-          data-test="hook-add"
-          type="button"
-          @click="openNewHookForm"
-        >
-          {{ t("hooks.add") }}
-        </button>
       </div>
 
       <KxModal
@@ -340,18 +344,18 @@ watch(
           </label>
 
           <KxFormActions align="end">
-            <button class="btn" type="button" @click="closeForm">
+            <KxButton type="button" @click="closeForm">
               {{ t("common.cancel") }}
-            </button>
-            <button
-              class="btn btn-primary"
+            </KxButton>
+            <KxButton
+              variant="primary"
               data-test="hook-save"
               :disabled="saving"
               type="button"
               @click="saveHook"
             >
               {{ t("common.save") }}
-            </button>
+            </KxButton>
           </KxFormActions>
         </form>
       </KxModal>
@@ -387,11 +391,24 @@ watch(
   min-width: 0;
 }
 
+.hooks-pane__list {
+  width: min(100%, 760px);
+  max-width: 760px;
+}
+
 .hooks-pane__list-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.hooks-pane__list-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .hooks-pane__list-header h3 {

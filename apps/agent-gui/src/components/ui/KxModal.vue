@@ -75,15 +75,15 @@ function onBackdropClick(event: MouseEvent): void {
           <p v-if="description" class="kx-modal__description">{{ description }}</p>
         </div>
         <slot v-else name="header" />
-        <button
+        <KxIconButton
           v-if="showClose"
-          class="btn kx-modal__close"
-          type="button"
-          :aria-label="closeLabel"
+          class="kx-modal__close"
+          :label="closeLabel"
+          size="sm"
           @click="requestClose"
         >
           &times;
-        </button>
+        </KxIconButton>
       </header>
 
       <div class="kx-modal__body" :data-test="bodyDataTest">
@@ -161,7 +161,6 @@ function onBackdropClick(event: MouseEvent): void {
 
 .kx-modal__close {
   flex: 0 0 auto;
-  padding: 2px 7px;
   font-size: 18px;
   line-height: 1;
 }

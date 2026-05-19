@@ -70,7 +70,8 @@ const isThemeSelectFocused = ref(false);
   min-width: 100px;
 }
 .settings__select {
-  flex: 0 1 220px;
-  max-width: 220px;
+  flex: 0 1 160px;
+  max-width: 160px;
+  text-align: center;
 }
 </style>

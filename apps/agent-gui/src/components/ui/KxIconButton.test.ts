@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
 import KxIconButton from "./KxIconButton.vue";
+import kxIconButtonSource from "./KxIconButton.vue?raw";
 
 describe("KxIconButton", () => {
   it("renders an accessible native icon button", () => {
@@ -23,5 +24,24 @@ describe("KxIconButton", () => {
     expect(button.attributes("title")).toBe("Rename");
     expect(button.classes()).toContain("kx-icon-button");
     expect(button.text()).toBe("✎");
+  });
+
+  it("owns icon button size and variant styling instead of relying on global btn classes", () => {
+    const wrapper = mount(KxIconButton, {
+      props: {
+        label: "Close",
+        variant: "default",
+        size: "sm"
+      },
+      slots: {
+        default: "x"
+      }
+    });
+
+    const button = wrapper.get("button");
+    expect(button.classes()).toContain("kx-icon-button--default");
+    expect(button.classes()).toContain("kx-icon-button--size-sm");
+    expect(kxIconButtonSource).toContain("type IconButtonSize");
+    expect(kxIconButtonSource).not.toContain("btn-icon");
   });
 });

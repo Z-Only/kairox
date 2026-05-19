@@ -36,14 +36,14 @@ function onOverlayClick(event: MouseEvent): void {
       <aside class="kx-drawer" :style="panelStyle" :data-test="panelDataTest">
         <header class="kx-drawer__header">
           <span class="kx-drawer__title">{{ title }}</span>
-          <button
-            class="btn kx-drawer__close drawer-close-btn"
-            type="button"
-            :aria-label="closeLabel"
+          <KxIconButton
+            class="kx-drawer__close drawer-close-btn"
+            :label="closeLabel"
+            size="sm"
             @click="emit('close')"
           >
             x
-          </button>
+          </KxIconButton>
         </header>
 
         <div class="kx-drawer__body" :data-test="bodyDataTest">
@@ -108,7 +108,6 @@ function onOverlayClick(event: MouseEvent): void {
 }
 
 .kx-drawer__close {
-  padding: 2px 8px;
   font-size: 16px;
   line-height: 1.2;
 }
