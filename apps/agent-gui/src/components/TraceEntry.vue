@@ -47,9 +47,9 @@ const kindIcon: Record<string, string> = {
           {{ entry.toolId || entry.title }}
         </span>
       </span>
-      <span v-if="entry.scope" class="tag tag-info entry-scope">
+      <KxTag v-if="entry.scope" class="entry-scope" tone="info" size="sm">
         {{ entry.scope }}
-      </span>
+      </KxTag>
       <span
         v-if="entry.durationMs != null"
         :style="{ color: 'var(--app-text-color-3)' }"
@@ -64,7 +64,9 @@ const kindIcon: Record<string, string> = {
       >
         running...
       </span>
-      <span v-if="entry.status === 'pending'" class="tag tag-warning entry-pending"> pending </span>
+      <KxBadge v-if="entry.status === 'pending'" class="entry-pending" tone="warning">
+        pending
+      </KxBadge>
     </div>
     <div v-if="density !== 'L1' && entry.expanded" class="entry-detail">
       <div v-if="entry.input" class="entry-section">
@@ -123,10 +125,6 @@ const kindIcon: Record<string, string> = {
 }
 .entry-scope {
   font-size: 10px;
-  padding: 1px 4px;
-  background: color-mix(in srgb, var(--app-info-color) 15%, transparent);
-  border-radius: 3px;
-  color: var(--app-info-color);
 }
 .entry-duration {
   color: var(--app-text-color-3);
@@ -137,9 +135,7 @@ const kindIcon: Record<string, string> = {
   font-size: 11px;
 }
 .entry-pending {
-  color: var(--app-warning-color);
   font-size: 10px;
-  font-weight: 600;
 }
 .entry-detail,
 .entry-raw {

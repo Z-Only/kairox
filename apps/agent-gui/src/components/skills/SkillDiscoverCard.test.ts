@@ -29,7 +29,10 @@ describe("SkillDiscoverCard", () => {
 
     expect(wrapper.text()).toContain("No description provided.");
     expect(wrapper.text()).toContain("1,234 installs");
-    expect(wrapper.find(".sec-tag").attributes("title")).toBe("Security score: 91");
+    const securityBadge = wrapper.find(".security-badge");
+    expect(securityBadge.attributes("title")).toBe("Security score: 91");
+    expect(securityBadge.classes()).toContain("kx-badge");
+    expect(securityBadge.classes()).toContain("kx-tag--success");
     expect(wrapper.find("a").text()).toBe("View source");
     expect(wrapper.find('[data-test="skill-catalog-install-skillhub/docs-helper"]').text()).toBe(
       "Install"

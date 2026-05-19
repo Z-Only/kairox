@@ -35,8 +35,8 @@ const scopeIcon: Record<string, string> = {
   workspace: "🗂️"
 };
 
-const scopeTagType: Record<string, "default" | "info" | "success" | "warning"> = {
-  session: "default",
+const scopeTone: Record<string, "neutral" | "info" | "success"> = {
+  session: "neutral",
   user: "info",
   workspace: "success"
 };
@@ -118,13 +118,13 @@ async function promptDelete(id: string, content: string) {
     <ul v-else class="memory-list" data-test="memory-list">
       <li v-for="mem in memories" :key="mem.id" class="memory-item" data-test="memory-item">
         <div class="memory-meta">
-          <span :class="['tag', `tag-${scopeTagType[mem.scope] ?? 'default'}`, 'memory-scope']">
+          <KxTag class="memory-scope" :tone="scopeTone[mem.scope] ?? 'neutral'">
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
-          </span>
-          <span v-if="mem.key" class="tag tag-default memory-key">
+          </KxTag>
+          <KxTag v-if="mem.key" class="memory-key">
             {{ mem.key }}
-          </span>
-          <span v-if="!mem.accepted" class="tag tag-warning memory-pending"> pending </span>
+          </KxTag>
+          <KxBadge v-if="!mem.accepted" class="memory-pending" tone="warning"> pending </KxBadge>
         </div>
         <span class="memory-content">{{ mem.content }}</span>
         <div class="memory-actions">

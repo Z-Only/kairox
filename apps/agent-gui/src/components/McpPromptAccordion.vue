@@ -65,9 +65,9 @@ function promptCount(): number {
         :data-test="`mcp-prompt-${serverId}-${prompt.name}`"
       >
         <span class="prompt-name">{{ prompt.name }}</span>
-        <span class="tag tag--mime">{{
+        <KxTag class="mime-token" tone="muted" size="sm">{{
           t("mcp.argumentsCount", { count: prompt.argument_count })
-        }}</span>
+        }}</KxTag>
         <span v-if="prompt.description" class="prompt-desc">{{ prompt.description }}</span>
       </KxAccordionItem>
     </KxAccordionList>
@@ -117,10 +117,7 @@ function promptCount(): number {
   white-space: nowrap;
 }
 
-.tag--mime {
-  background: var(--color-muted-light, #f3f4f6);
-  color: var(--color-text-muted, #6b7280);
-  font-size: 10px;
+.mime-token {
   text-transform: uppercase;
 }
 </style>

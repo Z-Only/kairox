@@ -87,7 +87,9 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
           <span class="toggle-icon">{{ isResourceExpanded(resource.uri) ? "▼" : "▶" }}</span>
           <span class="resource-name">{{ resource.name }}</span>
           <span class="resource-uri">{{ resource.uri }}</span>
-          <span v-if="resource.mime_type" class="tag tag--mime">{{ resource.mime_type }}</span>
+          <KxTag v-if="resource.mime_type" class="mime-token" tone="muted" size="sm">
+            {{ resource.mime_type }}
+          </KxTag>
         </KxAccordionItem>
         <div
           v-if="isResourceExpanded(resource.uri)"
@@ -163,13 +165,6 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
   font-size: 11px;
 }
 
-.tag--mime {
-  background: var(--color-muted-light, #f3f4f6);
-  color: var(--color-text-muted, #6b7280);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
 .mcp-resources-content {
   padding: 8px;
   border: 1px solid var(--app-border-color, #e0e0e0);
@@ -205,5 +200,9 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
   color: var(--app-primary-color, #18a058);
   font-size: 12px;
   word-break: break-all;
+}
+
+.mime-token {
+  text-transform: uppercase;
 }
 </style>

@@ -36,9 +36,9 @@ async function onUninstall(serverId: string) {
             <span class="text-secondary">{{ row.source ?? "(manual)" }}</span>
           </td>
           <td>
-            <span :class="['tag', 'tag-sm', row.running ? 'tag-success' : 'tag-default']">
+            <KxBadge :tone="row.running ? 'success' : 'neutral'">
               {{ row.running ? "running" : "stopped" }}
-            </span>
+            </KxBadge>
           </td>
           <td>
             <span class="text-tertiary">{{ row.installed_at }}</span>
@@ -90,23 +90,6 @@ async function onUninstall(serverId: string) {
 }
 .text-tertiary {
   color: var(--app-text-color-3);
-}
-.tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  height: 22px;
-  font-size: 12px;
-  border-radius: 3px;
-  line-height: 1;
-}
-.tag-default {
-  background: var(--app-hover-color);
-  color: var(--app-text-color);
-}
-.tag-success {
-  background: var(--app-success-bg);
-  color: var(--app-success-color);
 }
 .empty {
   margin-top: 24px;

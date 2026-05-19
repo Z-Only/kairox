@@ -96,9 +96,9 @@ async function deny() {
         <div class="permission-body">
           <div class="permission-title-row">
             <strong class="permission-title">{{ titleLabel }}</strong>
-            <span v-if="sourceAgentLabel" class="tag tag-info permission-agent-badge">
+            <KxBadge v-if="sourceAgentLabel" class="permission-agent-badge" tone="info">
               {{ sourceAgentLabel }}
-            </span>
+            </KxBadge>
           </div>
           <span :style="{ color: 'var(--app-text-color-2)' }" class="permission-description">
             {{ entry.title }}
@@ -119,9 +119,9 @@ async function deny() {
           <div v-if="isMcpTool && mcpServerId" class="mcp-permission-info">
             <div class="mcp-server-label">
               {{ t("permission.mcpServerPrefix") }}: <strong>{{ mcpServerId }}</strong>
-              <span v-if="isServerTrusted" class="tag tag-success mcp-trusted-badge">
+              <KxBadge v-if="isServerTrusted" class="mcp-trusted-badge" tone="success">
                 ✅ {{ t("permission.mcpTrustedBadge") }}
-              </span>
+              </KxBadge>
             </div>
             <!-- The .mcp-trust-check wrapper class is preserved so layout
                  selectors keep working; tests drive the control via
@@ -208,25 +208,6 @@ async function deny() {
 
 .permission-title {
   font-size: 12px;
-}
-
-/* Tag base & variants */
-.tag {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  line-height: 1.6;
-}
-
-.tag-info {
-  background: var(--app-info-color-suppl, #e8f4ff);
-  color: var(--app-info-color, #2080f0);
-}
-
-.tag-success {
-  background: var(--app-success-color-suppl, #edf8ee);
-  color: var(--app-success-color, #18a058);
 }
 
 .permission-agent-badge {

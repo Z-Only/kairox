@@ -155,13 +155,14 @@ watch(
             >{{ session.projection.token_stream }}<span class="cursor">▌</span></span
           >
         </div>
-        <span
+        <KxBadge
           v-if="session.projection.cancelled"
-          class="tag cancelled-marker"
+          class="cancelled-marker"
+          tone="warning"
           data-test="cancelled-marker"
         >
           {{ t("chat.cancelled") }}
-        </span>
+        </KxBadge>
       </div>
     </div>
 
@@ -272,19 +273,6 @@ watch(
   50% {
     opacity: 0;
   }
-}
-.tag {
-  display: inline-block;
-  padding: 0 8px;
-  font-size: 12px;
-  line-height: 22px;
-  border-radius: 3px;
-  background: var(--app-tag-color, color-mix(in srgb, var(--app-primary-color) 10%, transparent));
-  color: var(--app-text-color);
-}
-.cancelled-marker.tag {
-  background: color-mix(in srgb, var(--app-warning-color, #faad14) 15%, transparent);
-  color: var(--app-warning-color, #faad14);
 }
 .send-error-banner {
   margin: 8px 16px 0;

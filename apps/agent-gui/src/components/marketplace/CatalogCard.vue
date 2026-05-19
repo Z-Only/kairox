@@ -9,10 +9,10 @@ const catalog = useCatalogStore();
 const props = defineProps<{ entry: ServerEntryResponse }>();
 const emit = defineEmits<{ click: [] }>();
 
-const trustTagClass = computed<string>(() => {
-  if (props.entry.trust === "verified") return "tag-success";
-  if (props.entry.trust === "community") return "tag-warning";
-  return "";
+const trustTone = computed<"neutral" | "success" | "warning">(() => {
+  if (props.entry.trust === "verified") return "success";
+  if (props.entry.trust === "community") return "warning";
+  return "neutral";
 });
 
 const isInstalled = computed(() => catalog.installed.some((e) => e.catalog_id === props.entry.id));
@@ -41,15 +41,15 @@ async function onInstall() {
       <div class="card-head">
         <span class="icon">{{ entry.icon || "🔌" }}</span>
         <span class="display-name">{{ entry.display_name }}</span>
-        <span class="tag trust-tag" :class="trustTagClass">
+        <KxBadge class="trust-badge" :tone="trustTone">
           {{ entry.trust }}
-        </span>
+        </KxBadge>
       </div>
       <span class="summary">{{ entry.summary }}</span>
       <div class="tags">
-        <span v-for="t in entry.tags" :key="t" class="tag">
+        <KxTag v-for="t in entry.tags" :key="t">
           {{ t }}
-        </span>
+        </KxTag>
       </div>
     </button>
     <div class="card-footer">
@@ -114,7 +114,7 @@ async function onInstall() {
   flex-shrink: 0;
 }
 
-.trust-tag {
+.trust-badge {
   flex-shrink: 0;
   margin-left: auto;
 }
