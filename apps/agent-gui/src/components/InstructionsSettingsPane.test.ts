@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { nextTick, ref } from "vue";
 import { setActivePinia, createPinia } from "pinia";
 import InstructionsSettingsPane from "./InstructionsSettingsPane.vue";
+import instructionsSettingsPaneSource from "./InstructionsSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -44,6 +45,17 @@ beforeEach(() => {
 });
 
 describe("InstructionsSettingsPane", () => {
+  it("uses shared KxTextarea chrome for instruction editors", () => {
+    expect(instructionsSettingsPaneSource).toContain("KxTextarea");
+    expect(instructionsSettingsPaneSource).toContain('data-test="system-instructions"');
+    expect(instructionsSettingsPaneSource).toContain('data-test="user-instructions"');
+    expect(instructionsSettingsPaneSource).toContain('data-test="project-instructions"');
+    expect(instructionsSettingsPaneSource).toContain('data-test="effective-instructions"');
+    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea {");
+    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea:");
+    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea--preview");
+  });
+
   describe("loading state", () => {
     it("shows loading text before instructions are fetched", async () => {
       // never resolve so component stays in loading state

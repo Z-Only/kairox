@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import ChatComposer from "./ChatComposer.vue";
+import chatComposerSource from "./ChatComposer.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -71,6 +72,16 @@ function mountChatComposer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("composer textarea chrome", () => {
+  it("uses shared KxTextarea while preserving the message-input selector", () => {
+    expect(chatComposerSource).toContain("KxTextarea");
+    expect(chatComposerSource).toContain('data-test="message-input"');
+    expect(chatComposerSource).not.toContain(".message-input {");
+    expect(chatComposerSource).not.toContain(".message-input:focus");
+    expect(chatComposerSource).not.toContain(".message-input:disabled");
+  });
 });
 
 describe("permission mode selector", () => {

@@ -226,11 +226,11 @@ onMounted(() => {
       >
         +
       </button>
-      <textarea
+      <KxTextarea
         v-model="inputText"
-        class="message-input"
         data-test="message-input"
         rows="1"
+        variant="composer"
         :placeholder="t('chat.placeholder')"
         @keydown="handleKeydown"
         @input="handleInput"
@@ -353,28 +353,6 @@ onMounted(() => {
 .queued-message-action--danger:hover:not(:disabled) {
   border-color: var(--app-error-color, #d03050);
   color: var(--app-error-color, #d03050);
-}
-.message-input {
-  flex: 1;
-  min-width: 0;
-  resize: vertical;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-family: inherit;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-}
-.message-input:focus {
-  border-color: var(--app-primary-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary-color) 25%, transparent);
-}
-.message-input:disabled {
-  opacity: 0.5;
 }
 .btn {
   padding: 6px 12px;

@@ -330,11 +330,11 @@ watch(
           {{ t("agents.enabled") }}
         </label>
         <KxFormField :label="t('settings.instructions')">
-          <textarea
+          <KxTextarea
             v-model="form.instructions"
-            class="kx-form-control kx-form-control--textarea kx-form-control--mono"
             data-test="agent-form-instructions"
             rows="8"
+            variant="mono"
           />
         </KxFormField>
       </form>

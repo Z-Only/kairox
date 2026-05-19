@@ -48,6 +48,7 @@ describe("KxFormField", () => {
     expect(wrapper.find(".kx-form-control").exists()).toBe(true);
     expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control)");
     expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control:focus-visible)");
-    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control--textarea)");
+    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--textarea)");
+    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--mono)");
   });
 });
