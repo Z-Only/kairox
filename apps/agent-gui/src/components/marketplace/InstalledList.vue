@@ -131,11 +131,6 @@ async function onUninstall(serverId: string) {
 .btn-xs {
   height: 24px;
 }
-.empty-state {
-  text-align: center;
-  color: var(--app-text-color-3);
-  padding: 24px 0;
-}
 .empty {
   margin-top: 24px;
 }

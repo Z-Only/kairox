@@ -255,13 +255,6 @@ function formatError(caughtError: unknown): string {
   font-weight: normal;
 }
 
-.empty-state {
-  font-style: italic;
-  color: var(--app-text-color-3);
-  text-align: center;
-  padding: 24px 0;
-}
-
 .sources-list {
   list-style: none;
   margin: 0;

@@ -145,9 +145,9 @@ watch(activeSubTab, (tab) => {
               <dd>{{ plugin.path }}</dd>
             </div>
           </dl>
-          <p v-if="plugin.validation_error" class="alert alert-error" role="alert">
+          <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
             {{ plugin.validation_error }}
-          </p>
+          </KxInlineAlert>
         </div>
         <div class="plugin-actions">
           <button

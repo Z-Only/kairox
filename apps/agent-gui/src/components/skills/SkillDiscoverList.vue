@@ -137,14 +137,13 @@ async function selectSource(sourceId: string | null): Promise<void> {
       </form>
     </div>
 
-    <p
+    <KxInlineAlert
       v-if="installSuccessMessage"
-      class="alert alert-success"
-      role="status"
+      tone="success"
       data-test="skill-catalog-install-success"
     >
       {{ installSuccessMessage }}
-    </p>
+    </KxInlineAlert>
 
     <KxStateBlock
       v-if="store.catalogLoading"
@@ -305,11 +304,5 @@ async function selectSource(sourceId: string | null): Promise<void> {
   to {
     transform: rotate(360deg);
   }
-}
-
-.empty-state {
-  padding: 24px 0;
-  text-align: center;
-  color: var(--app-text-color-2);
 }
 </style>

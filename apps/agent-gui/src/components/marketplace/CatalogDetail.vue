@@ -163,181 +163,118 @@ async function onInstall() {
   catalog.requestInstallProgress(props.entry.id);
   await catalog.installEntry(req);
 }
-
-function onOverlayClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) emit("close");
-}
 </script>
 
 <template>
-  <!-- Drawer slide-out panel replaces NDrawer. data-test="catalog-detail"
-       stays on the inner container for existing e2e selectors. -->
-  <Teleport to="body">
-    <div class="drawer-overlay" @click="onOverlayClick">
-      <aside class="drawer">
-        <header class="drawer-header">
-          <span class="drawer-title">{{ entry.display_name }}</span>
-          <button class="btn drawer-close-btn" aria-label="Close" @click="emit('close')">✕</button>
-        </header>
+  <KxDrawer
+    :title="entry.display_name"
+    :close-label="t('common.close')"
+    body-data-test="catalog-detail"
+    @close="emit('close')"
+  >
+    <div class="catalog-detail">
+      <span class="text-secondary">{{ entry.description }}</span>
+      <a
+        v-if="entry.homepage"
+        :href="entry.homepage"
+        target="_blank"
+        rel="noopener"
+        class="homepage-link"
+      >
+        Homepage
+      </a>
 
-        <div class="drawer-body" data-test="catalog-detail">
-          <div class="catalog-detail">
-            <span class="text-secondary">{{ entry.description }}</span>
-            <a
-              v-if="entry.homepage"
-              :href="entry.homepage"
-              target="_blank"
-              rel="noopener"
-              class="homepage-link"
-            >
-              Homepage
-            </a>
+      <div class="card card-sm">
+        <div class="card-title">Requirements</div>
+        <RuntimeMissingHint :requirements="requirements" />
+      </div>
 
-            <div class="card card-sm">
-              <div class="card-title">Requirements</div>
-              <RuntimeMissingHint :requirements="requirements" />
-            </div>
-
-            <div class="card card-sm">
-              <div class="config-head">
-                <div>
-                  <div class="card-title">Configuration</div>
-                  <span v-if="hasConfig" class="config-summary text-tertiary">
-                    {{
-                      requiredConfigCount > 0
-                        ? `${requiredConfigCount} required value${requiredConfigCount === 1 ? "" : "s"} before install.`
-                        : "Optional values can be provided before install."
-                    }}
-                  </span>
-                  <span v-else class="config-summary text-tertiary">
-                    No configuration required.
-                  </span>
-                </div>
-                <span v-if="requiredConfigCount > 0" class="config-status required">
-                  Required configuration
-                </span>
-              </div>
-
-              <div v-if="hasConfig" class="config-list">
-                <div
-                  v-for="spec in configItems"
-                  :key="`${spec.kind}:${spec.key}`"
-                  class="config-item"
-                >
-                  <div class="config-item-head">
-                    <div class="config-title-row">
-                      <span class="config-label">{{ spec.label }}</span>
-                      <span class="config-key">{{ spec.key }}</span>
-                    </div>
-                    <div class="config-badges">
-                      <span class="config-kind">{{ spec.kind }}</span>
-                      <span class="config-required" :class="{ optional: !spec.required }">
-                        {{ spec.required ? "Required" : "Optional" }}
-                      </span>
-                    </div>
-                  </div>
-                  <span v-if="spec.description" class="config-description text-secondary">
-                    {{ spec.description }}
-                  </span>
-                  <span v-else class="config-description text-tertiary">
-                    No description provided by the catalog.
-                  </span>
-                  <input
-                    :value="overrides[spec.key]"
-                    :type="spec.secret ? 'password' : 'text'"
-                    :placeholder="configPlaceholder(spec)"
-                    class="input input-sm"
-                    :data-test="`config-${spec.key}`"
-                    @input="overrides[spec.key] = ($event.target as HTMLInputElement).value"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="card card-sm">
-              <div class="card-title">Options</div>
-              <div class="options-group">
-                <label class="checkbox-label">
-                  <input v-model="trustGrant" type="checkbox" />
-                  Trust this server (skip per-tool permission prompts)
-                </label>
-                <span v-if="entry.trust === 'verified'" class="hint-verified text-tertiary">
-                  This entry comes from a verified source. You can grant runtime trust to skip
-                  permission prompts, but it remains opt-in.
-                </span>
-                <label class="checkbox-label">
-                  <input v-model="autoStart" type="checkbox" />
-                  Start after install
-                </label>
-              </div>
-            </div>
+      <div class="card card-sm">
+        <div class="config-head">
+          <div>
+            <div class="card-title">Configuration</div>
+            <span v-if="hasConfig" class="config-summary text-tertiary">
+              {{
+                requiredConfigCount > 0
+                  ? `${requiredConfigCount} required value${requiredConfigCount === 1 ? "" : "s"} before install.`
+                  : "Optional values can be provided before install."
+              }}
+            </span>
+            <span v-else class="config-summary text-tertiary"> No configuration required. </span>
           </div>
+          <span v-if="requiredConfigCount > 0" class="config-status required">
+            Required configuration
+          </span>
         </div>
 
-        <footer class="drawer-footer">
-          <button
-            class="btn btn-primary btn-sm"
-            data-test="catalog-install"
-            :disabled="installDisabled"
-            @click="onInstall"
-          >
-            {{ t("marketplace.install.buttonInstall") }}
-          </button>
-          <button class="btn btn-sm" @click="emit('close')">{{ t("common.close") }}</button>
-        </footer>
-      </aside>
+        <div v-if="hasConfig" class="config-list">
+          <div v-for="spec in configItems" :key="`${spec.kind}:${spec.key}`" class="config-item">
+            <div class="config-item-head">
+              <div class="config-title-row">
+                <span class="config-label">{{ spec.label }}</span>
+                <span class="config-key">{{ spec.key }}</span>
+              </div>
+              <div class="config-badges">
+                <span class="config-kind">{{ spec.kind }}</span>
+                <span class="config-required" :class="{ optional: !spec.required }">
+                  {{ spec.required ? "Required" : "Optional" }}
+                </span>
+              </div>
+            </div>
+            <span v-if="spec.description" class="config-description text-secondary">
+              {{ spec.description }}
+            </span>
+            <span v-else class="config-description text-tertiary">
+              No description provided by the catalog.
+            </span>
+            <input
+              :value="overrides[spec.key]"
+              :type="spec.secret ? 'password' : 'text'"
+              :placeholder="configPlaceholder(spec)"
+              class="input input-sm"
+              :data-test="`config-${spec.key}`"
+              @input="overrides[spec.key] = ($event.target as HTMLInputElement).value"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-sm">
+        <div class="card-title">Options</div>
+        <div class="options-group">
+          <label class="checkbox-label">
+            <input v-model="trustGrant" type="checkbox" />
+            Trust this server (skip per-tool permission prompts)
+          </label>
+          <span v-if="entry.trust === 'verified'" class="hint-verified text-tertiary">
+            This entry comes from a verified source. You can grant runtime trust to skip permission
+            prompts, but it remains opt-in.
+          </span>
+          <label class="checkbox-label">
+            <input v-model="autoStart" type="checkbox" />
+            Start after install
+          </label>
+        </div>
+      </div>
     </div>
-  </Teleport>
+
+    <template #footer>
+      <button
+        class="btn btn-primary btn-sm"
+        data-test="catalog-install"
+        :disabled="installDisabled"
+        @click="onInstall"
+      >
+        {{ t("marketplace.install.buttonInstall") }}
+      </button>
+      <button class="btn btn-sm" type="button" @click="emit('close')">
+        {{ t("common.close") }}
+      </button>
+    </template>
+  </KxDrawer>
 </template>
 
 <style scoped>
-.drawer-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--app-z-modal);
-  background: var(--app-backdrop-color);
-}
-.drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 480px;
-  max-width: 90vw;
-  display: flex;
-  flex-direction: column;
-  background: var(--app-body-color);
-  box-shadow: var(--app-shadow-2);
-}
-.drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--app-border-color);
-}
-.drawer-title {
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--app-text-color);
-}
-.drawer-close-btn {
-  font-size: 16px;
-  padding: 2px 6px;
-  line-height: 1;
-}
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-.drawer-footer {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--app-border-color);
-}
-
 .catalog-detail {
   display: flex;
   flex-direction: column;
