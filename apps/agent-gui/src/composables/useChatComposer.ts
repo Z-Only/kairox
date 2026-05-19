@@ -11,6 +11,12 @@ export interface Attachment {
   mimeType: string;
 }
 
+export interface QueuedMessage {
+  id: string;
+  content: string;
+  attachments: Attachment[];
+}
+
 export interface DraftStore {
   loadDraft(sessionId: string): Promise<string>;
   saveDraft(sessionId: string, text: string): Promise<void>;
@@ -83,6 +89,8 @@ export function useChatComposer(options: UseChatComposerOptions) {
   const showMentionPalette = ref(false);
   const paletteFilter = ref("");
   const attachments = ref<Attachment[]>([]);
+  const queuedMessages = ref<QueuedMessage[]>([]);
+  const sendingQueuedId = ref<string | null>(null);
   const switchingModel = ref(false);
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -104,6 +112,8 @@ export function useChatComposer(options: UseChatComposerOptions) {
       } else {
         inputText.value = "";
       }
+      queuedMessages.value = [];
+      sendingQueuedId.value = null;
     }
   );
 
@@ -120,9 +130,17 @@ export function useChatComposer(options: UseChatComposerOptions) {
     onScopeDispose(clearDraftTimer);
   }
 
-  const sendDisabled = computed(
-    () => session.isStreaming || (!inputText.value.trim() && attachments.value.length === 0)
+  watch(
+    () => session.isStreaming,
+    (isStreaming) => {
+      if (!isStreaming) {
+        void sendNextQueuedMessage();
+      }
+    },
+    { flush: "sync" }
   );
+
+  const sendDisabled = computed(() => !inputText.value.trim() && attachments.value.length === 0);
 
   function updatePaletteForCursor(text: string, cursorPos: number) {
     const textBeforeCursor = text.slice(0, cursorPos);
@@ -228,37 +246,116 @@ export function useChatComposer(options: UseChatComposerOptions) {
     attachments.value = attachments.value.filter((a) => a.id !== id);
   }
 
+  function cloneAttachments(source: Attachment[]): Attachment[] {
+    return source.map((attachment) => ({ ...attachment }));
+  }
+
+  function attachmentPayload(source: Attachment[]) {
+    return source.map((a) => ({
+      path: a.path,
+      name: a.name,
+      mime_type: a.mimeType
+    }));
+  }
+
+  async function clearCurrentDraft() {
+    if (session.currentSessionId) {
+      await draftStore.clearDraft(session.currentSessionId);
+    }
+  }
+
+  async function clearComposer() {
+    inputText.value = "";
+    attachments.value = [];
+    await clearCurrentDraft();
+  }
+
+  async function invokeSend(content: string, attachmentsToSend: Attachment[]) {
+    await invokeFn("send_message", {
+      content,
+      attachments: attachmentPayload(attachmentsToSend)
+    });
+  }
+
+  async function enqueueMessage(content: string, attachmentsToQueue: Attachment[]) {
+    queuedMessages.value = [
+      ...queuedMessages.value,
+      {
+        id: createAttachmentId(),
+        content,
+        attachments: cloneAttachments(attachmentsToQueue)
+      }
+    ];
+    await clearComposer();
+  }
+
   async function sendMessage() {
     const draftAtSend = inputText.value;
     const attachmentsAtSend = attachments.value;
     const content = draftAtSend.trim();
-    if ((!content && attachmentsAtSend.length === 0) || session.isStreaming) return;
+    if (!content && attachmentsAtSend.length === 0) return;
 
-    const payload = {
-      content,
-      attachments: attachmentsAtSend.map((a) => ({
-        path: a.path,
-        name: a.name,
-        mime_type: a.mimeType
-      }))
-    };
+    if (session.isStreaming) {
+      await enqueueMessage(content, attachmentsAtSend);
+      return;
+    }
 
     try {
-      await invokeFn("send_message", payload);
+      await invokeSend(content, attachmentsAtSend);
       const composerUnchanged =
         inputText.value === draftAtSend && attachments.value === attachmentsAtSend;
       if (composerUnchanged) {
-        inputText.value = "";
-        attachments.value = [];
-        if (session.currentSessionId) {
-          draftStore.clearDraft(session.currentSessionId);
-        }
+        await clearComposer();
       }
     } catch (e) {
       console.error("Failed to send message:", e);
       session.reportSendError?.(String(e));
       notify("error", t("chat.sendFailed", { error: String(e) }));
     }
+  }
+
+  async function sendQueuedMessageNow(id: string) {
+    if (sendingQueuedId.value) return;
+    const queued = queuedMessages.value.find((message) => message.id === id);
+    if (!queued) return;
+
+    sendingQueuedId.value = id;
+    try {
+      await invokeSend(queued.content, queued.attachments);
+      queuedMessages.value = queuedMessages.value.filter((message) => message.id !== id);
+    } catch (e) {
+      console.error("Failed to send queued message:", e);
+      session.reportSendError?.(String(e));
+      notify("error", t("chat.sendFailed", { error: String(e) }));
+    } finally {
+      sendingQueuedId.value = null;
+    }
+  }
+
+  async function sendNextQueuedMessage() {
+    if (session.isStreaming || sendingQueuedId.value || queuedMessages.value.length === 0) return;
+    await sendQueuedMessageNow(queuedMessages.value[0].id);
+  }
+
+  function deleteQueuedMessage(id: string) {
+    queuedMessages.value = queuedMessages.value.filter((message) => message.id !== id);
+  }
+
+  function restoreQueuedMessage(id: string): boolean {
+    const index = queuedMessages.value.findIndex((message) => message.id === id);
+    if (index === -1) return false;
+
+    const [queued] = queuedMessages.value.splice(index, 1);
+    queuedMessages.value = [...queuedMessages.value];
+    inputText.value = queued.content;
+    attachments.value = cloneAttachments(queued.attachments);
+    closePalettes();
+    return true;
+  }
+
+  function restoreLastQueuedMessage(): boolean {
+    const last = queuedMessages.value.at(-1);
+    return last ? restoreQueuedMessage(last.id) : false;
   }
 
   async function cancelSession() {
@@ -321,6 +418,8 @@ export function useChatComposer(options: UseChatComposerOptions) {
     showMentionPalette,
     paletteFilter,
     attachments,
+    queuedMessages,
+    sendingQueuedId,
     switchingModel,
     sendDisabled,
     updatePaletteForCursor,
@@ -333,6 +432,11 @@ export function useChatComposer(options: UseChatComposerOptions) {
     pickFiles,
     removeAttachment,
     sendMessage,
+    sendQueuedMessageNow,
+    sendNextQueuedMessage,
+    deleteQueuedMessage,
+    restoreQueuedMessage,
+    restoreLastQueuedMessage,
     cancelSession,
     selectModelProfile
   };

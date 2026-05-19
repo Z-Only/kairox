@@ -127,12 +127,49 @@ test("shows cancel button while streaming and send button when idle", async ({ p
   await expect(page.getByTestId("cancel-button")).toBeVisible({
     timeout: 3_000
   });
-  await expect(page.getByTestId("send-button")).toBeHidden();
+  await expect(page.getByTestId("send-button")).toBeVisible();
+  await expect(page.getByTestId("send-button")).toContainText("Queue");
 
   // Wait for response to complete
   await expect(page.getByTestId("send-button")).toBeVisible({
     timeout: 10_000
   });
+  await expect(page.getByTestId("send-button")).toContainText("Send");
+});
+
+test("queues messages while streaming and auto-sends them when idle", async ({ page }) => {
+  await openWorkbench(page);
+
+  const input = page.getByTestId("message-input");
+  await input.fill("first turn");
+  await input.press("Enter");
+  await expect(page.getByTestId("cancel-button")).toBeVisible({ timeout: 3_000 });
+
+  await input.fill("queued correction");
+  await input.press("Enter");
+
+  await expect(page.getByTestId("queued-message-list")).toBeVisible();
+  await expect(page.getByTestId("queued-message-item")).toContainText("queued correction");
+  await expect(input).toHaveValue("");
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__KAIROX_MOCK__.state.sentMessages.length))
+    .toBe(1);
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          (window as any).__KAIROX_MOCK__.state.sentMessages.map(
+            (message: { content: string }) => message.content
+          )
+        ),
+      { timeout: 10_000 }
+    )
+    .toEqual(["first turn", "queued correction"]);
+  await expect(page.getByTestId("queued-message-list")).toBeHidden();
+  await expect(
+    page.getByTestId("chat-message").filter({ hasText: "queued correction" })
+  ).toBeVisible();
 });
 
 test("cancels a streaming session", async ({ page }) => {

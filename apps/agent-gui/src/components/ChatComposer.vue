@@ -32,6 +32,8 @@ const {
   showMentionPalette,
   paletteFilter,
   attachments,
+  queuedMessages,
+  sendingQueuedId,
   switchingModel,
   sendDisabled,
   handleInput,
@@ -40,6 +42,10 @@ const {
   pickFiles,
   removeAttachment,
   sendMessage,
+  sendQueuedMessageNow,
+  deleteQueuedMessage,
+  restoreQueuedMessage,
+  restoreLastQueuedMessage,
   cancelSession
 } = composer;
 
@@ -83,6 +89,17 @@ function handleKeydown(e: KeyboardEvent) {
     }
   }
 
+  if (
+    e.key === "ArrowUp" &&
+    !inputText.value.trim() &&
+    attachments.value.length === 0 &&
+    queuedMessages.value.length > 0
+  ) {
+    e.preventDefault();
+    restoreLastQueuedMessage();
+    return;
+  }
+
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     if (showCommandPalette.value || showMentionPalette.value) {
@@ -90,6 +107,10 @@ function handleKeydown(e: KeyboardEvent) {
     }
     void sendMessage();
   }
+}
+
+function queuedAttachmentLabel(count: number): string {
+  return count > 0 ? t("chat.queuedAttachments", { count }) : "";
 }
 
 onMounted(() => {
@@ -139,10 +160,54 @@ onMounted(() => {
     </div>
     <AttachmentTray
       :attachments="attachments"
-      :disabled="session.isStreaming"
+      :disabled="false"
       @pick-files="pickFiles"
       @remove-attachment="removeAttachment"
     />
+    <div v-if="queuedMessages.length" class="queued-message-list" data-test="queued-message-list">
+      <div
+        v-for="(message, index) in queuedMessages"
+        :key="message.id"
+        class="queued-message-item"
+        data-test="queued-message-item"
+      >
+        <span class="queued-message-index">{{ index + 1 }}</span>
+        <span class="queued-message-content" :title="message.content">
+          {{ message.content || queuedAttachmentLabel(message.attachments.length) }}
+        </span>
+        <span v-if="message.attachments.length" class="queued-message-attachments">
+          {{ queuedAttachmentLabel(message.attachments.length) }}
+        </span>
+        <button
+          class="queued-message-action"
+          type="button"
+          data-test="queued-message-guide"
+          :aria-label="t('chat.queuedGuideAria')"
+          :disabled="sendingQueuedId === message.id"
+          @click="sendQueuedMessageNow(message.id)"
+        >
+          {{ t("chat.queuedGuide") }}
+        </button>
+        <button
+          class="queued-message-action"
+          type="button"
+          data-test="queued-message-edit"
+          :aria-label="t('chat.queuedEditAria')"
+          @click="restoreQueuedMessage(message.id)"
+        >
+          {{ t("common.edit") }}
+        </button>
+        <button
+          class="queued-message-action queued-message-action--danger"
+          type="button"
+          data-test="queued-message-delete"
+          :aria-label="t('chat.queuedDeleteAria')"
+          @click="deleteQueuedMessage(message.id)"
+        >
+          {{ t("common.delete") }}
+        </button>
+      </div>
+    </div>
     <div class="input-row">
       <button
         v-if="attachments.length === 0"
@@ -150,7 +215,6 @@ onMounted(() => {
         type="button"
         data-test="attach-file-btn"
         :aria-label="t('chat.attachFileAria')"
-        :disabled="session.isStreaming"
         @click="pickFiles"
       >
         +
@@ -159,7 +223,6 @@ onMounted(() => {
         v-model="inputText"
         class="message-input"
         data-test="message-input"
-        :disabled="session.isStreaming"
         rows="1"
         :placeholder="t('chat.placeholder')"
         @keydown="handleKeydown"
@@ -175,13 +238,12 @@ onMounted(() => {
         {{ t("common.cancel") }}
       </button>
       <button
-        v-else
         class="btn btn-primary"
         data-test="send-button"
         :disabled="sendDisabled"
         @click="sendMessage"
       >
-        {{ t("common.send") }}
+        {{ session.isStreaming ? t("chat.queueSend") : t("common.send") }}
       </button>
     </div>
   </div>
@@ -219,6 +281,68 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+}
+.queued-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.queued-message-item {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 6px;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 6px;
+  background: var(--app-muted-surface-color, var(--app-card-color));
+  font-size: 12px;
+}
+.queued-message-index {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--app-card-color);
+  color: var(--app-muted-text-color, var(--app-text-color));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.queued-message-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queued-message-attachments {
+  flex: 0 0 auto;
+  color: var(--app-muted-text-color, var(--app-text-color));
+}
+.queued-message-action {
+  flex: 0 0 auto;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--app-card-color);
+  color: var(--app-text-color);
+  cursor: pointer;
+  font-size: 12px;
+}
+.queued-message-action:hover:not(:disabled) {
+  border-color: var(--app-primary-color);
+  color: var(--app-primary-color);
+}
+.queued-message-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.queued-message-action--danger:hover:not(:disabled) {
+  border-color: var(--app-error-color, #d03050);
+  color: var(--app-error-color, #d03050);
 }
 .message-input {
   flex: 1;
