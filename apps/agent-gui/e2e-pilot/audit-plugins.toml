@@ -54,7 +54,9 @@ name = "refresh button visible"
 action = "assert-visible"
 target = "[data-test='plugin-refresh']"
 
-# Switch to marketplace
+# Switch to marketplace — triggers loadCatalog() which reads from the
+# local pilot-fixture marketplace source. The default GitHub sources are
+# disabled by run-pilot-tests.sh, so the catalog loads instantly.
 [[step]]
 name = "open marketplace sub-tab"
 action = "click"
@@ -109,81 +111,27 @@ name = "close source settings"
 action = "click"
 target = "[data-test='plugin-source-settings-toggle']"
 
-# Inject mock catalog data so the install button renders.
-# The real marketplace catalog depends on live GitHub fetches;
-# pilot scenarios target desktop UI behaviour, not network state.
+# Wait for the catalog entry from the local pilot-fixture marketplace to
+# render. The catalog loads asynchronously when the marketplace sub-tab
+# is opened; entries from the local fixture appear as soon as the async
+# listPluginCatalog call returns.
 [[step]]
-name = "seed mock catalog into plugin store"
-action = "eval"
-script = """
-(() => {
-  const pinia = document.querySelector("#app").__vue_app__.config.globalProperties.$pinia;
-  const store = pinia._s.get("plugins");
-  store.catalog = [
-    {
-      marketplace_id: "anthropics-claude-code",
-      name: "quality-review",
-      description: "Review code for bugs, security, and performance.",
-      version: "1.0.0",
-      source: "./plugins/quality-review"
-    }
-  ];
-  store.catalogLoading = false;
-  store.error = null;
-  return "catalog seeded";
-})()
-"""
+name = "wait for quality-review install button"
+action = "wait"
+selector = "[data-test='plugin-install-pilot-fixture-quality-review']"
+timeout_ms = 10000
 
-# Install quality-review plugin via the UI button.
-# The click handler calls store.installPlugin() which delegates to the
-# real Tauri install_plugin command. If the marketplace source is reachable
-# the install may succeed; if not the store will surface an error.
-# Either outcome validates the install-to-installed UI loop.
+# Install quality-review plugin via the real Tauri install_plugin command.
+# The local pilot-fixture marketplace provides a catalog entry whose source
+# is a directory on disk, so install_plugin copies the plugin from the
+# fixture path into the user plugin directory.
 [[step]]
 name = "click install quality-review"
 action = "click"
-target = "[data-test='plugin-install-anthropics-claude-code-quality-review']"
+target = "[data-test='plugin-install-pilot-fixture-quality-review']"
 
-# Verify the installed plugin row appears.
-# When the real Tauri install command fails (expected without a configured
-# marketplace), use eval to seed the installed plugin so the UI assertion
-# still exercises the full closed-loop visual path.
-[[step]]
-name = "ensure installed row via eval fallback"
-action = "eval"
-script = """
-(async () => {
-  const pinia = document.querySelector("#app").__vue_app__.config.globalProperties.$pinia;
-  const store = pinia._s.get("plugins");
-  // Wait briefly for the async installPlugin() call to settle.
-  await new Promise(r => setTimeout(r, 2000));
-  // If the real install succeeded the row is already present;
-  // otherwise seed it so the following UI steps can assert visibility.
-  const already = store.plugins.some(p => p.id === "quality-review");
-  if (already) return "install succeeded";
-  store.plugins = [...store.plugins, {
-    settings_id: "User:quality-review",
-    id: "quality-review",
-    name: "Quality Review",
-    description: "Review code for bugs, security, and performance.",
-    version: "1.0.0",
-    scope: "User",
-    path: "/Users/pilot/.kairox/plugins/quality-review",
-    enabled: true,
-    install_source: "marketplace",
-    marketplace: "anthropics-claude-code",
-    effective: true,
-    shadowed_by: null,
-    valid: true,
-    validation_error: null,
-    inventory: { skill_count: 1, skill_names: ["quality-review"], mcp_server_count: 0, app_count: 0, agent_count: 0, hook_count: 0 },
-    manifest_kind: "claude"
-  }];
-  return "seed fallback";
-})()
-"""
-
-# Verify installed plugin appears
+# installPlugin() calls loadPlugins() on success to refresh the list.
+# Switch to the Installed tab and verify the row.
 [[step]]
 name = "open installed sub-tab"
 action = "click"
@@ -193,7 +141,7 @@ target = "[data-test='plugin-subtab-installed']"
 name = "wait for installed quality-review row"
 action = "wait"
 selector = "[data-test='plugin-row-user-quality-review']"
-timeout_ms = 10000
+timeout_ms = 15000
 
 [[step]]
 name = "installed quality-review row visible"

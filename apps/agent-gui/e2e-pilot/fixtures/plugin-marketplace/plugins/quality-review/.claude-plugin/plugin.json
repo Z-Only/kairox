@@ -1,0 +1,5 @@
+{
+  "name": "quality-review",
+  "version": "1.0.0",
+  "description": "Review code for bugs, security, and performance."
+}

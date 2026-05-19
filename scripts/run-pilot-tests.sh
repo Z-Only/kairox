@@ -46,11 +46,90 @@ fi
 # fail on a missing path (the screenshot action does not auto-create dirs).
 mkdir -p "$JUNIT_DIR" "$FAILURE_DIR"
 
+# ─── Fixture marketplace registration ──────────────────────────────────────────
+
+# The app resolves db_dir as $HOME/.kairox (see lib.rs line 44).
+# We write the fixture marketplace source to that config.toml so the
+# app picks it up on startup.
+FIXTURE_MARKETPLACE_DIR="$REPO_ROOT/apps/agent-gui/e2e-pilot/fixtures/plugin-marketplace"
+
+CONFIG_DIR="$HOME/.kairox"
+CONFIG_TOML="$CONFIG_DIR/config.toml"
+CONFIG_BACKUP="$CONFIG_DIR/config.toml.pilot-backup"
+
+_register_fixture_marketplace() {
+    mkdir -p "$CONFIG_DIR"
+    # Back up the original config so we can restore it after the run.
+    if [[ -f "$CONFIG_TOML" ]]; then
+        cp "$CONFIG_TOML" "$CONFIG_BACKUP"
+    fi
+    python3 - "$CONFIG_TOML" "$FIXTURE_MARKETPLACE_DIR" <<'PYEOF'
+import sys, os
+config_path = sys.argv[1]
+fixture_dir = sys.argv[2]
+
+try:
+    with open(config_path) as f:
+        content = f.read()
+except FileNotFoundError:
+    content = ""
+
+if 'id = "pilot-fixture"' in content:
+    print("pilot-fixture marketplace already registered, skipping")
+    sys.exit(0)
+
+if content.rstrip('\n'):
+    content = content.rstrip('\n') + '\n\n'
+
+# Enable the local pilot-fixture marketplace source.
+content += '[[plugin_marketplaces]]\n'
+content += 'id = "pilot-fixture"\n'
+content += 'display_name = "Pilot Test Fixtures"\n'
+content += f'source = "{fixture_dir}"\n'
+content += 'enabled = true\n'
+
+# Disable the default GitHub marketplace sources so the catalog loads
+# instantly from the local fixture only — no network dependency.
+content += '\n[[plugin_marketplaces]]\n'
+content += 'id = "claude-plugins-official"\n'
+content += 'display_name = "Claude Plugins Official"\n'
+content += 'source = "anthropics/claude-plugins-official"\n'
+content += 'enabled = false\n'
+
+content += '\n[[plugin_marketplaces]]\n'
+content += 'id = "anthropics-claude-code"\n'
+content += 'display_name = "Anthropic Claude Code"\n'
+content += 'source = "anthropics/claude-code"\n'
+content += 'enabled = false\n'
+
+with open(config_path, 'w') as f:
+    f.write(content)
+print(f"Registered pilot-fixture marketplace source in {config_path}")
+PYEOF
+}
+
+_restore_config() {
+    if [[ -f "$CONFIG_BACKUP" ]]; then
+        mv "$CONFIG_BACKUP" "$CONFIG_TOML" 2>/dev/null || true
+    else
+        rm -f "$CONFIG_TOML" 2>/dev/null || true
+    fi
+}
+
+if [[ ! -d "$FIXTURE_MARKETPLACE_DIR" ]]; then
+    echo "ERROR: fixture marketplace directory not found: $FIXTURE_MARKETPLACE_DIR" >&2
+    echo "       Ensure the pilot fixture plugin is present." >&2
+    exit 1
+fi
+
+echo "Registering fixture marketplace: $FIXTURE_MARKETPLACE_DIR"
+_register_fixture_marketplace
+
 # ─── Launch the app ────────────────────────────────────────────────────────────
 
 "$APP_BIN" &
 APP_PID=$!
-trap 'kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true' EXIT
+trap '_restore_config; kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true' EXIT
 
 # Wait for the pilot socket to come up (up to 30s). `tauri-pilot ping` exits
 # non-zero while the socket isn't listening, which is wrapped in `if` so

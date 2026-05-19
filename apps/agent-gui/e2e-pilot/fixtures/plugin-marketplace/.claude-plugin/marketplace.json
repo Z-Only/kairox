@@ -1,0 +1,12 @@
+{
+  "name": "pilot-fixture",
+  "display_name": "Pilot Test Fixtures",
+  "plugins": [
+    {
+      "name": "quality-review",
+      "source": "./plugins/quality-review",
+      "description": "Review code for bugs, security, and performance.",
+      "version": "1.0.0"
+    }
+  ]
+}
