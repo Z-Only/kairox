@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  DEFAULT_REASONING_EFFORT,
-  DEFAULT_REASONING_EFFORTS,
-  formatProfileDisplay,
-  useSessionStore
-} from "@/stores/session";
+import { useSessionStore } from "@/stores/session";
 import { useSkillsStore } from "@/stores/skills";
 import { useNotifications } from "@/composables/useNotifications";
 import { useChatComposer } from "@/composables/useChatComposer";
@@ -13,6 +8,8 @@ import type { CommandDef } from "@/composables/useCommandRegistry";
 import CommandPalette from "@/components/CommandPalette.vue";
 import FileMentionPalette from "@/components/FileMentionPalette.vue";
 import AttachmentTray from "@/components/AttachmentTray.vue";
+import ChatModelSelector from "@/components/ChatModelSelector.vue";
+import ChatPermissionSelector from "@/components/ChatPermissionSelector.vue";
 
 const props = defineProps<{
   workspacePath: string;
@@ -25,8 +22,6 @@ const skillsStore = useSkillsStore();
 const { notify } = useNotifications();
 const modelPopoverOpen = ref(false);
 const permissionPopoverOpen = ref(false);
-const hoveredModelAlias = ref<string | null>(null);
-const customReasoningEffort = ref("");
 const commandPaletteRef = ref<InstanceType<typeof CommandPalette> | null>(null);
 const fileMentionPaletteRef = ref<InstanceType<typeof FileMentionPalette> | null>(null);
 
@@ -52,41 +47,16 @@ const modelOptions = computed<ProfileInfo[]>(() =>
   [...session.profileInfos].sort((a, b) => a.alias.localeCompare(b.alias))
 );
 
-const hoveredModel = computed(() =>
-  modelOptions.value.find((profile) => profile.alias === hoveredModelAlias.value)
-);
-
-const reasoningModel = computed(() => {
-  if (hoveredModelAlias.value) {
-    return hoveredModel.value?.supports_reasoning ? hoveredModel.value : null;
-  }
-  const current = modelOptions.value.find((profile) => profile.alias === session.currentProfile);
-  return current?.supports_reasoning ? current : null;
-});
-
-const activeReasoningEffort = computed(
-  () => session.currentReasoningEffort ?? DEFAULT_REASONING_EFFORT
-);
-
-const reasoningOptions = computed(() => {
-  const options: string[] = [...DEFAULT_REASONING_EFFORTS];
-  const current = activeReasoningEffort.value;
-  if (current && !options.includes(current)) {
-    options.push(current);
-  }
-  return options;
-});
-
-function getModelOptionDisplay(profile: ProfileInfo): string {
-  return formatProfileDisplay(profile);
-}
-
 function onSelectCommand(cmd: CommandDef) {
   composer.onSelectCommand(cmd);
 }
 
-async function selectModelProfile(alias: string, reasoningEffort?: string) {
+async function handleModelSelect(alias: string, reasoningEffort?: string) {
   await composer.selectModelProfile(alias, modelPopoverOpen, reasoningEffort);
+}
+
+function onSelectModelProfile(alias: string) {
+  void handleModelSelect(alias);
 }
 
 function onSelectSkill(skillId: string) {
@@ -94,43 +64,7 @@ function onSelectSkill(skillId: string) {
   closePalettes();
 }
 
-function onSelectModelProfile(alias: string) {
-  void selectModelProfile(alias);
-}
-
-function onModelHover(profile: ProfileInfo) {
-  hoveredModelAlias.value = profile.alias;
-  if (!profile.supports_reasoning) {
-    customReasoningEffort.value = "";
-  }
-}
-
-function onSelectReasoningEffort(effort: string) {
-  const profile = reasoningModel.value;
-  if (!profile) return;
-  void selectModelProfile(profile.alias, effort);
-}
-
-function onApplyCustomReasoning() {
-  const effort = customReasoningEffort.value.trim();
-  if (!effort) return;
-  onSelectReasoningEffort(effort);
-}
-
-const permissionOptions = [
-  { value: "read_only", label: "Read Only" },
-  { value: "suggest", label: "Suggest" },
-  { value: "agent", label: "Agent" },
-  { value: "autonomous", label: "Autonomous" },
-  { value: "interactive", label: "Interactive" }
-];
-
-const permissionDisplay = computed(() => {
-  const opt = permissionOptions.find((o) => o.value === session.permissionMode);
-  return opt ? opt.label : session.permissionMode;
-});
-
-async function selectPermissionMode(mode: string) {
+async function handlePermissionSelect(mode: string) {
   await session.setPermissionMode(mode);
   permissionPopoverOpen.value = false;
 }
@@ -185,138 +119,20 @@ onMounted(() => {
       />
     </div>
     <div class="composer-meta">
-      <KxPopover
+      <ChatModelSelector
         v-model:open="modelPopoverOpen"
-        content-data-test="chat-model-popover"
-        side="top"
-        align="start"
-      >
-        <template #trigger>
-          <button
-            class="chat-model-trigger"
-            type="button"
-            data-test="chat-model-trigger"
-            :aria-label="t('chat.selectModelAria', { model: session.activeProfileDisplay })"
-          >
-            {{ session.activeProfileDisplay }}
-          </button>
-        </template>
-        <template #content>
-          <div class="chat-model-popover-panel">
-            <div class="chat-model-column">
-              <header class="chat-model-popover-header">{{ t("chat.model") }}</header>
-              <ul class="chat-model-list">
-                <li v-for="profile in modelOptions" :key="profile.alias">
-                  <button
-                    type="button"
-                    :class="[
-                      'chat-model-option',
-                      {
-                        selected: profile.alias === session.currentProfile,
-                        hovered: profile.alias === hoveredModelAlias
-                      }
-                    ]"
-                    :data-test="`chat-model-option-${profile.alias}`"
-                    :aria-current="profile.alias === session.currentProfile ? 'true' : undefined"
-                    :disabled="switchingModel"
-                    @mouseenter="onModelHover(profile)"
-                    @focus="onModelHover(profile)"
-                    @click="selectModelProfile(profile.alias)"
-                  >
-                    <span class="chat-model-option-label">
-                      {{ getModelOptionDisplay(profile) }}
-                    </span>
-                    <span class="chat-model-option-meta">
-                      {{ profile.alias }}
-                      <span v-if="profile.alias === session.currentProfile">
-                        · {{ t("chat.currentModel") }}</span
-                      >
-                    </span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div
-              v-if="reasoningModel"
-              class="chat-reasoning-panel"
-              data-test="chat-reasoning-panel"
-            >
-              <header class="chat-model-popover-header">{{ t("chat.reasoning") }}</header>
-              <div class="chat-reasoning-list">
-                <button
-                  v-for="effort in reasoningOptions"
-                  :key="effort"
-                  type="button"
-                  :class="['chat-reasoning-option', { selected: effort === activeReasoningEffort }]"
-                  :data-test="`chat-reasoning-option-${effort}`"
-                  :disabled="switchingModel"
-                  @click="onSelectReasoningEffort(effort)"
-                >
-                  {{ effort }}
-                </button>
-              </div>
-              <form class="chat-reasoning-custom" @submit.prevent="onApplyCustomReasoning">
-                <input
-                  v-model="customReasoningEffort"
-                  class="chat-reasoning-custom-input"
-                  data-test="chat-reasoning-custom-input"
-                  :placeholder="t('chat.customReasoningPlaceholder')"
-                  :disabled="switchingModel"
-                />
-                <button
-                  class="chat-reasoning-custom-apply"
-                  data-test="chat-reasoning-custom-apply"
-                  type="button"
-                  :disabled="switchingModel || !customReasoningEffort.trim()"
-                  @click="onApplyCustomReasoning"
-                >
-                  {{ t("chat.applyReasoning") }}
-                </button>
-              </form>
-            </div>
-          </div>
-        </template>
-      </KxPopover>
-      <KxPopover
+        :model-options="modelOptions"
+        :current-profile="session.currentProfile"
+        :switching-model="switchingModel"
+        :active-profile-display="session.activeProfileDisplay"
+        :current-reasoning-effort="session.currentReasoningEffort"
+        @select-model="handleModelSelect"
+      />
+      <ChatPermissionSelector
         v-model:open="permissionPopoverOpen"
-        content-data-test="chat-permission-popover"
-        side="top"
-        align="start"
-      >
-        <template #trigger>
-          <button
-            class="chat-permission-trigger"
-            type="button"
-            data-test="chat-permission-trigger"
-            :aria-label="t('chat.selectPermissionAria', { mode: permissionDisplay })"
-          >
-            {{ permissionDisplay }}
-          </button>
-        </template>
-        <template #content>
-          <div class="chat-permission-popover-panel">
-            <header class="chat-permission-popover-header">{{ t("chat.permission") }}</header>
-            <ul class="chat-permission-list">
-              <li v-for="option in permissionOptions" :key="option.value">
-                <button
-                  type="button"
-                  :class="[
-                    'chat-permission-option',
-                    { selected: option.value === session.permissionMode }
-                  ]"
-                  :data-test="`chat-permission-option-${option.value}`"
-                  :aria-current="option.value === session.permissionMode ? 'true' : undefined"
-                  @click="selectPermissionMode(option.value)"
-                >
-                  <span class="chat-permission-option-label">
-                    {{ option.label }}
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </div>
-        </template>
-      </KxPopover>
+        :permission-mode="session.permissionMode"
+        @select-permission="handlePermissionSelect"
+      />
       <span v-if="props.sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
         {{ props.sessionGitMeta.join(" · ") }}
       </span>
@@ -398,281 +214,6 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   opacity: 0.72;
-}
-.chat-model-trigger {
-  max-width: min(100%, 280px);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--app-primary-color) 22%, var(--app-border-color));
-  border-radius: 999px;
-  padding: 3px 10px;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--app-primary-color) 10%, var(--app-card-color));
-  color: var(--app-text-color);
-  font: inherit;
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-model-trigger:hover {
-  border-color: var(--app-primary-color);
-  background: color-mix(in srgb, var(--app-primary-color) 16%, var(--app-card-color));
-}
-.chat-model-trigger:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .chat-model-trigger {
-    transition:
-      border-color 0.15s,
-      background 0.15s,
-      color 0.15s;
-  }
-}
-.chat-model-popover-panel {
-  display: flex;
-  min-width: 240px;
-  max-width: min(92vw, 520px);
-  gap: 8px;
-  align-items: stretch;
-}
-.chat-model-column {
-  min-width: 240px;
-}
-.chat-model-popover-header {
-  margin-bottom: 8px;
-  color: var(--app-text-color-2, var(--app-muted-text-color));
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.chat-model-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-.chat-model-option {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--app-text-color);
-  font: inherit;
-  text-align: left;
-}
-.chat-model-option:hover:not(:disabled),
-.chat-model-option.hovered:not(:disabled) {
-  border-color: var(--app-border-color);
-  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
-}
-.chat-model-option.selected {
-  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
-  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
-}
-.chat-model-option:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.chat-model-option-label {
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-model-option-meta {
-  color: var(--app-text-color-3, var(--app-muted-text-color));
-  font-size: 11px;
-}
-.chat-reasoning-panel {
-  width: 184px;
-  min-width: 184px;
-  border-left: 1px solid var(--app-border-color);
-  padding-left: 8px;
-}
-.chat-reasoning-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-}
-.chat-reasoning-option {
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 7px 8px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--app-text-color);
-  font: inherit;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-reasoning-option:hover:not(:disabled) {
-  border-color: var(--app-border-color);
-  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
-}
-.chat-reasoning-option.selected {
-  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
-  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
-}
-.chat-reasoning-custom {
-  display: flex;
-  gap: 4px;
-  margin-top: 8px;
-}
-.chat-reasoning-custom-input {
-  width: 0;
-  min-width: 0;
-  flex: 1;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 6px 7px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font: inherit;
-  font-size: 12px;
-}
-.chat-reasoning-custom-apply {
-  flex: 0 0 auto;
-  border: 1px solid var(--app-primary-color);
-  border-radius: 6px;
-  padding: 6px 8px;
-  cursor: pointer;
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
-  font: inherit;
-  font-size: 12px;
-}
-.chat-reasoning-option:disabled,
-.chat-reasoning-custom-input:disabled,
-.chat-reasoning-custom-apply:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-@media (max-width: 560px) {
-  .chat-model-popover-panel {
-    flex-direction: column;
-  }
-  .chat-reasoning-panel {
-    width: auto;
-    min-width: 0;
-    border-top: 1px solid var(--app-border-color);
-    border-left: 0;
-    padding-top: 8px;
-    padding-left: 0;
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .chat-model-popover-panel {
-    animation: popover-in 0.15s ease;
-  }
-}
-.chat-permission-trigger {
-  max-width: min(100%, 160px);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--app-primary-color) 22%, var(--app-border-color));
-  border-radius: 999px;
-  padding: 3px 10px;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--app-primary-color) 10%, var(--app-card-color));
-  color: var(--app-text-color);
-  font: inherit;
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-permission-trigger:hover {
-  border-color: var(--app-primary-color);
-  background: color-mix(in srgb, var(--app-primary-color) 16%, var(--app-card-color));
-}
-.chat-permission-trigger:focus-visible {
-  outline: 2px solid var(--app-primary-color);
-  outline-offset: 2px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .chat-permission-trigger {
-    transition:
-      border-color 0.15s,
-      background 0.15s,
-      color 0.15s;
-  }
-}
-.chat-permission-popover-panel {
-  min-width: 180px;
-}
-.chat-permission-popover-header {
-  margin-bottom: 8px;
-  color: var(--app-text-color-2, var(--app-muted-text-color));
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.chat-permission-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-.chat-permission-option {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--app-text-color);
-  font: inherit;
-  text-align: left;
-}
-.chat-permission-option:hover {
-  border-color: var(--app-border-color);
-  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
-}
-.chat-permission-option.selected {
-  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
-  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
-}
-.chat-permission-option-label {
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@keyframes popover-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 .input-row {
   display: flex;
