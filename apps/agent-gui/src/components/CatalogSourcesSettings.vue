@@ -155,16 +155,13 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
     </button>
 
     <div v-else class="add-form">
-      <label class="field">
-        <span class="field-label">id</span>
+      <KxFormField label="id">
         <input v-model="draft.id" class="input" data-test="src-id" />
-      </label>
-      <label class="field">
-        <span class="field-label">{{ t("marketplace.displayName") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('marketplace.displayName')">
         <input v-model="draft.display_name" class="input" data-test="src-name" />
-      </label>
-      <label class="field">
-        <span class="field-label">{{ t("marketplace.kind") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('marketplace.kind')">
         <select
           :value="draft.kind"
           class="input"
@@ -174,15 +171,13 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
             {{ opt.label }}
           </option>
         </select>
-      </label>
-      <label class="field">
-        <span class="field-label">{{ t("marketplace.url") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('marketplace.url')">
         <input v-model="draft.url" class="input" data-test="src-url" />
-      </label>
-      <label class="field">
-        <span class="field-label">{{ t("marketplace.apiKeyEnv") }}</span>
+      </KxFormField>
+      <KxFormField :label="t('marketplace.apiKeyEnv')">
         <input v-model="draft.api_key_env" class="input" />
-      </label>
+      </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}
       </span>
@@ -325,15 +320,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   padding: 12px;
   border: 1px dashed var(--app-border-color);
   border-radius: 4px;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.field-label {
-  color: var(--app-text-color-2);
-  font-size: 0.85em;
 }
 .input {
   padding: 4px 8px;

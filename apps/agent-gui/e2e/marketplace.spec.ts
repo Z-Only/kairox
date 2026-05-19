@@ -11,7 +11,10 @@ test.beforeEach(async ({ page }) => {
   await installTauriMock(page);
   await page.goto("/");
   await page.getByTestId("nav-settings").click();
-  await page.getByTestId("settings-tab-mcp").click();
+  await Promise.all([
+    page.waitForURL(/#\/settings\/mcp$/),
+    page.getByTestId("settings-tab-mcp").click()
+  ]);
   await page.getByTestId("mcp-subtab-marketplace").click();
 });
 
@@ -197,6 +200,22 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
     await page.getByTestId("skill-delete-project-code-review-assistant").click();
     await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
+  });
+
+  test("adds a remote skill catalog source from the discover drawer", async ({ page }) => {
+    await page.getByTestId("settings-tab-skills").click();
+    await page.getByTestId("skill-subtab-discover").click();
+
+    await page.getByTestId("skill-source-settings-btn").click();
+    await expect(page.getByTestId("skill-source-settings-drawer")).toBeVisible();
+
+    await page.getByTestId("skill-add-source-toggle").click();
+    await page.getByTestId("skill-src-id").fill("custom-skillhub");
+    await page.getByTestId("skill-src-name").fill("Custom SkillHub");
+    await page.getByTestId("skill-src-url").fill("https://api.skillhub.example");
+    await page.getByTestId("skill-src-save").click();
+
+    await expect(page.getByTestId("skill-source-filter-custom-skillhub")).toBeVisible();
   });
 
   test("mock rejects ambiguous legacy skill ids without mutating rows", async ({ page }) => {
