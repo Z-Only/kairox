@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use eventsource_stream::Eventsource;
@@ -62,7 +63,12 @@ pub struct SseTransport {
     pending_responses: Arc<Mutex<HashMap<Value, tokio::sync::oneshot::Sender<SseResponse>>>>,
     /// Handle for the background SSE listener task.
     sse_task: Option<JoinHandle<()>>,
+    /// Maximum time to wait for an SSE response before timing out.
+    request_timeout: Duration,
 }
+
+/// Default timeout for SSE request-response round-trips.
+const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl SseTransport {
     /// Create a new SSE transport connected to the given URL.
@@ -117,7 +123,14 @@ impl SseTransport {
             headers,
             pending_responses,
             sse_task: Some(sse_task),
+            request_timeout: DEFAULT_REQUEST_TIMEOUT,
         })
+    }
+
+    /// Set the maximum time to wait for an SSE response before timing out.
+    pub fn with_request_timeout(mut self, timeout: Duration) -> Self {
+        self.request_timeout = timeout;
+        self
     }
 
     /// Build the message endpoint URL.
@@ -321,21 +334,30 @@ impl Transport for SseTransport {
             }
         }
 
-        // Wait for the response to arrive via the SSE listener.
-        match rx.await {
-            Ok(SseResponse::Success(response)) => Ok(response),
-            Ok(SseResponse::Error {
+        // Wait for the response to arrive via the SSE listener, with timeout.
+        match tokio::time::timeout(self.request_timeout, rx).await {
+            Ok(Ok(SseResponse::Success(response))) => Ok(response),
+            Ok(Ok(SseResponse::Error {
                 code,
                 message,
                 id: _,
-            }) => Err(McpError::Protocol(format!(
+            })) => Err(McpError::Protocol(format!(
                 "JSON-RPC error {code}: {message}"
             ))),
-            Err(_) => {
+            Ok(Err(_)) => {
                 // The sender was dropped (SSE listener terminated).
                 Err(McpError::Transport(
                     "SSE listener dropped before response arrived".into(),
                 ))
+            }
+            Err(_elapsed) => {
+                // Timeout: clean up the pending entry so it doesn't leak.
+                let mut map = self.pending_responses.lock().await;
+                map.remove(&id);
+                Err(McpError::Transport(format!(
+                    "request timed out after {}s waiting for SSE response",
+                    self.request_timeout.as_secs()
+                )))
             }
         }
     }
@@ -654,6 +676,55 @@ mod tests {
             .await
             .expect("send_request failed");
         assert_eq!(response.id, json!(1));
+
+        transport.close().await.expect("close failed");
+    }
+
+    #[tokio::test]
+    async fn sse_transport_request_timeout_when_no_matching_response() {
+        let mock_server = MockServer::start().await;
+
+        // SSE returns events for a different id — id=1 will never get a response.
+        let wrong_response = r#"{"jsonrpc":"2.0","id":999,"result":{"wrong":true}}"#;
+        let sse_events = sse_body(&[wrong_response]);
+
+        Mock::given(method("GET"))
+            .and(path("/sse"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(sse_events),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/message"))
+            .respond_with(ResponseTemplate::new(202))
+            .mount(&mock_server)
+            .await;
+
+        let url = mock_server.uri();
+        let mut transport = SseTransport::new(&url, HashMap::new(), None)
+            .await
+            .expect("failed to create SseTransport")
+            .with_request_timeout(Duration::from_millis(100));
+
+        // Give the SSE listener time to connect and consume the (non-matching) events.
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        let request = JsonRpcRequest::new(1, "tools/list", Some(json!({})));
+        let result = transport.send_request(request).await;
+
+        assert!(
+            result.is_err(),
+            "send_request should time out when SSE delivers no matching response"
+        );
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.to_lowercase().contains("timed out"),
+            "error should mention timeout, got: {err_msg}"
+        );
 
         transport.close().await.expect("close failed");
     }
