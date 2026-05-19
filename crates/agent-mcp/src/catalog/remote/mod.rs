@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod http_cache;
 pub mod http_client;
+pub mod mcp_mapping;
 pub mod mcp_registry;
 
 pub use http_cache::HttpResponseCache;
