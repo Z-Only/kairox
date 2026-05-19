@@ -206,42 +206,61 @@ watch(activeSubTab, (tab) => {
         </button>
       </div>
 
-      <div v-if="sourceSettingsOpen" class="plugin-source-panel" data-test="plugin-source-settings">
-        <KxStateBlock
-          v-if="store.sources.length === 0"
-          tone="empty"
-          data-test="plugin-source-empty-state"
-        >
-          {{ t("plugins.emptySources") }}
-        </KxStateBlock>
-        <article
-          v-for="source in store.sources"
-          v-else
-          :key="source.id"
-          class="plugin-row"
-          :data-test="`plugin-source-${slugify(source.id)}`"
-        >
-          <div class="plugin-row__main">
-            <div class="plugin-row__title">
-              <h4>{{ source.display_name }}</h4>
-              <span class="tag">{{ source.id }}</span>
-              <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
-                {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-              </span>
-              <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
+      <ModalDialog
+        :open="sourceSettingsOpen"
+        :title="t('plugins.sourceSettings')"
+        data-test="plugin-source-settings"
+        width="620px"
+        @close="sourceSettingsOpen = false"
+      >
+        <div class="plugin-source-panel">
+          <KxStateBlock
+            v-if="store.sources.length === 0"
+            tone="empty"
+            data-test="plugin-source-empty-state"
+          >
+            {{ t("plugins.emptySources") }}
+          </KxStateBlock>
+          <article
+            v-for="source in store.sources"
+            v-else
+            :key="source.id"
+            class="plugin-row"
+            :data-test="`plugin-source-${slugify(source.id)}`"
+          >
+            <div class="plugin-row__main">
+              <div class="plugin-row__title">
+                <h4>{{ source.display_name }}</h4>
+                <span class="tag">{{ source.id }}</span>
+                <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
+                  {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
+                </span>
+                <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
+              </div>
+              <code>{{ source.source }}</code>
             </div>
-            <code>{{ source.source }}</code>
-          </div>
+            <button
+              class="btn btn-sm"
+              type="button"
+              :data-test="`plugin-source-enabled-${slugify(source.id)}`"
+              @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+            >
+              {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
+            </button>
+          </article>
+        </div>
+
+        <template #footer>
           <button
             class="btn btn-sm"
             type="button"
-            :data-test="`plugin-source-enabled-${slugify(source.id)}`"
-            @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+            data-test="plugin-source-settings-close"
+            @click="sourceSettingsOpen = false"
           >
-            {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
+            {{ t("common.close") }}
           </button>
-        </article>
-      </div>
+        </template>
+      </ModalDialog>
 
       <KxStateBlock
         v-if="store.catalog.length === 0"
@@ -316,9 +335,6 @@ watch(activeSubTab, (tab) => {
 .plugin-source-panel {
   display: grid;
   gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
 }
 .plugin-row {
   display: flex;

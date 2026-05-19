@@ -109,7 +109,7 @@ target = "[data-test='plugin-source-settings']"
 [[step]]
 name = "close source settings"
 action = "click"
-target = "[data-test='plugin-source-settings-toggle']"
+target = "[data-test='plugin-source-settings-close']"
 
 # Wait for the catalog entry from the local pilot-fixture marketplace to
 # render. The catalog loads asynchronously when the marketplace sub-tab
