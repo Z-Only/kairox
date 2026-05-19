@@ -34,6 +34,7 @@ function selectPermissionMode(mode: string) {
   <KxPopover
     v-model:open="open"
     content-data-test="chat-permission-popover"
+    content-class="chat-permission-popover-panel"
     side="top"
     align="start"
   >
@@ -48,27 +49,31 @@ function selectPermissionMode(mode: string) {
       </button>
     </template>
     <template #content>
-      <div class="chat-permission-popover-panel">
-        <header class="chat-permission-popover-header">{{ t("chat.permission") }}</header>
-        <ul class="chat-permission-list">
-          <li v-for="option in permissionOptions" :key="option.value">
-            <button
-              type="button"
-              :class="[
-                'chat-permission-option',
-                { selected: option.value === props.permissionMode }
-              ]"
-              :data-test="`chat-permission-option-${option.value}`"
-              :aria-current="option.value === props.permissionMode ? 'true' : undefined"
-              @click="selectPermissionMode(option.value)"
-            >
-              <span class="chat-permission-option-label">
-                {{ option.label }}
-              </span>
-            </button>
-          </li>
-        </ul>
-      </div>
+      <header class="kx-popover-panel__header chat-permission-popover-header">
+        {{ t("chat.permission") }}
+      </header>
+      <ul class="kx-popover-list chat-permission-list">
+        <li v-for="option in permissionOptions" :key="option.value">
+          <button
+            type="button"
+            :class="[
+              'kx-popover-option',
+              'chat-permission-option',
+              {
+                selected: option.value === props.permissionMode,
+                'kx-popover-option--selected': option.value === props.permissionMode
+              }
+            ]"
+            :data-test="`chat-permission-option-${option.value}`"
+            :aria-current="option.value === props.permissionMode ? 'true' : undefined"
+            @click="selectPermissionMode(option.value)"
+          >
+            <span class="kx-popover-option__label chat-permission-option-label">
+              {{ option.label }}
+            </span>
+          </button>
+        </li>
+      </ul>
     </template>
   </KxPopover>
 </template>
@@ -108,52 +113,8 @@ function selectPermissionMode(mode: string) {
 .chat-permission-popover-panel {
   min-width: 180px;
 }
-.chat-permission-popover-header {
-  margin-bottom: 8px;
-  color: var(--app-text-color-2, var(--app-muted-text-color));
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.chat-permission-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
 .chat-permission-option {
-  display: flex;
-  width: 100%;
-  min-width: 0;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  background: transparent;
-  color: var(--app-text-color);
-  font: inherit;
-  text-align: left;
-}
-.chat-permission-option:hover {
-  border-color: var(--app-border-color);
-  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
-}
-.chat-permission-option.selected {
-  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
-  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
-}
-.chat-permission-option-label {
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

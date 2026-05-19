@@ -168,6 +168,12 @@ describe("model reasoning selector", () => {
     await wrapper.find('[data-test="chat-model-option-smart"]').trigger("mouseenter");
     await wrapper.vm.$nextTick();
 
+    expect(wrapper.find('[data-test="chat-model-popover"]').classes()).toContain(
+      "chat-model-popover-panel"
+    );
+    expect(wrapper.find('[data-test="chat-model-option-smart"]').classes()).toContain(
+      "kx-popover-option"
+    );
     expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="chat-reasoning-option-middle"]').classes()).toContain(
       "selected"
@@ -235,6 +241,21 @@ describe("model reasoning selector", () => {
       profileAlias: "smart",
       reasoningEffort: "reasoning-max"
     });
+  });
+
+  it("uses shared popover option styling for permission choices", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.permissionMode = "suggest";
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-permission-trigger"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const popover = wrapper.find('[data-test="chat-permission-popover"]');
+    const option = wrapper.find('[data-test="chat-permission-option-suggest"]');
+    expect(popover.classes()).toContain("chat-permission-popover-panel");
+    expect(option.classes()).toContain("kx-popover-option");
+    expect(option.classes()).toContain("kx-popover-option--selected");
   });
 });
 

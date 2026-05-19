@@ -12,7 +12,10 @@ describe("KxPopover", () => {
       attachTo: hostElement,
       props: {
         open: true,
-        contentDataTest: "popover-content"
+        contentDataTest: "popover-content",
+        contentClass: "custom-popover-content",
+        width: "320px",
+        maxHeight: "240px"
       },
       slots: {
         trigger: '<button data-test="popover-trigger" type="button">Details</button>',
@@ -30,6 +33,15 @@ describe("KxPopover", () => {
       expect(wrapper.find('[data-test="popover-content"]').exists()).toBe(true);
       expect(wrapper.find('[data-test="popover-content"]').classes()).toContain(
         "kx-popover-content"
+      );
+      expect(wrapper.find('[data-test="popover-content"]').classes()).toContain(
+        "custom-popover-content"
+      );
+      expect(wrapper.find('[data-test="popover-content"]').attributes("style")).toContain(
+        "--kx-popover-width: 320px"
+      );
+      expect(wrapper.find('[data-test="popover-content"]').attributes("style")).toContain(
+        "--kx-popover-max-height: 240px"
       );
       expect(wrapper.find('[data-test="popover-content"]').text()).toContain("Context details");
     } finally {

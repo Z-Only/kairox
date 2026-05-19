@@ -37,7 +37,19 @@ describe("FileMentionPalette", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="file-mention-palette"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="file-mention-palette"]').classes()).toContain(
+      "kx-popover-content"
+    );
+    expect(wrapper.find('[data-test="file-mention-palette"]').classes()).toContain(
+      "kx-popover-content--palette"
+    );
+    expect(wrapper.find(".file-mention-palette__header").classes()).toContain(
+      "kx-popover-panel__header"
+    );
     expect(wrapper.find('[data-test="file-mention-empty"]').text()).toBe("No matching files");
+    expect(wrapper.find('[data-test="file-mention-empty"]').classes()).toContain(
+      "kx-popover-empty"
+    );
   });
 
   it("explains that file mentions need a project workspace", async () => {
@@ -56,5 +68,25 @@ describe("FileMentionPalette", () => {
     expect(wrapper.find('[data-test="file-mention-empty"]').text()).toBe(
       "Open a project session to mention workspace files."
     );
+  });
+
+  it("uses shared option classes for file results", async () => {
+    const { wrapper } = mountWithPlugins(FileMentionPalette, {
+      mount: {
+        props: {
+          visible: false,
+          filterText: "",
+          workspacePath: "/workspace"
+        }
+      }
+    });
+
+    await wrapper.setProps({ visible: true });
+    await flushPromises();
+
+    const item = wrapper.find('[data-test="mention-file-item"]');
+    expect(item.exists()).toBe(true);
+    expect(item.classes()).toContain("kx-popover-option");
+    expect(item.classes()).toContain("kx-popover-option--selected");
   });
 });

@@ -470,8 +470,116 @@ textarea {
 
 .kx-popover-content {
   z-index: var(--app-z-popover);
+  width: var(--kx-popover-width, auto);
   max-width: min(360px, calc(100vw - 24px));
+  max-height: var(--kx-popover-max-height, min(440px, calc(100vh - 24px)));
+  overflow: auto;
+  padding: var(--kx-popover-padding, 12px);
+}
+
+.kx-popover-content--palette {
+  z-index: var(--app-z-palette);
+  max-width: none;
+  max-height: 320px;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.kx-popover-panel__header {
+  min-height: 28px;
+  margin: 0;
+  padding: 0 2px 8px;
+  color: var(--app-text-color-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.kx-popover-content--palette .kx-popover-panel__header {
+  min-height: auto;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--app-border-color);
+}
+
+.kx-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.kx-popover-option {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--app-text-color);
+  font: inherit;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kx-popover-option {
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+}
+
+.kx-popover-option:hover:not(:disabled),
+.kx-popover-option.hovered:not(:disabled) {
+  border-color: var(--app-border-color);
+  background: var(--app-hover-color, color-mix(in srgb, var(--app-primary-color) 8%, transparent));
+}
+
+.kx-popover-option--selected,
+.kx-popover-option.selected {
+  border-color: color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
+}
+
+.kx-popover-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kx-popover-option__label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kx-popover-option__meta {
+  color: var(--app-text-color-3);
+  font-size: 11px;
+}
+
+.kx-popover-empty {
   padding: 12px;
+  color: var(--app-text-color-2);
+  font-size: var(--app-text-base);
+  line-height: 1.4;
+}
+
+.kx-popover-mark,
+.kx-popover-option :is(mark, .kx-popover-mark) {
+  border-radius: 2px;
+  padding: 0 1px;
+  background: color-mix(in srgb, var(--app-primary-color) 24%, transparent);
+  color: var(--app-primary-color);
+  font-weight: 700;
 }
 
 .kx-tooltip-content {

@@ -284,17 +284,8 @@ describe("ChatPanel", () => {
     expect(chatModelSelectorSource).toMatch(
       /\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/
     );
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-option-label\s*\{[\s\S]*max-width:\s*100%/
-    );
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-option-label\s*\{[\s\S]*overflow:\s*hidden/
-    );
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-option-label\s*\{[\s\S]*text-overflow:\s*ellipsis/
-    );
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-option-label\s*\{[\s\S]*white-space:\s*nowrap/
+    expect(chatModelSelectorSource).toContain(
+      'class="kx-popover-option__label chat-model-option-label"'
     );
     expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
     expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/);
