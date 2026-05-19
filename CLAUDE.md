@@ -51,7 +51,7 @@ Edit all 5 files in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfi
 
 ## Commit convention
 
-Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `tui`, `gui`, `deps`, `ci`.
+Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `plugins`, `tui`, `gui`, `deps`, `ci`.
 
 Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps): ...`
 
