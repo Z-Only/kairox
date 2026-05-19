@@ -39,31 +39,35 @@ onMounted(async () => {
 
 <template>
   <div class="catalog-list">
-    <div class="filters">
-      <input
-        v-model="searchInput"
-        :placeholder="t('marketplace.searchServers')"
-        data-test="catalog-search"
-        class="filter-keyword"
-        autocapitalize="off"
-        autocomplete="off"
-        spellcheck="false"
-        @keyup.enter="handleRefresh"
-      />
-      <select
-        :value="catalog.filters.trustMin ?? ''"
-        data-test="catalog-trust"
-        class="filter-trust"
-        @change="catalog.filters.trustMin = ($event.target as HTMLSelectElement).value || null"
-      >
-        <option v-for="opt in trustOptions" :key="String(opt.value)" :value="opt.value ?? ''">
-          {{ opt.label }}
-        </option>
-      </select>
-      <button class="btn btn-sm" data-test="catalog-refresh" @click="handleRefresh">
-        {{ t("common.refresh") }}
-      </button>
-    </div>
+    <SettingsFilterBar class="filters" :aria-label="t('marketplace.title')">
+      <div class="settings-filter-bar__row">
+        <KxInput
+          v-model="searchInput"
+          type="search"
+          :placeholder="t('marketplace.searchServers')"
+          data-test="catalog-search"
+          class="filter-keyword"
+          autocapitalize="off"
+          autocomplete="off"
+          spellcheck="false"
+          @keyup.enter="handleRefresh"
+        />
+        <KxSelect
+          :model-value="catalog.filters.trustMin ?? ''"
+          data-test="catalog-trust"
+          class="filter-trust"
+          size="compact"
+          @update:model-value="catalog.filters.trustMin = $event || null"
+        >
+          <option v-for="opt in trustOptions" :key="String(opt.value)" :value="opt.value ?? ''">
+            {{ opt.label }}
+          </option>
+        </KxSelect>
+        <button class="btn btn-sm" data-test="catalog-refresh" @click="handleRefresh">
+          {{ t("common.refresh") }}
+        </button>
+      </div>
+    </SettingsFilterBar>
 
     <SettingsState v-if="catalog.loading" tone="loading" data-test="catalog-loading-state">
       {{ t("common.loading") }}
@@ -100,13 +104,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   overflow: hidden;
-}
-
-.filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  align-items: center;
 }
 
 .filter-keyword {

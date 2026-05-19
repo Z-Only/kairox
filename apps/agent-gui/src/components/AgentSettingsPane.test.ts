@@ -165,10 +165,10 @@ describe("AgentSettingsPane", () => {
 
   it("uses shared form fields and controls in the agent editor", () => {
     expect(agentSettingsPaneSource).toContain("KxFormField");
-    expect(agentSettingsPaneSource).toContain("kx-form-control");
+    expect(agentSettingsPaneSource).toContain("KxInput");
     expect(agentSettingsPaneSource).toContain("KxTextarea");
     expect(agentSettingsPaneSource).toContain('data-test="agent-form-instructions"');
-    expect(agentSettingsPaneSource).not.toContain("kx-form-control--textarea");
+    expect(agentSettingsPaneSource).not.toContain("kx-form-control");
     expect(agentSettingsPaneSource).not.toContain(".agent-editor input,");
     expect(agentSettingsPaneSource).not.toContain(".agent-editor textarea {");
   });

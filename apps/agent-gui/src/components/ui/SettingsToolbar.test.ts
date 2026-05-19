@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import SettingsFilterBar from "./SettingsFilterBar.vue";
+import settingsFilterBarSource from "./SettingsFilterBar.vue?raw";
 import SettingsSubtabs from "./SettingsSubtabs.vue";
 import SettingsToolbar from "./SettingsToolbar.vue";
 
@@ -53,5 +54,7 @@ describe("settings toolbar primitives", () => {
     expect(wrapper.classes()).toContain("settings-filter-bar");
     expect(wrapper.attributes("data-test")).toBe("catalog-filters");
     expect(wrapper.get('[data-test="search"]').attributes("type")).toBe("search");
+    expect(settingsFilterBarSource).not.toContain(".settings-filter-bar :deep(input)");
+    expect(settingsFilterBarSource).not.toContain(".settings-filter-bar :deep(select)");
   });
 });

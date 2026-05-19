@@ -180,48 +180,32 @@ function formatError(caughtError: unknown): string {
 
     <div v-else class="add-form">
       <KxFormField label="id">
-        <input v-model="draft.id" class="kx-form-control" data-test="skill-src-id" />
+        <KxInput v-model="draft.id" data-test="skill-src-id" />
       </KxFormField>
       <KxFormField :label="t('skills.displayName')">
-        <input v-model="draft.display_name" class="kx-form-control" data-test="skill-src-name" />
+        <KxInput v-model="draft.display_name" data-test="skill-src-name" />
       </KxFormField>
       <KxFormField :label="t('skills.kind')">
-        <select v-model="draft.kind" class="kx-form-control">
+        <KxSelect v-model="draft.kind">
           <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
-        </select>
+        </KxSelect>
       </KxFormField>
       <KxFormField :label="t('skills.url')">
-        <input v-model="draft.url" class="kx-form-control" data-test="skill-src-url" />
+        <KxInput v-model="draft.url" data-test="skill-src-url" />
       </KxFormField>
       <KxFormField :label="t('skills.searchTemplate')" required>
-        <input
-          v-model="draft.search_template"
-          class="kx-form-control"
-          data-test="skill-src-search-template"
-        />
+        <KxInput v-model="draft.search_template" data-test="skill-src-search-template" />
       </KxFormField>
       <KxFormField :label="t('skills.downloadTemplate')" required>
-        <input
-          v-model="draft.download_template"
-          class="kx-form-control"
-          data-test="skill-src-download-template"
-        />
+        <KxInput v-model="draft.download_template" data-test="skill-src-download-template" />
       </KxFormField>
       <KxFormField :label="t('skills.listTemplate')">
-        <input
-          v-model="draft.list_template"
-          class="kx-form-control"
-          data-test="skill-src-list-template"
-        />
+        <KxInput v-model="draft.list_template" data-test="skill-src-list-template" />
       </KxFormField>
       <KxFormField :label="t('skills.detailTemplate')">
-        <input
-          v-model="draft.detail_template"
-          class="kx-form-control"
-          data-test="skill-src-detail-template"
-        />
+        <KxInput v-model="draft.detail_template" data-test="skill-src-detail-template" />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}

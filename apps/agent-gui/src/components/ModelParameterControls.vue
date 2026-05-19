@@ -42,70 +42,64 @@ const emit = defineEmits<{
     </legend>
     <div v-if="open" class="model-form__grid model-form__grid--3col">
       <KxFormField :label="t('models.contextWindow')">
-        <input
+        <KxInput
           :id="`${idPrefix}-ctx`"
-          :value="contextWindow"
-          class="kx-form-control"
+          :model-value="contextWindow"
           type="number"
           :data-test="`${idPrefix}-ctx`"
-          @input="emit('update:contextWindow', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:contextWindow', String($event))"
         />
       </KxFormField>
       <KxFormField :label="t('models.outputLimit')">
-        <input
+        <KxInput
           :id="`${idPrefix}-out`"
-          :value="outputLimit"
-          class="kx-form-control"
+          :model-value="outputLimit"
           type="number"
           :data-test="`${idPrefix}-out`"
-          @input="emit('update:outputLimit', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:outputLimit', String($event))"
         />
       </KxFormField>
       <KxFormField :label="t('models.temperature')">
-        <input
+        <KxInput
           :id="`${idPrefix}-temp`"
-          :value="temperature"
-          class="kx-form-control"
+          :model-value="temperature"
           type="number"
           step="0.1"
           min="0"
           max="2"
           :data-test="`${idPrefix}-temp`"
-          @input="emit('update:temperature', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:temperature', String($event))"
         />
       </KxFormField>
       <KxFormField :label="t('models.topP')">
-        <input
+        <KxInput
           :id="`${idPrefix}-top-p`"
-          :value="topP"
-          class="kx-form-control"
+          :model-value="topP"
           type="number"
           step="0.1"
           min="0"
           max="1"
           :data-test="`${idPrefix}-top-p`"
-          @input="emit('update:topP', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:topP', String($event))"
         />
       </KxFormField>
       <KxFormField :label="t('models.topK')">
-        <input
+        <KxInput
           :id="`${idPrefix}-top-k`"
-          :value="topK"
-          class="kx-form-control"
+          :model-value="topK"
           type="number"
           min="0"
           :data-test="`${idPrefix}-top-k`"
-          @input="emit('update:topK', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:topK', String($event))"
         />
       </KxFormField>
       <KxFormField :label="t('models.maxTokens')">
-        <input
+        <KxInput
           :id="`${idPrefix}-max-tokens`"
-          :value="maxTokens"
-          class="kx-form-control"
+          :model-value="maxTokens"
           type="number"
           :data-test="`${idPrefix}-max-tokens`"
-          @input="emit('update:maxTokens', ($event.target as HTMLInputElement).value)"
+          @update:model-value="emit('update:maxTokens', String($event))"
         />
       </KxFormField>
     </div>

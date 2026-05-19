@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import MemoryBrowser from "./MemoryBrowser.vue";
+import memoryBrowserSource from "./MemoryBrowser.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
 
@@ -161,9 +162,11 @@ describe("MemoryBrowser", () => {
     const { wrapper } = mountBrowser();
     await flushPromises();
 
-    expect(wrapper.find('[data-test="memory-scope-select"]').classes()).toContain(
-      "memory-control-field"
-    );
-    expect(wrapper.find(".search-input").classes()).toContain("memory-control-field");
+    expect(wrapper.find('[data-test="memory-scope-select"]').classes()).toContain("kx-select");
+    expect(wrapper.find('[data-test="memory-search-input"]').classes()).toContain("kx-input");
+    expect(memoryBrowserSource).toContain("KxInput");
+    expect(memoryBrowserSource).toContain("KxSelect");
+    expect(memoryBrowserSource).not.toContain(".scope-select {");
+    expect(memoryBrowserSource).not.toContain(".search-input {");
   });
 });

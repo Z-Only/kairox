@@ -180,17 +180,23 @@ watch(activeSubTab, (tab) => {
 
     <div v-if="activeSubTab === 'marketplace'" class="plugin-panel">
       <SettingsFilterBar :aria-label="t('plugins.tabMarketplace')">
-        <select v-model="selectedMarketplaceId" data-test="plugin-marketplace-filter">
-          <option :value="null">{{ t("plugins.allMarketplaces") }}</option>
+        <KxSelect
+          :model-value="selectedMarketplaceId ?? ''"
+          data-test="plugin-marketplace-filter"
+          size="compact"
+          @update:model-value="selectedMarketplaceId = $event || null"
+        >
+          <option value="">{{ t("plugins.allMarketplaces") }}</option>
           <option v-for="source in store.sources" :key="source.id" :value="source.id">
             {{ source.display_name }}
           </option>
-        </select>
-        <input
+        </KxSelect>
+        <KxInput
           v-model="search"
           type="search"
           :placeholder="t('plugins.searchPlaceholder')"
           data-test="plugin-catalog-search"
+          size="compact"
           @keyup.enter="refreshCatalog"
         />
         <button

@@ -23,32 +23,32 @@ const isThemeSelectFocused = ref(false);
   <div role="tabpanel">
     <div class="settings__row">
       <label for="settings-locale">{{ t("settings.locale") }}</label>
-      <select
+      <KxSelect
         id="settings-locale"
-        :value="locale"
+        :model-value="locale"
         data-test="settings-locale"
-        @change="ui.setLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
+        @update:model-value="ui.setLocale($event as SupportedLocale)"
       >
         <option v-for="opt in locales" :key="opt.value" :value="opt.value">
           {{ t(opt.labelKey) }}
         </option>
-      </select>
+      </KxSelect>
     </div>
     <div class="settings__row" data-test="theme-toggle">
       <label for="settings-theme">{{ t("settings.theme") }}</label>
-      <select
+      <KxSelect
         id="settings-theme"
-        :value="colorMode"
+        :model-value="colorMode"
         :class="{ 'settings__select--focused': isThemeSelectFocused }"
         data-test="settings-theme"
         @focus="isThemeSelectFocused = true"
         @blur="isThemeSelectFocused = false"
-        @change="ui.setTheme(($event.target as HTMLSelectElement).value as ThemeMode)"
+        @update:model-value="ui.setTheme($event as ThemeMode)"
       >
         <option v-for="opt in themes" :key="opt.value" :value="opt.value">
           {{ t(opt.labelKey) }}
         </option>
-      </select>
+      </KxSelect>
     </div>
   </div>
 </template>

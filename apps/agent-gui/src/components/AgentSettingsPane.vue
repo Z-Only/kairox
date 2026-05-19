@@ -271,56 +271,42 @@ watch(
     >
       <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
         <KxFormField :label="t('agents.name')">
-          <input
-            v-model="form.name"
-            class="kx-form-control"
-            data-test="agent-form-name"
-            placeholder="code-reviewer"
-          />
+          <KxInput v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
         </KxFormField>
         <KxFormField :label="t('agents.description')">
-          <input
-            v-model="form.description"
-            class="kx-form-control"
-            data-test="agent-form-description"
-          />
+          <KxInput v-model="form.description" data-test="agent-form-description" />
         </KxFormField>
         <KxFormField :label="t('agents.modelProfile')">
-          <input
+          <KxInput
             v-model="form.modelProfile"
-            class="kx-form-control"
             data-test="agent-form-model"
             :placeholder="t('agents.defaultValue')"
           />
         </KxFormField>
         <KxFormField :label="t('agents.permissionMode')">
-          <input
+          <KxInput
             v-model="form.permissionMode"
-            class="kx-form-control"
             data-test="agent-form-permission"
             :placeholder="t('agents.defaultValue')"
           />
         </KxFormField>
         <KxFormField :label="t('agents.tools')">
-          <input
+          <KxInput
             v-model="toolsText"
-            class="kx-form-control"
             data-test="agent-form-tools"
             placeholder="fs.read, search, shell"
           />
         </KxFormField>
         <KxFormField :label="t('agents.skills')">
-          <input
+          <KxInput
             v-model="skillsText"
-            class="kx-form-control"
             data-test="agent-form-skills"
             placeholder="kairox-dev-workflow"
           />
         </KxFormField>
         <KxFormField :label="t('agents.nicknames')">
-          <input
+          <KxInput
             v-model="nicknamesText"
-            class="kx-form-control"
             data-test="agent-form-nicknames"
             placeholder="Reviewer, Audit"
           />

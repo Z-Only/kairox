@@ -291,41 +291,34 @@ watch(
 
         <form v-else class="hooks-pane__form" data-test="hook-form" @submit.prevent="saveHook">
           <KxFormField :label="t('hooks.id')">
-            <input v-model="form.id" class="kx-form-control" data-test="hook-id" required />
+            <KxInput v-model="form.id" data-test="hook-id" required />
           </KxFormField>
 
           <KxFormField :label="t('hooks.event')">
-            <select v-model="form.event" class="kx-form-control" data-test="hook-event">
+            <KxSelect v-model="form.event" data-test="hook-event">
               <option v-for="event in events" :key="event" :value="event">{{ event }}</option>
-            </select>
+            </KxSelect>
           </KxFormField>
 
           <KxFormField :label="t('hooks.matcher')">
-            <input
+            <KxInput
               v-model="form.matcher"
-              class="kx-form-control"
               data-test="hook-matcher"
               :placeholder="t('hooks.matcherPlaceholder')"
             />
           </KxFormField>
 
           <KxFormField :label="t('hooks.command')">
-            <input
-              v-model="form.command"
-              class="kx-form-control"
-              data-test="hook-command"
-              required
-            />
+            <KxInput v-model="form.command" data-test="hook-command" required />
           </KxFormField>
 
           <KxFormField :label="t('hooks.status')">
-            <input v-model="form.statusMessage" class="kx-form-control" data-test="hook-status" />
+            <KxInput v-model="form.statusMessage" data-test="hook-status" />
           </KxFormField>
 
           <KxFormField :label="t('hooks.timeout')">
-            <input
+            <KxInput
               v-model.number="form.timeoutSecs"
-              class="kx-form-control"
               data-test="hook-timeout"
               min="1"
               type="number"

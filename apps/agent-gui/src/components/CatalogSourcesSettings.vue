@@ -151,27 +151,23 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
     <div v-else class="add-form">
       <KxFormField label="id">
-        <input v-model="draft.id" class="kx-form-control" data-test="src-id" />
+        <KxInput v-model="draft.id" data-test="src-id" />
       </KxFormField>
       <KxFormField :label="t('marketplace.displayName')">
-        <input v-model="draft.display_name" class="kx-form-control" data-test="src-name" />
+        <KxInput v-model="draft.display_name" data-test="src-name" />
       </KxFormField>
       <KxFormField :label="t('marketplace.kind')">
-        <select
-          :value="draft.kind"
-          class="kx-form-control"
-          @change="draft.kind = ($event.target as HTMLSelectElement).value"
-        >
+        <KxSelect v-model="draft.kind">
           <option v-for="opt in kindOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
-        </select>
+        </KxSelect>
       </KxFormField>
       <KxFormField :label="t('marketplace.url')">
-        <input v-model="draft.url" class="kx-form-control" data-test="src-url" />
+        <KxInput v-model="draft.url" data-test="src-url" />
       </KxFormField>
       <KxFormField :label="t('marketplace.apiKeyEnv')">
-        <input v-model="draft.api_key_env" class="kx-form-control" />
+        <KxInput v-model="draft.api_key_env" />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}

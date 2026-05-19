@@ -82,23 +82,24 @@ async function promptDelete(id: string, content: string) {
 
     <div class="memory-controls">
       <div class="scope-row">
-        <select
-          :value="filter"
+        <KxSelect
+          :model-value="filter"
           aria-label="Memory scope"
-          class="scope-select memory-control-field"
           data-test="memory-scope-select"
-          @change="handleFilterChange(($event.target as HTMLSelectElement).value as typeof filter)"
+          size="compact"
+          @update:model-value="handleFilterChange($event as typeof filter)"
         >
           <option v-for="opt in scopeOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
-        </select>
+        </KxSelect>
       </div>
-      <input
+      <KxInput
         v-model="searchQuery"
         type="text"
         :placeholder="t('memory.searchPlaceholder')"
-        class="search-input memory-control-field"
+        data-test="memory-search-input"
+        size="compact"
         @keydown="handleSearchKeydown"
       />
     </div>
@@ -182,37 +183,6 @@ async function promptDelete(id: string, content: string) {
   gap: 6px;
   align-items: center;
   width: 100%;
-}
-.scope-select {
-  min-width: 140px;
-  padding: 4px 8px;
-  font-size: 13px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 4px;
-  background: var(--app-bg-color, #fff);
-  color: var(--app-text-color, #333);
-  outline: none;
-}
-.scope-select:focus {
-  border-color: var(--app-primary-color, #2080f0);
-}
-.search-input {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 13px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 4px;
-  background: var(--app-bg-color, #fff);
-  color: var(--app-text-color, #333);
-  outline: none;
-  box-sizing: border-box;
-}
-.search-input:focus {
-  border-color: var(--app-primary-color, #2080f0);
-}
-.memory-control-field {
-  background: var(--app-card-color, #fff);
-  color: var(--app-text-color, #333);
 }
 .empty-state {
   color: var(--app-text-disabled-color, #999);

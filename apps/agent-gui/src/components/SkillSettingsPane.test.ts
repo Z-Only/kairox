@@ -342,7 +342,8 @@ describe("SkillSettingsPane", () => {
 
   it("uses shared form controls in the GitHub advanced install form", () => {
     expect(skillSettingsPaneSource).toContain("KxFormField");
-    expect(skillSettingsPaneSource).toContain("kx-form-control");
+    expect(skillSettingsPaneSource).toContain("KxInput");
+    expect(skillSettingsPaneSource).not.toContain("kx-form-control");
     expect(skillSettingsPaneSource).not.toContain(".skill-settings input,");
     expect(skillSettingsPaneSource).not.toContain(".skill-settings select");
     expect(skillSettingsPaneSource).not.toContain(".skill-settings__search-form input");

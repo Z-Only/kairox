@@ -76,30 +76,27 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
         <legend>{{ t("models.basicOptions") }}</legend>
         <div class="model-form__grid model-form__grid--2col">
           <KxFormField :label="t('models.alias')" :required="isAddMode">
-            <input
+            <KxInput
               :id="`${idPrefix}-alias`"
               v-model="alias"
-              class="kx-form-control"
               :data-test="aliasTestId"
               :required="isAddMode"
               :readonly="!isAddMode"
             />
           </KxFormField>
           <KxFormField :label="t('models.provider')" required>
-            <input
+            <KxInput
               :id="`${idPrefix}-provider`"
               v-model="provider"
-              class="kx-form-control"
               :data-test="providerTestId"
               required
             />
           </KxFormField>
         </div>
         <KxFormField :label="t('models.modelId')" required>
-          <input
+          <KxInput
             :id="`${idPrefix}-model-id`"
             v-model="modelId"
-            class="kx-form-control"
             :data-test="modelIdTestId"
             required
           />
@@ -109,18 +106,12 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
       <fieldset class="model-form__section">
         <legend>{{ t("models.connectionOptions") }}</legend>
         <KxFormField :label="t('models.baseUrl')">
-          <input
-            :id="`${idPrefix}-base-url`"
-            v-model="baseUrl"
-            class="kx-form-control"
-            :data-test="baseUrlTestId"
-          />
+          <KxInput :id="`${idPrefix}-base-url`" v-model="baseUrl" :data-test="baseUrlTestId" />
         </KxFormField>
         <KxFormField :label="t('models.apiKeyEnv')">
-          <input
+          <KxInput
             :id="`${idPrefix}-api-key-env`"
             v-model="apiKeyEnv"
-            class="kx-form-control"
             :data-test="apiKeyEnvTestId"
           />
         </KxFormField>
