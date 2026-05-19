@@ -73,14 +73,14 @@ onMounted(() => {
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
     <div class="session-scroll">
-      <div
+      <KxEmptyState
         v-if="projects.activeProjects.length === 0 && session.sessions.length === 0"
         class="sessions-empty-state"
+        density="inline"
+        data-test="sessions-root-empty"
       >
-        <p class="sessions-empty-state-text">
-          {{ t("sessions.emptyState") }}
-        </p>
-      </div>
+        {{ t("sessions.emptyState") }}
+      </KxEmptyState>
       <template v-for="sectionName in orderedSidebarSections" :key="sectionName">
         <ProjectSection
           v-if="sectionName === 'projects'"
@@ -307,13 +307,6 @@ onMounted(() => {
 .sessions-sidebar .archived-indicator {
   color: var(--app-text-color-3);
 }
-.sessions-sidebar .empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 80px;
-}
 .sessions-sidebar .session-list {
   list-style: none;
   padding: 0;
@@ -433,12 +426,6 @@ html.dark .sessions-sidebar .row-actions .kx-icon-button svg {
 .sessions-sidebar .project-session-rename-input {
   min-height: 28px;
 }
-.sessions-sidebar .empty-hint {
-  padding: 12px;
-  color: var(--app-text-color-3);
-  font-size: 13px;
-}
-
 .sessions-sidebar .confirm-action {
   color: var(--app-error-color, #d03050) !important;
 }
@@ -454,17 +441,5 @@ html.dark .sessions-sidebar .row-actions .kx-icon-button svg {
       background 0.15s,
       color 0.15s;
   }
-}
-.sessions-sidebar .sessions-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 12px;
-}
-.sessions-sidebar .sessions-empty-state-text {
-  color: var(--app-text-color-3);
-  font-size: var(--app-text-sm);
-  text-align: center;
 }
 </style>

@@ -147,6 +147,7 @@
     "fileMentionHeader": "Files",
     "fileMentionNoWorkspace": "Open a project session to mention workspace files.",
     "fileMentionNoMatches": "No matching files",
+    "commandPaletteNoMatches": "No commands, models, or skills match",
     "queueSend": "Queue",
     "queuedGuide": "Guide",
     "queuedGuideAria": "Send this queued message now",

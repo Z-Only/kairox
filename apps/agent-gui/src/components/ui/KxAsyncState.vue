@@ -1,5 +1,6 @@
 <script setup lang="ts">
 type AsyncStateTone = "empty" | "loading" | "info" | "success" | "warning" | "error";
+type AsyncStateDensity = "section" | "inline" | "popover";
 
 const props = withDefaults(
   defineProps<{
@@ -9,6 +10,7 @@ const props = withDefaults(
     role?: string;
     dataTest?: string;
     compact?: boolean;
+    density?: AsyncStateDensity;
   }>(),
   {
     tone: "empty",
@@ -16,18 +18,26 @@ const props = withDefaults(
     description: undefined,
     role: undefined,
     dataTest: undefined,
-    compact: false
+    compact: false,
+    density: "section"
   }
 );
+
+const resolvedCompact = computed(() => props.compact || props.density !== "section");
 </script>
 
 <template>
   <KxStateBlock
-    :class="['kx-async-state', `kx-async-state--${props.tone}`]"
+    :class="[
+      'kx-async-state',
+      `kx-async-state--${props.tone}`,
+      `kx-async-state--${props.density}`,
+      { 'kx-popover-empty': props.density === 'popover' }
+    ]"
     :tone="props.tone"
     :role="props.role"
     :data-test="props.dataTest"
-    :compact="props.compact"
+    :compact="resolvedCompact"
   >
     <span v-if="$slots.icon" class="kx-async-state__icon" aria-hidden="true">
       <slot name="icon" />
@@ -50,6 +60,27 @@ const props = withDefaults(
 <style scoped>
 .kx-async-state {
   width: 100%;
+}
+
+.kx-async-state.kx-async-state--inline,
+.kx-async-state.kx-async-state--popover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.kx-async-state.kx-async-state--inline {
+  min-height: 40px;
+  padding: var(--app-space-3);
+}
+
+.kx-async-state.kx-async-state--popover {
+  min-height: 36px;
+  padding: var(--app-space-3) var(--app-space-4);
+  font-size: var(--app-text-sm);
+}
+
+.kx-async-state--section.kx-async-state--empty {
+  flex-direction: column;
 }
 
 .kx-async-state__body {

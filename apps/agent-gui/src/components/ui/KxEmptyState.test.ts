@@ -21,4 +21,21 @@ describe("KxEmptyState", () => {
     expect(wrapper.find(".kx-async-state__description").text()).toBe("Nothing to show");
     expect(wrapper.find(".kx-async-state__actions button").text()).toBe("Create");
   });
+
+  it("exposes density classes for compact inline and popover empty states", () => {
+    const inline = mount(KxEmptyState, {
+      props: { density: "inline" },
+      slots: { default: "No rows" }
+    });
+    const popover = mount(KxEmptyState, {
+      props: { density: "popover", dataTest: "popover-empty" },
+      slots: { default: "No matches" }
+    });
+
+    expect(inline.classes()).toContain("kx-empty-state--inline");
+    expect(inline.classes()).toContain("kx-state-block--compact");
+    expect(popover.classes()).toContain("kx-empty-state--popover");
+    expect(popover.classes()).toContain("kx-popover-empty");
+    expect(popover.attributes("data-test")).toBe("popover-empty");
+  });
 });

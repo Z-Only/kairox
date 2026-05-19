@@ -113,9 +113,9 @@ defineProps<{
           </li>
         </ul>
       </template>
-      <div v-else class="empty-state empty-hint" data-test="sessions-empty">
+      <KxEmptyState v-else density="inline" data-test="sessions-empty">
         {{ t("sessions.emptyHint") }}
-      </div>
+      </KxEmptyState>
     </div>
   </section>
 </template>

@@ -147,6 +147,7 @@
     "fileMentionHeader": "文件",
     "fileMentionNoWorkspace": "打开项目会话后可提及工作区文件。",
     "fileMentionNoMatches": "没有匹配文件",
+    "commandPaletteNoMatches": "没有匹配的命令、模型或技能",
     "queueSend": "排队",
     "queuedGuide": "引导",
     "queuedGuideAria": "立即发送这条队列消息",

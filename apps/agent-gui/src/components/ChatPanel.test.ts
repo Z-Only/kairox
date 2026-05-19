@@ -388,7 +388,10 @@ describe("ChatPanel", () => {
     });
     await flushPromises();
 
-    expect(wrapper.find('[data-test="chat-empty-state"]').exists()).toBe(true);
+    const empty = wrapper.find('[data-test="chat-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("kx-empty-state");
+    expect(empty.classes()).toContain("kx-empty-state--section");
   });
 
   it("renders project instruction source filenames in an empty project chat", async () => {

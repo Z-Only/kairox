@@ -119,7 +119,11 @@ describe("SessionsSidebar", () => {
   it("shows empty hint when no sessions", async () => {
     const { wrapper } = await mountSidebar();
     // The empty-state component renders the description text we passed in.
-    expect(wrapper.text()).toContain("No sessions yet");
+    const empty = wrapper.find('[data-test="sessions-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No sessions yet");
+    expect(empty.classes()).toContain("kx-empty-state");
+    expect(empty.classes()).toContain("kx-empty-state--inline");
   });
 
   it("removes the redundant sidebar header and keeps the new session action in the sessions section", async () => {
