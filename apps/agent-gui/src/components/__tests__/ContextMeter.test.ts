@@ -159,4 +159,39 @@ describe("ContextMeter.vue", () => {
     expect(rows.length).toBe(4);
     expect(wrapper.find('[data-test="context-meter-reserved"]').exists()).toBe(true);
   });
+
+  it("renders same by-source rows and reserved row in ring variant popover", async () => {
+    const session = useSessionStore();
+    session.projection.messages = [{ role: "user", content: "hi" }] as never;
+    session.lastContextUsage = makeUsage();
+    const { wrapper } = mountWithPlugins(ContextMeter, {
+      props: { variant: "ring" },
+      mount: { props: { variant: "ring" } },
+      reusePinia: true
+    });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    const rows = wrapper.findAll('[data-test^="context-meter-row-"]');
+    expect(rows.length).toBe(4);
+    expect(wrapper.find('[data-test="context-meter-reserved"]').exists()).toBe(true);
+  });
+
+  it("disables the Compact button in ring variant while compacting", async () => {
+    const session = useSessionStore();
+    session.projection.messages = [{ role: "user", content: "hi" }] as never;
+    session.lastContextUsage = makeUsage();
+    session.compacting = true;
+    const { wrapper } = mountWithPlugins(ContextMeter, {
+      props: { variant: "ring" },
+      mount: { props: { variant: "ring" } },
+      reusePinia: true
+    });
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    const btn = wrapper.find<HTMLButtonElement>('[data-test="context-meter-compact"]');
+    expect(btn.exists()).toBe(true);
+    expect(btn.element.disabled).toBe(true);
+  });
 });
