@@ -1,0 +1,180 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit hooks settings"
+fail_fast = true
+global_timeout_ms = 90000
+
+# Clean up stale test hooks from previous runs
+[[step]]
+name = "remove stale pilot audit hooks"
+action = "eval"
+script = """
+(async () => {
+  const invoke = window.__TAURI_INTERNALS__.invoke;
+  for (const scope of ["User", "Project"]) {
+    try {
+      await invoke("delete_hook_settings", { scope, event: "Stop", id: "pilot-audit-hook" });
+    } catch {
+      // The audit hook may not exist before the scenario starts.
+    }
+  }
+  return "clean";
+})()
+"""
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "wait for hooks tab"
+action = "wait"
+selector = "[data-test='settings-tab-hooks']"
+timeout_ms = 15000
+
+[[step]]
+name = "open hooks settings tab"
+action = "click"
+target = "[data-test='settings-tab-hooks']"
+
+[[step]]
+name = "wait for hooks settings"
+action = "wait"
+selector = "[data-test='hooks-settings-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "hooks pane visible"
+action = "assert-visible"
+target = "[data-test='hooks-settings-pane']"
+
+# Verify templates exist
+[[step]]
+name = "stop-validation template visible"
+action = "assert-visible"
+target = "[data-test='hook-template-stop-validation']"
+
+[[step]]
+name = "add button visible"
+action = "assert-visible"
+target = "[data-test='hook-add']"
+
+# Create hook from template
+[[step]]
+name = "click stop-validation template"
+action = "click"
+target = "[data-test='hook-template-stop-validation']"
+
+[[step]]
+name = "template filled form fields"
+action = "eval"
+script = """
+(() => {
+  const id = document.querySelector("[data-test='hook-id']");
+  const command = document.querySelector("[data-test='hook-command']");
+  if (!id?.value) throw new Error("hook-id not filled by template");
+  if (!command?.value) throw new Error("hook-command not filled by template");
+  return "template filled";
+})()
+"""
+
+# Customize id to avoid conflicts
+[[step]]
+name = "change hook id for pilot"
+action = "fill"
+target = "[data-test='hook-id']"
+value = "pilot-audit-hook"
+
+# Save
+[[step]]
+name = "save pilot hook"
+action = "click"
+target = "[data-test='hook-save']"
+
+[[step]]
+name = "wait for pilot hook row"
+action = "wait"
+selector = "[data-test='hook-row-pilot-audit-hook']"
+timeout_ms = 15000
+
+[[step]]
+name = "pilot hook row visible"
+action = "assert-visible"
+target = "[data-test='hook-row-pilot-audit-hook']"
+
+# Edit the hook
+[[step]]
+name = "edit pilot hook"
+action = "click"
+target = "[data-test='hook-edit-pilot-audit-hook']"
+
+[[step]]
+name = "change hook command"
+action = "fill"
+target = "[data-test='hook-command']"
+value = "bun run lint"
+
+[[step]]
+name = "save edited hook"
+action = "click"
+target = "[data-test='hook-save']"
+
+[[step]]
+name = "verify edited command persisted"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const row = document.querySelector("[data-test='hook-row-pilot-audit-hook']");
+    if (row?.textContent?.includes("bun run lint")) return "persisted";
+    await new Promise(r => setTimeout(r, 100));
+  }
+  throw new Error("hook row missing edited command");
+})()
+"""
+
+# Delete the hook
+[[step]]
+name = "delete pilot hook"
+action = "click"
+target = "[data-test='hook-delete-pilot-audit-hook']"
+
+[[step]]
+name = "verify hook removed"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const row = document.querySelector("[data-test='hook-row-pilot-audit-hook']");
+    if (!row) return "removed";
+    await new Promise(r => setTimeout(r, 100));
+  }
+  throw new Error("hook row still exists after delete");
+})()
+"""
+
+# Return to workbench
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"

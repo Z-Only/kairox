@@ -1,0 +1,127 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit plugins settings"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "open plugins settings tab"
+action = "click"
+target = "[data-test='settings-tab-plugins']"
+
+[[step]]
+name = "wait for plugins settings"
+action = "wait"
+selector = "[data-test='plugin-settings-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "plugins pane visible"
+action = "assert-visible"
+target = "[data-test='plugin-settings-pane']"
+
+[[step]]
+name = "installed sub-tab visible"
+action = "assert-visible"
+target = "[data-test='plugin-subtab-installed']"
+
+[[step]]
+name = "marketplace sub-tab visible"
+action = "assert-visible"
+target = "[data-test='plugin-subtab-marketplace']"
+
+[[step]]
+name = "refresh button visible"
+action = "assert-visible"
+target = "[data-test='plugin-refresh']"
+
+# Switch to marketplace
+[[step]]
+name = "open marketplace sub-tab"
+action = "click"
+target = "[data-test='plugin-subtab-marketplace']"
+
+[[step]]
+name = "wait for marketplace filter"
+action = "wait"
+selector = "[data-test='plugin-marketplace-filter']"
+timeout_ms = 15000
+
+[[step]]
+name = "marketplace filter visible"
+action = "assert-visible"
+target = "[data-test='plugin-marketplace-filter']"
+
+[[step]]
+name = "catalog search visible"
+action = "assert-visible"
+target = "[data-test='plugin-catalog-search']"
+
+[[step]]
+name = "source settings toggle visible"
+action = "assert-visible"
+target = "[data-test='plugin-source-settings-toggle']"
+
+[[step]]
+name = "catalog refresh visible"
+action = "assert-visible"
+target = "[data-test='plugin-catalog-refresh']"
+
+# Open source settings
+[[step]]
+name = "open source settings"
+action = "click"
+target = "[data-test='plugin-source-settings-toggle']"
+
+[[step]]
+name = "wait for source settings"
+action = "wait"
+selector = "[data-test='plugin-source-settings']"
+timeout_ms = 10000
+
+[[step]]
+name = "source settings panel visible"
+action = "assert-visible"
+target = "[data-test='plugin-source-settings']"
+
+# Switch back to installed sub-tab
+[[step]]
+name = "open installed sub-tab"
+action = "click"
+target = "[data-test='plugin-subtab-installed']"
+
+[[step]]
+name = "wait for installed"
+action = "wait"
+selector = "[data-test='plugin-settings-pane']"
+timeout_ms = 5000
+
+# Return to workbench
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
