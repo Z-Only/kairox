@@ -6,7 +6,15 @@ import type { Page } from "@playwright/test";
 const e2eDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const scriptFiles = [
-  "fixtures/tauri-mock/state.js",
+  "fixtures/tauri-mock/state-core.js",
+  "fixtures/tauri-mock/state-sessions.js",
+  "fixtures/tauri-mock/state-projects.js",
+  "fixtures/tauri-mock/state-profiles.js",
+  "fixtures/tauri-mock/state-agents.js",
+  "fixtures/tauri-mock/state-plugins.js",
+  "fixtures/tauri-mock/state-skills.js",
+  "fixtures/tauri-mock/state-mcp.js",
+  "fixtures/tauri-mock/state-marketplace.js",
   "fixtures/tauri-mock/helpers.js",
   "fixtures/tauri-mock/registry.js",
   "fixtures/tauri-mock/event-commands.js",
