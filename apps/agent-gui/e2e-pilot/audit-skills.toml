@@ -1,0 +1,117 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit skills settings"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "open skills settings tab"
+action = "click"
+target = "[data-test='settings-tab-skills']"
+
+[[step]]
+name = "wait for skills settings"
+action = "wait"
+selector = "[data-test='skill-settings-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "skills pane visible"
+action = "assert-visible"
+target = "[data-test='skill-settings-pane']"
+
+[[step]]
+name = "installed sub-tab visible"
+action = "assert-visible"
+target = "[data-test='skill-subtab-installed']"
+
+[[step]]
+name = "discover sub-tab visible"
+action = "assert-visible"
+target = "[data-test='skill-subtab-discover']"
+
+[[step]]
+name = "refresh button visible"
+action = "assert-visible"
+target = "[data-test='skill-refresh']"
+
+# Switch to discover tab
+[[step]]
+name = "open discover sub-tab"
+action = "click"
+target = "[data-test='skill-subtab-discover']"
+
+[[step]]
+name = "wait for catalog search"
+action = "wait"
+selector = "[data-test='skill-catalog-search']"
+timeout_ms = 15000
+
+[[step]]
+name = "catalog search visible"
+action = "assert-visible"
+target = "[data-test='skill-catalog-search']"
+
+[[step]]
+name = "catalog refresh visible"
+action = "assert-visible"
+target = "[data-test='skill-catalog-refresh']"
+
+[[step]]
+name = "source settings button visible"
+action = "assert-visible"
+target = "[data-test='skill-source-settings-btn']"
+
+# Search catalog
+[[step]]
+name = "search catalog"
+action = "fill"
+target = "[data-test='skill-catalog-search']"
+value = "review"
+
+[[step]]
+name = "click catalog refresh"
+action = "click"
+target = "[data-test='skill-catalog-refresh']"
+
+# Switch back to installed
+[[step]]
+name = "open installed sub-tab"
+action = "click"
+target = "[data-test='skill-subtab-installed']"
+
+[[step]]
+name = "wait for installed list"
+action = "wait"
+selector = "[data-test='skill-settings-pane']"
+timeout_ms = 5000
+
+# Return to workbench
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"

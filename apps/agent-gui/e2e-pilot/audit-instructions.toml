@@ -1,0 +1,221 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Audit instructions settings"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='app-shell']"
+timeout_ms = 15000
+
+[[step]]
+name = "open settings"
+action = "click"
+target = "[data-test='nav-settings']"
+
+[[step]]
+name = "wait for settings view"
+action = "wait"
+selector = "[data-test='view-settings']"
+timeout_ms = 15000
+
+[[step]]
+name = "open instructions settings tab"
+action = "click"
+target = "[data-test='settings-tab-instructions']"
+
+[[step]]
+name = "wait for instructions settings"
+action = "wait"
+selector = "[data-test='instructions-settings-pane']"
+timeout_ms = 15000
+
+[[step]]
+name = "instructions pane visible"
+action = "assert-visible"
+target = "[data-test='instructions-settings-pane']"
+
+# Verify all instruction levels
+[[step]]
+name = "system level visible"
+action = "assert-visible"
+target = "[data-test='instructions-level-system']"
+
+[[step]]
+name = "system instructions textarea visible"
+action = "assert-visible"
+target = "[data-test='system-instructions']"
+
+[[step]]
+name = "user level visible"
+action = "assert-visible"
+target = "[data-test='instructions-level-user']"
+
+[[step]]
+name = "user instructions textarea visible"
+action = "assert-visible"
+target = "[data-test='user-instructions']"
+
+[[step]]
+name = "effective preview visible"
+action = "assert-visible"
+target = "[data-test='effective-instructions']"
+
+[[step]]
+name = "save button visible"
+action = "assert-visible"
+target = "[data-test='instructions-save']"
+
+# Edit user instructions
+[[step]]
+name = "fill user instructions"
+action = "fill"
+target = "[data-test='user-instructions']"
+value = "Pilot audit: always add doc comments."
+
+[[step]]
+name = "save user instructions"
+action = "click"
+target = "[data-test='instructions-save']"
+
+[[step]]
+name = "verify user instructions persisted"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const el = document.querySelector("[data-test='user-instructions']");
+    if (el?.value?.includes("Pilot audit: always add doc comments.")) return "persisted";
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error("user instructions did not persist after save");
+})()
+"""
+
+[[step]]
+name = "effective preview has content"
+action = "eval"
+script = """
+(() => {
+  const el = document.querySelector("[data-test='effective-instructions']");
+  if (!el?.value || el.value.trim().length === 0) throw new Error("effective preview is empty");
+  return "ok";
+})()
+"""
+
+# Switch to project scope
+[[step]]
+name = "switch to project scope"
+action = "click"
+target = "[data-test='source-btn-project']"
+
+[[step]]
+name = "wait for project level"
+action = "wait"
+selector = "[data-test='instructions-level-project']"
+timeout_ms = 10000
+
+[[step]]
+name = "project level visible"
+action = "assert-visible"
+target = "[data-test='instructions-level-project']"
+
+[[step]]
+name = "project instructions textarea visible"
+action = "assert-visible"
+target = "[data-test='project-instructions']"
+
+# Edit project instructions
+[[step]]
+name = "fill project instructions"
+action = "fill"
+target = "[data-test='project-instructions']"
+value = "Pilot project: always run tests before commit."
+
+[[step]]
+name = "save project instructions"
+action = "click"
+target = "[data-test='instructions-save']"
+
+[[step]]
+name = "verify project instructions persisted"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const el = document.querySelector("[data-test='project-instructions']");
+    if (el?.value?.includes("Pilot project: always run tests before commit.")) return "persisted";
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error("project instructions did not persist after save");
+})()
+"""
+
+# Cross-scope verification: switch back to user scope
+[[step]]
+name = "switch back to user scope"
+action = "click"
+target = "[data-test='source-btn-user']"
+
+[[step]]
+name = "verify user instructions intact after scope switch"
+action = "eval"
+script = """
+(async () => {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const el = document.querySelector("[data-test='user-instructions']");
+    if (el?.value?.includes("Pilot audit: always add doc comments.")) return "intact";
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error("user instructions lost after scope switch");
+})()
+"""
+
+# Clean up: clear both scopes
+[[step]]
+name = "clear user instructions"
+action = "fill"
+target = "[data-test='user-instructions']"
+value = ""
+
+[[step]]
+name = "save cleared user instructions"
+action = "click"
+target = "[data-test='instructions-save']"
+
+[[step]]
+name = "switch to project scope for cleanup"
+action = "click"
+target = "[data-test='source-btn-project']"
+
+[[step]]
+name = "wait for project instructions"
+action = "wait"
+selector = "[data-test='project-instructions']"
+timeout_ms = 10000
+
+[[step]]
+name = "clear project instructions"
+action = "fill"
+target = "[data-test='project-instructions']"
+value = ""
+
+[[step]]
+name = "save cleared project instructions"
+action = "click"
+target = "[data-test='instructions-save']"
+
+# Return to workbench
+[[step]]
+name = "return to workbench"
+action = "click"
+target = "[data-test='nav-workbench']"
+
+[[step]]
+name = "workbench restored"
+action = "assert-visible"
+target = "[data-test='view-workbench']"
