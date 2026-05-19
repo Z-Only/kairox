@@ -299,13 +299,13 @@ function truncateFilename(name: string, maxLen = 18): string {
 }
 .thumbnail-preview-overlay {
   position: fixed;
-  z-index: 9999;
+  z-index: var(--app-z-toast);
   pointer-events: none;
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-overlay-shadow);
 }
 .thumbnail-preview-image {
   display: block;

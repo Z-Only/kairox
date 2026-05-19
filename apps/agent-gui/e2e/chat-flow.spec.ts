@@ -238,6 +238,23 @@ test("opens file mention palette and selects a workspace file via keyboard", asy
   await expect(input).toHaveValue("@apps/agent-gui/src/components/ChatComposer.vue ");
 });
 
+test("shows an empty state for file mention queries without matches", async ({ page }) => {
+  await openWorkbench(page);
+
+  await page.getByTestId("project-create-trigger").click();
+  await page.getByTestId("project-create-blank").click();
+  await page.getByTestId("project-new-session-btn").first().click();
+
+  const input = page.getByTestId("message-input");
+  await input.fill("@definitely-no-match");
+
+  await expect(page.getByTestId("file-mention-palette")).toBeVisible();
+  await expect(page.getByTestId("file-mention-empty")).toHaveText("No matching files");
+
+  await input.press("Enter");
+  await expect(input).toHaveValue("@definitely-no-match");
+});
+
 test("restores each session draft when switching sessions", async ({ page }) => {
   await openWorkbench(page);
 

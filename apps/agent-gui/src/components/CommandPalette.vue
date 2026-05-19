@@ -172,10 +172,10 @@ defineExpose({ handleKeydown });
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-overlay-shadow);
   max-height: 320px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: var(--app-z-palette);
 }
 
 .command-palette__header {
@@ -183,7 +183,7 @@ defineExpose({ handleKeydown });
   font-size: 11px;
   color: var(--app-text-color-2);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--app-border-color);
 }
 

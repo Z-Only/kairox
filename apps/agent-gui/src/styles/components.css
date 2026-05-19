@@ -288,11 +288,11 @@ dialog {
   padding: 0;
   max-width: 480px;
   width: 90vw;
-  box-shadow: 0 8px 32px rgb(0 0 0 / 18%);
+  box-shadow: var(--app-overlay-shadow);
 }
 
 dialog::backdrop {
-  background: rgb(0 0 0 / 40%);
+  background: var(--app-backdrop-color);
 }
 
 /* === Drawer (dialog variant) === */
@@ -452,15 +452,15 @@ textarea {
 .kx-dropdown-content,
 .kx-popover-content,
 .kx-tooltip-content {
-  z-index: 50;
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-lg);
   background: var(--app-card-color);
   color: var(--app-text-color);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  box-shadow: var(--app-overlay-shadow);
 }
 
 .kx-dropdown-content {
+  z-index: var(--app-z-dropdown);
   min-width: 160px;
   padding: 4px;
 }
@@ -499,11 +499,13 @@ textarea {
 }
 
 .kx-popover-content {
+  z-index: var(--app-z-popover);
   max-width: min(360px, calc(100vw - 24px));
   padding: 12px;
 }
 
 .kx-tooltip-content {
+  z-index: var(--app-z-popover);
   max-width: 260px;
   padding: 5px 8px;
   border-radius: var(--app-radius-md);

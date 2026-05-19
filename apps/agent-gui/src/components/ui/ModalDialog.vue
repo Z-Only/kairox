@@ -69,7 +69,7 @@ function onBackdropClick(event: MouseEvent) {
   padding: 0;
   max-width: 520px;
   width: calc(100vw - 48px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--app-overlay-shadow);
   background: var(--app-card-color, var(--app-bg-color));
   color: var(--app-text-color);
   position: fixed;
@@ -82,7 +82,7 @@ function onBackdropClick(event: MouseEvent) {
 }
 
 .modal-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--app-backdrop-color);
 }
 
 .modal-dialog__inner {

@@ -405,13 +405,13 @@ async function onCompactClick() {
   top: 100%;
   left: 16px;
   right: 16px;
-  z-index: 20;
+  z-index: var(--app-z-popover);
   margin-top: 4px;
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
   border-radius: 6px;
   padding: 8px 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--app-overlay-shadow);
 }
 .context-meter-ring-mode .popover {
   left: auto;

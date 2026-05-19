@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { commands } from "@/generated/commands";
+import { useConfirm } from "@/composables/useConfirm";
 import { useProjectStore } from "@/stores/project";
 import type { ProjectSessionInfo } from "@/stores/project";
 
 const { t } = useI18n();
+const { confirm: confirmAction } = useConfirm();
 const projectStore = useProjectStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -55,7 +57,14 @@ async function restoreSession(sessionId: string): Promise<void> {
 }
 
 async function permanentlyDelete(sessionId: string): Promise<void> {
-  if (!confirm(t("settings.archiveDeleteConfirm"))) return;
+  const confirmed = await confirmAction({
+    title: t("sessions.confirmDeleteTitle"),
+    message: t("settings.archiveDeleteConfirm"),
+    confirmText: t("settings.archivePermanentDelete"),
+    cancelText: t("common.cancel"),
+    type: "error"
+  });
+  if (!confirmed) return;
   busySessionId.value = sessionId;
   error.value = null;
   try {

@@ -181,7 +181,7 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
   width: 320px;
   max-height: 400px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: var(--app-z-palette);
 }
 
 /* Card chrome */

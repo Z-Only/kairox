@@ -27,6 +27,14 @@
   /* === Code === */
   --app-code-bg: #f1f5f9;
 
+  /* === Spacing === */
+  --app-space-1: 4px;
+  --app-space-2: 8px;
+  --app-space-3: 12px;
+  --app-space-4: 16px;
+  --app-space-5: 20px;
+  --app-space-6: 24px;
+
   /* === Radius === */
   --app-radius-sm: 4px;
   --app-radius-md: 6px;
@@ -39,6 +47,15 @@
   --app-text-base: 13px;
   --app-text-lg: 14px;
   --app-text-xl: 16px;
+
+  /* === Elevation and layering === */
+  --app-overlay-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+  --app-backdrop-color: rgb(15 23 42 / 42%);
+  --app-z-dropdown: 50;
+  --app-z-popover: 60;
+  --app-z-palette: 70;
+  --app-z-modal: 90;
+  --app-z-toast: 100;
 
   /* Context meter — per-source colours (light) */
   --src-system: #64748b;
@@ -76,6 +93,14 @@ html.dark {
   /* === Code === */
   --app-code-bg: #0f172a;
 
+  /* === Spacing (same as light) === */
+  --app-space-1: 4px;
+  --app-space-2: 8px;
+  --app-space-3: 12px;
+  --app-space-4: 16px;
+  --app-space-5: 20px;
+  --app-space-6: 24px;
+
   /* === Radius (same as light) === */
   --app-radius-sm: 4px;
   --app-radius-md: 6px;
@@ -88,6 +113,15 @@ html.dark {
   --app-text-base: 13px;
   --app-text-lg: 14px;
   --app-text-xl: 16px;
+
+  /* === Elevation and layering === */
+  --app-overlay-shadow: 0 16px 36px rgb(0 0 0 / 36%);
+  --app-backdrop-color: rgb(0 0 0 / 54%);
+  --app-z-dropdown: 50;
+  --app-z-popover: 60;
+  --app-z-palette: 70;
+  --app-z-modal: 90;
+  --app-z-toast: 100;
 
   /* Context meter — per-source colours (dark, higher contrast) */
   --src-system: #94a3b8;

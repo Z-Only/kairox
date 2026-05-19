@@ -147,7 +147,8 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 <style scoped>
 .settings {
   padding: 16px;
-  max-width: 960px;
+  width: min(100%, 1180px);
+  max-width: 1180px;
   flex: 1;
   overflow: hidden;
   display: flex;
@@ -167,6 +168,7 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
   gap: 8px;
   border-bottom: 1px solid var(--app-border-color);
   margin-bottom: 12px;
+  overflow-x: auto;
 }
 .tab-btn {
   padding: 8px 16px;
