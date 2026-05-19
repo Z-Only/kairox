@@ -47,7 +47,7 @@ const iconMap: Record<ToastItem["type"], string> = {
   position: fixed;
   top: 12px;
   right: 12px;
-  z-index: 9999;
+  z-index: var(--app-z-toast);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -63,7 +63,7 @@ const iconMap: Record<ToastItem["type"], string> = {
   background: var(--app-card-color);
   color: var(--app-text-color);
   border: 1px solid var(--app-border-color);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  box-shadow: var(--app-overlay-shadow);
   font-size: 13px;
   pointer-events: auto;
   max-width: 400px;

@@ -21,6 +21,7 @@ const emit = defineEmits<{
 }>();
 
 const mention = useMentionSearch();
+const { t } = useI18n();
 
 const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);
@@ -44,6 +45,9 @@ watch(
       if (!filesLoaded.value && props.workspacePath) {
         mention.loadFiles(props.workspacePath);
         filesLoaded.value = true;
+      } else if (!props.workspacePath) {
+        mention.fileList.value = [];
+        filesLoaded.value = false;
       }
     }
   }
@@ -55,11 +59,21 @@ watch(
     if (newPath) {
       mention.loadFiles(newPath);
       filesLoaded.value = true;
+    } else {
+      mention.fileList.value = [];
+      filesLoaded.value = false;
     }
   }
 );
 
 const displayedFiles = computed(() => mention.matchingFiles());
+const hasWorkspace = computed(() => props.workspacePath.trim().length > 0);
+const showLoading = computed(
+  () => hasWorkspace.value && !mention.loaded.value && displayedFiles.value.length === 0
+);
+const emptyMessage = computed(() =>
+  hasWorkspace.value ? t("chat.fileMentionNoMatches") : t("chat.fileMentionNoWorkspace")
+);
 
 interface HighlightSegment {
   text: string;
@@ -110,9 +124,11 @@ function selectFile(index: number) {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === "ArrowDown") {
     e.preventDefault();
+    if (displayedFiles.value.length === 0) return;
     selectedIndex.value = Math.min(selectedIndex.value + 1, displayedFiles.value.length - 1);
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
+    if (displayedFiles.value.length === 0) return;
     selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
   } else if (e.key === "Enter") {
     e.preventDefault();
@@ -129,28 +145,40 @@ defineExpose({ handleKeydown });
 <template>
   <div
     ref="paletteEl"
-    v-if="visible && displayedFiles.length > 0"
+    v-if="visible"
     class="file-mention-palette"
     data-test="file-mention-palette"
     @keydown="handleKeydown"
   >
-    <div class="file-mention-palette__header">Files</div>
-    <div
-      v-for="(path, i) in displayedFiles"
-      :key="path"
-      class="file-mention-palette__item"
-      :class="{ 'file-mention-palette__item--selected': i === selectedIndex }"
-      data-test="mention-file-item"
-      @click="selectFile(i)"
-      @mouseenter="selectedIndex = i"
-    >
-      <span class="file-mention-palette__label"
-        >@<template v-for="(seg, si) in highlightSegments(path, props.filterText)" :key="si">
-          <mark v-if="seg.match" class="file-mention-palette__match">{{ seg.text }}</mark>
-          <template v-else>{{ seg.text }}</template>
-        </template></span
-      >
+    <div class="file-mention-palette__header">{{ t("chat.fileMentionHeader") }}</div>
+    <div v-if="showLoading" class="file-mention-palette__empty" data-test="file-mention-loading">
+      {{ t("common.loading") }}
     </div>
+    <div
+      v-else-if="displayedFiles.length === 0"
+      class="file-mention-palette__empty"
+      data-test="file-mention-empty"
+    >
+      {{ emptyMessage }}
+    </div>
+    <template v-else>
+      <div
+        v-for="(path, i) in displayedFiles"
+        :key="path"
+        class="file-mention-palette__item"
+        :class="{ 'file-mention-palette__item--selected': i === selectedIndex }"
+        data-test="mention-file-item"
+        @click="selectFile(i)"
+        @mouseenter="selectedIndex = i"
+      >
+        <span class="file-mention-palette__label"
+          >@<template v-for="(seg, si) in highlightSegments(path, props.filterText)" :key="si">
+            <mark v-if="seg.match" class="file-mention-palette__match">{{ seg.text }}</mark>
+            <template v-else>{{ seg.text }}</template>
+          </template></span
+        >
+      </div>
+    </template>
   </div>
 </template>
 
@@ -164,10 +192,10 @@ defineExpose({ handleKeydown });
   background: var(--app-card-color);
   border: 1px solid var(--app-border-color);
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--app-overlay-shadow);
   max-height: 320px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: var(--app-z-palette);
 }
 
 .file-mention-palette__header {
@@ -175,8 +203,15 @@ defineExpose({ handleKeydown });
   font-size: 11px;
   color: var(--app-text-color-2);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--app-border-color);
+}
+
+.file-mention-palette__empty {
+  padding: 12px;
+  color: var(--app-text-color-2);
+  font-size: var(--app-text-base);
+  line-height: 1.4;
 }
 
 .file-mention-palette__item {

@@ -166,6 +166,29 @@ registerCommandHandlers({
     }
     return Promise.resolve(undefined);
   },
+  permanently_delete_session: function (args) {
+    var sessionId = args.sessionId || args.session_id;
+    state.sessions = state.sessions.filter(function (s) {
+      return s.id !== sessionId;
+    });
+    state.archivedSessions = state.archivedSessions.filter(function (s) {
+      return s.id !== sessionId;
+    });
+    state.projectSessions.forEach(function (sessions, projectId) {
+      state.projectSessions.set(
+        projectId,
+        sessions.filter(function (s) {
+          return s.id !== sessionId;
+        })
+      );
+    });
+    state.projections.delete(sessionId);
+    state.traces.delete(sessionId);
+    if (state.currentSessionId === sessionId) {
+      state.currentSessionId = state.sessions.length > 0 ? state.sessions[0].id : null;
+    }
+    return Promise.resolve(undefined);
+  },
   cancel_session: function (args) {
     var sessionId = state.currentSessionId;
     if (!sessionId) return Promise.reject(new Error("No active session"));

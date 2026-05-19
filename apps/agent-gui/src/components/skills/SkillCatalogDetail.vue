@@ -116,8 +116,8 @@ function onOverlayClick(event: MouseEvent): void {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.3);
+  z-index: var(--app-z-modal);
+  background: var(--app-backdrop-color);
 }
 
 .drawer {

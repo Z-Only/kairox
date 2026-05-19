@@ -127,11 +127,11 @@ const modalTitle = computed<string>(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--app-z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--app-overlay-color, rgba(0, 0, 0, 0.3));
+  background: var(--app-backdrop-color);
 }
 .modal-card {
   width: min(480px, 90vw);
