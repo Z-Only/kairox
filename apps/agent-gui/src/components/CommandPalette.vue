@@ -106,11 +106,11 @@ defineExpose({ handleKeydown });
   <div
     ref="paletteEl"
     v-if="visible && displayedItems.length > 0"
-    class="command-palette"
+    class="kx-popover-content kx-popover-content--palette command-palette"
     data-test="command-palette"
     @keydown="handleKeydown"
   >
-    <div class="command-palette__header">Commands, Models & Skills</div>
+    <div class="kx-popover-panel__header command-palette__header">Commands, Models & Skills</div>
     <div
       v-for="(item, i) in displayedItems"
       :key="
@@ -120,8 +120,11 @@ defineExpose({ handleKeydown });
             ? `skill-${item.skillId}`
             : `model-${item.alias}`
       "
-      class="command-palette__item"
-      :class="{ 'command-palette__item--selected': i === selectedIndex }"
+      class="kx-popover-option command-palette__item"
+      :class="{
+        'command-palette__item--selected': i === selectedIndex,
+        'kx-popover-option--selected': i === selectedIndex
+      }"
       :data-test="`palette-item-${
         item.kind === 'command'
           ? item.command.id
@@ -134,7 +137,7 @@ defineExpose({ handleKeydown });
     >
       <!-- eslint-disable-next-line vue/no-v-html -->
       <span
-        class="command-palette__label"
+        class="kx-popover-option__label command-palette__label"
         v-html="
           highlightMatch(
             item.kind === 'command'
@@ -147,7 +150,7 @@ defineExpose({ handleKeydown });
       ></span>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <span
-        class="command-palette__desc"
+        class="kx-popover-option__meta command-palette__desc"
         v-html="
           highlightMatch(
             item.kind === 'command'
@@ -169,52 +172,24 @@ defineExpose({ handleKeydown });
   left: 0;
   right: 0;
   margin-bottom: 4px;
-  background: var(--app-card-color);
-  border: 1px solid var(--app-border-color);
-  border-radius: 8px;
-  box-shadow: var(--app-overlay-shadow);
-  max-height: 320px;
-  overflow-y: auto;
-  z-index: var(--app-z-palette);
-}
-
-.command-palette__header {
-  padding: 6px 12px;
-  font-size: 11px;
-  color: var(--app-text-color-2);
-  text-transform: uppercase;
-  letter-spacing: 0;
-  border-bottom: 1px solid var(--app-border-color);
 }
 
 .command-palette__item {
-  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.command-palette__item--selected {
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
 }
 
 .command-palette__label {
-  font-weight: 600;
-  font-size: 13px;
+  flex: 0 1 auto;
 }
 
 .command-palette__desc {
+  flex: 0 0 auto;
   font-size: 12px;
-  color: var(--app-text-color-2);
 }
 
 .command-palette__label :deep(mark),
 .command-palette__desc :deep(mark) {
-  background: color-mix(in srgb, var(--app-primary-color) 25%, transparent);
-  color: var(--app-primary-color);
   font-weight: 700;
-  border-radius: 2px;
-  padding: 0 1px;
 }
 </style>

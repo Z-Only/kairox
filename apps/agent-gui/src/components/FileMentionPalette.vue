@@ -146,17 +146,23 @@ defineExpose({ handleKeydown });
   <div
     ref="paletteEl"
     v-if="visible"
-    class="file-mention-palette"
+    class="kx-popover-content kx-popover-content--palette file-mention-palette"
     data-test="file-mention-palette"
     @keydown="handleKeydown"
   >
-    <div class="file-mention-palette__header">{{ t("chat.fileMentionHeader") }}</div>
-    <div v-if="showLoading" class="file-mention-palette__empty" data-test="file-mention-loading">
+    <div class="kx-popover-panel__header file-mention-palette__header">
+      {{ t("chat.fileMentionHeader") }}
+    </div>
+    <div
+      v-if="showLoading"
+      class="kx-popover-empty file-mention-palette__empty"
+      data-test="file-mention-loading"
+    >
       {{ t("common.loading") }}
     </div>
     <div
       v-else-if="displayedFiles.length === 0"
-      class="file-mention-palette__empty"
+      class="kx-popover-empty file-mention-palette__empty"
       data-test="file-mention-empty"
     >
       {{ emptyMessage }}
@@ -165,15 +171,20 @@ defineExpose({ handleKeydown });
       <div
         v-for="(path, i) in displayedFiles"
         :key="path"
-        class="file-mention-palette__item"
-        :class="{ 'file-mention-palette__item--selected': i === selectedIndex }"
+        class="kx-popover-option file-mention-palette__item"
+        :class="{
+          'file-mention-palette__item--selected': i === selectedIndex,
+          'kx-popover-option--selected': i === selectedIndex
+        }"
         data-test="mention-file-item"
         @click="selectFile(i)"
         @mouseenter="selectedIndex = i"
       >
-        <span class="file-mention-palette__label"
+        <span class="kx-popover-option__label file-mention-palette__label"
           >@<template v-for="(seg, si) in highlightSegments(path, props.filterText)" :key="si">
-            <mark v-if="seg.match" class="file-mention-palette__match">{{ seg.text }}</mark>
+            <mark v-if="seg.match" class="kx-popover-mark file-mention-palette__match">
+              {{ seg.text }}
+            </mark>
             <template v-else>{{ seg.text }}</template>
           </template></span
         >
@@ -189,48 +200,17 @@ defineExpose({ handleKeydown });
   left: 0;
   right: 0;
   margin-bottom: 4px;
-  background: var(--app-card-color);
-  border: 1px solid var(--app-border-color);
-  border-radius: 8px;
-  box-shadow: var(--app-overlay-shadow);
-  max-height: 320px;
-  overflow-y: auto;
-  z-index: var(--app-z-palette);
-}
-
-.file-mention-palette__header {
-  padding: 6px 12px;
-  font-size: 11px;
-  color: var(--app-text-color-2);
-  text-transform: uppercase;
-  letter-spacing: 0;
-  border-bottom: 1px solid var(--app-border-color);
-}
-
-.file-mention-palette__empty {
-  padding: 12px;
-  color: var(--app-text-color-2);
-  font-size: var(--app-text-base);
-  line-height: 1.4;
 }
 
 .file-mention-palette__item {
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.file-mention-palette__item--selected {
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+  align-items: center;
 }
 
 .file-mention-palette__label {
-  font-size: 13px;
   font-family: monospace;
 }
 
 .file-mention-palette__match {
-  background: color-mix(in srgb, var(--app-primary-color) 22%, transparent);
-  color: var(--app-primary-color);
   font-weight: 650;
 }
 </style>

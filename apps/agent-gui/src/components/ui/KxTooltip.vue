@@ -6,21 +6,32 @@ type TooltipSide = "top" | "right" | "bottom" | "left";
 withDefaults(
   defineProps<{
     text: string;
+    contentDataTest?: string;
     side?: TooltipSide;
+    sideOffset?: number;
   }>(),
   {
-    side: "top"
+    contentDataTest: undefined,
+    side: "top",
+    sideOffset: 6
   }
 );
+
+const open = defineModel<boolean>("open", { default: undefined });
 </script>
 
 <template>
   <TooltipProvider>
-    <TooltipRoot>
+    <TooltipRoot v-model:open="open">
       <TooltipTrigger as-child>
         <slot />
       </TooltipTrigger>
-      <TooltipContent class="kx-tooltip-content" :side="side" :side-offset="6">
+      <TooltipContent
+        class="kx-tooltip-content"
+        :data-test="contentDataTest"
+        :side="side"
+        :side-offset="sideOffset"
+      >
         {{ text }}
       </TooltipContent>
     </TooltipRoot>

@@ -39,7 +39,10 @@ describe("CommandPalette", () => {
       mount: { props: { visible: true, filterText: "" } },
       reusePinia: true
     });
-    expect(wrapper.find('[data-test="command-palette"]').exists()).toBe(true);
+    const palette = wrapper.find('[data-test="command-palette"]');
+    expect(palette.exists()).toBe(true);
+    expect(palette.classes()).toContain("kx-popover-content");
+    expect(palette.classes()).toContain("kx-popover-content--palette");
   });
 
   it("hides when not visible", () => {
@@ -57,6 +60,7 @@ describe("CommandPalette", () => {
     });
     const header = wrapper.find(".command-palette__header");
     expect(header.exists()).toBe(true);
+    expect(header.classes()).toContain("kx-popover-panel__header");
     expect(header.text()).toBe("Commands, Models & Skills");
   });
 
@@ -68,6 +72,7 @@ describe("CommandPalette", () => {
     const items = wrapper.findAll(".command-palette__item");
     // 4 builtins: clear, compact, model, help
     expect(items.length).toBe(4);
+    expect(items[0].classes()).toContain("kx-popover-option");
   });
 
   // ---- Filtering ----
@@ -108,6 +113,7 @@ describe("CommandPalette", () => {
     const items = wrapper.findAll(".command-palette__item");
     expect(items[0].classes()).not.toContain("command-palette__item--selected");
     expect(items[1].classes()).toContain("command-palette__item--selected");
+    expect(items[1].classes()).toContain("kx-popover-option--selected");
   });
 
   it("moves selection with ArrowUp from second to first", async () => {
