@@ -151,7 +151,11 @@ describe("AgentSettingsPane", () => {
   it("does not keep local agent row chrome after moving to SettingsCardItem", () => {
     expect(agentSettingsPaneSource).toContain("SettingsCardList");
     expect(agentSettingsPaneSource).toContain("SettingsCardItem");
+    expect(agentSettingsPaneSource).toContain("SettingsItemSummary");
+    expect(agentSettingsPaneSource).toContain("SettingsItemMeta");
     expect(agentSettingsPaneSource).not.toContain(".agent-row {");
+    expect(agentSettingsPaneSource).not.toContain(".agent-row__title");
+    expect(agentSettingsPaneSource).not.toContain(".agent-row__meta");
     expect(agentSettingsPaneSource).not.toContain(
       "border-bottom: 1px solid var(--app-border-color)"
     );

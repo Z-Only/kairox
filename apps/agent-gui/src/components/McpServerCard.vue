@@ -5,6 +5,7 @@ import type { EffectiveMcpServerView } from "@/generated/commands";
 import McpResourceAccordion from "@/components/McpResourceAccordion.vue";
 import McpPromptAccordion from "@/components/McpPromptAccordion.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -76,10 +77,12 @@ function serverToolCount(): number {
 
 <template>
   <SettingsCardItem class="mcp-settings__server" :data-test="`mcp-server-row-${server.value.id}`">
-    <div class="mcp-settings__server-main">
-      <h3>{{ server.value.name }}</h3>
-      <p>{{ server.value.description || t("mcp.noDescription") }}</p>
-      <div class="server__tags" aria-label="Server metadata">
+    <SettingsItemSummary
+      :title="server.value.name"
+      :description="server.value.description || t('mcp.noDescription')"
+      :tags-label="t('mcp.title')"
+    >
+      <template #tags>
         <span class="tag tag--source" :class="`tag--source-${server.source.toLowerCase()}`">
           {{ server.source }}
         </span>
@@ -109,7 +112,7 @@ function serverToolCount(): number {
         >
           {{ healthLabel() }}
         </span>
-      </div>
+      </template>
       <KxInlineAlert
         v-if="server.value.last_error"
         tone="error"
@@ -118,7 +121,7 @@ function serverToolCount(): number {
       >
         {{ server.value.last_error }}
       </KxInlineAlert>
-    </div>
+    </SettingsItemSummary>
 
     <template #actions>
       <KxInlineAction
@@ -239,22 +242,6 @@ function serverToolCount(): number {
 </template>
 
 <style scoped>
-.mcp-settings__server h3 {
-  margin: 0 0 4px;
-}
-
-.mcp-settings__server-main {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.server__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 /* Source tags for effective (unified) view */
 .tag--source {
   font-weight: 600;

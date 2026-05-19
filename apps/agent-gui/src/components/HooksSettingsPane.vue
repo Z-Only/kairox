@@ -8,6 +8,7 @@ import type {
 } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import { useProjectStore } from "@/stores/project";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
@@ -264,12 +265,19 @@ watch(
               layout="stack"
               :data-test="`hook-row-${hook.id}`"
             >
-              <div class="hook-row__main">
-                <strong>{{ hook.id }}</strong>
-                <span class="tag">{{ hook.event }}</span>
-                <span v-if="!hook.enabled" class="tag tag-muted">{{ t("hooks.disabled") }}</span>
-              </div>
-              <code>{{ hook.command }}</code>
+              <SettingsItemSummary
+                :title="hook.id"
+                :heading-level="4"
+                :tags-label="t('hooks.scopeHooks', { scope: scopeLabel })"
+              >
+                <template #tags>
+                  <span class="tag">{{ hook.event }}</span>
+                  <span v-if="!hook.enabled" class="tag tag-muted">
+                    {{ t("hooks.disabled") }}
+                  </span>
+                </template>
+                <code>{{ hook.command }}</code>
+              </SettingsItemSummary>
 
               <template #actions>
                 <KxInlineAction
@@ -412,13 +420,6 @@ watch(
 .hooks-pane__list-header h3 {
   margin: 0;
   font-size: 0.95rem;
-}
-
-.hook-row__main {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
 }
 
 .hook-row code {

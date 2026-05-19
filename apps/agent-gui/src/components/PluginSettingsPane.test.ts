@@ -117,6 +117,13 @@ describe("PluginSettingsPane", () => {
       expect(row.text()).toContain("User");
     });
 
+    it("uses shared card content hierarchy instead of plugin-local title and meta css", () => {
+      expect(pluginSettingsPaneSource).toContain("SettingsItemSummary");
+      expect(pluginSettingsPaneSource).toContain("SettingsItemMeta");
+      expect(pluginSettingsPaneSource).not.toContain(".plugin-row__title");
+      expect(pluginSettingsPaneSource).not.toContain(".plugin-meta");
+    });
+
     it("shows empty state when no plugins installed", async () => {
       mockedCommands.listPluginSettings.mockResolvedValue(ok([]));
       mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));

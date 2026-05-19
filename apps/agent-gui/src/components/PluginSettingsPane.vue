@@ -3,6 +3,8 @@ import { usePluginsStore } from "@/stores/plugins";
 import type { PluginInstallTarget, PluginSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
+import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const store = usePluginsStore();
 const { t } = useI18n();
@@ -115,9 +117,13 @@ watch(activeSubTab, (tab) => {
           :key="plugin.settings_id"
           :data-test="`plugin-row-${settingsTestId(plugin)}`"
         >
-          <div class="plugin-row__main">
-            <div class="plugin-row__title">
-              <h4>{{ plugin.name }}</h4>
+          <SettingsItemSummary
+            :title="plugin.name"
+            :description="plugin.description"
+            :heading-level="4"
+            :tags-label="t('plugins.tabInstalled')"
+          >
+            <template #tags>
               <span class="tag">{{ plugin.scope }}</span>
               <span :class="['tag', plugin.enabled ? 'tag-success' : 'tag-warning']">
                 {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
@@ -128,9 +134,9 @@ watch(activeSubTab, (tab) => {
               <span v-if="!plugin.effective" class="tag tag-warning">
                 {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
               </span>
-            </div>
-            <p>{{ plugin.description }}</p>
-            <dl class="plugin-meta">
+            </template>
+
+            <SettingsItemMeta wrap-values>
               <div>
                 <dt>{{ t("plugins.manifest") }}</dt>
                 <dd>{{ plugin.manifest_kind }}</dd>
@@ -147,11 +153,11 @@ watch(activeSubTab, (tab) => {
                 <dt>{{ t("plugins.path") }}</dt>
                 <dd>{{ plugin.path }}</dd>
               </div>
-            </dl>
+            </SettingsItemMeta>
             <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
               {{ plugin.validation_error }}
             </KxInlineAlert>
-          </div>
+          </SettingsItemSummary>
 
           <template #actions>
             <KxInlineAction
@@ -237,17 +243,20 @@ watch(activeSubTab, (tab) => {
               :key="source.id"
               :data-test="`plugin-source-${slugify(source.id)}`"
             >
-              <div class="plugin-row__main">
-                <div class="plugin-row__title">
-                  <h4>{{ source.display_name }}</h4>
+              <SettingsItemSummary
+                :title="source.display_name"
+                :heading-level="4"
+                :tags-label="t('plugins.sourceSettings')"
+              >
+                <template #tags>
                   <span class="tag">{{ source.id }}</span>
                   <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
                     {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
                   </span>
                   <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
-                </div>
+                </template>
                 <code>{{ source.source }}</code>
-              </div>
+              </SettingsItemSummary>
 
               <template #actions>
                 <KxInlineAction
@@ -288,15 +297,18 @@ watch(activeSubTab, (tab) => {
           :key="`${entry.marketplace_id}:${entry.name}`"
           data-test="plugin-catalog-card"
         >
-          <div class="plugin-row__main">
-            <div class="plugin-row__title">
-              <h4>{{ entry.name }}</h4>
+          <SettingsItemSummary
+            :title="entry.name"
+            :description="entry.description"
+            :heading-level="4"
+            :tags-label="t('plugins.tabMarketplace')"
+          >
+            <template #tags>
               <span class="tag">{{ entry.marketplace_id }}</span>
               <span v-if="entry.version" class="tag">{{ entry.version }}</span>
-            </div>
-            <p>{{ entry.description }}</p>
+            </template>
             <code>{{ entry.source }}</code>
-          </div>
+          </SettingsItemSummary>
 
           <template #actions>
             <KxInlineAction
@@ -330,38 +342,6 @@ watch(activeSubTab, (tab) => {
 .plugin-source-panel {
   display: grid;
   gap: 10px;
-}
-.plugin-row__main {
-  min-width: 0;
-  flex: 1;
-}
-.plugin-row__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.plugin-row__title h4 {
-  margin: 0;
-  font-size: 0.98rem;
-}
-.plugin-row__main > p {
-  margin: 6px 0;
-  color: var(--app-text-color-2);
-}
-.plugin-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-  margin: 8px 0 0;
-}
-.plugin-meta dt {
-  font-size: 0.72rem;
-  color: var(--app-text-color-3);
-}
-.plugin-meta dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 code {
   overflow-wrap: anywhere;

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAgentSettingsStore } from "@/stores/agentSettings";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
+import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import type {
   AgentSettingsInput,
   AgentSettingsScope,
@@ -177,9 +179,8 @@ watch(
         :data-agent-scope="agent.scope"
         :actions-label="t('agents.title')"
       >
-        <div class="agent-row__main">
-          <div class="agent-row__title">
-            <h3>{{ agent.name }}</h3>
+        <SettingsItemSummary :title="agent.name" :description="agent.description">
+          <template #tags>
             <span class="tag">{{ scopeLabel(agent.scope) }}</span>
             <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
               {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
@@ -194,9 +195,9 @@ watch(
             <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
               {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
             </span>
-          </div>
-          <p>{{ agent.description }}</p>
-          <dl class="agent-row__meta">
+          </template>
+
+          <SettingsItemMeta wrap-values>
             <div>
               <dt>{{ t("agents.model") }}</dt>
               <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
@@ -215,11 +216,11 @@ watch(
               <dt>{{ t("agents.path") }}</dt>
               <dd>{{ agent.path }}</dd>
             </div>
-          </dl>
+          </SettingsItemMeta>
           <KxInlineAlert v-if="agent.validationError" tone="error" compact>
             {{ agent.validationError }}
           </KxInlineAlert>
-        </div>
+        </SettingsItemSummary>
 
         <template #actions>
           <KxInlineAction
@@ -333,45 +334,6 @@ watch(
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-}
-
-.agent-row__title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.agent-row h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.agent-row p {
-  margin: 6px 0 0;
-  color: var(--app-text-color-2);
-}
-
-.agent-row__main {
-  min-width: 0;
-}
-
-.agent-row__meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-  margin: 8px 0 0;
-}
-
-.agent-row__meta dt {
-  color: var(--app-text-color-2);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.agent-row__meta dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .agent-editor {

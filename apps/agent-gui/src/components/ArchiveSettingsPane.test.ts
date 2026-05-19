@@ -131,8 +131,11 @@ describe("ArchiveSettingsPane", () => {
   it("does not keep local archive row card chrome after moving to SettingsCardItem", () => {
     expect(archiveSettingsPaneSource).toContain("SettingsCardList");
     expect(archiveSettingsPaneSource).toContain("SettingsCardItem");
+    expect(archiveSettingsPaneSource).toContain("SettingsItemSummary");
+    expect(archiveSettingsPaneSource).toContain("SettingsItemMeta");
     expect(archiveSettingsPaneSource).not.toContain('class="card archive-row"');
     expect(archiveSettingsPaneSource).not.toContain('class="card-body archive-row__body"');
     expect(archiveSettingsPaneSource).not.toContain(".archive-list {");
+    expect(archiveSettingsPaneSource).not.toContain(".archive-row__meta");
   });
 });

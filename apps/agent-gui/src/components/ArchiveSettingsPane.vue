@@ -3,6 +3,8 @@ import { commands } from "@/generated/commands";
 import { useConfirm } from "@/composables/useConfirm";
 import { useProjectStore } from "@/stores/project";
 import type { ProjectSessionInfo } from "@/stores/project";
+import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
+import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 
 const { t } = useI18n();
 const { confirm: confirmAction } = useConfirm();
@@ -125,9 +127,8 @@ onMounted(() => {
         class="archive-row"
         :data-test="`archive-row-${session.sessionId}`"
       >
-        <div class="archive-row__main">
-          <h4>{{ session.title }}</h4>
-          <p class="archive-row__meta">
+        <SettingsItemSummary :title="session.title" :heading-level="4">
+          <SettingsItemMeta as="div" compact wrap-values>
             <span>{{ getProjectDisplayName(session) }}</span>
             <span v-if="session.profile">{{ session.profile }}</span>
             <span v-if="session.branch">{{ session.branch }}</span>
@@ -138,8 +139,8 @@ onMounted(() => {
             >
               {{ t("settings.archiveArchivedAt", { time: formatArchivedAt(session.deletedAt) }) }}
             </time>
-          </p>
-        </div>
+          </SettingsItemMeta>
+        </SettingsItemSummary>
 
         <template #actions>
           <KxInlineAction
@@ -178,22 +179,6 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-.archive-row__main {
-  min-width: 0;
-}
-.archive-row__main h4 {
-  margin: 0 0 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.archive-row__meta {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  color: var(--app-text-color-2);
-  font-size: 0.82rem;
 }
 .archive-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color);
