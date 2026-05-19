@@ -108,7 +108,9 @@ describe("CatalogSourcesSettings.vue", () => {
 
   it("uses shared form controls and action rows in the add-source form", () => {
     expect(catalogSourcesSettingsSource).toContain("KxFormActions");
-    expect(catalogSourcesSettingsSource).toContain("kx-form-control");
+    expect(catalogSourcesSettingsSource).toContain("KxInput");
+    expect(catalogSourcesSettingsSource).toContain("KxSelect");
+    expect(catalogSourcesSettingsSource).not.toContain("kx-form-control");
     expect(catalogSourcesSettingsSource).not.toContain('class="input"');
     expect(catalogSourcesSettingsSource).not.toContain(".input {");
     expect(catalogSourcesSettingsSource).not.toContain(".form-actions {");

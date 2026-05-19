@@ -167,12 +167,13 @@ function selectModelProfile(alias: string) {
           </button>
         </div>
         <form class="chat-reasoning-custom" @submit.prevent="onApplyCustomReasoning">
-          <input
+          <KxInput
             v-model="customReasoningEffort"
             class="chat-reasoning-custom-input"
             data-test="chat-reasoning-custom-input"
             :placeholder="t('chat.customReasoningPlaceholder')"
             :disabled="props.switchingModel"
+            size="compact"
           />
           <button
             class="chat-reasoning-custom-apply"
@@ -261,12 +262,6 @@ function selectModelProfile(alias: string) {
   width: 0;
   min-width: 0;
   flex: 1;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 6px 7px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font: inherit;
   font-size: 12px;
 }
 .chat-reasoning-custom-apply {
@@ -281,7 +276,6 @@ function selectModelProfile(alias: string) {
   font-size: 12px;
 }
 .chat-reasoning-option:disabled,
-.chat-reasoning-custom-input:disabled,
 .chat-reasoning-custom-apply:disabled {
   opacity: 0.55;
   cursor: not-allowed;

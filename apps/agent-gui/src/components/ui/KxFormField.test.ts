@@ -37,17 +37,17 @@ describe("KxFormField", () => {
     expect(wrapper.find(".kx-form-field__required").attributes("aria-hidden")).toBe("true");
   });
 
-  it("owns shared control density for slotted setting controls", () => {
+  it("leaves control chrome to KxInput, KxSelect, and KxTextarea", () => {
     const wrapper = mount(KxFormField, {
       props: { label: "Provider" },
       slots: {
-        default: '<input class="kx-form-control" data-test="provider-input" />'
+        default: '<input data-test="provider-input" />'
       }
     });
 
-    expect(wrapper.find(".kx-form-control").exists()).toBe(true);
-    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control)");
-    expect(kxFormFieldSource).toContain(".kx-form-field :deep(.kx-form-control:focus-visible)");
+    expect(wrapper.find('[data-test="provider-input"]').exists()).toBe(true);
+    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control)");
+    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control:focus-visible)");
     expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--textarea)");
     expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--mono)");
   });

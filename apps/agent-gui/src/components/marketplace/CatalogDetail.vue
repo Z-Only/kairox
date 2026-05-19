@@ -227,13 +227,13 @@ async function onInstall() {
             <span v-else class="config-description text-tertiary">
               No description provided by the catalog.
             </span>
-            <input
-              :value="overrides[spec.key]"
+            <KxInput
+              :model-value="overrides[spec.key]"
               :type="spec.secret ? 'password' : 'text'"
               :placeholder="configPlaceholder(spec)"
-              class="input input-sm"
               :data-test="`config-${spec.key}`"
-              @input="overrides[spec.key] = ($event.target as HTMLInputElement).value"
+              size="compact"
+              @update:model-value="overrides[spec.key] = String($event)"
             />
           </div>
         </div>

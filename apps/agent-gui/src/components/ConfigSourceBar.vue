@@ -70,11 +70,16 @@ onMounted(() => {
 
       <template v-if="source === 'project'">
         <div class="select-wrapper">
-          <select v-model="selectedProjectId" data-test="project-select" @change="onProjectChange">
+          <KxSelect
+            v-model="selectedProjectId"
+            data-test="project-select"
+            size="compact"
+            @change="onProjectChange"
+          >
             <option v-for="opt in projectOptions" :key="opt.value" :value="opt.value">
               {{ opt.missing ? "⚠ " : "" }}{{ opt.label }}
             </option>
-          </select>
+          </KxSelect>
         </div>
       </template>
     </div>
@@ -116,14 +121,6 @@ onMounted(() => {
 }
 .segmented__btn:hover:not(.active) {
   background: var(--app-hover-color);
-}
-.select-wrapper select {
-  padding: 4px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 0.82rem;
 }
 .config-source-banner {
   display: flex;

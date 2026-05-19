@@ -82,21 +82,14 @@ watch(
   >
     <form class="form" data-test="mcp-save" @submit.prevent="saveServer">
       <KxFormField :label="t('mcp.serverName')">
-        <input
-          id="mcp-server-name"
-          v-model="serverName"
-          class="kx-form-control"
-          data-test="mcp-form-name"
-          required
-        />
+        <KxInput id="mcp-server-name" v-model="serverName" data-test="mcp-form-name" required />
       </KxFormField>
 
       <template v-if="mode === 'git'">
         <KxFormField :label="t('mcp.gitUrl')">
-          <input
+          <KxInput
             id="mcp-server-git-url"
             v-model="stdioCommand"
-            class="kx-form-control"
             data-test="mcp-form-git-url"
             placeholder="https://github.com/..."
           />
@@ -105,10 +98,9 @@ watch(
 
       <template v-if="mode === 'manual'">
         <KxFormField :label="t('mcp.description')">
-          <input
+          <KxInput
             id="mcp-server-description"
             v-model="serverDescription"
-            class="kx-form-control"
             data-test="mcp-form-description"
           />
         </KxFormField>
@@ -136,31 +128,15 @@ watch(
 
         <template v-if="transport === 'stdio'">
           <KxFormField :label="t('mcp.command')">
-            <input
-              id="mcp-server-command"
-              v-model="stdioCommand"
-              class="kx-form-control"
-              data-test="mcp-form-command"
-            />
+            <KxInput id="mcp-server-command" v-model="stdioCommand" data-test="mcp-form-command" />
           </KxFormField>
           <KxFormField :label="t('mcp.arguments')">
-            <input
-              id="mcp-server-args"
-              v-model="stdioArgs"
-              class="kx-form-control"
-              data-test="mcp-form-args"
-            />
+            <KxInput id="mcp-server-args" v-model="stdioArgs" data-test="mcp-form-args" />
           </KxFormField>
         </template>
         <template v-else>
           <KxFormField :label="t('mcp.url')">
-            <input
-              id="mcp-server-url"
-              v-model="sseUrl"
-              class="kx-form-control"
-              type="url"
-              data-test="mcp-form-url"
-            />
+            <KxInput id="mcp-server-url" v-model="sseUrl" type="url" data-test="mcp-form-url" />
           </KxFormField>
         </template>
       </template>

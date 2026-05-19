@@ -110,11 +110,12 @@ async function selectSource(sourceId: string | null): Promise<void> {
       </div>
 
       <form role="search" @submit.prevent="searchCatalog()">
-        <input
+        <KxInput
           v-model="searchKeyword"
           type="search"
           :placeholder="t('skills.searchPlaceholder')"
           data-test="skill-catalog-search"
+          size="compact"
         />
         <button
           class="btn btn-primary btn-sm"

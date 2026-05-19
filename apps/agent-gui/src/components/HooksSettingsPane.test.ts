@@ -207,7 +207,9 @@ describe("HooksSettingsPane", () => {
   it("uses shared form fields, controls, and action rows in the hook editor", () => {
     expect(hooksSettingsPaneSource).toContain("KxFormField");
     expect(hooksSettingsPaneSource).toContain("KxFormActions");
-    expect(hooksSettingsPaneSource).toContain("kx-form-control");
+    expect(hooksSettingsPaneSource).toContain("KxInput");
+    expect(hooksSettingsPaneSource).toContain("KxSelect");
+    expect(hooksSettingsPaneSource).not.toContain("kx-form-control");
     expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form input,");
     expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form select");
     expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form-actions {");

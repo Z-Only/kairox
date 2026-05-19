@@ -32,21 +32,4 @@ const props = withDefaults(
   gap: var(--app-space-2);
   min-width: 0;
 }
-
-.settings-filter-bar :deep(input),
-.settings-filter-bar :deep(select) {
-  min-height: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: var(--app-radius-md);
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: var(--app-text-sm);
-}
-
-.settings-filter-bar :deep(input[type="search"]) {
-  flex: 1;
-  min-width: min(220px, 100%);
-  max-width: 360px;
-}
 </style>

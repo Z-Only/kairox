@@ -278,10 +278,9 @@ async function installFromGithub(): Promise<void> {
           @submit.prevent="installFromGithub"
         >
           <KxFormField class="advanced-install__field" :label="t('skills.githubUrl')">
-            <input
+            <KxInput
               id="skill-github-source"
               v-model="githubSource"
-              class="kx-form-control"
               type="text"
               data-test="skill-github-source"
               placeholder="https://github.com/org/repo/tree/main/path/to/skill"
