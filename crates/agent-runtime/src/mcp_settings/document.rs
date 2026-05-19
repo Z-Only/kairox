@@ -91,7 +91,7 @@ pub(super) fn read_disabled_tools_from_document(
     document: &DocumentMut,
     server_id: &str,
 ) -> HashSet<String> {
-    let Some(servers) = document["mcp_servers"].as_table() else {
+    let Some(servers) = document.get("mcp_servers").and_then(|v| v.as_table()) else {
         return HashSet::new();
     };
     let Some(server) = servers.get(server_id).and_then(|s| s.as_table()) else {

@@ -88,7 +88,7 @@ fn settings_rows_from_document(
     source: &str,
     writable: bool,
 ) -> HashMap<String, McpSettingsRow> {
-    let Some(servers) = document["mcp_servers"].as_table() else {
+    let Some(servers) = document.get("mcp_servers").and_then(|v| v.as_table()) else {
         return HashMap::new();
     };
 

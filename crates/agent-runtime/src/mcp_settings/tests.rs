@@ -301,3 +301,70 @@ async fn list_merges_file_runtime_and_trust_state() {
     assert!(view.writable);
     assert_eq!(view.description.as_deref(), Some("File tools"));
 }
+
+#[tokio::test]
+async fn list_empty_when_config_has_no_mcp_servers_table() {
+    let config_path = write_mcp_config_fixture("[catalog]\nname = \"local\"\n");
+    let mut config = Config::defaults();
+    config.mcp_servers.clear();
+
+    let views = list_mcp_server_settings(&config, Some(&config_path), None, None, None)
+        .await
+        .expect("list should succeed");
+
+    assert!(views.is_empty());
+}
+
+#[tokio::test]
+async fn disabled_tools_empty_when_config_has_no_mcp_servers_table() {
+    let config_path = write_mcp_config_fixture("[catalog]\nname = \"local\"\n");
+
+    let tools = get_mcp_disabled_tools(&config_path, "nonexistent")
+        .await
+        .expect("read should succeed");
+
+    assert!(tools.is_empty());
+}
+
+#[tokio::test]
+async fn delete_succeeds_when_config_has_no_mcp_servers_table() {
+    let original = "[catalog]\nname = \"local\"\n";
+    let config_path = write_mcp_config_fixture(original);
+    let mut fake_manager = FakeMcpSettingsLifecycle::stopped("nonexistent");
+
+    let result =
+        delete_mcp_server_settings_in_file(&config_path, &mut fake_manager, "nonexistent").await;
+
+    assert!(result.is_ok());
+    let raw = tokio::fs::read_to_string(config_path)
+        .await
+        .expect("config should read");
+    // Catalog section preserved; no mcp_servers table added
+    assert!(raw.contains("[catalog]"));
+}
+
+#[tokio::test]
+async fn upsert_creates_mcp_servers_table_when_missing() {
+    let config_path = write_mcp_config_fixture("[catalog]\nname = \"local\"\n");
+    let input = McpServerSettingsInput {
+        name: "files".to_string(),
+        transport: McpServerSettingsTransport::Stdio {
+            command: "npx".to_string(),
+            args: vec!["server".to_string()],
+            env: BTreeMap::new(),
+        },
+        enabled: true,
+        description: None,
+    };
+
+    upsert_mcp_server_settings_in_file(&config_path, &input)
+        .await
+        .expect("upsert should succeed");
+
+    let raw = tokio::fs::read_to_string(config_path)
+        .await
+        .expect("config should read");
+    assert!(raw.contains("[catalog]"));
+    assert!(raw.contains("[mcp_servers.files]"));
+    assert!(raw.contains("command = \"npx\""));
+}
