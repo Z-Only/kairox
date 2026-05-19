@@ -5,6 +5,7 @@ import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
+import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= vi.fn();
@@ -301,5 +302,13 @@ describe("ModelSettingsPane", () => {
     expect(empty.classes()).toContain("settings-state");
     expect(empty.classes()).toContain("kx-state-block--empty");
     expect(empty.text()).toContain("No model profiles configured");
+  });
+
+  it("uses shared settings toolbar instead of local model toolbar chrome", () => {
+    expect(modelSettingsPaneSource).toContain("SettingsToolbar");
+    expect(modelSettingsPaneSource).not.toContain('class="model-toolbar"');
+    expect(modelSettingsPaneSource).not.toContain('class="model-toolbar__actions"');
+    expect(modelSettingsPaneSource).not.toContain(".model-toolbar {");
+    expect(modelSettingsPaneSource).not.toContain(".model-toolbar__actions {");
   });
 });

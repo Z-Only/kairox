@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { commands, type SkillCatalogEntry, type SkillSourceView } from "@/generated/commands";
 import SkillDiscoverList from "./SkillDiscoverList.vue";
+import skillDiscoverListSource from "./SkillDiscoverList.vue?raw";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -184,5 +185,13 @@ describe("SkillDiscoverList", () => {
     expect(wrapper.get('[data-test="skill-catalog-install-skillhub/docs-helper"]').text()).toBe(
       "Installed"
     );
+  });
+
+  it("uses shared filter bar instead of local discover toolbar chrome", () => {
+    expect(skillDiscoverListSource).toContain("SettingsFilterBar");
+    expect(skillDiscoverListSource).not.toContain('class="discover-toolbar"');
+    expect(skillDiscoverListSource).not.toContain(".discover-toolbar {");
+    expect(skillDiscoverListSource).not.toContain(".discover-search-row {");
+    expect(skillDiscoverListSource).not.toContain(".discover-search-input {");
   });
 });

@@ -87,7 +87,7 @@ async function selectSource(sourceId: string | null): Promise<void> {
 
 <template>
   <div class="discover-list">
-    <div class="discover-toolbar">
+    <SettingsFilterBar :aria-label="t('skills.tabDiscover')">
       <div class="source-filter" :aria-label="t('skills.sourceFilter')">
         <button
           v-for="source in sourceFilters"
@@ -109,10 +109,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
         </button>
       </div>
 
-      <form class="discover-search-row" role="search" @submit.prevent="searchCatalog()">
+      <form role="search" @submit.prevent="searchCatalog()">
         <input
           v-model="searchKeyword"
-          class="discover-search-input"
           type="search"
           :placeholder="t('skills.searchPlaceholder')"
           data-test="skill-catalog-search"
@@ -135,7 +134,7 @@ async function selectSource(sourceId: string | null): Promise<void> {
           {{ store.catalogLoading ? t("skills.refreshing") : t("common.refresh") }}
         </button>
       </form>
-    </div>
+    </SettingsFilterBar>
 
     <KxInlineAlert
       v-if="installSuccessMessage"
@@ -220,11 +219,6 @@ async function selectSource(sourceId: string | null): Promise<void> {
   gap: 8px;
 }
 
-.discover-toolbar {
-  display: grid;
-  gap: 10px;
-}
-
 .source-filter {
   display: flex;
   flex-wrap: wrap;
@@ -252,24 +246,6 @@ async function selectSource(sourceId: string | null): Promise<void> {
   padding: 4px 8px;
   font-size: 16px;
   margin-left: auto;
-}
-
-.discover-search-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.discover-search-input {
-  flex: 1;
-  max-width: 360px;
-  min-height: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
 }
 
 .catalog-state {

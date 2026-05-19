@@ -179,36 +179,34 @@ function toggleProfile(profile: ProfileSettingsView): void {
       {{ error }}
     </SettingsState>
 
-    <div class="model-toolbar">
-      <div class="model-toolbar__actions">
-        <button
-          class="btn btn-sm"
-          type="button"
-          data-test="model-open-config-file"
-          :title="t('models.openConfigFile')"
-          @click="store.openConfigFile()"
-        >
-          {{ t("models.openConfigFile") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
-          :disabled="loading"
-          data-test="model-refresh"
-          @click="store.loadProfiles()"
-        >
-          {{ loading ? t("common.loading") : t("common.refresh") }}
-        </button>
-        <button
-          class="btn btn-sm btn-primary"
-          type="button"
-          data-test="model-add-profile"
-          @click="openAddDialog()"
-        >
-          {{ t("models.addProfile") }}
-        </button>
-      </div>
-    </div>
+    <SettingsToolbar :aria-label="t('models.title')">
+      <button
+        class="btn btn-sm"
+        type="button"
+        data-test="model-open-config-file"
+        :title="t('models.openConfigFile')"
+        @click="store.openConfigFile()"
+      >
+        {{ t("models.openConfigFile") }}
+      </button>
+      <button
+        class="btn btn-sm"
+        type="button"
+        :disabled="loading"
+        data-test="model-refresh"
+        @click="store.loadProfiles()"
+      >
+        {{ loading ? t("common.loading") : t("common.refresh") }}
+      </button>
+      <button
+        class="btn btn-sm btn-primary"
+        type="button"
+        data-test="model-add-profile"
+        @click="openAddDialog()"
+      >
+        {{ t("models.addProfile") }}
+      </button>
+    </SettingsToolbar>
 
     <SettingsState v-if="loading" tone="loading" data-test="model-loading-state">
       {{ t("models.loading") }}
@@ -289,21 +287,5 @@ function toggleProfile(profile: ProfileSettingsView): void {
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
-}
-
-.model-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: none;
-}
-
-.model-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 </style>

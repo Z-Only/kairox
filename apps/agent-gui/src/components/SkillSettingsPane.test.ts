@@ -330,6 +330,16 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
   });
 
+  it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
+    expect(skillSettingsPaneSource).toContain("SettingsSubtabs");
+    expect(skillSettingsPaneSource).toContain("SettingsToolbar");
+    expect(skillSettingsPaneSource).not.toContain('class="skill-sub-tabs"');
+    expect(skillSettingsPaneSource).not.toContain('class="skill-toolbar"');
+    expect(skillSettingsPaneSource).not.toContain(".skill-sub-tabs {");
+    expect(skillSettingsPaneSource).not.toContain(".skill-toolbar {");
+    expect(skillSettingsPaneSource).not.toContain(".sub-tab-btn {");
+  });
+
   it("uses shared settings state chrome for empty installed skills", async () => {
     mockedCommands.listSkillSettings.mockResolvedValue([]);
     mockedCommands.getEffectiveSkills.mockResolvedValue([]);

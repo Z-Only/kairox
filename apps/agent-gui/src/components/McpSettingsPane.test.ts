@@ -11,6 +11,7 @@ import {
 } from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
+import mcpSettingsPaneSource from "./McpSettingsPane.vue?raw";
 import mcpResourceAccordionSource from "./McpResourceAccordion.vue?raw";
 import mcpPromptAccordionSource from "./McpPromptAccordion.vue?raw";
 
@@ -388,5 +389,15 @@ describe("McpSettingsPane", () => {
     expect(mcpResourceAccordionSource).not.toContain(".mcp-resources-row {");
     expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-list {");
     expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-row {");
+  });
+
+  it("uses shared settings toolbar and subtabs instead of local MCP chrome", () => {
+    expect(mcpSettingsPaneSource).toContain("SettingsSubtabs");
+    expect(mcpSettingsPaneSource).toContain("SettingsToolbar");
+    expect(mcpSettingsPaneSource).not.toContain('class="mcp-sub-tabs"');
+    expect(mcpSettingsPaneSource).not.toContain('class="mcp-toolbar"');
+    expect(mcpSettingsPaneSource).not.toContain(".mcp-sub-tabs {");
+    expect(mcpSettingsPaneSource).not.toContain(".mcp-toolbar {");
+    expect(mcpSettingsPaneSource).not.toContain(".sub-tab-btn {");
   });
 });

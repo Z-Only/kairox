@@ -144,7 +144,7 @@ watch(
       {{ store.error }}
     </SettingsState>
 
-    <div class="agent-settings__toolbar">
+    <SettingsToolbar :aria-label="t('agents.title')">
       <button
         class="btn btn-primary btn-sm"
         type="button"
@@ -170,7 +170,7 @@ watch(
       >
         {{ store.loading ? t("agents.refreshing") : t("common.refresh") }}
       </button>
-    </div>
+    </SettingsToolbar>
 
     <SettingsState v-if="store.loading" tone="loading" data-test="agent-loading-state">
       {{ t("agents.loading") }}
@@ -354,7 +354,6 @@ watch(
   min-height: 0;
 }
 
-.agent-settings__toolbar,
 .agent-row__title,
 .agent-row__actions {
   display: flex;

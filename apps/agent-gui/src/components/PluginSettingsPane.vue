@@ -62,7 +62,7 @@ watch(activeSubTab, (tab) => {
       {{ store.error }}
     </SettingsState>
 
-    <div class="plugin-sub-tabs" role="tablist" :aria-label="t('plugins.sections')">
+    <SettingsSubtabs :aria-label="t('plugins.sections')">
       <button
         class="sub-tab-btn"
         role="tab"
@@ -81,10 +81,10 @@ watch(activeSubTab, (tab) => {
       >
         {{ t("plugins.tabMarketplace") }}
       </button>
-    </div>
+    </SettingsSubtabs>
 
     <div v-if="activeSubTab === 'installed'" class="plugin-panel">
-      <div class="plugin-toolbar">
+      <SettingsToolbar :aria-label="t('plugins.tabInstalled')">
         <button
           class="btn btn-sm"
           type="button"
@@ -94,7 +94,7 @@ watch(activeSubTab, (tab) => {
         >
           {{ store.loading ? t("plugins.refreshing") : t("common.refresh") }}
         </button>
-      </div>
+      </SettingsToolbar>
 
       <SettingsState v-if="store.loading" tone="loading" data-test="plugin-loading-state">
         {{ t("plugins.loading") }}
@@ -179,7 +179,7 @@ watch(activeSubTab, (tab) => {
     </div>
 
     <div v-if="activeSubTab === 'marketplace'" class="plugin-panel">
-      <div class="plugin-toolbar">
+      <SettingsFilterBar :aria-label="t('plugins.tabMarketplace')">
         <select v-model="selectedMarketplaceId" data-test="plugin-marketplace-filter">
           <option :value="null">{{ t("plugins.allMarketplaces") }}</option>
           <option v-for="source in store.sources" :key="source.id" :value="source.id">
@@ -210,7 +210,7 @@ watch(activeSubTab, (tab) => {
         >
           {{ t("plugins.sourceSettings") }}
         </button>
-      </div>
+      </SettingsFilterBar>
 
       <ModalDialog
         :open="sourceSettingsOpen"
@@ -321,26 +321,6 @@ watch(activeSubTab, (tab) => {
   flex-direction: column;
   gap: 12px;
 }
-.plugin-sub-tabs,
-.plugin-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.sub-tab-btn {
-  padding: 6px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color-2);
-  cursor: pointer;
-}
-.sub-tab-btn[aria-selected="true"] {
-  color: var(--app-primary-color);
-  border-color: var(--app-primary-color);
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
-}
 .plugin-panel {
   min-height: 0;
   overflow: auto;
@@ -388,14 +368,6 @@ watch(activeSubTab, (tab) => {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-}
-.plugin-toolbar input,
-.plugin-toolbar select {
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
 }
 code {
   overflow-wrap: anywhere;
