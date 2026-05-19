@@ -33,11 +33,11 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
          │
     ┌────┴─────────────┐
     ▼                  ▼
-┌──────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│agent-    │   │agent-models  │   │agent-config  │   │agent-mcp     │   │agent-skills  │
-│tools     │   │ModelClient   │   │ProfileDef    │   │McpClient     │   │SkillRegistry │
-│Perms,Reg│   │Router,LLMs   │   │Discovery,Load│   │Transport,Lif.│   │Frontmatter   │
-└──────────┘   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+┌──────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│agent-    │   │agent-models  │   │agent-config  │   │agent-mcp     │   │agent-skills  │   │agent-plugins │
+│tools     │   │ModelClient   │   │ProfileDef    │   │McpClient     │   │SkillRegistry │   │PluginManifest│
+│Perms,Reg│   │Router,LLMs   │   │Discovery,Load│   │Transport,Lif.│   │Frontmatter   │   │Inventory     │
+└──────────┘   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
 ```
 
 ### Crate responsibilities
@@ -204,6 +204,7 @@ Conventional Commits are enforced via commitlint + husky. Use these scopes:
 | `deps`    | Dependency updates (Cargo or Bun)         |
 | `mcp`     | Changes to `agent-mcp`                    |
 | `skills`  | Changes to `agent-skills`                 |
+| `plugins` | Changes to `agent-plugins`                |
 | `ci`      | CI/CD workflow changes                    |
 
 Examples:
