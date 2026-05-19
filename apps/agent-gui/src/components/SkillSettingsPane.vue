@@ -222,7 +222,7 @@ async function installFromGithub(): Promise<void> {
               </KxInlineAlert>
             </div>
 
-            <div class="skill-settings__actions" aria-label="Skill actions">
+            <template #actions>
               <KxInlineAction
                 type="button"
                 :disabled="!skill.writable || busySkillId === skill.value.settings_id"
@@ -260,7 +260,7 @@ async function installFromGithub(): Promise<void> {
               >
                 {{ t("skills.delete") }}
               </KxInlineAction>
-            </div>
+            </template>
           </SettingsCardItem>
         </SettingsCardList>
       </div>
@@ -346,8 +346,7 @@ async function installFromGithub(): Promise<void> {
 
 .skill-settings__title-row,
 .skill-settings__remote,
-.skill-settings__inline-form,
-.skill-settings__actions {
+.skill-settings__inline-form {
   display: flex;
   gap: 12px;
 }
@@ -396,14 +395,9 @@ async function installFromGithub(): Promise<void> {
   border-bottom-style: none;
 }
 
-.skill-settings__title-row,
-.skill-settings__actions {
+.skill-settings__title-row {
   flex-wrap: wrap;
   align-items: center;
-}
-
-.skill-settings__actions {
-  justify-content: flex-end;
 }
 
 .skill-settings__meta {

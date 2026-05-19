@@ -269,26 +269,25 @@ watch(
                 <span v-if="!hook.enabled" class="tag tag-muted">{{ t("hooks.disabled") }}</span>
               </div>
               <code>{{ hook.command }}</code>
-              <div class="hook-row__actions">
-                <KxButton
-                  size="sm"
+
+              <template #actions>
+                <KxInlineAction
                   :data-test="`hook-edit-${hook.id}`"
                   type="button"
                   @click="editHook(hook)"
                 >
                   {{ t("common.edit") }}
-                </KxButton>
-                <KxButton
+                </KxInlineAction>
+                <KxInlineAction
                   variant="danger"
-                  size="sm"
                   :data-test="`hook-delete-${hook.id}`"
                   :disabled="saving"
                   type="button"
                   @click="deleteHook(hook)"
                 >
                   {{ t("common.delete") }}
-                </KxButton>
-              </div>
+                </KxInlineAction>
+              </template>
             </SettingsCardItem>
           </SettingsCardList>
         </section>
@@ -416,8 +415,7 @@ watch(
   font-size: 0.95rem;
 }
 
-.hook-row__main,
-.hook-row__actions {
+.hook-row__main {
   display: flex;
   gap: 8px;
   align-items: center;

@@ -124,10 +124,10 @@ onMounted(() => {
             <span v-if="session.branch">{{ session.branch }}</span>
           </p>
         </div>
-        <div class="archive-row__actions">
-          <KxButton
+
+        <template #actions>
+          <KxInlineAction
             variant="primary"
-            size="sm"
             :disabled="busySessionId === session.sessionId"
             :data-test="`archive-restore-${session.sessionId}`"
             @click="restoreSession(session.sessionId)"
@@ -137,17 +137,16 @@ onMounted(() => {
                 ? t("common.loading")
                 : t("settings.archiveRestore")
             }}
-          </KxButton>
-          <KxButton
+          </KxInlineAction>
+          <KxInlineAction
             variant="danger"
-            size="sm"
             :disabled="busySessionId === session.sessionId"
             :data-test="`archive-delete-${session.sessionId}`"
             @click="permanentlyDelete(session.sessionId)"
           >
             {{ t("settings.archivePermanentDelete") }}
-          </KxButton>
-        </div>
+          </KxInlineAction>
+        </template>
       </SettingsCardItem>
     </SettingsCardList>
   </section>
@@ -176,21 +175,6 @@ onMounted(() => {
   color: var(--app-text-color-2);
   font-size: 0.82rem;
 }
-.archive-row__actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-  .archive-row__actions {
-    width: 100%;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-}
-
 .archive-settings button:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;

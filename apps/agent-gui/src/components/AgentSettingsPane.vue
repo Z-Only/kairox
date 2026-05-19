@@ -175,6 +175,7 @@ watch(
         :data-test="`agent-row-${slugify(agent.name)}`"
         :data-agent-settings-id="agent.settingsId"
         :data-agent-scope="agent.scope"
+        :actions-label="t('agents.title')"
       >
         <div class="agent-row__main">
           <div class="agent-row__title">
@@ -219,7 +220,8 @@ watch(
             {{ agent.validationError }}
           </KxInlineAlert>
         </div>
-        <div class="agent-row__actions">
+
+        <template #actions>
           <KxInlineAction
             :data-test="`agent-edit-${slugify(agent.name)}`"
             @click="editAgent(agent)"
@@ -241,7 +243,7 @@ watch(
           >
             {{ t("common.delete") }}
           </KxInlineAction>
-        </div>
+        </template>
       </SettingsCardItem>
     </SettingsCardList>
 
@@ -333,8 +335,7 @@ watch(
   min-height: 0;
 }
 
-.agent-row__title,
-.agent-row__actions {
+.agent-row__title {
   display: flex;
   gap: 8px;
   align-items: center;

@@ -152,7 +152,8 @@ watch(activeSubTab, (tab) => {
               {{ plugin.validation_error }}
             </KxInlineAlert>
           </div>
-          <div class="plugin-actions">
+
+          <template #actions>
             <KxInlineAction
               :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
               :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
@@ -168,7 +169,7 @@ watch(activeSubTab, (tab) => {
             >
               {{ t("common.delete") }}
             </KxInlineAction>
-          </div>
+          </template>
         </SettingsCardItem>
       </SettingsCardList>
     </div>
@@ -247,12 +248,15 @@ watch(activeSubTab, (tab) => {
                 </div>
                 <code>{{ source.source }}</code>
               </div>
-              <KxInlineAction
-                :data-test="`plugin-source-enabled-${slugify(source.id)}`"
-                @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
-              >
-                {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
-              </KxInlineAction>
+
+              <template #actions>
+                <KxInlineAction
+                  :data-test="`plugin-source-enabled-${slugify(source.id)}`"
+                  @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+                >
+                  {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
+                </KxInlineAction>
+              </template>
             </SettingsCardItem>
           </SettingsCardList>
         </div>
@@ -293,13 +297,16 @@ watch(activeSubTab, (tab) => {
             <p>{{ entry.description }}</p>
             <code>{{ entry.source }}</code>
           </div>
-          <KxInlineAction
-            variant="primary"
-            :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
-            @click="installCatalogEntry(entry.marketplace_id, entry.name)"
-          >
-            {{ t("plugins.install") }}
-          </KxInlineAction>
+
+          <template #actions>
+            <KxInlineAction
+              variant="primary"
+              :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
+              @click="installCatalogEntry(entry.marketplace_id, entry.name)"
+            >
+              {{ t("plugins.install") }}
+            </KxInlineAction>
+          </template>
         </SettingsCardItem>
       </SettingsCardList>
     </div>
@@ -355,11 +362,6 @@ watch(activeSubTab, (tab) => {
 .plugin-meta dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-.plugin-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
 }
 code {
   overflow-wrap: anywhere;
