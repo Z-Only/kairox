@@ -147,7 +147,24 @@
     "fileMentionHeader": "文件",
     "fileMentionNoWorkspace": "打开项目会话后可提及工作区文件。",
     "fileMentionNoMatches": "没有匹配文件",
+    "commandPaletteHeader": "命令、模型与技能",
     "commandPaletteNoMatches": "没有匹配的命令、模型或技能",
+    "commandPaletteRunSkill": "运行技能",
+    "commandPaletteSwitchModel": "切换模型",
+    "commands": {
+      "clear": {
+        "description": "清空当前对话"
+      },
+      "compact": {
+        "description": "压缩上下文以节省 token"
+      },
+      "model": {
+        "description": "切换当前模型 - 在下方选择配置"
+      },
+      "help": {
+        "description": "显示可用命令和技能"
+      }
+    },
     "queueSend": "排队",
     "queuedGuide": "引导",
     "queuedGuideAria": "立即发送这条队列消息",

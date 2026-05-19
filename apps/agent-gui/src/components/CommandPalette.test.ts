@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import { mount } from "@vue/test-utils";
+import { createI18n } from "vue-i18n";
 import { mountWithPlugins } from "@/test-utils/mount";
+import en from "@/locales/en.json";
+import zhCN from "@/locales/zh-CN.json";
 import CommandPalette from "./CommandPalette.vue";
+import commandPaletteSource from "./CommandPalette.vue?raw";
 
 // ---- Mocks ----
 
@@ -62,6 +67,31 @@ describe("CommandPalette", () => {
     expect(header.exists()).toBe(true);
     expect(header.classes()).toContain("kx-popover-panel__header");
     expect(header.text()).toBe("Commands, Models & Skills");
+  });
+
+  it("renders command palette chrome and command descriptions from the active locale", () => {
+    const i18n = createI18n({
+      legacy: false,
+      locale: "zh-CN",
+      fallbackLocale: "en",
+      messages: { en, "zh-CN": zhCN }
+    });
+    const wrapper = mount(CommandPalette, {
+      props: { visible: true, filterText: "" },
+      global: { plugins: [i18n] }
+    });
+
+    expect(wrapper.find(".command-palette__header").text()).toBe("命令、模型与技能");
+    expect(wrapper.find('[data-test="palette-item-clear"] .command-palette__desc').text()).toBe(
+      "清空当前对话"
+    );
+    expect(wrapper.text()).not.toContain("Clear the current conversation");
+  });
+
+  it("does not keep command palette chrome copy inline in the component source", () => {
+    expect(commandPaletteSource).not.toContain("Commands, Models & Skills");
+    expect(commandPaletteSource).not.toContain("Run skill");
+    expect(commandPaletteSource).not.toContain("Switch model");
   });
 
   it("renders builtin command items with BEM class", () => {
