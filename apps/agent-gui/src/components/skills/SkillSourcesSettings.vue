@@ -2,6 +2,7 @@
 import { useSkillsStore } from "@/stores/skills";
 import type { SkillSourceView } from "@/generated/commands";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 const { t } = useI18n();
 const store = useSkillsStore();
@@ -141,7 +142,7 @@ function formatError(caughtError: unknown): string {
         >
           <template #tags>
             <code>{{ src.id }}</code>
-            <span class="tag tag-info src-kind">{{ src.kind }}</span>
+            <SettingsStatusTag tone="info" class="src-kind">{{ src.kind }}</SettingsStatusTag>
           </template>
           <a
             v-if="src.url"
@@ -248,19 +249,6 @@ function formatError(caughtError: unknown): string {
   font-size: 14px;
   margin: 0;
   font-weight: normal;
-}
-
-.tag {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 0.75em;
-  line-height: 1.8;
-}
-
-.tag-info {
-  background: var(--app-code-bg);
-  color: var(--app-info-color);
 }
 
 .src-kind {

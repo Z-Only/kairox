@@ -153,9 +153,13 @@ describe("AgentSettingsPane", () => {
     expect(agentSettingsPaneSource).toContain("SettingsCardItem");
     expect(agentSettingsPaneSource).toContain("SettingsItemSummary");
     expect(agentSettingsPaneSource).toContain("SettingsItemMeta");
+    expect(agentSettingsPaneSource).toContain("SettingsStatusTag");
     expect(agentSettingsPaneSource).not.toContain(".agent-row {");
     expect(agentSettingsPaneSource).not.toContain(".agent-row__title");
     expect(agentSettingsPaneSource).not.toContain(".agent-row__meta");
+    expect(agentSettingsPaneSource).not.toContain("tag-success");
+    expect(agentSettingsPaneSource).not.toContain("tag-warning");
+    expect(agentSettingsPaneSource).not.toContain("tag-error");
     expect(agentSettingsPaneSource).not.toContain(
       "border-bottom: 1px solid var(--app-border-color)"
     );

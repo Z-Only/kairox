@@ -220,8 +220,10 @@ describe("HooksSettingsPane", () => {
     expect(hooksSettingsPaneSource).toContain("SettingsCardList");
     expect(hooksSettingsPaneSource).toContain("SettingsCardItem");
     expect(hooksSettingsPaneSource).toContain("SettingsItemSummary");
+    expect(hooksSettingsPaneSource).toContain("SettingsStatusTag");
     expect(hooksSettingsPaneSource).not.toContain(".hook-row {");
     expect(hooksSettingsPaneSource).not.toContain(".hook-row__main");
+    expect(hooksSettingsPaneSource).not.toContain("tag-muted");
     expect(hooksSettingsPaneSource).not.toContain(
       "border-bottom: 1px solid var(--app-border-color)"
     );

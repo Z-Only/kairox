@@ -330,8 +330,15 @@ describe("SkillSettingsPane", () => {
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
     expect(skillSettingsPaneSource).toContain("SettingsItemSummary");
     expect(skillSettingsPaneSource).toContain("SettingsItemMeta");
+    expect(skillSettingsPaneSource).toContain("SettingsStatusTag");
     expect(skillSettingsPaneSource).not.toContain(".skill-settings__title-row");
     expect(skillSettingsPaneSource).not.toContain(".skill-settings__meta");
+    expect(skillSettingsPaneSource).not.toContain("tag-success");
+    expect(skillSettingsPaneSource).not.toContain("tag-warning");
+    expect(skillSettingsPaneSource).not.toContain("tag-error");
+    expect(skillSettingsPaneSource).not.toContain("tag--source");
+    expect(skillSettingsPaneSource).not.toContain("tag--override");
+    expect(skillSettingsPaneSource).not.toContain("tag--disabled-by");
   });
 
   it("uses a compact installed skill card layout without path-driven blank space", async () => {

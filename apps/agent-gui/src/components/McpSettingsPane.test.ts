@@ -167,8 +167,15 @@ describe("McpSettingsPane", () => {
 
   it("uses shared card content hierarchy for server rows", () => {
     expect(mcpServerCardSource).toContain("SettingsItemSummary");
+    expect(mcpServerCardSource).toContain("SettingsStatusTag");
     expect(mcpServerCardSource).not.toContain(".mcp-settings__server-main");
     expect(mcpServerCardSource).not.toContain(".server__tags");
+    expect(mcpServerCardSource).not.toContain("tag-success");
+    expect(mcpServerCardSource).not.toContain("tag-warning");
+    expect(mcpServerCardSource).not.toContain("tag-danger");
+    expect(mcpServerCardSource).not.toContain("tag--source");
+    expect(mcpServerCardSource).not.toContain("tag--override");
+    expect(mcpServerCardSource).not.toContain("tag--disabled-by");
   });
 
   it("labels the config action as a file opener and delegates to the MCP store", async () => {

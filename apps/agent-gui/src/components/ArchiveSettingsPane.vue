@@ -5,6 +5,7 @@ import { useProjectStore } from "@/stores/project";
 import type { ProjectSessionInfo } from "@/stores/project";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 const { t } = useI18n();
 const { confirm: confirmAction } = useConfirm();
@@ -98,8 +99,12 @@ onMounted(() => {
     </SettingsState>
 
     <div v-if="stats.total > 0" class="archive-stats" data-test="archive-stats">
-      <span class="tag">{{ t("settings.archiveTotal", { count: stats.total }) }}</span>
-      <span class="tag">{{ t("settings.archiveProjects", { count: stats.projects }) }}</span>
+      <SettingsStatusTag>{{
+        t("settings.archiveTotal", { count: stats.total })
+      }}</SettingsStatusTag>
+      <SettingsStatusTag>
+        {{ t("settings.archiveProjects", { count: stats.projects }) }}
+      </SettingsStatusTag>
     </div>
 
     <SettingsState v-if="loading" tone="loading" data-test="archive-loading-state">

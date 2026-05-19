@@ -7,6 +7,9 @@ import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
+
+type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -52,6 +55,19 @@ function canUpdateSkill(skill: EffectiveSkillView): boolean {
 
 function skillSettingsTestId(skill: EffectiveSkillView): string {
   return slugify(skill.value.settings_id);
+}
+
+function sourceTone(source: string): SourceTone {
+  switch (source.toLowerCase()) {
+    case "builtin":
+      return "source-builtin";
+    case "project":
+      return "source-project";
+    case "local":
+      return "source-local";
+    default:
+      return "source-user";
+  }
 }
 
 watch(
@@ -176,29 +192,29 @@ async function installFromGithub(): Promise<void> {
               :tags-label="t('skills.tabInstalled')"
             >
               <template #tags>
-                <span class="tag tag--source" :class="`tag--source-${skill.source.toLowerCase()}`">
+                <SettingsStatusTag :tone="sourceTone(skill.source)">
                   {{ skill.source }}
-                </span>
-                <span v-if="skill.overrides" class="tag tag--override">
+                </SettingsStatusTag>
+                <SettingsStatusTag v-if="skill.overrides" tone="override">
                   {{ t("skills.overrides", { source: skill.overrides }) }}
-                </span>
-                <span v-if="skill.disabledBy" class="tag tag--disabled-by">
+                </SettingsStatusTag>
+                <SettingsStatusTag v-if="skill.disabledBy" tone="disabled-by">
                   {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
-                </span>
-                <span class="tag">{{ skill.value.scope }}</span>
-                <span :class="['tag', skill.enabled ? 'tag-success' : 'tag-warning']">
+                </SettingsStatusTag>
+                <SettingsStatusTag>{{ skill.value.scope }}</SettingsStatusTag>
+                <SettingsStatusTag :tone="skill.enabled ? 'success' : 'warning'">
                   {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
-                </span>
-                <span :class="['tag', skill.value.effective ? 'tag-success' : 'tag-warning']">
+                </SettingsStatusTag>
+                <SettingsStatusTag :tone="skill.value.effective ? 'success' : 'warning'">
                   {{
                     skill.value.effective
                       ? t("skills.effective")
                       : t("skills.shadowedBy", { name: skill.value.shadowed_by })
                   }}
-                </span>
-                <span :class="['tag', skill.value.valid ? 'tag-success' : 'tag-error']">
+                </SettingsStatusTag>
+                <SettingsStatusTag :tone="skill.value.valid ? 'success' : 'error'">
                   {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
-                </span>
+                </SettingsStatusTag>
               </template>
 
               <SettingsItemMeta columns="four">
@@ -413,40 +429,5 @@ async function installFromGithub(): Promise<void> {
 
 .advanced-install__field {
   flex: 1 1 320px;
-}
-
-/* Source tags for effective (unified) view */
-.tag--source {
-  font-weight: 600;
-}
-
-.tag--source-builtin {
-  background: var(--color-muted);
-  color: var(--color-text-muted);
-}
-
-.tag--source-user {
-  background: var(--color-secondary-light);
-  color: var(--color-secondary);
-}
-
-.tag--source-project {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.tag--source-local {
-  background: var(--color-accent-light, var(--color-primary-light));
-  color: var(--color-accent, var(--color-primary));
-}
-
-.tag--override {
-  background: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.tag--disabled-by {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
 }
 </style>

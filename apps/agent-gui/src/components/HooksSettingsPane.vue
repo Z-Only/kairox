@@ -9,6 +9,7 @@ import type {
 import { commands } from "@/generated/commands";
 import { useProjectStore } from "@/stores/project";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
@@ -231,7 +232,7 @@ watch(
           <div class="hooks-pane__list-header">
             <div class="hooks-pane__list-title">
               <h3>{{ t("hooks.scopeHooks", { scope: scopeLabel }) }}</h3>
-              <span class="tag">{{ currentHooks.length }}</span>
+              <SettingsStatusTag>{{ currentHooks.length }}</SettingsStatusTag>
             </div>
             <KxButton
               v-if="!formOpen"
@@ -271,10 +272,10 @@ watch(
                 :tags-label="t('hooks.scopeHooks', { scope: scopeLabel })"
               >
                 <template #tags>
-                  <span class="tag">{{ hook.event }}</span>
-                  <span v-if="!hook.enabled" class="tag tag-muted">
+                  <SettingsStatusTag>{{ hook.event }}</SettingsStatusTag>
+                  <SettingsStatusTag v-if="!hook.enabled" tone="muted">
                     {{ t("hooks.disabled") }}
-                  </span>
+                  </SettingsStatusTag>
                 </template>
                 <code>{{ hook.command }}</code>
               </SettingsItemSummary>
@@ -426,10 +427,6 @@ watch(
   min-width: 0;
   color: var(--app-text-color-2);
   overflow-wrap: anywhere;
-}
-
-.tag-muted {
-  color: var(--app-text-color-2);
 }
 
 .hooks-pane__form {

@@ -120,8 +120,12 @@ describe("PluginSettingsPane", () => {
     it("uses shared card content hierarchy instead of plugin-local title and meta css", () => {
       expect(pluginSettingsPaneSource).toContain("SettingsItemSummary");
       expect(pluginSettingsPaneSource).toContain("SettingsItemMeta");
+      expect(pluginSettingsPaneSource).toContain("SettingsStatusTag");
       expect(pluginSettingsPaneSource).not.toContain(".plugin-row__title");
       expect(pluginSettingsPaneSource).not.toContain(".plugin-meta");
+      expect(pluginSettingsPaneSource).not.toContain("tag-success");
+      expect(pluginSettingsPaneSource).not.toContain("tag-warning");
+      expect(pluginSettingsPaneSource).not.toContain("tag-error");
     });
 
     it("shows empty state when no plugins installed", async () => {
