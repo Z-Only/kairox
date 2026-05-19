@@ -54,6 +54,13 @@ describe("CatalogSourcesSettings.vue", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("Model Context Protocol Servers");
     expect(wrapper.text()).toContain("registry.modelcontextprotocol.io");
+    expect(wrapper.find('[data-test="catalog-sources-list"]').classes()).toContain(
+      "settings-card-list"
+    );
+    expect(wrapper.find('[data-test="catalog-source-row-mcp-registry"]').classes()).toContain(
+      "settings-card-item"
+    );
+    expect(wrapper.find(".settings-card-item__actions.kx-action-group").exists()).toBe(true);
   });
 
   it("validates url before calling addSource", async () => {
@@ -107,9 +114,14 @@ describe("CatalogSourcesSettings.vue", () => {
   });
 
   it("uses shared form controls and action rows in the add-source form", () => {
+    expect(catalogSourcesSettingsSource).toContain("SettingsCardList");
+    expect(catalogSourcesSettingsSource).toContain("SettingsCardItem");
+    expect(catalogSourcesSettingsSource).toContain("<template #actions>");
     expect(catalogSourcesSettingsSource).toContain("KxFormActions");
     expect(catalogSourcesSettingsSource).toContain("KxInput");
     expect(catalogSourcesSettingsSource).toContain("KxSelect");
+    expect(catalogSourcesSettingsSource).not.toContain('class="src-actions"');
+    expect(catalogSourcesSettingsSource).not.toContain(".src-actions {");
     expect(catalogSourcesSettingsSource).not.toContain("kx-form-control");
     expect(catalogSourcesSettingsSource).not.toContain('class="input"');
     expect(catalogSourcesSettingsSource).not.toContain(".input {");

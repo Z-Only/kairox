@@ -24,8 +24,8 @@ const stats = computed(() => {
   const projectIds = new Set(sessions.map((s) => s.projectId).filter(Boolean) as string[]);
   let recentDate: string | null = null;
   for (const s of sessions) {
-    if (s.worktreePath && (!recentDate || s.worktreePath > recentDate)) {
-      recentDate = s.worktreePath;
+    if (s.deletedAt && (!recentDate || s.deletedAt > recentDate)) {
+      recentDate = s.deletedAt;
     }
   }
   return {
@@ -41,6 +41,13 @@ function formatError(caughtError: unknown): string {
 
 function getProjectDisplayName(session: ProjectSessionInfo): string {
   return session.projectId ? (projectMap.value.get(session.projectId) ?? session.projectId) : "-";
+}
+
+function formatArchivedAt(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 async function restoreSession(sessionId: string): Promise<void> {
@@ -109,6 +116,8 @@ onMounted(() => {
       aria-label="Archived sessions"
       data-test="archive-list"
       :scroll="false"
+      columns="auto"
+      dense
     >
       <SettingsCardItem
         v-for="session in projectStore.archivedSessions"
@@ -122,6 +131,13 @@ onMounted(() => {
             <span>{{ getProjectDisplayName(session) }}</span>
             <span v-if="session.profile">{{ session.profile }}</span>
             <span v-if="session.branch">{{ session.branch }}</span>
+            <time
+              v-if="session.deletedAt"
+              :datetime="session.deletedAt"
+              :data-test="`archive-time-${session.sessionId}`"
+            >
+              {{ t("settings.archiveArchivedAt", { time: formatArchivedAt(session.deletedAt) }) }}
+            </time>
           </p>
         </div>
 
@@ -168,10 +184,14 @@ onMounted(() => {
 }
 .archive-row__main h4 {
   margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .archive-row__meta {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
   color: var(--app-text-color-2);
   font-size: 0.82rem;
 }

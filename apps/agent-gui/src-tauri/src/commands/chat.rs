@@ -121,6 +121,7 @@ pub async fn start_session(
         worktree_path: None,
         branch: None,
         visibility: None,
+        deleted_at: None,
     })
 }
 

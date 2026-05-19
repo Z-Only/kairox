@@ -161,9 +161,29 @@ base_url = "{}"
         .await
         .unwrap();
 
-    // 4. Wait for the spawned probe to land. The mock answers in <1ms, so
-    //    200ms is generous (the probe itself is bounded to 3s).
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    // 4. Wait for the spawned probe to land. The probe itself is bounded to
+    //    3s, so poll the actual session limit instead of assuming a fixed
+    //    sleep is enough on every CI machine.
+    let probe_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(4);
+    loop {
+        let context_window = {
+            let states = runtime.session_states_for_test().lock().await;
+            states
+                .get(session_id.as_str())
+                .and_then(|state| state.model_limits.as_ref())
+                .map(|limits| limits.context_window)
+        };
+        if context_window == Some(32_768) {
+            break;
+        }
+        if tokio::time::Instant::now() >= probe_deadline {
+            panic!(
+                "timed out waiting for Ollama probe to override context window; last value: {:?}",
+                context_window
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
 
     // 5. Send one message → ContextAssembled is emitted with the probed window.
     runtime

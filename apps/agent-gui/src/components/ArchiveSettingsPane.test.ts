@@ -28,6 +28,7 @@ const archivedSession = {
   project_id: "project_1",
   worktree_path: "/tmp/kairox-worktree",
   branch: "fix/archive",
+  deleted_at: "2026-01-02T03:04:05Z",
   visibility: "archived"
 };
 
@@ -63,9 +64,23 @@ describe("ArchiveSettingsPane", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="archive-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="archive-list"]').classes()).toContain(
+      "settings-card-list--auto-columns"
+    );
     expect(wrapper.find('[data-test="archive-row-ses_archived"]').classes()).toContain(
       "settings-card-item"
     );
+  });
+
+  it("shows the archived timestamp for each archived session", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    const archivedAt = wrapper.find('[data-test="archive-time-ses_archived"]');
+    expect(archivedAt.exists()).toBe(true);
+    expect(archivedAt.attributes("datetime")).toBe("2026-01-02T03:04:05Z");
+    expect(archivedAt.text()).toContain("Archived");
+    expect(archivedAt.text()).toContain("2026");
   });
 
   it("uses the app confirm dialog before permanently deleting an archived session", async () => {

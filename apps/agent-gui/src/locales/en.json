@@ -49,6 +49,7 @@
     "archiveEmpty": "No archived sessions.",
     "archiveTotal": "Total: {count}",
     "archiveProjects": "Projects: {count}",
+    "archiveArchivedAt": "Archived {time}",
     "archiveRestore": "Restore",
     "instructions": "Instructions",
     "hooks": "Hooks",
