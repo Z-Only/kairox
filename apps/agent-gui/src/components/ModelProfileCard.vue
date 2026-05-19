@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
+import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 
 const props = defineProps<{
   profile: ProfileSettingsView;
@@ -49,12 +50,8 @@ function sourceLabel(source: string): string {
 </script>
 
 <template>
-  <article
-    class="card model-settings__profile"
-    role="listitem"
-    :data-test="`model-row-${profile.alias}`"
-  >
-    <div class="card-body model-settings__profile-body">
+  <SettingsCardItem class="model-settings__profile" :data-test="`model-row-${profile.alias}`">
+    <div class="model-settings__profile-body">
       <div class="model-settings__profile-main">
         <h3>{{ profile.alias }}</h3>
         <p>{{ profile.provider }} / {{ profile.model_id }}</p>
@@ -140,7 +137,7 @@ function sourceLabel(source: string): string {
         </button>
       </div>
     </div>
-  </article>
+  </SettingsCardItem>
 </template>
 
 <style scoped>

@@ -139,6 +139,10 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="model-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="model-row-my-model"]').classes()).toContain(
+      "settings-card-item"
+    );
     expect(wrapper.find('[data-test="model-row-fast"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="model-row-local-code"]').exists()).toBe(false);
 

@@ -3,6 +3,7 @@ import type { ProfileSettingsView } from "@/generated/commands";
 import { useNotifications } from "@/composables/useNotifications";
 import ModelProfileCard from "@/components/ModelProfileCard.vue";
 import ModelProfileFormDialog from "@/components/ModelProfileFormDialog.vue";
+import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import { storeToRefs } from "pinia";
 import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
 
@@ -216,7 +217,12 @@ function toggleProfile(profile: ProfileSettingsView): void {
       {{ t("models.noProfiles") }}
     </KxStateBlock>
 
-    <div v-else class="model-settings__list" role="list" aria-label="Configured model profiles">
+    <SettingsCardList
+      v-else
+      :aria-label="t('models.title')"
+      data-test="model-list"
+      class="model-settings__list"
+    >
       <ModelProfileCard
         v-for="(profile, index) in profiles"
         :key="profile.alias"
@@ -230,7 +236,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
         @test="testProfileConnectivity"
         @remove="store.removeProfile"
       />
-    </div>
+    </SettingsCardList>
 
     <ModelProfileFormDialog
       :open="addDialogOpen"
@@ -299,13 +305,5 @@ function toggleProfile(profile: ProfileSettingsView): void {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.model-settings__list {
-  display: grid;
-  gap: 12px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
 }
 </style>

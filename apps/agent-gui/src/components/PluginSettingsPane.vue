@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { usePluginsStore } from "@/stores/plugins";
 import type { PluginInstallTarget, PluginSettingsView } from "@/generated/commands";
+import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
+import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 
 const store = usePluginsStore();
 const { t } = useI18n();
@@ -105,71 +107,75 @@ watch(activeSubTab, (tab) => {
         {{ t("plugins.emptyInstalled") }}
       </KxStateBlock>
 
-      <article
-        v-for="plugin in store.plugins"
+      <SettingsCardList
         v-else
-        :key="plugin.settings_id"
-        class="plugin-row"
-        :data-test="`plugin-row-${settingsTestId(plugin)}`"
+        :aria-label="t('plugins.tabInstalled')"
+        data-test="plugin-installed-list"
       >
-        <div class="plugin-row__main">
-          <div class="plugin-row__title">
-            <h4>{{ plugin.name }}</h4>
-            <span class="tag">{{ plugin.scope }}</span>
-            <span :class="['tag', plugin.enabled ? 'tag-success' : 'tag-warning']">
-              {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-            </span>
-            <span :class="['tag', plugin.valid ? 'tag-success' : 'tag-error']">
-              {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
-            </span>
-            <span v-if="!plugin.effective" class="tag tag-warning">
-              {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
-            </span>
+        <SettingsCardItem
+          v-for="plugin in store.plugins"
+          :key="plugin.settings_id"
+          :data-test="`plugin-row-${settingsTestId(plugin)}`"
+        >
+          <div class="plugin-row__main">
+            <div class="plugin-row__title">
+              <h4>{{ plugin.name }}</h4>
+              <span class="tag">{{ plugin.scope }}</span>
+              <span :class="['tag', plugin.enabled ? 'tag-success' : 'tag-warning']">
+                {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
+              </span>
+              <span :class="['tag', plugin.valid ? 'tag-success' : 'tag-error']">
+                {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
+              </span>
+              <span v-if="!plugin.effective" class="tag tag-warning">
+                {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
+              </span>
+            </div>
+            <p>{{ plugin.description }}</p>
+            <dl class="plugin-meta">
+              <div>
+                <dt>{{ t("plugins.manifest") }}</dt>
+                <dd>{{ plugin.manifest_kind }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("plugins.skills") }}</dt>
+                <dd>{{ plugin.inventory.skill_count }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("plugins.mcp") }}</dt>
+                <dd>{{ plugin.inventory.mcp_server_count }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("plugins.path") }}</dt>
+                <dd>{{ plugin.path }}</dd>
+              </div>
+            </dl>
+            <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
+              {{ plugin.validation_error }}
+            </KxInlineAlert>
           </div>
-          <p>{{ plugin.description }}</p>
-          <dl class="plugin-meta">
-            <div>
-              <dt>{{ t("plugins.manifest") }}</dt>
-              <dd>{{ plugin.manifest_kind }}</dd>
-            </div>
-            <div>
-              <dt>{{ t("plugins.skills") }}</dt>
-              <dd>{{ plugin.inventory.skill_count }}</dd>
-            </div>
-            <div>
-              <dt>{{ t("plugins.mcp") }}</dt>
-              <dd>{{ plugin.inventory.mcp_server_count }}</dd>
-            </div>
-            <div>
-              <dt>{{ t("plugins.path") }}</dt>
-              <dd>{{ plugin.path }}</dd>
-            </div>
-          </dl>
-          <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
-            {{ plugin.validation_error }}
-          </KxInlineAlert>
-        </div>
-        <div class="plugin-actions">
-          <button
-            class="btn btn-sm"
-            type="button"
-            :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
-            :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
-            @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
-          >
-            {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
-          </button>
-          <button
-            class="btn btn-danger btn-sm"
-            type="button"
-            :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
-            :data-test="`plugin-delete-${settingsTestId(plugin)}`"
-            @click="store.deletePlugin(plugin.settings_id)"
-          >
-            {{ t("common.delete") }}
-          </button>
-        </div>
-      </article>
+          <div class="plugin-actions">
+            <button
+              class="btn btn-sm"
+              type="button"
+              :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
+              :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
+              @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
+            >
+              {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
+            </button>
+            <button
+              class="btn btn-danger btn-sm"
+              type="button"
+              :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
+              :data-test="`plugin-delete-${settingsTestId(plugin)}`"
+              @click="store.deletePlugin(plugin.settings_id)"
+            >
+              {{ t("common.delete") }}
+            </button>
+          </div>
+        </SettingsCardItem>
+      </SettingsCardList>
     </div>
 
     <div v-if="activeSubTab === 'marketplace'" class="plugin-panel">
@@ -221,33 +227,39 @@ watch(activeSubTab, (tab) => {
           >
             {{ t("plugins.emptySources") }}
           </KxStateBlock>
-          <article
-            v-for="source in store.sources"
+          <SettingsCardList
             v-else
-            :key="source.id"
-            class="plugin-row"
-            :data-test="`plugin-source-${slugify(source.id)}`"
+            :aria-label="t('plugins.sourceSettings')"
+            data-test="plugin-source-list"
+            :scroll="false"
+            dense
           >
-            <div class="plugin-row__main">
-              <div class="plugin-row__title">
-                <h4>{{ source.display_name }}</h4>
-                <span class="tag">{{ source.id }}</span>
-                <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
-                  {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-                </span>
-                <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
-              </div>
-              <code>{{ source.source }}</code>
-            </div>
-            <button
-              class="btn btn-sm"
-              type="button"
-              :data-test="`plugin-source-enabled-${slugify(source.id)}`"
-              @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+            <SettingsCardItem
+              v-for="source in store.sources"
+              :key="source.id"
+              :data-test="`plugin-source-${slugify(source.id)}`"
             >
-              {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
-            </button>
-          </article>
+              <div class="plugin-row__main">
+                <div class="plugin-row__title">
+                  <h4>{{ source.display_name }}</h4>
+                  <span class="tag">{{ source.id }}</span>
+                  <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
+                    {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
+                  </span>
+                  <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
+                </div>
+                <code>{{ source.source }}</code>
+              </div>
+              <button
+                class="btn btn-sm"
+                type="button"
+                :data-test="`plugin-source-enabled-${slugify(source.id)}`"
+                @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
+              >
+                {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
+              </button>
+            </SettingsCardItem>
+          </SettingsCardList>
         </div>
 
         <template #footer>
@@ -269,31 +281,35 @@ watch(activeSubTab, (tab) => {
       >
         {{ t("plugins.emptyCatalog") }}
       </KxStateBlock>
-      <article
-        v-for="entry in store.catalog"
+      <SettingsCardList
         v-else
-        :key="`${entry.marketplace_id}:${entry.name}`"
-        class="plugin-row"
-        data-test="plugin-catalog-card"
+        :aria-label="t('plugins.tabMarketplace')"
+        data-test="plugin-catalog-list"
       >
-        <div class="plugin-row__main">
-          <div class="plugin-row__title">
-            <h4>{{ entry.name }}</h4>
-            <span class="tag">{{ entry.marketplace_id }}</span>
-            <span v-if="entry.version" class="tag">{{ entry.version }}</span>
-          </div>
-          <p>{{ entry.description }}</p>
-          <code>{{ entry.source }}</code>
-        </div>
-        <button
-          class="btn btn-primary btn-sm"
-          type="button"
-          :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
-          @click="installCatalogEntry(entry.marketplace_id, entry.name)"
+        <SettingsCardItem
+          v-for="entry in store.catalog"
+          :key="`${entry.marketplace_id}:${entry.name}`"
+          data-test="plugin-catalog-card"
         >
-          {{ t("plugins.install") }}
-        </button>
-      </article>
+          <div class="plugin-row__main">
+            <div class="plugin-row__title">
+              <h4>{{ entry.name }}</h4>
+              <span class="tag">{{ entry.marketplace_id }}</span>
+              <span v-if="entry.version" class="tag">{{ entry.version }}</span>
+            </div>
+            <p>{{ entry.description }}</p>
+            <code>{{ entry.source }}</code>
+          </div>
+          <button
+            class="btn btn-primary btn-sm"
+            type="button"
+            :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
+            @click="installCatalogEntry(entry.marketplace_id, entry.name)"
+          >
+            {{ t("plugins.install") }}
+          </button>
+        </SettingsCardItem>
+      </SettingsCardList>
     </div>
   </section>
 </template>
@@ -336,15 +352,6 @@ watch(activeSubTab, (tab) => {
   display: grid;
   gap: 10px;
 }
-.plugin-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 12px;
-  background: var(--app-card-color);
-}
 .plugin-row__main {
   min-width: 0;
   flex: 1;
@@ -359,7 +366,7 @@ watch(activeSubTab, (tab) => {
   margin: 0;
   font-size: 0.98rem;
 }
-.plugin-row p {
+.plugin-row__main > p {
   margin: 6px 0;
   color: var(--app-text-color-2);
 }

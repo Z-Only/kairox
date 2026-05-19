@@ -148,6 +148,10 @@ describe("McpSettingsPane", () => {
       )
     ).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("GitHub");
+    expect(wrapper.find('[data-test="mcp-server-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').classes()).toContain(
+      "settings-card-item"
+    );
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("1 tool");
     expect(mockedCommands.checkMcpHealth).toHaveBeenCalledWith("github");
     expect(wrapper.find('[data-test="mcp-trust-github"]').text()).toContain("Trust");

@@ -4,6 +4,7 @@ import { useProjectStore } from "@/stores/project";
 import type { EffectiveMcpServerView } from "@/generated/commands";
 import McpResourceAccordion from "@/components/McpResourceAccordion.vue";
 import McpPromptAccordion from "@/components/McpPromptAccordion.vue";
+import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -74,12 +75,8 @@ function serverToolCount(): number {
 </script>
 
 <template>
-  <article
-    class="card mcp-settings__server"
-    role="listitem"
-    :data-test="`mcp-server-row-${server.value.id}`"
-  >
-    <div class="card-body mcp-settings__server-body">
+  <SettingsCardItem class="mcp-settings__server" :data-test="`mcp-server-row-${server.value.id}`">
+    <div class="mcp-settings__server-body">
       <div class="mcp-settings__server-main">
         <h3>{{ server.value.name }}</h3>
         <p>{{ server.value.description || t("mcp.noDescription") }}</p>
@@ -249,7 +246,7 @@ function serverToolCount(): number {
         :server-id="server.value.id"
       />
     </div>
-  </article>
+  </SettingsCardItem>
 </template>
 
 <style scoped>
