@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import ArchiveSettingsPane from "./ArchiveSettingsPane.vue";
+import archiveSettingsPaneSource from "./ArchiveSettingsPane.vue?raw";
 import { confirmDialogKey } from "@/composables/useConfirm";
 import { mountWithPlugins } from "@/test-utils/mount";
 
@@ -57,6 +58,16 @@ beforeEach(() => {
 });
 
 describe("ArchiveSettingsPane", () => {
+  it("renders archived sessions with shared settings card list chrome", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="archive-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="archive-row-ses_archived"]').classes()).toContain(
+      "settings-card-item"
+    );
+  });
+
   it("uses the app confirm dialog before permanently deleting an archived session", async () => {
     const confirmMock = vi.fn().mockResolvedValue(false);
     const { wrapper } = mountArchive(confirmMock);
@@ -100,5 +111,13 @@ describe("ArchiveSettingsPane", () => {
     expect(empty.classes()).toContain("settings-state");
     expect(empty.classes()).toContain("kx-state-block--empty");
     expect(empty.text()).toContain("No archived sessions.");
+  });
+
+  it("does not keep local archive row card chrome after moving to SettingsCardItem", () => {
+    expect(archiveSettingsPaneSource).toContain("SettingsCardList");
+    expect(archiveSettingsPaneSource).toContain("SettingsCardItem");
+    expect(archiveSettingsPaneSource).not.toContain('class="card archive-row"');
+    expect(archiveSettingsPaneSource).not.toContain('class="card-body archive-row__body"');
+    expect(archiveSettingsPaneSource).not.toContain(".archive-list {");
   });
 });

@@ -226,7 +226,7 @@ watch(
       </div>
 
       <div class="hooks-pane__grid">
-        <section class="hooks-pane__list" data-test="hooks-list">
+        <section class="hooks-pane__list">
           <div class="hooks-pane__list-header">
             <h3>{{ t("hooks.scopeHooks", { scope: scopeLabel }) }}</h3>
             <span class="tag">{{ currentHooks.length }}</span>
@@ -236,38 +236,47 @@ watch(
             {{ t("hooks.empty") }}
           </SettingsState>
 
-          <article
-            v-for="hook in currentHooks"
-            :key="`${hook.event}:${hook.id}`"
-            class="hook-row"
-            :data-test="`hook-row-${hook.id}`"
+          <SettingsCardList
+            v-else
+            :aria-label="t('hooks.scopeHooks', { scope: scopeLabel })"
+            data-test="hooks-list"
+            :scroll="false"
+            dense
           >
-            <div class="hook-row__main">
-              <strong>{{ hook.id }}</strong>
-              <span class="tag">{{ hook.event }}</span>
-              <span v-if="!hook.enabled" class="tag tag-muted">{{ t("hooks.disabled") }}</span>
-            </div>
-            <code>{{ hook.command }}</code>
-            <div class="hook-row__actions">
-              <button
-                class="btn btn-secondary"
-                :data-test="`hook-edit-${hook.id}`"
-                type="button"
-                @click="editHook(hook)"
-              >
-                {{ t("common.edit") }}
-              </button>
-              <button
-                class="btn btn-danger"
-                :data-test="`hook-delete-${hook.id}`"
-                :disabled="saving"
-                type="button"
-                @click="deleteHook(hook)"
-              >
-                {{ t("common.delete") }}
-              </button>
-            </div>
-          </article>
+            <SettingsCardItem
+              v-for="hook in currentHooks"
+              :key="`${hook.event}:${hook.id}`"
+              class="hook-row"
+              layout="stack"
+              :data-test="`hook-row-${hook.id}`"
+            >
+              <div class="hook-row__main">
+                <strong>{{ hook.id }}</strong>
+                <span class="tag">{{ hook.event }}</span>
+                <span v-if="!hook.enabled" class="tag tag-muted">{{ t("hooks.disabled") }}</span>
+              </div>
+              <code>{{ hook.command }}</code>
+              <div class="hook-row__actions">
+                <button
+                  class="btn btn-secondary"
+                  :data-test="`hook-edit-${hook.id}`"
+                  type="button"
+                  @click="editHook(hook)"
+                >
+                  {{ t("common.edit") }}
+                </button>
+                <button
+                  class="btn btn-danger"
+                  :data-test="`hook-delete-${hook.id}`"
+                  :disabled="saving"
+                  type="button"
+                  @click="deleteHook(hook)"
+                >
+                  {{ t("common.delete") }}
+                </button>
+              </div>
+            </SettingsCardItem>
+          </SettingsCardList>
         </section>
 
         <button
@@ -385,13 +394,6 @@ watch(
 .hooks-pane__list-header h3 {
   margin: 0;
   font-size: 0.95rem;
-}
-
-.hook-row {
-  display: grid;
-  gap: 6px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--app-border-color);
 }
 
 .hook-row__main,
