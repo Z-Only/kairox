@@ -58,21 +58,28 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
       </template>
     </button>
 
-    <div v-if="expanded" class="mcp-resources-list">
-      <KxStateBlock v-if="mcp.resourcesError[serverId]" tone="error" compact>
+    <KxAccordionList
+      v-if="expanded"
+      :aria-label="t('mcp.resourceCount', { count: resourceCount() })"
+      :data-test="`mcp-resources-list-${serverId}`"
+    >
+      <KxAccordionState
+        v-if="mcp.resourcesError[serverId]"
+        tone="error"
+        :data-test="`mcp-resources-error-${serverId}`"
+      >
         {{ mcp.resourcesError[serverId] }}
-      </KxStateBlock>
-      <KxStateBlock
+      </KxAccordionState>
+      <KxAccordionState
         v-else-if="resourceCount() === 0 && !mcp.loadingResources.has(serverId)"
         tone="empty"
-        compact
+        :data-test="`mcp-resources-empty-${serverId}`"
       >
         {{ t("mcp.noResources") }}
-      </KxStateBlock>
+      </KxAccordionState>
       <template v-for="resource in mcp.serverResources[serverId] ?? []" :key="resource.uri">
-        <button
-          class="mcp-resources-row"
-          type="button"
+        <KxAccordionItem
+          as="button"
           :aria-expanded="isResourceExpanded(resource.uri)"
           :data-test="`mcp-resource-${serverId}-${resource.name}`"
           @click="handleResourceClick(resource.uri)"
@@ -81,7 +88,7 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
           <span class="resource-name">{{ resource.name }}</span>
           <span class="resource-uri">{{ resource.uri }}</span>
           <span v-if="resource.mime_type" class="tag tag--mime">{{ resource.mime_type }}</span>
-        </button>
+        </KxAccordionItem>
         <div
           v-if="isResourceExpanded(resource.uri)"
           class="mcp-resources-content"
@@ -108,7 +115,7 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
           </div>
         </div>
       </template>
-    </div>
+    </KxAccordionList>
   </div>
 </template>
 
@@ -139,32 +146,6 @@ function resourceContentBlocks(uri: string): McpContentBlockResponse[] {
 
 .toggle-icon {
   font-size: 10px;
-}
-
-.mcp-resources-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.mcp-resources-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
-  background: var(--app-card-color, #fff);
-  cursor: pointer;
-  font-size: 12px;
-  text-align: left;
-  width: 100%;
-  transition: background-color 0.15s;
-}
-
-.mcp-resources-row:hover {
-  background: var(--app-hover-color, #f3f4f6);
 }
 
 .resource-name {

@@ -11,6 +11,8 @@ import {
 } from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
 import McpSettingsPane from "./McpSettingsPane.vue";
+import mcpResourceAccordionSource from "./McpResourceAccordion.vue?raw";
+import mcpPromptAccordionSource from "./McpPromptAccordion.vue?raw";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -324,7 +326,13 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.listMcpResources).toHaveBeenCalledWith("github");
+    expect(wrapper.find('[data-test="mcp-resources-list-github"]').classes()).toContain(
+      "kx-accordion-list"
+    );
     expect(wrapper.find('[data-test="mcp-resource-github-App Log"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-resource-github-App Log"]').classes()).toContain(
+      "kx-accordion-item"
+    );
     expect(wrapper.find('[data-test="mcp-resource-github-Settings"]').exists()).toBe(true);
   });
 
@@ -359,8 +367,26 @@ describe("McpSettingsPane", () => {
 
     expect(mockedCommands.listMcpPrompts).toHaveBeenCalledWith("github");
     const promptRow = wrapper.find('[data-test="mcp-prompt-github-analyze_code"]');
+    expect(wrapper.find('[data-test="mcp-prompts-list-github"]').classes()).toContain(
+      "kx-accordion-list"
+    );
+    expect(promptRow.classes()).toContain("kx-accordion-item");
     expect(promptRow.text()).toContain("analyze_code");
     expect(promptRow.text()).toContain("2 args");
     expect(promptRow.text()).toContain("Analyze code");
+  });
+
+  it("uses shared nested accordion list, row, and state components", () => {
+    for (const source of [mcpResourceAccordionSource, mcpPromptAccordionSource]) {
+      expect(source).toContain("KxAccordionList");
+      expect(source).toContain("KxAccordionItem");
+      expect(source).toContain("KxAccordionState");
+      expect(source).not.toContain("<KxStateBlock");
+    }
+
+    expect(mcpResourceAccordionSource).not.toContain(".mcp-resources-list {");
+    expect(mcpResourceAccordionSource).not.toContain(".mcp-resources-row {");
+    expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-list {");
+    expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-row {");
   });
 });

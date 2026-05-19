@@ -40,21 +40,28 @@ function promptCount(): number {
       </template>
     </button>
 
-    <div v-if="expanded" class="mcp-prompts-list">
-      <KxStateBlock v-if="mcp.promptsError[serverId]" tone="error" compact>
+    <KxAccordionList
+      v-if="expanded"
+      :aria-label="t('mcp.promptCount', { count: promptCount() })"
+      :data-test="`mcp-prompts-list-${serverId}`"
+    >
+      <KxAccordionState
+        v-if="mcp.promptsError[serverId]"
+        tone="error"
+        :data-test="`mcp-prompts-error-${serverId}`"
+      >
         {{ mcp.promptsError[serverId] }}
-      </KxStateBlock>
-      <KxStateBlock
+      </KxAccordionState>
+      <KxAccordionState
         v-else-if="promptCount() === 0 && !mcp.loadingPrompts.has(serverId)"
         tone="empty"
-        compact
+        :data-test="`mcp-prompts-empty-${serverId}`"
       >
         {{ t("mcp.noPrompts") }}
-      </KxStateBlock>
-      <div
+      </KxAccordionState>
+      <KxAccordionItem
         v-for="prompt in mcp.serverPrompts[serverId] ?? []"
         :key="prompt.name"
-        class="mcp-prompts-row"
         :data-test="`mcp-prompt-${serverId}-${prompt.name}`"
       >
         <span class="prompt-name">{{ prompt.name }}</span>
@@ -62,8 +69,8 @@ function promptCount(): number {
           t("mcp.argumentsCount", { count: prompt.argument_count })
         }}</span>
         <span v-if="prompt.description" class="prompt-desc">{{ prompt.description }}</span>
-      </div>
-    </div>
+      </KxAccordionItem>
+    </KxAccordionList>
   </div>
 </template>
 
@@ -94,24 +101,6 @@ function promptCount(): number {
 
 .toggle-icon {
   font-size: 10px;
-}
-
-.mcp-prompts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.mcp-prompts-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
-  background: var(--app-card-color, #fff);
-  font-size: 12px;
 }
 
 .prompt-name {
