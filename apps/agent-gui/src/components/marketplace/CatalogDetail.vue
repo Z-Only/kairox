@@ -401,26 +401,6 @@ async function onInstall() {
   font-size: 12px;
   line-height: 1.4;
 }
-.env-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.env-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.env-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--app-text-color);
-}
-.env-help {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-}
 .input {
   width: 100%;
   padding: 4px 8px;
@@ -484,39 +464,5 @@ async function onInstall() {
 .btn-sm {
   height: 28px;
   font-size: 13px;
-}
-.tooltip-wrap {
-  position: relative;
-}
-.tooltip-active::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: var(--app-popover-color);
-  color: var(--app-text-color);
-  font-size: 12px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
-  box-shadow: var(--app-shadow-1);
-}
-.tooltip-active:hover::after {
-  opacity: 1;
-}
-.scope-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 4px;
-  background: var(--app-tag-color, color-mix(in srgb, var(--app-primary-color) 10%, transparent));
-  color: var(--app-text-color-2);
-  font-size: 12px;
-  white-space: nowrap;
 }
 </style>

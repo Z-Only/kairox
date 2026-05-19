@@ -92,10 +92,6 @@ const needsAutoCompression = computed(() => ratio.value >= 0.85);
 
 const { formatTokens, formatSourceColor, formatSourcePercent } = useContextFormatting();
 
-function togglePopover() {
-  popoverOpen.value = !popoverOpen.value;
-}
-
 function onHoverOpen() {
   popoverOpen.value = true;
 }
@@ -126,6 +122,8 @@ async function onCompactClick() {
       v-if="props.variant === 'ring' && hasMessages"
       v-model:open="popoverOpen"
       content-data-test="context-meter-popover"
+      content-class="context-meter-popover context-meter-popover--ring"
+      width="min(320px, calc(100vw - 32px))"
       side="top"
       align="end"
       :side-offset="0"
@@ -162,8 +160,10 @@ async function onCompactClick() {
       </template>
 
       <template #content>
-        <div class="ring-popover-body" @mouseenter="onHoverOpen" @mouseleave="onHoverClose">
-          <header class="popover-header">{{ t("context.popoverHeader") }}</header>
+        <div @mouseenter="onHoverOpen" @mouseleave="onHoverClose">
+          <header class="kx-popover-panel__header context-meter-popover-header">
+            {{ t("context.popoverHeader") }}
+          </header>
           <div v-if="!session.lastContextUsage" class="fallback-detail">
             {{ t("context.noUsageYet") }}
           </div>
@@ -219,23 +219,49 @@ async function onCompactClick() {
     </div>
 
     <div v-else class="meter-row">
-      <button
-        type="button"
-        class="bar"
-        data-test="context-meter-bar"
-        :title="t('context.popoverHeader')"
-        @click="togglePopover"
+      <KxPopover
+        v-model:open="popoverOpen"
+        content-data-test="context-meter-popover"
+        content-class="context-meter-popover context-meter-popover--bar"
+        width="min(480px, calc(100vw - 32px))"
+        side="bottom"
+        align="start"
+        :side-offset="4"
       >
-        <span
-          v-for="[source, tokens] in session.lastContextUsage.by_source"
-          :key="source"
-          class="segment"
-          :style="{
-            width: `${formatSourcePercent(tokens, displayBudgetTokens)}%`,
-            background: formatSourceColor(source)
-          }"
-        />
-      </button>
+        <template #trigger>
+          <button
+            type="button"
+            class="bar"
+            data-test="context-meter-bar"
+            :title="t('context.popoverHeader')"
+          >
+            <span
+              v-for="[source, tokens] in session.lastContextUsage.by_source"
+              :key="source"
+              class="segment"
+              :style="{
+                width: `${formatSourcePercent(tokens, displayBudgetTokens)}%`,
+                background: formatSourceColor(source)
+              }"
+            />
+          </button>
+        </template>
+
+        <template #content>
+          <header class="kx-popover-panel__header context-meter-popover-header">
+            {{ t("context.popoverHeader") }}
+          </header>
+          <ContextMeterDetails
+            :by-source="session.lastContextUsage.by_source"
+            :output-reservation="session.lastContextUsage.output_reservation"
+            :display-budget-tokens="displayBudgetTokens"
+            :compacting="session.compacting"
+            :compression-ratio-too-low="compressionRatioTooLow"
+            :needs-auto-compression="needsAutoCompression"
+            @compact="onCompactClick"
+          />
+        </template>
+      </KxPopover>
 
       <span class="numbers" data-test="context-meter-numbers">
         {{ formatTokens(session.lastContextUsage.total_tokens) }} /
@@ -270,23 +296,6 @@ async function onCompactClick() {
       >
         ⚠ {{ t("context.failedFallback") }}
       </span>
-    </div>
-
-    <div
-      v-if="props.variant === 'bar' && popoverOpen && session.lastContextUsage"
-      class="popover"
-      data-test="context-meter-popover"
-    >
-      <header class="popover-header">{{ t("context.popoverHeader") }}</header>
-      <ContextMeterDetails
-        :by-source="session.lastContextUsage.by_source"
-        :output-reservation="session.lastContextUsage.output_reservation"
-        :display-budget-tokens="displayBudgetTokens"
-        :compacting="session.compacting"
-        :compression-ratio-too-low="compressionRatioTooLow"
-        :needs-auto-compression="needsAutoCompression"
-        @compact="onCompactClick"
-      />
     </div>
   </div>
 </template>
@@ -330,6 +339,7 @@ async function onCompactClick() {
 .bar {
   flex: 1;
   display: flex;
+  width: 100%;
   height: 6px;
   border-radius: 3px;
   overflow: hidden;
@@ -399,32 +409,6 @@ async function onCompactClick() {
   50% {
     opacity: 0.3;
   }
-}
-.popover {
-  position: absolute;
-  top: 100%;
-  left: 16px;
-  right: 16px;
-  z-index: var(--app-z-popover);
-  margin-top: 4px;
-  background: var(--app-card-color);
-  border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 8px 12px;
-  box-shadow: var(--app-overlay-shadow);
-}
-.context-meter-ring-mode .popover {
-  left: auto;
-  right: 0;
-  width: min(320px, calc(100vw - 32px));
-}
-.popover-header {
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-.ring-popover-body {
-  width: min(320px, calc(100vw - 32px));
 }
 .fallback-detail {
   font-size: 12px;

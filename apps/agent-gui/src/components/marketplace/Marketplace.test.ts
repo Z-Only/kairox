@@ -12,6 +12,7 @@ import { useCatalogStore } from "@/stores/catalog";
 import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
+import catalogDetailSource from "./CatalogDetail.vue?raw";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
 
@@ -315,6 +316,12 @@ describe("CatalogDetail.vue configuration section", () => {
     expect(document.body.textContent ?? "").toContain("No configuration required.");
 
     wrapper.unmount();
+  });
+
+  it("does not keep legacy handcrafted tooltip styles in catalog detail", () => {
+    expect(catalogDetailSource).not.toContain("tooltip-wrap");
+    expect(catalogDetailSource).not.toContain("tooltip-active");
+    expect(catalogDetailSource).not.toContain("data-tooltip");
   });
 });
 
