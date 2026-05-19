@@ -4,7 +4,8 @@ import { useSessionStore } from "@/stores/session";
 import { useToast } from "@/composables/useToast";
 import KxPopover from "@/components/ui/KxPopover.vue";
 import KxProgressRing from "@/components/ui/KxProgressRing.vue";
-import type { ContextSource } from "@/types";
+import ContextMeterDetails from "@/components/ContextMeterDetails.vue";
+import { useContextFormatting } from "@/composables/contextFormatting";
 
 const props = withDefaults(
   defineProps<{
@@ -89,56 +90,7 @@ const compressionRatioTooLow = computed(() => ratio.value < 0.3);
 
 const needsAutoCompression = computed(() => ratio.value >= 0.85);
 
-// `ContextSource` is `#[serde(rename_all = "snake_case")]` on the Rust side
-// (see crates/agent-core/src/context_types.rs:5), so by_source tuples carry
-// snake_case strings — these maps must use the same casing.
-const sourceColorVar: Record<ContextSource, string> = {
-  system: "var(--src-system)",
-  tool_definitions: "var(--src-tools)",
-  memory: "var(--src-memory)",
-  history: "var(--src-history)",
-  tool_result: "var(--src-tool-result)",
-  selected_file: "var(--src-selected-file)",
-  compaction_summary: "var(--src-compaction-summary)",
-  request: "var(--src-request)"
-};
-
-const sourceLabel: Record<ContextSource, string> = {
-  system: "context.sourceSystem",
-  tool_definitions: "context.sourceTools",
-  memory: "context.sourceMemory",
-  history: "context.sourceHistory",
-  tool_result: "context.sourceToolResult",
-  selected_file: "context.sourceSelectedFile",
-  compaction_summary: "context.sourceCompactionSummary",
-  request: "context.sourceRequest"
-};
-
-function formatTokens(n: number): string {
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
-function formatSourceColor(source: string): string {
-  if (Object.prototype.hasOwnProperty.call(sourceColorVar, source)) {
-    return sourceColorVar[source as ContextSource];
-  }
-  return "var(--app-border-color, #d7d7d7)";
-}
-
-function formatSourceLabel(source: string): string {
-  if (Object.prototype.hasOwnProperty.call(sourceLabel, source)) {
-    return t(sourceLabel[source as ContextSource]);
-  }
-  return source || "Unknown source";
-}
-
-function formatSourcePercent(tokens: number, budgetTokens: number): number {
-  if (budgetTokens <= 0) return 0;
-  const percentage = (tokens / budgetTokens) * 100;
-  if (!Number.isFinite(percentage)) return 0;
-  return Math.round(percentage);
-}
+const { formatTokens, formatSourceColor, formatSourcePercent } = useContextFormatting();
 
 function togglePopover() {
   popoverOpen.value = !popoverOpen.value;
@@ -247,59 +199,15 @@ async function onCompactClick() {
                 <dd>{{ compactionStateLabel }}</dd>
               </div>
             </dl>
-            <table class="popover-table by-source-table">
-              <tbody>
-                <tr
-                  v-for="[source, tokens] in session.lastContextUsage.by_source"
-                  :key="source"
-                  :data-test="`context-meter-row-${source}`"
-                >
-                  <td>
-                    <span class="swatch" :style="{ background: formatSourceColor(source) }" />
-                    {{ formatSourceLabel(source) }}
-                  </td>
-                  <td>{{ formatTokens(tokens) }}</td>
-                  <td>
-                    {{
-                      t("context.percentOfBudget", {
-                        pct: formatSourcePercent(tokens, displayBudgetTokens)
-                      })
-                    }}
-                  </td>
-                </tr>
-                <tr data-test="context-meter-reserved">
-                  <td>{{ t("context.reservedForResponse") }}</td>
-                  <td>{{ formatTokens(session.lastContextUsage.output_reservation) }}</td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="popover-actions">
-              <button
-                type="button"
-                class="btn btn-primary"
-                data-test="context-meter-compact"
-                :disabled="session.compacting || compressionRatioTooLow"
-                :title="
-                  compressionRatioTooLow
-                    ? t('context.notEnoughToCompact')
-                    : needsAutoCompression
-                      ? t('context.autoCompressionActive')
-                      : t('context.compactNow')
-                "
-                @click="onCompactClick"
-              >
-                <template v-if="session.compacting">
-                  {{ t("context.compactInProgress") }}
-                </template>
-                <template v-else-if="needsAutoCompression">
-                  {{ t("context.autoCompressing") }}
-                </template>
-                <template v-else>
-                  {{ t("context.compactNow") }}
-                </template>
-              </button>
-            </div>
+            <ContextMeterDetails
+              :by-source="session.lastContextUsage.by_source"
+              :output-reservation="session.lastContextUsage.output_reservation"
+              :display-budget-tokens="displayBudgetTokens"
+              :compacting="session.compacting"
+              :compression-ratio-too-low="compressionRatioTooLow"
+              :needs-auto-compression="needsAutoCompression"
+              @compact="onCompactClick"
+            />
           </template>
         </div>
       </template>
@@ -370,57 +278,15 @@ async function onCompactClick() {
       data-test="context-meter-popover"
     >
       <header class="popover-header">{{ t("context.popoverHeader") }}</header>
-      <table class="popover-table">
-        <tbody>
-          <tr
-            v-for="[source, tokens] in session.lastContextUsage.by_source"
-            :key="source"
-            :data-test="`context-meter-row-${source}`"
-          >
-            <td>
-              <span class="swatch" :style="{ background: formatSourceColor(source) }" />
-              {{ formatSourceLabel(source) }}
-            </td>
-            <td>{{ formatTokens(tokens) }}</td>
-            <td>
-              {{
-                t("context.percentOfBudget", {
-                  pct: formatSourcePercent(tokens, displayBudgetTokens)
-                })
-              }}
-            </td>
-          </tr>
-          <tr data-test="context-meter-reserved">
-            <td>{{ t("context.reservedForResponse") }}</td>
-            <td>{{ formatTokens(session.lastContextUsage.output_reservation) }}</td>
-            <td></td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="popover-actions">
-        <button
-          type="button"
-          class="btn btn-primary"
-          data-test="context-meter-compact"
-          :disabled="session.compacting || compressionRatioTooLow"
-          :title="
-            compressionRatioTooLow
-              ? t('context.notEnoughToCompact')
-              : needsAutoCompression
-                ? t('context.autoCompressionActive')
-                : t('context.compactNow')
-          "
-          @click="onCompactClick"
-        >
-          <template v-if="session.compacting">
-            {{ t("context.compactInProgress") }}
-          </template>
-          <template v-else-if="needsAutoCompression"> {{ t("context.autoCompressing") }} </template>
-          <template v-else>
-            {{ t("context.compactNow") }}
-          </template>
-        </button>
-      </div>
+      <ContextMeterDetails
+        :by-source="session.lastContextUsage.by_source"
+        :output-reservation="session.lastContextUsage.output_reservation"
+        :display-budget-tokens="displayBudgetTokens"
+        :compacting="session.compacting"
+        :compression-ratio-too-low="compressionRatioTooLow"
+        :needs-auto-compression="needsAutoCompression"
+        @compact="onCompactClick"
+      />
     </div>
   </div>
 </template>
@@ -582,54 +448,6 @@ async function onCompactClick() {
 .detail-grid dd {
   margin: 2px 0 0;
   font-weight: 600;
-}
-.by-source-table {
-  border-top: 1px solid var(--app-border-color);
-  padding-top: 6px;
-}
-.popover-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.popover-table td {
-  padding: 3px 0;
-}
-.popover-table td + td {
-  text-align: right;
-}
-.swatch {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-.popover-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color, #fff);
-  border-color: var(--app-primary-color);
 }
 .estimated-value {
   border-bottom: 1px dashed var(--app-text-color);
