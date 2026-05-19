@@ -94,9 +94,9 @@ watch(
     aria-label="Instructions settings"
     data-test="instructions-settings-pane"
   >
-    <KxStateBlock v-if="errorMsg" tone="error" compact data-test="instructions-error">
+    <SettingsState v-if="errorMsg" tone="error" data-test="instructions-error">
       {{ errorMsg }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div v-if="loaded" class="instructions-levels">
       <!-- System level (hidden when editing project config) -->
@@ -196,9 +196,9 @@ watch(
       </div>
     </div>
 
-    <KxStateBlock v-else tone="loading" compact data-test="instructions-loading">
+    <SettingsState v-else tone="loading" data-test="instructions-loading">
       {{ t("common.loading") }}
-    </KxStateBlock>
+    </SettingsState>
   </section>
 </template>
 

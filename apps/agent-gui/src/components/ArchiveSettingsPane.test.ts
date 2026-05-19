@@ -97,6 +97,7 @@ describe("ArchiveSettingsPane", () => {
 
     const empty = wrapper.find('[data-test="archive-empty-state"]');
     expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("settings-state");
     expect(empty.classes()).toContain("kx-state-block--empty");
     expect(empty.text()).toContain("No archived sessions.");
   });

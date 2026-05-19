@@ -145,41 +145,43 @@ async function selectSource(sourceId: string | null): Promise<void> {
       {{ installSuccessMessage }}
     </KxInlineAlert>
 
-    <KxStateBlock
+    <SettingsState
       v-if="store.catalogLoading"
       tone="loading"
-      compact
       data-test="skill-catalog-loading-state"
     >
-      <span class="spinner" />
-      <span class="text-secondary">{{ t("common.loading") }}</span>
-    </KxStateBlock>
-    <KxStateBlock v-else-if="store.error" tone="error" compact data-test="skill-catalog-error">
-      <p class="text-error error">{{ store.error }}</p>
-      <button
-        class="btn btn-sm"
-        type="button"
-        data-test="skill-catalog-retry"
-        @click="searchCatalog({ force: true })"
-      >
-        {{ t("common.retry") }}
-      </button>
-    </KxStateBlock>
-    <KxStateBlock
+      {{ t("common.loading") }}
+    </SettingsState>
+    <SettingsState v-else-if="store.error" tone="error" data-test="skill-catalog-error">
+      {{ store.error }}
+      <template #actions>
+        <button
+          class="btn btn-sm"
+          type="button"
+          data-test="skill-catalog-retry"
+          @click="searchCatalog({ force: true })"
+        >
+          {{ t("common.retry") }}
+        </button>
+      </template>
+    </SettingsState>
+    <SettingsState
       v-else-if="store.catalogEntries.length === 0"
       tone="empty"
       data-test="skill-catalog-empty"
     >
-      <span>{{ t("skills.catalogEmpty") }}</span>
-      <button
-        class="btn btn-sm"
-        type="button"
-        data-test="skill-catalog-retry"
-        @click="searchCatalog({ force: true })"
-      >
-        {{ t("common.retry") }}
-      </button>
-    </KxStateBlock>
+      {{ t("skills.catalogEmpty") }}
+      <template #actions>
+        <button
+          class="btn btn-sm"
+          type="button"
+          data-test="skill-catalog-retry"
+          @click="searchCatalog({ force: true })"
+        >
+          {{ t("common.retry") }}
+        </button>
+      </template>
+    </SettingsState>
     <div v-else class="grid">
       <SkillDiscoverCard
         v-for="entry in store.catalogEntries"

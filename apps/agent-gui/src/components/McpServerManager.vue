@@ -66,14 +66,9 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
         </button>
       </div>
 
-      <KxStateBlock
-        v-if="mcp.servers.length === 0"
-        tone="empty"
-        compact
-        data-test="mcp-empty-state"
-      >
-        <p class="mcp-empty">No MCP servers configured</p>
-      </KxStateBlock>
+      <SettingsState v-if="mcp.servers.length === 0" tone="empty" data-test="mcp-empty-state">
+        No MCP servers configured
+      </SettingsState>
 
       <ul v-else class="list mcp-manager-list">
         <li v-for="server in mcp.servers" :key="server.id" class="list-item">

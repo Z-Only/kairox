@@ -226,9 +226,9 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     expect(useMcpStore().settingsError).toBe("Unable to open MCP config file: file open denied");
-    expect(wrapper.find('[data-test="mcp-page-error"]').text()).toContain(
-      "Unable to open MCP config file: file open denied"
-    );
+    const error = wrapper.find('[data-test="mcp-page-error"]');
+    expect(error.classes()).toContain("settings-state");
+    expect(error.text()).toContain("Unable to open MCP config file: file open denied");
   });
 
   it("opens the add server dialog via dropdown and saves manual stdio settings", async () => {
@@ -278,7 +278,9 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     expect(useMcpStore().settingsError).toBe("settings unavailable");
-    expect(wrapper.find('[role="alert"]').text()).toContain("settings unavailable");
+    const error = wrapper.find('[role="alert"]');
+    expect(error.classes()).toContain("settings-state");
+    expect(error.text()).toContain("settings unavailable");
   });
 
   it("refreshes settings, effective servers, and tools when refreshing all", async () => {

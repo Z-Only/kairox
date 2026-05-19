@@ -84,25 +84,25 @@ onMounted(() => {
 
 <template>
   <section class="archive-settings" aria-label="Archive" data-test="archive-settings-pane">
-    <KxStateBlock v-if="error" tone="error" compact data-test="archive-page-error">
+    <SettingsState v-if="error" tone="error" data-test="archive-page-error">
       {{ error }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div v-if="stats.total > 0" class="archive-stats" data-test="archive-stats">
       <span class="tag">{{ t("settings.archiveTotal", { count: stats.total }) }}</span>
       <span class="tag">{{ t("settings.archiveProjects", { count: stats.projects }) }}</span>
     </div>
 
-    <KxStateBlock v-if="loading" tone="loading" compact data-test="archive-loading-state">
+    <SettingsState v-if="loading" tone="loading" data-test="archive-loading-state">
       {{ t("common.loading") }}
-    </KxStateBlock>
-    <KxStateBlock
+    </SettingsState>
+    <SettingsState
       v-else-if="projectStore.archivedSessions.length === 0"
       tone="empty"
       data-test="archive-empty-state"
     >
       {{ t("settings.archiveEmpty") }}
-    </KxStateBlock>
+    </SettingsState>
 
     <div v-else class="archive-list" role="list" aria-label="Archived sessions">
       <article

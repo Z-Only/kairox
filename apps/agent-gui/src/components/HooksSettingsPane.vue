@@ -203,13 +203,13 @@ watch(
     aria-label="Hooks settings"
     data-test="hooks-settings-pane"
   >
-    <KxStateBlock v-if="errorMsg" tone="error" compact data-test="hooks-error">
+    <SettingsState v-if="errorMsg" tone="error" data-test="hooks-error">
       {{ errorMsg }}
-    </KxStateBlock>
+    </SettingsState>
 
-    <KxStateBlock v-if="loading" tone="loading" compact data-test="hooks-loading">
+    <SettingsState v-if="loading" tone="loading" data-test="hooks-loading">
       {{ t("common.loading") }}
-    </KxStateBlock>
+    </SettingsState>
 
     <template v-else>
       <div class="hooks-pane__templates" data-test="hook-templates">
@@ -232,9 +232,9 @@ watch(
             <span class="tag">{{ currentHooks.length }}</span>
           </div>
 
-          <p v-if="currentHooks.length === 0" class="hooks-pane__empty" data-test="hooks-empty">
+          <SettingsState v-if="currentHooks.length === 0" tone="empty" data-test="hooks-empty">
             {{ t("hooks.empty") }}
-          </p>
+          </SettingsState>
 
           <article
             v-for="hook in currentHooks"
@@ -446,10 +446,6 @@ watch(
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.hooks-pane__empty {
-  color: var(--app-text-color-2);
 }
 
 @media (max-width: 760px) {

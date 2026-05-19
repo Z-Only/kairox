@@ -89,14 +89,9 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       <strong>{{ t("marketplace.catalogSourcesTitle") }}</strong>
     </h3>
 
-    <KxStateBlock
-      v-if="sources.length === 0"
-      tone="empty"
-      compact
-      data-test="catalog-sources-empty-state"
-    >
+    <SettingsState v-if="sources.length === 0" tone="empty" data-test="catalog-sources-empty-state">
       {{ t("marketplace.sourcesEmpty") }}
-    </KxStateBlock>
+    </SettingsState>
 
     <ul v-else class="list src-list">
       <li v-for="src in sources" :key="src.id" class="src-row">
