@@ -6,6 +6,9 @@ import McpResourceAccordion from "@/components/McpResourceAccordion.vue";
 import McpPromptAccordion from "@/components/McpPromptAccordion.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
+
+type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 
 const { t } = useI18n();
 const mcp = useMcpStore();
@@ -64,10 +67,22 @@ function healthLabel(): string {
   return h.healthy ? t("mcp.healthy") : t("mcp.unhealthy");
 }
 
-function healthClass(): string {
+function healthTone(): "success" | "error" {
   const h = mcp.serverHealth[props.server.value.id];
-  if (!h) return "";
-  return h.healthy ? "tag-success" : "tag-danger";
+  return h?.healthy ? "success" : "error";
+}
+
+function sourceTone(source: string): SourceTone {
+  switch (source.toLowerCase()) {
+    case "builtin":
+      return "source-builtin";
+    case "project":
+      return "source-project";
+    case "local":
+      return "source-local";
+    default:
+      return "source-user";
+  }
 }
 
 function serverToolCount(): number {
@@ -83,35 +98,35 @@ function serverToolCount(): number {
       :tags-label="t('mcp.title')"
     >
       <template #tags>
-        <span class="tag tag--source" :class="`tag--source-${server.source.toLowerCase()}`">
+        <SettingsStatusTag :tone="sourceTone(server.source)">
           {{ server.source }}
-        </span>
-        <span v-if="server.overrides" class="tag tag--override">
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="server.overrides" tone="override">
           {{ t("mcp.overrides", { source: server.overrides }) }}
-        </span>
-        <span v-if="server.disabledBy" class="tag tag--disabled-by">
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="server.disabledBy" tone="disabled-by">
           {{ t("mcp.disabledBy", { source: server.disabledBy }) }}
-        </span>
-        <span class="tag">{{ server.value.transport }}</span>
-        <span :class="['tag', server.enabled ? 'tag-success' : 'tag-warning']">
+        </SettingsStatusTag>
+        <SettingsStatusTag>{{ server.value.transport }}</SettingsStatusTag>
+        <SettingsStatusTag :tone="server.enabled ? 'success' : 'warning'">
           {{ server.enabled ? t("mcp.enabled") : t("mcp.disabled") }}
-        </span>
-        <span :class="['tag', server.value.trusted ? 'tag-success' : 'tag-warning']">
+        </SettingsStatusTag>
+        <SettingsStatusTag :tone="server.value.trusted ? 'success' : 'warning'">
           {{ server.value.trusted ? t("mcp.trusted") : t("mcp.untrusted") }}
-        </span>
-        <span
+        </SettingsStatusTag>
+        <SettingsStatusTag
           v-if="server.source === 'builtin' && !server.value.verified"
-          class="tag tag--unverified"
+          tone="warning"
         >
           {{ t("mcp.unverified") }}
-        </span>
-        <span
+        </SettingsStatusTag>
+        <SettingsStatusTag
           v-if="server.value.transport !== 'builtin' && healthLabel()"
-          :class="['tag', healthClass()]"
+          :tone="healthTone()"
           :data-test="`mcp-health-${server.value.id}`"
         >
           {{ healthLabel() }}
-        </span>
+        </SettingsStatusTag>
       </template>
       <KxInlineAlert
         v-if="server.value.last_error"
@@ -242,51 +257,6 @@ function serverToolCount(): number {
 </template>
 
 <style scoped>
-/* Source tags for effective (unified) view */
-.tag--source {
-  font-weight: 600;
-}
-
-.tag--source-builtin {
-  background: var(--color-muted);
-  color: var(--color-text-muted);
-}
-
-.tag--source-user {
-  background: var(--color-secondary-light);
-  color: var(--color-secondary);
-}
-
-.tag--source-project {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.tag--source-local {
-  background: var(--color-accent-light, var(--color-primary-light));
-  color: var(--color-accent, var(--color-primary));
-}
-
-.tag--override {
-  background: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.tag--disabled-by {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
-}
-
-.tag--unverified {
-  background: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.tag-danger {
-  background: var(--color-danger-light, #fee2e2);
-  color: var(--color-danger, #dc2626);
-}
-
 /* ── Collapsible tool list ── */
 .mcp-settings__tools {
   width: 100%;

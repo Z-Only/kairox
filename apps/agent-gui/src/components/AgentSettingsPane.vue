@@ -3,6 +3,7 @@ import { useAgentSettingsStore } from "@/stores/agentSettings";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 import type {
   AgentSettingsInput,
   AgentSettingsScope,
@@ -181,20 +182,20 @@ watch(
       >
         <SettingsItemSummary :title="agent.name" :description="agent.description">
           <template #tags>
-            <span class="tag">{{ scopeLabel(agent.scope) }}</span>
-            <span :class="['tag', agent.enabled ? 'tag-success' : 'tag-warning']">
+            <SettingsStatusTag>{{ scopeLabel(agent.scope) }}</SettingsStatusTag>
+            <SettingsStatusTag :tone="agent.enabled ? 'success' : 'warning'">
               {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
-            </span>
-            <span :class="['tag', agent.effective ? 'tag-success' : 'tag-warning']">
+            </SettingsStatusTag>
+            <SettingsStatusTag :tone="agent.effective ? 'success' : 'warning'">
               {{
                 agent.effective
                   ? t("agents.effective")
                   : t("agents.shadowedBy", { source: agent.shadowedBy })
               }}
-            </span>
-            <span :class="['tag', agent.valid ? 'tag-success' : 'tag-error']">
+            </SettingsStatusTag>
+            <SettingsStatusTag :tone="agent.valid ? 'success' : 'error'">
               {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
-            </span>
+            </SettingsStatusTag>
           </template>
 
           <SettingsItemMeta wrap-values>

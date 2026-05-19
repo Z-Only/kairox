@@ -138,4 +138,9 @@ describe("ArchiveSettingsPane", () => {
     expect(archiveSettingsPaneSource).not.toContain(".archive-list {");
     expect(archiveSettingsPaneSource).not.toContain(".archive-row__meta");
   });
+
+  it("uses SettingsStatusTag for archive stats instead of direct tag markup", () => {
+    expect(archiveSettingsPaneSource).toContain("SettingsStatusTag");
+    expect(archiveSettingsPaneSource).not.toContain('<span class="tag">');
+  });
 });

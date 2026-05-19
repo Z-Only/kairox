@@ -2,6 +2,9 @@
 import type { ProfileSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
+
+type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 
 const props = defineProps<{
   profile: ProfileSettingsView;
@@ -34,6 +37,19 @@ function sourceClass(source: string): string {
   }
 }
 
+function sourceTone(source: string): SourceTone {
+  switch (sourceClass(source)) {
+    case "project":
+      return "source-project";
+    case "local":
+      return "source-local";
+    case "builtin":
+      return "source-builtin";
+    default:
+      return "source-user";
+  }
+}
+
 function sourceLabel(source: string): string {
   switch (source) {
     case "defaults":
@@ -58,21 +74,21 @@ function sourceLabel(source: string): string {
       :tags-label="t('models.title')"
     >
       <template #tags>
-        <span class="tag tag--source" :class="`tag--source-${sourceClass(profile.source)}`">
+        <SettingsStatusTag :tone="sourceTone(profile.source)">
           {{ sourceLabel(profile.source) }}
-        </span>
-        <span :class="['tag', profile.enabled ? 'tag-success' : 'tag-warning']">
+        </SettingsStatusTag>
+        <SettingsStatusTag :tone="profile.enabled ? 'success' : 'warning'">
           {{ profile.enabled ? t("models.enabled") : t("models.disabled") }}
-        </span>
-        <span v-if="profile.context_window" class="tag">
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="profile.context_window">
           {{ t("models.contextWindow") }}: {{ profile.context_window.toLocaleString() }}
-        </span>
-        <span v-if="profile.output_limit" class="tag">
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="profile.output_limit">
           {{ t("models.outputLimit") }}: {{ profile.output_limit.toLocaleString() }}
-        </span>
-        <span v-if="profile.temperature != null" class="tag">
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="profile.temperature != null">
           {{ t("models.temperature") }}: {{ profile.temperature }}
-        </span>
+        </SettingsStatusTag>
       </template>
     </SettingsItemSummary>
 
@@ -149,39 +165,5 @@ function sourceLabel(source: string): string {
 button:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
-}
-
-.tag--source {
-  font-weight: 600;
-}
-
-.tag--source-builtin {
-  background: var(--color-muted);
-  color: var(--color-text-muted);
-}
-
-.tag--source-user {
-  background: var(--color-secondary-light);
-  color: var(--color-secondary);
-}
-
-.tag--source-project {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.tag--source-local {
-  background: var(--color-accent-light, var(--color-primary-light));
-  color: var(--color-accent, var(--color-primary));
-}
-
-.tag--override {
-  background: var(--color-warning-light);
-  color: var(--color-warning);
-}
-
-.tag--disabled-by {
-  background: var(--color-danger-light);
-  color: var(--color-danger);
 }
 </style>

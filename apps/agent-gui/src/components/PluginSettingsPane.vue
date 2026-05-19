@@ -5,6 +5,7 @@ import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 const store = usePluginsStore();
 const { t } = useI18n();
@@ -124,16 +125,16 @@ watch(activeSubTab, (tab) => {
             :tags-label="t('plugins.tabInstalled')"
           >
             <template #tags>
-              <span class="tag">{{ plugin.scope }}</span>
-              <span :class="['tag', plugin.enabled ? 'tag-success' : 'tag-warning']">
+              <SettingsStatusTag>{{ plugin.scope }}</SettingsStatusTag>
+              <SettingsStatusTag :tone="plugin.enabled ? 'success' : 'warning'">
                 {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-              </span>
-              <span :class="['tag', plugin.valid ? 'tag-success' : 'tag-error']">
+              </SettingsStatusTag>
+              <SettingsStatusTag :tone="plugin.valid ? 'success' : 'error'">
                 {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
-              </span>
-              <span v-if="!plugin.effective" class="tag tag-warning">
+              </SettingsStatusTag>
+              <SettingsStatusTag v-if="!plugin.effective" tone="warning">
                 {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
-              </span>
+              </SettingsStatusTag>
             </template>
 
             <SettingsItemMeta wrap-values>
@@ -249,11 +250,13 @@ watch(activeSubTab, (tab) => {
                 :tags-label="t('plugins.sourceSettings')"
               >
                 <template #tags>
-                  <span class="tag">{{ source.id }}</span>
-                  <span :class="['tag', source.enabled ? 'tag-success' : 'tag-warning']">
+                  <SettingsStatusTag>{{ source.id }}</SettingsStatusTag>
+                  <SettingsStatusTag :tone="source.enabled ? 'success' : 'warning'">
                     {{ source.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-                  </span>
-                  <span v-if="source.builtin" class="tag">{{ t("plugins.builtin") }}</span>
+                  </SettingsStatusTag>
+                  <SettingsStatusTag v-if="source.builtin" tone="muted">
+                    {{ t("plugins.builtin") }}
+                  </SettingsStatusTag>
                 </template>
                 <code>{{ source.source }}</code>
               </SettingsItemSummary>
@@ -304,8 +307,10 @@ watch(activeSubTab, (tab) => {
             :tags-label="t('plugins.tabMarketplace')"
           >
             <template #tags>
-              <span class="tag">{{ entry.marketplace_id }}</span>
-              <span v-if="entry.version" class="tag">{{ entry.version }}</span>
+              <SettingsStatusTag>{{ entry.marketplace_id }}</SettingsStatusTag>
+              <SettingsStatusTag v-if="entry.version" tone="info">
+                {{ entry.version }}
+              </SettingsStatusTag>
             </template>
             <code>{{ entry.source }}</code>
           </SettingsItemSummary>

@@ -157,8 +157,12 @@ describe("ModelSettingsPane", () => {
 
   it("uses shared card content hierarchy for profile rows", () => {
     expect(modelProfileCardSource).toContain("SettingsItemSummary");
+    expect(modelProfileCardSource).toContain("SettingsStatusTag");
     expect(modelProfileCardSource).not.toContain(".model-settings__profile-main");
     expect(modelProfileCardSource).not.toContain(".server__tags");
+    expect(modelProfileCardSource).not.toContain("tag-success");
+    expect(modelProfileCardSource).not.toContain("tag-warning");
+    expect(modelProfileCardSource).not.toContain("tag--source");
   });
 
   it("loads only the selected user configuration scope", async () => {

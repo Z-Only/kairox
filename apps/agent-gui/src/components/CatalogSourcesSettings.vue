@@ -3,6 +3,7 @@ import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
 import type { AddCatalogSourceRequestPayload } from "../generated/commands";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
+import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 const { t } = useI18n();
 const catalog = useCatalogStore();
@@ -113,7 +114,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         >
           <template #tags>
             <code>{{ src.id }}</code>
-            <span class="tag tag-info src-kind">{{ src.kind }}</span>
+            <SettingsStatusTag tone="info" class="src-kind">{{ src.kind }}</SettingsStatusTag>
           </template>
           <a
             v-if="src.url"
@@ -210,17 +211,6 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
   font-size: 14px;
   margin: 0;
   font-weight: normal;
-}
-.tag {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 0.75em;
-  line-height: 1.8;
-}
-.tag-info {
-  background: var(--app-code-bg);
-  color: var(--app-info-color);
 }
 .src-kind {
   text-transform: uppercase;
