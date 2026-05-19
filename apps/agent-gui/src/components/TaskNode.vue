@@ -116,9 +116,9 @@ function handleToggle() {
           {{ agentBadge }}
         </span>
         <span class="task-title">{{ node.task.title }}</span>
-        <span v-if="retryLabel()" class="tag tag-warning task-retry">
+        <KxBadge v-if="retryLabel()" class="task-retry" tone="warning">
           {{ retryLabel() }}
-        </span>
+        </KxBadge>
         <span v-if="hasChildren && !isExpanded" class="task-summary">
           {{ childSummary() }}
         </span>

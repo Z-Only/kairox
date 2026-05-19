@@ -62,14 +62,15 @@ onMounted(async () => {
           @click="catalog.toggleSource(chip.id)"
         >
           {{ chip.display_name }}
-          <span
+          <KxBadge
             v-if="catalog.sourceFailures[chip.id]"
             :data-test="`src-warn-${chip.id}`"
             :title="catalog.sourceFailures[chip.id]"
-            class="tag tag-error warn"
+            class="warn"
+            tone="error"
           >
             !
-          </span>
+          </KxBadge>
         </KxChipButton>
         <template #actions>
           <KxIconButton
@@ -121,10 +122,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-.tag-error {
-  color: var(--app-error-color, #d03050);
-  font-size: 0.85em;
 }
 .card {
   border: 1px solid var(--app-border-color, #e0e0e0);

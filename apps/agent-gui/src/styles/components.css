@@ -12,26 +12,6 @@
   color: var(--app-text-color-2);
 }
 
-.tag-success {
-  background: color-mix(in srgb, var(--app-success-color) 15%, transparent);
-  color: var(--app-success-color);
-}
-
-.tag-warning {
-  background: color-mix(in srgb, var(--app-warning-color) 15%, transparent);
-  color: var(--app-warning-color);
-}
-
-.tag-error {
-  background: color-mix(in srgb, var(--app-error-color) 15%, transparent);
-  color: var(--app-error-color);
-}
-
-.tag-info {
-  background: color-mix(in srgb, var(--app-info-color) 15%, transparent);
-  color: var(--app-info-color);
-}
-
 /* === Cards === */
 .card {
   background: var(--app-card-color);

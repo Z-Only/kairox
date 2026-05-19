@@ -34,7 +34,7 @@ function statusText(status: string): string {
   }
 }
 
-function statusTagType(status: string): "success" | "warning" | "error" | "default" {
+function statusTone(status: string): "success" | "warning" | "error" | "neutral" {
   switch (status) {
     case "running":
       return "success";
@@ -43,7 +43,7 @@ function statusTagType(status: string): "success" | "warning" | "error" | "defau
     case "failed":
       return "error";
     default:
-      return "default";
+      return "neutral";
   }
 }
 
@@ -82,19 +82,19 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
               <span class="mcp-server-name" data-test="mcp-server-name"
                 ><strong>{{ server.id }}</strong></span
               >
-              <span
-                class="tag mcp-server-status"
-                :class="`tag-${statusTagType(server.status)}`"
+              <KxBadge
+                class="mcp-server-status"
+                :tone="statusTone(server.status)"
                 data-test="mcp-server-status"
               >
                 {{ statusEmoji(server.status) }} {{ statusText(server.status) }}
-              </span>
-              <span v-if="trustedSet.has(server.id)" class="tag tag-success mcp-trusted">
+              </KxBadge>
+              <KxBadge v-if="trustedSet.has(server.id)" class="mcp-trusted" tone="success">
                 ✅ Trusted
-              </span>
-              <span v-else-if="server.status === 'running'" class="tag tag-warning mcp-untrusted">
+              </KxBadge>
+              <KxBadge v-else-if="server.status === 'running'" class="mcp-untrusted" tone="warning">
                 ⚠️ Not trusted
-              </span>
+              </KxBadge>
             </div>
 
             <span
@@ -254,33 +254,10 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
   color: var(--app-text-color, #333);
 }
 
-/* Tags */
-.tag {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 3px;
-  line-height: 1.6;
-}
 .mcp-server-status,
 .mcp-trusted,
 .mcp-untrusted {
   font-size: 10px;
-}
-.tag-success {
-  background: var(--app-success-bg, #e8f5e9);
-  color: var(--app-success-color, #18a058);
-}
-.tag-warning {
-  background: var(--app-warning-bg, #fff8e1);
-  color: var(--app-warning-color, #b45309);
-}
-.tag-error {
-  background: var(--app-error-bg, #fff5f5);
-  color: var(--app-error-color, #d03050);
-}
-.tag-default {
-  background: var(--app-hover-color, #f0f0f0);
-  color: var(--app-text-color-3, #888);
 }
 
 /* Error text */

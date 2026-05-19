@@ -9,12 +9,12 @@ const props = defineProps<{
 const emit = defineEmits<{ install: []; select: [] }>();
 const { t } = useI18n();
 
-const trustTagClass = computed<string>(() => {
+const securityTone = computed<"neutral" | "success" | "warning" | "error">(() => {
   const score = props.entry.security_score;
-  if (score == null) return "";
-  if (score >= 90) return "tag-success";
-  if (score >= 70) return "tag-warning";
-  return "tag-error";
+  if (score == null) return "neutral";
+  if (score >= 90) return "success";
+  if (score >= 70) return "warning";
+  return "error";
 });
 
 const starsDisplay = computed<string>(() => {
@@ -46,14 +46,14 @@ const installButtonLabel = computed<string>(() => {
     <button class="card-body card-body-btn" type="button" @click="emit('select')">
       <div class="card-head">
         <span class="display-name">{{ entry.name }}</span>
-        <span
+        <KxBadge
           v-if="entry.security_score != null"
-          class="tag sec-tag"
-          :class="trustTagClass"
+          class="security-badge"
+          :tone="securityTone"
           :title="t('skills.securityScore', { score: entry.security_score })"
         >
           {{ entry.security_score }}
-        </span>
+        </KxBadge>
       </div>
       <span class="summary">{{ entry.description || t("skills.noDescription") }}</span>
       <div class="meta-row">
@@ -66,19 +66,20 @@ const installButtonLabel = computed<string>(() => {
         </span>
       </div>
       <div class="tags">
-        <span class="tag tag-source">{{ entry.source }}</span>
+        <KxTag tone="info">{{ entry.source }}</KxTag>
       </div>
     </button>
     <div class="card-footer">
-      <a
+      <KxTag
         v-if="entry.source_url"
+        as="a"
+        tone="info"
         :href="entry.source_url"
         target="_blank"
         rel="noopener noreferrer"
-        class="tag tag-link"
       >
         {{ t("skills.viewSource") }}
-      </a>
+      </KxTag>
       <KxButton
         variant="primary"
         size="sm"
@@ -130,7 +131,7 @@ const installButtonLabel = computed<string>(() => {
   font-weight: 600;
 }
 
-.sec-tag {
+.security-badge {
   margin-left: auto;
 }
 
@@ -157,19 +158,6 @@ const installButtonLabel = computed<string>(() => {
   gap: 4px;
   flex-wrap: wrap;
   margin-top: 4px;
-}
-
-.tag-source {
-  background: var(--app-code-bg);
-  color: var(--app-info-color);
-}
-
-.tag-link {
-  text-decoration: none;
-}
-
-.tag-link:hover {
-  text-decoration: underline;
 }
 
 .card-footer {
