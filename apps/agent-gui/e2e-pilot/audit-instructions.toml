@@ -39,6 +39,13 @@ name = "instructions pane visible"
 action = "assert-visible"
 target = "[data-test='instructions-settings-pane']"
 
+# Wait for async commands.getInstructions() to resolve and render levels
+[[step]]
+name = "wait for instructions levels to load"
+action = "wait"
+selector = "[data-test='instructions-level-system']"
+timeout_ms = 15000
+
 # Verify all instruction levels
 [[step]]
 name = "system level visible"
