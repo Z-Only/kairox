@@ -1,14 +1,55 @@
 mod budget;
 mod messages;
 mod runner;
+mod stream_handler;
 mod tool_loop;
+mod turn_context;
 
 pub(crate) use budget::{build_model_messages_within_budget, should_trigger_auto_compaction};
 pub(crate) use messages::build_model_messages;
 pub(crate) use runner::run_agent_loop;
-pub(crate) use runner::AgentLoopDeps;
 pub(crate) use runner::{latest_model_profile_for, latest_model_reasoning_effort_for};
+pub(crate) use stream_handler::process_model_stream;
+pub(crate) use stream_handler::StreamOutput;
 pub(crate) use tool_loop::execute_tool_calls;
+pub(crate) use turn_context::prepare_turn_context;
+pub(crate) use turn_context::TurnContext;
+
+use crate::task_graph::TaskGraph;
+use agent_core::PermissionDecision;
+use agent_memory::MemoryStore;
+use agent_models::ModelClient;
+use agent_store::EventStore;
+use agent_tools::{PermissionEngine, ToolRegistry};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
+
+/// Bundles every dependency `run_agent_loop` needs. Introduced to avoid a
+/// 12-argument signature once `config` and `session_states` were added in
+/// Task 8.
+pub struct AgentLoopDeps<'a, S, M>
+where
+    S: EventStore + 'static,
+    M: ModelClient + 'static,
+{
+    pub store: &'a Arc<S>,
+    pub model: &'a Arc<M>,
+    pub event_tx: &'a tokio::sync::broadcast::Sender<agent_core::DomainEvent>,
+    pub tool_registry: &'a Arc<Mutex<ToolRegistry>>,
+    pub permission_engine: &'a Arc<Mutex<PermissionEngine>>,
+    pub pending_permissions:
+        &'a Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
+    pub memory_store: &'a Option<Arc<dyn MemoryStore>>,
+    pub task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
+    pub active_cancellation: &'a Arc<Mutex<Option<CancellationToken>>>,
+    pub config: &'a Arc<agent_config::Config>,
+    pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+    pub skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
+    pub active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
+    pub root_path: Option<std::path::PathBuf>,
+}
 
 pub const SYSTEM_PROMPT: &str = "\
 You are Kairox, a helpful AI assistant with memory capabilities.\n\n\

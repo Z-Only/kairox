@@ -261,3 +261,50 @@ async fn baseline_trace_returns_session_events() {
         "trace should contain AssistantMessageCompleted, got: {event_types:?}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// 8. Turn emits ContextAssembled event with usage data
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn baseline_turn_emits_context_assembled_event() {
+    let (runtime, ws, sid) = setup_session().await;
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: ws,
+            session_id: sid.clone(),
+            content: "context assembly check".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(sid).await.unwrap();
+    let event_types: Vec<&str> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
+    assert!(
+        event_types.contains(&"ContextAssembled"),
+        "trace should contain ContextAssembled after turn context preparation, got: {event_types:?}"
+    );
+
+    // ContextAssembled must appear after UserMessageAdded and before
+    // the first ModelTokenDelta (i.e., context is prepared before the
+    // model is called).
+    let user_pos = event_types.iter().position(|t| *t == "UserMessageAdded");
+    let assembled_pos = event_types.iter().position(|t| *t == "ContextAssembled");
+
+    assert!(
+        user_pos.is_some() && assembled_pos.is_some(),
+        "both UserMessageAdded and ContextAssembled must exist"
+    );
+    assert!(
+        user_pos.unwrap() < assembled_pos.unwrap(),
+        "ContextAssembled must appear after UserMessageAdded"
+    );
+    if let Some(delta_pos) = event_types.iter().position(|t| *t == "ModelTokenDelta") {
+        assert!(
+            assembled_pos.unwrap() < delta_pos,
+            "ContextAssembled must appear before first ModelTokenDelta"
+        );
+    }
+}
