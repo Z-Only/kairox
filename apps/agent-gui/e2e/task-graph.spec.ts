@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 //   - The TraceTimeline tab strip is hand-rolled NButtons; `.tab-group button`
 //     keeps locating them.
 //   - TaskSteps/TaskNode preserve `.task-steps`, `.task-node`, `.task-status`,
-//     `.task-role`, `.btn-retry`, `.task-error-text` class hooks verbatim.
+//     `.task-role`, `[data-test="task-retry"]`, `.task-error-text` hooks.
 
 test("task steps panel shows empty state initially", async ({ page }) => {
   await page.goto("/");

@@ -259,17 +259,18 @@ async function onInstall() {
     </div>
 
     <template #footer>
-      <button
-        class="btn btn-primary btn-sm"
+      <KxButton
+        variant="primary"
+        size="sm"
         data-test="catalog-install"
         :disabled="installDisabled"
         @click="onInstall"
       >
         {{ t("marketplace.install.buttonInstall") }}
-      </button>
-      <button class="btn btn-sm" type="button" @click="emit('close')">
+      </KxButton>
+      <KxButton size="sm" @click="emit('close')">
         {{ t("common.close") }}
-      </button>
+      </KxButton>
     </template>
   </KxDrawer>
 </template>
@@ -432,37 +433,5 @@ async function onInstall() {
 }
 .hint-verified {
   font-size: 12px;
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 12px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover {
-  background: var(--app-hover-color);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary {
-  background: var(--app-primary-color);
-  color: var(--app-inverse-text-color);
-  border-color: var(--app-primary-color);
-}
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-.btn-sm {
-  height: 28px;
-  font-size: 13px;
 }
 </style>

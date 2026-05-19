@@ -9,7 +9,7 @@ describe("KxFormActions", () => {
         dataTest: "source-form-actions"
       },
       slots: {
-        default: '<button class="btn btn-primary" data-test="save-source">Save</button>'
+        default: '<button class="save-action" data-test="save-source">Save</button>'
       }
     });
 
@@ -24,7 +24,7 @@ describe("KxFormActions", () => {
         align: "end"
       },
       slots: {
-        default: '<button class="btn">Cancel</button>'
+        default: '<button class="cancel-action">Cancel</button>'
       }
     });
 

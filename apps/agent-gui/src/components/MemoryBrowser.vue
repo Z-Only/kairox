@@ -70,14 +70,15 @@ async function promptDelete(id: string, content: string) {
   <div class="memory-browser" data-test="memory-browser">
     <header class="memory-header">
       <h2>{{ t("memory.header") }}</h2>
-      <button
-        class="btn btn-icon refresh-btn"
+      <KxIconButton
+        class="refresh-btn"
+        :label="t('common.refresh')"
         :title="t('common.refresh')"
         data-test="memory-refresh-btn"
         @click="memory.loadMemories()"
       >
         ↻
-      </button>
+      </KxIconButton>
     </header>
 
     <div class="memory-controls">
@@ -127,14 +128,15 @@ async function promptDelete(id: string, content: string) {
         </div>
         <span class="memory-content">{{ mem.content }}</span>
         <div class="memory-actions">
-          <button
-            class="btn btn-icon memory-delete-btn"
+          <KxIconButton
+            class="memory-delete-btn"
+            :label="t('common.delete')"
             :title="t('common.delete')"
             data-test="memory-delete-btn"
             @click="promptDelete(mem.id, mem.content)"
           >
             🗑️
-          </button>
+          </KxIconButton>
         </div>
       </li>
     </ul>

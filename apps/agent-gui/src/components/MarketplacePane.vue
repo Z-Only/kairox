@@ -57,7 +57,7 @@ onMounted(async () => {
           v-for="chip in sourceChips"
           :key="chip.id"
           :data-test="`source-chip-${chip.id}`"
-          :class="['btn', 'chip', { active: catalog.isSourceEnabled(chip.id) }]"
+          :class="['chip', { active: catalog.isSourceEnabled(chip.id) }]"
           @click="catalog.toggleSource(chip.id)"
         >
           {{ chip.display_name }}
@@ -70,10 +70,10 @@ onMounted(async () => {
             !
           </span>
         </button>
-        <button
-          class="btn settings-icon"
+        <KxIconButton
+          class="settings-icon"
+          :label="t('marketplace.sourceSettingsAria')"
           data-test="catalog-source-settings"
-          :aria-label="t('marketplace.sourceSettingsAria')"
           @click="settingsOpen = !settingsOpen"
         >
           <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
@@ -81,7 +81,7 @@ onMounted(async () => {
               d="M8.95 2h2.1l.32 2.15c.5.17.97.42 1.4.73l2.01-.81 1.05 1.82-1.69 1.35c.05.25.08.51.08.76s-.03.51-.08.76l1.69 1.35-1.05 1.82-2.01-.81c-.43.31-.9.56-1.4.73L11.05 14h-2.1l-.32-2.15c-.5-.17-.97-.42-1.4-.73l-2.01.81-1.05-1.82 1.69-1.35A3.87 3.87 0 0 1 5.78 8c0-.25.03-.51.08-.76L4.17 5.89l1.05-1.82 2.01.81c.43-.31.9-.56 1.4-.73L8.95 2Zm1.05 4.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z"
             />
           </svg>
-        </button>
+        </KxIconButton>
       </div>
 
       <ModalDialog
@@ -120,15 +120,17 @@ onMounted(async () => {
   flex-direction: column;
   overflow: hidden;
 }
-.btn {
+.chip {
   padding: 4px 12px;
   border: 1px solid var(--app-border-color);
   border-radius: 14px;
   background: var(--app-card-color);
   cursor: pointer;
   color: var(--app-text-color);
+  font-size: 0.85em;
+  font-family: inherit;
 }
-.btn.active {
+.chip.active {
   background: var(--app-primary-color, #18a058);
   color: #fff;
   border-color: var(--app-primary-color, #18a058);
@@ -148,9 +150,6 @@ onMounted(async () => {
   gap: 6px;
   align-items: center;
   margin-bottom: 12px;
-}
-.chip {
-  font-size: 0.85em;
 }
 .warn {
   margin-left: 4px;

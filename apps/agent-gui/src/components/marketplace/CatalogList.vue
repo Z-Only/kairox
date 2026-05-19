@@ -63,9 +63,9 @@ onMounted(async () => {
             {{ opt.label }}
           </option>
         </KxSelect>
-        <button class="btn btn-sm" data-test="catalog-refresh" @click="handleRefresh">
+        <KxButton size="sm" data-test="catalog-refresh" @click="handleRefresh">
           {{ t("common.refresh") }}
-        </button>
+        </KxButton>
       </div>
     </SettingsFilterBar>
 

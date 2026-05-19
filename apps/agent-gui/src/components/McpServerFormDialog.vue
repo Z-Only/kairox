@@ -143,18 +143,18 @@ watch(
     </form>
 
     <template #footer>
-      <button class="btn" type="button" @click="emit('close')">
+      <KxButton @click="emit('close')">
         {{ t("common.cancel") }}
-      </button>
-      <button
-        class="btn btn-primary"
+      </KxButton>
+      <KxButton
+        variant="primary"
         type="submit"
         :disabled="mcp.settingsLoading || !serverName.trim()"
         data-test="mcp-save-button"
         @click="saveServer"
       >
         {{ mcp.settingsLoading ? t("mcp.saving") : t("mcp.saveServer") }}
-      </button>
+      </KxButton>
     </template>
   </ModalDialog>
 </template>

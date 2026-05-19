@@ -124,21 +124,35 @@ function handleToggle() {
         </span>
         <span v-if="node.task.state === 'Running'" class="task-running"> running... </span>
         <div v-if="isFailed" class="task-actions">
-          <button class="btn btn-icon btn-retry" title="Retry task" @click.stop="handleRetry">
+          <KxIconButton
+            label="Retry task"
+            title="Retry task"
+            size="sm"
+            data-test="task-retry"
+            @click.stop="handleRetry"
+          >
             ↻
-          </button>
-          <button class="btn btn-icon btn-cancel" title="Cancel task" @click.stop="handleCancel">
-            ✕
-          </button>
-        </div>
-        <div v-if="isBlocked" class="task-actions">
-          <button
-            class="btn btn-icon btn-cancel"
-            title="Cancel blocked task"
+          </KxIconButton>
+          <KxIconButton
+            label="Cancel task"
+            title="Cancel task"
+            size="sm"
+            data-test="task-cancel"
             @click.stop="handleCancel"
           >
             ✕
-          </button>
+          </KxIconButton>
+        </div>
+        <div v-if="isBlocked" class="task-actions">
+          <KxIconButton
+            label="Cancel blocked task"
+            title="Cancel blocked task"
+            size="sm"
+            data-test="task-cancel"
+            @click.stop="handleCancel"
+          >
+            ✕
+          </KxIconButton>
         </div>
       </div>
     </div>
@@ -230,19 +244,6 @@ function handleToggle() {
   font-size: 10px;
   flex-shrink: 0;
   color: var(--app-info-color, #2080f0);
-}
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px;
-  font-size: 12px;
-  line-height: 1;
-  border-radius: 50%;
-  color: var(--app-text-color-2, #555);
-}
-.btn-icon:hover {
-  background: var(--app-hover-color, #f0f4f8);
 }
 .task-actions {
   display: flex;

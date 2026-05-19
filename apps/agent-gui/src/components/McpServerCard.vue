@@ -122,10 +122,9 @@ function serverToolCount(): number {
       </div>
 
       <div class="mcp-settings__actions" aria-label="Server actions">
-        <button
+        <KxButton
           v-if="server.value.transport !== 'builtin'"
-          class="btn btn-sm"
-          type="button"
+          size="sm"
           :disabled="mcp.checkingHealth.has(server.value.id) || busy"
           :data-test="`mcp-recheck-${server.value.id}`"
           @click="mcp.checkHealth(server.value.id)"
@@ -135,19 +134,17 @@ function serverToolCount(): number {
               ? t("mcp.checkingHealth")
               : t("mcp.recheckHealth")
           }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           :disabled="busy"
           :data-test="`mcp-enable-${server.value.id}`"
           @click="runAction(() => mcp.setServerEnabled(server.value.id, !server.enabled))"
         >
           {{ server.enabled ? t("mcp.disable") : t("mcp.enable") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           :disabled="busy"
           :data-test="`mcp-trust-${server.value.id}`"
           @click="
@@ -159,36 +156,36 @@ function serverToolCount(): number {
           "
         >
           {{ server.value.trusted ? t("mcp.revokeTrust") : t("mcp.trust") }}
-        </button>
-        <button
+        </KxButton>
+        <KxButton
           v-if="canDisableAtScope()"
-          class="btn btn-sm btn-warning"
-          type="button"
+          variant="warning"
+          size="sm"
           :disabled="busy"
           :data-test="`mcp-disable-scope-${server.value.id}`"
           @click="runAction(() => mcp.disableServerAtScope(server.value.id, currentProjectRoot!))"
         >
           {{ t("mcp.disableInProject") }}
-        </button>
-        <button
+        </KxButton>
+        <KxButton
           v-if="canEnableAtScope()"
-          class="btn btn-sm btn-success"
-          type="button"
+          variant="success"
+          size="sm"
           :disabled="busy"
           :data-test="`mcp-enable-scope-${server.value.id}`"
           @click="runAction(() => mcp.enableServerAtScope(server.value.id, currentProjectRoot!))"
         >
           {{ t("mcp.enableInProject") }}
-        </button>
-        <button
-          class="btn btn-danger btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          variant="danger"
+          size="sm"
           :disabled="!server.writable || busy"
           :data-test="`mcp-delete-${server.value.id}`"
           @click="runAction(() => mcp.deleteServerSettings(server.value.id))"
         >
           {{ t("common.delete") }}
-        </button>
+        </KxButton>
       </div>
 
       <!-- Collapsible tool list at card bottom (non-builtin servers only) -->

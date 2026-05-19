@@ -82,24 +82,22 @@ function closeAddServerDialog(): void {
       data-test="mcp-installed-servers"
     >
       <SettingsToolbar :aria-label="t('mcp.tabInstalled')">
-        <button
-          class="btn btn-sm"
-          type="button"
+        <KxButton
+          size="sm"
           :disabled="mcp.configFileOpening"
           data-test="mcp-open-config"
           @click="mcp.openConfigFile()"
         >
           {{ mcp.configFileOpening ? t("mcp.opening") : t("mcp.openConfigFile") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           :disabled="mcp.settingsLoading"
           data-test="mcp-refresh-all"
           @click="refreshInstalledServers()"
         >
           {{ mcp.settingsLoading ? t("common.loading") : t("mcp.refreshAll") }}
-        </button>
+        </KxButton>
         <KxDropdownMenu
           v-model:open="addServerDropdownOpen"
           content-data-test="mcp-add-server-menu"

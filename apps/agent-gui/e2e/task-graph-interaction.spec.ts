@@ -9,9 +9,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Selector notes after Task 7 NaiveUI migration: the TraceTimeline tab strip
-// renders NButtons inside `.tab-group`, so `.tab-group button` still selects
-// the Trace/Tasks/Memory toggles. TaskNode preserves all class hooks
-// (`.task-node`, `.task-status`, `.task-role`, `.btn-retry`).
+// renders native buttons inside `.tab-group`, so `.tab-group button` still
+// selects the Trace/Tasks/Memory toggles. TaskNode preserves stable hooks
+// (`.task-node`, `.task-status`, `.task-role`, `[data-test="task-retry"]`).
 
 test("task steps panel shows empty state initially", async ({ page }) => {
   await page.goto("/");

@@ -55,15 +55,20 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
        StatusBar's positioning + the existing tests keep working.
        The card provides the chrome (header, body, divider) while
        the list renders the per-server rows. The .mcp-close-btn /
-       .mcp-server-actions class hooks are also kept since the
-       existing test suite drives the UI through them. -->
+       .mcp-server-actions hooks are also kept since the existing
+       test suite drives the UI through them. -->
   <div class="mcp-manager" data-test="mcp-manager">
     <div class="card mcp-manager-card">
       <div class="card-header">
         <span class="card-title"><strong>MCP Servers</strong></span>
-        <button class="btn mcp-close-btn" data-test="mcp-close-btn" @click="emit('close')">
+        <KxIconButton
+          class="mcp-close-btn"
+          label="Close MCP servers"
+          data-test="mcp-close-btn"
+          @click="emit('close')"
+        >
           ✕
-        </button>
+        </KxIconButton>
       </div>
 
       <SettingsState v-if="mcp.servers.length === 0" tone="empty" data-test="mcp-empty-state">
@@ -105,54 +110,54 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
                  picks "the first button") keeps targeting Start/Stop/
                  Restart correctly. -->
             <div class="flex-wrap mcp-server-actions">
-              <button
+              <KxButton
                 v-if="server.status === 'stopped'"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-start-btn"
                 @click="mcp.startServer(server.id)"
               >
                 Start
-              </button>
-              <button
+              </KxButton>
+              <KxButton
                 v-if="server.status === 'running'"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-stop-btn"
                 @click="mcp.stopServer(server.id)"
               >
                 Stop
-              </button>
-              <button
+              </KxButton>
+              <KxButton
                 v-if="server.status === 'failed'"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-restart-btn"
                 @click="mcp.startServer(server.id)"
               >
                 Restart
-              </button>
-              <button
+              </KxButton>
+              <KxButton
                 v-if="server.status === 'running' && !trustedSet.has(server.id)"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-trust-btn"
                 @click="mcp.trustServer(server.id)"
               >
                 Trust
-              </button>
-              <button
+              </KxButton>
+              <KxButton
                 v-if="trustedSet.has(server.id)"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-revoke-btn"
                 @click="mcp.revokeTrust(server.id)"
               >
                 Revoke
-              </button>
-              <button
+              </KxButton>
+              <KxButton
                 v-if="server.status === 'running'"
-                class="btn btn-sm"
+                size="xs"
                 data-test="mcp-refresh-btn"
                 @click="mcp.refreshTools(server.id)"
               >
                 Refresh
-              </button>
+              </KxButton>
             </div>
 
             <span
@@ -202,20 +207,6 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
 }
 
 /* Close button */
-.mcp-close-btn {
-  font-size: 14px;
-  line-height: 1;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: var(--app-text-color, #333);
-}
-.mcp-close-btn:hover {
-  background: var(--app-hover-color, #f0f0f0);
-}
-
 /* Empty state */
 .empty-state {
   display: flex;
@@ -314,28 +305,5 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 4px;
-  background: var(--app-card-color, #fff);
-  color: var(--app-text-color, #333);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 2px 8px;
-  line-height: 1.5;
-  transition: background 0.15s;
-}
-.btn:hover {
-  background: var(--app-hover-color, #f0f0f0);
-}
-.btn-sm {
-  font-size: 11px;
-  padding: 1px 6px;
 }
 </style>

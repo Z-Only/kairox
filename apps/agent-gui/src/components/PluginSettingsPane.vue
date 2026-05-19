@@ -85,15 +85,14 @@ watch(activeSubTab, (tab) => {
 
     <div v-if="activeSubTab === 'installed'" class="plugin-panel">
       <SettingsToolbar :aria-label="t('plugins.tabInstalled')">
-        <button
-          class="btn btn-sm"
-          type="button"
+        <KxButton
+          size="sm"
           :disabled="store.loading"
           data-test="plugin-refresh"
           @click="refreshInstalled"
         >
           {{ store.loading ? t("plugins.refreshing") : t("common.refresh") }}
-        </button>
+        </KxButton>
       </SettingsToolbar>
 
       <SettingsState v-if="store.loading" tone="loading" data-test="plugin-loading-state">
@@ -155,24 +154,23 @@ watch(activeSubTab, (tab) => {
             </KxInlineAlert>
           </div>
           <div class="plugin-actions">
-            <button
-              class="btn btn-sm"
-              type="button"
+            <KxButton
+              size="sm"
               :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
               :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
               @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
             >
               {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
-            </button>
-            <button
-              class="btn btn-danger btn-sm"
-              type="button"
+            </KxButton>
+            <KxButton
+              variant="danger"
+              size="sm"
               :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
               :data-test="`plugin-delete-${settingsTestId(plugin)}`"
               @click="store.deletePlugin(plugin.settings_id)"
             >
               {{ t("common.delete") }}
-            </button>
+            </KxButton>
           </div>
         </SettingsCardItem>
       </SettingsCardList>
@@ -199,23 +197,21 @@ watch(activeSubTab, (tab) => {
           size="compact"
           @keyup.enter="refreshCatalog"
         />
-        <button
-          class="btn btn-sm"
-          type="button"
+        <KxButton
+          size="sm"
           :disabled="store.catalogLoading"
           data-test="plugin-catalog-refresh"
           @click="refreshCatalog"
         >
           {{ store.catalogLoading ? t("plugins.searching") : t("common.search") }}
-        </button>
-        <button
-          class="btn btn-sm"
-          type="button"
+        </KxButton>
+        <KxButton
+          size="sm"
           data-test="plugin-source-settings-toggle"
           @click="sourceSettingsOpen = !sourceSettingsOpen"
         >
           {{ t("plugins.sourceSettings") }}
-        </button>
+        </KxButton>
       </SettingsFilterBar>
 
       <ModalDialog
@@ -256,27 +252,25 @@ watch(activeSubTab, (tab) => {
                 </div>
                 <code>{{ source.source }}</code>
               </div>
-              <button
-                class="btn btn-sm"
-                type="button"
+              <KxButton
+                size="sm"
                 :data-test="`plugin-source-enabled-${slugify(source.id)}`"
                 @click="store.setMarketplaceSourceEnabled(source.id, !source.enabled)"
               >
                 {{ source.enabled ? t("plugins.disable") : t("plugins.enable") }}
-              </button>
+              </KxButton>
             </SettingsCardItem>
           </SettingsCardList>
         </div>
 
         <template #footer>
-          <button
-            class="btn btn-sm"
-            type="button"
+          <KxButton
+            size="sm"
             data-test="plugin-source-settings-close"
             @click="sourceSettingsOpen = false"
           >
             {{ t("common.close") }}
-          </button>
+          </KxButton>
         </template>
       </ModalDialog>
 
@@ -306,14 +300,14 @@ watch(activeSubTab, (tab) => {
             <p>{{ entry.description }}</p>
             <code>{{ entry.source }}</code>
           </div>
-          <button
-            class="btn btn-primary btn-sm"
-            type="button"
+          <KxButton
+            variant="primary"
+            size="sm"
             :data-test="`plugin-install-${slugify(entry.marketplace_id)}-${slugify(entry.name)}`"
             @click="installCatalogEntry(entry.marketplace_id, entry.name)"
           >
             {{ t("plugins.install") }}
-          </button>
+          </KxButton>
         </SettingsCardItem>
       </SettingsCardList>
     </div>

@@ -47,15 +47,15 @@ async function onUninstall(serverId: string) {
             <!-- The disabled button still needs to appear in the DOM for the
                  existing test (which checks the disabled attribute on a
                  hand-edited row). -->
-            <button
-              class="btn btn-xs"
+            <KxButton
+              size="xs"
               :disabled="!row.source"
               :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
               :data-test="`uninstall-${row.server_id}`"
               @click="onUninstall(row.server_id)"
             >
               Uninstall
-            </button>
+            </KxButton>
           </td>
         </tr>
       </tbody>
@@ -107,29 +107,6 @@ async function onUninstall(serverId: string) {
 .tag-success {
   background: var(--app-success-bg);
   color: var(--app-success-color);
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 4px;
-  background: var(--app-card-color);
-  color: var(--app-text-color);
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.btn:hover:not(:disabled) {
-  background: var(--app-hover-color);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-xs {
-  height: 24px;
 }
 .empty {
   margin-top: 24px;

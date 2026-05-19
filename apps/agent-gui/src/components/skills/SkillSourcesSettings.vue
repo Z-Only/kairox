@@ -156,27 +156,22 @@ function formatError(caughtError: unknown): string {
             />
             {{ t("skills.sourceEnabled") }}
           </label>
-          <button
+          <KxButton
             v-if="src.id !== 'skillhub'"
-            class="btn btn-error-ghost"
+            variant="danger-ghost"
+            size="sm"
             :data-test="`skill-src-remove-${src.id}`"
             @click="onRemove(src.id)"
           >
             {{ t("common.delete") }}
-          </button>
+          </KxButton>
         </div>
       </li>
     </ul>
 
-    <button
-      v-if="!showAddForm"
-      class="btn"
-      type="button"
-      data-test="skill-add-source-toggle"
-      @click="showAddForm = true"
-    >
+    <KxButton v-if="!showAddForm" data-test="skill-add-source-toggle" @click="showAddForm = true">
       {{ t("skills.addSource") }}
-    </button>
+    </KxButton>
 
     <div v-else class="add-form">
       <KxFormField label="id">
@@ -211,19 +206,17 @@ function formatError(caughtError: unknown): string {
         {{ formError }}
       </span>
       <KxFormActions>
-        <button class="btn btn-primary" type="button" data-test="skill-src-save" @click="save">
+        <KxButton variant="primary" data-test="skill-src-save" @click="save">
           {{ t("common.save") }}
-        </button>
-        <button
-          class="btn"
-          type="button"
+        </KxButton>
+        <KxButton
           @click="
             showAddForm = false;
             formError = null;
           "
         >
           {{ t("common.cancel") }}
-        </button>
+        </KxButton>
       </KxFormActions>
     </div>
   </div>

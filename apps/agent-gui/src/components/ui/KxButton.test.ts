@@ -26,10 +26,13 @@ describe("KxButton", () => {
     expect(button.text()).toBe("Save");
   });
 
-  it("keeps danger and ghost variants in the owned component instead of global btn CSS", () => {
+  it("keeps action variants in the owned component instead of global btn CSS", () => {
     expect(kxButtonSource).toContain("type ButtonVariant");
     expect(kxButtonSource).toContain(".kx-button--danger");
+    expect(kxButtonSource).toContain(".kx-button--danger-ghost");
     expect(kxButtonSource).toContain(".kx-button--ghost");
+    expect(kxButtonSource).toContain(".kx-button--success");
+    expect(kxButtonSource).toContain(".kx-button--warning");
     expect(kxButtonSource).not.toContain(".btn-primary");
     expect(kxButtonSource).not.toContain(".btn-danger");
   });

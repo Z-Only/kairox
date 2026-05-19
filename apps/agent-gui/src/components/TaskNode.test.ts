@@ -192,8 +192,8 @@ describe("TaskNode", () => {
       const wrapper = mount(TaskNode, {
         props: { node, expanded: new Set(), depth: 0 }
       });
-      expect(wrapper.find(".btn-retry").exists()).toBe(true);
-      expect(wrapper.find(".btn-cancel").exists()).toBe(true);
+      expect(wrapper.find('[data-test="task-retry"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="task-cancel"]').exists()).toBe(true);
     });
 
     it("shows cancel button for Blocked tasks", () => {
@@ -202,9 +202,9 @@ describe("TaskNode", () => {
         props: { node, expanded: new Set(), depth: 0 }
       });
       // Blocked tasks have a cancel button but no retry button
-      const cancelButtons = wrapper.findAll(".btn-cancel");
+      const cancelButtons = wrapper.findAll('[data-test="task-cancel"]');
       expect(cancelButtons.length).toBeGreaterThanOrEqual(1);
-      expect(wrapper.find(".btn-retry").exists()).toBe(false);
+      expect(wrapper.find('[data-test="task-retry"]').exists()).toBe(false);
     });
 
     it("does not show action buttons for Completed tasks", () => {
@@ -285,7 +285,7 @@ describe("TaskNode", () => {
       const wrapper = mount(TaskNode, {
         props: { node, expanded: new Set(), depth: 0 }
       });
-      await wrapper.find(".btn-retry").trigger("click");
+      await wrapper.find('[data-test="task-retry"]').trigger("click");
       expect(mockRetryTask).toHaveBeenCalledWith("t1");
     });
 
@@ -294,7 +294,7 @@ describe("TaskNode", () => {
       const wrapper = mount(TaskNode, {
         props: { node, expanded: new Set(), depth: 0 }
       });
-      await wrapper.find(".btn-cancel").trigger("click");
+      await wrapper.find('[data-test="task-cancel"]').trigger("click");
       expect(mockCancelTask).toHaveBeenCalledWith("t1");
     });
 
@@ -303,7 +303,7 @@ describe("TaskNode", () => {
       const wrapper = mount(TaskNode, {
         props: { node, expanded: new Set(), depth: 0 }
       });
-      await wrapper.find(".btn-cancel").trigger("click");
+      await wrapper.find('[data-test="task-cancel"]').trigger("click");
       expect(mockCancelTask).toHaveBeenCalledWith("t1");
     });
   });

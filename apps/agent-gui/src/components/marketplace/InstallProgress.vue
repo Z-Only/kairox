@@ -112,9 +112,9 @@ const modalTitle = computed<string>(() => {
     </div>
 
     <template #footer>
-      <button class="btn btn-sm" data-test="install-close" @click="emit('close')">
+      <KxButton size="sm" data-test="install-close" @click="emit('close')">
         {{ t("common.close") }}
-      </button>
+      </KxButton>
     </template>
   </ModalDialog>
 </template>

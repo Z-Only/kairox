@@ -94,7 +94,7 @@ describe("PermissionPrompt", () => {
     const wrapper = mount(PermissionPrompt, {
       props: { entry: permissionEntry }
     });
-    await wrapper.find(".btn-allow").trigger("click");
+    await wrapper.find('[data-test="permission-allow"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_1",
       decision: "grant"
@@ -106,7 +106,7 @@ describe("PermissionPrompt", () => {
     const wrapper = mount(PermissionPrompt, {
       props: { entry: permissionEntry }
     });
-    await wrapper.find(".btn-deny").trigger("click");
+    await wrapper.find('[data-test="permission-deny"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_1",
       decision: "deny"
@@ -161,7 +161,7 @@ describe("PermissionPrompt MCP trust UI", () => {
     const checkbox = wrapper.find<HTMLInputElement>('input[data-test="trust-server-checkbox"]');
     expect(checkbox.exists()).toBe(true);
     await checkbox.setValue(true);
-    await wrapper.find(".btn-allow").trigger("click");
+    await wrapper.find('[data-test="permission-allow"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_mcp_1",
       decision: "grant"
@@ -174,7 +174,7 @@ describe("PermissionPrompt MCP trust UI", () => {
     const wrapper = mount(PermissionPrompt, {
       props: { entry: mcpEntry }
     });
-    await wrapper.find(".btn-allow").trigger("click");
+    await wrapper.find('[data-test="permission-allow"]').trigger("click");
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_permission", {
       requestId: "perm_mcp_1",
       decision: "grant"
