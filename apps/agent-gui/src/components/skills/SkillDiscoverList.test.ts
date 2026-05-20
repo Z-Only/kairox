@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { commands, type SkillCatalogEntry, type SkillSourceView } from "@/generated/commands";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import SkillDiscoverList from "./SkillDiscoverList.vue";
 import skillDiscoverListSource from "./SkillDiscoverList.vue?raw";
 
@@ -188,14 +189,15 @@ describe("SkillDiscoverList", () => {
   });
 
   it("uses shared filter bar instead of local discover toolbar chrome", () => {
-    expect(skillDiscoverListSource).toContain("SettingsFilterBar");
-    expect(skillDiscoverListSource).toContain("KxChipGroup");
-    expect(skillDiscoverListSource).toContain("KxChipButton");
-    expect(skillDiscoverListSource).toContain("KxToolbarAction");
-    expect(skillDiscoverListSource).not.toContain('class="discover-toolbar"');
-    expect(skillDiscoverListSource).not.toContain(".discover-toolbar {");
-    expect(skillDiscoverListSource).not.toContain(".discover-search-row {");
-    expect(skillDiscoverListSource).not.toContain(".discover-search-input {");
-    expect(skillDiscoverListSource).not.toContain(".source-filter .chip");
+    expectSourceMigration(skillDiscoverListSource, {
+      required: ["SettingsFilterBar", "KxChipGroup", "KxChipButton", "KxToolbarAction"],
+      forbidden: [
+        'class="discover-toolbar"',
+        ".discover-toolbar {",
+        ".discover-search-row {",
+        ".discover-search-input {",
+        ".source-filter .chip"
+      ]
+    });
   });
 });

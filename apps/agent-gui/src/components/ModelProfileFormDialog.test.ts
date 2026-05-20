@@ -1,21 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 import modelProfileFormDialogSource from "./ModelProfileFormDialog.vue?raw";
 import modelParameterControlsSource from "./ModelParameterControls.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 describe("ModelProfileFormDialog", () => {
   it("uses shared form fields and controls for profile inputs", () => {
-    expect(modelProfileFormDialogSource).toContain("KxFormField");
-    expect(modelProfileFormDialogSource).toContain("KxInput");
-    expect(modelProfileFormDialogSource).not.toContain("kx-form-control");
-    expect(modelProfileFormDialogSource).not.toContain(".model-form input {");
-    expect(modelProfileFormDialogSource).not.toContain(".model-form input:focus");
+    expectSourceMigration(modelProfileFormDialogSource, {
+      required: ["KxFormField", "KxInput"],
+      forbidden: ["kx-form-control", ".model-form input {", ".model-form input:focus"]
+    });
   });
 
   it("uses the same shared controls for advanced numeric parameters", () => {
-    expect(modelParameterControlsSource).toContain("KxFormField");
-    expect(modelParameterControlsSource).toContain("KxInput");
-    expect(modelParameterControlsSource).not.toContain("kx-form-control");
-    expect(modelParameterControlsSource).not.toContain("input {");
-    expect(modelParameterControlsSource).not.toContain("input:focus");
+    expectSourceMigration(modelParameterControlsSource, {
+      required: ["KxFormField", "KxInput"],
+      forbidden: ["kx-form-control", "input {", "input:focus"]
+    });
   });
 });
