@@ -3,14 +3,15 @@
 mod input;
 mod render;
 
-pub use render::render_messages;
+pub use render::{render_messages, render_queue_strip};
 
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
 use crate::app_state::{InputMode, InputState};
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, FocusTarget, RiskLevel,
+    Command, Component, CrossPanelEffect, EventContext, FocusTarget, QueuedMessage, RiskLevel,
+    SessionState,
 };
 
 // ---------------------------------------------------------------------------
@@ -30,6 +31,9 @@ pub struct ChatPanel {
     /// `None` means we're at the "live" position (not browsing history).
     pub input_history_index: Option<usize>,
     pub scroll_offset: usize,
+    /// Messages typed while the session was busy. Drained in FIFO order when
+    /// the session returns to idle (see `drain_queue`).
+    pub message_queue: Vec<QueuedMessage>,
 }
 
 impl ChatPanel {
@@ -43,8 +47,37 @@ impl ChatPanel {
             input_history: Vec::new(),
             input_history_index: None,
             scroll_offset: 0,
+            message_queue: Vec::new(),
         }
     }
+
+    /// Drain all queued messages in FIFO order.
+    pub fn drain_queue(&mut self) -> Vec<QueuedMessage> {
+        std::mem::take(&mut self.message_queue)
+    }
+}
+
+/// Whether the current session is busy (running) — Enter typed in this state
+/// must enqueue rather than send. Matches the GUI `isQueueing` semantics:
+/// busy when the assistant is streaming tokens, a tool is running, or the
+/// session is awaiting permission.
+pub(crate) fn is_session_busy(ctx: &EventContext) -> bool {
+    if !ctx.current_session.token_stream.is_empty() {
+        return true;
+    }
+    let Some(sid) = ctx.current_session_id else {
+        return false;
+    };
+    ctx.sessions
+        .iter()
+        .find(|s| s.id == *sid)
+        .map(|s| {
+            matches!(
+                s.state,
+                SessionState::Active | SessionState::AwaitingPermission
+            )
+        })
+        .unwrap_or(false)
 }
 
 impl Default for ChatPanel {

@@ -1,8 +1,8 @@
 use crate::app_state::{InputMode, InputState};
-use crate::components::{Command, CrossPanelEffect, EventContext};
+use crate::components::{Command, CrossPanelEffect, EventContext, QueuedMessage};
 use crate::keybindings::KeyAction;
 
-use super::ChatPanel;
+use super::{is_session_busy, ChatPanel};
 
 impl ChatPanel {
     /// Central input-handling method. Resolves a [`KeyAction`] produced by
@@ -85,7 +85,11 @@ impl ChatPanel {
                     self.input_cursor = 0;
                     self.input_history_index = None;
 
-                    if let Some(session_id) = ctx.current_session_id {
+                    if is_session_busy(ctx) {
+                        // Session is busy — hold the message locally and drain
+                        // it when the session returns to idle.
+                        self.message_queue.push(QueuedMessage { content });
+                    } else if let Some(session_id) = ctx.current_session_id {
                         commands.push(Command::SendMessage {
                             workspace_id: ctx.workspace_id.clone(),
                             session_id: session_id.clone(),
