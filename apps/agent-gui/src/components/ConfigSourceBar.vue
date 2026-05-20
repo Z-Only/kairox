@@ -21,19 +21,44 @@ const projectOptions = computed(() =>
   }))
 );
 
+function selectAvailableProject(): string | undefined {
+  const projects = projectStore.activeProjects;
+  if (projects.length === 0) {
+    return selectedProjectId.value || undefined;
+  }
+
+  const selectedStillExists = projects.some(
+    (project) => project.projectId === selectedProjectId.value
+  );
+  if (!selectedProjectId.value || !selectedStillExists) {
+    selectedProjectId.value = projects[0].projectId;
+  }
+
+  return selectedProjectId.value;
+}
+
 function onSourceChange(newSource: "user" | "project"): void {
   source.value = newSource;
   if (newSource === "user") {
     selectedProjectId.value = "";
-  } else if (projectStore.activeProjects.length > 0 && !selectedProjectId.value) {
-    selectedProjectId.value = projectStore.activeProjects[0].projectId;
+    emit("source-change", newSource, undefined);
+    return;
   }
-  emit("source-change", newSource, newSource === "project" ? selectedProjectId.value : undefined);
+
+  emit("source-change", newSource, selectAvailableProject());
 }
 
 function onProjectChange(): void {
   emit("source-change", "project", selectedProjectId.value);
 }
+
+watch(
+  () => projectStore.activeProjects.map((project) => project.projectId),
+  () => {
+    if (source.value !== "project") return;
+    emit("source-change", "project", selectAvailableProject());
+  }
+);
 
 onMounted(() => {
   void projectStore.loadProjects();

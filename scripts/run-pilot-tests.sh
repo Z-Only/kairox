@@ -46,27 +46,45 @@ fi
 # fail on a missing path (the screenshot action does not auto-create dirs).
 mkdir -p "$JUNIT_DIR" "$FAILURE_DIR"
 
-# ─── Fixture marketplace registration ──────────────────────────────────────────
+# ─── Fixture registration ──────────────────────────────────────────────────────
 
 # The app resolves db_dir as $HOME/.kairox (see lib.rs line 44).
-# We write the fixture marketplace source to that config.toml so the
-# app picks it up on startup.
+# We write pilot fixture sources to that config.toml so the app picks them
+# up on startup.
 FIXTURE_MARKETPLACE_DIR="$REPO_ROOT/apps/agent-gui/e2e-pilot/fixtures/plugin-marketplace"
+FIXTURE_MCP_SERVER_SCRIPT="$REPO_ROOT/crates/agent-mcp/tests/fixtures/minimal-mcp-server.mjs"
 
-CONFIG_DIR="$HOME/.kairox"
+PILOT_HOME_CREATED=0
+if [[ -n "${KAIROX_PILOT_HOME:-}" ]]; then
+    PILOT_HOME="$KAIROX_PILOT_HOME"
+else
+    PILOT_HOME="$(mktemp -d "${TMPDIR:-/tmp}/kairox-pilot-home.XXXXXX")"
+    PILOT_HOME_CREATED=1
+fi
+
+CONFIG_DIR="$PILOT_HOME/.kairox"
 CONFIG_TOML="$CONFIG_DIR/config.toml"
 CONFIG_BACKUP="$CONFIG_DIR/config.toml.pilot-backup"
 
-_register_fixture_marketplace() {
+PROJECT_CONFIG_DIR="$REPO_ROOT/.kairox"
+PROJECT_CONFIG_TOML="$PROJECT_CONFIG_DIR/config.toml"
+PROJECT_CONFIG_BACKUP="$PROJECT_CONFIG_DIR/config.toml.pilot-backup"
+
+_register_pilot_fixtures() {
     mkdir -p "$CONFIG_DIR"
     # Back up the original config so we can restore it after the run.
     if [[ -f "$CONFIG_TOML" ]]; then
         cp "$CONFIG_TOML" "$CONFIG_BACKUP"
+    else
+        rm -f "$CONFIG_BACKUP" 2>/dev/null || true
     fi
-    python3 - "$CONFIG_TOML" "$FIXTURE_MARKETPLACE_DIR" <<'PYEOF'
-import sys, os
+    python3 - "$CONFIG_TOML" "$FIXTURE_MARKETPLACE_DIR" "$FIXTURE_MCP_SERVER_SCRIPT" <<'PYEOF'
+import json
+import sys
+
 config_path = sys.argv[1]
 fixture_dir = sys.argv[2]
+fixture_mcp_server = sys.argv[3]
 
 try:
     with open(config_path) as f:
@@ -74,38 +92,103 @@ try:
 except FileNotFoundError:
     content = ""
 
-if 'id = "pilot-fixture"' in content:
-    print("pilot-fixture marketplace already registered, skipping")
-    sys.exit(0)
+def append_section(section: str) -> None:
+    global content
+    if content.rstrip('\n'):
+        content = content.rstrip('\n') + '\n\n'
+    content += section
 
-if content.rstrip('\n'):
-    content = content.rstrip('\n') + '\n\n'
-
-# Enable the local pilot-fixture marketplace source.
-content += '[[plugin_marketplaces]]\n'
-content += 'id = "pilot-fixture"\n'
-content += 'display_name = "Pilot Test Fixtures"\n'
-content += f'source = "{fixture_dir}"\n'
-content += 'enabled = true\n'
+if 'id = "pilot-fixture"' not in content:
+    # Enable the local pilot-fixture marketplace source.
+    append_section('[[plugin_marketplaces]]\n'
+                   'id = "pilot-fixture"\n'
+                   'display_name = "Pilot Test Fixtures"\n'
+                   f'source = "{fixture_dir}"\n'
+                   'enabled = true\n')
 
 # Disable the default GitHub marketplace sources so the catalog loads
 # instantly from the local fixture only — no network dependency.
-content += '\n[[plugin_marketplaces]]\n'
-content += 'id = "claude-plugins-official"\n'
-content += 'display_name = "Claude Plugins Official"\n'
-content += 'source = "anthropics/claude-plugins-official"\n'
-content += 'enabled = false\n'
+if 'id = "claude-plugins-official"' not in content:
+    append_section('[[plugin_marketplaces]]\n'
+                   'id = "claude-plugins-official"\n'
+                   'display_name = "Claude Plugins Official"\n'
+                   'source = "anthropics/claude-plugins-official"\n'
+                   'enabled = false\n')
 
-content += '\n[[plugin_marketplaces]]\n'
-content += 'id = "anthropics-claude-code"\n'
-content += 'display_name = "Anthropic Claude Code"\n'
-content += 'source = "anthropics/claude-code"\n'
-content += 'enabled = false\n'
+if 'id = "anthropics-claude-code"' not in content:
+    append_section('[[plugin_marketplaces]]\n'
+                   'id = "anthropics-claude-code"\n'
+                   'display_name = "Anthropic Claude Code"\n'
+                   'source = "anthropics/claude-code"\n'
+                   'enabled = false\n')
+
+if "[mcp_servers.pilot-mcp]" not in content:
+    append_section('[mcp_servers.pilot-mcp]\n'
+                   'type = "stdio"\n'
+                   'command = "node"\n'
+                   f'args = [{json.dumps(fixture_mcp_server)}]\n'
+                   'enabled = true\n'
+                   'description = "Pilot MCP fixture server"\n')
 
 with open(config_path, 'w') as f:
     f.write(content)
-print(f"Registered pilot-fixture marketplace source in {config_path}")
+print(f"Registered pilot fixture marketplace and MCP server in {config_path}")
 PYEOF
+}
+
+_backup_project_config() {
+    if [[ -f "$PROJECT_CONFIG_TOML" ]]; then
+        mkdir -p "$PROJECT_CONFIG_DIR"
+        cp "$PROJECT_CONFIG_TOML" "$PROJECT_CONFIG_BACKUP"
+    else
+        rm -f "$PROJECT_CONFIG_BACKUP" 2>/dev/null || true
+    fi
+}
+
+_restore_project_config() {
+    if [[ -f "$PROJECT_CONFIG_BACKUP" ]]; then
+        mv "$PROJECT_CONFIG_BACKUP" "$PROJECT_CONFIG_TOML" 2>/dev/null || true
+    else
+        rm -f "$PROJECT_CONFIG_TOML" 2>/dev/null || true
+        rmdir "$PROJECT_CONFIG_DIR" 2>/dev/null || true
+    fi
+}
+
+_write_pilot_project_config() {
+    mkdir -p "$PROJECT_CONFIG_DIR"
+    cat >"$PROJECT_CONFIG_TOML" <<'EOF'
+[profiles.fake]
+provider = "fake"
+model_id = "fake"
+response = "hello from pilot"
+
+[features]
+hooks = true
+EOF
+}
+
+_write_pilot_browser_state() {
+    local repo_root_json
+    repo_root_json="$(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$REPO_ROOT")"
+    _run_with_timeout 10 tauri-pilot eval \
+        "(async () => { const repoRoot = $repo_root_json; localStorage.setItem(\"kairox.locale\", \"en\"); localStorage.setItem(\"kairox.left-sidebar-collapsed\", \"false\"); localStorage.setItem(\"kairox.right-sidebar-collapsed\", \"false\"); localStorage.removeItem(\"kairox.last-active-session-id\"); localStorage.setItem(\"kairox.pilot.repoRoot\", repoRoot); const invoke = window.__TAURI_INTERNALS__.invoke; const projects = await invoke(\"list_projects\"); if (!projects.some((project) => project.root_path === repoRoot)) { await invoke(\"add_existing_project\", { path: repoRoot }); } window.location.hash = \"#/workbench\"; window.location.reload(); return repoRoot; })()" >/dev/null
+}
+
+_wait_for_app_shell() {
+    local ready_message="$1"
+    local timeout_message="$2"
+
+    for i in $(seq 1 30); do
+        if result="$(_run_with_timeout 5 tauri-pilot eval 'Boolean(document.querySelector("[data-test=\"app-shell\"]"))' 2>/dev/null)" && [[ "$result" = "true" ]]; then
+            echo "$ready_message after ${i}s"
+            return
+        fi
+        if [[ "$i" -eq 30 ]]; then
+            echo "ERROR: $timeout_message" >&2
+            exit 1
+        fi
+        sleep 1
+    done
 }
 
 _restore_config() {
@@ -114,6 +197,70 @@ _restore_config() {
     else
         rm -f "$CONFIG_TOML" 2>/dev/null || true
     fi
+    _restore_project_config
+    if [[ "$PILOT_HOME_CREATED" -eq 1 ]]; then
+        rm -rf "$PILOT_HOME" 2>/dev/null || true
+    fi
+}
+
+_run_with_timeout() {
+    local timeout_secs="$1"
+    shift
+
+    "$@" &
+    local cmd_pid=$!
+
+    (
+        sleep "$timeout_secs"
+        kill "$cmd_pid" 2>/dev/null || true
+    ) &
+    local timer_pid=$!
+
+    local status=0
+    if wait "$cmd_pid"; then
+        status=0
+    else
+        status=$?
+    fi
+
+    kill "$timer_pid" 2>/dev/null || true
+    wait "$timer_pid" 2>/dev/null || true
+    return "$status"
+}
+
+_port_1420_listening() {
+    (echo >/dev/tcp/127.0.0.1/1420) >/dev/null 2>&1
+}
+
+_start_vite_if_needed() {
+    if _port_1420_listening; then
+        echo "Vite dev server already listening on 127.0.0.1:1420"
+        return
+    fi
+
+    echo "Starting Vite dev server on 127.0.0.1:1420"
+    (
+        cd "$REPO_ROOT/apps/agent-gui"
+        bun run dev
+    ) >"$JUNIT_DIR/vite.log" 2>&1 &
+    VITE_PID=$!
+
+    for i in $(seq 1 60); do
+        if _port_1420_listening; then
+            echo "Vite dev server ready after ${i}s"
+            return
+        fi
+        if ! kill -0 "$VITE_PID" 2>/dev/null; then
+            echo "ERROR: Vite dev server exited before becoming ready" >&2
+            tail -50 "$JUNIT_DIR/vite.log" >&2 || true
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "ERROR: Vite dev server did not become ready within 60s" >&2
+    tail -50 "$JUNIT_DIR/vite.log" >&2 || true
+    exit 1
 }
 
 if [[ ! -d "$FIXTURE_MARKETPLACE_DIR" ]]; then
@@ -122,20 +269,35 @@ if [[ ! -d "$FIXTURE_MARKETPLACE_DIR" ]]; then
     exit 1
 fi
 
-echo "Registering fixture marketplace: $FIXTURE_MARKETPLACE_DIR"
-_register_fixture_marketplace
+if [[ ! -f "$FIXTURE_MCP_SERVER_SCRIPT" ]]; then
+    echo "ERROR: fixture MCP server not found: $FIXTURE_MCP_SERVER_SCRIPT" >&2
+    echo "       Ensure the MCP fixture server is present." >&2
+    exit 1
+fi
+
+echo "Registering pilot fixtures:"
+echo "  home:        $PILOT_HOME"
+echo "  marketplace: $FIXTURE_MARKETPLACE_DIR"
+echo "  mcp server:  $FIXTURE_MCP_SERVER_SCRIPT"
+_backup_project_config
+APP_PID=""
+VITE_PID=""
+trap 'if [[ -n "${APP_PID:-}" ]]; then kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true; fi; if [[ -n "${VITE_PID:-}" ]]; then kill "$VITE_PID" 2>/dev/null || true; wait "$VITE_PID" 2>/dev/null || true; fi; _restore_config' EXIT
+_register_pilot_fixtures
+_write_pilot_project_config
 
 # ─── Launch the app ────────────────────────────────────────────────────────────
 
-"$APP_BIN" &
+_start_vite_if_needed
+
+HOME="$PILOT_HOME" "$APP_BIN" &
 APP_PID=$!
-trap '_restore_config; kill "$APP_PID" 2>/dev/null || true; wait "$APP_PID" 2>/dev/null || true' EXIT
 
 # Wait for the pilot socket to come up (up to 30s). `tauri-pilot ping` exits
 # non-zero while the socket isn't listening, which is wrapped in `if` so
 # `set -e` doesn't trip.
 for i in $(seq 1 30); do
-    if tauri-pilot ping >/dev/null 2>&1; then
+    if _run_with_timeout 5 tauri-pilot ping >/dev/null 2>&1; then
         echo "tauri-pilot connected after ${i}s"
         break
     fi
@@ -153,7 +315,7 @@ done
 # We poll a trivial `eval` until it succeeds (up to 30s) so that scenarios
 # start with a known-ready webview.
 for i in $(seq 1 30); do
-    if tauri-pilot eval '1' >/dev/null 2>&1; then
+    if _run_with_timeout 5 tauri-pilot eval '1' >/dev/null 2>&1; then
         echo "webview ready after ${i}s"
         break
     fi
@@ -164,12 +326,25 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+_wait_for_app_shell "initial app shell ready" "app shell did not become ready before browser state reset"
+_write_pilot_browser_state
+_wait_for_app_shell "browser state applied" "app shell did not return after browser state reset"
+
 # ─── Run every scenario ────────────────────────────────────────────────────────
 
 # `tauri-pilot run` accepts exactly one scenario path; iterate explicitly.
 shopt -s nullglob
 scenarios=("$SCENARIO_DIR"/*.toml)
 shopt -u nullglob
+
+if [[ -n "${PILOT_SCENARIO:-}" ]]; then
+    scenario_path="$SCENARIO_DIR/${PILOT_SCENARIO%.toml}.toml"
+    if [[ ! -f "$scenario_path" ]]; then
+        echo "ERROR: requested pilot scenario not found: $scenario_path" >&2
+        exit 1
+    fi
+    scenarios=("$scenario_path")
+fi
 
 # In CI, skip scenarios that require a live LLM backend.
 # chat-flow.toml and audit-chat.toml send real messages and wait for the response;
@@ -200,6 +375,10 @@ for scenario in "${scenarios[@]}"; do
     name="$(basename "$scenario" .toml)"
     junit="$JUNIT_DIR/$name.xml"
     echo "── Running $name ───────────────────────────────────────────────"
+    if [[ "${PILOT_RESET_BETWEEN_SCENARIOS:-1}" != "0" ]]; then
+        _write_pilot_browser_state
+        _wait_for_app_shell "scenario browser state reset" "app shell did not return after scenario browser state reset"
+    fi
     if ! tauri-pilot run "$scenario" --junit "$junit"; then
         failed=1
         echo "FAIL: $name (junit: $junit)"
