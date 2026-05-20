@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import sharedComponentsCss from "../../styles/components.css?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 const vueSources = import.meta.glob("../**/*.vue", {
   eager: true,
@@ -21,6 +22,8 @@ describe("legacy button class migration", () => {
   });
 
   it("does not keep global btn selector aliases in shared components CSS", () => {
-    expect(sharedComponentsCss).not.toMatch(legacyCssSelector);
+    expectSourceMigration(sharedComponentsCss, {
+      forbiddenPatterns: [legacyCssSelector]
+    });
   });
 });

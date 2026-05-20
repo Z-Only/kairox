@@ -7,6 +7,7 @@ export type SourceMigrationGuard = {
   forbiddenPatterns?: RegExp[];
 };
 
+// Use for focused ?raw migration guards. Keep rendered behavior assertions in component tests.
 export function expectSourceToContain(source: string, fragments: string[]): void {
   for (const fragment of fragments) {
     expect(source, `source should contain ${fragment}`).toContain(fragment);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import agentSettingsSource from "../AgentSettingsPane.vue?raw";
 import catalogListSource from "../marketplace/CatalogList.vue?raw";
@@ -7,7 +7,7 @@ import modelSettingsSource from "../ModelSettingsPane.vue?raw";
 import pluginSettingsSource from "../PluginSettingsPane.vue?raw";
 import skillSettingsSource from "../SkillSettingsPane.vue?raw";
 import skillDiscoverListSource from "../skills/SkillDiscoverList.vue?raw";
-import { expectSourceToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration, expectSourceToContain } from "@/test-utils/sourceGuards";
 
 const migratedSources = [
   agentSettingsSource,
@@ -22,7 +22,9 @@ const migratedSources = [
 describe("settings action primitive migration", () => {
   it("keeps settings toolbar and inline actions off ad-hoc small KxButton declarations", () => {
     for (const source of migratedSources) {
-      expect(source).not.toMatch(/<KxButton[^>]*\bsize="sm"/);
+      expectSourceMigration(source, {
+        forbiddenPatterns: [/<KxButton[^>]*\bsize="sm"/]
+      });
     }
   });
 

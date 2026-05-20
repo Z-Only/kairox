@@ -117,7 +117,9 @@ describe("HooksSettingsPane", () => {
     expect(wrapper.find('[data-test="hook-form"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="hook-editor-dialog"]').exists()).toBe(true);
     expect(wrapper.find(".kx-modal__panel").exists()).toBe(true);
-    expect(hooksSettingsPaneSource).not.toContain("grid-template-columns: minmax(0, 1fr)");
+    expectSourceMigration(hooksSettingsPaneSource, {
+      forbidden: ["grid-template-columns: minmax(0, 1fr)"]
+    });
   });
 
   it("loads and displays user hooks", async () => {
@@ -145,9 +147,11 @@ describe("HooksSettingsPane", () => {
     expect(wrapper.find('[data-test="hooks-list"]').classes()).toContain(
       "settings-card-list--auto-columns"
     );
-    expect(hooksSettingsPaneSource).not.toMatch(/\.hooks-pane__list\s*\{[^}]*max-width:/);
-    expect(hooksSettingsPaneSource).not.toContain("width: min(100%, 760px)");
-    expect(hooksSettingsPaneSource).toContain("width: 100%");
+    expectSourceMigration(hooksSettingsPaneSource, {
+      required: ["width: 100%"],
+      forbidden: ["width: min(100%, 760px)"],
+      forbiddenPatterns: [/\.hooks-pane__list\s*\{[^}]*max-width:/]
+    });
   });
 
   it("saves the edited hook in user scope", async () => {

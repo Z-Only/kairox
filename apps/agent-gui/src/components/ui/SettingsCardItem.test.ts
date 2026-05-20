@@ -23,16 +23,23 @@ describe("SettingsCardItem", () => {
   it("supports stacked rows when a page needs vertical composition", () => {
     const wrapper = mount(SettingsCardItem, {
       props: {
-        layout: "stack"
+        layout: "stack",
+        density: "compact",
+        role: "group"
       }
     });
 
+    expect(wrapper.attributes("role")).toBe("group");
     expect(wrapper.classes()).toContain("settings-card-item--stack");
+    expect(wrapper.classes()).toContain("settings-card-item--compact");
     expect(wrapper.classes()).not.toContain("settings-card-item--split");
   });
 
   it("places row actions in a shared action group without changing the card chrome", () => {
     const wrapper = mount(SettingsCardItem, {
+      props: {
+        actionsLabel: "Model profile actions"
+      },
       slots: {
         default: "<span data-test='body'>Body</span>",
         actions: "<button data-test='edit'>Edit</button>",
@@ -42,7 +49,9 @@ describe("SettingsCardItem", () => {
 
     expect(wrapper.classes()).toContain("settings-card-item--with-actions");
     expect(wrapper.find(".settings-card-item__content [data-test='body']").exists()).toBe(true);
-    expect(wrapper.find(".settings-card-item__actions.kx-action-group").exists()).toBe(true);
+    const actions = wrapper.find(".settings-card-item__actions.kx-action-group");
+    expect(actions.exists()).toBe(true);
+    expect(actions.attributes("aria-label")).toBe("Model profile actions");
     expect(wrapper.find(".settings-card-item__actions [data-test='edit']").exists()).toBe(true);
     expect(wrapper.find(".settings-card-item__details [data-test='details']").exists()).toBe(true);
   });
