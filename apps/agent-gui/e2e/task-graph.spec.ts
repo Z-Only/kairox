@@ -118,7 +118,5 @@ test("task shows error when it fails", async ({ page }) => {
   await expect(page.locator(".task-status").first()).toContainText("❌", {
     timeout: 3_000
   });
-  // Should show error message
-  // Note: error text only shows for child tasks (not root) in the current UI. Skipping this assertion for root-level tasks.
-  // await expect(page.locator(".task-error-text").first()).toContainText("Model timeout");
+  await expect(page.locator(".task-error-text").first()).toContainText("Model timeout");
 });

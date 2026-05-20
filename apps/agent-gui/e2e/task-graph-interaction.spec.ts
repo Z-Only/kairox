@@ -13,110 +13,46 @@ test.beforeEach(async ({ page }) => {
 // selects the Trace/Tasks/Memory toggles. TaskNode preserves stable hooks
 // (`.task-node`, `.task-status`, `.task-role`, `[data-test="task-retry"]`).
 
-test("task steps panel shows empty state initially", async ({ page }) => {
+test("retrying a failed task clears the error and advances retry attempts", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
-  // Navigate to Tasks tab
   await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
-  await expect(page.locator(".task-steps")).toContainText("No tasks yet");
-});
-
-test("task appears when AgentTaskCreated event fires", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
-    timeout: 10_000
-  });
-
-  // Navigate to Tasks tab
-  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
-
-  // Simulate task creation
-  await page.evaluate(() => {
-    (window as any).__KAIROX_MOCK__.simulateTaskCreated("Analyze codebase", "Planner");
-  });
-
-  // Task should appear in the task steps panel
-  await expect(page.locator(".task-node").first()).toBeVisible({
-    timeout: 3_000
-  });
-  await expect(page.locator(".task-node").first()).toContainText("Analyze codebase");
-  // Should show Planner role badge
-  await expect(page.locator(".task-role").first()).toContainText("P");
-});
-
-test("task transitions through states", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
-    timeout: 10_000
-  });
-
-  // Navigate to Tasks tab
-  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
-
-  // Create a task
   const taskId = await page.evaluate(() => {
-    return (window as any).__KAIROX_MOCK__.simulateTaskCreated("Build feature", "Worker");
+    const mock = (window as any).__KAIROX_MOCK__;
+    const id = mock.simulateTaskCreated("Retry API request", "Worker");
+    mock.simulateTaskTransition(id, "AgentTaskStarted");
+    mock.simulateTaskTransition(id, "AgentTaskFailed", "Request timed out");
+    return id;
   });
 
-  await expect(page.locator(".task-node").first()).toBeVisible({
+  const task = page.locator(".task-node").first();
+  await expect(task.locator(".task-status")).toContainText("❌", {
     timeout: 3_000
   });
+  await expect(page.locator(".task-error-text").first()).toContainText("Request timed out");
 
-  // Should show Pending status (⏳)
-  await expect(page.locator(".task-status").first()).toContainText("⏳");
+  await page.getByTestId("task-retry").first().click();
 
-  // Start the task
-  await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskStarted");
+  await expect(task.locator(".task-status")).toContainText("🔄", {
+    timeout: 3_000
+  });
+  await expect(page.locator(".task-error-text")).toHaveCount(0);
+  await expect(task.locator(".task-retry")).toContainText("↻1/3");
+
+  await page.evaluate((id) => {
+    const mock = (window as any).__KAIROX_MOCK__;
+    mock.simulateTaskTransition(id, "AgentTaskFailed", "Still timing out");
   }, taskId);
+  await page.getByTestId("task-retry").first().click();
 
-  // Should show Running status (🔄)
-  await expect(page.locator(".task-status").first()).toContainText("🔄", {
+  await expect(task.locator(".task-status")).toContainText("🔄", {
     timeout: 3_000
   });
-
-  // Complete the task
-  await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskCompleted");
-  }, taskId);
-
-  // Should show Completed status (✅)
-  await expect(page.locator(".task-status").first()).toContainText("✅", {
-    timeout: 3_000
-  });
-});
-
-test("task shows error when it fails", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
-    timeout: 10_000
-  });
-
-  // Navigate to Tasks tab
-  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
-
-  // Create and fail a task
-  const taskId = await page.evaluate(() => {
-    return (window as any).__KAIROX_MOCK__.simulateTaskCreated("Risky operation", "Worker");
-  });
-
-  await expect(page.locator(".task-node").first()).toBeVisible({
-    timeout: 3_000
-  });
-
-  // Fail the task
-  await page.evaluate((tid) => {
-    (window as any).__KAIROX_MOCK__.simulateTaskTransition(tid, "AgentTaskFailed", "Model timeout");
-  }, taskId);
-
-  // Should show Failed status (❌)
-  await expect(page.locator(".task-status").first()).toContainText("❌", {
-    timeout: 3_000
-  });
+  await expect(task.locator(".task-retry")).toContainText("↻2/3");
 });
 
 test("N-level task tree shows parent-child relationships", async ({ page }) => {
@@ -128,21 +64,28 @@ test("N-level task tree shows parent-child relationships", async ({ page }) => {
   // Navigate to Tasks tab
   await page.locator(".tab-group button", { hasText: "Tasks" }).click();
 
-  // Create a parent task and two child tasks with dependencies
   await page.evaluate(() => {
     const mock = (window as any).__KAIROX_MOCK__;
     const parentId = mock.simulateTaskCreated("Plan work", "Planner");
-    const child1Id = mock.simulateTaskCreated("Implement A", "Worker");
-    const child2Id = mock.simulateTaskCreated("Implement B", "Worker");
-    // Simulate decomposition
+    const child1Id = mock.simulateTaskCreated("Implement A", "Worker", [parentId]);
+    const child2Id = mock.simulateTaskCreated("Implement B", "Worker", [parentId]);
+    mock.simulateTaskCreated("Review A", "Reviewer", [child1Id]);
     mock.simulateTaskDecomposed(parentId, [child1Id, child2Id]);
   });
 
-  // Root task should be visible and expandable
-  await expect(page.locator(".task-node").first()).toBeVisible({
+  const nodes = page.locator(".task-node");
+  await expect(nodes).toHaveCount(3, {
     timeout: 3_000
   });
-  await expect(page.locator(".task-node").first()).toContainText("Plan work");
+  await expect(nodes.nth(0)).toContainText("Plan work");
+  await expect(nodes.nth(1)).toContainText("Implement A");
+  await expect(nodes.nth(2)).toContainText("Implement B");
+
+  await nodes.nth(1).click();
+
+  await expect(nodes).toHaveCount(4);
+  await expect(nodes.nth(2)).toContainText("Review A");
+  await expect(nodes.nth(3)).toContainText("Implement B");
 });
 
 test("blocked task shows blocked state", async ({ page }) => {
