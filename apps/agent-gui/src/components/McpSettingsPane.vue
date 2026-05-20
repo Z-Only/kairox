@@ -50,12 +50,12 @@ function closeAddServerDialog(): void {
 </script>
 
 <template>
-  <section class="mcp-settings" aria-label="MCP settings" data-test="mcp-settings-pane">
+  <section class="mcp-settings" :aria-label="t('mcp.title')" data-test="mcp-settings-pane">
     <SettingsState v-if="mcp.settingsError" tone="error" data-test="mcp-page-error">
       {{ mcp.settingsError }}
     </SettingsState>
 
-    <SettingsSubtabs aria-label="MCP sections">
+    <SettingsSubtabs :aria-label="t('mcp.sections')">
       <button
         class="sub-tab-btn"
         role="tab"

@@ -46,6 +46,7 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "archive": "Archive",
+    "archiveSessions": "Archived sessions",
     "archiveEmpty": "No archived sessions.",
     "archiveTotal": "Total: {count}",
     "archiveProjects": "Projects: {count}",
@@ -85,6 +86,7 @@
     "modelNotFound": "Model \"{alias}\" is not available"
   },
   "instructions": {
+    "title": "Instructions settings",
     "system": "System",
     "user": "User",
     "project": "Project",
@@ -303,6 +305,7 @@
     "statusFailed": "Failed",
     "statusStopped": "Stopped",
     "title": "MCP Settings",
+    "sections": "MCP sections",
     "tabInstalled": "Installed",
     "tabMarketplace": "Marketplace",
     "openConfigFile": "Open Config File",
@@ -420,6 +423,7 @@
     "connectionOptions": "Connection"
   },
   "hooks": {
+    "title": "Hooks settings",
     "scopeHooks": "{scope} hooks",
     "empty": "No hooks configured.",
     "add": "Add hook",
@@ -492,6 +496,10 @@
     "saving": "Saving",
     "saveAgent": "Save agent",
     "defaultValue": "Default",
+    "namePlaceholder": "code-reviewer",
+    "toolsPlaceholder": "fs.read, search, shell",
+    "skillsPlaceholder": "kairox-dev-workflow",
+    "nicknamesPlaceholder": "Reviewer, Audit",
     "scopeBuiltin": "Built-in",
     "scopeUser": "User",
     "scopeProject": "Project",
@@ -521,6 +529,7 @@
   },
   "skills": {
     "title": "Skills Settings",
+    "sections": "Skill sections",
     "tabInstalled": "Installed",
     "tabDiscover": "Marketplace",
     "builtinSource": "Built-in",
@@ -549,6 +558,7 @@
     "targetProject": "Project",
     "targetUser": "User",
     "githubUrl": "GitHub repository URL",
+    "githubUrlPlaceholder": "https://github.com/org/repo/tree/main/path/to/skill",
     "installing": "Installing…",
     "installButton": "Install from GitHub",
     "searchPlaceholder": "Search by name or keyword",

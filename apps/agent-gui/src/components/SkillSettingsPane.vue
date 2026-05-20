@@ -111,12 +111,12 @@ async function installFromGithub(): Promise<void> {
 </script>
 
 <template>
-  <section class="skill-settings" aria-label="Skills settings" data-test="skill-settings-pane">
+  <section class="skill-settings" :aria-label="t('skills.title')" data-test="skill-settings-pane">
     <SettingsState v-if="skillsStore.error" tone="error" data-test="skill-page-error">
       {{ skillsStore.error }}
     </SettingsState>
 
-    <SettingsSubtabs aria-label="Skill sections">
+    <SettingsSubtabs :aria-label="t('skills.sections')">
       <button
         class="sub-tab-btn"
         role="tab"
@@ -303,7 +303,7 @@ async function installFromGithub(): Promise<void> {
               v-model="githubSource"
               type="text"
               data-test="skill-github-source"
-              placeholder="https://github.com/org/repo/tree/main/path/to/skill"
+              :placeholder="t('skills.githubUrlPlaceholder')"
             />
           </KxFormField>
           <KxButton

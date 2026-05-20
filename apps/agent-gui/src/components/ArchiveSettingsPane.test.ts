@@ -143,4 +143,9 @@ describe("ArchiveSettingsPane", () => {
     expect(archiveSettingsPaneSource).toContain("SettingsStatusTag");
     expect(archiveSettingsPaneSource).not.toContain('<span class="tag">');
   });
+
+  it("does not keep archive pane aria chrome inline in the component source", () => {
+    expect(archiveSettingsPaneSource).not.toContain('aria-label="Archive"');
+    expect(archiveSettingsPaneSource).not.toContain('aria-label="Archived sessions"');
+  });
 });

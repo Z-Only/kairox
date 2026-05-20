@@ -258,7 +258,11 @@ watch(
     >
       <form class="agent-editor" data-test="agent-editor" @submit.prevent="saveAgent">
         <KxFormField :label="t('agents.name')">
-          <KxInput v-model="form.name" data-test="agent-form-name" placeholder="code-reviewer" />
+          <KxInput
+            v-model="form.name"
+            data-test="agent-form-name"
+            :placeholder="t('agents.namePlaceholder')"
+          />
         </KxFormField>
         <KxFormField :label="t('agents.description')">
           <KxInput v-model="form.description" data-test="agent-form-description" />
@@ -281,21 +285,21 @@ watch(
           <KxInput
             v-model="toolsText"
             data-test="agent-form-tools"
-            placeholder="fs.read, search, shell"
+            :placeholder="t('agents.toolsPlaceholder')"
           />
         </KxFormField>
         <KxFormField :label="t('agents.skills')">
           <KxInput
             v-model="skillsText"
             data-test="agent-form-skills"
-            placeholder="kairox-dev-workflow"
+            :placeholder="t('agents.skillsPlaceholder')"
           />
         </KxFormField>
         <KxFormField :label="t('agents.nicknames')">
           <KxInput
             v-model="nicknamesText"
             data-test="agent-form-nicknames"
-            placeholder="Reviewer, Audit"
+            :placeholder="t('agents.nicknamesPlaceholder')"
           />
         </KxFormField>
         <label class="agent-editor__checkbox">

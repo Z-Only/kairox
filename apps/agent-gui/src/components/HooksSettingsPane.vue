@@ -202,7 +202,7 @@ watch(
   <section
     class="hooks-pane"
     role="tabpanel"
-    aria-label="Hooks settings"
+    :aria-label="t('hooks.title')"
     data-test="hooks-settings-pane"
   >
     <SettingsState v-if="errorMsg" tone="error" data-test="hooks-error">
