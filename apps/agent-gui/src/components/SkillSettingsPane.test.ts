@@ -333,21 +333,23 @@ describe("SkillSettingsPane", () => {
   });
 
   it("does not keep local skill row chrome after moving to SettingsCardItem", () => {
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings__row,");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings__row {");
     expect(skillSettingsPaneSource).toContain("SettingsCardList");
     expect(skillSettingsPaneSource).toContain("SettingsCardItem");
     expect(skillSettingsPaneSource).toContain("SettingsItemSummary");
     expect(skillSettingsPaneSource).toContain("SettingsItemMeta");
     expect(skillSettingsPaneSource).toContain("SettingsStatusTag");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings__title-row");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings__meta");
-    expect(skillSettingsPaneSource).not.toContain("tag-success");
-    expect(skillSettingsPaneSource).not.toContain("tag-warning");
-    expect(skillSettingsPaneSource).not.toContain("tag-error");
-    expect(skillSettingsPaneSource).not.toContain("tag--source");
-    expect(skillSettingsPaneSource).not.toContain("tag--override");
-    expect(skillSettingsPaneSource).not.toContain("tag--disabled-by");
+    expectSourceNotToContain(skillSettingsPaneSource, [
+      ".skill-settings__row,",
+      ".skill-settings__row {",
+      ".skill-settings__title-row",
+      ".skill-settings__meta",
+      "tag-success",
+      "tag-warning",
+      "tag-error",
+      "tag--source",
+      "tag--override",
+      "tag--disabled-by"
+    ]);
   });
 
   it("uses a compact installed skill card layout without path-driven blank space", async () => {
@@ -367,20 +369,24 @@ describe("SkillSettingsPane", () => {
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
     expect(skillSettingsPaneSource).toContain("SettingsSubtabs");
     expect(skillSettingsPaneSource).toContain("SettingsToolbar");
-    expect(skillSettingsPaneSource).not.toContain('class="skill-sub-tabs"');
-    expect(skillSettingsPaneSource).not.toContain('class="skill-toolbar"');
-    expect(skillSettingsPaneSource).not.toContain(".skill-sub-tabs {");
-    expect(skillSettingsPaneSource).not.toContain(".skill-toolbar {");
-    expect(skillSettingsPaneSource).not.toContain(".sub-tab-btn {");
+    expectSourceNotToContain(skillSettingsPaneSource, [
+      'class="skill-sub-tabs"',
+      'class="skill-toolbar"',
+      ".skill-sub-tabs {",
+      ".skill-toolbar {",
+      ".sub-tab-btn {"
+    ]);
   });
 
   it("uses shared form controls in the GitHub advanced install form", () => {
     expect(skillSettingsPaneSource).toContain("KxFormField");
     expect(skillSettingsPaneSource).toContain("KxInput");
-    expect(skillSettingsPaneSource).not.toContain("kx-form-control");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings input,");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings select");
-    expect(skillSettingsPaneSource).not.toContain(".skill-settings__search-form input");
+    expectSourceNotToContain(skillSettingsPaneSource, [
+      "kx-form-control",
+      ".skill-settings input,",
+      ".skill-settings select",
+      ".skill-settings__search-form input"
+    ]);
   });
 
   it("uses shared settings state chrome for empty installed skills", async () => {

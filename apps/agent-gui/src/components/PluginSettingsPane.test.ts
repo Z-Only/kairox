@@ -5,6 +5,7 @@ import { ref } from "vue";
 import PluginSettingsPane from "./PluginSettingsPane.vue";
 import pluginSettingsPaneSource from "./PluginSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -121,11 +122,13 @@ describe("PluginSettingsPane", () => {
       expect(pluginSettingsPaneSource).toContain("SettingsItemSummary");
       expect(pluginSettingsPaneSource).toContain("SettingsItemMeta");
       expect(pluginSettingsPaneSource).toContain("SettingsStatusTag");
-      expect(pluginSettingsPaneSource).not.toContain(".plugin-row__title");
-      expect(pluginSettingsPaneSource).not.toContain(".plugin-meta");
-      expect(pluginSettingsPaneSource).not.toContain("tag-success");
-      expect(pluginSettingsPaneSource).not.toContain("tag-warning");
-      expect(pluginSettingsPaneSource).not.toContain("tag-error");
+      expectSourceNotToContain(pluginSettingsPaneSource, [
+        ".plugin-row__title",
+        ".plugin-meta",
+        "tag-success",
+        "tag-warning",
+        "tag-error"
+      ]);
     });
 
     it("shows empty state when no plugins installed", async () => {
@@ -427,20 +430,22 @@ describe("PluginSettingsPane", () => {
 
   describe("shared settings card primitives", () => {
     it("does not keep local plugin row chrome after moving to SettingsCardItem", () => {
-      expect(pluginSettingsPaneSource).not.toContain(".plugin-row {");
       expect(pluginSettingsPaneSource).toContain("SettingsCardList");
       expect(pluginSettingsPaneSource).toContain("SettingsCardItem");
+      expectSourceNotToContain(pluginSettingsPaneSource, [".plugin-row {"]);
     });
 
     it("uses shared settings toolbar, subtabs, and filter bar instead of local plugin chrome", () => {
       expect(pluginSettingsPaneSource).toContain("SettingsSubtabs");
       expect(pluginSettingsPaneSource).toContain("SettingsToolbar");
       expect(pluginSettingsPaneSource).toContain("SettingsFilterBar");
-      expect(pluginSettingsPaneSource).not.toContain('class="plugin-sub-tabs"');
-      expect(pluginSettingsPaneSource).not.toContain('class="plugin-toolbar"');
-      expect(pluginSettingsPaneSource).not.toContain(".plugin-sub-tabs,");
-      expect(pluginSettingsPaneSource).not.toContain(".plugin-toolbar {");
-      expect(pluginSettingsPaneSource).not.toContain(".sub-tab-btn {");
+      expectSourceNotToContain(pluginSettingsPaneSource, [
+        'class="plugin-sub-tabs"',
+        'class="plugin-toolbar"',
+        ".plugin-sub-tabs,",
+        ".plugin-toolbar {",
+        ".sub-tab-btn {"
+      ]);
     });
   });
 });
