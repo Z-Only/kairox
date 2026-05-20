@@ -12,6 +12,7 @@ use agent_tools::PermissionMode;
 
 use crate::app_state::AppState;
 use crate::components::chat::ChatPanel;
+use crate::components::mcp_overlay::McpOverlay;
 use crate::components::permission_modal::PermissionModal;
 use crate::components::sessions::SessionsPanel;
 use crate::components::status_bar::{PermissionModeExt, StatusBar};
@@ -25,6 +26,7 @@ pub struct App {
     pub trace: TracePanel,
     pub status_bar: StatusBar,
     pub permission_modal: PermissionModal,
+    pub mcp_overlay: McpOverlay,
     pub workspace_id: WorkspaceId,
     pub current_session_id: Option<SessionId>,
     pub domain_events: Vec<DomainEvent>,
@@ -49,6 +51,7 @@ impl App {
             trace: TracePanel::new(),
             status_bar: StatusBar::new(),
             permission_modal: PermissionModal::new(),
+            mcp_overlay: McpOverlay::new(),
             workspace_id,
             current_session_id: None,
             domain_events: Vec::new(),
@@ -78,12 +81,29 @@ impl App {
                     }
                 }
             }
+            // Drive focus stack from overlay effects so Tab cycling is
+            // suppressed while the overlay is open.
+            match &effect {
+                CrossPanelEffect::ShowMcpOverlay(_)
+                    if self.state.focus_manager.current() != FocusTarget::McpOverlay =>
+                {
+                    self.state.focus_manager.push(FocusTarget::McpOverlay);
+                }
+                CrossPanelEffect::DismissMcpOverlay
+                    if self.state.focus_manager.current() == FocusTarget::McpOverlay =>
+                {
+                    self.state.focus_manager.pop();
+                }
+                _ => {}
+            }
             self.chat.handle_effect(&effect);
             self.sessions.handle_effect(&effect);
             self.trace.handle_effect(&effect);
             self.status_bar.handle_effect(&effect);
             self.permission_modal.handle_effect(&effect);
+            self.mcp_overlay.handle_effect(&effect);
         }
+        self.sync_component_focus();
     }
 
     /// Load projection and trace for a session from historical data.
@@ -107,6 +127,8 @@ impl App {
         self.trace.set_focused(current == FocusTarget::Trace);
         self.permission_modal
             .set_focused(current == FocusTarget::PermissionModal);
+        self.mcp_overlay
+            .set_focused(current == FocusTarget::McpOverlay);
         self.status_bar.set_focused(false);
         self.state.render_scheduler.mark_dirty();
     }

@@ -27,7 +27,9 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 
 use app::App;
-use components::{Command, SessionInfo, SessionState};
+use components::{
+    Command, CrossPanelEffect, McpServerEntry, McpServerStatusView, SessionInfo, SessionState,
+};
 
 // ---------------------------------------------------------------------------
 // AppEvent — unified event type for the main loop
@@ -99,6 +101,11 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::OpenMcpOverlay => {
+                refresh_mcp_overlay(runtime, app).await;
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+
             Command::TrustMcpServer { server_id } => {
                 // Trust the MCP server via the runtime's MCP manager
                 if let Some(mcp_manager) = runtime.mcp_manager() {
@@ -118,6 +125,91 @@ async fn dispatch_commands(
                             },
                         );
                     }
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::StartMcpServer { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let mut manager = mcp_manager.lock().await;
+                    match manager.ensure_server(&server_id).await {
+                        Ok(_) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("MCP server '{}' started", server_id),
+                                },
+                            );
+                        }
+                        Err(e) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("[MCP start error: {e}]"),
+                                },
+                            );
+                        }
+                    }
+                    drop(manager);
+                    refresh_mcp_overlay(runtime, app).await;
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::StopMcpServer { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let mut manager = mcp_manager.lock().await;
+                    match manager.shutdown_server(&server_id).await {
+                        Ok(()) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("MCP server '{}' stopped", server_id),
+                                },
+                            );
+                        }
+                        Err(e) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("[MCP stop error: {e}]"),
+                                },
+                            );
+                        }
+                    }
+                    drop(manager);
+                    refresh_mcp_overlay(runtime, app).await;
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::RefreshMcpTools { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let mut manager = mcp_manager.lock().await;
+                    match manager.refresh_tools(&server_id).await {
+                        Ok(tools) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!(
+                                        "MCP server '{}' refreshed ({} tools)",
+                                        server_id,
+                                        tools.len()
+                                    ),
+                                },
+                            );
+                        }
+                        Err(e) => {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("[MCP refresh error: {e}]"),
+                                },
+                            );
+                        }
+                    }
+                    drop(manager);
+                    refresh_mcp_overlay(runtime, app).await;
                     app.state.render_scheduler.mark_dirty();
                 }
             }
@@ -254,6 +346,62 @@ async fn dispatch_commands(
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// MCP overlay snapshot helper
+// ---------------------------------------------------------------------------
+
+/// Snapshot the runtime's MCP manager into a `Vec<McpServerEntry>` and
+/// dispatch a `ShowMcpOverlay` effect so the overlay component re-renders.
+///
+/// Read-only over `McpServerManager`: status, trust, and tool counts are
+/// captured without starting or stopping servers. If the runtime has no MCP
+/// manager configured the overlay opens with an empty list.
+async fn refresh_mcp_overlay(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+) {
+    let entries = match runtime.mcp_manager() {
+        Some(mcp_manager) => {
+            let manager = mcp_manager.lock().await;
+            let statuses = manager.server_statuses();
+
+            // Count MCP tools per server from the tool registry. Adapter
+            // ids are namespaced as `mcp.<server_id>.<tool_name>`.
+            let tool_registry = runtime.tool_registry();
+            let registry = tool_registry.lock().await;
+            let definitions = registry.list_all().await;
+            drop(registry);
+
+            let mut entries: Vec<McpServerEntry> = Vec::with_capacity(statuses.len());
+            for (server_id, status) in statuses {
+                let trusted = manager.is_trusted(&server_id).await;
+                let prefix = format!("mcp.{}.", server_id);
+                let tool_count = definitions
+                    .iter()
+                    .filter(|def| def.tool_id.starts_with(&prefix))
+                    .count();
+                let status_view = match status {
+                    agent_mcp::types::McpServerStatus::Stopped => McpServerStatusView::Stopped,
+                    agent_mcp::types::McpServerStatus::Starting => McpServerStatusView::Starting,
+                    agent_mcp::types::McpServerStatus::Running => McpServerStatusView::Running,
+                    agent_mcp::types::McpServerStatus::Failed => McpServerStatusView::Failed,
+                };
+                entries.push(McpServerEntry {
+                    server_id,
+                    status: status_view,
+                    trusted,
+                    tool_count,
+                });
+            }
+            entries.sort_by(|a, b| a.server_id.cmp(&b.server_id));
+            entries
+        }
+        None => Vec::new(),
+    };
+
+    app.dispatch_effects(vec![CrossPanelEffect::ShowMcpOverlay(entries)]);
 }
 
 // ---------------------------------------------------------------------------
