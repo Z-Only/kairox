@@ -4,6 +4,7 @@ import ChatPanel from "./ChatPanel.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
 import chatModelSelectorSource from "./ChatModelSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 // jsdom does not implement `Element.prototype.scrollTo`. The scrollbar
 // calls it inside its own `scrollTo()` method when the message-list watcher
@@ -272,23 +273,23 @@ describe("ChatPanel", () => {
   });
 
   it("keeps model selector and git metadata stable with long labels", () => {
-    expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*min-width:\s*0/);
-    expect(chatComposerSource).toMatch(/\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-trigger\s*\{[\s\S]*max-width:\s*min\(100%,\s*280px\)/
-    );
-    expect(chatModelSelectorSource).toMatch(/\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/);
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/
-    );
-    expect(chatModelSelectorSource).toMatch(
-      /\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/
-    );
-    expect(chatModelSelectorSource).toContain(
-      'class="kx-popover-option__label chat-model-option-label"'
-    );
-    expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*min-width:\s*0/);
-    expect(chatComposerSource).toMatch(/\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/);
+    expectSourceMigration(chatComposerSource, {
+      requiredPatterns: [
+        /\.composer-meta\s*\{[\s\S]*min-width:\s*0/,
+        /\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/,
+        /\.git-meta\s*\{[\s\S]*min-width:\s*0/,
+        /\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/
+      ]
+    });
+    expectSourceMigration(chatModelSelectorSource, {
+      required: ['class="kx-popover-option__label chat-model-option-label"'],
+      requiredPatterns: [
+        /\.chat-model-trigger\s*\{[\s\S]*max-width:\s*min\(100%,\s*280px\)/,
+        /\.chat-model-trigger\s*\{[\s\S]*overflow:\s*hidden/,
+        /\.chat-model-trigger\s*\{[\s\S]*text-overflow:\s*ellipsis/,
+        /\.chat-model-trigger\s*\{[\s\S]*white-space:\s*nowrap/
+      ]
+    });
   });
 
   it("renders context meter as a ring inside the composer input row", async () => {

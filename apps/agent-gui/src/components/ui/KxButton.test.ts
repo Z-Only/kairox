@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import KxButton from "./KxButton.vue";
 import kxButtonSource from "./KxButton.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 describe("KxButton", () => {
   it("renders shared text button chrome with variant and size classes", () => {
@@ -27,13 +28,16 @@ describe("KxButton", () => {
   });
 
   it("keeps action variants in the owned component instead of global btn CSS", () => {
-    expect(kxButtonSource).toContain("type ButtonVariant");
-    expect(kxButtonSource).toContain(".kx-button--danger");
-    expect(kxButtonSource).toContain(".kx-button--danger-ghost");
-    expect(kxButtonSource).toContain(".kx-button--ghost");
-    expect(kxButtonSource).toContain(".kx-button--success");
-    expect(kxButtonSource).toContain(".kx-button--warning");
-    expect(kxButtonSource).not.toContain(".btn-primary");
-    expect(kxButtonSource).not.toContain(".btn-danger");
+    expectSourceMigration(kxButtonSource, {
+      required: [
+        "type ButtonVariant",
+        ".kx-button--danger",
+        ".kx-button--danger-ghost",
+        ".kx-button--ghost",
+        ".kx-button--success",
+        ".kx-button--warning"
+      ],
+      forbidden: [".btn-primary", ".btn-danger"]
+    });
   });
 });

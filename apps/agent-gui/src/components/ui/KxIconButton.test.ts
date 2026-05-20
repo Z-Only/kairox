@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import KxIconButton from "./KxIconButton.vue";
 import kxIconButtonSource from "./KxIconButton.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 describe("KxIconButton", () => {
   it("renders an accessible native icon button", () => {
@@ -41,7 +42,9 @@ describe("KxIconButton", () => {
     const button = wrapper.get("button");
     expect(button.classes()).toContain("kx-icon-button--default");
     expect(button.classes()).toContain("kx-icon-button--size-sm");
-    expect(kxIconButtonSource).toContain("type IconButtonSize");
-    expect(kxIconButtonSource).not.toContain("btn-icon");
+    expectSourceMigration(kxIconButtonSource, {
+      required: ["type IconButtonSize"],
+      forbidden: ["btn-icon"]
+    });
   });
 });
