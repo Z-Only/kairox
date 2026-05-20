@@ -61,9 +61,45 @@ script = """
 """
 
 [[step]]
+name = "remember text chat session"
+action = "eval"
+script = """
+(() => {
+  const current = localStorage.getItem("kairox.last-active-session-id") || window.location.hash;
+  if (!current) {
+    throw new Error("missing active text chat session id");
+  }
+  window.__pilotChatFlowTextSession = current;
+  return current;
+})()
+"""
+
+[[step]]
 name = "start attachment session"
 action = "click"
 target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "wait for attachment session to activate"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const previous = window.__pilotChatFlowTextSession;
+  const deadline = Date.now() + 15000;
+
+  while (Date.now() < deadline) {
+    const current = localStorage.getItem("kairox.last-active-session-id") || window.location.hash;
+    const emptyStateVisible = Boolean(document.querySelector("[data-test='chat-empty-state']"));
+    if (current && current !== previous && emptyStateVisible) {
+      return current;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("attachment session did not become active");
+})()
+"""
 
 [[step]]
 name = "wait for attachment chat input"
@@ -96,9 +132,25 @@ script = """
 
 [[step]]
 name = "wait for attachment user message"
-action = "wait"
-selector = ".message-user .message-content"
-timeout_ms = 15000
+action = "eval"
+script = """
+(async () => {
+  const deadline = Date.now() + 8000;
+
+  while (Date.now() < deadline) {
+    const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
+    const text = messages.find((message) =>
+      message.textContent?.includes("Pilot attachment coverage from chat-flow")
+    )?.textContent ?? "";
+    if (text) {
+      return text;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("attachment user message did not appear");
+})()
+"""
 
 [[step]]
 name = "assert attachment message includes file metadata"
@@ -106,7 +158,9 @@ action = "eval"
 script = """
 (() => {
   const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
-  const text = messages.at(-1)?.textContent ?? "";
+  const text = messages.find((message) =>
+    message.textContent?.includes("Pilot attachment coverage from chat-flow")
+  )?.textContent ?? "";
   if (!text.includes("Pilot attachment coverage from chat-flow")) {
     throw new Error(`attachment message missing prompt text: ${text}`);
   }

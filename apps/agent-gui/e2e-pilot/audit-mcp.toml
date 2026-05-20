@@ -45,6 +45,169 @@ action = "assert-visible"
 target = "[data-test='mcp-add-server-btn']"
 
 [[step]]
+name = "wait for pilot mcp server row"
+action = "wait"
+selector = "[data-test='mcp-server-row-pilot-mcp']"
+timeout_ms = 15000
+
+[[step]]
+name = "pilot mcp server row visible"
+action = "assert-visible"
+target = "[data-test='mcp-server-row-pilot-mcp']"
+
+[[step]]
+name = "test pilot mcp connectivity"
+action = "click"
+target = "[data-test='mcp-test-connectivity-pilot-mcp']"
+
+[[step]]
+name = "wait for pilot mcp connectivity result"
+action = "wait"
+selector = "[data-test='mcp-connectivity-pilot-mcp']"
+timeout_ms = 20000
+
+[[step]]
+name = "pilot mcp connectivity succeeded"
+action = "eval"
+script = """
+(async () => {
+  const deadline = Date.now() + 20000;
+
+  while (Date.now() < deadline) {
+    const result = document.querySelector("[data-test='mcp-connectivity-pilot-mcp']");
+    const text = result?.textContent ?? "";
+    if (text.includes("Connected (1 tool")) {
+      return text;
+    }
+    if (text.includes("Failed")) {
+      throw new Error(`unexpected connectivity result: ${text}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("pilot MCP connectivity did not complete");
+})()
+"""
+
+[[step]]
+name = "ensure pilot project is registered"
+action = "eval"
+script = """
+(async () => {
+  const invoke = window.__TAURI_INTERNALS__.invoke;
+  const repoRoot = localStorage.getItem("kairox.pilot.repoRoot");
+  if (!repoRoot) {
+    throw new Error("missing kairox.pilot.repoRoot");
+  }
+
+  const projects = await invoke("list_projects");
+  const existing = projects.find((project) => project.root_path === repoRoot);
+  const project = existing ?? await invoke("add_existing_project", { path: repoRoot });
+
+  try {
+    await invoke("enable_mcp_server_at_scope", {
+      serverId: "pilot-mcp",
+      projectRoot: repoRoot
+    });
+  } catch {
+    // The project config may not exist before the first scope action.
+  }
+
+  return project.project_id;
+})()
+"""
+
+[[step]]
+name = "switch to project settings source"
+action = "click"
+target = "[data-test='source-btn-project']"
+
+[[step]]
+name = "disable pilot mcp at project scope"
+action = "eval"
+timeout_ms = 30000
+script = """
+(async () => {
+  const deadline = Date.now() + 8000;
+
+  while (Date.now() < deadline) {
+    const action = document.querySelector("[data-test='mcp-disable-scope-pilot-mcp']");
+    if (action) {
+      action.click();
+      return action.textContent;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("project disable action did not become clickable");
+})()
+"""
+
+[[step]]
+name = "pilot mcp row shows project override"
+action = "eval"
+timeout_ms = 25000
+script = """
+(async () => {
+  const deadline = Date.now() + 8000;
+
+  while (Date.now() < deadline) {
+    const row = document.querySelector("[data-test='mcp-server-row-pilot-mcp']");
+    const text = row?.textContent ?? "";
+    if (text.includes("Disabled by Project")) {
+      return text;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("expected Disabled by Project");
+})()
+"""
+
+[[step]]
+name = "enable pilot mcp at project scope"
+action = "eval"
+timeout_ms = 30000
+script = """
+(async () => {
+  const deadline = Date.now() + 8000;
+
+  while (Date.now() < deadline) {
+    const action = document.querySelector("[data-test='mcp-enable-scope-pilot-mcp']");
+    if (action) {
+      action.click();
+      return action.textContent;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("project enable action did not become clickable");
+})()
+"""
+
+[[step]]
+name = "pilot mcp project override cleared"
+action = "eval"
+timeout_ms = 25000
+script = """
+(async () => {
+  const deadline = Date.now() + 8000;
+
+  while (Date.now() < deadline) {
+    const row = document.querySelector("[data-test='mcp-server-row-pilot-mcp']");
+    const text = row?.textContent ?? "";
+    const disableAction = document.querySelector("[data-test='mcp-disable-scope-pilot-mcp']");
+    if (row && disableAction && !text.includes("Disabled by Project")) {
+      return text;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("project override was not cleared");
+})()
+"""
+
+[[step]]
 name = "return to workbench"
 action = "click"
 target = "[data-test='nav-workbench']"
