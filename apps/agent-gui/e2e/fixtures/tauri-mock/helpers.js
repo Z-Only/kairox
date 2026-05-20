@@ -359,6 +359,78 @@ function getTrace(sessionId) {
   return state.traces.get(sessionId);
 }
 
+function findProjectionTask(sessionId, taskId) {
+  return getProjection(sessionId).task_graph.tasks.find(function (task) {
+    return task.id === taskId;
+  });
+}
+
+function ensureProjectionTask(sessionId, input) {
+  var task = findProjectionTask(sessionId, input.task_id);
+  if (task) return task;
+
+  task = {
+    id: input.task_id,
+    title: input.title,
+    role: input.role || "Worker",
+    state: "Pending",
+    dependencies: input.dependencies || [],
+    error: null,
+    retry_count: 0,
+    max_retries: 3,
+    assigned_agent_id: null,
+    failure_reason: null
+  };
+  getProjection(sessionId).task_graph.tasks.push(task);
+  return task;
+}
+
+function applyTaskPayloadToProjection(sessionId, payload) {
+  var task;
+  switch (payload.type) {
+    case "AgentTaskCreated":
+      ensureProjectionTask(sessionId, payload);
+      break;
+    case "AgentTaskStarted":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) task.state = "Running";
+      break;
+    case "AgentTaskCompleted":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) task.state = "Completed";
+      break;
+    case "AgentTaskFailed":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) {
+        task.state = "Failed";
+        task.error = payload.error || null;
+      }
+      break;
+    case "TaskBlocked":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) {
+        task.state = "Blocked";
+        task.error = payload.reason || "Dependency failed";
+      }
+      break;
+    case "TaskRetried":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) {
+        task.state = "Running";
+        task.retry_count = payload.attempt;
+        task.error = null;
+      }
+      break;
+    case "TaskCancelled":
+      task = findProjectionTask(sessionId, payload.task_id);
+      if (task) {
+        task.state = "Cancelled";
+        task.error = null;
+      }
+      break;
+  }
+}
+
 function makeEvent(sessionId, payload) {
   return {
     schema_version: 1,

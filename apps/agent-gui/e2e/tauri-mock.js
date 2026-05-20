@@ -66,18 +66,21 @@ function installMock() {
       emitEvent("session-event", event);
       return memoryId;
     },
-    simulateTaskCreated: function (title, role) {
+    simulateTaskCreated: function (title, role, dependencies) {
       role = role || "Worker";
+      dependencies = dependencies || [];
       var sessionId = state.currentSessionId;
       if (!sessionId) return;
       var taskId = nextId("tsk");
-      var event = makeEvent(sessionId, {
+      var payload = {
         type: "AgentTaskCreated",
         task_id: taskId,
         title: title,
         role: role,
-        dependencies: []
-      });
+        dependencies: dependencies
+      };
+      applyTaskPayloadToProjection(sessionId, payload);
+      var event = makeEvent(sessionId, payload);
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
       return taskId;
@@ -131,19 +134,14 @@ function installMock() {
     simulateTaskBlocked: function (taskId, blockingTaskId, reason) {
       var sessionId = state.currentSessionId;
       if (!sessionId) return;
-      var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
-        return t.id === taskId;
-      });
-      if (task) {
-        task.state = "Blocked";
-        task.error = reason || "Dependency failed";
-      }
-      var event = makeEvent(sessionId, {
+      var payload = {
         type: "TaskBlocked",
         task_id: taskId,
         blocking_task_id: blockingTaskId,
         reason: reason || "Dependency failed"
-      });
+      };
+      applyTaskPayloadToProjection(sessionId, payload);
+      var event = makeEvent(sessionId, payload);
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
     },
@@ -153,6 +151,7 @@ function installMock() {
       if (!sessionId) return;
       var payload = { type: eventType, task_id: taskId };
       if (eventType === "AgentTaskFailed" && error) payload.error = error;
+      applyTaskPayloadToProjection(sessionId, payload);
       var event = makeEvent(sessionId, payload);
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);

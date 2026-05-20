@@ -133,7 +133,7 @@ registerCommandHandlers({
       state.currentProfile = session.profile;
       if (session.permission_mode) state.currentPermissionMode = session.permission_mode;
     }
-    return Promise.resolve(getProjection(sessionId));
+    return Promise.resolve(clone(getProjection(sessionId)));
   },
   get_trace: function (args) {
     var sessionId = args.sessionId || args.session_id;
@@ -290,7 +290,7 @@ registerCommandHandlers({
   get_task_graph: function (args) {
     var sessionId = args.sessionId || args.session_id;
     if (!sessionId) return Promise.reject(new Error("sessionId is required"));
-    return Promise.resolve(getProjection(sessionId).task_graph.tasks);
+    return Promise.resolve(clone(getProjection(sessionId).task_graph.tasks));
   },
   get_permission_mode: function (args) {
     return Promise.resolve(state.currentPermissionMode);
@@ -358,17 +358,20 @@ registerCommandHandlers({
     var taskId = args.taskId || args.task_id;
     var sessionId = state.currentSessionId;
     if (!sessionId) return Promise.reject(new Error("No active session"));
-    var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
-      return t.id === taskId;
-    });
+    var task = findProjectionTask(sessionId, taskId);
+    if (task && task.retry_count >= task.max_retries) {
+      return Promise.reject(new Error("Task retry limit reached"));
+    }
+    var attempt = task ? (task.retry_count || 0) + 1 : 1;
     if (task) {
       task.state = "Running";
-      task.retry_count = (task.retry_count || 0) + 1;
+      task.retry_count = attempt;
+      task.error = null;
     }
     var event = makeEvent(sessionId, {
       type: "TaskRetried",
       task_id: taskId,
-      attempt: task ? task.retry_count : 1
+      attempt: attempt
     });
     getTrace(sessionId).push(event);
     emitEvent("session-event", event);
@@ -378,11 +381,10 @@ registerCommandHandlers({
     var taskId = args.taskId || args.task_id;
     var sessionId = state.currentSessionId;
     if (!sessionId) return Promise.reject(new Error("No active session"));
-    var task = getProjection(sessionId).task_graph.tasks.find(function (t) {
-      return t.id === taskId;
-    });
+    var task = findProjectionTask(sessionId, taskId);
     if (task) {
       task.state = "Cancelled";
+      task.error = null;
     }
     var event = makeEvent(sessionId, {
       type: "TaskCancelled",

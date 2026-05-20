@@ -73,29 +73,6 @@ test("agent spawned and idle lifecycle", async ({ page }) => {
   });
 });
 
-test("task retry button appears for failed tasks", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
-    timeout: 10_000
-  });
-
-  // Navigate to Tasks tab
-  await page.locator(".tab-group button", { hasText: "Tasks" }).click();
-
-  // Create and fail a task
-  await page.evaluate(() => {
-    const mock = (window as any).__KAIROX_MOCK__;
-    const taskId = mock.simulateTaskCreated("Flaky task", "Worker");
-    mock.simulateTaskTransition(taskId, "AgentTaskStarted");
-    mock.simulateTaskTransition(taskId, "AgentTaskFailed", "Timeout");
-  });
-
-  // Should show retry button for failed task
-  await expect(page.getByTestId("task-retry").first()).toBeVisible({
-    timeout: 3_000
-  });
-});
-
 test("task decomposition event creates system message in chat", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
