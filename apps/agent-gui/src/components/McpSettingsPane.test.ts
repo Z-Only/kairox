@@ -31,7 +31,8 @@ vi.mock("@/generated/commands", () => ({
     getMcpToolStates: vi.fn(),
     listMcpResources: vi.fn(),
     listMcpPrompts: vi.fn(),
-    readMcpResource: vi.fn()
+    readMcpResource: vi.fn(),
+    testMcpConnectivity: vi.fn()
   }
 }));
 
@@ -113,6 +114,7 @@ beforeEach(() => {
     })
   );
   mockedCommands.getMcpToolStates.mockResolvedValue(ok({ disabled_tools: [] }));
+  mockedCommands.testMcpConnectivity.mockResolvedValue(ok({ status: "connected", tool_count: 5 }));
   mockedInvoke.mockResolvedValue([]);
   mockedCommands.listMcpResources.mockResolvedValue(
     ok([
@@ -297,6 +299,23 @@ describe("McpSettingsPane", () => {
     expect(
       wrapper.find<HTMLButtonElement>('[data-test="mcp-delete-builtin-docs"]').element.disabled
     ).toBe(true);
+  });
+
+  it("tests server connectivity from the installed server row and shows the result", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const testButton = wrapper.find('[data-test="mcp-test-connectivity-github"]');
+    expect(testButton.exists()).toBe(true);
+    expect(testButton.text()).toContain("Test Connectivity");
+
+    await testButton.trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.testMcpConnectivity).toHaveBeenCalledWith("github");
+    expect(wrapper.find('[data-test="mcp-connectivity-github"]').text()).toContain(
+      "Connected (5 tools)"
+    );
   });
 
   it("shows page-level errors from the MCP store", async () => {

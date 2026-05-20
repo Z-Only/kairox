@@ -103,6 +103,7 @@ registerCommandHandlers({
         missing_env_keys: []
       };
     }
+    var installSpec = JSON.parse(entry.install_spec_json);
     state.installedCatalog.push({
       server_id: req.catalog_id,
       catalog_id: req.catalog_id,
@@ -111,6 +112,21 @@ registerCommandHandlers({
       installed_at: new Date().toISOString(),
       running: !!req.auto_start
     });
+    if (!findMcpSettingsServer(req.catalog_id)) {
+      state.mcpSettingsServers.push({
+        id: req.catalog_id,
+        name: entry.display_name,
+        transport: installSpec.transport || "stdio",
+        enabled: true,
+        runtime_status: req.auto_start ? "running" : "stopped",
+        trusted: !!req.trust_grant,
+        tool_count: req.auto_start ? 1 : null,
+        last_error: null,
+        writable: true,
+        config_path: "/mock/workspace/kairox.toml",
+        description: entry.description
+      });
+    }
     if (sessionId) {
       var installingEvent = makeEvent(sessionId, {
         type: "CatalogEntryInstalling",
@@ -140,6 +156,9 @@ registerCommandHandlers({
     var uninstSession = state.currentSessionId;
     state.installedCatalog = state.installedCatalog.filter(function (e) {
       return e.server_id !== args.serverId;
+    });
+    state.mcpSettingsServers = state.mcpSettingsServers.filter(function (server) {
+      return server.id !== args.serverId;
     });
     if (uninstSession) {
       var uninstEvent = makeEvent(uninstSession, {
