@@ -1,0 +1,155 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Chat live model path"
+fail_fast = true
+global_timeout_ms = 90000
+
+[[step]]
+name = "wait for app ready"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "remember previous session route"
+action = "eval"
+script = """
+(() => {
+  const hashParts = window.location.hash.split("/");
+  window.__kairoxPilotPreviousSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
+  return window.__kairoxPilotPreviousSessionId ?? "";
+})()
+"""
+
+[[step]]
+name = "start live chat session"
+action = "click"
+target = "[data-test='new-session-btn']"
+
+[[step]]
+name = "wait for live chat session activation"
+action = "eval"
+timeout_ms = 10000
+script = """
+(async () => {
+  const previousSessionId = window.__kairoxPilotPreviousSessionId ?? null;
+  const deadline = Date.now() + 10000;
+
+  while (Date.now() < deadline) {
+    const hashParts = window.location.hash.split("/");
+    const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
+    const activeSessionId = localStorage.getItem("kairox.last-active-session-id");
+    if (
+      routeSessionId &&
+      routeSessionId !== previousSessionId &&
+      activeSessionId === routeSessionId
+    ) {
+      return routeSessionId;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("new live chat session did not become active");
+})()
+"""
+
+[[step]]
+name = "wait for chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "switch session to live model"
+action = "eval"
+script = """
+(async () => {
+  const hashParts = window.location.hash.split("/");
+  const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
+  const sessionId =
+    routeSessionId
+      ? decodeURIComponent(routeSessionId)
+      : localStorage.getItem("kairox.last-active-session-id");
+  if (!sessionId) {
+    throw new Error("missing active session id for live model switch");
+  }
+
+  await window.__TAURI_INTERNALS__.invoke("switch_session", { sessionId });
+  await window.__TAURI_INTERNALS__.invoke("switch_model", {
+    sessionId,
+    profileAlias: "github-gpt4o-mini",
+    reasoningEffort: null,
+  });
+  return sessionId;
+})()
+"""
+
+[[step]]
+name = "fill deterministic live prompt"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Reply with exactly this token and no other text: PILOT-LIVE-CHAT"
+
+[[step]]
+name = "send live chat message"
+action = "click"
+target = "[data-test='send-button']"
+
+[[step]]
+name = "wait for live assistant response"
+action = "wait"
+selector = "[data-test='chat-message'][data-role='assistant'] .message-content"
+timeout_ms = 70000
+
+[[step]]
+name = "wait for live chat stream to finish"
+action = "wait"
+selector = "[data-test='stream-indicator']"
+gone = true
+timeout_ms = 70000
+
+[[step]]
+name = "assert live assistant token"
+action = "eval"
+script = """
+(() => {
+  const error = document.querySelector("[data-test='error-banner'], [data-error='true']");
+  if (error) {
+    throw new Error(`live chat failed: ${error.textContent?.trim() ?? ""}`);
+  }
+
+  const messages = Array.from(
+    document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
+  );
+  const text = messages.map((message) => message.textContent ?? "").join("\\n");
+  if (!text.includes("PILOT-LIVE-CHAT")) {
+    throw new Error(`live assistant response did not include PILOT-LIVE-CHAT: ${text}`);
+  }
+  return text;
+})()
+"""
+
+[[step]]
+name = "open task steps tab"
+action = "click"
+target = "[data-test='trace-tab-tasks']"
+
+[[step]]
+name = "root task completed"
+action = "wait"
+selector = "[data-test='task-node'].task-state-completed"
+timeout_ms = 15000
+
+[[step]]
+name = "assert no failed task"
+action = "eval"
+script = """
+(() => {
+  if (document.querySelector("[data-test='task-node'].task-state-failed")) {
+    throw new Error("live chat task failed");
+  }
+  return "task completed";
+})()
+"""

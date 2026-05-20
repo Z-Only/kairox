@@ -26,6 +26,7 @@ jobs:
       tui: ${{ steps.paths.outputs.tui }}
       desktop: ${{ steps.paths.outputs.desktop }}
       live_models: ${{ steps.paths.outputs.live_models }}
+      live_pilot: ${{ steps.paths.outputs.live_pilot }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -60,6 +61,7 @@ jobs:
             tui=true
             desktop=true
             live_models=true
+            live_pilot=true
           else
             rust=false
             web=false
@@ -67,6 +69,7 @@ jobs:
             tui=false
             desktop=false
             live_models=false
+            live_pilot=false
 
             while IFS= read -r file; do
               case "$file" in
@@ -77,6 +80,7 @@ jobs:
                   tui=true
                   desktop=true
                   live_models=true
+                  live_pilot=true
                   ;;
                 Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/src-tauri/**)
                   rust=true
@@ -109,8 +113,17 @@ jobs:
               esac
 
               case "$file" in
-                Cargo.toml|Cargo.lock|crates/agent-core/**|crates/agent-models/**|crates/agent-runtime/**)
+                Cargo.toml|Cargo.lock|crates/agent-core/**|crates/agent-config/**|crates/agent-models/**|crates/agent-runtime/**|fixtures/test-profiles/**)
                   live_models=true
+                  ;;
+              esac
+
+              case "$file" in
+                Cargo.toml|Cargo.lock|crates/agent-config/**|crates/agent-models/**|crates/agent-runtime/**|apps/agent-gui/src-tauri/**|apps/agent-gui/e2e-pilot/**|scripts/run-pilot-tests.sh|fixtures/test-profiles/**)
+                  live_pilot=true
+                  ;;
+                apps/agent-gui/src/components/ChatComposer.vue|apps/agent-gui/src/components/ChatPanel.vue|apps/agent-gui/src/composables/useTauriEvents.ts|apps/agent-gui/src/stores/session*.ts|apps/agent-gui/src/stores/taskGraph.ts|apps/agent-gui/src/stores/trace.ts)
+                  live_pilot=true
                   ;;
               esac
             done <<< "$files"
@@ -123,6 +136,7 @@ jobs:
             echo "tui=$tui"
             echo "desktop=$desktop"
             echo "live_models=$live_models"
+            echo "live_pilot=$live_pilot"
           } >> "$GITHUB_OUTPUT"
 
   format:
@@ -400,7 +414,7 @@ jobs:
   live-model-tests:
     name: Live model tests (GitHub Models)
     needs: changes
-    if: needs.changes.outputs.live_models == 'true'
+    if: needs.changes.outputs.live_models == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -525,6 +539,89 @@ jobs:
           path: tauri-pilot-failures/
           retention-days: 7
 
+  tauri-pilot-live-e2e:
+    name: Tauri pilot live E2E (GitHub Models)
+    needs: changes
+    if: needs.changes.outputs.live_pilot == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      models: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci-pilot-live-ubuntu-v2
+
+      - name: Cache tauri-pilot CLI
+        id: cache-tauri-pilot
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/tauri-pilot
+          key: tauri-pilot-ubuntu-latest-v0.5.1
+
+      - name: Install Linux system deps for Tauri and xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xvfb
+
+      - name: Install repo tooling deps
+        run: bun ci
+
+      - name: Install tauri-pilot CLI
+        if: steps.cache-tauri-pilot.outputs.cache-hit != 'true'
+        run: cargo install --git https://github.com/mpiton/tauri-pilot --tag v0.5.1 tauri-pilot-cli --locked
+
+      - name: Build Tauri debug binary with pilot feature
+        run: bun --filter agent-gui tauri build --debug --no-bundle --features pilot
+
+      - name: Run live pilot E2E scenarios
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KAIROX_PILOT_LIVE_MODELS: "1"
+        run: xvfb-run -a scripts/run-pilot-tests.sh
+
+      - name: Upload live pilot JUnit results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: pilot-live-results-ubuntu-latest
+          path: pilot-results/
+          retention-days: 7
+
+      - name: Upload live pilot failure artifacts
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: tauri-pilot-live-failures-ubuntu-latest
+          path: tauri-pilot-failures/
+          retention-days: 7
+
   ci-success:
     name: CI
     if: ${{ always() }}
@@ -540,7 +637,8 @@ jobs:
         build-tui,
         build-gui,
         live-model-tests,
-        tauri-pilot-e2e
+        tauri-pilot-e2e,
+        tauri-pilot-live-e2e
       ]
     runs-on: ubuntu-latest
     steps:
