@@ -23,6 +23,14 @@ state.profiles = [
     supports_reasoning: true
   },
   {
+    alias: "claude",
+    provider: "anthropic",
+    model_id: "claude-sonnet-4-20250514",
+    local: false,
+    has_api_key: true,
+    supports_reasoning: true
+  },
+  {
     alias: "fake",
     provider: "fake",
     model_id: "fake-model",

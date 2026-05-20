@@ -220,6 +220,14 @@ describe("project store", () => {
       if (command === "create_project_worktree_session") {
         return "s-worktree";
       }
+      if (command === "get_session_git_status") {
+        return {
+          kind: "clean",
+          branch: "feat/my-branch",
+          worktree_path: "/tmp/demo/.kairox/worktrees/feat-my-branch",
+          message: null
+        };
+      }
       if (command === "rename_session") {
         return null;
       }
@@ -237,6 +245,7 @@ describe("project store", () => {
     expect(worktreeSession.sessionId).toBe("s-worktree");
     expect(worktreeSession.title).toBe("New Session (feat/my-branch)");
     expect(worktreeSession.branch).toBe("feat/my-branch");
+    expect(worktreeSession.worktreePath).toBe("/tmp/demo/.kairox/worktrees/feat-my-branch");
     expect(worktreeSession.visibility).toBe("visible");
     expect(store.sessionsByProject.get("p1")?.map((s) => s.sessionId)).toEqual(["s-worktree"]);
   });

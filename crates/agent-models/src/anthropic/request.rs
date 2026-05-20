@@ -155,6 +155,36 @@ impl AnthropicClient {
             }
         }
 
+        if let Some(budget_tokens) = request
+            .reasoning_effort
+            .as_deref()
+            .and_then(|effort| reasoning_budget_tokens(effort, self.config.max_tokens))
+        {
+            if body["thinking"].is_null() {
+                body["thinking"] = serde_json::json!({
+                    "type": "enabled",
+                    "budget_tokens": budget_tokens,
+                });
+            }
+        }
+
         body
     }
+}
+
+fn reasoning_budget_tokens(effort: &str, max_tokens: u64) -> Option<u64> {
+    if max_tokens <= 1_024 {
+        return None;
+    }
+
+    let requested = match effort.trim().to_ascii_lowercase().as_str() {
+        "" => return None,
+        "low" => 1_024,
+        "middle" | "medium" => 4_096,
+        "high" => 8_192,
+        "xhigh" | "extra-high" | "extra_high" => 16_384,
+        custom => custom.parse().ok()?,
+    };
+
+    Some(requested.clamp(1_024, max_tokens.saturating_sub(1)))
 }

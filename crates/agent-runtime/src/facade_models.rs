@@ -133,7 +133,7 @@ where
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
         let from_profile = crate::agent_loop::latest_model_profile_for(&events);
         let from_reasoning_effort = crate::agent_loop::latest_model_reasoning_effort_for(&events);
-        let requested_reasoning_effort = if profile_def.supports_reasoning.unwrap_or(false) {
+        let requested_reasoning_effort = if agent_config::profile_supports_reasoning(&profile_def) {
             reasoning_effort.filter(|effort| !effort.trim().is_empty())
         } else {
             None

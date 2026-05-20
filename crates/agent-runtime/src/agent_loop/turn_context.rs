@@ -36,7 +36,7 @@ where
         .iter()
         .find(|(alias, def)| alias == &model_profile_alias && def.enabled)
         .and_then(|(_, def)| {
-            def.supports_reasoning.unwrap_or(false).then(|| {
+            agent_config::profile_supports_reasoning(def).then(|| {
                 super::latest_model_reasoning_effort_for(session_events)
                     .unwrap_or_else(|| "low".into())
             })

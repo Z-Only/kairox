@@ -222,13 +222,22 @@ export const useProjectStore = defineStore("project", () => {
       projectId,
       branchName
     });
+    let worktreePath: string | null = null;
+    let branch: string | null = branchName;
+    try {
+      const gitStatus = await getSessionGitStatus(sessionId);
+      worktreePath = gitStatus.worktreePath;
+      branch = gitStatus.branch ?? branchName;
+    } catch {
+      // Session creation already succeeded; git status is only display metadata.
+    }
     const draftSession: ProjectSessionInfo = {
       sessionId,
       title: `New Session (${branchName})`,
       profile: "default",
       projectId: project?.projectId ?? null,
-      worktreePath: null,
-      branch: branchName,
+      worktreePath,
+      branch,
       visibility: "visible",
       deletedAt: null
     };

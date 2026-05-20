@@ -57,6 +57,24 @@ test.describe("Mid-session model switch (P4)", () => {
     await expect(page.locator('[data-test="chat-model-trigger"]')).toContainText("reasoning-max");
   });
 
+  test("Claude profiles expose reasoning effort choices from profile metadata", async ({
+    page
+  }) => {
+    await page.click('[data-test="chat-model-trigger"]');
+    await page.hover('[data-test="chat-model-option-claude"]');
+
+    await expect(page.locator('[data-test="chat-model-option-claude"]')).toContainText(
+      "Anthropic · Claude Sonnet 4 20250514"
+    );
+    await expect(page.locator('[data-test="chat-reasoning-panel"]')).toBeVisible();
+
+    await page.click('[data-test="chat-reasoning-option-high"]');
+
+    await expect(page.locator('[data-test="chat-model-trigger"]')).toContainText(
+      "Anthropic · Claude Sonnet 4 20250514 · high"
+    );
+  });
+
   // Tests for the context-meter switch-model button were removed because
   // that feature was intentionally pulled out of the context meter popover
   // (see PR #120 / fix(gui): UI polish round 2).

@@ -135,9 +135,7 @@ fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
     if let Some(v) = def.supports_vision {
         capabilities.vision = v;
     }
-    if let Some(v) = def.supports_reasoning {
-        capabilities.reasoning_controls = v;
-    }
+    capabilities.reasoning_controls = crate::profile_supports_reasoning(def);
 
     ModelProfile {
         alias: alias.to_string(),
@@ -331,6 +329,7 @@ mod tests {
         let profile = build_profile("fast", &fast_def);
         assert_eq!(profile.alias, "fast");
         assert!(profile.capabilities.tool_calling);
+        assert!(profile.capabilities.reasoning_controls);
         assert!(!profile.capabilities.local_model);
 
         let ollama_def = ProfileDef {
