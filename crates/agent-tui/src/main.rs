@@ -461,6 +461,32 @@ async fn main() -> Result<()> {
                     if let Some(ref sid) = app.current_session_id {
                         if domain_event.session_id == *sid {
                             app.handle_domain_event(&domain_event);
+
+                            // Drain any messages the user queued while the
+                            // session was busy. We drain on
+                            // `AssistantMessageCompleted` to mirror the GUI
+                            // "end-of-turn" signal — the runtime is ready to
+                            // accept the next user turn at that point.
+                            if matches!(
+                                domain_event.payload,
+                                agent_core::EventPayload::AssistantMessageCompleted { .. }
+                            ) {
+                                let queued = app.chat.drain_queue();
+                                if !queued.is_empty() {
+                                    if let Some(session_id) = app.current_session_id.clone() {
+                                        let workspace_id = app.workspace_id.clone();
+                                        let drain_cmds: Vec<Command> = queued
+                                            .into_iter()
+                                            .map(|q| Command::SendMessage {
+                                                workspace_id: workspace_id.clone(),
+                                                session_id: session_id.clone(),
+                                                content: q.content,
+                                            })
+                                            .collect();
+                                        dispatch_commands(&runtime, &mut app, drain_cmds).await;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
