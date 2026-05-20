@@ -217,20 +217,25 @@ export function useChatComposer(options: UseChatComposerOptions) {
   }
 
   function addFilePaths(paths: string[]) {
+    const seenPaths = new Set(attachments.value.map((attachment) => attachment.path));
+    const nextAttachments = [...attachments.value];
+
     for (const filePath of paths) {
       if (!filePath) continue;
+      if (seenPaths.has(filePath)) continue;
+      seenPaths.add(filePath);
+
       const name = filePath.split(/[\\/]/).pop() || filePath;
       const ext = name.split(".").pop()?.toLowerCase() || "";
-      attachments.value = [
-        ...attachments.value,
-        {
-          id: createAttachmentId(),
-          path: filePath,
-          name,
-          mimeType: mimeFromExtension(ext)
-        }
-      ];
+      nextAttachments.push({
+        id: createAttachmentId(),
+        path: filePath,
+        name,
+        mimeType: mimeFromExtension(ext)
+      });
     }
+
+    attachments.value = nextAttachments;
   }
 
   async function pickFiles() {

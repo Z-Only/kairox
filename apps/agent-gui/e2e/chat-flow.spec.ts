@@ -64,12 +64,16 @@ test("sends attachment metadata over IPC and clears composer after accept", asyn
   await openWorkbench(page);
 
   await page.evaluate(() => {
-    (window as any).__KAIROX_MOCK__.setNextOpenDialogResult(["/mock/workspace/report.md"]);
+    (window as any).__KAIROX_MOCK__.setNextOpenDialogResult([
+      "/mock/workspace/report.md",
+      "/mock/workspace/report.md"
+    ]);
   });
 
   const input = page.getByTestId("message-input");
   await input.fill("Read this");
   await page.getByTestId("attach-file-btn").click();
+  await expect(page.getByTestId("attachment-chip")).toHaveCount(1);
   await expect(page.getByTestId("attachment-chip")).toHaveAttribute("data-filename", "report.md");
 
   await page.getByTestId("send-button").click();

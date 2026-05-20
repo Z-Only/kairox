@@ -115,6 +115,27 @@ describe("useChatComposer", () => {
     expect(composer.attachments.value).toHaveLength(1);
   });
 
+  it("deduplicates selected file attachments while preserving the first occurrence", async () => {
+    const openFileDialog = vi.fn(async () => [
+      "/repo/notes.md",
+      "/repo/src/main.rs",
+      "/repo/notes.md"
+    ]);
+    const { composer } = createComposer({ openFileDialog });
+
+    composer.addFilePaths(["/repo/src/main.rs"]);
+    await composer.pickFiles();
+
+    expect(composer.attachments.value.map((attachment) => attachment.path)).toEqual([
+      "/repo/src/main.rs",
+      "/repo/notes.md"
+    ]);
+    expect(composer.attachments.value.map((attachment) => attachment.name)).toEqual([
+      "main.rs",
+      "notes.md"
+    ]);
+  });
+
   it("sends trimmed content with attachments then clears composer state and draft", async () => {
     const { composer, invokeFn, draftStore } = createComposer();
     composer.inputText.value = "  hello  ";

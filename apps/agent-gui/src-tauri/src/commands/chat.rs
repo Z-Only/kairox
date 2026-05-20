@@ -142,11 +142,23 @@ pub async fn send_message(
         current.clone().ok_or("No active session")?
     };
 
-    let enriched = enrich_content_with_attachments(&content, &attachments);
-
     let session_id_str = session_id.to_string();
     let runtime = state.runtime.clone();
     tokio::spawn(async move {
+        let enriched = match tokio::task::spawn_blocking({
+            let content = content.clone();
+            let attachments = attachments.clone();
+            move || enrich_content_with_attachments(&content, &attachments)
+        })
+        .await
+        {
+            Ok(enriched) => enriched,
+            Err(e) => {
+                eprintln!("[commands] attachment enrichment failed: {e}");
+                content
+            }
+        };
+
         let result = runtime
             .send_message(agent_core::SendMessageRequest {
                 workspace_id,
@@ -332,5 +344,47 @@ mod chat_attachment_tests {
         );
 
         assert_eq!(enriched, "[attached file: archive.zip]\n\ninspect metadata");
+    }
+
+    #[test]
+    fn marks_missing_text_attachment_as_read_error() {
+        let path = temp_path("missing.md");
+        let _ = std::fs::remove_file(&path);
+
+        let enriched = enrich_content_with_attachments(
+            "please inspect",
+            &[attachment(&path, "missing.md", "text/markdown")],
+        );
+
+        assert_eq!(
+            enriched,
+            "[file: missing.md (read error)]\n\nplease inspect"
+        );
+    }
+
+    #[test]
+    fn marks_oversized_text_attachment_without_reading_content() {
+        let path = temp_path("large.md");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_TEXT_BYTES + 1).unwrap();
+
+        let enriched =
+            enrich_content_with_attachments("", &[attachment(&path, "large.md", "text/markdown")]);
+
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(enriched, "[file: large.md (file too large, >10MB)]");
+    }
+
+    #[test]
+    fn marks_oversized_image_attachment_without_reading_content() {
+        let path = temp_path("large.png");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_IMAGE_BYTES + 1).unwrap();
+
+        let enriched =
+            enrich_content_with_attachments("", &[attachment(&path, "large.png", "image/png")]);
+
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(enriched, "[image: large.png (file too large, >50MB)]");
     }
 }
