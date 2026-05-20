@@ -25,9 +25,9 @@ const draft = ref<AddCatalogSourceRequestPayload>({
 const sources = computed(() => catalog.sources);
 const failures = computed(() => catalog.sourceFailures);
 
-const kindOptions: { label: string; value: string }[] = [
-  { label: "MCP Registry", value: "mcp_registry" }
-];
+const kindOptions = computed(() => [
+  { label: t("marketplace.sourceKindMcpRegistry"), value: "mcp_registry" }
+]);
 
 onMounted(() => {
   void catalog.fetchSources();
@@ -97,7 +97,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 
     <SettingsCardList
       v-else
-      aria-label="Catalog sources"
+      :aria-label="t('marketplace.catalogSourcesAria')"
       data-test="catalog-sources-list"
       :scroll="false"
       dense
@@ -162,11 +162,19 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
     </KxButton>
 
     <div v-else class="add-form">
-      <KxFormField label="id">
-        <KxInput v-model="draft.id" data-test="src-id" />
+      <KxFormField :label="t('marketplace.sourceId')">
+        <KxInput
+          v-model="draft.id"
+          data-test="src-id"
+          :placeholder="t('marketplace.sourceIdPlaceholder')"
+        />
       </KxFormField>
       <KxFormField :label="t('marketplace.displayName')">
-        <KxInput v-model="draft.display_name" data-test="src-name" />
+        <KxInput
+          v-model="draft.display_name"
+          data-test="src-name"
+          :placeholder="t('marketplace.displayNamePlaceholder')"
+        />
       </KxFormField>
       <KxFormField :label="t('marketplace.kind')">
         <KxSelect v-model="draft.kind">
@@ -176,10 +184,17 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
         </KxSelect>
       </KxFormField>
       <KxFormField :label="t('marketplace.url')">
-        <KxInput v-model="draft.url" data-test="src-url" />
+        <KxInput
+          v-model="draft.url"
+          data-test="src-url"
+          :placeholder="t('marketplace.urlPlaceholder')"
+        />
       </KxFormField>
-      <KxFormField :label="t('marketplace.apiKeyEnv')">
-        <KxInput v-model="draft.api_key_env" />
+      <KxFormField
+        :label="t('marketplace.apiKeyEnv')"
+        :description="t('marketplace.apiKeyEnvDescription')"
+      >
+        <KxInput v-model="draft.api_key_env" :placeholder="t('marketplace.apiKeyEnvPlaceholder')" />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}
