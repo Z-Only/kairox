@@ -19,9 +19,18 @@ describe("settings toolbar primitives", () => {
     });
 
     expect(wrapper.classes()).toContain("settings-toolbar");
+    expect(wrapper.attributes("role")).toBe("toolbar");
     expect(wrapper.attributes("aria-label")).toBe("Model actions");
     expect(wrapper.attributes("data-test")).toBe("model-toolbar");
     expect(wrapper.find("button").text()).toBe("Refresh");
+  });
+
+  it("does not emit optional labels or test hooks when omitted", () => {
+    const wrapper = mount(SettingsToolbar);
+
+    expect(wrapper.attributes("role")).toBe("toolbar");
+    expect(wrapper.attributes("aria-label")).toBeUndefined();
+    expect(wrapper.attributes("data-test")).toBeUndefined();
   });
 
   it("renders shared subtabs without changing tab button contracts", () => {
@@ -39,12 +48,14 @@ describe("settings toolbar primitives", () => {
     expect(wrapper.classes()).toContain("settings-subtabs");
     expect(wrapper.attributes("role")).toBe("tablist");
     expect(wrapper.attributes("aria-label")).toBe("Sections");
+    expect(wrapper.attributes("data-test")).toBe("settings-subtabs");
     expect(wrapper.get('[data-test="tab-a"]').attributes("aria-selected")).toBe("true");
   });
 
   it("renders a filter bar for search and source controls", () => {
     const wrapper = mount(SettingsFilterBar, {
       props: {
+        ariaLabel: "Filter plugins",
         dataTest: "catalog-filters"
       },
       slots: {
@@ -53,6 +64,7 @@ describe("settings toolbar primitives", () => {
     });
 
     expect(wrapper.classes()).toContain("settings-filter-bar");
+    expect(wrapper.attributes("aria-label")).toBe("Filter plugins");
     expect(wrapper.attributes("data-test")).toBe("catalog-filters");
     expect(wrapper.get('[data-test="search"]').attributes("type")).toBe("search");
     expectSourceMigration(settingsFilterBarSource, {

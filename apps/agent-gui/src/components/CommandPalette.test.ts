@@ -7,6 +7,7 @@ import en from "@/locales/en.json";
 import zhCN from "@/locales/zh-CN.json";
 import CommandPalette from "./CommandPalette.vue";
 import commandPaletteSource from "./CommandPalette.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 // ---- Mocks ----
 
@@ -89,9 +90,9 @@ describe("CommandPalette", () => {
   });
 
   it("does not keep command palette chrome copy inline in the component source", () => {
-    expect(commandPaletteSource).not.toContain("Commands, Models & Skills");
-    expect(commandPaletteSource).not.toContain("Run skill");
-    expect(commandPaletteSource).not.toContain("Switch model");
+    expectSourceMigration(commandPaletteSource, {
+      forbidden: ["Commands, Models & Skills", "Run skill", "Switch model"]
+    });
   });
 
   it("renders builtin command items with BEM class", () => {

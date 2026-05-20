@@ -12,7 +12,12 @@ const props = withDefaults(
 </script>
 
 <template>
-  <div class="settings-toolbar" :aria-label="props.ariaLabel" :data-test="props.dataTest">
+  <div
+    class="settings-toolbar"
+    role="toolbar"
+    :aria-label="props.ariaLabel"
+    :data-test="props.dataTest"
+  >
     <slot />
   </div>
 </template>

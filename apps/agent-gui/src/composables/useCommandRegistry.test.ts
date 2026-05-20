@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import commandRegistrySource from "./useCommandRegistry.ts?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 // Plain mutable object so individual tests can toggle session presence.
 // (The mock returns a plain POJO, so Vue ref auto-unwrap does NOT apply;
@@ -152,10 +153,14 @@ describe("useCommandRegistry", () => {
     });
 
     it("does not keep builtin command descriptions inline in the registry source", () => {
-      expect(commandRegistrySource).not.toContain("Clear the current conversation");
-      expect(commandRegistrySource).not.toContain("Compact context to save tokens");
-      expect(commandRegistrySource).not.toContain("Switch the active model");
-      expect(commandRegistrySource).not.toContain("Show available commands and skills");
+      expectSourceMigration(commandRegistrySource, {
+        forbidden: [
+          "Clear the current conversation",
+          "Compact context to save tokens",
+          "Switch the active model",
+          "Show available commands and skills"
+        ]
+      });
     });
 
     it("help command has handler and always context", () => {

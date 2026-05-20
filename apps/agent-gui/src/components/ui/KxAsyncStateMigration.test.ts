@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 
 import settingsStateSource from "@/components/ui/SettingsState.vue?raw";
 import accordionStateSource from "@/components/ui/KxAccordionState.vue?raw";
@@ -39,7 +39,9 @@ describe("Kx async state migration", () => {
   it.each(migratedSources)(
     "%s routes empty/loading/error states through Kx state primitives",
     (_, source) => {
-      expect(source).toMatch(/Kx(AsyncState|EmptyState)|SettingsState|KxAccordionState/);
+      expectSourceMigration(source, {
+        requiredPatterns: [/Kx(AsyncState|EmptyState)|SettingsState|KxAccordionState/]
+      });
     }
   );
 

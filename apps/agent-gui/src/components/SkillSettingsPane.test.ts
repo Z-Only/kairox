@@ -367,9 +367,9 @@ describe("SkillSettingsPane", () => {
 
     expect(list.classes()).toContain("settings-card-list--dense");
     expect(row.classes()).toContain("settings-card-item--compact");
-    expect(skillSettingsPaneSource).toContain('layout="stack"');
-    expect(skillSettingsPaneSource).toContain(':description-lines="2"');
-    expect(skillSettingsPaneSource).toContain('density="compact"');
+    expectSourceMigration(skillSettingsPaneSource, {
+      required: ['layout="stack"', ':description-lines="2"', 'density="compact"']
+    });
   });
 
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
