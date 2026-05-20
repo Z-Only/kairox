@@ -110,6 +110,12 @@ impl App {
                 self.trace.density = self.trace.density.next();
                 self.state.render_scheduler.mark_dirty();
             }
+            KeyAction::CyclePermissionMode => {
+                let new_mode = self.state.cycle_permission_mode();
+                commands.push(Command::SetPermissionMode { mode: new_mode });
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
             KeyAction::NewSession => {
                 commands.push(Command::StartSession {
                     workspace_id: self.workspace_id.clone(),
