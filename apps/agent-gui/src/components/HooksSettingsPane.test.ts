@@ -5,6 +5,7 @@ import { setActivePinia, createPinia } from "pinia";
 import HooksSettingsPane from "./HooksSettingsPane.vue";
 import hooksSettingsPaneSource from "./HooksSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -241,6 +242,6 @@ describe("HooksSettingsPane", () => {
   });
 
   it("does not keep hook pane aria chrome inline in the component source", () => {
-    expect(hooksSettingsPaneSource).not.toContain('aria-label="Hooks settings"');
+    expectSourceNotToContain(hooksSettingsPaneSource, ['aria-label="Hooks settings"']);
   });
 });
