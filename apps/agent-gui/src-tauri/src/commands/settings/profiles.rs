@@ -32,42 +32,12 @@ pub async fn get_effective_model_profiles(
     state: State<'_, GuiState>,
 ) -> Result<Vec<EffectiveProfileView>, String> {
     let config = state.config.read().map_err(|e| e.to_string())?;
-    let source = match &config.source {
-        agent_config::ConfigSource::ProjectFile => agent_core::ConfigScope::Project,
-        agent_config::ConfigSource::UserFile => agent_core::ConfigScope::User,
-        agent_config::ConfigSource::LocalFile => agent_core::ConfigScope::Local,
-        agent_config::ConfigSource::Defaults => agent_core::ConfigScope::Builtin,
-    };
-    let mut result = Vec::with_capacity(config.profiles.len());
-    for (alias, profile) in &config.profiles {
-        let has_api_key = profile.api_key.is_some()
-            || profile
-                .api_key_env
-                .as_deref()
-                .map(|env| std::env::var(env).is_ok())
-                .unwrap_or(false)
-            || matches!(profile.provider.as_str(), "ollama" | "fake");
-        let view = ProfileSettingsView {
-            alias: alias.clone(),
-            provider: profile.provider.clone(),
-            model_id: profile.model_id.clone(),
-            enabled: profile.enabled,
-            context_window: profile.context_window,
-            output_limit: profile.output_limit,
-            temperature: profile.temperature,
-            top_p: profile.top_p,
-            top_k: profile.top_k,
-            max_tokens: profile.max_tokens,
-            base_url: profile.base_url.clone(),
-            api_key_env: profile.api_key_env.clone(),
-            has_api_key,
-            writable: source >= agent_core::ConfigScope::User,
-            config_path: None,
-            source: source.to_string(),
-        };
-        result.push(EffectiveProfileView::from_view(view, source));
-    }
-    Ok(result)
+    Ok(
+        agent_config::build_effective_profile_settings_views(&config)
+            .into_iter()
+            .map(EffectiveProfileView::from_effective)
+            .collect(),
+    )
 }
 
 #[tauri::command]
