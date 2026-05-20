@@ -4,6 +4,101 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-05-20
+
+### 🚀 Features
+
+- **gui**: add conversation queue (#260)
+
+### 🐛 Bug Fixes
+
+- **runtime**: pass DAG reasoning effort (#225)
+- **runtime**: prune stale plugin skill activations (#229)
+- **tools**: reject search paths that escape the workspace (#237)
+- **ci**: add missing permissions block to CodeQL workflow (#241)
+- **pilot**: add wait step for async instructions level load in audit scenario (#251)
+- **runtime**: avoid panic when mcp_servers table is missing from TOML (#250)
+- **mcp**: add timeout and pending cleanup for SSE requests (#256)
+- **gui**: polish audit UI flows (#261)
+- **gui**: improve sidebar and queue interactions (#265)
+
+### 📚 Documentation
+
+- skip full test suite as worktree baseline, trust CI-verified origin/main
+- update README mermaid diagram and banner.svg with plugins, hooks (#242)
+- add agent-plugins crate to architecture diagram and commit scopes (#244)
+
+### 🧪 Testing
+
+- **gui**: harden chat attachment IPC (#230)
+- **gui**: cover pilot chat attachments (#233)
+- **runtime**: harden plugin marketplace resilience (#232)
+- **gui**: deepen agent settings pilot workflow (#235)
+- **gui**: add pilot scenarios for skills, plugins, hooks, instructions settings (#239)
+- **gui**: add model-switch and reasoning-effort tauri-pilot scenario (#245)
+- **gui**: add plugin install closed-loop pilot scenario (#254)
+- **gui**: replace eval fallback with local fixture marketplace in plugin install pilot scenario (#259)
+- **gui**: reuse source guard helper (#292)
+- **gui**: reuse source guards for raw chrome (#293)
+- **gui**: add source migration guards (#294)
+- **gui**: reuse source migration guards (#295)
+- **gui**: finish source guard migration (#296)
+- **gui**: document source guard helpers (#297)
+
+### 🧹 Refactor
+
+- **tui**: split component boundaries (#228)
+- **models**: split provider streams (#226)
+- **gui**: split model settings pane boundaries (#227)
+- **runtime**: split agent settings boundaries (#231)
+- **runtime**: split MCP settings modules (#234)
+- **runtime**: split skill_settings module into focused sub-modules (#238)
+- **gui**: split Tauri mock fixture state into domain-specific files (#240)
+- **runtime**: split agent loop runner turn orchestration into focused modules (#243)
+- **gui**: migrate trace state from composable reactive to Pinia store (#246)
+- **runtime**: extract SessionFacade impl from facade_runtime to facade_session_ops (#247)
+- **mcp**: split MCP Registry provider mapping from IO layer (#248)
+- **tools**: split search module into path/rg/fallback/format submodules (#249)
+- **gui**: extract ChatModelSelector and ChatPermissionSelector from ChatComposer (#253)
+- **runtime**: split profile_settings into row/view/write/order submodules (#252)
+- **gui**: split MCP settings commands into view/project/runtime modules (#255)
+- **gui**: extract ContextMeterDetails and contextFormatting from ContextMeter (#257)
+- **gui**: extract session event reducer and CRUD actions from session store (#258)
+- **gui**: unify audit state blocks (#262)
+- **gui**: unify source form fields (#263)
+- **gui**: unify drawer and alert chrome (#264)
+- **gui**: unify modal chrome (#266)
+- **gui**: unify chat popover styling (#267)
+- **gui**: unify context popover styling (#268)
+- **gui**: share settings card lists (#269)
+- **gui**: unify settings state blocks (#270)
+- **gui**: share remaining settings rows (#271)
+- **gui**: share mcp accordion rows (#272)
+- **gui**: share settings toolbars (#273)
+- **gui**: share settings form controls (#274)
+- **gui**: share textarea chrome (#275)
+- **gui**: share form controls (#276)
+- **gui**: unify interaction controls (#277)
+- **gui**: unify button density (#278)
+- **gui**: remove legacy button classes (#279)
+- **gui**: add chip and action primitives (#280)
+- **gui**: add settings action groups (#281)
+- **gui**: polish lightweight settings lists (#282)
+- **gui**: unify settings card content (#283)
+- **gui**: unify settings status tags (#284)
+- **gui**: unify global tag components (#285)
+- **gui**: unify async state components (#286)
+- **gui**: unify compact empty states (#287)
+- **gui**: localize command palette copy (#288)
+- **gui**: localize chat and marketplace chrome (#289)
+- **gui**: localize settings pane chrome (#290)
+- **gui**: localize source settings forms (#291)
+- **runtime**: remove stale warning suppressions (#298)
+
+### 👷 CI
+
+- reduce redundant action runtime (#236)
+
 ## [0.23.0] - 2026-05-18
 
 ### 🚀 Features
@@ -24,6 +119,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **gui**: polish settings dialogs for MCP, skills marketplace, and agents (#210)
 - **docs**: remove hardcoded tauri-pilot v0.5.1 version pin from install instructions (#216)
 - **runtime**: exclude disabled plugins from skill discovery (#217)
+
+### 📚 Documentation
+
+- sync release-facing agent docs (#224)
 
 ### 🧪 Testing
 
