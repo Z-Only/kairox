@@ -4,6 +4,7 @@ import MemoryBrowser from "./MemoryBrowser.vue";
 import memoryBrowserSource from "./MemoryBrowser.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -164,9 +165,9 @@ describe("MemoryBrowser", () => {
 
     expect(wrapper.find('[data-test="memory-scope-select"]').classes()).toContain("kx-select");
     expect(wrapper.find('[data-test="memory-search-input"]').classes()).toContain("kx-input");
-    expect(memoryBrowserSource).toContain("KxInput");
-    expect(memoryBrowserSource).toContain("KxSelect");
-    expect(memoryBrowserSource).not.toContain(".scope-select {");
-    expect(memoryBrowserSource).not.toContain(".search-input {");
+    expectSourceMigration(memoryBrowserSource, {
+      required: ["KxInput", "KxSelect"],
+      forbidden: [".scope-select {", ".search-input {"]
+    });
   });
 });

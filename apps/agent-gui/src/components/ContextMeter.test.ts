@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ContextMeter from "@/components/ContextMeter.vue";
 import contextMeterDetailsSource from "@/components/ContextMeterDetails.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { useSessionStore } from "@/stores/session";
 import type { ContextUsage } from "@/types";
 
@@ -198,9 +199,9 @@ describe("ContextMeter ring mode", () => {
   });
 
   it("keeps context details on component-specific classes instead of legacy popover CSS", () => {
-    expect(contextMeterDetailsSource).toContain("context-meter-detail-table");
-    expect(contextMeterDetailsSource).toContain("context-meter-actions");
-    expect(contextMeterDetailsSource).not.toContain("popover-table");
-    expect(contextMeterDetailsSource).not.toContain("popover-actions");
+    expectSourceMigration(contextMeterDetailsSource, {
+      required: ["context-meter-detail-table", "context-meter-actions"],
+      forbidden: ["popover-table", "popover-actions"]
+    });
   });
 });

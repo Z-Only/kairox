@@ -4,6 +4,7 @@ import ChatComposer from "./ChatComposer.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
 import chatPermissionSelectorSource from "./ChatPermissionSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -77,21 +78,18 @@ beforeEach(() => {
 
 describe("composer textarea chrome", () => {
   it("uses shared KxTextarea while preserving the message-input selector", () => {
-    expect(chatComposerSource).toContain("KxTextarea");
-    expect(chatComposerSource).toContain('data-test="message-input"');
-    expect(chatComposerSource).not.toContain(".message-input {");
-    expect(chatComposerSource).not.toContain(".message-input:focus");
-    expect(chatComposerSource).not.toContain(".message-input:disabled");
+    expectSourceMigration(chatComposerSource, {
+      required: ["KxTextarea", 'data-test="message-input"'],
+      forbidden: [".message-input {", ".message-input:focus", ".message-input:disabled"]
+    });
   });
 });
 
 describe("permission mode selector", () => {
   it("does not keep standard permission labels inline in the selector source", () => {
-    expect(chatPermissionSelectorSource).not.toContain("Read Only");
-    expect(chatPermissionSelectorSource).not.toContain("Suggest");
-    expect(chatPermissionSelectorSource).not.toContain("Agent");
-    expect(chatPermissionSelectorSource).not.toContain("Autonomous");
-    expect(chatPermissionSelectorSource).not.toContain("Interactive");
+    expectSourceMigration(chatPermissionSelectorSource, {
+      forbidden: ["Read Only", "Suggest", "Agent", "Autonomous", "Interactive"]
+    });
   });
 
   it("renders the permission trigger button with current mode label", () => {
@@ -320,13 +318,17 @@ describe("conversation queue", () => {
   });
 
   it("renders queued messages in a capped-height fixed-row scroller", () => {
-    expect(chatComposerSource).toContain("KxActionButton");
-    expect(chatComposerSource).toContain("max-height: var(--queued-message-list-max-height");
-    expect(chatComposerSource).toContain("overflow-y: auto");
-    expect(chatComposerSource).toContain("--queued-message-row-height");
-    expect(chatComposerSource).toContain("height: var(--queued-message-row-height");
-    expect(chatComposerSource).toContain("-webkit-line-clamp: 1");
-    expect(chatComposerSource).not.toContain(".queued-message-action {");
+    expectSourceMigration(chatComposerSource, {
+      required: [
+        "KxActionButton",
+        "max-height: var(--queued-message-list-max-height",
+        "overflow-y: auto",
+        "--queued-message-row-height",
+        "height: var(--queued-message-row-height",
+        "-webkit-line-clamp: 1"
+      ],
+      forbidden: [".queued-message-action {"]
+    });
   });
 
   it("supports edit, guide-send, delete, drag sorting, and leaves ArrowUp to the textarea", async () => {
