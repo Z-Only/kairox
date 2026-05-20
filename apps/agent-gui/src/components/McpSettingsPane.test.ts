@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { nextTick } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
@@ -179,8 +180,10 @@ describe("McpSettingsPane", () => {
   });
 
   it("does not keep MCP pane aria chrome inline in the component source", () => {
-    expect(mcpSettingsPaneSource).not.toContain('aria-label="MCP settings"');
-    expect(mcpSettingsPaneSource).not.toContain('aria-label="MCP sections"');
+    expectSourceNotToContain(mcpSettingsPaneSource, [
+      'aria-label="MCP settings"',
+      'aria-label="MCP sections"'
+    ]);
   });
 
   it("labels the config action as a file opener and delegates to the MCP store", async () => {

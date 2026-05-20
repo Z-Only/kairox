@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import InstructionsSettingsPane from "./InstructionsSettingsPane.vue";
 import instructionsSettingsPaneSource from "./InstructionsSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -57,7 +58,9 @@ describe("InstructionsSettingsPane", () => {
   });
 
   it("does not keep instructions pane aria chrome inline in the component source", () => {
-    expect(instructionsSettingsPaneSource).not.toContain('aria-label="Instructions settings"');
+    expectSourceNotToContain(instructionsSettingsPaneSource, [
+      'aria-label="Instructions settings"'
+    ]);
   });
 
   describe("loading state", () => {

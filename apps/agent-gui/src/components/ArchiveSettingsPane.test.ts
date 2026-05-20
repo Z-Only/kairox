@@ -5,6 +5,7 @@ import ArchiveSettingsPane from "./ArchiveSettingsPane.vue";
 import archiveSettingsPaneSource from "./ArchiveSettingsPane.vue?raw";
 import { confirmDialogKey } from "@/composables/useConfirm";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/generated/commands", () => ({
@@ -145,7 +146,9 @@ describe("ArchiveSettingsPane", () => {
   });
 
   it("does not keep archive pane aria chrome inline in the component source", () => {
-    expect(archiveSettingsPaneSource).not.toContain('aria-label="Archive"');
-    expect(archiveSettingsPaneSource).not.toContain('aria-label="Archived sessions"');
+    expectSourceNotToContain(archiveSettingsPaneSource, [
+      'aria-label="Archive"',
+      'aria-label="Archived sessions"'
+    ]);
   });
 });

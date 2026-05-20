@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
@@ -166,7 +167,7 @@ describe("ModelSettingsPane", () => {
   });
 
   it("does not keep model pane aria chrome inline in the component source", () => {
-    expect(modelSettingsPaneSource).not.toContain('aria-label="Model settings"');
+    expectSourceNotToContain(modelSettingsPaneSource, ['aria-label="Model settings"']);
   });
 
   it("loads only the selected user configuration scope", async () => {

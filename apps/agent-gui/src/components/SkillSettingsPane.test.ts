@@ -3,6 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 import { commands, type SkillCatalogEntry, type EffectiveSkillView } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
 import skillSettingsPaneSource from "./SkillSettingsPane.vue?raw";
@@ -173,11 +174,11 @@ beforeEach(() => {
 
 describe("SkillSettingsPane", () => {
   it("does not keep skill pane aria or install placeholder copy inline in the component source", () => {
-    expect(skillSettingsPaneSource).not.toContain('aria-label="Skills settings"');
-    expect(skillSettingsPaneSource).not.toContain('aria-label="Skill sections"');
-    expect(skillSettingsPaneSource).not.toContain(
+    expectSourceNotToContain(skillSettingsPaneSource, [
+      'aria-label="Skills settings"',
+      'aria-label="Skill sections"',
       'placeholder="https://github.com/org/repo/tree/main/path/to/skill"'
-    );
+    ]);
   });
 
   it("renders installed skills with scope, enabled, activation, effective, update, and invalid states", async () => {

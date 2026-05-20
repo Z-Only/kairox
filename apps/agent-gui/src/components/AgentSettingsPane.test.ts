@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 import { commands, type AgentSettingsView } from "@/generated/commands";
 import AgentSettingsPane from "./AgentSettingsPane.vue";
 import agentSettingsPaneSource from "./AgentSettingsPane.vue?raw";
@@ -182,9 +183,11 @@ describe("AgentSettingsPane", () => {
   });
 
   it("does not keep agent editor placeholder examples inline in the component source", () => {
-    expect(agentSettingsPaneSource).not.toContain('placeholder="code-reviewer"');
-    expect(agentSettingsPaneSource).not.toContain('placeholder="fs.read, search, shell"');
-    expect(agentSettingsPaneSource).not.toContain('placeholder="kairox-dev-workflow"');
-    expect(agentSettingsPaneSource).not.toContain('placeholder="Reviewer, Audit"');
+    expectSourceNotToContain(agentSettingsPaneSource, [
+      'placeholder="code-reviewer"',
+      'placeholder="fs.read, search, shell"',
+      'placeholder="kairox-dev-workflow"',
+      'placeholder="Reviewer, Audit"'
+    ]);
   });
 });
