@@ -274,6 +274,7 @@ version = "0.25.0"
 dependencies = [
  "agent-config",
  "agent-core",
+ "agent-mcp",
  "agent-memory",
  "agent-models",
  "agent-runtime",
