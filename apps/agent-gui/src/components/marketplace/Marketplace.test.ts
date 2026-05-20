@@ -15,6 +15,7 @@ import CatalogDetail from "./CatalogDetail.vue";
 import catalogDetailSource from "./CatalogDetail.vue?raw";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
+import installedListSource from "./InstalledList.vue?raw";
 
 // MarketplaceView calls `useI18n()` so mounting it through plain `mount()`
 // would fail with "Need to install with `app.use` function".
@@ -323,6 +324,17 @@ describe("CatalogDetail.vue configuration section", () => {
     expect(catalogDetailSource).not.toContain("tooltip-active");
     expect(catalogDetailSource).not.toContain("data-tooltip");
   });
+
+  it("does not keep shared catalog detail chrome copy inline in the component source", () => {
+    expect(catalogDetailSource).not.toMatch(/>\s*Homepage\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*Requirements\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*Configuration\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*Required configuration\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*No configuration required\.\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*No description provided by the catalog\.\s*</);
+    expect(catalogDetailSource).not.toMatch(/>\s*Trust this server/);
+    expect(catalogDetailSource).not.toMatch(/>\s*Start after install\s*</);
+  });
 });
 
 describe("RuntimeMissingHint.vue", () => {
@@ -402,6 +414,18 @@ describe("InstalledList.vue", () => {
     const btn = wrapper.find("[data-test='uninstall-manual-server']");
     expect(btn.exists()).toBe(true);
     expect(btn.attributes("disabled")).toBeDefined();
+  });
+
+  it("does not keep installed-list table and action copy inline in the component source", () => {
+    expect(installedListSource).not.toMatch(/<th>\s*Server\s*<\/th>/);
+    expect(installedListSource).not.toMatch(/<th>\s*Source\s*<\/th>/);
+    expect(installedListSource).not.toMatch(/<th>\s*Status\s*<\/th>/);
+    expect(installedListSource).not.toMatch(/<th>\s*Installed at\s*<\/th>/);
+    expect(installedListSource).not.toContain('?? "(manual)"');
+    expect(installedListSource).not.toContain('? "running"');
+    expect(installedListSource).not.toContain(': "stopped"');
+    expect(installedListSource).not.toContain("Hand-edited entries are not removable from here");
+    expect(installedListSource).not.toMatch(/>\s*Uninstall\s*</);
   });
 
   it("audit anchors: exposes stable marketplace view pilot selector", async () => {

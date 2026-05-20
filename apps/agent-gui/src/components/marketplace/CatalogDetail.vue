@@ -76,11 +76,14 @@ const nonHeaderEnvSpec = computed(() => envSpec.value.filter((s) => !headerKeys.
 const configItems = computed(() => [
   ...headerSpec.value.map((spec) => ({
     ...spec,
-    kind: spec.key.toLowerCase() === "authorization" ? "Authentication header" : "HTTP header"
+    kindKey:
+      spec.key.toLowerCase() === "authorization"
+        ? "marketplace.detail.configKindAuthHeader"
+        : "marketplace.detail.configKindHttpHeader"
   })),
   ...nonHeaderEnvSpec.value.map((spec) => ({
     ...spec,
-    kind: "Environment variable"
+    kindKey: "marketplace.detail.configKindEnvironment"
   }))
 ]);
 const requiredConfigCount = computed(
@@ -129,8 +132,23 @@ function testConnectivityLabel(): string {
 
 function configPlaceholder(spec: (typeof configItems.value)[number]): string {
   if (spec.default) return spec.default;
-  if (spec.kind === "Authentication header") return "Bearer <token>";
+  if (spec.kindKey === "marketplace.detail.configKindAuthHeader") {
+    return t("marketplace.detail.authHeaderPlaceholder");
+  }
   return "";
+}
+
+function configSummary(): string {
+  if (!hasConfig.value) return t("marketplace.detail.noConfigurationRequired");
+  if (requiredConfigCount.value > 0) {
+    return t(
+      requiredConfigCount.value === 1
+        ? "marketplace.detail.requiredConfigSummaryOne"
+        : "marketplace.detail.requiredConfigSummaryMany",
+      { count: requiredConfigCount.value }
+    );
+  }
+  return t("marketplace.detail.optionalConfigSummary");
 }
 
 async function testCatalogConnectivity(): Promise<void> {
@@ -181,43 +199,45 @@ async function onInstall() {
         rel="noopener"
         class="homepage-link"
       >
-        Homepage
+        {{ t("marketplace.detail.homepage") }}
       </a>
 
       <div class="card card-sm">
-        <div class="card-title">Requirements</div>
+        <div class="card-title">{{ t("marketplace.detail.requirements") }}</div>
         <RuntimeMissingHint :requirements="requirements" />
       </div>
 
       <div class="card card-sm">
         <div class="config-head">
           <div>
-            <div class="card-title">Configuration</div>
+            <div class="card-title">{{ t("marketplace.detail.configuration") }}</div>
             <span v-if="hasConfig" class="config-summary text-tertiary">
-              {{
-                requiredConfigCount > 0
-                  ? `${requiredConfigCount} required value${requiredConfigCount === 1 ? "" : "s"} before install.`
-                  : "Optional values can be provided before install."
-              }}
+              {{ configSummary() }}
             </span>
-            <span v-else class="config-summary text-tertiary"> No configuration required. </span>
+            <span v-else class="config-summary text-tertiary">
+              {{ t("marketplace.detail.noConfigurationRequired") }}
+            </span>
           </div>
           <span v-if="requiredConfigCount > 0" class="config-status required">
-            Required configuration
+            {{ t("marketplace.detail.requiredConfiguration") }}
           </span>
         </div>
 
         <div v-if="hasConfig" class="config-list">
-          <div v-for="spec in configItems" :key="`${spec.kind}:${spec.key}`" class="config-item">
+          <div v-for="spec in configItems" :key="`${spec.kindKey}:${spec.key}`" class="config-item">
             <div class="config-item-head">
               <div class="config-title-row">
                 <span class="config-label">{{ spec.label }}</span>
                 <span class="config-key">{{ spec.key }}</span>
               </div>
               <div class="config-badges">
-                <span class="config-kind">{{ spec.kind }}</span>
+                <span class="config-kind">{{ t(spec.kindKey) }}</span>
                 <span class="config-required" :class="{ optional: !spec.required }">
-                  {{ spec.required ? "Required" : "Optional" }}
+                  {{
+                    spec.required
+                      ? t("marketplace.detail.required")
+                      : t("marketplace.detail.optional")
+                  }}
                 </span>
               </div>
             </div>
@@ -225,7 +245,7 @@ async function onInstall() {
               {{ spec.description }}
             </span>
             <span v-else class="config-description text-tertiary">
-              No description provided by the catalog.
+              {{ t("marketplace.detail.noDescription") }}
             </span>
             <KxInput
               :model-value="overrides[spec.key]"
@@ -240,19 +260,18 @@ async function onInstall() {
       </div>
 
       <div class="card card-sm">
-        <div class="card-title">Options</div>
+        <div class="card-title">{{ t("marketplace.detail.options") }}</div>
         <div class="options-group">
           <label class="checkbox-label">
             <input v-model="trustGrant" type="checkbox" />
-            Trust this server (skip per-tool permission prompts)
+            {{ t("marketplace.detail.trustServer") }}
           </label>
           <span v-if="entry.trust === 'verified'" class="hint-verified text-tertiary">
-            This entry comes from a verified source. You can grant runtime trust to skip permission
-            prompts, but it remains opt-in.
+            {{ t("marketplace.detail.verifiedTrustHint") }}
           </span>
           <label class="checkbox-label">
             <input v-model="autoStart" type="checkbox" />
-            Start after install
+            {{ t("marketplace.detail.startAfterInstall") }}
           </label>
         </div>
       </div>

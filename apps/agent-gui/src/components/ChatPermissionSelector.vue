@@ -12,16 +12,16 @@ const open = defineModel<boolean>("open", { default: false });
 const { t } = useI18n();
 
 const permissionOptions = [
-  { value: "read_only", label: "Read Only" },
-  { value: "suggest", label: "Suggest" },
-  { value: "agent", label: "Agent" },
-  { value: "autonomous", label: "Autonomous" },
-  { value: "interactive", label: "Interactive" }
+  { value: "read_only", labelKey: "chat.permissions.readOnly" },
+  { value: "suggest", labelKey: "chat.permissions.suggest" },
+  { value: "agent", labelKey: "chat.permissions.agent" },
+  { value: "autonomous", labelKey: "chat.permissions.autonomous" },
+  { value: "interactive", labelKey: "chat.permissions.interactive" }
 ];
 
 const permissionDisplay = computed(() => {
   const opt = permissionOptions.find((o) => o.value === props.permissionMode);
-  return opt ? opt.label : props.permissionMode;
+  return opt ? t(opt.labelKey) : props.permissionMode;
 });
 
 function selectPermissionMode(mode: string) {
@@ -69,7 +69,7 @@ function selectPermissionMode(mode: string) {
             @click="selectPermissionMode(option.value)"
           >
             <span class="kx-popover-option__label chat-permission-option-label">
-              {{ option.label }}
+              {{ t(option.labelKey) }}
             </span>
           </button>
         </li>
