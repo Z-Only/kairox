@@ -44,6 +44,7 @@ const isExpanded = computed(() => props.expanded.has(props.node.task.id));
 const hasChildren = computed(() => props.node.children.length > 0);
 const isFailed = computed(() => props.node.task.state === "Failed");
 const isBlocked = computed(() => props.node.task.state === "Blocked");
+const canRetry = computed(() => props.node.task.retry_count < props.node.task.max_retries);
 
 const agentBadge = computed(() => {
   if (props.node.agentLabel) return props.node.agentLabel;
@@ -125,6 +126,7 @@ function handleToggle() {
         <span v-if="node.task.state === 'Running'" class="task-running"> running... </span>
         <div v-if="isFailed" class="task-actions">
           <KxIconButton
+            v-if="canRetry"
             label="Retry task"
             title="Retry task"
             size="sm"

@@ -196,6 +196,16 @@ describe("TaskNode", () => {
       expect(wrapper.find('[data-test="task-cancel"]').exists()).toBe(true);
     });
 
+    it("does not show retry button for Failed tasks after max retries", () => {
+      const node = makeNode({ id: "t1", state: "Failed", retry_count: 3, max_retries: 3 });
+      const wrapper = mount(TaskNode, {
+        props: { node, expanded: new Set(), depth: 0 }
+      });
+
+      expect(wrapper.find('[data-test="task-retry"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="task-cancel"]').exists()).toBe(true);
+    });
+
     it("shows cancel button for Blocked tasks", () => {
       const node = makeNode({ id: "t1", state: "Blocked" });
       const wrapper = mount(TaskNode, {

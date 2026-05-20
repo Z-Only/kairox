@@ -195,24 +195,31 @@ impl TaskGraph {
     }
 
     /// Reset a failed or blocked task back to pending (for retry).
-    /// Increments retry_count. Returns error if the task is not in a retriable state.
+    /// Increments retry_count. Returns error if the task is not retriable
+    /// or has exhausted its retry budget.
     pub fn reset_to_pending(&mut self, id: &TaskId) -> crate::Result<()> {
         let task = self
             .tasks
             .get_mut(&id.to_string())
             .ok_or_else(|| crate::RuntimeError::UnknownTask(id.to_string()))?;
-        if task.state == TaskState::Failed || task.state == TaskState::Blocked {
-            task.state = TaskState::Pending;
-            task.retry_count += 1;
-            task.error = None;
-            task.failure_reason = None;
-            Ok(())
-        } else {
-            Err(crate::RuntimeError::UnknownTask(format!(
+        if task.state != TaskState::Failed && task.state != TaskState::Blocked {
+            return Err(crate::RuntimeError::TaskCannotRetry(format!(
                 "task {} is in state {:?}, cannot reset to pending (only Failed/Blocked allowed)",
                 id, task.state
-            )))
+            )));
         }
+        if task.retry_count >= task.max_retries {
+            return Err(crate::RuntimeError::TaskCannotRetry(format!(
+                "task {} has exhausted retry budget ({}/{})",
+                id, task.retry_count, task.max_retries
+            )));
+        }
+
+        task.state = TaskState::Pending;
+        task.retry_count += 1;
+        task.error = None;
+        task.failure_reason = None;
+        Ok(())
     }
 
     /// Explicitly mark a task as ready (Pending → Ready).
