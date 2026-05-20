@@ -67,6 +67,27 @@ pub struct ProfileDef {
     pub enabled: bool,
 }
 
+/// Resolve whether a profile exposes user-selectable reasoning effort.
+///
+/// `supports_reasoning` remains an explicit override, but known reasoning
+/// models should work out of the box so GUI model switching can surface the
+/// effort picker for profiles that users configure manually.
+pub fn profile_supports_reasoning(def: &ProfileDef) -> bool {
+    def.supports_reasoning
+        .unwrap_or_else(|| model_supports_reasoning(&def.provider, &def.model_id))
+}
+
+fn model_supports_reasoning(provider: &str, model_id: &str) -> bool {
+    let provider = provider.to_ascii_lowercase();
+    let model_id = model_id.to_ascii_lowercase();
+    let is_claude = provider == "anthropic" || model_id.contains("claude");
+
+    is_claude
+        && (model_id.contains("claude-opus-4")
+            || model_id.contains("claude-sonnet-4")
+            || model_id.contains("claude-3-7-sonnet"))
+}
+
 /// Metadata about a profile for UI display.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileInfo {
@@ -604,7 +625,7 @@ impl Config {
                     model_id: def.model_id.clone(),
                     local,
                     has_api_key,
-                    supports_reasoning: def.supports_reasoning.unwrap_or(false),
+                    supports_reasoning: profile_supports_reasoning(def),
                     provider_display: def.provider.clone(),
                     model_display: def.model_id.clone(),
                 }
@@ -674,6 +695,38 @@ mod tests {
         assert!(info.iter().any(|p| p.alias == "fake" && p.local));
         // local-code is disabled by default, so it's excluded from profile_info.
         assert!(!info.iter().any(|p| p.alias == "local-code"));
+    }
+
+    #[test]
+    fn profile_info_marks_claude_profiles_as_reasoning_capable() {
+        let config = crate::loader::load_from_str(
+            r#"
+[profiles.claude]
+provider = "anthropic"
+model_id = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"
+
+[profiles.claude-off]
+provider = "anthropic"
+model_id = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"
+supports_reasoning = false
+"#,
+            "profiles.toml",
+        )
+        .expect("config parses");
+
+        let profile = config
+            .profile_info()
+            .into_iter()
+            .find(|profile| profile.alias == "claude")
+            .expect("claude profile appears in GUI metadata");
+
+        assert!(profile.supports_reasoning);
+        assert!(config
+            .profile_info()
+            .into_iter()
+            .any(|profile| profile.alias == "claude-off" && !profile.supports_reasoning));
     }
 
     #[test]

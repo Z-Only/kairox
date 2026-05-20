@@ -178,6 +178,19 @@ mod tests {
     }
 
     #[test]
+    fn builds_request_with_reasoning_effort() {
+        let config = AnthropicConfig::default();
+        let client = AnthropicClient::new(config);
+        let request =
+            ModelRequest::user_text("claude", "think about this").with_reasoning_effort("middle");
+
+        let body = client.build_messages_request(&request);
+
+        assert_eq!(body["thinking"]["type"], "enabled");
+        assert_eq!(body["thinking"]["budget_tokens"], 4096);
+    }
+
+    #[test]
     fn builds_anthropic_request_with_tool_use_and_result() {
         let config = AnthropicConfig::default();
         let client = AnthropicClient::new(config);

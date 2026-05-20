@@ -29,6 +29,9 @@ registerCommandHandlers({
         } else if (p.alias === "smart") {
           window = 200000;
           output = 16384;
+        } else if (p.alias === "claude") {
+          window = 200000;
+          output = 16384;
         } else {
           window = 4096;
           output = 2048;

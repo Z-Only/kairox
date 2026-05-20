@@ -6,9 +6,12 @@ import type { ProjectedRole } from "../types";
 import ChatComposer from "@/components/ChatComposer.vue";
 
 const { t } = useI18n();
+const router = useRouter();
 const session = useSessionStore();
 const projectStore = useProjectStore();
 const scrollbar = ref<HTMLElement | null>(null);
+const worktreeBranchInput = ref("");
+const worktreeBranchFormOpen = ref(false);
 
 /** Map role to CSS class suffix. */
 const roleClass: Record<ProjectedRole, string> = {
@@ -21,19 +24,34 @@ const roleClass: Record<ProjectedRole, string> = {
 };
 
 const currentSession = computed(() => session.currentSessionInfo);
+const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
+const currentProject = computed(() => {
+  const projectId = currentProjectId.value;
+  if (!projectId) return null;
+  return projectStore.projects.find((p) => p.projectId === projectId) ?? null;
+});
+const currentProjectName = computed(
+  () => currentProject.value?.displayName ?? currentProjectId.value ?? ""
+);
+
+function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
+  if (!sessionInfo?.worktree_path) return false;
+  const projectRoot = currentProject.value?.rootPath;
+  if (projectRoot) return sessionInfo.worktree_path !== projectRoot;
+  return sessionInfo.worktree_path.includes("/.worktrees/") || Boolean(sessionInfo.branch);
+}
 
 const sessionGitMeta = computed(() => {
   const sessionInfo = currentSession.value;
   if (!sessionInfo?.project_id && !sessionInfo?.worktree_path) return [];
 
   const gitMetaParts = [];
+  if (isWorktreeSession(sessionInfo) && sessionInfo.branch) gitMetaParts.push("worktree");
   if (sessionInfo.branch) gitMetaParts.push(sessionInfo.branch);
   else if (sessionInfo.worktree_path) gitMetaParts.push(sessionInfo.worktree_path);
   if (!gitMetaParts.length && sessionInfo.project_id) gitMetaParts.push(sessionInfo.project_id);
   return gitMetaParts;
 });
-
-const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
 
 const workspacePath = computed(() => {
   const sessionInfo = currentSession.value;
@@ -63,6 +81,32 @@ const projectInstructionSummaryText = computed(() => {
   return `Loaded ${sourceFileNames.join(", ")}`;
 });
 
+function startProjectWorktreeSession() {
+  worktreeBranchFormOpen.value = true;
+  worktreeBranchInput.value = "";
+}
+
+function cancelProjectWorktreeSession() {
+  worktreeBranchFormOpen.value = false;
+  worktreeBranchInput.value = "";
+}
+
+async function confirmProjectWorktreeSession() {
+  const projectId = currentProjectId.value;
+  const branchName = worktreeBranchInput.value.trim();
+  if (!projectId || !branchName) return;
+
+  try {
+    const projectSession = await projectStore.createProjectWorktreeSession(projectId, branchName);
+    await session.switchProjectSession(projectSession);
+    await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
+  } catch (error) {
+    console.error("Failed to start project worktree session:", error);
+  } finally {
+    cancelProjectWorktreeSession();
+  }
+}
+
 watch(
   () => currentProjectId.value,
   async (projectId) => {
@@ -87,6 +131,49 @@ watch(
   <section class="chat-panel" data-test="chat-panel">
     <header class="chat-header">
       <h2>{{ t("chat.header") }}</h2>
+      <div v-if="currentProjectId" class="chat-header-actions">
+        <form
+          v-if="worktreeBranchFormOpen"
+          class="project-worktree-form"
+          data-test="project-worktree-branch-form"
+          @submit.prevent="confirmProjectWorktreeSession"
+        >
+          <KxInput
+            v-model="worktreeBranchInput"
+            class="project-worktree-input"
+            :placeholder="t('sessions.worktreeBranchPlaceholder')"
+            data-test="project-worktree-branch-input"
+            size="compact"
+            @keydown.escape="cancelProjectWorktreeSession"
+          />
+          <KxTooltip :text="t('common.confirm')">
+            <KxIconButton
+              :label="t('common.confirm')"
+              data-test="project-worktree-branch-confirm"
+              size="sm"
+              @click="confirmProjectWorktreeSession"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
+              </svg>
+            </KxIconButton>
+          </KxTooltip>
+        </form>
+        <KxTooltip :text="t('sessions.newWorktreeSessionInProject', { name: currentProjectName })">
+          <KxIconButton
+            :label="t('sessions.newWorktreeSessionInProject', { name: currentProjectName })"
+            data-test="project-worktree-session-trigger"
+            size="sm"
+            @click="startProjectWorktreeSession"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path
+                d="M3 4.5A1.5 1.5 0 0 1 4.5 3h5.75v1.5H4.5v11h11v-5.75H17v7.25H3V4.5Zm6.25 9.75h1.5V11H14V9.5h-3.25V6.25h-1.5V9.5H6V11h3.25v3.25Z"
+              />
+            </svg>
+          </KxIconButton>
+        </KxTooltip>
+      </div>
     </header>
 
     <div ref="scrollbar" class="message-list" data-test="message-list">
@@ -191,6 +278,27 @@ watch(
 .chat-header h2 {
   margin: 0;
   font-size: 14px;
+}
+.chat-header-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+.project-worktree-form {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+.project-worktree-input {
+  width: min(32vw, 180px);
+  min-width: 96px;
+}
+.chat-header-actions svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 .message-list {
   flex: 1;

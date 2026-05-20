@@ -266,6 +266,9 @@ registerCommandHandlers({
     } else if (alias === "smart") {
       newWindow = 200000;
       newOutput = 16384;
+    } else if (alias === "claude") {
+      newWindow = 200000;
+      newOutput = 16384;
     } else {
       // Unknown alias → reject like the real runtime does
       // (agent-core::CoreError::InvalidState).

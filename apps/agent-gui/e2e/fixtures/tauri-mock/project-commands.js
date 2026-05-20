@@ -102,6 +102,38 @@ registerCommandHandlers({
     state.traces.set(draftSessionId, []);
     return Promise.resolve(draftSessionId);
   },
+  create_project_worktree_session: function (args) {
+    var worktreeProjectId = args.projectId || args.project_id;
+    var branchName = args.branchName || args.branch_name;
+    var worktreeProject = getProject(worktreeProjectId);
+    if (!worktreeProject) return Promise.reject(new Error("Project not found"));
+    if (!branchName) return Promise.reject(new Error("Branch name is required"));
+    var worktreeSessionId = nextId("ses");
+    var worktreeSession = makeSessionInfo(
+      worktreeSessionId,
+      "New Session (" + branchName + ")",
+      "fast",
+      worktreeProjectId,
+      worktreeProject.root_path + "/.kairox/worktrees/" + branchName.replace(/[\\/]/g, "-"),
+      branchName,
+      "visible"
+    );
+    state.sessions.push(worktreeSession);
+    var worktreeProjectSessions = getProjectSessionList(worktreeProjectId);
+    worktreeProjectSessions.unshift(worktreeSession);
+    state.projectSessions.set(worktreeProjectId, worktreeProjectSessions);
+    state.currentSessionId = worktreeSessionId;
+    state.currentProfile = worktreeSession.profile;
+    state.projections.set(worktreeSessionId, {
+      messages: [],
+      task_titles: [],
+      task_graph: { tasks: [] },
+      token_stream: "",
+      cancelled: false
+    });
+    state.traces.set(worktreeSessionId, []);
+    return Promise.resolve(worktreeSessionId);
+  },
   list_project_sessions: function (args) {
     var listProjectId = args.projectId || args.project_id;
     return Promise.resolve(

@@ -199,6 +199,32 @@ describe("model reasoning selector", () => {
     expect(wrapper.find('[data-test="chat-reasoning-custom-input"]').exists()).toBe(true);
   });
 
+  it("shows reasoning levels for Claude profiles marked reasoning-capable by metadata", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.currentProfile = "claude";
+    session.currentReasoningEffort = null;
+    session.profileInfos = [
+      {
+        alias: "claude",
+        provider: "anthropic",
+        model_id: "claude-sonnet-4-20250514",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: true
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    const trigger = wrapper.find('[data-test="chat-model-trigger"]');
+    expect(trigger.text()).toContain("Anthropic · Claude Sonnet 4 20250514 · low");
+
+    await trigger.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="chat-reasoning-option-low"]').classes()).toContain("selected");
+  });
+
   it("hides reasoning levels when hovering a non-reasoning model", async () => {
     const { wrapper, session } = mountChatComposer();
     session.currentProfile = "smart";

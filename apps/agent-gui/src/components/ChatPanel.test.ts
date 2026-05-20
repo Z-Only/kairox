@@ -259,17 +259,33 @@ describe("ChatPanel", () => {
           title: "Project session",
           profile: "fast",
           project_id: "project_1",
-          worktree_path: "/repo/.worktrees/project-chat",
+          worktree_path: "/repo/.kairox/worktrees/project-chat",
           branch: "feat/project-chat",
           visibility: null
         }
       ];
     });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
     await flushPromises();
 
     const gitMeta = wrapper.find('[data-test="session-git-meta"]');
     expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toContain("worktree");
     expect(gitMeta.text()).toContain("feat/project-chat");
+    expect(gitMeta.text().indexOf("worktree")).toBeLessThan(
+      gitMeta.text().indexOf("feat/project-chat")
+    );
   });
 
   it("keeps model selector and git metadata stable with long labels", () => {
@@ -437,6 +453,67 @@ describe("ChatPanel", () => {
     expect(summary.exists()).toBe(true);
     expect(summary.text()).toBe("Loaded AGENTS.md, README.md");
     expect(summary.text()).not.toContain("/repo/");
+  });
+
+  it("creates a worktree session from the active project chat", async () => {
+    const { wrapper, router } = mountWithPlugins(ChatPanel, {
+      initialRoute: "/workbench/ses_1"
+    });
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    session.resetProjection();
+    session.currentSessionId = "ses_1";
+    session.currentProfile = "fast";
+    session.sessions = [
+      {
+        id: "ses_1",
+        title: "Project session",
+        profile: "fast",
+        project_id: "project_1",
+        worktree_path: "/repo",
+        branch: "main",
+        visibility: "draft_hidden"
+      }
+    ];
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    const createProjectWorktreeSession = vi
+      .spyOn(projectStore, "createProjectWorktreeSession")
+      .mockResolvedValue({
+        sessionId: "wt_1",
+        title: "New Session (feat-chat)",
+        profile: "fast",
+        projectId: "project_1",
+        worktreePath: "/repo/.kairox/worktrees/feat-chat",
+        branch: "feat-chat",
+        visibility: "visible",
+        deletedAt: null
+      });
+    vi.spyOn(session, "switchProjectSession").mockResolvedValue();
+    await router.isReady();
+    await flushPromises();
+
+    await wrapper.find('[data-test="project-worktree-session-trigger"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="project-worktree-branch-input"]').setValue("feat-chat");
+    await wrapper.find('[data-test="project-worktree-branch-confirm"]').trigger("click");
+    await flushPromises();
+    await router.isReady();
+
+    expect(createProjectWorktreeSession).toHaveBeenCalledWith("project_1", "feat-chat");
+    expect(session.switchProjectSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "wt_1", branch: "feat-chat" })
+    );
+    expect(router.currentRoute.value.params.sessionId).toBe("wt_1");
   });
 
   it("P1-S3-send-error: shows a visible send error banner", async () => {
