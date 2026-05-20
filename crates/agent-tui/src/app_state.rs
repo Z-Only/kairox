@@ -373,6 +373,14 @@ impl AppState {
         self.ctrl_c_count = 0;
         self.last_ctrl_c = None;
     }
+
+    /// Advance the active permission mode to the next value in the cycle.
+    /// Returns the new mode so the caller can dispatch it to the runtime.
+    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
+        use crate::components::status_bar::PermissionModeExt;
+        self.permission_mode = self.permission_mode.next();
+        self.permission_mode
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -23,6 +23,11 @@ use agent_core::context_types::ContextSource;
 pub trait PermissionModeExt {
     /// Return a static string label for the permission mode.
     fn as_str(&self) -> &'static str;
+
+    /// Return the next permission mode in the cycle order.
+    ///
+    /// Order: ReadOnly → Suggest → Agent → Autonomous → Interactive → ReadOnly.
+    fn next(&self) -> agent_tools::PermissionMode;
 }
 
 impl PermissionModeExt for agent_tools::PermissionMode {
@@ -33,6 +38,16 @@ impl PermissionModeExt for agent_tools::PermissionMode {
             agent_tools::PermissionMode::Agent => "agent",
             agent_tools::PermissionMode::Autonomous => "autonomous",
             agent_tools::PermissionMode::Interactive => "interactive",
+        }
+    }
+
+    fn next(&self) -> agent_tools::PermissionMode {
+        match self {
+            agent_tools::PermissionMode::ReadOnly => agent_tools::PermissionMode::Suggest,
+            agent_tools::PermissionMode::Suggest => agent_tools::PermissionMode::Agent,
+            agent_tools::PermissionMode::Agent => agent_tools::PermissionMode::Autonomous,
+            agent_tools::PermissionMode::Autonomous => agent_tools::PermissionMode::Interactive,
+            agent_tools::PermissionMode::Interactive => agent_tools::PermissionMode::ReadOnly,
         }
     }
 }
@@ -397,6 +412,21 @@ mod tests {
             agent_tools::PermissionMode::Autonomous.as_str(),
             "autonomous"
         );
+    }
+
+    #[test]
+    fn cycles_permission_mode() {
+        use agent_tools::PermissionMode;
+        use PermissionModeExt;
+
+        assert_eq!(PermissionMode::ReadOnly.next(), PermissionMode::Suggest);
+        assert_eq!(PermissionMode::Suggest.next(), PermissionMode::Agent);
+        assert_eq!(PermissionMode::Agent.next(), PermissionMode::Autonomous);
+        assert_eq!(
+            PermissionMode::Autonomous.next(),
+            PermissionMode::Interactive
+        );
+        assert_eq!(PermissionMode::Interactive.next(), PermissionMode::ReadOnly);
     }
 
     #[test]

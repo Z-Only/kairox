@@ -178,6 +178,12 @@ async fn dispatch_commands(
                 app::dispatch_commands(runtime, app, vec![command]).await;
             }
 
+            Command::SetPermissionMode { mode } => {
+                runtime.set_permission_mode(mode).await;
+                app.sync_status_bar();
+                app.state.render_scheduler.mark_dirty();
+            }
+
             Command::StartSession {
                 workspace_id: ws_id,
                 model_profile: mp,
