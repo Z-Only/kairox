@@ -202,6 +202,11 @@ async function onInstall() {
         {{ t("marketplace.detail.homepage") }}
       </a>
 
+      <div v-if="isInstalled" class="installed-status" data-test="catalog-installed-status">
+        <span>{{ t("marketplace.install.installed") }}</span>
+        <span v-if="scopeLabel">{{ scopeLabel }}</span>
+      </div>
+
       <div class="card card-sm">
         <div class="card-title">{{ t("marketplace.detail.requirements") }}</div>
         <RuntimeMissingHint :requirements="requirements" />
@@ -278,7 +283,25 @@ async function onInstall() {
     </div>
 
     <template #footer>
+      <span
+        v-if="catalogConnectivityResult"
+        class="connectivity-result"
+        :class="`connectivity-result--${catalogConnectivityResult.status}`"
+        data-test="catalog-connectivity-result"
+      >
+        {{ testConnectivityLabel() }}
+      </span>
       <KxButton
+        v-if="isInstalled"
+        size="sm"
+        data-test="catalog-test-connectivity"
+        :disabled="testingCatalogConnectivity"
+        @click="testCatalogConnectivity"
+      >
+        {{ testingCatalogConnectivity ? t("mcp.testChecking") : t("mcp.testConnectivity") }}
+      </KxButton>
+      <KxButton
+        v-if="!isInstalled"
         variant="primary"
         size="sm"
         data-test="catalog-install"
@@ -308,6 +331,35 @@ async function onInstall() {
 }
 .homepage-link {
   font-size: 13px;
+}
+.installed-status {
+  display: inline-flex;
+  width: fit-content;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--app-text-color-2);
+}
+.installed-status span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 4px;
+  background: var(--app-muted-surface-color);
+}
+.connectivity-result {
+  margin-right: auto;
+  font-size: 12px;
+  font-weight: 500;
+}
+.connectivity-result--connected {
+  color: var(--app-success-color);
+}
+.connectivity-result--failed {
+  color: var(--app-error-color);
 }
 .card {
   border: 1px solid var(--app-border-color);

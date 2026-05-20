@@ -72,6 +72,22 @@ function healthTone(): "success" | "error" {
   return h?.healthy ? "success" : "error";
 }
 
+function connectivityLabel(): string {
+  if (mcp.testingConnectivity.has(props.server.value.id)) return t("mcp.testChecking");
+  const result = mcp.connectivityResults[props.server.value.id];
+  if (!result) return "";
+  if (result.status === "connected") {
+    return t("mcp.testConnected", { count: result.tool_count });
+  }
+  return t("mcp.testFailed", { reason: result.reason });
+}
+
+function connectivityTone(): "success" | "error" | "warning" {
+  if (mcp.testingConnectivity.has(props.server.value.id)) return "warning";
+  const result = mcp.connectivityResults[props.server.value.id];
+  return result?.status === "connected" ? "success" : "error";
+}
+
 function sourceTone(source: string): SourceTone {
   switch (source.toLowerCase()) {
     case "builtin":
@@ -127,6 +143,13 @@ function serverToolCount(): number {
         >
           {{ healthLabel() }}
         </SettingsStatusTag>
+        <SettingsStatusTag
+          v-if="server.value.transport !== 'builtin' && connectivityLabel()"
+          :tone="connectivityTone()"
+          :data-test="`mcp-connectivity-${server.value.id}`"
+        >
+          {{ connectivityLabel() }}
+        </SettingsStatusTag>
       </template>
       <KxInlineAlert
         v-if="server.value.last_error"
@@ -147,6 +170,18 @@ function serverToolCount(): number {
       >
         {{
           mcp.checkingHealth.has(server.value.id) ? t("mcp.checkingHealth") : t("mcp.recheckHealth")
+        }}
+      </KxInlineAction>
+      <KxInlineAction
+        v-if="server.value.transport !== 'builtin'"
+        :disabled="mcp.testingConnectivity.has(server.value.id) || busy"
+        :data-test="`mcp-test-connectivity-${server.value.id}`"
+        @click="mcp.testConnectivity(server.value.id)"
+      >
+        {{
+          mcp.testingConnectivity.has(server.value.id)
+            ? t("mcp.testChecking")
+            : t("mcp.testConnectivity")
         }}
       </KxInlineAction>
       <KxInlineAction

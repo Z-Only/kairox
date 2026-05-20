@@ -38,6 +38,11 @@ test.describe("Marketplace", () => {
       timeout: 10_000
     });
     await page.getByTestId("install-close").click();
+    await expect(page.getByTestId("catalog-installed-status")).toContainText("Installed");
+    await page.getByTestId("catalog-test-connectivity").click();
+    await expect(page.getByTestId("catalog-connectivity-result")).toContainText(
+      "Connected (1 tools)"
+    );
     // Close the CatalogDetail drawer that still overlays the page.
     await page.locator(".drawer-close-btn").click();
     await expect(page.getByTestId("tab-installed")).toHaveCount(0);

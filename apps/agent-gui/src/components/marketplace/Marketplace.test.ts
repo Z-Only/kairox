@@ -10,6 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 import { invoke } from "@tauri-apps/api/core";
 import { useCatalogStore } from "@/stores/catalog";
+import { useMcpStore } from "@/stores/mcp";
 import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
@@ -316,6 +317,68 @@ describe("CatalogDetail.vue configuration section", () => {
     await flushPromises();
 
     expect(document.body.textContent ?? "").toContain("No configuration required.");
+
+    wrapper.unmount();
+  });
+
+  it("tests connectivity for an installed catalog entry and shows the result", async () => {
+    const catalog = useCatalogStore();
+    catalog.installed = [
+      {
+        server_id: "filesystem",
+        catalog_id: "filesystem",
+        source: "builtin",
+        display_name: "Filesystem",
+        installed_at: "2026-05-06T00:00:00Z",
+        running: true
+      }
+    ];
+    useMcpStore().effectiveServers = [
+      {
+        value: {
+          id: "filesystem",
+          name: "Filesystem",
+          transport: "stdio",
+          enabled: true,
+          runtime_status: "running",
+          trusted: false,
+          tool_count: 3,
+          last_error: null,
+          writable: true,
+          config_path: "/tmp/kairox.toml",
+          description: "Filesystem access"
+        },
+        source: "User",
+        overrides: null,
+        enabled: true,
+        disabledBy: null,
+        writable: true,
+        deletable: true
+      }
+    ];
+    vi.mocked(invoke).mockImplementation((cmd: string) => {
+      if (cmd === "test_mcp_connectivity") {
+        return Promise.resolve({ status: "connected", tool_count: 3 });
+      }
+      return Promise.resolve([]);
+    });
+
+    const wrapper = mountDetail();
+    await flushPromises();
+
+    const testButton = document.body.querySelector<HTMLButtonElement>(
+      '[data-test="catalog-test-connectivity"]'
+    );
+    expect(testButton).not.toBeNull();
+    expect(testButton?.textContent).toContain("Test Connectivity");
+
+    testButton?.click();
+    await flushPromises();
+
+    expect(invoke).toHaveBeenCalledWith("test_mcp_connectivity", { serverId: "filesystem" });
+    expect(
+      document.body.querySelector('[data-test="catalog-connectivity-result"]')?.textContent
+    ).toContain("Connected (3 tools)");
 
     wrapper.unmount();
   });

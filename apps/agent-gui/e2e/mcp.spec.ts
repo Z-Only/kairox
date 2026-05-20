@@ -32,6 +32,13 @@ test.describe("MCP Settings", () => {
     await expect(page.getByTestId("mcp-page-error")).toHaveCount(0);
   });
 
+  test("tests installed server connectivity from the settings row", async ({ page }) => {
+    await openMcpSettings(page);
+
+    await page.getByTestId("mcp-test-connectivity-github").click();
+    await expect(page.getByTestId("mcp-connectivity-github")).toContainText("Connected (6 tools)");
+  });
+
   test("shows a settings error when opening the config file fails", async ({ page }) => {
     await page.addInitScript(() => {
       // @ts-expect-error injected for tauri-mock to read
