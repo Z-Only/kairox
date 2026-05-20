@@ -33,3 +33,4 @@ state.mcpSettingsServers = [
     description: "Read-only built-in documentation server."
   }
 ];
+state.disabledMcpServers = [];

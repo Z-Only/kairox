@@ -38,6 +38,25 @@ registerCommandHandlers({
     });
     return null;
   },
+  disable_mcp_server_at_scope: function (args) {
+    var serverToDisable = findMcpSettingsServer(args.serverId);
+    if (!serverToDisable)
+      return Promise.reject(new Error("MCP server not found: " + args.serverId));
+    if (state.disabledMcpServers.indexOf(args.serverId) < 0) {
+      state.disabledMcpServers.push(args.serverId);
+      state.disabledMcpServers.sort();
+    }
+    return null;
+  },
+  enable_mcp_server_at_scope: function (args) {
+    state.disabledMcpServers = state.disabledMcpServers.filter(function (serverId) {
+      return serverId !== args.serverId;
+    });
+    return null;
+  },
+  refresh_config_for_project: function (args) {
+    return null;
+  },
   open_mcp_config_file: function (args) {
     if (window.__MCP_OPEN_CONFIG_SHOULD_FAIL__) {
       return Promise.reject(new Error("mock failure"));

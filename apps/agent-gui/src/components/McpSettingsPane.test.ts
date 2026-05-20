@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
-import { nextTick } from "vue";
+import { nextTick, ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { invoke } from "@tauri-apps/api/core";
@@ -11,6 +11,7 @@ import {
   type McpServerSettingsView
 } from "@/generated/commands";
 import { useMcpStore } from "@/stores/mcp";
+import { useProjectStore } from "@/stores/project";
 import McpSettingsPane from "./McpSettingsPane.vue";
 import mcpSettingsPaneSource from "./McpSettingsPane.vue?raw";
 import mcpServerCardSource from "./McpServerCard.vue?raw";
@@ -25,6 +26,8 @@ vi.mock("@/generated/commands", () => ({
     upsertMcpServerSettings: vi.fn(),
     setMcpServerEnabled: vi.fn(),
     deleteMcpServerSettings: vi.fn(),
+    disableMcpServerAtScope: vi.fn(),
+    enableMcpServerAtScope: vi.fn(),
     openMcpConfigFile: vi.fn(),
     getEffectiveMcpServers: vi.fn(),
     checkMcpHealth: vi.fn(),
@@ -88,9 +91,20 @@ function toEffective(server: McpServerSettingsView): EffectiveMcpServerView {
   };
 }
 
-function mountPane() {
+function mountPane(configSource?: "user" | "project", configProjectId?: string) {
   const mountOptions: MountWithPluginsOptions<typeof McpSettingsPane> = {
-    reusePinia: true
+    reusePinia: true,
+    mount:
+      configSource || configProjectId
+        ? {
+            global: {
+              provide: {
+                configSource: ref(configSource ?? "user"),
+                configProjectId: ref(configProjectId)
+              }
+            }
+          }
+        : undefined
   };
   return mountWithPlugins(McpSettingsPane, mountOptions).wrapper;
 }
@@ -105,6 +119,8 @@ beforeEach(() => {
   mockedCommands.upsertMcpServerSettings.mockResolvedValue(ok(githubServer));
   mockedCommands.setMcpServerEnabled.mockResolvedValue(ok(null));
   mockedCommands.deleteMcpServerSettings.mockResolvedValue(ok(null));
+  mockedCommands.disableMcpServerAtScope.mockResolvedValue(ok(null));
+  mockedCommands.enableMcpServerAtScope.mockResolvedValue(ok(null));
   mockedCommands.openMcpConfigFile.mockResolvedValue(ok("/tmp/kairox.toml"));
   mockedCommands.checkMcpHealth.mockResolvedValue(
     ok({
@@ -299,6 +315,64 @@ describe("McpSettingsPane", () => {
     expect(
       wrapper.find<HTMLButtonElement>('[data-test="mcp-delete-builtin-docs"]').element.disabled
     ).toBe(true);
+  });
+
+  it("swaps project-scope disable and enable actions for user MCP servers", async () => {
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Project",
+        rootPath: "/tmp/project",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    let disabledByProject = false;
+    mockedCommands.getEffectiveMcpServers.mockImplementation(async () =>
+      ok([
+        {
+          ...toEffective(githubServer),
+          enabled: !disabledByProject,
+          disabledBy: disabledByProject ? "Project" : null
+        },
+        toEffective(readonlyServer)
+      ])
+    );
+    mockedCommands.disableMcpServerAtScope.mockImplementation(async () => {
+      disabledByProject = true;
+      return ok(null);
+    });
+    mockedCommands.enableMcpServerAtScope.mockImplementation(async () => {
+      disabledByProject = false;
+      return ok(null);
+    });
+
+    const wrapper = mountPane("project", "project-1");
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-disable-scope-github"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.disableMcpServerAtScope).toHaveBeenCalledWith("github", "/tmp/project");
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain(
+      "Disabled by Project"
+    );
+    expect(wrapper.find('[data-test="mcp-disable-scope-github"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="mcp-enable-scope-github"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="mcp-enable-scope-github"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.enableMcpServerAtScope).toHaveBeenCalledWith("github", "/tmp/project");
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).not.toContain(
+      "Disabled by Project"
+    );
+    expect(wrapper.find('[data-test="mcp-enable-scope-github"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="mcp-disable-scope-github"]').exists()).toBe(true);
   });
 
   it("tests server connectivity from the installed server row and shows the result", async () => {
