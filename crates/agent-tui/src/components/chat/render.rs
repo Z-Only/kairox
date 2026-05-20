@@ -1,8 +1,10 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
+
+use crate::components::QueuedMessage;
 
 /// Render the message list from a [`SessionProjection`] into the given area.
 ///
@@ -54,4 +56,36 @@ pub fn render_messages(
 
     let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
     frame.render_widget(paragraph, area);
+}
+
+/// Render a one-line queue strip summarising messages waiting to be sent.
+/// Returns silently when the queue is empty.
+pub fn render_queue_strip(area: Rect, frame: &mut Frame, queue: &[QueuedMessage]) {
+    if queue.is_empty() {
+        return;
+    }
+
+    let count = queue.len();
+    let preview = queue.first().map(|m| m.content.as_str()).unwrap_or("");
+    // Keep the preview short — composer space is tight.
+    let preview_trimmed: String = preview.chars().take(40).collect();
+    let preview_display = if preview.chars().count() > 40 {
+        format!("{preview_trimmed}…")
+    } else {
+        preview_trimmed
+    };
+
+    let label = if count == 1 {
+        format!("⏳ 1 message queued: {preview_display}")
+    } else {
+        format!("⏳ {count} messages queued, next: {preview_display}")
+    };
+
+    let line = Line::from(vec![Span::styled(
+        label,
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::DIM),
+    )]);
+    frame.render_widget(Paragraph::new(line), area);
 }

@@ -64,16 +64,35 @@ impl App {
             );
         }
 
+        let has_queue = !self.chat.message_queue.is_empty();
+        let chat_constraints: Vec<Constraint> = if has_queue {
+            vec![
+                Constraint::Min(1),
+                Constraint::Length(1),
+                Constraint::Length(3),
+            ]
+        } else {
+            vec![Constraint::Min(1), Constraint::Length(3)]
+        };
         let chat_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(3)])
+            .constraints(chat_constraints)
             .split(chat_area);
         crate::components::chat::render_messages(
             chat_chunks[0],
             frame,
             &self.state.current_session,
         );
-        self.render_input(chat_chunks[1], frame);
+        if has_queue {
+            crate::components::chat::render_queue_strip(
+                chat_chunks[1],
+                frame,
+                &self.chat.message_queue,
+            );
+            self.render_input(chat_chunks[2], frame);
+        } else {
+            self.render_input(chat_chunks[1], frame);
+        }
 
         if let Some(trace_area) = trace_area {
             match self.trace.density {

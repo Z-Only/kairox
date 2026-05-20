@@ -1,5 +1,7 @@
 use super::*;
-use crate::components::{EventContext, PermissionRequest, SessionInfo, SessionState};
+use crate::components::{
+    EventContext, PermissionRequest, QueuedMessage, SessionInfo, SessionState,
+};
 use crate::keybindings::KeyAction;
 use std::sync::OnceLock;
 
@@ -29,7 +31,7 @@ fn test_ctx() -> &'static EventContext<'static> {
     })
 }
 
-// A variant with sessions so SendMessage can be emitted.
+// A variant with sessions (Idle) so SendMessage can be emitted.
 static TEST_CTX_WITH_SESSION: OnceLock<EventContext<'static>> = OnceLock::new();
 
 fn test_ctx_with_session() -> &'static EventContext<'static> {
@@ -42,6 +44,41 @@ fn test_ctx_with_session() -> &'static EventContext<'static> {
             vec![SessionInfo {
                 id: session_id.clone(),
                 title: "test session".to_string(),
+                model_profile: "fast".to_string(),
+                state: SessionState::Idle,
+                pinned: false,
+            }]
+            .into_boxed_slice(),
+        );
+        let workspace_id = Box::leak(Box::new(agent_core::WorkspaceId::new()));
+        let current_session_id = Box::leak(Box::new(Some(session_id)));
+        EventContext {
+            focus: FocusTarget::Chat,
+            current_session: projection,
+            sessions,
+            model_profile: "test",
+            permission_mode: agent_tools::PermissionMode::Suggest,
+            sidebar_left_visible: true,
+            sidebar_right_visible: false,
+            workspace_id,
+            current_session_id,
+        }
+    })
+}
+
+// A variant with a busy (Active) session so Enter must enqueue instead of send.
+static TEST_CTX_BUSY_SESSION: OnceLock<EventContext<'static>> = OnceLock::new();
+
+fn test_ctx_busy_session() -> &'static EventContext<'static> {
+    TEST_CTX_BUSY_SESSION.get_or_init(|| {
+        let projection = Box::leak(Box::new(
+            agent_core::projection::SessionProjection::default(),
+        ));
+        let session_id = agent_core::SessionId::new();
+        let sessions: &[SessionInfo] = Box::leak(
+            vec![SessionInfo {
+                id: session_id.clone(),
+                title: "busy session".to_string(),
                 model_profile: "fast".to_string(),
                 state: SessionState::Active,
                 pinned: false,
@@ -414,6 +451,60 @@ fn render_messages_with_streaming_and_cancelled() {
             render_messages(frame.area(), frame, &projection);
         })
         .expect("render_messages should not panic");
+}
+
+#[test]
+fn queues_message_while_session_running() {
+    let mut panel = ChatPanel::new();
+    panel.apply_key_action(KeyAction::InputCharacter('h'), test_ctx_busy_session());
+    panel.apply_key_action(KeyAction::InputCharacter('i'), test_ctx_busy_session());
+    assert_eq!(panel.input_content, "hi");
+
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_busy_session());
+
+    assert!(effects.is_empty());
+    assert!(
+        !cmds
+            .iter()
+            .any(|c| matches!(c, Command::SendMessage { .. })),
+        "must not emit SendMessage while session busy, got {:?}",
+        cmds
+    );
+
+    assert_eq!(panel.message_queue.len(), 1);
+    assert_eq!(panel.message_queue[0].content, "hi");
+
+    // input cleared so user can keep typing
+    assert_eq!(panel.input_content, "");
+    assert_eq!(panel.input_cursor, 0);
+}
+
+#[test]
+fn queue_drain_returns_all_pending_in_fifo_order() {
+    let mut panel = ChatPanel::new();
+    panel.message_queue.push(QueuedMessage {
+        content: "first".to_string(),
+    });
+    panel.message_queue.push(QueuedMessage {
+        content: "second".to_string(),
+    });
+
+    let drained = panel.drain_queue();
+    assert_eq!(drained.len(), 2);
+    assert_eq!(drained[0].content, "first");
+    assert_eq!(drained[1].content, "second");
+    assert!(panel.message_queue.is_empty());
+}
+
+#[test]
+fn send_input_idle_session_emits_send_not_queue() {
+    let mut panel = ChatPanel::new();
+    panel.apply_key_action(KeyAction::InputCharacter('h'), test_ctx_with_session());
+    let (_, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+    assert!(cmds
+        .iter()
+        .any(|c| matches!(c, Command::SendMessage { .. })));
+    assert!(panel.message_queue.is_empty());
 }
 
 #[test]

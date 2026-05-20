@@ -80,6 +80,14 @@ pub struct SessionInfo {
     pub pinned: bool,
 }
 
+/// A message typed while the session is busy and held until the session
+/// returns to idle. Mirrors the GUI `QueuedMessage` contract (attachments are
+/// not yet supported in the TUI).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueuedMessage {
+    pub content: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusInfo {
     pub profile: String,
