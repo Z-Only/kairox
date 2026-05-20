@@ -2,6 +2,7 @@
 
 use crate::catalog::remote::http_client::SharedHttpClient;
 use crate::catalog::skills::SkillCatalogProvider;
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// Which adapter implementation backs a skill catalog source.
@@ -11,15 +12,18 @@ pub enum SkillSourceKind {
     SkillHub,
 }
 
-impl SkillSourceKind {
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for SkillSourceKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "skillhub" => Some(Self::SkillHub),
-            _ => None,
+            "skillhub" => Ok(Self::SkillHub),
+            _ => Err(()),
         }
     }
+}
 
+impl SkillSourceKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::SkillHub => "skillhub",
@@ -67,9 +71,9 @@ mod tests {
     fn skill_source_kind_from_str_round_trip() {
         assert_eq!(
             SkillSourceKind::from_str("skillhub"),
-            Some(SkillSourceKind::SkillHub)
+            Ok(SkillSourceKind::SkillHub)
         );
-        assert_eq!(SkillSourceKind::from_str("unknown"), None);
+        assert_eq!(SkillSourceKind::from_str("unknown"), Err(()));
     }
 
     #[test]

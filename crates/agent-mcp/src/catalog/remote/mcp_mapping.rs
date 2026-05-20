@@ -81,9 +81,8 @@ pub(super) struct McpPackage {
     #[serde(rename = "registryType")]
     pub(super) registry_type: String,
     pub(super) identifier: String,
-    #[allow(dead_code)]
-    #[serde(default)]
-    pub(super) version: Option<String>,
+    #[serde(default, rename = "version")]
+    pub(super) _version: Option<String>,
     #[serde(default)]
     pub(super) transport: Option<McpPackageTransport>,
     #[serde(default, rename = "environmentVariables")]

@@ -33,9 +33,8 @@ pub struct LoadedConfig {
 
 #[derive(Debug, serde::Deserialize)]
 struct MarketplaceTomlInner {
-    #[serde(default)]
-    #[allow(dead_code)]
-    mcp_servers: toml::value::Table,
+    #[serde(default, rename = "mcp_servers")]
+    _mcp_servers: toml::value::Table,
     #[serde(default)]
     catalog_sources: Vec<RawCatalogSource>,
 }

@@ -3,6 +3,7 @@ use crate::{ModelError, ModelEvent, Result};
 use eventsource_stream::Eventsource;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
+use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
 
 /// Internal events during Anthropic SSE stream processing.
@@ -116,7 +117,6 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
 /// Parse a non-streaming (JSON) response from the Anthropic Messages API.
 /// The proxy may return a complete JSON object instead of SSE events when
 /// `stream: true` is requested but the proxy does not support streaming.
-#[allow(dead_code)]
 pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent>> {
     let value: serde_json::Value =
         serde_json::from_str(data).map_err(|e| ModelError::StreamParse(e.to_string()))?;
@@ -188,6 +188,28 @@ pub(super) fn stream_anthropic_response(
     response: reqwest::Response,
     name_map: HashMap<String, String>,
 ) -> BoxStream<'static, Result<ModelEvent>> {
+    let is_json_response = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.to_ascii_lowercase().contains("application/json"));
+
+    if is_json_response {
+        return Box::pin(async_stream::stream! {
+            match response.text().await {
+                Ok(data) => match parse_anthropic_json_response(&data) {
+                    Ok(events) => {
+                        for event in events {
+                            yield Ok(event);
+                        }
+                    }
+                    Err(error) => yield Err(error),
+                },
+                Err(error) => yield Err(ModelError::StreamParse(error.to_string())),
+            }
+        });
+    }
+
     let raw_stream = response
         .bytes_stream()
         .eventsource()

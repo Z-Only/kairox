@@ -2,11 +2,7 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
-#[allow(unused_imports)]
-use agent_core::{
-    AppFacade, DomainEvent, PermissionDecision, SendMessageRequest, SessionId, StartSessionRequest,
-    WorkspaceId,
-};
+use agent_core::{AppFacade, DomainEvent, PermissionDecision, SessionId};
 use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
 use agent_mcp::installer::Installer;
@@ -251,7 +247,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+    use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest, WorkspaceId};
     use agent_models::FakeModelClient;
     use agent_store::SqliteEventStore;
 

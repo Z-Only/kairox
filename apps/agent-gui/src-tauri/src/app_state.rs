@@ -22,7 +22,6 @@ pub struct GuiState {
 }
 
 impl GuiState {
-    #[allow(dead_code)]
     pub fn new(
         runtime: LocalRuntime<SqliteEventStore, ModelRouter>,
         config: Config,

@@ -10,7 +10,6 @@ use crate::components::{Component, FocusTarget};
 use super::App;
 
 impl App {
-    #[allow(unused_assignments)]
     pub fn render(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
@@ -50,7 +49,6 @@ impl App {
         chunk_idx += 1;
         let trace_area = if trace_visible {
             let area = main_chunks[chunk_idx];
-            chunk_idx += 1;
             Some(area)
         } else {
             None
