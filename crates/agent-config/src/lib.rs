@@ -9,6 +9,10 @@ use std::collections::HashMap;
 
 pub use builder::{build_ollama_clients, build_router};
 pub use discovery::{find_config, find_config_upward, find_local_config};
+pub use effective::{
+    build_effective_mcp_server_settings_views, build_effective_mcp_servers,
+    build_effective_profile_settings_views, build_effective_profiles,
+};
 pub use limits::resolve_limits;
 pub use loader::{
     default_catalog_sources, load_from_str, load_with_marketplace_loaded,

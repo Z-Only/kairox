@@ -170,16 +170,23 @@ pub struct EffectiveProfileView {
 }
 
 impl EffectiveProfileView {
-    pub fn from_view(view: ProfileSettingsView, source: crate::config_scope::ConfigScope) -> Self {
+    pub fn from_effective(item: EffectiveItem<ProfileSettingsView>) -> Self {
         Self {
-            writable: source >= crate::config_scope::ConfigScope::User,
-            deletable: source >= crate::config_scope::ConfigScope::User,
-            enabled: view.enabled,
-            value: view,
-            source,
-            overrides: None,
-            disabled_by: None,
+            value: item.value,
+            source: item.source,
+            overrides: item.overrides,
+            enabled: item.enabled,
+            disabled_by: item.disabled_by,
+            writable: item.writable,
+            deletable: item.deletable,
         }
+    }
+
+    pub fn from_view(view: ProfileSettingsView, source: crate::config_scope::ConfigScope) -> Self {
+        let enabled = view.enabled;
+        let mut item = EffectiveItem::new(view, source);
+        item.enabled = enabled;
+        Self::from_effective(item)
     }
 }
 

@@ -25,32 +25,13 @@ pub async fn get_effective_mcp_servers(
         .map_err(|e| e.to_string())?;
 
     let config = state.config.read().map_err(|e| e.to_string())?;
-    let disabled: std::collections::HashSet<&str> = config
-        .disabled_mcp_servers
-        .iter()
-        .map(|s| s.as_str())
-        .collect();
-
-    Ok(settings
-        .into_iter()
-        .map(|view| {
-            let source = parse_mcp_source_to_scope(&view.source);
-            let disabled_by = if disabled.contains(view.id.as_str()) {
-                Some(agent_core::config_scope::ConfigScope::Project)
-            } else {
-                None
-            };
-            EffectiveMcpServerView {
-                value: view.clone(),
-                source,
-                overrides: None,
-                enabled: disabled_by.is_none() && view.enabled,
-                disabled_by,
-                writable: view.writable,
-                deletable: view.writable,
-            }
-        })
-        .collect())
+    Ok(agent_config::build_effective_mcp_server_settings_views(
+        settings,
+        &config.disabled_mcp_servers,
+    )
+    .into_iter()
+    .map(EffectiveMcpServerView::from_effective)
+    .collect())
 }
 
 #[tauri::command]
@@ -91,13 +72,4 @@ pub async fn delete_mcp_server_settings(
         .delete_mcp_server_settings(server_id)
         .await
         .map_err(|error| error.to_string())
-}
-
-fn parse_mcp_source_to_scope(source: &str) -> agent_core::config_scope::ConfigScope {
-    match source {
-        "user_config" => agent_core::config_scope::ConfigScope::User,
-        "project_config" => agent_core::config_scope::ConfigScope::Project,
-        "defaults" => agent_core::config_scope::ConfigScope::Builtin,
-        _ => agent_core::config_scope::ConfigScope::Builtin,
-    }
 }
