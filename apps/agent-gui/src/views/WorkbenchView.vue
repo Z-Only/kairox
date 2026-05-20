@@ -222,6 +222,8 @@ function startResize(side: "left" | "right", event: PointerEvent) {
 .right-sidebar {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
 }
 .sidebar-divider {

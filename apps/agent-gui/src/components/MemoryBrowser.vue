@@ -194,6 +194,8 @@ async function promptDelete(id: string, content: string) {
   width: 100%;
 }
 .memory-panel-state {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
   margin: 12px;
   font-size: 12px;
 }

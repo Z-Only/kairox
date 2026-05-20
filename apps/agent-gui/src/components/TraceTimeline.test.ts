@@ -17,6 +17,12 @@ import { invoke } from "@tauri-apps/api/core";
 const mockedInvoke = vi.mocked(invoke);
 const kxButtonSource = readFileSync("src/components/ui/KxButton.vue", "utf8");
 const themeCss = readFileSync("src/styles/theme.css", "utf8");
+const workbenchViewSource = readFileSync("src/views/WorkbenchView.vue", "utf8");
+const traceTimelineSource = readFileSync("src/components/TraceTimeline.vue", "utf8");
+const traceEntrySource = readFileSync("src/components/TraceEntry.vue", "utf8");
+const taskStepsSource = readFileSync("src/components/TaskSteps.vue", "utf8");
+const taskNodeSource = readFileSync("src/components/TaskNode.vue", "utf8");
+const memoryBrowserSource = readFileSync("src/components/MemoryBrowser.vue", "utf8");
 
 function getCustomProperties(css: string, selector: string) {
   const ruleStartIndex = css.indexOf(`${selector} {`);
@@ -174,5 +180,54 @@ describe("TraceTimeline", () => {
         darkThemeProperties["--app-card-color"]
       )
     ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("audit layout: keeps right sidebar trace and task lists inside their container", () => {
+    expectSourceMigration(workbenchViewSource, {
+      requiredPatterns: [/\.right-sidebar\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s]
+    });
+    expectSourceMigration(traceTimelineSource, {
+      requiredPatterns: [
+        /\.trace-timeline\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s,
+        /\.trace-entries\s*{[^}]*box-sizing:\s*border-box;[^}]*max-width:\s*100%;[^}]*overflow-x:\s*hidden;/s
+      ]
+    });
+    expectSourceMigration(traceEntrySource, {
+      requiredPatterns: [
+        /\.trace-entry\s*{[^}]*box-sizing:\s*border-box;[^}]*max-width:\s*100%;[^}]*overflow-x:\s*hidden;/s,
+        /\.entry-row\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s
+      ]
+    });
+    expectSourceMigration(taskStepsSource, {
+      requiredPatterns: [
+        /\.task-steps\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s,
+        /\.task-tree-scroll\s*{[^}]*box-sizing:\s*border-box;[^}]*max-width:\s*100%;[^}]*overflow-x:\s*hidden;/s
+      ]
+    });
+    expectSourceMigration(taskNodeSource, {
+      requiredPatterns: [
+        /\.task-node-wrapper\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s,
+        /\.task-node\s*{[^}]*box-sizing:\s*border-box;[^}]*width:\s*100%;[^}]*max-width:\s*100%;/s,
+        /\.task-row\s*{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s
+      ]
+    });
+  });
+
+  it("audit layout: keeps right sidebar empty-state dashed boxes inside their scroll panes", () => {
+    expectSourceMigration(traceTimelineSource, {
+      requiredPatterns: [
+        /\.trace-empty\s*{[^}]*box-sizing:\s*border-box;[^}]*width:\s*calc\(100% - 24px\);/s
+      ]
+    });
+    expectSourceMigration(taskStepsSource, {
+      requiredPatterns: [
+        /\.task-empty\s*{[^}]*box-sizing:\s*border-box;[^}]*width:\s*calc\(100% - 24px\);/s
+      ]
+    });
+    expectSourceMigration(memoryBrowserSource, {
+      requiredPatterns: [
+        /\.memory-panel-state\s*{[^}]*box-sizing:\s*border-box;[^}]*width:\s*calc\(100% - 24px\);/s
+      ]
+    });
   });
 });

@@ -63,6 +63,7 @@ describe("PermissionCenter", () => {
     const empty = wrapper.get('[data-test="permission-empty-state"]');
     expect(empty.text()).toBe("No pending requests");
     expect(empty.classes()).toContain("kx-empty-state");
+    expect(wrapper.classes()).not.toContain("permission-center--scrollable");
   });
 
   it("renders No pending requests when there are only completed permission entries", () => {
@@ -91,6 +92,7 @@ describe("PermissionCenter", () => {
     );
     const wrapper = mount(PermissionCenter);
     expect(wrapper.find('[data-test="permission-empty-state"]').exists()).toBe(false);
+    expect(wrapper.classes()).toContain("permission-center--scrollable");
     const prompts = wrapper.findAllComponents({ name: "PermissionPrompt" });
     expect(prompts).toHaveLength(2);
   });

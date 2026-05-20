@@ -39,6 +39,9 @@ const resolvedRole = computed(() => {
 <style scoped>
 .kx-state-block {
   display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   min-height: 44px;
   align-items: center;
   justify-content: center;

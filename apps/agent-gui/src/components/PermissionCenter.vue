@@ -15,7 +15,13 @@ const pendingEntries = computed(() =>
 </script>
 
 <template>
-  <div class="card permission-center">
+  <div
+    :class="[
+      'card',
+      'permission-center',
+      { 'permission-center--scrollable': pendingEntries.length > 0 }
+    ]"
+  >
     <div class="card-header">
       <h2>{{ t("permission.panelTitle") }}</h2>
     </div>
@@ -39,15 +45,24 @@ const pendingEntries = computed(() =>
 
 <style scoped>
 .permission-center {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   border-top: 1px solid var(--app-border-color, #d7d7d7);
   max-height: 260px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+.permission-center--scrollable {
   overflow-y: auto;
 }
 .card-header {
   padding: 12px 12px 4px;
 }
 .card-content {
+  box-sizing: border-box;
   padding: 4px 12px 12px;
+  max-width: 100%;
 }
 .permission-center h2 {
   margin: 0;
@@ -60,6 +75,7 @@ const pendingEntries = computed(() =>
   list-style: none;
   padding: 0;
   margin: 0;
+  max-width: 100%;
 }
 .permission-list-item {
   padding: 4px 0;

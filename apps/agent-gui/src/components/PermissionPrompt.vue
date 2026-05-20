@@ -156,7 +156,10 @@ async function deny() {
 
 <style scoped>
 .permission-prompt {
+  box-sizing: border-box;
+  max-width: 100%;
   margin: 4px 0;
+  overflow-x: hidden;
 }
 
 /* Alert base & variants */
@@ -177,12 +180,17 @@ async function deny() {
 
 /* Card replacement */
 .permission-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   padding: 4px 8px;
 }
 
 /* Layout (replaces NSpace align="start" :size="8" :wrap="false") */
 .permission-layout {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: flex-start;
   gap: 8px;
   flex-wrap: nowrap;
