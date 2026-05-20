@@ -9,7 +9,6 @@ use agent_config::{CatalogSourceConfig, CatalogSourceKind};
 use std::path::{Path, PathBuf};
 
 /// Errors produced by [`MarketplaceToml`] operations.
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 #[derive(Debug, thiserror::Error)]
 pub enum MarketplaceTomlError {
     #[error("io: {0}")]
@@ -22,16 +21,13 @@ pub enum MarketplaceTomlError {
     AlreadyExists(String),
 }
 
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 pub type Result<T> = std::result::Result<T, MarketplaceTomlError>;
 
 /// Owns `<config_dir>/config.toml` for catalog source mutations.
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 pub struct MarketplaceToml {
     path: PathBuf,
 }
 
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 impl MarketplaceToml {
     pub fn new(config_dir: impl AsRef<Path>) -> Self {
         Self {
@@ -39,7 +35,8 @@ impl MarketplaceToml {
         }
     }
 
-    pub fn path(&self) -> &Path {
+    #[cfg(test)]
+    fn path(&self) -> &Path {
         &self.path
     }
 
@@ -143,16 +140,14 @@ impl MarketplaceToml {
     }
 }
 
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 fn sources_from_doc(doc: &toml_edit::DocumentMut) -> Result<Vec<CatalogSourceConfig>> {
     // Re-parse the rendered string so we reuse `agent_config`'s validation.
     agent_config::parse_catalog_sources(&doc.to_string())
         .map_err(|e| MarketplaceTomlError::Parse(e.to_string()))
 }
 
-#[allow(dead_code)] // Wired up in T11.S5 (facade methods).
 fn write_sources_to_doc(doc: &mut toml_edit::DocumentMut, sources: &[CatalogSourceConfig]) {
-    use toml_edit::{value, Array, ArrayOfTables, Item, Table};
+    use toml_edit::{value, ArrayOfTables, Item, Table};
     // Replace the entire `catalog_sources` array-of-tables in place.
     let mut aot = ArrayOfTables::new();
     for s in sources {
@@ -179,8 +174,6 @@ fn write_sources_to_doc(doc: &mut toml_edit::DocumentMut, sources: &[CatalogSour
     } else {
         doc["catalog_sources"] = Item::ArrayOfTables(aot);
     }
-    // Suppress unused import warnings if no source uses Array.
-    let _ = Array::new();
 }
 
 #[cfg(test)]

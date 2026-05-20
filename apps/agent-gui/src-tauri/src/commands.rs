@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-#![allow(clippy::new_without_default)]
 use crate::app_state::GuiState;
 use crate::event_forwarder::spawn_event_forwarder;
 use agent_config::ProfileInfo;

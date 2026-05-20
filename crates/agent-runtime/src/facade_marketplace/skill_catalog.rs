@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use agent_mcp::catalog::skills::{
@@ -88,7 +89,7 @@ where
             .into_iter()
             .filter(|s| s.enabled)
             .filter_map(|s| {
-                let kind = SkillSourceKind::from_str(&s.kind)?;
+                let kind = SkillSourceKind::from_str(&s.kind).ok()?;
                 let cfg = RemoteSkillSourceConfig {
                     id: s.id.clone(),
                     display_name: s.display_name.clone(),

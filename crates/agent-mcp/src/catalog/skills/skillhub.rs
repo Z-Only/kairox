@@ -18,7 +18,6 @@ use tokio::sync::Mutex;
 const DEFAULT_TTL_SECONDS: u64 = 900;
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct SkillHubResponse {
     #[serde(default)]
     code: Option<i32>,
@@ -31,27 +30,24 @@ struct SkillHubResponse {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct SkillHubData {
     #[serde(default)]
     skills: Vec<SkillHubItem>,
-    #[serde(default)]
-    total: Option<u64>,
-    #[serde(default)]
-    count: Option<u64>,
-    #[serde(default)]
-    pagination: Option<SkillHubPagination>,
+    #[serde(default, rename = "total")]
+    _total: Option<u64>,
+    #[serde(default, rename = "count")]
+    _count: Option<u64>,
+    #[serde(default, rename = "pagination")]
+    _pagination: Option<SkillHubPagination>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct SkillHubPagination {
-    #[serde(default)]
-    total: Option<u64>,
+    #[serde(default, rename = "total")]
+    _total: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct SkillHubItem {
     #[serde(default, alias = "slug")]
     id: String,
@@ -62,12 +58,10 @@ struct SkillHubItem {
     #[serde(default)]
     #[serde(rename = "description_zh")]
     description_zh: Option<String>,
-    #[serde(default)]
-    #[serde(rename = "githubOwner")]
-    github_owner: Option<String>,
-    #[serde(default)]
-    #[serde(rename = "githubRepo")]
-    github_repo: Option<String>,
+    #[serde(default, rename = "githubOwner")]
+    _github_owner: Option<String>,
+    #[serde(default, rename = "githubRepo")]
+    _github_repo: Option<String>,
     #[serde(default)]
     #[serde(rename = "githubStars")]
     github_stars: Option<u64>,
@@ -88,8 +82,8 @@ struct SkillHubItem {
     #[serde(default)]
     #[serde(rename = "packageUrl")]
     package_url: Option<String>,
-    #[serde(default)]
-    homepage: Option<String>,
+    #[serde(default, rename = "homepage")]
+    _homepage: Option<String>,
 }
 
 struct CacheEntry {

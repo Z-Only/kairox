@@ -14,8 +14,9 @@ pub struct NpxSkillsPackageManager;
 
 #[async_trait::async_trait]
 impl SkillPackageManager for NpxSkillsPackageManager {
-    async fn search(&self, _query: &str) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
-        Ok(Vec::new())
+    async fn search(&self, query: &str) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
+        let output = run_npx_skills_command(&["skills", "find", query]).await?;
+        parse_npx_skills_find_output(&output)
     }
 
     async fn install_from_registry(
@@ -60,7 +61,6 @@ impl SkillPackageManager for NpxSkillsPackageManager {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn parse_npx_skills_find_output(
     output: &str,
 ) -> agent_core::Result<Vec<RemoteSkillSearchResult>> {
@@ -156,7 +156,6 @@ fn append_install_target_args(args: &mut Vec<&str>, target: SkillInstallTarget) 
     }
 }
 
-#[allow(dead_code)]
 fn parse_install_count(
     raw_install_count: &str,
     line_number: usize,
@@ -176,7 +175,6 @@ fn parse_install_count(
         })
 }
 
-#[allow(dead_code)]
 fn optional_column(raw_column: &str) -> Option<String> {
     let trimmed_column = raw_column.trim();
     if trimmed_column.is_empty() {

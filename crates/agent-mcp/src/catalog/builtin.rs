@@ -1,8 +1,6 @@
 //! Built-in catalog backed by an embedded JSON file.
 
-use crate::catalog::{
-    CatalogError, CatalogProvider, CatalogQuery, CatalogResult, ServerEntry, TrustLevel,
-};
+use crate::catalog::{CatalogError, CatalogProvider, CatalogQuery, CatalogResult, ServerEntry};
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::sync::OnceLock;
@@ -12,9 +10,8 @@ const BUILTIN_JSON: &str = include_str!("data/builtin-catalog.json");
 #[derive(Debug, Deserialize)]
 struct Doc {
     schema_version: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    generated_at: Option<String>,
+    #[serde(default, rename = "generated_at")]
+    _generated_at: Option<String>,
     entries: Vec<ServerEntry>,
 }
 
@@ -117,17 +114,11 @@ impl CatalogProvider for BuiltinCatalogProvider {
     }
 }
 
-// Note: TrustLevel order is Unverified < Community < Verified per its derived
-// PartialOrd, so trust_min filters work correctly.
-#[allow(dead_code)]
-const _ASSERT_TRUST_ORDER: () = {
-    assert!(matches!(TrustLevel::Verified, TrustLevel::Verified));
-};
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::catalog::CatalogQuery;
+    use crate::TrustLevel;
     use std::collections::HashSet;
 
     #[test]

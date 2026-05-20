@@ -14,12 +14,10 @@ use tokio::sync::broadcast::Sender;
 
 /// Forwards Phase 2 catalog source observability events into the runtime's
 /// global `DomainEvent` broadcast.
-#[allow(dead_code)] // Wired up in T11.S3 (build_catalog_provider).
 pub(crate) struct CatalogEventSink {
     tx: Sender<DomainEvent>,
 }
 
-#[allow(dead_code)] // Wired up in T11.S3 (build_catalog_provider).
 impl CatalogEventSink {
     pub fn new(tx: Sender<DomainEvent>) -> Arc<Self> {
         Arc::new(Self { tx })

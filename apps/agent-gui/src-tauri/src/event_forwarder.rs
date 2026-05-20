@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use agent_core::AppFacade;
 use agent_models::ModelRouter;
 use agent_store::SqliteEventStore;
