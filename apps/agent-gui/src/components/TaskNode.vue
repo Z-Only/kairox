@@ -179,9 +179,13 @@ function handleToggle() {
 
 <style scoped>
 .task-node-wrapper {
-  /* Container for node + children */
+  min-width: 0;
+  max-width: 100%;
 }
 .task-node {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   font-size: 12px;
   cursor: default;
   padding: 4px 8px;
@@ -194,6 +198,8 @@ function handleToggle() {
 }
 .task-row {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   gap: 4px;
   align-items: center;
   flex-wrap: nowrap;
@@ -228,6 +234,7 @@ function handleToggle() {
 }
 .task-title {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -239,8 +246,12 @@ function handleToggle() {
 }
 .task-summary {
   font-size: 10px;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--app-text-color-3, #999);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .task-running {
   font-size: 10px;

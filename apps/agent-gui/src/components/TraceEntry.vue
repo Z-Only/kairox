@@ -95,13 +95,19 @@ const kindIcon: Record<string, string> = {
 <style scoped>
 .trace-entry {
   font-size: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   border-bottom: 1px solid var(--app-border-color);
+  overflow-x: hidden;
 }
 .trace-entry--pending {
   background: color-mix(in srgb, var(--app-warning-color) 8%, transparent);
 }
 .entry-row {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 4px;
   padding: 5px 8px;
@@ -118,6 +124,7 @@ const kindIcon: Record<string, string> = {
 }
 .entry-tool {
   flex: 1;
+  min-width: 0;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;

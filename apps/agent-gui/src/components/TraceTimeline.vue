@@ -52,9 +52,11 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
     <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
       <div class="density-toolbar">
         <span class="density-label">Detail:</span>
-        <button
+        <KxButton
           v-for="d in ['L1', 'L2', 'L3'] as const"
           :key="d"
+          size="xs"
+          :variant="traceState.density === d ? 'primary' : 'default'"
           class="density-btn"
           :class="{
             'density-btn--active': traceState.density === d,
@@ -63,7 +65,7 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
           @click="traceState.density = d"
         >
           {{ d }}
-        </button>
+        </KxButton>
       </div>
       <TraceEntry
         v-for="entry in traceState.entries"
@@ -84,6 +86,8 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 .trace-timeline {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
   height: 100%;
   overflow: hidden;
 }
@@ -99,8 +103,12 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   gap: 4px;
 }
 .trace-entries {
+  box-sizing: border-box;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
+  overflow-x: hidden;
 }
 .density-toolbar {
   display: flex;
@@ -116,25 +124,12 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   margin-right: 2px;
 }
 .density-btn {
-  padding: 1px 8px;
-  border: 1px solid var(--app-border-color);
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
+  min-width: 30px;
   font-size: 11px;
-  color: var(--app-text-color-2);
-  transition: all 0.15s;
-}
-.density-btn:hover {
-  background: var(--app-hover-color);
-  color: var(--app-text-color);
-}
-.density-btn--active {
-  background: var(--app-primary-color);
-  color: var(--app-primary-contrast-color);
-  border-color: var(--app-primary-color);
 }
 .trace-empty {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
   margin: 12px;
   font-size: 12px;
 }

@@ -55,13 +55,21 @@ function toggleExpand(taskId: string) {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
 }
 .task-tree-scroll {
+  box-sizing: border-box;
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
+  overflow-x: hidden;
 }
 .task-empty {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
   margin: 12px;
   font-size: 12px;
 }

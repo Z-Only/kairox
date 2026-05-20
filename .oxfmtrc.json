@@ -1,6 +1,7 @@
 {
   "$schema": "https://oxc.rs/docs/guide/config/node-api.html",
   "ignorePatterns": [
+    ".codegraph/**",
     "apps/agent-gui/src-tauri/gen/**",
     "apps/agent-gui/public/audit/axe.min.js",
     "*.cjs",

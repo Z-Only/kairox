@@ -59,7 +59,10 @@ const resolvedCompact = computed(() => props.compact || props.density !== "secti
 
 <style scoped>
 .kx-async-state {
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .kx-async-state.kx-async-state--inline,
