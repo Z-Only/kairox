@@ -13,7 +13,7 @@ fn sse_event(data: &str) -> String {
 
 #[tokio::test]
 async fn sse_connects_and_sends_request() {
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{body_json, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
@@ -27,6 +27,7 @@ async fn sse_connects_and_sends_request() {
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "text/event-stream")
+                .set_delay(Duration::from_millis(50))
                 .set_body_string(sse_event(&response_json)),
         )
         .mount(&mock_server)
@@ -34,21 +35,33 @@ async fn sse_connects_and_sends_request() {
 
     Mock::given(method("POST"))
         .and(path("/message"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {}
+        })))
         .respond_with(ResponseTemplate::new(202))
+        .expect(1)
         .mount(&mock_server)
         .await;
 
-    let base_url = format!("{}/mcp", mock_server.uri());
+    let base_url = mock_server.uri();
     let mut transport = SseTransport::new(&base_url, HashMap::new(), None)
         .await
         .expect("Failed to create SseTransport");
 
     let request = JsonRpcRequest::new(1, "initialize", Some(serde_json::json!({})));
-    let result = transport.send_request(request).await;
-    // SSE event delivery timing is variable; connection success is the main check
-    if let Ok(resp) = result {
-        assert_eq!(resp.id, serde_json::json!(1));
-    }
+    let resp = transport
+        .send_request(request)
+        .await
+        .expect("SSE request should return the matching response");
+
+    assert_eq!(resp.id, serde_json::json!(1));
+    assert_eq!(
+        resp.result,
+        serde_json::json!({"name": "test", "version": "1.0"})
+    );
 
     transport.close().await.ok();
 }
@@ -76,10 +89,13 @@ async fn sse_handles_connection_error() {
 
 #[tokio::test]
 async fn sse_custom_headers_sent() {
-    use wiremock::matchers::{header, method, path};
+    use wiremock::matchers::{body_json, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
+
+    let response_json =
+        serde_json::json!({"jsonrpc": "2.0", "id": 7, "result": {"ok": true}}).to_string();
 
     // Mount SSE endpoint with header expectation
     Mock::given(method("GET"))
@@ -88,32 +104,50 @@ async fn sse_custom_headers_sent() {
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "text/event-stream")
-                .set_body_string(""),
+                .set_delay(Duration::from_millis(50))
+                .set_body_string(sse_event(&response_json)),
         )
         .mount(&mock_server)
         .await;
 
     Mock::given(method("POST"))
         .and(path("/message"))
+        .and(header("x-custom-header", "custom-value"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "test"
+        })))
         .respond_with(ResponseTemplate::new(202))
+        .expect(1)
         .mount(&mock_server)
         .await;
 
-    let base_url = format!("{}/mcp", mock_server.uri());
+    let base_url = mock_server.uri();
     let mut transport = SseTransport::new(
         &base_url,
         HashMap::from([("x-custom-header".into(), "custom-value".into())]),
         None,
     )
     .await
-    .expect("Failed to create SseTransport with custom headers");
+    .expect("Failed to create SseTransport with custom headers")
+    .with_request_timeout(Duration::from_millis(500));
+
+    let request = JsonRpcRequest::new(7, "test", None);
+    let resp = transport
+        .send_request(request)
+        .await
+        .expect("SSE request with custom headers should return the matching response");
+
+    assert_eq!(resp.id, serde_json::json!(7));
+    assert_eq!(resp.result, serde_json::json!({"ok": true}));
 
     transport.close().await.ok();
 }
 
 #[tokio::test]
 async fn sse_send_notification() {
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{body_json, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
@@ -130,11 +164,16 @@ async fn sse_send_notification() {
 
     Mock::given(method("POST"))
         .and(path("/message"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+        })))
         .respond_with(ResponseTemplate::new(202))
+        .expect(1)
         .mount(&mock_server)
         .await;
 
-    let base_url = format!("{}/mcp", mock_server.uri());
+    let base_url = mock_server.uri();
     let mut transport = SseTransport::new(&base_url, HashMap::new(), None)
         .await
         .expect("Failed to create SseTransport");
@@ -152,16 +191,9 @@ async fn sse_send_notification() {
     )
     .await;
 
-    match result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => {
-            // POST to /message may fail if the mock didn't match perfectly
-            eprintln!("Note: notification POST failed: {e}");
-        }
-        Err(_) => {
-            panic!("send_notification timed out");
-        }
-    }
+    result
+        .expect("send_notification timed out")
+        .expect("send_notification should POST to /message successfully");
 
     transport.close().await.ok();
 }
