@@ -8,6 +8,7 @@ license.workspace = true
 agent-core = { path = "../agent-core" }
 agent-models = { path = "../agent-models" }
 agent-config = { path = "../agent-config" }
+agent-mcp = { path = "../agent-mcp" }
 agent-memory = { path = "../agent-memory" }
 agent-runtime = { path = "../agent-runtime" }
 agent-skills = { path = "../agent-skills" }

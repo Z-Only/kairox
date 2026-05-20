@@ -131,6 +131,10 @@ impl App {
             self.permission_modal.render(area, frame);
         }
 
+        if self.mcp_overlay.is_visible() {
+            self.mcp_overlay.render(area, frame);
+        }
+
         self.state.render_scheduler.did_render();
     }
 

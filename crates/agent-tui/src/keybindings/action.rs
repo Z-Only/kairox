@@ -24,6 +24,8 @@ pub enum KeyAction {
     // -- L3 Ctrl -----------------------------------------------------------
     InterruptOrQuit,
     Redraw,
+    /// Ctrl+M — open/close the MCP server overlay.
+    ToggleMcpOverlay,
 
     // -- L4 Function -------------------------------------------------------
     Help,

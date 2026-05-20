@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod mcp_overlay;
 pub mod permission_modal;
 pub mod sessions;
 pub mod status_bar;
@@ -42,6 +43,26 @@ pub enum FocusTarget {
     Sessions,
     Trace,
     PermissionModal,
+    McpOverlay,
+}
+
+/// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
+/// Kept local to the TUI so the overlay can be tested without spinning up a real manager.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpServerStatusView {
+    Stopped,
+    Starting,
+    Running,
+    Failed,
+}
+
+/// Snapshot row used to populate the MCP overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpServerEntry {
+    pub server_id: String,
+    pub status: McpServerStatusView,
+    pub trusted: bool,
+    pub tool_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,6 +134,8 @@ pub enum CrossPanelEffect {
     NavigateToSession(SessionId),
     StartStreaming,
     StopStreaming,
+    ShowMcpOverlay(Vec<McpServerEntry>),
+    DismissMcpOverlay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +152,20 @@ pub enum Command {
     },
     /// Trust an MCP server so future tool calls from it are auto-approved.
     TrustMcpServer {
+        server_id: String,
+    },
+    /// Build an MCP server snapshot and open the overlay.
+    OpenMcpOverlay,
+    /// Start a stopped/failed MCP server from the overlay.
+    StartMcpServer {
+        server_id: String,
+    },
+    /// Stop a running MCP server from the overlay.
+    StopMcpServer {
+        server_id: String,
+    },
+    /// Refresh the cached tool list from a running MCP server.
+    RefreshMcpTools {
         server_id: String,
     },
     CancelSession {
