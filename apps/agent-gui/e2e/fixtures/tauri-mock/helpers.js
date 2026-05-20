@@ -300,6 +300,7 @@ function configScopeFromSource(source) {
 
 function effectiveMcpServerView(server) {
   var source = configScopeFromSource(server.source || "user_config");
+  var disabledByProject = state.disabledMcpServers.indexOf(server.id) >= 0;
   return {
     value: {
       id: server.id,
@@ -318,8 +319,8 @@ function effectiveMcpServerView(server) {
     },
     source: source,
     overrides: null,
-    enabled: server.enabled,
-    disabledBy: null,
+    enabled: server.enabled && !disabledByProject,
+    disabledBy: disabledByProject ? "Project" : null,
     writable: server.writable,
     deletable: server.writable
   };

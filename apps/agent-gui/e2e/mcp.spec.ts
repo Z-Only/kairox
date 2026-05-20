@@ -39,6 +39,27 @@ test.describe("MCP Settings", () => {
     await expect(page.getByTestId("mcp-connectivity-github")).toContainText("Connected (6 tools)");
   });
 
+  test("disables and re-enables a user server at project scope", async ({ page }) => {
+    await openMcpSettings(page);
+    await page.getByTestId("source-btn-project").click();
+
+    const githubRow = page.getByTestId("mcp-server-row-github");
+    await expect(githubRow).toContainText("GitHub");
+    await expect(page.getByTestId("mcp-disable-scope-github")).toBeVisible();
+
+    await page.getByTestId("mcp-disable-scope-github").click();
+
+    await expect(githubRow).toContainText("Disabled by Project");
+    await expect(page.getByTestId("mcp-disable-scope-github")).toHaveCount(0);
+    await expect(page.getByTestId("mcp-enable-scope-github")).toBeVisible();
+
+    await page.getByTestId("mcp-enable-scope-github").click();
+
+    await expect(githubRow).not.toContainText("Disabled by Project");
+    await expect(page.getByTestId("mcp-enable-scope-github")).toHaveCount(0);
+    await expect(page.getByTestId("mcp-disable-scope-github")).toBeVisible();
+  });
+
   test("shows a settings error when opening the config file fails", async ({ page }) => {
     await page.addInitScript(() => {
       // @ts-expect-error injected for tauri-mock to read
