@@ -5,7 +5,7 @@ import { setActivePinia, createPinia } from "pinia";
 import HooksSettingsPane from "./HooksSettingsPane.vue";
 import hooksSettingsPaneSource from "./HooksSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -218,30 +218,37 @@ describe("HooksSettingsPane", () => {
   });
 
   it("does not keep local hook row chrome after moving to SettingsCardItem", () => {
-    expect(hooksSettingsPaneSource).toContain("SettingsCardList");
-    expect(hooksSettingsPaneSource).toContain("SettingsCardItem");
-    expect(hooksSettingsPaneSource).toContain("SettingsItemSummary");
-    expect(hooksSettingsPaneSource).toContain("SettingsStatusTag");
-    expect(hooksSettingsPaneSource).not.toContain(".hook-row {");
-    expect(hooksSettingsPaneSource).not.toContain(".hook-row__main");
-    expect(hooksSettingsPaneSource).not.toContain("tag-muted");
-    expect(hooksSettingsPaneSource).not.toContain(
-      "border-bottom: 1px solid var(--app-border-color)"
-    );
+    expectSourceMigration(hooksSettingsPaneSource, {
+      required: [
+        "SettingsCardList",
+        "SettingsCardItem",
+        "SettingsItemSummary",
+        "SettingsStatusTag"
+      ],
+      forbidden: [
+        ".hook-row {",
+        ".hook-row__main",
+        "tag-muted",
+        "border-bottom: 1px solid var(--app-border-color)"
+      ]
+    });
   });
 
   it("uses shared form fields, controls, and action rows in the hook editor", () => {
-    expect(hooksSettingsPaneSource).toContain("KxFormField");
-    expect(hooksSettingsPaneSource).toContain("KxFormActions");
-    expect(hooksSettingsPaneSource).toContain("KxInput");
-    expect(hooksSettingsPaneSource).toContain("KxSelect");
-    expect(hooksSettingsPaneSource).not.toContain("kx-form-control");
-    expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form input,");
-    expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form select");
-    expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form-actions {");
+    expectSourceMigration(hooksSettingsPaneSource, {
+      required: ["KxFormField", "KxFormActions", "KxInput", "KxSelect"],
+      forbidden: [
+        "kx-form-control",
+        ".hooks-pane__form input,",
+        ".hooks-pane__form select",
+        ".hooks-pane__form-actions {"
+      ]
+    });
   });
 
   it("does not keep hook pane aria chrome inline in the component source", () => {
-    expectSourceNotToContain(hooksSettingsPaneSource, ['aria-label="Hooks settings"']);
+    expectSourceMigration(hooksSettingsPaneSource, {
+      forbidden: ['aria-label="Hooks settings"']
+    });
   });
 });

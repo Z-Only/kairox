@@ -15,6 +15,7 @@ import sessionsSidebarSource from "@/components/SessionsSidebar.vue?raw";
 import sessionSectionSource from "@/components/sidebar/SessionSection.vue?raw";
 import commandPaletteSource from "@/components/CommandPalette.vue?raw";
 import fileMentionPaletteSource from "@/components/FileMentionPalette.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 const migratedSources = [
   ["SettingsState.vue", settingsStateSource],
@@ -43,17 +44,24 @@ describe("Kx async state migration", () => {
   );
 
   it("removes old local memory and task empty-state CSS", () => {
-    expect(memoryBrowserSource).not.toContain(".memory-empty {");
-    expect(memoryBrowserSource).not.toContain(".empty-state {");
-    expect(traceTimelineSource).not.toContain(".empty-hint {");
-    expect(taskStepsSource).not.toContain(".empty-hint {");
-    expect(permissionCenterSource).not.toContain(".empty-state {");
-    expect(skillDiscoverListSource).not.toContain(".catalog-state {");
-    expect(skillDiscoverListSource).not.toContain(".spinner {");
-    expect(chatPanelSource).not.toContain(".empty-state {");
-    expect(sessionsSidebarSource).not.toContain(".sessions-empty-state {");
-    expect(sessionsSidebarSource).not.toContain(".empty-hint {");
-    expect(sessionSectionSource).not.toContain('class="empty-state empty-hint"');
-    expect(fileMentionPaletteSource).not.toContain('class="kx-popover-empty');
+    expectSourceMigration(memoryBrowserSource, {
+      forbidden: [".memory-empty {", ".empty-state {"]
+    });
+    expectSourceMigration(traceTimelineSource, { forbidden: [".empty-hint {"] });
+    expectSourceMigration(taskStepsSource, { forbidden: [".empty-hint {"] });
+    expectSourceMigration(permissionCenterSource, { forbidden: [".empty-state {"] });
+    expectSourceMigration(skillDiscoverListSource, {
+      forbidden: [".catalog-state {", ".spinner {"]
+    });
+    expectSourceMigration(chatPanelSource, { forbidden: [".empty-state {"] });
+    expectSourceMigration(sessionsSidebarSource, {
+      forbidden: [".sessions-empty-state {", ".empty-hint {"]
+    });
+    expectSourceMigration(sessionSectionSource, {
+      forbidden: ['class="empty-state empty-hint"']
+    });
+    expectSourceMigration(fileMentionPaletteSource, {
+      forbidden: ['class="kx-popover-empty']
+    });
   });
 });

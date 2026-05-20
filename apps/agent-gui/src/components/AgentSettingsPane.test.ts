@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { commands, type AgentSettingsView } from "@/generated/commands";
 import AgentSettingsPane from "./AgentSettingsPane.vue";
 import agentSettingsPaneSource from "./AgentSettingsPane.vue?raw";
@@ -150,48 +150,48 @@ describe("AgentSettingsPane", () => {
   });
 
   it("does not keep local agent row chrome after moving to SettingsCardItem", () => {
-    expect(agentSettingsPaneSource).toContain("SettingsCardList");
-    expect(agentSettingsPaneSource).toContain("SettingsCardItem");
-    expect(agentSettingsPaneSource).toContain("SettingsItemSummary");
-    expect(agentSettingsPaneSource).toContain("SettingsItemMeta");
-    expect(agentSettingsPaneSource).toContain("SettingsStatusTag");
-    expectSourceNotToContain(agentSettingsPaneSource, [
-      ".agent-row {",
-      ".agent-row__title",
-      ".agent-row__meta",
-      "tag-success",
-      "tag-warning",
-      "tag-error",
-      "border-bottom: 1px solid var(--app-border-color)"
-    ]);
+    expectSourceMigration(agentSettingsPaneSource, {
+      required: [
+        "SettingsCardList",
+        "SettingsCardItem",
+        "SettingsItemSummary",
+        "SettingsItemMeta",
+        "SettingsStatusTag"
+      ],
+      forbidden: [
+        ".agent-row {",
+        ".agent-row__title",
+        ".agent-row__meta",
+        "tag-success",
+        "tag-warning",
+        "tag-error",
+        "border-bottom: 1px solid var(--app-border-color)"
+      ]
+    });
   });
 
   it("uses shared settings toolbar instead of local agent toolbar chrome", () => {
-    expect(agentSettingsPaneSource).toContain("SettingsToolbar");
-    expectSourceNotToContain(agentSettingsPaneSource, [
-      'class="agent-settings__toolbar"',
-      ".agent-settings__toolbar,"
-    ]);
+    expectSourceMigration(agentSettingsPaneSource, {
+      required: ["SettingsToolbar"],
+      forbidden: ['class="agent-settings__toolbar"', ".agent-settings__toolbar,"]
+    });
   });
 
   it("uses shared form fields and controls in the agent editor", () => {
-    expect(agentSettingsPaneSource).toContain("KxFormField");
-    expect(agentSettingsPaneSource).toContain("KxInput");
-    expect(agentSettingsPaneSource).toContain("KxTextarea");
-    expect(agentSettingsPaneSource).toContain('data-test="agent-form-instructions"');
-    expectSourceNotToContain(agentSettingsPaneSource, [
-      "kx-form-control",
-      ".agent-editor input,",
-      ".agent-editor textarea {"
-    ]);
+    expectSourceMigration(agentSettingsPaneSource, {
+      required: ["KxFormField", "KxInput", "KxTextarea", 'data-test="agent-form-instructions"'],
+      forbidden: ["kx-form-control", ".agent-editor input,", ".agent-editor textarea {"]
+    });
   });
 
   it("does not keep agent editor placeholder examples inline in the component source", () => {
-    expectSourceNotToContain(agentSettingsPaneSource, [
-      'placeholder="code-reviewer"',
-      'placeholder="fs.read, search, shell"',
-      'placeholder="kairox-dev-workflow"',
-      'placeholder="Reviewer, Audit"'
-    ]);
+    expectSourceMigration(agentSettingsPaneSource, {
+      forbidden: [
+        'placeholder="code-reviewer"',
+        'placeholder="fs.read, search, shell"',
+        'placeholder="kairox-dev-workflow"',
+        'placeholder="Reviewer, Audit"'
+      ]
+    });
   });
 });

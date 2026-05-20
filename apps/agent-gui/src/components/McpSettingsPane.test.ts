@@ -3,7 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { nextTick } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { invoke } from "@tauri-apps/api/core";
 import {
   commands,
@@ -167,25 +167,25 @@ describe("McpSettingsPane", () => {
   });
 
   it("uses shared card content hierarchy for server rows", () => {
-    expect(mcpServerCardSource).toContain("SettingsItemSummary");
-    expect(mcpServerCardSource).toContain("SettingsStatusTag");
-    expectSourceNotToContain(mcpServerCardSource, [
-      ".mcp-settings__server-main",
-      ".server__tags",
-      "tag-success",
-      "tag-warning",
-      "tag-danger",
-      "tag--source",
-      "tag--override",
-      "tag--disabled-by"
-    ]);
+    expectSourceMigration(mcpServerCardSource, {
+      required: ["SettingsItemSummary", "SettingsStatusTag"],
+      forbidden: [
+        ".mcp-settings__server-main",
+        ".server__tags",
+        "tag-success",
+        "tag-warning",
+        "tag-danger",
+        "tag--source",
+        "tag--override",
+        "tag--disabled-by"
+      ]
+    });
   });
 
   it("does not keep MCP pane aria chrome inline in the component source", () => {
-    expectSourceNotToContain(mcpSettingsPaneSource, [
-      'aria-label="MCP settings"',
-      'aria-label="MCP sections"'
-    ]);
+    expectSourceMigration(mcpSettingsPaneSource, {
+      forbidden: ['aria-label="MCP settings"', 'aria-label="MCP sections"']
+    });
   });
 
   it("labels the config action as a file opener and delegates to the MCP store", async () => {
@@ -403,31 +403,30 @@ describe("McpSettingsPane", () => {
 
   it("uses shared nested accordion list, row, and state components", () => {
     for (const source of [mcpResourceAccordionSource, mcpPromptAccordionSource]) {
-      expect(source).toContain("KxAccordionList");
-      expect(source).toContain("KxAccordionItem");
-      expect(source).toContain("KxAccordionState");
-      expectSourceNotToContain(source, ["<KxStateBlock"]);
+      expectSourceMigration(source, {
+        required: ["KxAccordionList", "KxAccordionItem", "KxAccordionState"],
+        forbidden: ["<KxStateBlock"]
+      });
     }
 
-    expectSourceNotToContain(mcpResourceAccordionSource, [
-      ".mcp-resources-list {",
-      ".mcp-resources-row {"
-    ]);
-    expectSourceNotToContain(mcpPromptAccordionSource, [
-      ".mcp-prompts-list {",
-      ".mcp-prompts-row {"
-    ]);
+    expectSourceMigration(mcpResourceAccordionSource, {
+      forbidden: [".mcp-resources-list {", ".mcp-resources-row {"]
+    });
+    expectSourceMigration(mcpPromptAccordionSource, {
+      forbidden: [".mcp-prompts-list {", ".mcp-prompts-row {"]
+    });
   });
 
   it("uses shared settings toolbar and subtabs instead of local MCP chrome", () => {
-    expect(mcpSettingsPaneSource).toContain("SettingsSubtabs");
-    expect(mcpSettingsPaneSource).toContain("SettingsToolbar");
-    expectSourceNotToContain(mcpSettingsPaneSource, [
-      'class="mcp-sub-tabs"',
-      'class="mcp-toolbar"',
-      ".mcp-sub-tabs {",
-      ".mcp-toolbar {",
-      ".sub-tab-btn {"
-    ]);
+    expectSourceMigration(mcpSettingsPaneSource, {
+      required: ["SettingsSubtabs", "SettingsToolbar"],
+      forbidden: [
+        'class="mcp-sub-tabs"',
+        'class="mcp-toolbar"',
+        ".mcp-sub-tabs {",
+        ".mcp-toolbar {",
+        ".sub-tab-btn {"
+      ]
+    });
   });
 });

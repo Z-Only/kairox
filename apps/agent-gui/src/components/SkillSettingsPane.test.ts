@@ -3,7 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { commands, type SkillCatalogEntry, type EffectiveSkillView } from "@/generated/commands";
 import SkillSettingsPane from "./SkillSettingsPane.vue";
 import skillSettingsPaneSource from "./SkillSettingsPane.vue?raw";
@@ -174,11 +174,13 @@ beforeEach(() => {
 
 describe("SkillSettingsPane", () => {
   it("does not keep skill pane aria or install placeholder copy inline in the component source", () => {
-    expectSourceNotToContain(skillSettingsPaneSource, [
-      'aria-label="Skills settings"',
-      'aria-label="Skill sections"',
-      'placeholder="https://github.com/org/repo/tree/main/path/to/skill"'
-    ]);
+    expectSourceMigration(skillSettingsPaneSource, {
+      forbidden: [
+        'aria-label="Skills settings"',
+        'aria-label="Skill sections"',
+        'placeholder="https://github.com/org/repo/tree/main/path/to/skill"'
+      ]
+    });
   });
 
   it("renders installed skills with scope, enabled, activation, effective, update, and invalid states", async () => {
@@ -333,23 +335,27 @@ describe("SkillSettingsPane", () => {
   });
 
   it("does not keep local skill row chrome after moving to SettingsCardItem", () => {
-    expect(skillSettingsPaneSource).toContain("SettingsCardList");
-    expect(skillSettingsPaneSource).toContain("SettingsCardItem");
-    expect(skillSettingsPaneSource).toContain("SettingsItemSummary");
-    expect(skillSettingsPaneSource).toContain("SettingsItemMeta");
-    expect(skillSettingsPaneSource).toContain("SettingsStatusTag");
-    expectSourceNotToContain(skillSettingsPaneSource, [
-      ".skill-settings__row,",
-      ".skill-settings__row {",
-      ".skill-settings__title-row",
-      ".skill-settings__meta",
-      "tag-success",
-      "tag-warning",
-      "tag-error",
-      "tag--source",
-      "tag--override",
-      "tag--disabled-by"
-    ]);
+    expectSourceMigration(skillSettingsPaneSource, {
+      required: [
+        "SettingsCardList",
+        "SettingsCardItem",
+        "SettingsItemSummary",
+        "SettingsItemMeta",
+        "SettingsStatusTag"
+      ],
+      forbidden: [
+        ".skill-settings__row,",
+        ".skill-settings__row {",
+        ".skill-settings__title-row",
+        ".skill-settings__meta",
+        "tag-success",
+        "tag-warning",
+        "tag-error",
+        "tag--source",
+        "tag--override",
+        "tag--disabled-by"
+      ]
+    });
   });
 
   it("uses a compact installed skill card layout without path-driven blank space", async () => {
@@ -367,26 +373,28 @@ describe("SkillSettingsPane", () => {
   });
 
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
-    expect(skillSettingsPaneSource).toContain("SettingsSubtabs");
-    expect(skillSettingsPaneSource).toContain("SettingsToolbar");
-    expectSourceNotToContain(skillSettingsPaneSource, [
-      'class="skill-sub-tabs"',
-      'class="skill-toolbar"',
-      ".skill-sub-tabs {",
-      ".skill-toolbar {",
-      ".sub-tab-btn {"
-    ]);
+    expectSourceMigration(skillSettingsPaneSource, {
+      required: ["SettingsSubtabs", "SettingsToolbar"],
+      forbidden: [
+        'class="skill-sub-tabs"',
+        'class="skill-toolbar"',
+        ".skill-sub-tabs {",
+        ".skill-toolbar {",
+        ".sub-tab-btn {"
+      ]
+    });
   });
 
   it("uses shared form controls in the GitHub advanced install form", () => {
-    expect(skillSettingsPaneSource).toContain("KxFormField");
-    expect(skillSettingsPaneSource).toContain("KxInput");
-    expectSourceNotToContain(skillSettingsPaneSource, [
-      "kx-form-control",
-      ".skill-settings input,",
-      ".skill-settings select",
-      ".skill-settings__search-form input"
-    ]);
+    expectSourceMigration(skillSettingsPaneSource, {
+      required: ["KxFormField", "KxInput"],
+      forbidden: [
+        "kx-form-control",
+        ".skill-settings input,",
+        ".skill-settings select",
+        ".skill-settings__search-form input"
+      ]
+    });
   });
 
   it("uses shared settings state chrome for empty installed skills", async () => {

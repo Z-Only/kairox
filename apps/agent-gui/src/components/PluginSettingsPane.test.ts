@@ -5,7 +5,7 @@ import { ref } from "vue";
 import PluginSettingsPane from "./PluginSettingsPane.vue";
 import pluginSettingsPaneSource from "./PluginSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@/generated/commands", () => ({
   commands: {
@@ -119,16 +119,10 @@ describe("PluginSettingsPane", () => {
     });
 
     it("uses shared card content hierarchy instead of plugin-local title and meta css", () => {
-      expect(pluginSettingsPaneSource).toContain("SettingsItemSummary");
-      expect(pluginSettingsPaneSource).toContain("SettingsItemMeta");
-      expect(pluginSettingsPaneSource).toContain("SettingsStatusTag");
-      expectSourceNotToContain(pluginSettingsPaneSource, [
-        ".plugin-row__title",
-        ".plugin-meta",
-        "tag-success",
-        "tag-warning",
-        "tag-error"
-      ]);
+      expectSourceMigration(pluginSettingsPaneSource, {
+        required: ["SettingsItemSummary", "SettingsItemMeta", "SettingsStatusTag"],
+        forbidden: [".plugin-row__title", ".plugin-meta", "tag-success", "tag-warning", "tag-error"]
+      });
     });
 
     it("shows empty state when no plugins installed", async () => {
@@ -430,22 +424,23 @@ describe("PluginSettingsPane", () => {
 
   describe("shared settings card primitives", () => {
     it("does not keep local plugin row chrome after moving to SettingsCardItem", () => {
-      expect(pluginSettingsPaneSource).toContain("SettingsCardList");
-      expect(pluginSettingsPaneSource).toContain("SettingsCardItem");
-      expectSourceNotToContain(pluginSettingsPaneSource, [".plugin-row {"]);
+      expectSourceMigration(pluginSettingsPaneSource, {
+        required: ["SettingsCardList", "SettingsCardItem"],
+        forbidden: [".plugin-row {"]
+      });
     });
 
     it("uses shared settings toolbar, subtabs, and filter bar instead of local plugin chrome", () => {
-      expect(pluginSettingsPaneSource).toContain("SettingsSubtabs");
-      expect(pluginSettingsPaneSource).toContain("SettingsToolbar");
-      expect(pluginSettingsPaneSource).toContain("SettingsFilterBar");
-      expectSourceNotToContain(pluginSettingsPaneSource, [
-        'class="plugin-sub-tabs"',
-        'class="plugin-toolbar"',
-        ".plugin-sub-tabs,",
-        ".plugin-toolbar {",
-        ".sub-tab-btn {"
-      ]);
+      expectSourceMigration(pluginSettingsPaneSource, {
+        required: ["SettingsSubtabs", "SettingsToolbar", "SettingsFilterBar"],
+        forbidden: [
+          'class="plugin-sub-tabs"',
+          'class="plugin-toolbar"',
+          ".plugin-sub-tabs,",
+          ".plugin-toolbar {",
+          ".sub-tab-btn {"
+        ]
+      });
     });
   });
 });
