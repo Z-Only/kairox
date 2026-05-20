@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import skillSourcesSettingsSource from "./SkillSourcesSettings.vue?raw";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 describe("SkillSourcesSettings", () => {
   it("uses shared form controls and action rows in the add-source form", () => {
@@ -17,5 +18,15 @@ describe("SkillSourcesSettings", () => {
     expect(skillSourcesSettingsSource).not.toContain('class="input"');
     expect(skillSourcesSettingsSource).not.toContain(".input {");
     expect(skillSourcesSettingsSource).not.toContain(".form-actions {");
+  });
+
+  it("does not keep skill source aria, option, or form helper copy inline", () => {
+    expectSourceNotToContain(skillSourcesSettingsSource, [
+      'aria-label="Skill catalog sources"',
+      'label="id"',
+      'label: "SkillHub"',
+      'placeholder="/api/v1/download?slug={{slug}}"',
+      "Use {{query}} and {{limit}} tokens for search requests."
+    ]);
   });
 });

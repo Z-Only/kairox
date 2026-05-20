@@ -8,6 +8,11 @@ const { t } = useI18n();
 const store = useSkillsStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
+const templateTokens = {
+  query: "{{query}}",
+  limit: "{{limit}}",
+  slug: "{{slug}}"
+};
 
 const draft = ref({
   id: "",
@@ -24,7 +29,7 @@ const draft = ref({
   cache_ttl_seconds: 900
 });
 
-const kindOptions = [{ label: "SkillHub", value: "skillhub" }];
+const kindOptions = computed(() => [{ label: t("skills.sourceKindSkillHub"), value: "skillhub" }]);
 
 onMounted(() => {
   void store.loadCatalogSources();
@@ -125,7 +130,7 @@ function formatError(caughtError: unknown): string {
 
     <SettingsCardList
       v-else
-      aria-label="Skill catalog sources"
+      :aria-label="t('skills.catalogSourcesAria')"
       data-test="skill-sources-list"
       :scroll="false"
       dense
@@ -190,11 +195,19 @@ function formatError(caughtError: unknown): string {
     </KxButton>
 
     <div v-else class="add-form">
-      <KxFormField label="id">
-        <KxInput v-model="draft.id" data-test="skill-src-id" />
+      <KxFormField :label="t('skills.sourceId')">
+        <KxInput
+          v-model="draft.id"
+          data-test="skill-src-id"
+          :placeholder="t('skills.sourceIdPlaceholder')"
+        />
       </KxFormField>
       <KxFormField :label="t('skills.displayName')">
-        <KxInput v-model="draft.display_name" data-test="skill-src-name" />
+        <KxInput
+          v-model="draft.display_name"
+          data-test="skill-src-name"
+          :placeholder="t('skills.displayNamePlaceholder')"
+        />
       </KxFormField>
       <KxFormField :label="t('skills.kind')">
         <KxSelect v-model="draft.kind">
@@ -204,19 +217,47 @@ function formatError(caughtError: unknown): string {
         </KxSelect>
       </KxFormField>
       <KxFormField :label="t('skills.url')">
-        <KxInput v-model="draft.url" data-test="skill-src-url" />
+        <KxInput
+          v-model="draft.url"
+          data-test="skill-src-url"
+          :placeholder="t('skills.urlPlaceholder')"
+        />
       </KxFormField>
-      <KxFormField :label="t('skills.searchTemplate')" required>
-        <KxInput v-model="draft.search_template" data-test="skill-src-search-template" />
+      <KxFormField
+        :label="t('skills.searchTemplate')"
+        :description="t('skills.searchTemplateDescription', templateTokens)"
+        required
+      >
+        <KxInput
+          v-model="draft.search_template"
+          data-test="skill-src-search-template"
+          :placeholder="t('skills.searchTemplatePlaceholder', templateTokens)"
+        />
       </KxFormField>
-      <KxFormField :label="t('skills.downloadTemplate')" required>
-        <KxInput v-model="draft.download_template" data-test="skill-src-download-template" />
+      <KxFormField
+        :label="t('skills.downloadTemplate')"
+        :description="t('skills.downloadTemplateDescription', templateTokens)"
+        required
+      >
+        <KxInput
+          v-model="draft.download_template"
+          data-test="skill-src-download-template"
+          :placeholder="t('skills.downloadTemplatePlaceholder', templateTokens)"
+        />
       </KxFormField>
       <KxFormField :label="t('skills.listTemplate')">
-        <KxInput v-model="draft.list_template" data-test="skill-src-list-template" />
+        <KxInput
+          v-model="draft.list_template"
+          data-test="skill-src-list-template"
+          :placeholder="t('skills.listTemplatePlaceholder')"
+        />
       </KxFormField>
       <KxFormField :label="t('skills.detailTemplate')">
-        <KxInput v-model="draft.detail_template" data-test="skill-src-detail-template" />
+        <KxInput
+          v-model="draft.detail_template"
+          data-test="skill-src-detail-template"
+          :placeholder="t('skills.detailTemplatePlaceholder', templateTokens)"
+        />
       </KxFormField>
       <span v-if="formError" class="error text-error">
         {{ formError }}

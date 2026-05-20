@@ -4,6 +4,7 @@ import { flushPromises } from "@vue/test-utils";
 import CatalogSourcesSettings from "./CatalogSourcesSettings.vue";
 import catalogSourcesSettingsSource from "./CatalogSourcesSettings.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
+import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
 
 // `CatalogSourcesSettings.vue` calls `useI18n()`, which requires a Vue plugin
 // install — bare `mount()` throws "Need to install with `app.use` function".
@@ -128,5 +129,15 @@ describe("CatalogSourcesSettings.vue", () => {
     expect(catalogSourcesSettingsSource).not.toContain('class="input"');
     expect(catalogSourcesSettingsSource).not.toContain(".input {");
     expect(catalogSourcesSettingsSource).not.toContain(".form-actions {");
+  });
+
+  it("does not keep catalog source aria, option, or form helper copy inline", () => {
+    expectSourceNotToContain(catalogSourcesSettingsSource, [
+      'aria-label="Catalog sources"',
+      'label="id"',
+      'label: "MCP Registry"',
+      'placeholder="https://registry.example/catalog.json"',
+      "Optional environment variable used for authenticated catalog requests."
+    ]);
   });
 });
