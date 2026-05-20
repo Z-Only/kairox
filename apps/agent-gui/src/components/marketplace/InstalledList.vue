@@ -20,10 +20,10 @@ async function onUninstall(serverId: string) {
     <table class="installed">
       <thead>
         <tr>
-          <th>Server</th>
-          <th>Source</th>
-          <th>Status</th>
-          <th>Installed at</th>
+          <th>{{ t("marketplace.installedList.server") }}</th>
+          <th>{{ t("marketplace.installedList.source") }}</th>
+          <th>{{ t("marketplace.installedList.status") }}</th>
+          <th>{{ t("marketplace.installedList.installedAt") }}</th>
           <th />
         </tr>
       </thead>
@@ -33,11 +33,17 @@ async function onUninstall(serverId: string) {
             <span class="text-strong">{{ row.display_name }}</span>
           </td>
           <td>
-            <span class="text-secondary">{{ row.source ?? "(manual)" }}</span>
+            <span class="text-secondary">{{
+              row.source ?? t("marketplace.installedList.manualSource")
+            }}</span>
           </td>
           <td>
             <KxBadge :tone="row.running ? 'success' : 'neutral'">
-              {{ row.running ? "running" : "stopped" }}
+              {{
+                row.running
+                  ? t("marketplace.installedList.running")
+                  : t("marketplace.installedList.stopped")
+              }}
             </KxBadge>
           </td>
           <td>
@@ -50,11 +56,11 @@ async function onUninstall(serverId: string) {
             <KxButton
               size="xs"
               :disabled="!row.source"
-              :title="row.source ? '' : 'Hand-edited entries are not removable from here'"
+              :title="row.source ? '' : t('marketplace.installedList.manualSourceNotRemovable')"
               :data-test="`uninstall-${row.server_id}`"
               @click="onUninstall(row.server_id)"
             >
-              Uninstall
+              {{ t("marketplace.installedList.uninstall") }}
             </KxButton>
           </td>
         </tr>

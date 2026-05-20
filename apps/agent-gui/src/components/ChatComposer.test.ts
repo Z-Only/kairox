@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import ChatComposer from "./ChatComposer.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
+import chatPermissionSelectorSource from "./ChatPermissionSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -85,6 +86,14 @@ describe("composer textarea chrome", () => {
 });
 
 describe("permission mode selector", () => {
+  it("does not keep standard permission labels inline in the selector source", () => {
+    expect(chatPermissionSelectorSource).not.toContain("Read Only");
+    expect(chatPermissionSelectorSource).not.toContain("Suggest");
+    expect(chatPermissionSelectorSource).not.toContain("Agent");
+    expect(chatPermissionSelectorSource).not.toContain("Autonomous");
+    expect(chatPermissionSelectorSource).not.toContain("Interactive");
+  });
+
   it("renders the permission trigger button with current mode label", () => {
     const { wrapper, session } = mountChatComposer();
     session.permissionMode = "suggest";
