@@ -91,7 +91,7 @@ watch(
   <section
     class="instructions-pane"
     role="tabpanel"
-    aria-label="Instructions settings"
+    :aria-label="t('instructions.title')"
     data-test="instructions-settings-pane"
   >
     <SettingsState v-if="errorMsg" tone="error" data-test="instructions-error">

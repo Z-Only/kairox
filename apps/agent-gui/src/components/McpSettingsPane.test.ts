@@ -178,6 +178,11 @@ describe("McpSettingsPane", () => {
     expect(mcpServerCardSource).not.toContain("tag--disabled-by");
   });
 
+  it("does not keep MCP pane aria chrome inline in the component source", () => {
+    expect(mcpSettingsPaneSource).not.toContain('aria-label="MCP settings"');
+    expect(mcpSettingsPaneSource).not.toContain('aria-label="MCP sections"');
+  });
+
   it("labels the config action as a file opener and delegates to the MCP store", async () => {
     const wrapper = mountPane();
     await flushPromises();

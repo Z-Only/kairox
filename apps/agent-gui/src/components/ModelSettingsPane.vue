@@ -174,7 +174,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
 </script>
 
 <template>
-  <section class="model-settings" aria-label="Model settings" data-test="model-settings-pane">
+  <section class="model-settings" :aria-label="t('models.title')" data-test="model-settings-pane">
     <SettingsState v-if="error" tone="error" data-test="model-page-error">
       {{ error }}
     </SettingsState>

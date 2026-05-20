@@ -56,6 +56,10 @@ describe("InstructionsSettingsPane", () => {
     expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea--preview");
   });
 
+  it("does not keep instructions pane aria chrome inline in the component source", () => {
+    expect(instructionsSettingsPaneSource).not.toContain('aria-label="Instructions settings"');
+  });
+
   describe("loading state", () => {
     it("shows loading text before instructions are fetched", async () => {
       // never resolve so component stays in loading state

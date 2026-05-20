@@ -165,6 +165,10 @@ describe("ModelSettingsPane", () => {
     expect(modelProfileCardSource).not.toContain("tag--source");
   });
 
+  it("does not keep model pane aria chrome inline in the component source", () => {
+    expect(modelSettingsPaneSource).not.toContain('aria-label="Model settings"');
+  });
+
   it("loads only the selected user configuration scope", async () => {
     const wrapper = mountPane("user");
     await flushPromises();

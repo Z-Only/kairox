@@ -180,4 +180,11 @@ describe("AgentSettingsPane", () => {
     expect(agentSettingsPaneSource).not.toContain(".agent-editor input,");
     expect(agentSettingsPaneSource).not.toContain(".agent-editor textarea {");
   });
+
+  it("does not keep agent editor placeholder examples inline in the component source", () => {
+    expect(agentSettingsPaneSource).not.toContain('placeholder="code-reviewer"');
+    expect(agentSettingsPaneSource).not.toContain('placeholder="fs.read, search, shell"');
+    expect(agentSettingsPaneSource).not.toContain('placeholder="kairox-dev-workflow"');
+    expect(agentSettingsPaneSource).not.toContain('placeholder="Reviewer, Audit"');
+  });
 });

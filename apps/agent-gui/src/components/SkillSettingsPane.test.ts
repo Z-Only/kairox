@@ -172,6 +172,14 @@ beforeEach(() => {
 });
 
 describe("SkillSettingsPane", () => {
+  it("does not keep skill pane aria or install placeholder copy inline in the component source", () => {
+    expect(skillSettingsPaneSource).not.toContain('aria-label="Skills settings"');
+    expect(skillSettingsPaneSource).not.toContain('aria-label="Skill sections"');
+    expect(skillSettingsPaneSource).not.toContain(
+      'placeholder="https://github.com/org/repo/tree/main/path/to/skill"'
+    );
+  });
+
   it("renders installed skills with scope, enabled, activation, effective, update, and invalid states", async () => {
     const wrapper = mountPane();
     await flushPromises();

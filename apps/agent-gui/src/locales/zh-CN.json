@@ -46,6 +46,7 @@
     "themeLight": "浅色",
     "themeDark": "深色",
     "archive": "归档",
+    "archiveSessions": "归档会话",
     "archiveEmpty": "暂无归档会话。",
     "archiveTotal": "总计：{count}",
     "archiveProjects": "项目数：{count}",
@@ -85,6 +86,7 @@
     "modelNotFound": "模型 \"{alias}\" 不可用"
   },
   "instructions": {
+    "title": "指令设置",
     "system": "系统",
     "user": "用户",
     "project": "项目",
@@ -303,6 +305,7 @@
     "statusFailed": "失败",
     "statusStopped": "已停止",
     "title": "MCP 设置",
+    "sections": "MCP 分区",
     "tabInstalled": "已安装",
     "tabMarketplace": "应用市场",
     "openConfigFile": "打开配置文件",
@@ -373,6 +376,7 @@
   },
   "skills": {
     "title": "Skills 设置",
+    "sections": "Skill 分区",
     "tabInstalled": "已安装",
     "tabDiscover": "应用市场",
     "builtinSource": "内置源",
@@ -401,6 +405,7 @@
     "targetProject": "项目",
     "targetUser": "用户",
     "githubUrl": "GitHub 仓库 URL",
+    "githubUrlPlaceholder": "https://github.com/org/repo/tree/main/path/to/skill",
     "installing": "安装中…",
     "installButton": "从 GitHub 安装",
     "searchPlaceholder": "按名称或关键词搜索",
@@ -493,6 +498,7 @@
     "connectionOptions": "连接"
   },
   "hooks": {
+    "title": "Hooks 设置",
     "scopeHooks": "{scope} Hooks",
     "empty": "尚未配置 Hook。",
     "add": "添加 Hook",
@@ -565,6 +571,10 @@
     "saving": "保存中",
     "saveAgent": "保存 Agent",
     "defaultValue": "默认",
+    "namePlaceholder": "code-reviewer",
+    "toolsPlaceholder": "fs.read, search, shell",
+    "skillsPlaceholder": "kairox-dev-workflow",
+    "nicknamesPlaceholder": "Reviewer, Audit",
     "scopeBuiltin": "内置",
     "scopeUser": "用户",
     "scopeProject": "项目",

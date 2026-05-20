@@ -93,7 +93,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="archive-settings" aria-label="Archive" data-test="archive-settings-pane">
+  <section
+    class="archive-settings"
+    :aria-label="t('settings.archive')"
+    data-test="archive-settings-pane"
+  >
     <SettingsState v-if="error" tone="error" data-test="archive-page-error">
       {{ error }}
     </SettingsState>
@@ -120,7 +124,7 @@ onMounted(() => {
 
     <SettingsCardList
       v-else
-      aria-label="Archived sessions"
+      :aria-label="t('settings.archiveSessions')"
       data-test="archive-list"
       :scroll="false"
       columns="auto"

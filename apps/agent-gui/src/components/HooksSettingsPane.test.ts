@@ -239,4 +239,8 @@ describe("HooksSettingsPane", () => {
     expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form select");
     expect(hooksSettingsPaneSource).not.toContain(".hooks-pane__form-actions {");
   });
+
+  it("does not keep hook pane aria chrome inline in the component source", () => {
+    expect(hooksSettingsPaneSource).not.toContain('aria-label="Hooks settings"');
+  });
 });
