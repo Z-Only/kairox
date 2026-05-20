@@ -1,7 +1,7 @@
 use crossterm::event::Event;
 
 use crate::app_state::{CtrlCAction, InputMode, InputState};
-use crate::components::{Command, CrossPanelEffect, EventContext, FocusTarget};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext, FocusTarget};
 use crate::keybindings::{resolve_key, resolve_paste, KeyAction};
 
 use super::App;
@@ -11,6 +11,35 @@ impl App {
     pub fn handle_crossterm_event(&mut self, event: &Event) -> Vec<Command> {
         match event {
             Event::Key(key_event) => {
+                // Ctrl+M toggles the MCP overlay even when the overlay is
+                // already visible; route through the resolver in that case.
+                let is_ctrl_m = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('m'));
+                if self.mcp_overlay.is_visible() && !is_ctrl_m {
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.mcp_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
                 let permission_pending =
                     matches!(self.state.input_state, InputState::PermissionWait { .. })
                         || self.permission_modal.is_visible();
@@ -105,6 +134,14 @@ impl App {
             }
             KeyAction::Redraw => {
                 self.state.render_scheduler.mark_dirty_immediate();
+            }
+            KeyAction::ToggleMcpOverlay => {
+                if self.mcp_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissMcpOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenMcpOverlay);
+                }
             }
             KeyAction::ToggleTraceDensity => {
                 self.trace.density = self.trace.density.next();

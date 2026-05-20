@@ -38,6 +38,7 @@ pub fn resolve_key(
         return match code {
             KeyCode::Char('c') => KeyAction::InterruptOrQuit,
             KeyCode::Char('l') => KeyAction::Redraw,
+            KeyCode::Char('m') => KeyAction::ToggleMcpOverlay,
             KeyCode::Enter => KeyAction::SendInput,
             _ => KeyAction::Unhandled,
         };
