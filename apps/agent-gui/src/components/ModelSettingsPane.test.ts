@@ -3,7 +3,7 @@ import { flushPromises } from "@vue/test-utils";
 import { setActivePinia, createPinia } from "pinia";
 import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { commands, type EffectiveProfileView } from "@/generated/commands";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
@@ -157,17 +157,22 @@ describe("ModelSettingsPane", () => {
   });
 
   it("uses shared card content hierarchy for profile rows", () => {
-    expect(modelProfileCardSource).toContain("SettingsItemSummary");
-    expect(modelProfileCardSource).toContain("SettingsStatusTag");
-    expect(modelProfileCardSource).not.toContain(".model-settings__profile-main");
-    expect(modelProfileCardSource).not.toContain(".server__tags");
-    expect(modelProfileCardSource).not.toContain("tag-success");
-    expect(modelProfileCardSource).not.toContain("tag-warning");
-    expect(modelProfileCardSource).not.toContain("tag--source");
+    expectSourceMigration(modelProfileCardSource, {
+      required: ["SettingsItemSummary", "SettingsStatusTag"],
+      forbidden: [
+        ".model-settings__profile-main",
+        ".server__tags",
+        "tag-success",
+        "tag-warning",
+        "tag--source"
+      ]
+    });
   });
 
   it("does not keep model pane aria chrome inline in the component source", () => {
-    expectSourceNotToContain(modelSettingsPaneSource, ['aria-label="Model settings"']);
+    expectSourceMigration(modelSettingsPaneSource, {
+      forbidden: ['aria-label="Model settings"']
+    });
   });
 
   it("loads only the selected user configuration scope", async () => {
@@ -321,10 +326,14 @@ describe("ModelSettingsPane", () => {
   });
 
   it("uses shared settings toolbar instead of local model toolbar chrome", () => {
-    expect(modelSettingsPaneSource).toContain("SettingsToolbar");
-    expect(modelSettingsPaneSource).not.toContain('class="model-toolbar"');
-    expect(modelSettingsPaneSource).not.toContain('class="model-toolbar__actions"');
-    expect(modelSettingsPaneSource).not.toContain(".model-toolbar {");
-    expect(modelSettingsPaneSource).not.toContain(".model-toolbar__actions {");
+    expectSourceMigration(modelSettingsPaneSource, {
+      required: ["SettingsToolbar"],
+      forbidden: [
+        'class="model-toolbar"',
+        'class="model-toolbar__actions"',
+        ".model-toolbar {",
+        ".model-toolbar__actions {"
+      ]
+    });
   });
 });

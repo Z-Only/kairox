@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import InstructionsSettingsPane from "./InstructionsSettingsPane.vue";
 import instructionsSettingsPaneSource from "./InstructionsSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -47,20 +47,26 @@ beforeEach(() => {
 
 describe("InstructionsSettingsPane", () => {
   it("uses shared KxTextarea chrome for instruction editors", () => {
-    expect(instructionsSettingsPaneSource).toContain("KxTextarea");
-    expect(instructionsSettingsPaneSource).toContain('data-test="system-instructions"');
-    expect(instructionsSettingsPaneSource).toContain('data-test="user-instructions"');
-    expect(instructionsSettingsPaneSource).toContain('data-test="project-instructions"');
-    expect(instructionsSettingsPaneSource).toContain('data-test="effective-instructions"');
-    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea {");
-    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea:");
-    expect(instructionsSettingsPaneSource).not.toContain(".instructions-level__textarea--preview");
+    expectSourceMigration(instructionsSettingsPaneSource, {
+      required: [
+        "KxTextarea",
+        'data-test="system-instructions"',
+        'data-test="user-instructions"',
+        'data-test="project-instructions"',
+        'data-test="effective-instructions"'
+      ],
+      forbidden: [
+        ".instructions-level__textarea {",
+        ".instructions-level__textarea:",
+        ".instructions-level__textarea--preview"
+      ]
+    });
   });
 
   it("does not keep instructions pane aria chrome inline in the component source", () => {
-    expectSourceNotToContain(instructionsSettingsPaneSource, [
-      'aria-label="Instructions settings"'
-    ]);
+    expectSourceMigration(instructionsSettingsPaneSource, {
+      forbidden: ['aria-label="Instructions settings"']
+    });
   });
 
   describe("loading state", () => {

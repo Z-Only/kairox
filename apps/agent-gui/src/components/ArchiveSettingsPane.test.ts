@@ -5,7 +5,7 @@ import ArchiveSettingsPane from "./ArchiveSettingsPane.vue";
 import archiveSettingsPaneSource from "./ArchiveSettingsPane.vue?raw";
 import { confirmDialogKey } from "@/composables/useConfirm";
 import { mountWithPlugins } from "@/test-utils/mount";
-import { expectSourceNotToContain } from "@/test-utils/sourceGuards";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/generated/commands", () => ({
@@ -130,25 +130,27 @@ describe("ArchiveSettingsPane", () => {
   });
 
   it("does not keep local archive row card chrome after moving to SettingsCardItem", () => {
-    expect(archiveSettingsPaneSource).toContain("SettingsCardList");
-    expect(archiveSettingsPaneSource).toContain("SettingsCardItem");
-    expect(archiveSettingsPaneSource).toContain("SettingsItemSummary");
-    expect(archiveSettingsPaneSource).toContain("SettingsItemMeta");
-    expect(archiveSettingsPaneSource).not.toContain('class="card archive-row"');
-    expect(archiveSettingsPaneSource).not.toContain('class="card-body archive-row__body"');
-    expect(archiveSettingsPaneSource).not.toContain(".archive-list {");
-    expect(archiveSettingsPaneSource).not.toContain(".archive-row__meta");
+    expectSourceMigration(archiveSettingsPaneSource, {
+      required: ["SettingsCardList", "SettingsCardItem", "SettingsItemSummary", "SettingsItemMeta"],
+      forbidden: [
+        'class="card archive-row"',
+        'class="card-body archive-row__body"',
+        ".archive-list {",
+        ".archive-row__meta"
+      ]
+    });
   });
 
   it("uses SettingsStatusTag for archive stats instead of direct tag markup", () => {
-    expect(archiveSettingsPaneSource).toContain("SettingsStatusTag");
-    expect(archiveSettingsPaneSource).not.toContain('<span class="tag">');
+    expectSourceMigration(archiveSettingsPaneSource, {
+      required: ["SettingsStatusTag"],
+      forbidden: ['<span class="tag">']
+    });
   });
 
   it("does not keep archive pane aria chrome inline in the component source", () => {
-    expectSourceNotToContain(archiveSettingsPaneSource, [
-      'aria-label="Archive"',
-      'aria-label="Archived sessions"'
-    ]);
+    expectSourceMigration(archiveSettingsPaneSource, {
+      forbidden: ['aria-label="Archive"', 'aria-label="Archived sessions"']
+    });
   });
 });
