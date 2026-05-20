@@ -179,6 +179,11 @@ export const useTaskGraphStore = defineStore("taskGraph", () => {
       toast.warning("No active session");
       return;
     }
+    const task = tasks.value.find((t) => t.id === taskId);
+    if (task && task.retry_count >= task.max_retries) {
+      toast.warning("Task retry limit reached");
+      return;
+    }
     try {
       await invoke("retry_task", { sessionId, taskId });
       toast.success("Task retry started");

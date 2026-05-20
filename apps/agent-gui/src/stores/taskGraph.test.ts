@@ -240,6 +240,19 @@ describe("retryTask", () => {
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
+  it("does not invoke retry_task when task reached max_retries", async () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
+      [makeTask({ id: "T1", state: "Failed", retry_count: 3, max_retries: 3 })],
+      "session-1"
+    );
+
+    await taskGraph.retryTask("T1");
+
+    expect(mockToast.warning).toHaveBeenCalledWith("Task retry limit reached");
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
   it("shows error toast on invoke failure", async () => {
     mockedInvoke.mockRejectedValue(new Error("Backend error"));
     const taskGraph = useTaskGraphStore();

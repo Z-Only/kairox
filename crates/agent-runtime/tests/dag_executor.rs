@@ -607,6 +607,45 @@ async fn dag_executor_retry_task_rejects_non_failed_or_blocked() {
 }
 
 #[tokio::test]
+async fn dag_executor_retry_task_rejects_after_max_retries() {
+    let executor = make_executor().await;
+    let mut graph = TaskGraph::default();
+    let task_id = graph.add_task_with_config(
+        "exhausted task",
+        AgentRole::Worker,
+        vec![],
+        1,
+        Some(AgentId::worker("w1")),
+    );
+
+    graph.mark_running(&task_id).unwrap();
+    graph.mark_failed(&task_id, "first failure".into()).unwrap();
+
+    let workspace_id = WorkspaceId::from_string("wrk_retry_exhausted".to_string());
+    let session_id = agent_core::SessionId::new();
+
+    executor
+        .retry_task(&workspace_id, &session_id, &mut graph, &task_id)
+        .await
+        .unwrap();
+
+    graph.mark_running(&task_id).unwrap();
+    graph
+        .mark_failed(&task_id, "second failure".into())
+        .unwrap();
+
+    let result = executor
+        .retry_task(&workspace_id, &session_id, &mut graph, &task_id)
+        .await;
+
+    assert!(result.is_err());
+    let task = graph.get_task(&task_id).unwrap();
+    assert_eq!(task.state, TaskState::Failed);
+    assert_eq!(task.retry_count, 1);
+    assert_eq!(task.error.as_deref(), Some("second failure"));
+}
+
+#[tokio::test]
 async fn dag_executor_cancel_task_cascades_block_dependents() {
     let executor = make_executor().await;
 
