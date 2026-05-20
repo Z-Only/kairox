@@ -168,6 +168,11 @@ pub enum Command {
         session_id: SessionId,
         skill_id: String,
     },
+    /// User cycled the permission mode from the status bar (Shift+P).
+    /// The runtime should apply the new mode for subsequent permission checks.
+    SetPermissionMode {
+        mode: agent_tools::PermissionMode,
+    },
 }
 
 /// Read-only shared state passed to components on every event.

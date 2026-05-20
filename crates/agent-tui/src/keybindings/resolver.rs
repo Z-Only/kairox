@@ -88,6 +88,7 @@ pub fn resolve_key(
         KeyCode::Backspace => KeyAction::InputBackspace,
         KeyCode::Delete => KeyAction::InputDelete,
         KeyCode::Char('x') => KeyAction::ContextMenu,
+        KeyCode::Char('P') => KeyAction::CyclePermissionMode,
         KeyCode::Char(c) => KeyAction::InputCharacter(c),
         _ => KeyAction::Unhandled,
     }

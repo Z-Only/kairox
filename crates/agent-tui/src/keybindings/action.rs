@@ -30,6 +30,10 @@ pub enum KeyAction {
     RenameSession,
     ToggleTraceDensity,
 
+    // -- Status bar shortcuts ---------------------------------------------
+    /// Cycle through permission modes (Shift+P).
+    CyclePermissionMode,
+
     // -- Input -------------------------------------------------------------
     InputCharacter(char),
     InputBackspace,
