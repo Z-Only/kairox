@@ -169,14 +169,16 @@ describe("McpSettingsPane", () => {
   it("uses shared card content hierarchy for server rows", () => {
     expect(mcpServerCardSource).toContain("SettingsItemSummary");
     expect(mcpServerCardSource).toContain("SettingsStatusTag");
-    expect(mcpServerCardSource).not.toContain(".mcp-settings__server-main");
-    expect(mcpServerCardSource).not.toContain(".server__tags");
-    expect(mcpServerCardSource).not.toContain("tag-success");
-    expect(mcpServerCardSource).not.toContain("tag-warning");
-    expect(mcpServerCardSource).not.toContain("tag-danger");
-    expect(mcpServerCardSource).not.toContain("tag--source");
-    expect(mcpServerCardSource).not.toContain("tag--override");
-    expect(mcpServerCardSource).not.toContain("tag--disabled-by");
+    expectSourceNotToContain(mcpServerCardSource, [
+      ".mcp-settings__server-main",
+      ".server__tags",
+      "tag-success",
+      "tag-warning",
+      "tag-danger",
+      "tag--source",
+      "tag--override",
+      "tag--disabled-by"
+    ]);
   });
 
   it("does not keep MCP pane aria chrome inline in the component source", () => {
@@ -404,22 +406,28 @@ describe("McpSettingsPane", () => {
       expect(source).toContain("KxAccordionList");
       expect(source).toContain("KxAccordionItem");
       expect(source).toContain("KxAccordionState");
-      expect(source).not.toContain("<KxStateBlock");
+      expectSourceNotToContain(source, ["<KxStateBlock"]);
     }
 
-    expect(mcpResourceAccordionSource).not.toContain(".mcp-resources-list {");
-    expect(mcpResourceAccordionSource).not.toContain(".mcp-resources-row {");
-    expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-list {");
-    expect(mcpPromptAccordionSource).not.toContain(".mcp-prompts-row {");
+    expectSourceNotToContain(mcpResourceAccordionSource, [
+      ".mcp-resources-list {",
+      ".mcp-resources-row {"
+    ]);
+    expectSourceNotToContain(mcpPromptAccordionSource, [
+      ".mcp-prompts-list {",
+      ".mcp-prompts-row {"
+    ]);
   });
 
   it("uses shared settings toolbar and subtabs instead of local MCP chrome", () => {
     expect(mcpSettingsPaneSource).toContain("SettingsSubtabs");
     expect(mcpSettingsPaneSource).toContain("SettingsToolbar");
-    expect(mcpSettingsPaneSource).not.toContain('class="mcp-sub-tabs"');
-    expect(mcpSettingsPaneSource).not.toContain('class="mcp-toolbar"');
-    expect(mcpSettingsPaneSource).not.toContain(".mcp-sub-tabs {");
-    expect(mcpSettingsPaneSource).not.toContain(".mcp-toolbar {");
-    expect(mcpSettingsPaneSource).not.toContain(".sub-tab-btn {");
+    expectSourceNotToContain(mcpSettingsPaneSource, [
+      'class="mcp-sub-tabs"',
+      'class="mcp-toolbar"',
+      ".mcp-sub-tabs {",
+      ".mcp-toolbar {",
+      ".sub-tab-btn {"
+    ]);
   });
 });

@@ -155,21 +155,23 @@ describe("AgentSettingsPane", () => {
     expect(agentSettingsPaneSource).toContain("SettingsItemSummary");
     expect(agentSettingsPaneSource).toContain("SettingsItemMeta");
     expect(agentSettingsPaneSource).toContain("SettingsStatusTag");
-    expect(agentSettingsPaneSource).not.toContain(".agent-row {");
-    expect(agentSettingsPaneSource).not.toContain(".agent-row__title");
-    expect(agentSettingsPaneSource).not.toContain(".agent-row__meta");
-    expect(agentSettingsPaneSource).not.toContain("tag-success");
-    expect(agentSettingsPaneSource).not.toContain("tag-warning");
-    expect(agentSettingsPaneSource).not.toContain("tag-error");
-    expect(agentSettingsPaneSource).not.toContain(
+    expectSourceNotToContain(agentSettingsPaneSource, [
+      ".agent-row {",
+      ".agent-row__title",
+      ".agent-row__meta",
+      "tag-success",
+      "tag-warning",
+      "tag-error",
       "border-bottom: 1px solid var(--app-border-color)"
-    );
+    ]);
   });
 
   it("uses shared settings toolbar instead of local agent toolbar chrome", () => {
     expect(agentSettingsPaneSource).toContain("SettingsToolbar");
-    expect(agentSettingsPaneSource).not.toContain('class="agent-settings__toolbar"');
-    expect(agentSettingsPaneSource).not.toContain(".agent-settings__toolbar,");
+    expectSourceNotToContain(agentSettingsPaneSource, [
+      'class="agent-settings__toolbar"',
+      ".agent-settings__toolbar,"
+    ]);
   });
 
   it("uses shared form fields and controls in the agent editor", () => {
@@ -177,9 +179,11 @@ describe("AgentSettingsPane", () => {
     expect(agentSettingsPaneSource).toContain("KxInput");
     expect(agentSettingsPaneSource).toContain("KxTextarea");
     expect(agentSettingsPaneSource).toContain('data-test="agent-form-instructions"');
-    expect(agentSettingsPaneSource).not.toContain("kx-form-control");
-    expect(agentSettingsPaneSource).not.toContain(".agent-editor input,");
-    expect(agentSettingsPaneSource).not.toContain(".agent-editor textarea {");
+    expectSourceNotToContain(agentSettingsPaneSource, [
+      "kx-form-control",
+      ".agent-editor input,",
+      ".agent-editor textarea {"
+    ]);
   });
 
   it("does not keep agent editor placeholder examples inline in the component source", () => {
