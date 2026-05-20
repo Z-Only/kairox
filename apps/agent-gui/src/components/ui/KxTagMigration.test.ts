@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import catalogCardSource from "@/components/marketplace/CatalogCard.vue?raw";
@@ -13,6 +13,7 @@ import permissionPromptSource from "@/components/PermissionPrompt.vue?raw";
 import mcpResourceAccordionSource from "@/components/McpResourceAccordion.vue?raw";
 import mcpPromptAccordionSource from "@/components/McpPromptAccordion.vue?raw";
 import marketplacePaneSource from "@/components/MarketplacePane.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 const componentsCssSource = readFileSync("src/styles/components.css", "utf8");
 
@@ -45,18 +46,17 @@ const legacyClassFragments = [
 
 describe("KxTag migration", () => {
   it.each(migratedSources)("%s uses KxTag/KxBadge instead of direct tag markup", (_, source) => {
-    expect(source).toMatch(/Kx(Tag|Badge)/);
-    expect(source).not.toMatch(/class="[^"]*\btag\b/);
-    expect(source).not.toMatch(/:class="[^"]*\btag\b/);
-    for (const fragment of legacyClassFragments) {
-      expect(source).not.toContain(fragment);
-    }
+    expectSourceMigration(source, {
+      forbidden: legacyClassFragments,
+      requiredPatterns: [/Kx(Tag|Badge)/],
+      forbiddenPatterns: [/class="[^"]*\btag\b/, /:class="[^"]*\btag\b/]
+    });
   });
 
   it("keeps only the neutral compatibility tag base in shared CSS", () => {
-    expect(componentsCssSource).toContain(".tag {");
-    for (const fragment of legacyClassFragments) {
-      expect(componentsCssSource).not.toContain(`.${fragment}`);
-    }
+    expectSourceMigration(componentsCssSource, {
+      required: [".tag {"],
+      forbidden: legacyClassFragments.map((fragment) => `.${fragment}`)
+    });
   });
 });

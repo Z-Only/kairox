@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import KxFormField from "./KxFormField.vue";
 import kxFormFieldSource from "./KxFormField.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 describe("KxFormField", () => {
   it("renders a labelled control with optional description", () => {
@@ -46,9 +47,13 @@ describe("KxFormField", () => {
     });
 
     expect(wrapper.find('[data-test="provider-input"]').exists()).toBe(true);
-    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control)");
-    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control:focus-visible)");
-    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--textarea)");
-    expect(kxFormFieldSource).not.toContain(".kx-form-field :deep(.kx-form-control--mono)");
+    expectSourceMigration(kxFormFieldSource, {
+      forbidden: [
+        ".kx-form-field :deep(.kx-form-control)",
+        ".kx-form-field :deep(.kx-form-control:focus-visible)",
+        ".kx-form-field :deep(.kx-form-control--textarea)",
+        ".kx-form-field :deep(.kx-form-control--mono)"
+      ]
+    });
   });
 });

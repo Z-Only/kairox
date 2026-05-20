@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import KxDrawer from "./KxDrawer.vue";
 import kxDrawerSource from "./KxDrawer.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -52,7 +53,9 @@ describe("KxDrawer", () => {
   });
 
   it("uses KxIconButton for the close control instead of global btn chrome", () => {
-    expect(kxDrawerSource).toContain("KxIconButton");
-    expect(kxDrawerSource).not.toContain('class="btn kx-drawer__close drawer-close-btn"');
+    expectSourceMigration(kxDrawerSource, {
+      required: ["KxIconButton"],
+      forbidden: ['class="btn kx-drawer__close drawer-close-btn"']
+    });
   });
 });

@@ -7,6 +7,7 @@ import projectSectionSource from "./sidebar/ProjectSection.vue?raw";
 import sidebarActionsSource from "@/composables/sidebar/useSidebarActions.ts?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -172,17 +173,20 @@ describe("SessionsSidebar", () => {
   });
 
   it("removes obsolete profile dialog and dropdown CSS", () => {
-    expect(sessionsSidebarSource).not.toContain(".new-session-dialog");
-    expect(sessionsSidebarSource).not.toContain(".profile-dropdown");
-    expect(sessionsSidebarSource).not.toContain(".profile-option");
-    expect(sessionsSidebarSource).not.toContain(".dialog-actions");
+    expectSourceMigration(sessionsSidebarSource, {
+      forbidden: [".new-session-dialog", ".profile-dropdown", ".profile-option", ".dialog-actions"]
+    });
   });
 
   it("keeps row actions visually hidden until hover or keyboard focus", () => {
-    expect(sessionsSidebarSource).toMatch(/\.row-actions\s*\{[\s\S]*opacity:\s*0/);
-    expect(sessionsSidebarSource).toMatch(/\.session-item:hover\s+\.row-actions/);
-    expect(sessionsSidebarSource).toMatch(/\.project-row:hover\s+\.row-actions/);
-    expect(sessionsSidebarSource).toMatch(/:focus-within\s+\.row-actions/);
+    expectSourceMigration(sessionsSidebarSource, {
+      requiredPatterns: [
+        /\.row-actions\s*\{[\s\S]*opacity:\s*0/,
+        /\.session-item:hover\s+\.row-actions/,
+        /\.project-row:hover\s+\.row-actions/,
+        /:focus-within\s+\.row-actions/
+      ]
+    });
   });
 
   it("uses inline SVG icons rather than emoji action labels", () => {
@@ -243,8 +247,9 @@ describe("SessionsSidebar", () => {
   });
 
   it("P2-S2-new-session-contrast: uses kx-icon-button for the new session action", () => {
-    expect(sessionSectionSource).toContain('data-test="new-session-btn"');
-    expect(sessionSectionSource).toContain("<KxIconButton");
+    expectSourceMigration(sessionSectionSource, {
+      required: ['data-test="new-session-btn"', "<KxIconButton"]
+    });
   });
 
   it("requires a second click on the same session archive button before deleting", async () => {
@@ -263,8 +268,10 @@ describe("SessionsSidebar", () => {
   });
 
   it("waits for session deletion before continuing after confirmation", () => {
-    expect(sidebarActionsSource).not.toContain("void session.deleteSession");
-    expect(sidebarActionsSource).toContain("await session.deleteSession(sessionId)");
+    expectSourceMigration(sidebarActionsSource, {
+      required: ["await session.deleteSession(sessionId)"],
+      forbidden: ["void session.deleteSession"]
+    });
   });
 
   it("imports an existing project from the selected directory", async () => {
@@ -354,14 +361,18 @@ describe("SessionsSidebar", () => {
   });
 
   it("keeps project and regular session lists in independent scroll regions", () => {
-    expect(projectSectionSource).toContain('data-test="projects-scroll-region"');
-    expect(sessionSectionSource).toContain('data-test="sessions-scroll-region"');
-    expect(sessionsSidebarSource).toMatch(
-      /\.sessions-sidebar \.sidebar-section\s*\{[\s\S]*max-height:/
-    );
-    expect(sessionsSidebarSource).toMatch(
-      /\.sessions-sidebar \.sidebar-section-scroll\s*\{[\s\S]*overflow-y:\s*auto/
-    );
+    expectSourceMigration(projectSectionSource, {
+      required: ['data-test="projects-scroll-region"']
+    });
+    expectSourceMigration(sessionSectionSource, {
+      required: ['data-test="sessions-scroll-region"']
+    });
+    expectSourceMigration(sessionsSidebarSource, {
+      requiredPatterns: [
+        /\.sessions-sidebar \.sidebar-section\s*\{[\s\S]*max-height:/,
+        /\.sessions-sidebar \.sidebar-section-scroll\s*\{[\s\S]*overflow-y:\s*auto/
+      ]
+    });
   });
 
   it("keeps project-bound sessions inside expanded projects and out of the regular session list", async () => {

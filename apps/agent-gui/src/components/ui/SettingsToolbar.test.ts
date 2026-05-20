@@ -4,6 +4,7 @@ import SettingsFilterBar from "./SettingsFilterBar.vue";
 import settingsFilterBarSource from "./SettingsFilterBar.vue?raw";
 import SettingsSubtabs from "./SettingsSubtabs.vue";
 import SettingsToolbar from "./SettingsToolbar.vue";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 describe("settings toolbar primitives", () => {
   it("renders a shared action toolbar with stable slots and attributes", () => {
@@ -54,7 +55,8 @@ describe("settings toolbar primitives", () => {
     expect(wrapper.classes()).toContain("settings-filter-bar");
     expect(wrapper.attributes("data-test")).toBe("catalog-filters");
     expect(wrapper.get('[data-test="search"]').attributes("type")).toBe("search");
-    expect(settingsFilterBarSource).not.toContain(".settings-filter-bar :deep(input)");
-    expect(settingsFilterBarSource).not.toContain(".settings-filter-bar :deep(select)");
+    expectSourceMigration(settingsFilterBarSource, {
+      forbidden: [".settings-filter-bar :deep(input)", ".settings-filter-bar :deep(select)"]
+    });
   });
 });

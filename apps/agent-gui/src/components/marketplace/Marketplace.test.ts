@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue([])
@@ -320,20 +321,24 @@ describe("CatalogDetail.vue configuration section", () => {
   });
 
   it("does not keep legacy handcrafted tooltip styles in catalog detail", () => {
-    expect(catalogDetailSource).not.toContain("tooltip-wrap");
-    expect(catalogDetailSource).not.toContain("tooltip-active");
-    expect(catalogDetailSource).not.toContain("data-tooltip");
+    expectSourceMigration(catalogDetailSource, {
+      forbidden: ["tooltip-wrap", "tooltip-active", "data-tooltip"]
+    });
   });
 
   it("does not keep shared catalog detail chrome copy inline in the component source", () => {
-    expect(catalogDetailSource).not.toMatch(/>\s*Homepage\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*Requirements\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*Configuration\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*Required configuration\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*No configuration required\.\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*No description provided by the catalog\.\s*</);
-    expect(catalogDetailSource).not.toMatch(/>\s*Trust this server/);
-    expect(catalogDetailSource).not.toMatch(/>\s*Start after install\s*</);
+    expectSourceMigration(catalogDetailSource, {
+      forbiddenPatterns: [
+        />\s*Homepage\s*</,
+        />\s*Requirements\s*</,
+        />\s*Configuration\s*</,
+        />\s*Required configuration\s*</,
+        />\s*No configuration required\.\s*</,
+        />\s*No description provided by the catalog\.\s*</,
+        />\s*Trust this server/,
+        />\s*Start after install\s*</
+      ]
+    });
   });
 });
 
@@ -417,15 +422,21 @@ describe("InstalledList.vue", () => {
   });
 
   it("does not keep installed-list table and action copy inline in the component source", () => {
-    expect(installedListSource).not.toMatch(/<th>\s*Server\s*<\/th>/);
-    expect(installedListSource).not.toMatch(/<th>\s*Source\s*<\/th>/);
-    expect(installedListSource).not.toMatch(/<th>\s*Status\s*<\/th>/);
-    expect(installedListSource).not.toMatch(/<th>\s*Installed at\s*<\/th>/);
-    expect(installedListSource).not.toContain('?? "(manual)"');
-    expect(installedListSource).not.toContain('? "running"');
-    expect(installedListSource).not.toContain(': "stopped"');
-    expect(installedListSource).not.toContain("Hand-edited entries are not removable from here");
-    expect(installedListSource).not.toMatch(/>\s*Uninstall\s*</);
+    expectSourceMigration(installedListSource, {
+      forbidden: [
+        '?? "(manual)"',
+        '? "running"',
+        ': "stopped"',
+        "Hand-edited entries are not removable from here"
+      ],
+      forbiddenPatterns: [
+        /<th>\s*Server\s*<\/th>/,
+        /<th>\s*Source\s*<\/th>/,
+        /<th>\s*Status\s*<\/th>/,
+        /<th>\s*Installed at\s*<\/th>/,
+        />\s*Uninstall\s*</
+      ]
+    });
   });
 
   it("audit anchors: exposes stable marketplace view pilot selector", async () => {

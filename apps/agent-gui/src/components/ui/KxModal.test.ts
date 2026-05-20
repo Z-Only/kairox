@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import KxModal from "./KxModal.vue";
 import kxModalSource from "./KxModal.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = vi.fn();
@@ -41,15 +42,16 @@ describe("KxModal", () => {
   });
 
   it("uses a full-viewport centering dialog so modal cards open in the page center", () => {
-    expect(kxModalSource).toContain("place-items: center");
-    expect(kxModalSource).toContain("width: 100vw");
-    expect(kxModalSource).toContain("height: 100dvh");
-    expect(kxModalSource).toContain("margin: 0");
+    expectSourceMigration(kxModalSource, {
+      required: ["place-items: center", "width: 100vw", "height: 100dvh", "margin: 0"]
+    });
   });
 
   it("uses KxIconButton for the close control instead of global btn chrome", () => {
-    expect(kxModalSource).toContain("KxIconButton");
-    expect(kxModalSource).not.toContain('class="btn kx-modal__close"');
+    expectSourceMigration(kxModalSource, {
+      required: ["KxIconButton"],
+      forbidden: ['class="btn kx-modal__close"']
+    });
   });
 
   it("emits close from close button and backdrop", async () => {

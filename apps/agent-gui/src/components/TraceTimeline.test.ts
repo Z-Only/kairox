@@ -6,6 +6,7 @@ import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -158,7 +159,9 @@ describe("TraceTimeline", () => {
   it("audit contrast tokens: keeps active trace controls and density labels readable in dark theme", () => {
     const darkThemeProperties = getCustomProperties(themeCss, "html.dark");
 
-    expect(kxButtonSource).toContain("color: var(--app-primary-contrast-color, #fff);");
+    expectSourceMigration(kxButtonSource, {
+      required: ["color: var(--app-primary-contrast-color, #fff);"]
+    });
     expect(
       getContrastRatio(
         darkThemeProperties["--app-primary-contrast-color"],
