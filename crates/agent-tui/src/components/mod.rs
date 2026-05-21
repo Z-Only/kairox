@@ -3,6 +3,7 @@ pub mod command_palette;
 pub mod mcp_overlay;
 pub mod permission_modal;
 pub mod sessions;
+pub mod skills_overlay;
 pub mod status_bar;
 pub mod trace;
 
@@ -46,6 +47,7 @@ pub enum FocusTarget {
     PermissionModal,
     McpOverlay,
     CommandPalette,
+    SkillsOverlay,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -65,6 +67,20 @@ pub struct McpServerEntry {
     pub status: McpServerStatusView,
     pub trusted: bool,
     pub tool_count: usize,
+}
+
+/// Snapshot row used to populate the skills overlay. Built from
+/// `SkillView` + the per-session active list before opening the overlay,
+/// kept local to the TUI so the overlay can be tested without spinning
+/// up a real `SkillRegistry`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkillEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub source: String,
+    pub activation_mode: String,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,6 +162,16 @@ pub enum CrossPanelEffect {
     /// cursor at the end. Used by the command palette to hand back a slash
     /// prefix that needs an argument.
     PrefillChatInput(String),
+    /// Build/refresh the skills overlay snapshot and open it.
+    ShowSkillsOverlay(Vec<SkillEntry>),
+    /// Close the skills overlay.
+    DismissSkillsOverlay,
+    /// Deliver a skill's rendered markdown body to the open overlay so it
+    /// can switch to inline detail view.
+    ShowSkillBody {
+        skill_id: String,
+        body: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -205,6 +231,9 @@ pub enum Command {
         session_id: SessionId,
         alias: String,
     },
+    /// Build a skill snapshot and open the skills overlay (Ctrl+S or
+    /// `:skills` typed in the chat panel).
+    OpenSkillsOverlay,
     /// User typed `:skills` to list discovered native skills.
     ListSkills,
     /// User typed `:skill show <id>` to show one native skill.

@@ -263,7 +263,8 @@ async fn dispatch_commands(
                 }
             }
 
-            Command::ListSkills
+            Command::OpenSkillsOverlay
+            | Command::ListSkills
             | Command::ShowSkill { .. }
             | Command::ActivateSkill { .. }
             | Command::DeactivateSkill { .. } => {

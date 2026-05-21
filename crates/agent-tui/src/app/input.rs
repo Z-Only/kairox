@@ -24,6 +24,10 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('p'));
+                let is_ctrl_s = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('s'));
                 if self.command_palette.is_visible() && !is_ctrl_p {
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -66,6 +70,29 @@ impl App {
                         current_session_id: &self.current_session_id,
                     };
                     let (effects, cmds) = self.mcp_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.skills_overlay.is_visible() && !is_ctrl_s {
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.skills_overlay.handle_event(&ctx, event);
                     self.dispatch_effects(effects);
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
@@ -180,6 +207,14 @@ impl App {
                     self.dispatch_effects(vec![CrossPanelEffect::ShowCommandPalette]);
                 }
                 self.state.render_scheduler.mark_dirty_immediate();
+            }
+            KeyAction::ToggleSkillsOverlay => {
+                if self.skills_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissSkillsOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenSkillsOverlay);
+                }
             }
             KeyAction::ToggleTraceDensity => {
                 self.trace.density = self.trace.density.next();

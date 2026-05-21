@@ -28,6 +28,8 @@ pub enum KeyAction {
     ToggleMcpOverlay,
     /// Ctrl+P — open/close the command palette.
     ToggleCommandPalette,
+    /// Ctrl+S — open/close the native skills overlay.
+    ToggleSkillsOverlay,
 
     // -- L4 Function -------------------------------------------------------
     Help,
