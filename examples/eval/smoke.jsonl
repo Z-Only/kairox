@@ -1,0 +1,1 @@
+{"id":"fake-smoke","prompt":"Say hello from the configured fake model.","profile":"fake","expected":{"assistant_contains":["Kairox"],"event_types":["UserMessageAdded","AssistantMessageCompleted"],"max_tool_failures":0}}
