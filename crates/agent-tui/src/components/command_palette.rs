@@ -26,6 +26,7 @@ pub enum PaletteAction {
     McpManager,
     Instructions,
     Plugins,
+    Agents,
     Skills,
     SkillsManager,
     ModelSelector,
@@ -105,6 +106,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Plugins: open manager",
             description: "Open the plugin manager",
             action: PaletteAction::Plugins,
+        },
+        PaletteEntry {
+            id: "agents",
+            label: ":agents",
+            description: "Open planner, worker, and reviewer agent settings",
+            action: PaletteAction::Agents,
         },
         PaletteEntry {
             id: "session-new",
@@ -267,6 +274,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::McpManager
         | PaletteAction::Instructions
         | PaletteAction::Plugins
+        | PaletteAction::Agents
         | PaletteAction::Skills
         | PaletteAction::SkillsManager
         | PaletteAction::ModelSelector
@@ -416,6 +424,9 @@ impl CommandPalette {
             }
             PaletteAction::Plugins => {
                 commands.push(Command::OpenPluginsOverlay);
+            }
+            PaletteAction::Agents => {
+                commands.push(Command::OpenAgentSettingsOverlay);
             }
             PaletteAction::ModelSelector => {
                 commands.push(Command::OpenModelOverlay);
@@ -747,6 +758,17 @@ mod tests {
         }
         let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
         assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
+    }
+
+    #[test]
+    fn enter_dispatches_open_agent_settings_overlay() {
+        let mut p = CommandPalette::new();
+        p.show();
+        for c in "agents".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
+        let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(matches!(&commands[..], [Command::OpenAgentSettingsOverlay]));
     }
 
     #[test]
