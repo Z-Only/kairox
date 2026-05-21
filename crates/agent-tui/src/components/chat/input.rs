@@ -38,6 +38,7 @@ impl ChatPanel {
                             workspace_id: ctx.workspace_id.clone(),
                             session_id: session_id.clone(),
                             alias,
+                            reasoning_effort: None,
                         });
                     }
                 } else if trimmed == ":skills" {

@@ -145,6 +145,12 @@ where
         &self.store
     }
 
+    /// Public accessor for the loaded `Config`. Used by UI dispatchers (TUI
+    /// model overlay, GUI settings) that need to snapshot profile metadata.
+    pub fn config(&self) -> &Arc<agent_config::Config> {
+        &self.config
+    }
+
     /// Test-only accessor for the underlying event store. Gated so production
     /// code can never read it.
     #[cfg(any(test, feature = "test-helpers"))]

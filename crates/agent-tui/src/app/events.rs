@@ -164,6 +164,19 @@ impl App {
                 self.compacting = false;
                 self.state.render_scheduler.mark_dirty();
             }
+            EventPayload::ModelProfileSwitched {
+                to_profile,
+                reasoning_effort,
+                ..
+            } => {
+                self.state.model_profile = to_profile.clone();
+                self.state.reasoning_effort = reasoning_effort.clone();
+                if let Some(session) = self.current_session_mut() {
+                    session.model_profile = to_profile.clone();
+                }
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
             _ => {
                 self.state.render_scheduler.mark_dirty();
             }

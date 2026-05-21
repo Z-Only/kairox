@@ -37,7 +37,7 @@ pub fn resolve_key(
     if mods.contains(KeyModifiers::CONTROL) {
         return match code {
             KeyCode::Char('c') => KeyAction::InterruptOrQuit,
-            KeyCode::Char('l') => KeyAction::Redraw,
+            KeyCode::Char('l') => KeyAction::ToggleModelOverlay,
             KeyCode::Char('m') => KeyAction::ToggleMcpOverlay,
             KeyCode::Char('p') => KeyAction::ToggleCommandPalette,
             KeyCode::Char('s') => KeyAction::ToggleSkillsOverlay,

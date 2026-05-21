@@ -86,7 +86,7 @@ fn l3_ctrl_c_interrupts() {
 }
 
 #[test]
-fn l3_ctrl_l_redraws() {
+fn l3_ctrl_l_toggles_model_overlay() {
     assert_eq!(
         resolve_key(
             ctrl_key(KeyCode::Char('l')),
@@ -94,7 +94,7 @@ fn l3_ctrl_l_redraws() {
             false,
             InputMode::SingleLine
         ),
-        KeyAction::Redraw
+        KeyAction::ToggleModelOverlay
     );
 }
 
