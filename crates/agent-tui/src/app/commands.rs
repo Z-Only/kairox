@@ -487,6 +487,17 @@ pub async fn dispatch_commands<F>(
                     }
                 }
             }
+            Command::SaveMcpServerSettings { input } => {
+                match McpFacade::upsert_mcp_server_settings(runtime.as_ref(), input.clone()).await {
+                    Ok(view) => {
+                        push_status_message(app, format!("saved MCP server {}", view.id));
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP save error: {error}]"));
+                    }
+                }
+            }
             Command::DeleteMcpServerSettings { server_id } => {
                 match McpFacade::delete_mcp_server_settings(runtime.as_ref(), server_id.clone())
                     .await
@@ -496,6 +507,65 @@ pub async fn dispatch_commands<F>(
                     }
                     Err(error) => {
                         push_status_message(app, format!("[MCP delete error: {error}]"));
+                    }
+                }
+            }
+            Command::OpenMcpConfig => {
+                match McpFacade::open_mcp_config_file(runtime.as_ref()).await {
+                    Ok(Some(path)) => {
+                        let path_buf = std::path::PathBuf::from(&path);
+                        match open_path_in_system_file_manager(&path_buf) {
+                            Ok(()) => {
+                                push_status_message(
+                                    app,
+                                    format!("opened MCP config {}", path_buf.display()),
+                                );
+                            }
+                            Err(error) => {
+                                push_status_message(
+                                    app,
+                                    format!("[MCP config open error: {error}]"),
+                                );
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        push_status_message(app, "MCP config path unavailable".to_string());
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP config error: {error}]"));
+                    }
+                }
+            }
+            Command::DisableMcpServerAtScope { server_id } => {
+                match project_config_path()
+                    .and_then(|path| apply_mcp_scope_disabled(&path, &server_id, true))
+                {
+                    Ok(()) => {
+                        push_status_message(
+                            app,
+                            format!("disabled MCP server {server_id} in project"),
+                        );
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP project disable error: {error}]"));
+                    }
+                }
+            }
+            Command::EnableMcpServerAtScope { server_id } => {
+                match project_config_path()
+                    .and_then(|path| apply_mcp_scope_disabled(&path, &server_id, false))
+                {
+                    Ok(()) => {
+                        push_status_message(
+                            app,
+                            format!("enabled MCP server {server_id} in project"),
+                        );
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP project enable error: {error}]"));
                     }
                 }
             }
@@ -539,6 +609,28 @@ pub async fn dispatch_commands<F>(
                     }
                     Err(error) => {
                         push_status_message(app, format!("[MCP source error: {error}]"));
+                    }
+                }
+            }
+            Command::AddMcpCatalogSource { request } => {
+                match McpFacade::add_catalog_source(runtime.as_ref(), request.clone()).await {
+                    Ok(()) => {
+                        push_status_message(app, format!("added MCP source {}", request.id));
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP source add error: {error}]"));
+                    }
+                }
+            }
+            Command::RemoveMcpCatalogSource { source_id } => {
+                match McpFacade::remove_catalog_source(runtime.as_ref(), source_id.clone()).await {
+                    Ok(()) => {
+                        push_status_message(app, format!("removed MCP source {source_id}"));
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP source remove error: {error}]"));
                     }
                 }
             }
@@ -1017,6 +1109,96 @@ fn project_config_path() -> Result<std::path::PathBuf, String> {
         .map_err(|error| format!("failed to resolve project config path: {error}"))
 }
 
+fn apply_mcp_scope_disabled(
+    config_path: &std::path::Path,
+    server_id: &str,
+    disabled: bool,
+) -> Result<(), String> {
+    let raw = match std::fs::read_to_string(config_path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(format!("failed to read project config: {error}")),
+    };
+    let mut doc: toml_edit::DocumentMut = raw
+        .parse()
+        .map_err(|error| format!("failed to parse project config: {error}"))?;
+
+    let mut ids = doc
+        .get("disabled_mcp_servers")
+        .and_then(|value| value.as_array())
+        .map(|array| {
+            array
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    if disabled {
+        if !ids.iter().any(|id| id == server_id) {
+            ids.push(server_id.to_string());
+        }
+    } else {
+        ids.retain(|id| id != server_id);
+    }
+    ids.sort();
+
+    if ids.is_empty() {
+        doc.remove("disabled_mcp_servers");
+    } else {
+        let mut array = toml_edit::Array::new();
+        for id in ids {
+            array.push(id);
+        }
+        doc["disabled_mcp_servers"] = toml_edit::value(array);
+    }
+
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create project config dir {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+    std::fs::write(config_path, doc.to_string())
+        .map_err(|error| format!("failed to write project config: {error}"))
+}
+
+fn read_disabled_mcp_scope(
+    config_path: &std::path::Path,
+) -> Result<std::collections::HashSet<String>, String> {
+    let raw = match std::fs::read_to_string(config_path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(format!("failed to read project config: {error}")),
+    };
+    let doc: toml_edit::DocumentMut = raw
+        .parse()
+        .map_err(|error| format!("failed to parse project config: {error}"))?;
+    Ok(doc
+        .get("disabled_mcp_servers")
+        .and_then(|value| value.as_array())
+        .map(|array| {
+            array
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+fn apply_project_disabled_scope(
+    settings: &mut [agent_core::facade::McpServerSettingsView],
+    disabled_ids: &std::collections::HashSet<String>,
+) {
+    for setting in settings {
+        if disabled_ids.contains(&setting.id) {
+            setting.enabled = false;
+        }
+    }
+}
+
 fn load_instructions_view() -> Result<agent_core::facade::InstructionsView, String> {
     let user_config_path = user_config_path();
     let user_instructions =
@@ -1320,13 +1502,17 @@ pub async fn refresh_mcp_overlay<F>(
 ) where
     F: AppFacade + ?Sized,
 {
-    let settings = match McpFacade::list_mcp_server_settings(runtime.as_ref(), None).await {
+    let mut settings = match McpFacade::list_mcp_server_settings(runtime.as_ref(), None).await {
         Ok(settings) => settings,
         Err(error) => {
             push_status_message(app, format!("[MCP settings error: {error}]"));
             Vec::new()
         }
     };
+    match project_config_path().and_then(|path| read_disabled_mcp_scope(&path)) {
+        Ok(disabled_ids) => apply_project_disabled_scope(&mut settings, &disabled_ids),
+        Err(error) => push_status_message(app, format!("[MCP project scope error: {error}]")),
+    }
 
     let installed = match McpFacade::list_installed_entries(runtime.as_ref()).await {
         Ok(installed) => installed,
