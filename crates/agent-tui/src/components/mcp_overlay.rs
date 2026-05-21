@@ -8,8 +8,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use agent_core::facade::{
-    AddCatalogSourceRequest, CatalogSourceView, InstalledEntry, McpServerSettingsInput,
-    McpServerSettingsTransport, McpServerSettingsView, ServerEntry,
+    AddCatalogSourceRequest, CatalogSourceView, InstallRequest, InstalledEntry,
+    McpServerSettingsInput, McpServerSettingsTransport, McpServerSettingsView, ServerEntry,
 };
 use agent_mcp::catalog::{EnvVarSpec, InstallSpec, RuntimeRequirement};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
@@ -123,6 +123,7 @@ enum McpOverlayMode {
     ServerEditor,
     SourceEditor,
     CatalogFilter,
+    CatalogInstallConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -435,6 +436,82 @@ impl SourceDraft {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CatalogInstallDraft {
+    catalog_id: String,
+    source: String,
+    display_name: String,
+    items: Vec<CatalogConfigItem>,
+    values: BTreeMap<String, String>,
+}
+
+impl CatalogInstallDraft {
+    fn new() -> Self {
+        Self {
+            catalog_id: String::new(),
+            source: String::new(),
+            display_name: String::new(),
+            items: Vec::new(),
+            values: BTreeMap::new(),
+        }
+    }
+
+    fn from_entry(entry: &ServerEntry) -> Self {
+        let items = catalog_config_items(entry);
+        let values = items
+            .iter()
+            .map(|item| (item.key.clone(), item.default.clone().unwrap_or_default()))
+            .collect();
+        Self {
+            catalog_id: entry.id.clone(),
+            source: entry.source.clone(),
+            display_name: entry.display_name.clone(),
+            items,
+            values,
+        }
+    }
+
+    fn to_request(&self) -> Option<InstallRequest> {
+        let mut env_overrides = BTreeMap::new();
+        for item in &self.items {
+            let value = self.values.get(&item.key).cloned().unwrap_or_default();
+            if item.required && value.trim().is_empty() {
+                return None;
+            }
+            if !value.trim().is_empty() {
+                env_overrides.insert(item.key.clone(), value);
+            }
+        }
+
+        Some(InstallRequest {
+            catalog_id: self.catalog_id.clone(),
+            source: self.source.clone(),
+            server_id_override: None,
+            env_overrides,
+            trust_grant: false,
+            auto_start: true,
+        })
+    }
+
+    fn push_char(&mut self, index: usize, ch: char) {
+        if let Some(key) = self.items.get(index).map(|item| item.key.clone()) {
+            self.values.entry(key).or_default().push(ch);
+        }
+    }
+
+    fn backspace(&mut self, index: usize) {
+        if let Some(key) = self.items.get(index).map(|item| item.key.clone()) {
+            self.values.entry(key).or_default().pop();
+        }
+    }
+
+    fn clear_field(&mut self, index: usize) {
+        if let Some(key) = self.items.get(index).map(|item| item.key.clone()) {
+            self.values.entry(key).or_default().clear();
+        }
+    }
+}
+
 pub struct McpOverlay {
     focused: bool,
     visible: bool,
@@ -465,6 +542,8 @@ pub struct McpOverlay {
     server_field_index: usize,
     source_draft: SourceDraft,
     source_field_index: usize,
+    catalog_install_draft: CatalogInstallDraft,
+    catalog_install_field_index: usize,
 }
 
 struct McpOverlayRenderState<'a> {
@@ -516,6 +595,8 @@ impl McpOverlay {
             server_field_index: 0,
             source_draft: SourceDraft::new(),
             source_field_index: 0,
+            catalog_install_draft: CatalogInstallDraft::new(),
+            catalog_install_field_index: 0,
         }
     }
 
@@ -560,6 +641,8 @@ impl McpOverlay {
         self.server_field_index = 0;
         self.source_draft = SourceDraft::new();
         self.source_field_index = 0;
+        self.catalog_install_draft = CatalogInstallDraft::new();
+        self.catalog_install_field_index = 0;
     }
 
     #[allow(dead_code)]
@@ -849,6 +932,23 @@ impl McpOverlay {
         self.source_field_index = 0;
     }
 
+    fn start_catalog_install_selected(&mut self) -> Vec<Command> {
+        let Some(entry) = self.selected_catalog_entry().cloned() else {
+            return Vec::new();
+        };
+        let config_items = catalog_config_items(&entry);
+        if config_items.is_empty() {
+            return vec![Command::InstallMcpServer {
+                request: install_request_for_entry(&entry, BTreeMap::new()),
+            }];
+        }
+
+        self.mode = McpOverlayMode::CatalogInstallConfig;
+        self.catalog_install_draft = CatalogInstallDraft::from_entry(&entry);
+        self.catalog_install_field_index = 0;
+        Vec::new()
+    }
+
     fn current_server_field(&self) -> ServerEditorField {
         SERVER_EDITOR_FIELDS[self.server_field_index]
     }
@@ -878,6 +978,25 @@ impl McpOverlay {
             SOURCE_EDITOR_FIELDS.len() - 1
         } else {
             self.source_field_index - 1
+        };
+    }
+
+    fn move_catalog_install_field_down(&mut self) {
+        let len = self.catalog_install_draft.items.len();
+        if len > 0 {
+            self.catalog_install_field_index = (self.catalog_install_field_index + 1) % len;
+        }
+    }
+
+    fn move_catalog_install_field_up(&mut self) {
+        let len = self.catalog_install_draft.items.len();
+        if len == 0 {
+            return;
+        }
+        self.catalog_install_field_index = if self.catalog_install_field_index == 0 {
+            len - 1
+        } else {
+            self.catalog_install_field_index - 1
         };
     }
 
@@ -918,6 +1037,35 @@ impl McpOverlay {
             KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
                 self.source_draft.push_char(self.current_source_field(), ch);
             }
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn handle_catalog_install_config_key(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+    ) -> Vec<Command> {
+        match key {
+            KeyCode::Tab | KeyCode::Down => self.move_catalog_install_field_down(),
+            KeyCode::BackTab | KeyCode::Up => self.move_catalog_install_field_up(),
+            KeyCode::Esc => self.mode = McpOverlayMode::List,
+            KeyCode::Backspace => self
+                .catalog_install_draft
+                .backspace(self.catalog_install_field_index),
+            KeyCode::Delete => self
+                .catalog_install_draft
+                .clear_field(self.catalog_install_field_index),
+            KeyCode::Enter => {
+                if let Some(request) = self.catalog_install_draft.to_request() {
+                    self.mode = McpOverlayMode::List;
+                    return vec![Command::InstallMcpServer { request }];
+                }
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => self
+                .catalog_install_draft
+                .push_char(self.catalog_install_field_index, ch),
             _ => {}
         }
         Vec::new()
@@ -1055,18 +1203,6 @@ impl McpOverlay {
                 .map(|entry| Command::UninstallMcpServer {
                     server_id: entry.server_id.clone(),
                 }),
-            (McpOverlayTab::Catalog, KeyCode::Char('i') | KeyCode::Char('I')) => self
-                .selected_catalog_entry()
-                .map(|entry| Command::InstallMcpServer {
-                    request: agent_core::facade::InstallRequest {
-                        catalog_id: entry.id.clone(),
-                        source: entry.source.clone(),
-                        server_id_override: None,
-                        env_overrides: BTreeMap::new(),
-                        trust_grant: false,
-                        auto_start: true,
-                    },
-                }),
             (McpOverlayTab::Sources, KeyCode::Char('e') | KeyCode::Char('E')) => self
                 .selected_source()
                 .map(|source| Command::SetMcpCatalogSourceEnabled {
@@ -1126,6 +1262,10 @@ fn render_mcp_overlay(
         }
         McpOverlayMode::SourceEditor => {
             render_source_editor(inner, frame, overlay);
+            return;
+        }
+        McpOverlayMode::CatalogInstallConfig => {
+            render_catalog_install_config_editor(inner, frame, overlay);
             return;
         }
         McpOverlayMode::List | McpOverlayMode::CatalogFilter => {}
@@ -1701,6 +1841,20 @@ fn catalog_config_items(entry: &ServerEntry) -> Vec<CatalogConfigItem> {
     items
 }
 
+fn install_request_for_entry(
+    entry: &ServerEntry,
+    env_overrides: BTreeMap<String, String>,
+) -> InstallRequest {
+    InstallRequest {
+        catalog_id: entry.id.clone(),
+        source: entry.source.clone(),
+        server_id_override: None,
+        env_overrides,
+        trust_grant: false,
+        auto_start: true,
+    }
+}
+
 fn parse_install_spec(entry: &ServerEntry) -> Option<InstallSpec> {
     serde_json::from_str(&entry.install_spec_json).ok()
 }
@@ -2012,6 +2166,99 @@ fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
     );
 }
 
+fn render_catalog_install_config_editor(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(area);
+    let draft = &overlay.catalog_install_draft;
+
+    frame.render_widget(
+        Paragraph::new(vec![
+            Line::from(vec![
+                Span::styled(
+                    "Install configuration: ",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(clip(&draft.display_name, 64)),
+            ]),
+            Line::from(Span::styled(
+                "Fill required MCP catalog values before installing",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ]),
+        chunks[0],
+    );
+
+    let items = draft
+        .items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let marker = if index == overlay.catalog_install_field_index {
+                "> "
+            } else {
+                "  "
+            };
+            let value = draft.values.get(&item.key).cloned().unwrap_or_default();
+            let missing = item.required && value.trim().is_empty();
+            let value_label = if item.secret && !value.is_empty() {
+                "*".repeat(value.chars().count().min(12))
+            } else {
+                value
+            };
+            let required = if item.required {
+                "required"
+            } else {
+                "optional"
+            };
+            let required_color = if missing {
+                Color::Yellow
+            } else {
+                Color::DarkGray
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Magenta)),
+                Span::styled(
+                    format!("{:<18}", item.key),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("{:<12}", item.kind),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(
+                    format!("{required:<8} "),
+                    Style::default().fg(required_color),
+                ),
+                Span::styled(
+                    if item.secret { "secret " } else { "       " },
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::raw(value_label),
+            ]))
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(List::new(items), chunks[1]);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                "[Tab/Up/Down] field  ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled("[Enter] install  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        ])),
+        chunks[2],
+    );
+}
+
 fn server_field_label(field: ServerEditorField) -> &'static str {
     match field {
         ServerEditorField::Name => "Name",
@@ -2175,6 +2422,10 @@ impl Component for McpOverlay {
                 self.handle_catalog_filter_key(key.code, key.modifiers);
                 return (effects, commands);
             }
+            McpOverlayMode::CatalogInstallConfig => {
+                commands.extend(self.handle_catalog_install_config_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
             McpOverlayMode::List => {}
         }
 
@@ -2203,6 +2454,9 @@ impl Component for McpOverlay {
             }
             KeyCode::Char('t') | KeyCode::Char('T') if self.tab == McpOverlayTab::Catalog => {
                 self.cycle_catalog_trust_filter();
+            }
+            KeyCode::Char('i') | KeyCode::Char('I') if self.tab == McpOverlayTab::Catalog => {
+                commands.extend(self.start_catalog_install_selected());
             }
             KeyCode::Esc => {
                 self.hide();
@@ -2922,6 +3176,55 @@ mod tests {
                     && request.source == "builtin"
                     && request.server_id_override.is_none()
                     && request.env_overrides == BTreeMap::new()
+                    && request.auto_start
+                    && !request.trust_grant
+        ));
+    }
+
+    #[test]
+    fn catalog_install_config_editor_collects_required_overrides() {
+        let mut entry = catalog_entry("github", "registry");
+        entry.install_spec_json = r#"{"transport":"sse","url":"https://mcp.example.com/sse","headers":{"Authorization":"Bearer ${Authorization}"}}"#.to_string();
+        entry.default_env_json = r#"[
+            {"key":"Authorization","label":"Authorization","description":"Bearer token","required":true,"secret":true,"default":null},
+            {"key":"GITHUB_ORG","label":"GitHub org","description":"Organization","required":true,"secret":false,"default":null}
+        ]"#.to_string();
+
+        let mut overlay = McpOverlay::new();
+        overlay.show(McpOverlaySnapshot {
+            runtime_servers: Vec::new(),
+            settings: Vec::new(),
+            installed: Vec::new(),
+            catalog: vec![entry],
+            sources: vec![source("registry", true)],
+        });
+        advance_tabs(&mut overlay, 3);
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('i')));
+        assert!(
+            commands.is_empty(),
+            "expected install config editor before command emission, got {commands:?}"
+        );
+        let rendered = rendered_overlay(&overlay);
+        assert!(rendered.contains("Install configuration"), "{rendered}");
+        assert!(rendered.contains("Authorization"), "{rendered}");
+        assert!(rendered.contains("GITHUB_ORG"), "{rendered}");
+
+        type_text(&mut overlay, "Bearer test-token");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "kairox-dev");
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        let mut expected_overrides = BTreeMap::new();
+        expected_overrides.insert("Authorization".to_string(), "Bearer test-token".to_string());
+        expected_overrides.insert("GITHUB_ORG".to_string(), "kairox-dev".to_string());
+        assert!(matches!(
+            &commands[..],
+            [Command::InstallMcpServer { request }]
+                if request.catalog_id == "github"
+                    && request.source == "registry"
+                    && request.server_id_override.is_none()
+                    && request.env_overrides == expected_overrides
                     && request.auto_start
                     && !request.trust_grant
         ));

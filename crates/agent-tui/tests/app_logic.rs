@@ -25,6 +25,7 @@ async fn make_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
 #[derive(Default)]
 struct TuiMcpFakeFacade {
     calls: std::sync::Mutex<Vec<String>>,
+    last_install_request: std::sync::Mutex<Option<agent_core::facade::InstallRequest>>,
 }
 
 impl TuiMcpFakeFacade {
@@ -34,6 +35,13 @@ impl TuiMcpFakeFacade {
 
     fn calls(&self) -> Vec<String> {
         self.calls.lock().expect("calls lock").clone()
+    }
+
+    fn last_install_request(&self) -> Option<agent_core::facade::InstallRequest> {
+        self.last_install_request
+            .lock()
+            .expect("last install request lock")
+            .clone()
     }
 }
 
@@ -138,6 +146,10 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
         &self,
         request: agent_core::facade::InstallRequest,
     ) -> agent_core::Result<agent_core::facade::InstallOutcomeView> {
+        *self
+            .last_install_request
+            .lock()
+            .expect("last install request lock") = Some(request.clone());
         self.record(format!(
             "install_catalog_entry:{}:{}:{}",
             request.catalog_id, request.source, request.auto_start
@@ -2195,6 +2207,43 @@ async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
             "expected call {expected}, got {calls:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn tui_mcp_install_command_forwards_env_overrides() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+    use std::collections::BTreeMap;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut env_overrides = BTreeMap::new();
+    env_overrides.insert("Authorization".to_string(), "Bearer test-token".to_string());
+    env_overrides.insert("GITHUB_ORG".to_string(), "kairox-dev".to_string());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::InstallMcpServer {
+            request: agent_core::facade::InstallRequest {
+                catalog_id: "github".into(),
+                source: "registry".into(),
+                server_id_override: None,
+                env_overrides: env_overrides.clone(),
+                trust_grant: false,
+                auto_start: true,
+            },
+        }],
+    )
+    .await;
+
+    let request = runtime
+        .last_install_request()
+        .expect("install request should reach facade");
+    assert_eq!(request.catalog_id, "github");
+    assert_eq!(request.source, "registry");
+    assert_eq!(request.env_overrides, env_overrides);
 }
 
 #[tokio::test]
