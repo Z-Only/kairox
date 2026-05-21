@@ -23,6 +23,7 @@ pub enum PaletteAction {
     CancelSession,
     NewSession,
     McpManager,
+    Instructions,
     Plugins,
     Skills,
     SkillsManager,
@@ -90,6 +91,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Skills: open manager",
             description: "Open installed skills and catalog controls",
             action: PaletteAction::SkillsManager,
+        },
+        PaletteEntry {
+            id: "instructions",
+            label: ":instructions",
+            description: "Open user/project instructions settings",
+            action: PaletteAction::Instructions,
         },
         PaletteEntry {
             id: "plugins",
@@ -242,6 +249,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::CancelSession
         | PaletteAction::NewSession
         | PaletteAction::McpManager
+        | PaletteAction::Instructions
         | PaletteAction::Plugins
         | PaletteAction::Skills
         | PaletteAction::SkillsManager
@@ -381,6 +389,9 @@ impl CommandPalette {
             }
             PaletteAction::SkillsManager => {
                 commands.push(Command::OpenSkillsOverlay);
+            }
+            PaletteAction::Instructions => {
+                commands.push(Command::OpenInstructionsOverlay);
             }
             PaletteAction::Plugins => {
                 commands.push(Command::OpenPluginsOverlay);

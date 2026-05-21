@@ -1,4 +1,6 @@
-use agent_core::facade::{McpFacade, PluginsFacade, SkillCatalogQuery, SkillInstallTarget};
+use agent_core::facade::{
+    InstructionsUpdateInput, McpFacade, PluginsFacade, SkillCatalogQuery, SkillInstallTarget,
+};
 use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{ActivateSkillRequest, AppFacade, DeactivateSkillRequest};
 
@@ -27,6 +29,21 @@ pub async fn dispatch_commands<F>(
             }
             Command::OpenPluginsOverlay => {
                 refresh_plugins_overlay(runtime, app).await;
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenInstructionsOverlay => {
+                refresh_instructions_overlay(app);
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::SaveInstructions { scope, text } => {
+                match save_instructions(scope, text) {
+                    Ok(()) => {
+                        refresh_instructions_overlay(app);
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[instructions error: {error}]"));
+                    }
+                }
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::ListSkills if app.skills_overlay.is_visible() => {
@@ -411,6 +428,59 @@ fn push_status_message(app: &mut App, content: String) {
         content,
     });
     app.state.render_scheduler.mark_dirty();
+}
+
+fn user_config_path() -> std::path::PathBuf {
+    std::env::var("HOME")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".kairox")
+        .join("config.toml")
+}
+
+fn project_config_path() -> Result<std::path::PathBuf, String> {
+    std::env::current_dir()
+        .map(|root| root.join(".kairox").join("config.toml"))
+        .map_err(|error| format!("failed to resolve project config path: {error}"))
+}
+
+fn load_instructions_view() -> Result<agent_core::facade::InstructionsView, String> {
+    let user_config_path = user_config_path();
+    let user_instructions =
+        agent_runtime::instructions_settings::read_instructions(&user_config_path)
+            .map_err(|error| error.to_string())?;
+
+    let project_config_path = project_config_path()?;
+    let project_instructions =
+        agent_runtime::instructions_settings::read_instructions(&project_config_path)
+            .map_err(|error| error.to_string())?;
+
+    Ok(
+        agent_runtime::instructions_settings::build_instructions_view(
+            user_instructions,
+            project_instructions,
+        ),
+    )
+}
+
+fn refresh_instructions_overlay(app: &mut App) {
+    match load_instructions_view() {
+        Ok(view) => app.dispatch_effects(vec![CrossPanelEffect::ShowInstructionsOverlay(view)]),
+        Err(error) => push_status_message(app, format!("[instructions error: {error}]")),
+    }
+}
+
+fn save_instructions(scope: agent_core::ConfigScope, text: String) -> Result<(), String> {
+    let input = InstructionsUpdateInput { scope, text };
+    let user_config_path = user_config_path();
+    let project_config_path = project_config_path()?;
+    agent_runtime::instructions_settings::upsert_instructions(
+        &input,
+        &user_config_path,
+        Some(project_config_path.as_path()),
+    )
+    .map_err(|error| error.to_string())
 }
 
 async fn refresh_skills_overlay<F>(

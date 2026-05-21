@@ -630,6 +630,8 @@ async fn dispatch_commands(
 
             Command::OpenSkillsOverlay
             | Command::OpenPluginsOverlay
+            | Command::OpenInstructionsOverlay
+            | Command::SaveInstructions { .. }
             | Command::ListSkills
             | Command::ShowSkill { .. }
             | Command::ActivateSkill { .. }
