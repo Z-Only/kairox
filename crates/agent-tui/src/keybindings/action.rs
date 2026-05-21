@@ -26,6 +26,8 @@ pub enum KeyAction {
     Redraw,
     /// Ctrl+M — open/close the MCP server overlay.
     ToggleMcpOverlay,
+    /// Ctrl+P — open/close the command palette.
+    ToggleCommandPalette,
 
     // -- L4 Function -------------------------------------------------------
     Help,

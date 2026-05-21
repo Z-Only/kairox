@@ -124,6 +124,11 @@ impl Component for ChatPanel {
             CrossPanelEffect::StartStreaming | CrossPanelEffect::StopStreaming => {
                 // No-op for now; will be wired to RenderScheduler later.
             }
+            CrossPanelEffect::PrefillChatInput(text) => {
+                self.input_content = text.clone();
+                self.input_cursor = text.len();
+                self.input_history_index = None;
+            }
             _ => {}
         }
     }
