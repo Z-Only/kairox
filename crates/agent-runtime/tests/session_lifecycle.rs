@@ -1,8 +1,8 @@
 //! Session lifecycle integration tests for CRUD, persistence, and cleanup.
 
 use agent_core::{
-    AppFacade, CoreError, DomainEvent, ProjectId, SendMessageRequest, SessionId,
-    StartSessionRequest, WorkspaceId,
+    AppFacade, CoreError, DomainEvent, ProjectId, ProjectSessionVisibility, SendMessageRequest,
+    SessionId, StartSessionRequest, WorkspaceId,
 };
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
@@ -526,6 +526,50 @@ async fn project_session_lists_require_sqlite_metadata_store() {
             other => panic!("expected InvalidState, got {other:?}"),
         }
     }
+}
+
+#[tokio::test]
+async fn facade_projects_lists_draft_sessions_with_project_metadata() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-facade-projects-workspace".into())
+        .await
+        .unwrap();
+    let project_root = tempfile::tempdir().expect("temp project root");
+    let project_root_string = project_root.path().display().to_string();
+    let project = runtime
+        .add_existing_project(workspace.workspace_id.clone(), project_root_string.clone())
+        .await
+        .unwrap();
+
+    let session_id = runtime
+        .create_project_draft_session(project.project_id.clone())
+        .await
+        .unwrap();
+
+    let project_sessions = runtime
+        .list_project_sessions(project.project_id.clone())
+        .await
+        .unwrap();
+    let workspace_sessions = runtime
+        .list_sessions(&workspace.workspace_id)
+        .await
+        .unwrap();
+
+    assert!(
+        workspace_sessions.is_empty(),
+        "project-bound sessions should not duplicate in workspace session list"
+    );
+    assert_eq!(project_sessions.len(), 1);
+    let session = &project_sessions[0];
+    assert_eq!(session.session_id, session_id);
+    assert_eq!(session.project_id, Some(project.project_id));
+    assert_eq!(session.worktree_path, Some(project_root_string));
+    assert_eq!(
+        session.visibility,
+        Some(ProjectSessionVisibility::DraftHidden)
+    );
 }
 
 #[tokio::test]

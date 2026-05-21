@@ -54,6 +54,24 @@ impl ChatPanel {
                 } else if trimmed == ":plugins" {
                     self.clear_input();
                     commands.push(Command::OpenPluginsOverlay);
+                } else if trimmed == ":project draft" {
+                    self.clear_input();
+                    if let Some(project_id) = active_project_id(ctx) {
+                        commands.push(Command::CreateProjectDraftSession { project_id });
+                    }
+                } else if let Some(branch_name) = trimmed
+                    .strip_prefix(":project worktree ")
+                    .map(str::trim)
+                    .filter(|branch_name| !branch_name.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    if let Some(project_id) = active_project_id(ctx) {
+                        commands.push(Command::CreateProjectWorktreeSession {
+                            project_id,
+                            branch_name,
+                        });
+                    }
                 } else if let Some(path) = trimmed
                     .strip_prefix(":attach ")
                     .map(str::trim)
@@ -364,6 +382,14 @@ fn parse_queue_action(trimmed: &str) -> Option<QueueAction> {
         "send" | "send-now" | "now" => Some(QueueAction::SendSelectedNow),
         _ => None,
     }
+}
+
+fn active_project_id(ctx: &EventContext) -> Option<agent_core::ProjectId> {
+    let session_id = ctx.current_session_id.as_ref()?;
+    ctx.sessions
+        .iter()
+        .find(|session| &session.id == session_id)
+        .and_then(|session| session.project_id.clone())
 }
 
 fn prev_char_boundary(s: &str, pos: usize) -> usize {

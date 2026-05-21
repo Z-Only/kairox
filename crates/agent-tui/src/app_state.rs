@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use agent_core::projection::SessionProjection;
 use agent_tools::PermissionMode;
 
-use crate::components::{FocusTarget, SessionInfo};
+use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
 
 // ---------------------------------------------------------------------------
 // FocusManager
@@ -276,6 +276,7 @@ pub struct AppState {
     // Session data
     pub current_session: SessionProjection,
     pub sessions: Vec<SessionInfo>,
+    pub projects: Vec<ProjectInfo>,
 
     // Model / permissions
     pub model_profile: String,
@@ -310,6 +311,7 @@ impl AppState {
             sidebar_right_visible: false,
             current_session: SessionProjection::default(),
             sessions: Vec::new(),
+            projects: Vec::new(),
             model_profile: model_profile.into(),
             reasoning_effort: None,
             permission_mode,
