@@ -67,7 +67,7 @@ graph TD
 - **Context management** — per-model context windows, budget-driven prompt assembly, manual/automatic compaction, busy-state guards, and GUI context usage meter
 - **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing, with mid-session model switching and reasoning effort selection when profiles support it
 - **Tool system** — built-in tools (shell, search, patch, fs.read, fs.write, fs.list) with 5-level permission control and MCP (Model Context Protocol) integration
-- **MCP marketplace** — built-in catalog plus remote sources with multi-source aggregation, one-click install, and runtime-missing hints (Phase 1 + 2)
+- **MCP marketplace and connectivity** — built-in catalog plus remote sources with multi-source aggregation, one-click install, runtime-missing hints, and GUI connectivity actions
 - **Skills, plugins, and instructions** — native skills for reusable prompt/tool/workflow capabilities, plugin-namespaced skill discovery, plugin settings, hook settings, and user/project instruction settings with effective-preview support
 - **Config discovery** — TOML config with profile management, env-variable API keys, and per-project `.kairox/` directory discovery
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
@@ -95,7 +95,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development (current release `v0.24.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
+Kairox is in active development (current release `v0.25.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
 
 Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The runtime tracks per-model context windows, assembles prompts against token budgets, supports manual and automatic context compaction, allows mid-session model switching with reasoning effort selection when profiles support it, and can create isolated git worktrees for project worktree sessions.
 

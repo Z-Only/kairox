@@ -63,6 +63,7 @@
 - ✅ Add resizable workbench sidebars (#205)
 - ✅ Add plugin settings marketplace and plugin-namespaced skill discovery (#206, #213)
 - ✅ Add reasoning effort selection for reasoning-capable profiles (#222)
+- ✅ Expose MCP connectivity actions in the GUI (#302)
 
 ## Mid term
 
