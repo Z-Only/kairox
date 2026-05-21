@@ -503,7 +503,10 @@ impl CommandPalette {
                 commands.push(Command::OpenSkillsOverlay);
             }
             PaletteAction::RefreshSkillCatalog => {
-                commands.push(Command::RefreshSkillCatalog);
+                commands.push(Command::RefreshSkillCatalog {
+                    keyword: None,
+                    sources: None,
+                });
             }
             PaletteAction::Instructions => {
                 commands.push(Command::OpenInstructionsOverlay);
@@ -1019,7 +1022,13 @@ mod tests {
                 }
                 "agents-dir" => assert!(matches!(&commands[..], [Command::OpenAgentsDir])),
                 "skill-catalog-refresh" => {
-                    assert!(matches!(&commands[..], [Command::RefreshSkillCatalog]))
+                    assert!(matches!(
+                        &commands[..],
+                        [Command::RefreshSkillCatalog {
+                            keyword: None,
+                            sources: None
+                        }]
+                    ))
                 }
                 _ => unreachable!(),
             }

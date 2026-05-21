@@ -461,6 +461,11 @@ impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {
         self.record(format!("set_skill_source_enabled:{id}:{enabled}"));
         Ok(())
     }
+
+    async fn refresh_skill_catalog(&self) -> agent_core::Result<()> {
+        self.record("refresh_skill_catalog");
+        Ok(())
+    }
 }
 
 fn project_meta(
@@ -1896,9 +1901,13 @@ fn colon_skill_catalog_input_dispatches_list_skill_catalog_command() {
     let commands = chat_commands_for_input(":skill catalog review");
 
     assert!(
-        commands.iter().any(
-            |command| matches!(command, Command::ListSkillCatalog { keyword: Some(keyword) } if keyword == "review")
-        ),
+        commands.iter().any(|command| matches!(
+            command,
+            Command::ListSkillCatalog {
+                keyword: Some(keyword),
+                sources: None
+            } if keyword == "review"
+        )),
         "expected Command::ListSkillCatalog for review; got {commands:?}"
     );
     assert!(
@@ -1910,9 +1919,13 @@ fn colon_skill_catalog_input_dispatches_list_skill_catalog_command() {
 
     let commands = chat_commands_for_input(":skill catalog");
     assert!(
-        commands
-            .iter()
-            .any(|command| matches!(command, Command::ListSkillCatalog { keyword: None })),
+        commands.iter().any(|command| matches!(
+            command,
+            Command::ListSkillCatalog {
+                keyword: None,
+                sources: None
+            }
+        )),
         "expected Command::ListSkillCatalog without keyword; got {commands:?}"
     );
 }
@@ -2262,6 +2275,58 @@ async fn tui_skill_source_commands_call_facade_and_refresh_overlay() {
             .count()
             >= 4,
         "expected source mutations to refresh overlay, got {calls:?}"
+    );
+}
+
+#[tokio::test]
+async fn tui_skill_catalog_overlay_queries_include_keyword_and_sources() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenSkillsOverlay]).await;
+    assert!(app.skills_overlay.is_visible());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::ListSkillCatalog {
+            keyword: Some("review".into()),
+            sources: Some(vec!["skillhub".into()]),
+        }],
+    )
+    .await;
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::RefreshSkillCatalog {
+            keyword: Some("docs".into()),
+            sources: Some(vec!["skillhub".into()]),
+        }],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    assert!(
+        calls.iter().any(
+            |call| call
+                == "list_skill_catalog:Some(\"review\"):Some([\"skillhub\"]):Some(50)"
+        ),
+        "expected filtered overlay list call, got {calls:?}"
+    );
+    assert!(
+        calls.iter().any(|call| call == "refresh_skill_catalog"),
+        "expected catalog refresh call, got {calls:?}"
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|call| call == "list_skill_catalog:Some(\"docs\"):Some([\"skillhub\"]):Some(50)"),
+        "expected refresh to rerun filtered overlay query, got {calls:?}"
     );
 }
 
@@ -2647,6 +2712,7 @@ cache_ttl_seconds = 900
         vec![
             Command::ListSkillCatalog {
                 keyword: Some("review".into()),
+                sources: None,
             },
             Command::InstallRemoteSkill {
                 request: InstallRemoteSkillRequest {

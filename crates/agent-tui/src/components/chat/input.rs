@@ -180,7 +180,10 @@ impl ChatPanel {
                         .filter(|keyword| !keyword.is_empty())
                         .map(str::to_string);
                     self.clear_input();
-                    commands.push(Command::ListSkillCatalog { keyword });
+                    commands.push(Command::ListSkillCatalog {
+                        keyword,
+                        sources: None,
+                    });
                 } else if let Some(package) = trimmed
                     .strip_prefix(":skill install ")
                     .map(str::trim)
