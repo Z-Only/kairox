@@ -73,6 +73,40 @@ pub struct McpServerEntry {
     pub tool_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpToolEntry {
+    pub server_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub input_schema: Option<String>,
+    pub disabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpResourceEntry {
+    pub server_id: String,
+    pub uri: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub mime_type: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpPromptEntry {
+    pub server_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub argument_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpConnectivityEntry {
+    pub server_id: String,
+    pub connected: bool,
+    pub tool_count: Option<u32>,
+    pub reason: Option<String>,
+}
+
 /// Snapshot payload for opening the MCP overlay. Runtime server state is
 /// supplied by the TUI main loop, while settings/catalog data comes from the
 /// MCP facade so tests can exercise the command path with fake facades.
@@ -220,6 +254,26 @@ pub enum CrossPanelEffect {
     StopStreaming,
     ShowMcpOverlay(McpOverlaySnapshot),
     DismissMcpOverlay,
+    McpToolsLoaded {
+        server_id: String,
+        tools: Vec<McpToolEntry>,
+        healthy: bool,
+        error: Option<String>,
+    },
+    McpConnectivityChecked(McpConnectivityEntry),
+    McpResourcesLoaded {
+        server_id: String,
+        resources: Vec<McpResourceEntry>,
+    },
+    McpPromptsLoaded {
+        server_id: String,
+        prompts: Vec<McpPromptEntry>,
+    },
+    McpResourceRead {
+        server_id: String,
+        uri: String,
+        preview: String,
+    },
     /// Open the command palette overlay.
     ShowCommandPalette,
     /// Close the command palette overlay.
@@ -261,6 +315,10 @@ pub enum Command {
     TrustMcpServer {
         server_id: String,
     },
+    /// Revoke stored trust for an MCP server.
+    RevokeMcpTrust {
+        server_id: String,
+    },
     /// Build an MCP server snapshot and open the overlay.
     OpenMcpOverlay,
     /// Start a stopped/failed MCP server from the overlay.
@@ -274,6 +332,33 @@ pub enum Command {
     /// Refresh the cached tool list from a running MCP server.
     RefreshMcpTools {
         server_id: String,
+    },
+    /// Run the MCP health check and populate the tools tab.
+    CheckMcpHealth {
+        server_id: String,
+    },
+    /// Run a connectivity probe against an MCP server.
+    TestMcpConnectivity {
+        server_id: String,
+    },
+    /// Enable or disable one runtime-discovered MCP tool.
+    SetMcpToolDisabled {
+        server_id: String,
+        tool_name: String,
+        disabled: bool,
+    },
+    /// List MCP resources for a running server.
+    ListMcpResources {
+        server_id: String,
+    },
+    /// List MCP prompts for a running server.
+    ListMcpPrompts {
+        server_id: String,
+    },
+    /// Read one MCP resource.
+    ReadMcpResource {
+        server_id: String,
+        uri: String,
     },
     /// Enable or disable one MCP server in writable settings.
     SetMcpServerEnabled {
