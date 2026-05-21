@@ -674,6 +674,7 @@ async fn dispatch_commands(
             | Command::DeleteAgentSettings { .. }
             | Command::CopyAgentSettings { .. }
             | Command::OpenAgentsDir
+            | Command::SaveProfileSettings { .. }
             | Command::SetProfileEnabled { .. }
             | Command::DeleteProfileSettings { .. }
             | Command::MoveProfileInOrder { .. }
@@ -733,7 +734,8 @@ async fn dispatch_commands(
                 );
                 let refresh_model_after = matches!(
                     command,
-                    Command::SetProfileEnabled { .. }
+                    Command::SaveProfileSettings { .. }
+                        | Command::SetProfileEnabled { .. }
                         | Command::DeleteProfileSettings { .. }
                         | Command::MoveProfileInOrder { .. }
                 );
@@ -1363,6 +1365,14 @@ async fn refresh_model_overlay(
             alias: p.alias,
             provider_display: p.provider,
             model_display: p.model_id,
+            context_window: p.context_window,
+            output_limit: p.output_limit,
+            temperature: p.temperature,
+            top_p: p.top_p,
+            top_k: p.top_k,
+            max_tokens: p.max_tokens,
+            base_url: p.base_url,
+            api_key_env: p.api_key_env,
             enabled: p.enabled,
             writable: p.writable,
             source: p.source,
