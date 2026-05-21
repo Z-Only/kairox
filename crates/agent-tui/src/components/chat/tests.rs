@@ -60,6 +60,10 @@ fn test_ctx_with_session() -> &'static EventContext<'static> {
                 state: SessionState::Idle,
                 pinned: false,
                 archived: false,
+                project_id: None,
+                worktree_path: None,
+                branch: None,
+                visibility: None,
             }]
             .into_boxed_slice(),
         );
@@ -96,6 +100,10 @@ fn test_ctx_busy_session() -> &'static EventContext<'static> {
                 state: SessionState::Active,
                 pinned: false,
                 archived: false,
+                project_id: None,
+                worktree_path: None,
+                branch: None,
+                visibility: None,
             }]
             .into_boxed_slice(),
         );

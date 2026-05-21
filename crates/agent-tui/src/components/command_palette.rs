@@ -22,6 +22,7 @@ pub enum PaletteAction {
     Compact,
     CancelSession,
     NewSession,
+    ProjectDraftSession,
     McpManager,
     Instructions,
     Plugins,
@@ -33,6 +34,7 @@ pub enum PaletteAction {
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
     PrefillModel,
+    PrefillProjectWorktree,
     PrefillSkillShow,
     PrefillSkillActivate,
     PrefillSkillDeactivate,
@@ -109,6 +111,18 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Session: new",
             description: "Start a new session using the active model",
             action: PaletteAction::NewSession,
+        },
+        PaletteEntry {
+            id: "project-draft",
+            label: ":project draft",
+            description: "Start a draft session in the active project",
+            action: PaletteAction::ProjectDraftSession,
+        },
+        PaletteEntry {
+            id: "project-worktree",
+            label: ":project worktree <branch>",
+            description: "Start a worktree session in the active project",
+            action: PaletteAction::PrefillProjectWorktree,
         },
         PaletteEntry {
             id: "session-cancel",
@@ -237,6 +251,7 @@ pub fn filter_entries<'a>(filter: &str, entries: &'a [PaletteEntry]) -> Vec<&'a 
 pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
     match action {
         PaletteAction::PrefillModel => Some(":model "),
+        PaletteAction::PrefillProjectWorktree => Some(":project worktree "),
         PaletteAction::PrefillSkillShow => Some(":skill show "),
         PaletteAction::PrefillSkillActivate => Some(":skill activate "),
         PaletteAction::PrefillSkillDeactivate => Some(":skill deactivate "),
@@ -248,6 +263,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::Compact
         | PaletteAction::CancelSession
         | PaletteAction::NewSession
+        | PaletteAction::ProjectDraftSession
         | PaletteAction::McpManager
         | PaletteAction::Instructions
         | PaletteAction::Plugins
@@ -381,6 +397,11 @@ impl CommandPalette {
                     model_profile: ctx.model_profile.to_string(),
                 });
             }
+            PaletteAction::ProjectDraftSession => {
+                if let Some(project_id) = active_project_id(ctx) {
+                    commands.push(Command::CreateProjectDraftSession { project_id });
+                }
+            }
             PaletteAction::McpManager => {
                 commands.push(Command::OpenMcpOverlay);
             }
@@ -413,6 +434,14 @@ impl CommandPalette {
         effects.push(CrossPanelEffect::DismissCommandPalette);
         (effects, commands)
     }
+}
+
+fn active_project_id(ctx: &EventContext) -> Option<agent_core::ProjectId> {
+    let session_id = ctx.current_session_id.as_ref()?;
+    ctx.sessions
+        .iter()
+        .find(|session| &session.id == session_id)
+        .and_then(|session| session.project_id.clone())
 }
 
 pub fn render_command_palette(

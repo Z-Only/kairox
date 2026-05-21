@@ -1,7 +1,7 @@
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, SessionInfo, SessionState,
+    Command, Component, CrossPanelEffect, EventContext, ProjectInfo, SessionInfo, SessionState,
 };
-use agent_core::SessionId;
+use agent_core::{ProjectId, ProjectSessionVisibility, SessionId};
 use crossterm::event::{Event, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -15,6 +15,8 @@ pub enum SessionAction {
     Archive,
     Restore,
     Delete,
+    NewDraft,
+    NewWorktree,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +25,10 @@ enum SessionActionMode {
     Rename {
         session_id: SessionId,
         title: String,
+    },
+    Worktree {
+        project_id: ProjectId,
+        branch_name: String,
     },
 }
 
@@ -136,6 +142,13 @@ impl SessionsPanel {
     fn available_actions_for(session: &SessionInfo) -> &'static [SessionAction] {
         if session.archived {
             &[SessionAction::Restore, SessionAction::Delete]
+        } else if session.project_id.is_some() {
+            &[
+                SessionAction::Rename,
+                SessionAction::Archive,
+                SessionAction::NewDraft,
+                SessionAction::NewWorktree,
+            ]
         } else {
             &[SessionAction::Rename, SessionAction::Archive]
         }
@@ -194,6 +207,24 @@ impl SessionsPanel {
                 vec![Command::DeleteSession {
                     session_id: session.id.clone(),
                 }]
+            }
+            SessionAction::NewDraft => {
+                self.close_action_menu();
+                session
+                    .project_id
+                    .clone()
+                    .map(|project_id| Command::CreateProjectDraftSession { project_id })
+                    .into_iter()
+                    .collect()
+            }
+            SessionAction::NewWorktree => {
+                if let Some(project_id) = session.project_id.clone() {
+                    self.action_mode = SessionActionMode::Worktree {
+                        project_id,
+                        branch_name: String::new(),
+                    };
+                }
+                Vec::new()
             }
         }
     }
@@ -260,6 +291,28 @@ impl SessionsPanel {
                     Vec::new()
                 }
             }
+            KeyCode::Char('n') | KeyCode::Char('N') => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                if session.project_id.is_some() && !session.archived {
+                    self.activate_action(SessionAction::NewDraft, &session)
+                } else {
+                    Vec::new()
+                }
+            }
+            KeyCode::Char('w') | KeyCode::Char('W') => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                if session.project_id.is_some() && !session.archived {
+                    self.activate_action(SessionAction::NewWorktree, &session)
+                } else {
+                    Vec::new()
+                }
+            }
             _ => Vec::new(),
         }
     }
@@ -283,7 +336,7 @@ impl SessionsPanel {
                             })
                         }
                     }
-                    SessionActionMode::Menu => None,
+                    SessionActionMode::Menu | SessionActionMode::Worktree { .. } => None,
                 };
                 self.close_action_menu();
                 command.into_iter().collect()
@@ -297,6 +350,49 @@ impl SessionsPanel {
             KeyCode::Char(c) => {
                 if let SessionActionMode::Rename { title, .. } = &mut self.action_mode {
                     title.push(c);
+                }
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn handle_worktree_key(&mut self, code: KeyCode) -> Vec<Command> {
+        match code {
+            KeyCode::Esc => {
+                self.close_action_menu();
+                Vec::new()
+            }
+            KeyCode::Enter => {
+                let command = match &self.action_mode {
+                    SessionActionMode::Worktree {
+                        project_id,
+                        branch_name,
+                    } => {
+                        let branch_name = branch_name.trim().to_string();
+                        if branch_name.is_empty() {
+                            None
+                        } else {
+                            Some(Command::CreateProjectWorktreeSession {
+                                project_id: project_id.clone(),
+                                branch_name,
+                            })
+                        }
+                    }
+                    SessionActionMode::Menu | SessionActionMode::Rename { .. } => None,
+                };
+                self.close_action_menu();
+                command.into_iter().collect()
+            }
+            KeyCode::Backspace => {
+                if let SessionActionMode::Worktree { branch_name, .. } = &mut self.action_mode {
+                    branch_name.pop();
+                }
+                Vec::new()
+            }
+            KeyCode::Char(c) => {
+                if let SessionActionMode::Worktree { branch_name, .. } = &mut self.action_mode {
+                    branch_name.push(c);
                 }
                 Vec::new()
             }
@@ -324,6 +420,7 @@ fn session_state_icon(state: &SessionState) -> (&'static str, Color) {
 pub fn render_sessions(
     area: Rect,
     frame: &mut Frame,
+    projects: &[ProjectInfo],
     sessions: &[SessionInfo],
     focused: bool,
     state: &mut ListState,
@@ -334,12 +431,28 @@ pub fn render_sessions(
         Style::default().fg(Color::DarkGray)
     };
 
+    let (project_area, list_area) = if projects.is_empty() {
+        (None, area)
+    } else {
+        let project_height = (projects.len() as u16 + 2).min(area.height.saturating_sub(3).max(1));
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(project_height), Constraint::Min(1)])
+            .split(area);
+        (Some(chunks[0]), chunks[1])
+    };
+
+    if let Some(project_area) = project_area {
+        render_project_summary(project_area, frame, projects, sessions, border_style);
+    }
+
     let items: Vec<ListItem> = sessions
         .iter()
         .map(|session| {
             let (icon, icon_color) = session_state_icon(&session.state);
             let pin = if session.pinned { "📌 " } else { "" };
             let archived = if session.archived { " [archived]" } else { "" };
+            let metadata = session_metadata_label(session);
             let mut spans = vec![
                 Span::styled(format!("{pin}{icon} "), Style::default().fg(icon_color)),
                 Span::raw(&session.title),
@@ -348,6 +461,12 @@ pub fn render_sessions(
                     Style::default().add_modifier(Modifier::DIM),
                 ),
             ];
+            if let Some(metadata) = metadata {
+                spans.push(Span::styled(
+                    format!(" {metadata}"),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
             if let SessionState::Error(e) = &session.state {
                 spans.push(Span::styled(
                     format!(" {e}"),
@@ -367,7 +486,74 @@ pub fn render_sessions(
                 .title(" Sessions ")
                 .border_style(border_style),
         );
-    frame.render_stateful_widget(list, area, state);
+    frame.render_stateful_widget(list, list_area, state);
+}
+
+fn render_project_summary(
+    area: Rect,
+    frame: &mut Frame,
+    projects: &[ProjectInfo],
+    sessions: &[SessionInfo],
+    border_style: Style,
+) {
+    let lines = projects.iter().map(|project| {
+        let session_count = sessions
+            .iter()
+            .filter(|session| session.project_id.as_ref() == Some(&project.id))
+            .count();
+        let expanded = if project.expanded { "▾" } else { "▸" };
+        Line::from(vec![
+            Span::styled(format!("{expanded} "), Style::default().fg(Color::Cyan)),
+            Span::raw(project.display_name.clone()),
+            Span::styled(
+                format!(" ({session_count})"),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ])
+    });
+    let paragraph = Paragraph::new(lines.collect::<Vec<_>>()).block(
+        Block::default()
+            .borders(Borders::RIGHT | Borders::BOTTOM)
+            .title(" Projects ")
+            .border_style(border_style),
+    );
+    frame.render_widget(paragraph, area);
+}
+
+fn session_metadata_label(session: &SessionInfo) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(visibility) = &session.visibility {
+        if matches!(visibility, ProjectSessionVisibility::DraftHidden) {
+            parts.push("draft".to_string());
+        }
+    }
+    if let Some(branch) = session
+        .branch
+        .as_deref()
+        .filter(|branch| !branch.is_empty())
+    {
+        parts.push(format!("branch {branch}"));
+    }
+    if let Some(path) = session
+        .worktree_path
+        .as_deref()
+        .filter(|path| !path.is_empty())
+        .map(compact_worktree_path)
+    {
+        parts.push(path);
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(" · "))
+    }
+}
+
+fn compact_worktree_path(path: &str) -> String {
+    path.split_once(".kairox/")
+        .map(|(_, suffix)| suffix.to_string())
+        .unwrap_or_else(|| path.to_string())
 }
 
 fn action_label(action: SessionAction) -> &'static str {
@@ -376,6 +562,8 @@ fn action_label(action: SessionAction) -> &'static str {
         SessionAction::Archive => "Archive",
         SessionAction::Restore => "Restore",
         SessionAction::Delete => "Delete permanently",
+        SessionAction::NewDraft => "New draft session",
+        SessionAction::NewWorktree => "New worktree session",
     }
 }
 
@@ -385,6 +573,8 @@ fn action_key(action: SessionAction) -> &'static str {
         SessionAction::Archive => "a",
         SessionAction::Restore => "r",
         SessionAction::Delete => "d",
+        SessionAction::NewDraft => "n",
+        SessionAction::NewWorktree => "w",
     }
 }
 
@@ -395,7 +585,7 @@ fn render_session_action_overlay(
     sessions: &[SessionInfo],
 ) {
     let modal_width = 56.min(area.width.saturating_sub(4));
-    let modal_height = 10.min(area.height.saturating_sub(4));
+    let modal_height = 12.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(modal_width)) / 2;
     let y = (area.height.saturating_sub(modal_height)) / 2;
     let modal_area = Rect::new(x, y, modal_width, modal_height);
@@ -498,6 +688,23 @@ fn render_session_action_overlay(
                 chunks[2],
             );
         }
+        SessionActionMode::Worktree { branch_name, .. } => {
+            frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("Branch: ", Style::default().fg(Color::Yellow)),
+                    Span::raw(branch_name.clone()),
+                    Span::styled("▌", Style::default().fg(Color::Cyan)),
+                ])),
+                chunks[1],
+            );
+            frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("[Enter] create  ", Style::default().fg(Color::Yellow)),
+                    Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+                ])),
+                chunks[2],
+            );
+        }
     }
 }
 
@@ -521,6 +728,7 @@ impl Component for SessionsPanel {
         let commands = match self.action_mode {
             SessionActionMode::Menu => self.handle_menu_key(ctx, key.code),
             SessionActionMode::Rename { .. } => self.handle_rename_key(key.code),
+            SessionActionMode::Worktree { .. } => self.handle_worktree_key(key.code),
         };
         (Vec::new(), commands)
     }
@@ -543,6 +751,7 @@ impl Component for SessionsPanel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use agent_core::{ProjectId, ProjectSessionVisibility};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn make_session(title: &str, state: SessionState, pinned: bool) -> SessionInfo {
@@ -553,12 +762,40 @@ mod tests {
             state,
             pinned,
             archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
         }
     }
 
     fn make_archived_session(title: &str) -> SessionInfo {
         SessionInfo {
             archived: true,
+            ..make_session(title, SessionState::Idle, false)
+        }
+    }
+
+    fn make_project(title: &str) -> ProjectInfo {
+        ProjectInfo {
+            id: ProjectId::from_string(format!("prj_{title}")),
+            display_name: title.into(),
+            root_path: format!("/tmp/{title}"),
+            expanded: true,
+        }
+    }
+
+    fn make_project_session(
+        title: &str,
+        project_id: ProjectId,
+        branch: Option<&str>,
+        worktree_path: Option<&str>,
+    ) -> SessionInfo {
+        SessionInfo {
+            project_id: Some(project_id),
+            branch: branch.map(str::to_string),
+            worktree_path: worktree_path.map(str::to_string),
+            visibility: Some(ProjectSessionVisibility::Visible),
             ..make_session(title, SessionState::Idle, false)
         }
     }
@@ -756,6 +993,117 @@ mod tests {
             commands.as_slice(),
             [Command::RenameSession { session_id, title }]
                 if session_id == &sessions[0].id && title == "main!"
+        ));
+        assert!(!panel.context_menu_open);
+    }
+
+    #[test]
+    fn render_sessions_shows_projects_and_branch_worktree_metadata() {
+        let project = make_project("alpha");
+        let sessions = vec![make_project_session(
+            "Worktree session",
+            project.id.clone(),
+            Some("feat/tui"),
+            Some("/tmp/alpha/.kairox/worktrees/feat-tui"),
+        )];
+        let mut panel_state = ListState::default();
+
+        let backend = ratatui::backend::TestBackend::new(72, 8);
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| {
+                render_sessions(
+                    frame.area(),
+                    frame,
+                    &[project],
+                    &sessions,
+                    true,
+                    &mut panel_state,
+                );
+            })
+            .expect("draw");
+
+        let buffer = terminal.backend().buffer();
+        let text: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<Vec<_>>()
+            .join("");
+
+        assert!(text.contains("Projects"));
+        assert!(text.contains("alpha"));
+        assert!(text.contains("Worktree session"));
+        assert!(text.contains("feat/tui"));
+        assert!(text.contains("worktrees/feat-tui"));
+    }
+
+    #[test]
+    fn action_overlay_emits_create_project_draft_for_project_session() {
+        let project = make_project("alpha");
+        let sessions = vec![make_project_session(
+            "alpha session",
+            project.id.clone(),
+            Some("main"),
+            Some("/tmp/alpha"),
+        )];
+        let mut panel = SessionsPanel::new();
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('n')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::CreateProjectDraftSession { project_id }]
+                if project_id == &project.id
+        ));
+        assert!(!panel.context_menu_open);
+    }
+
+    #[test]
+    fn worktree_input_emits_create_worktree_session_with_branch() {
+        let project = make_project("alpha");
+        let sessions = vec![make_project_session(
+            "alpha session",
+            project.id.clone(),
+            Some("main"),
+            Some("/tmp/alpha"),
+        )];
+        let mut panel = SessionsPanel::new();
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('w')),
+        );
+        assert!(commands.is_empty());
+
+        for ch in "feat/tui-parity".chars() {
+            let (_, commands) = panel.handle_event(
+                &ctx(&sessions, &current, &workspace, &projection),
+                &key(KeyCode::Char(ch)),
+            );
+            assert!(commands.is_empty());
+        }
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Enter),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::CreateProjectWorktreeSession { project_id, branch_name }]
+                if project_id == &project.id && branch_name == "feat/tui-parity"
         ));
         assert!(!panel.context_menu_open);
     }

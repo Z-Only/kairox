@@ -10,7 +10,7 @@ pub mod skills_overlay;
 pub mod status_bar;
 pub mod trace;
 
-use agent_core::{AttachmentInfo, SessionId};
+use agent_core::{AttachmentInfo, ProjectId, ProjectSessionVisibility, SessionId};
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -223,6 +223,14 @@ pub enum SessionState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectInfo {
+    pub id: ProjectId,
+    pub display_name: String,
+    pub root_path: String,
+    pub expanded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionInfo {
     pub id: SessionId,
     pub title: String,
@@ -230,6 +238,10 @@ pub struct SessionInfo {
     pub state: SessionState,
     pub pinned: bool,
     pub archived: bool,
+    pub project_id: Option<ProjectId>,
+    pub worktree_path: Option<String>,
+    pub branch: Option<String>,
+    pub visibility: Option<ProjectSessionVisibility>,
 }
 
 /// A message typed while the session is busy and held until the session
@@ -460,6 +472,13 @@ pub enum Command {
     },
     DeleteSession {
         session_id: SessionId,
+    },
+    CreateProjectDraftSession {
+        project_id: ProjectId,
+    },
+    CreateProjectWorktreeSession {
+        project_id: ProjectId,
+        branch_name: String,
     },
     /// P3: user typed `:compact` in the chat panel; ask the runtime to
     /// summarise older history into a compaction summary.

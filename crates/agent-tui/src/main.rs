@@ -9,7 +9,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use agent_config::Config;
-use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+use agent_core::{
+    AppFacade, ProjectMeta, ProjectSessionVisibility, SendMessageRequest, SessionMeta,
+    StartSessionRequest,
+};
 use agent_memory::{MemoryQuery, SqliteMemoryStore};
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
@@ -31,7 +34,7 @@ use components::trace::MemoryRow;
 use components::{
     Command, CrossPanelEffect, McpConnectivityEntry, McpPromptEntry, McpResourceEntry,
     McpServerEntry, McpServerStatusView, McpToolEntry, ModelOverlaySnapshot, ModelProfileEntry,
-    SessionInfo, SessionState,
+    ProjectInfo, SessionInfo, SessionState,
 };
 
 // ---------------------------------------------------------------------------
@@ -61,22 +64,41 @@ async fn dispatch_commands(
                 content,
                 attachments,
             } => {
-                if let Err(e) = runtime
+                match runtime
                     .send_message(SendMessageRequest {
                         workspace_id,
-                        session_id,
+                        session_id: session_id.clone(),
                         content,
                         attachments,
                     })
                     .await
                 {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    Ok(()) => {
+                        let project_id = app
+                            .state
+                            .sessions
+                            .iter()
+                            .find(|session| session.id == session_id)
+                            .and_then(|session| match session.visibility {
+                                Some(ProjectSessionVisibility::DraftHidden) => {
+                                    session.project_id.clone()
+                                }
+                                _ => None,
+                            });
+                        if let Some(project_id) = project_id {
+                            let _ = refresh_project_sessions_for_project(runtime, app, &project_id)
+                                .await;
+                        }
+                    }
+                    Err(e) => {
+                        app.state.current_session.messages.push(
+                            agent_core::projection::ProjectedMessage {
+                                role: agent_core::projection::ProjectedRole::Assistant,
+                                content: format!("[error: {e}]"),
+                            },
+                        );
+                        app.state.render_scheduler.mark_dirty();
+                    }
                 }
             }
 
@@ -708,6 +730,10 @@ async fn dispatch_commands(
                             state: SessionState::Idle,
                             pinned: false,
                             archived: false,
+                            project_id: None,
+                            worktree_path: None,
+                            branch: None,
+                            visibility: None,
                         });
                         app.state.current_session =
                             agent_core::projection::SessionProjection::default();
@@ -756,6 +782,7 @@ async fn dispatch_commands(
                         {
                             session.archived = true;
                             session.state = SessionState::Idle;
+                            session.visibility = Some(ProjectSessionVisibility::Archived);
                         }
                         if app.current_session_id.as_ref() == Some(&session_id) {
                             switch_to_first_active_session(runtime, app).await;
@@ -769,13 +796,35 @@ async fn dispatch_commands(
             }
 
             Command::RestoreSession { session_id } => {
-                match runtime.restore_archived_session(&session_id).await {
+                let project_session = app
+                    .state
+                    .sessions
+                    .iter()
+                    .find(|session| session.id == session_id)
+                    .and_then(|session| session.project_id.clone());
+                let restore_result = if project_session.is_some() {
+                    match runtime.restore_archived_session(&session_id).await {
+                        Ok(()) => runtime
+                            .restore_project_session(session_id.clone())
+                            .await
+                            .map(|_| ()),
+                        Err(error) => Err(error),
+                    }
+                } else {
+                    runtime.restore_archived_session(&session_id).await
+                };
+                match restore_result {
                     Ok(()) => {
                         if let Some(session) =
                             app.state.sessions.iter_mut().find(|s| s.id == session_id)
                         {
                             session.archived = false;
                             session.state = SessionState::Idle;
+                            session.visibility = Some(ProjectSessionVisibility::Visible);
+                        }
+                        if let Some(project_id) = project_session {
+                            let _ = refresh_project_sessions_for_project(runtime, app, &project_id)
+                                .await;
                         }
                         select_session_row(app, &session_id);
                         app.state.render_scheduler.mark_dirty();
@@ -798,6 +847,128 @@ async fn dispatch_commands(
                     Err(e) => push_status_error(app, format!("[delete session error: {e}]")),
                 }
             }
+
+            Command::CreateProjectDraftSession { project_id } => {
+                match runtime
+                    .create_project_draft_session(project_id.clone())
+                    .await
+                {
+                    Ok(session_id) => {
+                        let _ = runtime
+                            .rename_session(&session_id, "New Session".to_string())
+                            .await;
+                        match refresh_project_sessions_for_project(runtime, app, &project_id).await
+                        {
+                            Ok(_) => {
+                                switch_app_to_session(runtime, app, session_id).await;
+                            }
+                            Err(e) => {
+                                push_status_error(
+                                    app,
+                                    format!("[project session refresh error: {e}]"),
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => push_status_error(app, format!("[create project draft error: {e}]")),
+                }
+            }
+
+            Command::CreateProjectWorktreeSession {
+                project_id,
+                branch_name,
+            } => {
+                match runtime
+                    .create_project_worktree_session(project_id.clone(), branch_name.clone())
+                    .await
+                {
+                    Ok(session_id) => {
+                        let _ = runtime
+                            .rename_session(&session_id, format!("New Session ({branch_name})"))
+                            .await;
+                        match refresh_project_sessions_for_project(runtime, app, &project_id).await
+                        {
+                            Ok(_) => {
+                                switch_app_to_session(runtime, app, session_id).await;
+                            }
+                            Err(e) => {
+                                push_status_error(
+                                    app,
+                                    format!("[project session refresh error: {e}]"),
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        push_status_error(app, format!("[create worktree session error: {e}]"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn project_info_from_meta(project: ProjectMeta) -> ProjectInfo {
+    ProjectInfo {
+        id: project.project_id,
+        display_name: project.display_name,
+        root_path: project.root_path,
+        expanded: project.expanded,
+    }
+}
+
+fn session_info_from_meta(
+    session: SessionMeta,
+    archived: bool,
+    current_session_id: &Option<agent_core::SessionId>,
+) -> SessionInfo {
+    let state = if current_session_id.as_ref() == Some(&session.session_id) {
+        SessionState::Active
+    } else {
+        SessionState::Idle
+    };
+    SessionInfo {
+        id: session.session_id,
+        title: session.title,
+        model_profile: session.model_profile,
+        state,
+        pinned: false,
+        archived,
+        project_id: session.project_id,
+        worktree_path: session.worktree_path,
+        branch: session.branch,
+        visibility: session.visibility,
+    }
+}
+
+async fn refresh_project_sessions_for_project(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+    project_id: &agent_core::ProjectId,
+) -> agent_core::Result<()> {
+    let sessions = runtime.list_project_sessions(project_id.clone()).await?;
+    let current_session_id = app.current_session_id.clone();
+    let next_project_sessions: Vec<SessionInfo> = sessions
+        .into_iter()
+        .map(|session| session_info_from_meta(session, false, &current_session_id))
+        .collect();
+
+    app.state
+        .sessions
+        .retain(|session| session.archived || session.project_id.as_ref() != Some(project_id));
+    app.state.sessions.extend(next_project_sessions);
+    normalize_session_states(app);
+    app.state.render_scheduler.mark_dirty();
+    Ok(())
+}
+
+fn normalize_session_states(app: &mut App) {
+    let current_session_id = app.current_session_id.clone();
+    for session in &mut app.state.sessions {
+        if current_session_id.as_ref() == Some(&session.id) && !session.archived {
+            session.state = SessionState::Active;
+        } else if matches!(session.state, SessionState::Active) {
+            session.state = SessionState::Idle;
         }
     }
 }
@@ -816,13 +987,25 @@ async fn send_queued_message_now(
     match runtime
         .send_message(SendMessageRequest {
             workspace_id,
-            session_id,
+            session_id: session_id.clone(),
             content: queued.content,
             attachments: queued.attachments,
         })
         .await
     {
         Ok(()) => {
+            let project_id = app
+                .state
+                .sessions
+                .iter()
+                .find(|session| session.id == session_id)
+                .and_then(|session| match session.visibility {
+                    Some(ProjectSessionVisibility::DraftHidden) => session.project_id.clone(),
+                    _ => None,
+                });
+            if let Some(project_id) = project_id {
+                let _ = refresh_project_sessions_for_project(runtime, app, &project_id).await;
+            }
             app.chat.remove_queued_message(queue_index);
             app.state.render_scheduler.mark_dirty();
         }
@@ -1147,7 +1330,7 @@ async fn main() -> Result<()> {
     // Try to restore previous workspace and sessions, or create fresh ones
     let workspace_path_str = workspace_path.display().to_string();
 
-    let (workspace_id, mut app_sessions) = {
+    let (workspace_id, mut app_sessions, projects) = {
         // Try to find an existing workspace for this path
         let workspaces = runtime.list_workspaces().await.unwrap_or_default();
         let existing = workspaces.iter().find(|w| w.path == workspace_path_str);
@@ -1161,29 +1344,38 @@ async fn main() -> Result<()> {
                 .list_archived_sessions(&ws.workspace_id)
                 .await
                 .unwrap_or_default();
-            let mut session_infos: Vec<SessionInfo> = sessions
-                .iter()
-                .map(|s| SessionInfo {
-                    id: s.session_id.clone(),
-                    title: s.title.clone(),
-                    model_profile: s.model_profile.clone(),
-                    state: SessionState::Idle,
-                    pinned: false,
-                    archived: false,
-                })
+            let projects_meta = runtime
+                .list_projects(&ws.workspace_id)
+                .await
+                .unwrap_or_default();
+            let projects: Vec<ProjectInfo> = projects_meta
+                .into_iter()
+                .map(project_info_from_meta)
                 .collect();
-            session_infos.extend(archived_sessions.iter().map(|s| SessionInfo {
-                id: s.session_id.clone(),
-                title: s.title.clone(),
-                model_profile: s.model_profile.clone(),
-                state: SessionState::Idle,
-                pinned: false,
-                archived: true,
-            }));
-            (ws.workspace_id.clone(), session_infos)
+            let mut session_infos: Vec<SessionInfo> = sessions
+                .into_iter()
+                .map(|s| session_info_from_meta(s, false, &None))
+                .collect();
+            for project in &projects {
+                let project_sessions = runtime
+                    .list_project_sessions(project.id.clone())
+                    .await
+                    .unwrap_or_default();
+                session_infos.extend(
+                    project_sessions
+                        .into_iter()
+                        .map(|s| session_info_from_meta(s, false, &None)),
+                );
+            }
+            session_infos.extend(
+                archived_sessions
+                    .into_iter()
+                    .map(|s| session_info_from_meta(s, true, &None)),
+            );
+            (ws.workspace_id.clone(), session_infos, projects)
         } else {
             let ws = runtime.open_workspace(workspace_path_str).await?;
-            (ws.workspace_id, Vec::new())
+            (ws.workspace_id, Vec::new(), Vec::new())
         }
     };
 
@@ -1203,6 +1395,10 @@ async fn main() -> Result<()> {
             state: SessionState::Idle,
             pinned: false,
             archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
         });
     }
 
@@ -1217,6 +1413,7 @@ async fn main() -> Result<()> {
     let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
     app.current_session_id = Some(active_session_id.clone());
     app.state.sessions = app_sessions;
+    app.state.projects = projects;
 
     // Load the initial session projection and trace
     if let Ok(projection) = runtime

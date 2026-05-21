@@ -58,6 +58,7 @@ impl App {
             crate::components::sessions::render_sessions(
                 sessions_area,
                 frame,
+                &self.state.projects,
                 &self.state.sessions,
                 self.sessions.focused(),
                 &mut self.sessions.state,
