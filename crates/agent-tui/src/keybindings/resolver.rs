@@ -124,6 +124,9 @@ pub fn resolve_key(
         KeyCode::Char('d') | KeyCode::Char('D') if focus == FocusTarget::Trace => {
             KeyAction::DeleteSelectedMemory
         }
+        KeyCode::Char('a') | KeyCode::Char('A') if focus == FocusTarget::Sessions => {
+            KeyAction::OpenArchiveManager
+        }
         KeyCode::Char('x') => KeyAction::ContextMenu,
         KeyCode::Char('P') => KeyAction::CyclePermissionMode,
         KeyCode::Char(c) => KeyAction::InputCharacter(c),
