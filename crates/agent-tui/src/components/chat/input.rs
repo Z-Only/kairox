@@ -107,6 +107,59 @@ impl ChatPanel {
                             skill_id,
                         });
                     }
+                } else if trimmed == ":skill catalog" || trimmed.starts_with(":skill catalog ") {
+                    let keyword = trimmed
+                        .strip_prefix(":skill catalog")
+                        .map(str::trim)
+                        .filter(|keyword| !keyword.is_empty())
+                        .map(str::to_string);
+                    self.clear_input();
+                    commands.push(Command::ListSkillCatalog { keyword });
+                } else if let Some(package) = trimmed
+                    .strip_prefix(":skill install ")
+                    .map(str::trim)
+                    .filter(|package| !package.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    if let Some(source) = package
+                        .strip_prefix("github ")
+                        .map(str::trim)
+                        .filter(|source| !source.is_empty())
+                        .map(str::to_string)
+                    {
+                        commands.push(Command::InstallGithubSkill {
+                            request: agent_core::facade::InstallGithubSkillRequest {
+                                source,
+                                target: agent_core::facade::SkillInstallTarget::User,
+                            },
+                        });
+                    } else {
+                        commands.push(Command::InstallRemoteSkill {
+                            request: agent_core::facade::InstallRemoteSkillRequest {
+                                package: package.clone(),
+                                source: package,
+                                target: agent_core::facade::SkillInstallTarget::User,
+                                package_url: None,
+                            },
+                        });
+                    }
+                } else if let Some(skill_id) = trimmed
+                    .strip_prefix(":skill update ")
+                    .map(str::trim)
+                    .filter(|skill_id| !skill_id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    commands.push(Command::UpdateSkillSettings { skill_id });
+                } else if let Some(skill_id) = trimmed
+                    .strip_prefix(":skill delete ")
+                    .map(str::trim)
+                    .filter(|skill_id| !skill_id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    commands.push(Command::DeleteSkillSettings { skill_id });
                 } else {
                     if !self.input_content.is_empty() {
                         self.input_history.push(self.input_content.clone());
