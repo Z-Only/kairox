@@ -378,8 +378,127 @@ impl agent_core::facade::SessionFacade for TuiMcpFakeFacade {
 #[async_trait::async_trait]
 impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {}
 
+fn project_meta(
+    project_id: &str,
+    display_name: &str,
+    root_path: &str,
+    sort_order: i64,
+    expanded: bool,
+) -> agent_core::ProjectMeta {
+    agent_core::ProjectMeta {
+        project_id: agent_core::ProjectId::from_string(project_id.to_string()),
+        display_name: display_name.into(),
+        root_path: root_path.into(),
+        created_at: "2026-05-21T00:00:00Z".into(),
+        updated_at: "2026-05-21T00:00:00Z".into(),
+        removed_at: None,
+        sort_order,
+        expanded,
+    }
+}
+
 #[async_trait::async_trait]
-impl agent_core::facade::ProjectFacade for TuiMcpFakeFacade {}
+impl agent_core::facade::ProjectFacade for TuiMcpFakeFacade {
+    async fn create_blank_project(
+        &self,
+        workspace_id: agent_core::WorkspaceId,
+        display_name: Option<String>,
+    ) -> agent_core::Result<agent_core::ProjectMeta> {
+        self.record(format!(
+            "create_blank_project:{workspace_id}:{display_name:?}"
+        ));
+        Ok(project_meta(
+            "prj_created",
+            display_name.as_deref().unwrap_or("New Project"),
+            "/tmp/created",
+            2,
+            true,
+        ))
+    }
+
+    async fn add_existing_project(
+        &self,
+        workspace_id: agent_core::WorkspaceId,
+        path: String,
+    ) -> agent_core::Result<agent_core::ProjectMeta> {
+        self.record(format!("add_existing_project:{workspace_id}:{path}"));
+        Ok(project_meta("prj_existing", "existing", &path, 3, true))
+    }
+
+    async fn rename_project(
+        &self,
+        project_id: agent_core::ProjectId,
+        display_name: String,
+    ) -> agent_core::Result<()> {
+        self.record(format!("rename_project:{project_id}:{display_name}"));
+        Ok(())
+    }
+
+    async fn remove_project(&self, project_id: agent_core::ProjectId) -> agent_core::Result<()> {
+        self.record(format!("remove_project:{project_id}"));
+        Ok(())
+    }
+
+    async fn update_project_order(
+        &self,
+        project_ids: Vec<agent_core::ProjectId>,
+    ) -> agent_core::Result<()> {
+        let joined = project_ids
+            .into_iter()
+            .map(|project_id| project_id.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        self.record(format!("update_project_order:{joined}"));
+        Ok(())
+    }
+
+    async fn update_project_expanded(
+        &self,
+        project_id: agent_core::ProjectId,
+        expanded: bool,
+    ) -> agent_core::Result<()> {
+        self.record(format!("update_project_expanded:{project_id}:{expanded}"));
+        Ok(())
+    }
+
+    async fn get_project_git_status(
+        &self,
+        project_id: agent_core::ProjectId,
+    ) -> agent_core::Result<agent_core::ProjectGitStatus> {
+        self.record(format!("get_project_git_status:{project_id}"));
+        Ok(agent_core::ProjectGitStatus {
+            kind: agent_core::ProjectGitStatusKind::Clean,
+            branch: Some("main".into()),
+            worktree_path: "/tmp/project".into(),
+            message: None,
+        })
+    }
+
+    async fn init_project_git(
+        &self,
+        project_id: agent_core::ProjectId,
+    ) -> agent_core::Result<agent_core::ProjectGitStatus> {
+        self.record(format!("init_project_git:{project_id}"));
+        Ok(agent_core::ProjectGitStatus {
+            kind: agent_core::ProjectGitStatusKind::Clean,
+            branch: Some("main".into()),
+            worktree_path: "/tmp/project".into(),
+            message: None,
+        })
+    }
+
+    async fn get_project_instruction_summary(
+        &self,
+        project_id: agent_core::ProjectId,
+    ) -> agent_core::Result<agent_core::ProjectInstructionSummary> {
+        self.record(format!("get_project_instruction_summary:{project_id}"));
+        Ok(agent_core::ProjectInstructionSummary {
+            source_paths: vec!["/tmp/project/AGENTS.md".into()],
+            contents: Some("project instructions".into()),
+            warning: None,
+        })
+    }
+}
 
 #[async_trait::async_trait]
 impl agent_core::facade::AgentsFacade for TuiMcpFakeFacade {
@@ -823,6 +942,7 @@ fn colon_compact_input_dispatches_compact_session_command() {
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &[],
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -878,6 +998,7 @@ fn colon_model_alias_input_dispatches_switch_model_command() {
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &[],
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -928,6 +1049,7 @@ fn colon_model_without_alias_falls_through_as_chat_message() {
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &[],
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -972,6 +1094,7 @@ fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &[],
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -1018,6 +1141,7 @@ fn chat_commands_for_project_input(
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &sessions,
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -1049,6 +1173,7 @@ fn colon_attach_then_send_carries_attachment_payload() {
     let ctx = EventContext {
         focus: FocusTarget::Chat,
         current_session: &projection,
+        projects: &[],
         sessions: &[],
         model_profile: "fake",
         permission_mode: PermissionMode::Suggest,
@@ -1191,6 +1316,49 @@ fn colon_project_draft_input_dispatches_create_project_draft_command() {
             |command| matches!(command, Command::CreateProjectDraftSession { project_id } if project_id == &expected_project_id)
         ),
         "expected CreateProjectDraftSession; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_project_create_input_dispatches_create_blank_project_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":project create Alpha Workbench");
+
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            Command::CreateBlankProject { display_name: Some(display_name) }
+                if display_name == "Alpha Workbench"
+        )),
+        "expected CreateBlankProject; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_project_import_input_dispatches_add_existing_project_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":project import /tmp/kairox-existing");
+
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            Command::AddExistingProject { path } if path == "/tmp/kairox-existing"
+        )),
+        "expected AddExistingProject; got {commands:?}"
     );
     assert!(
         !commands
@@ -1674,6 +1842,113 @@ async fn tui_agent_settings_commands_call_facade_and_refresh_overlay() {
             "expected call {expected}, got {calls:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn tui_project_manager_commands_call_facade_and_update_state() {
+    use agent_core::{ProjectId, WorkspaceId};
+    use agent_tui::app::App;
+    use agent_tui::components::{Command, ProjectInfo};
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let workspace_id = WorkspaceId::new();
+    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    let alpha = ProjectId::from_string("prj_alpha".to_string());
+    let beta = ProjectId::from_string("prj_beta".to_string());
+    app.state.projects = vec![
+        ProjectInfo {
+            id: alpha.clone(),
+            display_name: "alpha".into(),
+            root_path: "/tmp/alpha".into(),
+            expanded: true,
+            git_status: None,
+            instruction_summary: None,
+        },
+        ProjectInfo {
+            id: beta.clone(),
+            display_name: "beta".into(),
+            root_path: "/tmp/beta".into(),
+            expanded: true,
+            git_status: None,
+            instruction_summary: None,
+        },
+    ];
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::CreateBlankProject {
+                display_name: Some("Gamma".into()),
+            },
+            Command::AddExistingProject {
+                path: "/tmp/imported".into(),
+            },
+            Command::RenameProject {
+                project_id: alpha.clone(),
+                display_name: "Alpha renamed".into(),
+            },
+            Command::MoveProject {
+                project_id: beta.clone(),
+                direction: -1,
+            },
+            Command::SetProjectExpanded {
+                project_id: alpha.clone(),
+                expanded: false,
+            },
+            Command::RefreshProjectGitStatus {
+                project_id: alpha.clone(),
+            },
+            Command::InitProjectGit {
+                project_id: alpha.clone(),
+            },
+            Command::ShowProjectInstructions {
+                project_id: alpha.clone(),
+            },
+            Command::RemoveProject {
+                project_id: alpha.clone(),
+            },
+        ],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    for expected in [
+        format!("create_blank_project:{workspace_id}:Some(\"Gamma\")"),
+        format!("add_existing_project:{workspace_id}:/tmp/imported"),
+        format!("rename_project:{alpha}:Alpha renamed"),
+        format!("update_project_order:{beta},{alpha},prj_created,prj_existing"),
+        format!("update_project_expanded:{alpha}:false"),
+        format!("get_project_git_status:{alpha}"),
+        format!("init_project_git:{alpha}"),
+        format!("get_project_instruction_summary:{alpha}"),
+        format!("remove_project:{alpha}"),
+    ] {
+        assert!(
+            calls.iter().any(|call| call == &expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
+
+    assert!(
+        app.state.projects.iter().all(|project| project.id != alpha),
+        "removed project should leave local project list"
+    );
+    assert!(
+        app.state
+            .projects
+            .iter()
+            .any(|project| project.id == ProjectId::from_string("prj_created".to_string())),
+        "created project should be inserted"
+    );
+    assert!(
+        app.state
+            .current_session
+            .messages
+            .iter()
+            .any(|message| message.content.contains("project instructions")),
+        "instruction command should surface summary content"
+    );
 }
 
 #[tokio::test]

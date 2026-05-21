@@ -338,6 +338,7 @@ impl AppState {
         crate::components::EventContext {
             focus: self.focus_manager.current(),
             current_session: &self.current_session,
+            projects: &self.projects,
             sessions: &self.sessions,
             model_profile: &self.model_profile,
             permission_mode: self.permission_mode,

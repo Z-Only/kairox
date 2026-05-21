@@ -11,7 +11,10 @@ pub mod skills_overlay;
 pub mod status_bar;
 pub mod trace;
 
-use agent_core::{AttachmentInfo, ProjectId, ProjectSessionVisibility, SessionId};
+use agent_core::{
+    AttachmentInfo, ProjectGitStatus, ProjectId, ProjectInstructionSummary,
+    ProjectSessionVisibility, SessionId,
+};
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -236,6 +239,8 @@ pub struct ProjectInfo {
     pub display_name: String,
     pub root_path: String,
     pub expanded: bool,
+    pub git_status: Option<ProjectGitStatus>,
+    pub instruction_summary: Option<ProjectInstructionSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -487,6 +492,36 @@ pub enum Command {
     DeleteSession {
         session_id: SessionId,
     },
+    CreateBlankProject {
+        display_name: Option<String>,
+    },
+    AddExistingProject {
+        path: String,
+    },
+    RenameProject {
+        project_id: ProjectId,
+        display_name: String,
+    },
+    RemoveProject {
+        project_id: ProjectId,
+    },
+    MoveProject {
+        project_id: ProjectId,
+        direction: i32,
+    },
+    SetProjectExpanded {
+        project_id: ProjectId,
+        expanded: bool,
+    },
+    RefreshProjectGitStatus {
+        project_id: ProjectId,
+    },
+    InitProjectGit {
+        project_id: ProjectId,
+    },
+    ShowProjectInstructions {
+        project_id: ProjectId,
+    },
     CreateProjectDraftSession {
         project_id: ProjectId,
     },
@@ -644,6 +679,7 @@ pub enum Command {
 pub struct EventContext<'a> {
     pub focus: FocusTarget,
     pub current_session: &'a agent_core::projection::SessionProjection,
+    pub projects: &'a [ProjectInfo],
     pub sessions: &'a [SessionInfo],
     pub model_profile: &'a str,
     pub permission_mode: agent_tools::PermissionMode,
