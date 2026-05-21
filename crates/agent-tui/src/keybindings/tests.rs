@@ -98,6 +98,19 @@ fn l3_ctrl_l_toggles_model_overlay() {
     );
 }
 
+#[test]
+fn l3_ctrl_g_toggles_plugin_overlay() {
+    assert_eq!(
+        resolve_key(
+            ctrl_key(KeyCode::Char('g')),
+            FocusTarget::Chat,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::TogglePluginsOverlay
+    );
+}
+
 // -- L1 Enter sends in single-line -------------------------------------
 
 #[test]
