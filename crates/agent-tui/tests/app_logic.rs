@@ -668,6 +668,26 @@ fn colon_skills_input_dispatches_list_skills_command() {
 }
 
 #[test]
+fn colon_plugins_input_dispatches_open_plugins_overlay_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":plugins");
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::OpenPluginsOverlay)),
+        "expected Command::OpenPluginsOverlay; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
 fn colon_skill_show_input_dispatches_show_skill_command() {
     use agent_tui::components::Command;
 

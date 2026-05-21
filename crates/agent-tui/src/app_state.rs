@@ -62,6 +62,7 @@ impl FocusManager {
                 | FocusTarget::CommandPalette
                 | FocusTarget::SkillsOverlay
                 | FocusTarget::ModelOverlay
+                | FocusTarget::PluginOverlay
         ) {
             return; // don't cycle while a modal is focused
         }
@@ -74,7 +75,8 @@ impl FocusManager {
             | FocusTarget::McpOverlay
             | FocusTarget::CommandPalette
             | FocusTarget::SkillsOverlay
-            | FocusTarget::ModelOverlay => unreachable!(),
+            | FocusTarget::ModelOverlay
+            | FocusTarget::PluginOverlay => unreachable!(),
         };
 
         let last = self

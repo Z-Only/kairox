@@ -28,6 +28,10 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('s'));
+                let is_ctrl_g = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('g'));
                 // Ctrl+L toggles the model overlay even when the overlay is
                 // already visible; route through the resolver in that case.
                 let is_ctrl_l = key_event
@@ -99,6 +103,29 @@ impl App {
                         current_session_id: &self.current_session_id,
                     };
                     let (effects, cmds) = self.skills_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.plugin_overlay.is_visible() && !is_ctrl_g {
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.plugin_overlay.handle_event(&ctx, event);
                     self.dispatch_effects(effects);
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
@@ -271,6 +298,14 @@ impl App {
                     self.state.render_scheduler.mark_dirty_immediate();
                 } else {
                     commands.push(Command::OpenModelOverlay);
+                }
+            }
+            KeyAction::TogglePluginsOverlay => {
+                if self.plugin_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissPluginsOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenPluginsOverlay);
                 }
             }
             KeyAction::ToggleTraceDensity => {

@@ -20,6 +20,7 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 pub enum PaletteAction {
     /// Zero-arg slash command — dispatch immediately.
     Compact,
+    Plugins,
     Skills,
     /// Argument-taking slash command — prefill chat input with the slash
     /// prefix (trailing space) and hand focus back to chat so the user can
@@ -60,6 +61,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: ":skills",
             description: "List discovered native skills",
             action: PaletteAction::Skills,
+        },
+        PaletteEntry {
+            id: "plugins",
+            label: ":plugins",
+            description: "Open the plugin manager",
+            action: PaletteAction::Plugins,
         },
         PaletteEntry {
             id: "skill-show",
@@ -108,7 +115,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::PrefillSkillShow => Some(":skill show "),
         PaletteAction::PrefillSkillActivate => Some(":skill activate "),
         PaletteAction::PrefillSkillDeactivate => Some(":skill deactivate "),
-        PaletteAction::Compact | PaletteAction::Skills => None,
+        PaletteAction::Compact | PaletteAction::Plugins | PaletteAction::Skills => None,
     }
 }
 
@@ -223,6 +230,9 @@ impl CommandPalette {
             }
             PaletteAction::Skills => {
                 commands.push(Command::ListSkills);
+            }
+            PaletteAction::Plugins => {
+                commands.push(Command::OpenPluginsOverlay);
             }
             ref prefill => {
                 if let Some(text) = prefill_text(prefill) {
@@ -529,6 +539,17 @@ mod tests {
         assert_eq!(first, "skills");
         let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
         assert!(matches!(&commands[..], [Command::ListSkills]));
+    }
+
+    #[test]
+    fn enter_dispatches_open_plugins_overlay() {
+        let mut p = CommandPalette::new();
+        p.show();
+        for c in "plugins".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
+        let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
     }
 
     #[test]

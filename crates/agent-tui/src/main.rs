@@ -367,10 +367,15 @@ async fn dispatch_commands(
             }
 
             Command::OpenSkillsOverlay
+            | Command::OpenPluginsOverlay
             | Command::ListSkills
             | Command::ShowSkill { .. }
             | Command::ActivateSkill { .. }
-            | Command::DeactivateSkill { .. } => {
+            | Command::DeactivateSkill { .. }
+            | Command::SetPluginEnabled { .. }
+            | Command::DeletePluginSettings { .. }
+            | Command::SetPluginMarketplaceSourceEnabled { .. }
+            | Command::InstallPlugin { .. } => {
                 app::dispatch_commands(runtime, app, vec![command]).await;
             }
 

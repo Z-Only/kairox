@@ -31,6 +31,8 @@ pub enum KeyAction {
     ToggleSkillsOverlay,
     /// Ctrl+L — open/close the model profile selector overlay.
     ToggleModelOverlay,
+    /// Ctrl+G — open/close the plugin manager overlay.
+    TogglePluginsOverlay,
 
     // -- L4 Function -------------------------------------------------------
     Help,
