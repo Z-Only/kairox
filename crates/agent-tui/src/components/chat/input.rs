@@ -1,5 +1,5 @@
 use crate::app_state::{InputMode, InputState};
-use crate::components::{Command, CrossPanelEffect, EventContext, QueuedMessage};
+use crate::components::{Command, CrossPanelEffect, EventContext, QueueAction, QueuedMessage};
 use crate::keybindings::KeyAction;
 use agent_core::AttachmentInfo;
 use std::path::{Path, PathBuf};
@@ -160,6 +160,11 @@ impl ChatPanel {
                 {
                     self.clear_input();
                     commands.push(Command::DeleteSkillSettings { skill_id });
+                } else if let Some(queue_action) = parse_queue_action(trimmed) {
+                    self.clear_input();
+                    if let Some(command) = self.apply_queue_action(queue_action, ctx) {
+                        commands.push(command);
+                    }
                 } else {
                     if !self.input_content.is_empty() {
                         self.input_history.push(self.input_content.clone());
@@ -261,6 +266,11 @@ impl ChatPanel {
                     self.input_cursor += c.len_utf8();
                 }
             }
+            KeyAction::ApplyQueueAction(action) => {
+                if let Some(command) = self.apply_queue_action(action, ctx) {
+                    commands.push(command);
+                }
+            }
             _ => {}
         }
 
@@ -292,6 +302,64 @@ impl ChatPanel {
                     .as_ref()
                     .is_none_or(|path| attachment.path != path.display().to_string())
         });
+    }
+
+    pub(crate) fn apply_queue_action(
+        &mut self,
+        action: QueueAction,
+        ctx: &EventContext,
+    ) -> Option<Command> {
+        match action {
+            QueueAction::View => None,
+            QueueAction::SelectPrevious => {
+                self.select_previous_queued_message();
+                None
+            }
+            QueueAction::SelectNext => {
+                self.select_next_queued_message();
+                None
+            }
+            QueueAction::MoveSelectedUp => {
+                self.move_selected_queued_message_up();
+                None
+            }
+            QueueAction::MoveSelectedDown => {
+                self.move_selected_queued_message_down();
+                None
+            }
+            QueueAction::RestoreSelectedForEdit => {
+                self.restore_selected_queued_message_for_edit();
+                None
+            }
+            QueueAction::DeleteSelected => {
+                self.delete_selected_queued_message();
+                None
+            }
+            QueueAction::SendSelectedNow => {
+                let queue_index = self.selected_queue_index()?;
+                let session_id = ctx.current_session_id.as_ref()?.clone();
+                Some(Command::SendQueuedMessageNow {
+                    workspace_id: ctx.workspace_id.clone(),
+                    session_id,
+                    queue_index,
+                })
+            }
+        }
+    }
+}
+
+fn parse_queue_action(trimmed: &str) -> Option<QueueAction> {
+    let rest = trimmed.strip_prefix(":queue").map(str::trim)?;
+    match rest {
+        "" | "list" | "show" => Some(QueueAction::View),
+        "prev" | "previous" | "up-select" => Some(QueueAction::SelectPrevious),
+        "next" => Some(QueueAction::SelectNext),
+        "up" | "move-up" => Some(QueueAction::MoveSelectedUp),
+        "down" | "move-down" => Some(QueueAction::MoveSelectedDown),
+        "edit" | "restore" => Some(QueueAction::RestoreSelectedForEdit),
+        "delete" | "remove" => Some(QueueAction::DeleteSelected),
+        "send" | "send-now" | "now" => Some(QueueAction::SendSelectedNow),
+        _ => None,
     }
 }
 

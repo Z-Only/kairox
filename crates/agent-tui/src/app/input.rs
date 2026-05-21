@@ -397,6 +397,7 @@ impl App {
             | KeyAction::InputHistoryUp
             | KeyAction::InputHistoryDown
             | KeyAction::InputPaste(_)
+            | KeyAction::ApplyQueueAction(_)
             | KeyAction::AllowPermission
             | KeyAction::DenyPermission
             | KeyAction::DenyAllPermission
@@ -484,6 +485,29 @@ impl App {
             current_session_id: &self.current_session_id,
         };
         self.chat.apply_key_action(action, &ctx)
+    }
+
+    pub fn apply_queue_action(&mut self, action: crate::components::QueueAction) -> Vec<Command> {
+        let focus = self.state.focus_manager.current();
+        let sessions = self.state.sessions.clone();
+        let model_profile = self.state.model_profile.clone();
+        let permission_mode = self.state.permission_mode;
+        let sidebar_left = self.state.sidebar_left_visible;
+        let sidebar_right = self.state.sidebar_right_visible;
+        let ctx = EventContext {
+            focus,
+            current_session: &self.state.current_session,
+            sessions: &sessions,
+            model_profile: &model_profile,
+            permission_mode,
+            sidebar_left_visible: sidebar_left,
+            sidebar_right_visible: sidebar_right,
+            workspace_id: &self.workspace_id,
+            current_session_id: &self.current_session_id,
+        };
+        let command = self.chat.apply_queue_action(action, &ctx);
+        self.state.render_scheduler.mark_dirty();
+        command.into_iter().collect()
     }
 }
 

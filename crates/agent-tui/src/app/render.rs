@@ -65,10 +65,11 @@ impl App {
         }
 
         let has_queue = !self.chat.message_queue.is_empty();
+        let queue_height = queue_strip_height(self.chat.message_queue.len());
         let chat_constraints: Vec<Constraint> = if has_queue {
             vec![
                 Constraint::Min(1),
-                Constraint::Length(1),
+                Constraint::Length(queue_height),
                 Constraint::Length(3),
             ]
         } else {
@@ -88,6 +89,7 @@ impl App {
                 chat_chunks[1],
                 frame,
                 &self.chat.message_queue,
+                self.chat.selected_queue_index(),
             );
             self.render_input(chat_chunks[2], frame);
         } else {
@@ -229,4 +231,9 @@ impl App {
             area,
         );
     }
+}
+
+fn queue_strip_height(queue_len: usize) -> u16 {
+    let visible_rows = queue_len.min(4) as u16;
+    visible_rows.saturating_add(1).max(2)
 }

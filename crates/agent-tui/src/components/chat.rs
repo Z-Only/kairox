@@ -37,6 +37,8 @@ pub struct ChatPanel {
     /// Messages typed while the session was busy. Drained in FIFO order when
     /// the session returns to idle (see `drain_queue`).
     pub message_queue: Vec<QueuedMessage>,
+    /// Selected queued message for local queue controls.
+    pub selected_queue_index: usize,
 }
 
 impl ChatPanel {
@@ -52,12 +54,108 @@ impl ChatPanel {
             scroll_offset: 0,
             pending_attachments: Vec::new(),
             message_queue: Vec::new(),
+            selected_queue_index: 0,
         }
     }
 
     /// Drain all queued messages in FIFO order.
     pub fn drain_queue(&mut self) -> Vec<QueuedMessage> {
+        self.selected_queue_index = 0;
         std::mem::take(&mut self.message_queue)
+    }
+
+    pub fn selected_queue_index(&self) -> Option<usize> {
+        if self.message_queue.is_empty() {
+            None
+        } else {
+            Some(self.selected_queue_index.min(self.message_queue.len() - 1))
+        }
+    }
+
+    pub fn queued_message(&self, index: usize) -> Option<&QueuedMessage> {
+        self.message_queue.get(index)
+    }
+
+    pub fn remove_queued_message(&mut self, index: usize) -> Option<QueuedMessage> {
+        if index >= self.message_queue.len() {
+            return None;
+        }
+        let removed = self.message_queue.remove(index);
+        self.clamp_queue_selection();
+        Some(removed)
+    }
+
+    pub fn select_previous_queued_message(&mut self) -> bool {
+        if self.message_queue.is_empty() {
+            self.selected_queue_index = 0;
+            return false;
+        }
+        if self.selected_queue_index > 0 {
+            self.selected_queue_index -= 1;
+        }
+        true
+    }
+
+    pub fn select_next_queued_message(&mut self) -> bool {
+        if self.message_queue.is_empty() {
+            self.selected_queue_index = 0;
+            return false;
+        }
+        if self.selected_queue_index + 1 < self.message_queue.len() {
+            self.selected_queue_index += 1;
+        }
+        true
+    }
+
+    pub fn move_selected_queued_message_up(&mut self) -> bool {
+        let Some(index) = self.selected_queue_index() else {
+            return false;
+        };
+        if index == 0 {
+            return true;
+        }
+        self.message_queue.swap(index, index - 1);
+        self.selected_queue_index = index - 1;
+        true
+    }
+
+    pub fn move_selected_queued_message_down(&mut self) -> bool {
+        let Some(index) = self.selected_queue_index() else {
+            return false;
+        };
+        if index + 1 >= self.message_queue.len() {
+            return true;
+        }
+        self.message_queue.swap(index, index + 1);
+        self.selected_queue_index = index + 1;
+        true
+    }
+
+    pub fn delete_selected_queued_message(&mut self) -> Option<QueuedMessage> {
+        let index = self.selected_queue_index()?;
+        self.remove_queued_message(index)
+    }
+
+    pub fn restore_selected_queued_message_for_edit(&mut self) -> bool {
+        let Some(index) = self.selected_queue_index() else {
+            return false;
+        };
+        let Some(queued) = self.remove_queued_message(index) else {
+            return false;
+        };
+        self.input_content = queued.content;
+        self.input_cursor = self.input_content.len();
+        self.input_history_index = None;
+        self.pending_attachments = queued.attachments;
+        true
+    }
+
+    fn clamp_queue_selection(&mut self) {
+        if self.message_queue.is_empty() {
+            self.selected_queue_index = 0;
+        } else if self.selected_queue_index >= self.message_queue.len() {
+            self.selected_queue_index = self.message_queue.len() - 1;
+        }
     }
 }
 

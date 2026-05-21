@@ -56,6 +56,7 @@ pub enum KeyAction {
     InputHistoryUp,
     InputHistoryDown,
     InputPaste(String),
+    ApplyQueueAction(crate::components::QueueAction),
 
     // -- Navigation --------------------------------------------------------
     ScrollUp,

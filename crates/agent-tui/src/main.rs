@@ -80,6 +80,35 @@ async fn dispatch_commands(
                 }
             }
 
+            Command::SendQueuedMessageNow {
+                workspace_id,
+                session_id,
+                queue_index,
+            } => {
+                send_queued_message_now(runtime, app, workspace_id, session_id, queue_index).await;
+            }
+
+            Command::ApplyQueueAction(action) => {
+                let commands = app.apply_queue_action(action);
+                for command in commands {
+                    if let Command::SendQueuedMessageNow {
+                        workspace_id,
+                        session_id,
+                        queue_index,
+                    } = command
+                    {
+                        send_queued_message_now(
+                            runtime,
+                            app,
+                            workspace_id,
+                            session_id,
+                            queue_index,
+                        )
+                        .await;
+                    }
+                }
+            }
+
             Command::DecidePermission {
                 request_id,
                 approved,
@@ -753,6 +782,36 @@ async fn dispatch_commands(
                     Err(e) => push_status_error(app, format!("[delete session error: {e}]")),
                 }
             }
+        }
+    }
+}
+
+async fn send_queued_message_now(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+    workspace_id: agent_core::WorkspaceId,
+    session_id: agent_core::SessionId,
+    queue_index: usize,
+) {
+    let Some(queued) = app.chat.queued_message(queue_index).cloned() else {
+        app.state.render_scheduler.mark_dirty();
+        return;
+    };
+    match runtime
+        .send_message(SendMessageRequest {
+            workspace_id,
+            session_id,
+            content: queued.content,
+            attachments: queued.attachments,
+        })
+        .await
+    {
+        Ok(()) => {
+            app.chat.remove_queued_message(queue_index);
+            app.state.render_scheduler.mark_dirty();
+        }
+        Err(e) => {
+            push_status_error(app, format!("[queued send error: {e}]"));
         }
     }
 }

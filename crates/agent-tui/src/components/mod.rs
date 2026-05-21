@@ -227,6 +227,21 @@ pub struct QueuedMessage {
     pub attachments: Vec<AttachmentInfo>,
 }
 
+/// Local TUI composer actions for queued messages. These never change runtime
+/// queue semantics; they only mutate or dispatch messages already held by the
+/// TUI chat panel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QueueAction {
+    View,
+    SelectPrevious,
+    SelectNext,
+    MoveSelectedUp,
+    MoveSelectedDown,
+    RestoreSelectedForEdit,
+    DeleteSelected,
+    SendSelectedNow,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusInfo {
     pub profile: String,
@@ -307,6 +322,12 @@ pub enum Command {
         content: String,
         attachments: Vec<AttachmentInfo>,
     },
+    SendQueuedMessageNow {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        queue_index: usize,
+    },
+    ApplyQueueAction(QueueAction),
     DecidePermission {
         request_id: String,
         approved: bool,
