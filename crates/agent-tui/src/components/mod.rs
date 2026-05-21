@@ -231,6 +231,24 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
     },
+    RetryTask {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        task_id: agent_core::TaskId,
+    },
+    CancelTask {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: SessionId,
+        task_id: agent_core::TaskId,
+    },
+    LoadMemories {
+        scope: Option<agent_memory::MemoryScope>,
+        keywords: Vec<String>,
+        limit: usize,
+    },
+    DeleteMemory {
+        memory_id: String,
+    },
     StartSession {
         workspace_id: agent_core::WorkspaceId,
         model_profile: String,
