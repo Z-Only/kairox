@@ -6,8 +6,8 @@ use agent_core::{ActivateSkillRequest, AppFacade, DeactivateSkillRequest};
 
 use super::App;
 use crate::components::{
-    Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry, ModelProfileTestResult,
-    PluginOverlaySnapshot, SkillEntry, SkillOverlaySnapshot,
+    AgentOverlaySnapshot, Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry,
+    ModelProfileTestResult, PluginOverlaySnapshot, SkillEntry, SkillOverlaySnapshot,
 };
 
 pub async fn dispatch_commands<F>(
@@ -34,6 +34,91 @@ pub async fn dispatch_commands<F>(
             }
             Command::OpenInstructionsOverlay => {
                 refresh_instructions_overlay(app);
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenAgentSettingsOverlay => {
+                refresh_agent_overlay(runtime, app).await;
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::SaveAgentSettings { input } => {
+                match AppFacade::upsert_agent_settings(runtime.as_ref(), input.clone()).await {
+                    Ok(view) => {
+                        push_status_message(app, format!("saved agent {}", view.name));
+                        if app.agent_overlay.is_visible() {
+                            refresh_agent_overlay(runtime, app).await;
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[agent save error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::DeleteAgentSettings { settings_id } => {
+                match AppFacade::delete_agent_settings(runtime.as_ref(), settings_id.clone()).await
+                {
+                    Ok(()) => {
+                        push_status_message(app, format!("deleted agent {settings_id}"));
+                        if app.agent_overlay.is_visible() {
+                            refresh_agent_overlay(runtime, app).await;
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[agent delete error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::CopyAgentSettings { settings_id, scope } => {
+                match AppFacade::copy_agent_settings(runtime.as_ref(), settings_id.clone(), scope)
+                    .await
+                {
+                    Ok(view) => {
+                        push_status_message(app, format!("copied agent {}", view.name));
+                        if app.agent_overlay.is_visible() {
+                            refresh_agent_overlay(runtime, app).await;
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[agent copy error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenAgentsDir => {
+                match AppFacade::open_agents_dir(runtime.as_ref()).await {
+                    Ok(Some(path)) => {
+                        let path_buf = std::path::PathBuf::from(&path);
+                        match std::fs::create_dir_all(&path_buf)
+                            .map_err(|error| {
+                                format!(
+                                    "failed to create agents dir {}: {error}",
+                                    path_buf.display()
+                                )
+                            })
+                            .and_then(|()| open_path_in_system_file_manager(&path_buf))
+                        {
+                            Ok(()) => {
+                                push_status_message(
+                                    app,
+                                    format!("opened agents dir {}", path_buf.display()),
+                                );
+                            }
+                            Err(error) => {
+                                push_status_message(
+                                    app,
+                                    format!("[agents dir open error: {error}]"),
+                                );
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        push_status_message(app, "agents dir path unavailable".to_string());
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[agents dir error: {error}]"));
+                    }
+                }
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::SaveInstructions { scope, text } => {
@@ -571,6 +656,22 @@ fn save_instructions(scope: agent_core::ConfigScope, text: String) -> Result<(),
         Some(project_config_path.as_path()),
     )
     .map_err(|error| error.to_string())
+}
+
+async fn refresh_agent_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)
+where
+    F: AppFacade + ?Sized,
+{
+    match AppFacade::list_agent_settings(runtime.as_ref()).await {
+        Ok(agents) => {
+            app.dispatch_effects(vec![CrossPanelEffect::ShowAgentSettingsOverlay(
+                AgentOverlaySnapshot { agents },
+            )]);
+        }
+        Err(error) => {
+            push_status_message(app, format!("[agent settings error: {error}]"));
+        }
+    }
 }
 
 async fn test_model_connectivity<F>(

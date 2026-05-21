@@ -77,6 +77,9 @@ impl ChatPanel {
                 } else if trimmed == ":plugins" {
                     self.clear_input();
                     commands.push(Command::OpenPluginsOverlay);
+                } else if trimmed == ":agents" {
+                    self.clear_input();
+                    commands.push(Command::OpenAgentSettingsOverlay);
                 } else if trimmed == ":project draft" {
                     self.clear_input();
                     if let Some(project_id) = active_project_id(ctx) {

@@ -666,6 +666,11 @@ async fn dispatch_commands(
             Command::OpenSkillsOverlay
             | Command::OpenPluginsOverlay
             | Command::OpenInstructionsOverlay
+            | Command::OpenAgentSettingsOverlay
+            | Command::SaveAgentSettings { .. }
+            | Command::DeleteAgentSettings { .. }
+            | Command::CopyAgentSettings { .. }
+            | Command::OpenAgentsDir
             | Command::SetProfileEnabled { .. }
             | Command::DeleteProfileSettings { .. }
             | Command::MoveProfileInOrder { .. }

@@ -37,6 +37,37 @@ impl TuiMcpFakeFacade {
     }
 }
 
+fn agent_settings_view(
+    name: &str,
+    scope: agent_core::facade::AgentSettingsScope,
+) -> agent_core::facade::AgentSettingsView {
+    let scope_label = match scope {
+        agent_core::facade::AgentSettingsScope::Builtin => "Builtin",
+        agent_core::facade::AgentSettingsScope::User => "User",
+        agent_core::facade::AgentSettingsScope::Project => "Project",
+    };
+    agent_core::facade::AgentSettingsView {
+        settings_id: format!("{scope_label}:{name}"),
+        name: name.into(),
+        description: format!("{name} description"),
+        scope,
+        path: format!("{name}.md"),
+        tools: vec!["fs.read".into()],
+        model_profile: Some("fast".into()),
+        permission_mode: Some("read_only".into()),
+        skills: vec!["kairox-dev-workflow".into()],
+        nickname_candidates: vec![name.into()],
+        enabled: true,
+        instructions: format!("{name} instructions"),
+        effective: scope != agent_core::facade::AgentSettingsScope::Builtin,
+        shadowed_by: None,
+        valid: true,
+        validation_error: None,
+        editable: scope != agent_core::facade::AgentSettingsScope::Builtin,
+        deletable: scope != agent_core::facade::AgentSettingsScope::Builtin,
+    }
+}
+
 #[async_trait::async_trait]
 impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
     async fn list_mcp_server_settings(
@@ -351,7 +382,47 @@ impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {}
 impl agent_core::facade::ProjectFacade for TuiMcpFakeFacade {}
 
 #[async_trait::async_trait]
-impl agent_core::facade::AgentsFacade for TuiMcpFakeFacade {}
+impl agent_core::facade::AgentsFacade for TuiMcpFakeFacade {
+    async fn list_agent_settings(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::AgentSettingsView>> {
+        self.record("list_agent_settings");
+        Ok(vec![agent_settings_view(
+            "worker",
+            agent_core::facade::AgentSettingsScope::Builtin,
+        )])
+    }
+
+    async fn upsert_agent_settings(
+        &self,
+        input: agent_core::facade::AgentSettingsInput,
+    ) -> agent_core::Result<agent_core::facade::AgentSettingsView> {
+        self.record(format!(
+            "upsert_agent_settings:{:?}:{}",
+            input.scope, input.name
+        ));
+        Ok(agent_settings_view(&input.name, input.scope))
+    }
+
+    async fn delete_agent_settings(&self, agent_id: String) -> agent_core::Result<()> {
+        self.record(format!("delete_agent_settings:{agent_id}"));
+        Ok(())
+    }
+
+    async fn copy_agent_settings(
+        &self,
+        agent_id: String,
+        scope: agent_core::facade::AgentSettingsScope,
+    ) -> agent_core::Result<agent_core::facade::AgentSettingsView> {
+        self.record(format!("copy_agent_settings:{agent_id}:{scope:?}"));
+        Ok(agent_settings_view("worker", scope))
+    }
+
+    async fn open_agents_dir(&self) -> agent_core::Result<Option<String>> {
+        self.record("open_agents_dir");
+        Ok(None)
+    }
+}
 
 #[async_trait::async_trait]
 impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {}
@@ -1070,6 +1141,26 @@ fn colon_plugins_input_dispatches_open_plugins_overlay_command() {
 }
 
 #[test]
+fn colon_agents_input_dispatches_open_agent_settings_overlay_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":agents");
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::OpenAgentSettingsOverlay)),
+        "expected Command::OpenAgentSettingsOverlay; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
 fn colon_instructions_input_dispatches_open_instructions_overlay_command() {
     use agent_tui::components::Command;
 
@@ -1528,6 +1619,61 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
             .any(|message| message.contains("model profile fast connectivity ok")),
         "expected visible model test result; got {visible_messages:?}"
     );
+}
+
+#[tokio::test]
+async fn tui_agent_settings_commands_call_facade_and_refresh_overlay() {
+    use agent_core::facade::{AgentSettingsInput, AgentSettingsScope};
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::OpenAgentSettingsOverlay,
+            Command::SaveAgentSettings {
+                input: AgentSettingsInput {
+                    scope: AgentSettingsScope::Project,
+                    name: "planner".into(),
+                    description: "Plans work".into(),
+                    tools: vec!["search".into()],
+                    model_profile: Some("reasoning".into()),
+                    permission_mode: Some("workspace_write".into()),
+                    skills: vec!["kairox-dev-workflow".into()],
+                    nickname_candidates: vec!["Planner".into()],
+                    enabled: true,
+                    instructions: "Break work into steps.".into(),
+                },
+            },
+            Command::CopyAgentSettings {
+                settings_id: "Builtin:worker".into(),
+                scope: AgentSettingsScope::User,
+            },
+            Command::DeleteAgentSettings {
+                settings_id: "User:planner".into(),
+            },
+        ],
+    )
+    .await;
+
+    assert!(app.agent_overlay.is_visible());
+    let calls = runtime.calls();
+    for expected in [
+        "list_agent_settings",
+        "upsert_agent_settings:Project:planner",
+        "copy_agent_settings:Builtin:worker:User",
+        "delete_agent_settings:User:planner",
+    ] {
+        assert!(
+            calls.iter().any(|call| call == expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
 }
 
 #[tokio::test]
