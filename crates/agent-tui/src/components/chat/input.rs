@@ -14,6 +14,29 @@ impl ChatPanel {
         action: KeyAction,
         ctx: &EventContext,
     ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
+        if self.file_mentions_visible() {
+            match action {
+                KeyAction::SendInput if self.accept_selected_file_mention() => {
+                    return (Vec::new(), Vec::new());
+                }
+                KeyAction::InputHistoryUp => {
+                    self.select_previous_file_mention();
+                    return (Vec::new(), Vec::new());
+                }
+                KeyAction::InputHistoryDown => {
+                    self.select_next_file_mention();
+                    return (Vec::new(), Vec::new());
+                }
+                KeyAction::Escape => {
+                    self.close_file_mentions();
+                    return (Vec::new(), Vec::new());
+                }
+                _ => {}
+            }
+        }
+
+        let original_input = self.input_content.clone();
+        let original_cursor = self.input_cursor;
         let mut effects = Vec::new();
         let mut commands = Vec::new();
 
@@ -295,6 +318,10 @@ impl ChatPanel {
             _ => {}
         }
 
+        if self.input_content != original_input || self.input_cursor != original_cursor {
+            self.refresh_file_mentions();
+        }
+
         (effects, commands)
     }
 
@@ -304,7 +331,7 @@ impl ChatPanel {
         self.input_history_index = None;
     }
 
-    fn push_pending_attachment(&mut self, attachment: AttachmentInfo) {
+    pub(super) fn push_pending_attachment(&mut self, attachment: AttachmentInfo) {
         if self
             .pending_attachments
             .iter()
@@ -403,7 +430,7 @@ fn prev_char_boundary(s: &str, pos: usize) -> usize {
     i
 }
 
-fn attachment_from_path(path: &str) -> Option<AttachmentInfo> {
+pub(super) fn attachment_from_path(path: &str) -> Option<AttachmentInfo> {
     let normalized = normalize_attachment_path(path)?;
     let name = normalized
         .file_name()

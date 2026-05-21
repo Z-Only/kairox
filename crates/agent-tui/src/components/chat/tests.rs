@@ -420,6 +420,72 @@ fn attachment_labels_are_compact() {
 }
 
 #[test]
+fn file_mentions_filter_workspace_files_and_attach_selection() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let selected = root.join("src/main.rs").canonicalize().unwrap();
+    let mut panel = ChatPanel::new();
+    panel.set_workspace_files(
+        root,
+        vec!["Cargo.toml".to_string(), "src/main.rs".to_string()],
+    );
+
+    for ch in "@main".chars() {
+        panel.apply_key_action(KeyAction::InputCharacter(ch), test_ctx_with_session());
+    }
+
+    assert!(panel.file_mentions_visible());
+    assert_eq!(panel.file_mention_matches(), &["src/main.rs".to_string()]);
+
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert!(effects.is_empty());
+    assert!(cmds.is_empty());
+    assert_eq!(panel.input_content, "@src/main.rs ");
+    assert_eq!(panel.input_cursor, panel.input_content.len());
+    assert!(!panel.file_mentions_visible());
+    assert_eq!(
+        panel.pending_attachments,
+        vec![agent_core::AttachmentInfo {
+            path: selected.display().to_string(),
+            name: "main.rs".to_string(),
+            mime_type: "text/x-rust".to_string(),
+        }]
+    );
+}
+
+#[test]
+fn file_mentions_can_select_next_match_before_accepting() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let selected = root.join("src/main.rs").canonicalize().unwrap();
+    let mut panel = ChatPanel::new();
+    panel.set_workspace_files(
+        root,
+        vec!["Cargo.toml".to_string(), "src/main.rs".to_string()],
+    );
+
+    panel.apply_key_action(KeyAction::InputCharacter('@'), test_ctx_with_session());
+    assert_eq!(
+        panel.file_mention_matches(),
+        &["Cargo.toml".to_string(), "src/main.rs".to_string()]
+    );
+
+    panel.apply_key_action(KeyAction::InputHistoryDown, test_ctx_with_session());
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert!(effects.is_empty());
+    assert!(cmds.is_empty());
+    assert_eq!(panel.input_content, "@src/main.rs ");
+    assert_eq!(
+        panel.pending_attachments,
+        vec![agent_core::AttachmentInfo {
+            path: selected.display().to_string(),
+            name: "main.rs".to_string(),
+            mime_type: "text/x-rust".to_string(),
+        }]
+    );
+}
+
+#[test]
 fn send_input_empty_does_nothing() {
     let mut panel = ChatPanel::new();
     let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());

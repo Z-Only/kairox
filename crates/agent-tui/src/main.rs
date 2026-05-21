@@ -58,6 +58,19 @@ async fn dispatch_commands(
 ) {
     for command in commands {
         match command {
+            Command::SaveDraft {
+                session_id,
+                draft_text,
+            } => {
+                if let Err(e) = runtime
+                    .store()
+                    .save_draft(session_id.as_str(), &draft_text)
+                    .await
+                {
+                    push_status_error(app, format!("[draft save error: {e}]"));
+                }
+            }
+
             Command::SendMessage {
                 workspace_id,
                 session_id,
@@ -724,7 +737,7 @@ async fn dispatch_commands(
                     Ok(session_id) => {
                         app.current_session_id = Some(session_id.clone());
                         app.state.sessions.push(SessionInfo {
-                            id: session_id,
+                            id: session_id.clone(),
                             title: format!("Session using {mp}"),
                             model_profile: mp,
                             state: SessionState::Idle,
@@ -738,6 +751,7 @@ async fn dispatch_commands(
                         app.state.current_session =
                             agent_core::projection::SessionProjection::default();
                         app.domain_events.clear();
+                        restore_session_draft(runtime.store(), app, &session_id).await;
                         app.state.render_scheduler.reset();
                         // Select the new session in the sessions panel
                         app.sessions
@@ -1032,7 +1046,7 @@ async fn switch_app_to_session(
     select_session_row(app, &sid);
 
     let projection = runtime.get_session_projection(sid.clone()).await;
-    let trace = runtime.get_trace(sid).await;
+    let trace = runtime.get_trace(sid.clone()).await;
 
     if let Ok(proj) = projection {
         app.state.current_session = proj;
@@ -1040,6 +1054,7 @@ async fn switch_app_to_session(
     if let Ok(trc) = trace {
         app.domain_events = trc.into_iter().map(|t| t.event).collect();
     }
+    restore_session_draft(runtime.store(), app, &sid).await;
 
     app.state.render_scheduler.mark_dirty_immediate();
 }
@@ -1059,10 +1074,85 @@ async fn switch_to_first_active_session(
     } else {
         app.current_session_id = None;
         app.state.current_session = agent_core::projection::SessionProjection::default();
+        app.chat.set_draft_text("");
         app.domain_events.clear();
         clamp_session_selection(app);
         app.state.render_scheduler.mark_dirty_immediate();
     }
+}
+
+async fn restore_session_draft(
+    store: &SqliteEventStore,
+    app: &mut App,
+    sid: &agent_core::SessionId,
+) {
+    match store.get_draft(sid.as_str()).await {
+        Ok(draft) => app.chat.set_draft_text(draft),
+        Err(error) => push_status_error(app, format!("[draft load error: {error}]")),
+    }
+}
+
+fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut dirs = vec![root.to_path_buf()];
+    let skip_dirs: &[&str] = &[
+        ".git",
+        "node_modules",
+        "target",
+        ".claude",
+        ".kairox",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".eggs",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".next",
+        ".nuxt",
+        ".output",
+    ];
+
+    while let Some(dir) = dirs.pop() {
+        if paths.len() >= max {
+            break;
+        }
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if paths.len() >= max {
+                break;
+            }
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            let is_hidden = name.starts_with('.');
+            if file_type.is_dir() {
+                if skip_dirs.contains(&name.as_ref())
+                    || (is_hidden && name.as_ref() != "." && name.as_ref() != "..")
+                {
+                    continue;
+                }
+                dirs.push(entry.path());
+            } else if file_type.is_file() || file_type.is_symlink() {
+                if is_hidden && !name.starts_with(".env") {
+                    continue;
+                }
+                if let Ok(relative) = entry.path().strip_prefix(root) {
+                    paths.push(relative.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    paths.sort();
+    paths
 }
 
 fn select_session_row(app: &mut App, session_id: &agent_core::SessionId) {
@@ -1306,6 +1396,7 @@ async fn main() -> Result<()> {
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
+    let workspace_files = walk_workspace_files(&workspace_path, 500);
     let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &workspace_path);
     let skill_settings_roots =
         agent_runtime::skills::build_default_skill_settings_roots(&home_dir, &workspace_path);
@@ -1411,6 +1502,8 @@ async fn main() -> Result<()> {
         .clone();
 
     let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
+    app.chat
+        .set_workspace_files(workspace_path.clone(), workspace_files);
     app.current_session_id = Some(active_session_id.clone());
     app.state.sessions = app_sessions;
     app.state.projects = projects;
@@ -1425,6 +1518,7 @@ async fn main() -> Result<()> {
     if let Ok(trace) = runtime.get_trace(active_session_id.clone()).await {
         app.domain_events = trace.into_iter().map(|t| t.event).collect();
     }
+    restore_session_draft(runtime.store(), &mut app, &active_session_id).await;
 
     // Select the current session in the sessions panel
     if !app.state.sessions.is_empty() {
@@ -1553,4 +1647,51 @@ async fn main() -> Result<()> {
     terminal.show_cursor()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn restore_session_draft_loads_saved_composer_text() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        store
+            .upsert_workspace("wrk_test", "/tmp/kairox")
+            .await
+            .unwrap();
+        let session_id = agent_core::SessionId::from_string("ses_restore".to_string());
+        let now = "2026-05-21T00:00:00Z".to_string();
+        store
+            .upsert_session(&agent_store::SessionRow {
+                session_id: session_id.as_str().to_string(),
+                workspace_id: "wrk_test".to_string(),
+                title: "Restore me".to_string(),
+                model_profile: "test".to_string(),
+                model_id: None,
+                provider: None,
+                permission_mode: "suggest".to_string(),
+                deleted_at: None,
+                created_at: now.clone(),
+                updated_at: now,
+            })
+            .await
+            .unwrap();
+        store
+            .save_draft(session_id.as_str(), "saved draft")
+            .await
+            .unwrap();
+        let mut app = App::new(
+            "test",
+            PermissionMode::Suggest,
+            agent_core::WorkspaceId::from_string("wrk_test".to_string()),
+        );
+        app.chat.input_content = "old text".to_string();
+        app.chat.input_cursor = app.chat.input_content.len();
+
+        restore_session_draft(&store, &mut app, &session_id).await;
+
+        assert_eq!(app.chat.input_content, "saved draft");
+        assert_eq!(app.chat.input_cursor, "saved draft".len());
+    }
 }

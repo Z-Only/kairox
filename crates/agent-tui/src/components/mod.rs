@@ -350,6 +350,10 @@ pub enum Command {
         content: String,
         attachments: Vec<AttachmentInfo>,
     },
+    SaveDraft {
+        session_id: SessionId,
+        draft_text: String,
+    },
     SendQueuedMessageNow {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,

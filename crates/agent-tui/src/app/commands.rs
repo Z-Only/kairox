@@ -19,6 +19,7 @@ pub async fn dispatch_commands<F>(
 {
     for command in commands {
         match command {
+            Command::SaveDraft { .. } => {}
             Command::OpenMcpOverlay => {
                 refresh_mcp_overlay(runtime, app, Vec::new()).await;
                 app.state.render_scheduler.mark_dirty_immediate();
