@@ -1020,6 +1020,105 @@ fn colon_skill_deactivate_input_dispatches_deactivate_skill_command() {
     );
 }
 
+#[test]
+fn colon_skill_catalog_input_dispatches_list_skill_catalog_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skill catalog review");
+
+    assert!(
+        commands.iter().any(
+            |command| matches!(command, Command::ListSkillCatalog { keyword: Some(keyword) } if keyword == "review")
+        ),
+        "expected Command::ListSkillCatalog for review; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+
+    let commands = chat_commands_for_input(":skill catalog");
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::ListSkillCatalog { keyword: None })),
+        "expected Command::ListSkillCatalog without keyword; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_skill_install_github_input_dispatches_github_install_command() {
+    use agent_core::facade::SkillInstallTarget;
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":skill install github owner/review");
+
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            Command::InstallGithubSkill { request }
+                if request.source == "owner/review" && request.target == SkillInstallTarget::User
+        )),
+        "expected Command::InstallGithubSkill for owner/review; got {commands:?}"
+    );
+}
+
+#[test]
+fn skill_catalog_install_update_delete_command_variants_carry_payloads() {
+    use agent_core::facade::{
+        InstallGithubSkillRequest, InstallRemoteSkillRequest, SkillInstallTarget, SkillUpdateState,
+    };
+    use agent_tui::components::Command;
+
+    let install = Command::InstallRemoteSkill {
+        request: InstallRemoteSkillRequest {
+            package: "review".to_string(),
+            source: "skillhub".to_string(),
+            target: SkillInstallTarget::Project,
+            package_url: Some("https://example.test/review.zip".to_string()),
+        },
+    };
+    let github_install = Command::InstallGithubSkill {
+        request: InstallGithubSkillRequest {
+            source: "owner/review".to_string(),
+            target: SkillInstallTarget::User,
+        },
+    };
+    let update = Command::UpdateSkillSettings {
+        skill_id: "review".to_string(),
+    };
+    let delete = Command::DeleteSkillSettings {
+        skill_id: "review".to_string(),
+    };
+
+    assert!(matches!(
+        install,
+        Command::InstallRemoteSkill { request }
+            if request.package == "review"
+                && request.source == "skillhub"
+                && request.target == SkillInstallTarget::Project
+                && request.package_url.as_deref() == Some("https://example.test/review.zip")
+    ));
+    assert!(matches!(
+        github_install,
+        Command::InstallGithubSkill { request }
+            if request.source == "owner/review" && request.target == SkillInstallTarget::User
+    ));
+    assert!(matches!(
+        update,
+        Command::UpdateSkillSettings { skill_id } if skill_id == "review"
+    ));
+    assert!(matches!(
+        delete,
+        Command::DeleteSkillSettings { skill_id } if skill_id == "review"
+    ));
+
+    let update_state = SkillUpdateState::UpdateAvailable;
+    assert_eq!(update_state, SkillUpdateState::UpdateAvailable);
+}
+
 #[tokio::test]
 async fn tui_skill_commands_call_facade_and_render_visible_messages() {
     use agent_core::projection::ProjectedRole;
@@ -1214,4 +1313,140 @@ async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
             "expected call {expected}, got {calls:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn tui_skill_catalog_settings_commands_call_facade_and_render_visible_messages() {
+    use agent_core::facade::{InstallRemoteSkillRequest, SkillInstallTarget, SkillUpdateState};
+    use agent_core::projection::ProjectedRole;
+    use agent_core::WorkspaceId;
+    use agent_runtime::skill_package::FakeSkillPackageManager;
+    use agent_runtime::skill_settings::SkillSettingsRoots;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let temp_root = std::env::temp_dir().join(format!(
+        "kairox-tui-skill-settings-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after UNIX_EPOCH")
+            .as_nanos()
+    ));
+    let user_root = temp_root.join("user-skills");
+    let catalog_root = temp_root.join("catalog");
+    std::fs::create_dir_all(&user_root).expect("user skill root should be created");
+    std::fs::create_dir_all(&catalog_root).expect("catalog root should be created");
+    std::fs::write(
+        catalog_root.join("skill_sources.toml"),
+        r#"
+[[skill_sources]]
+id = "skillhub"
+display_name = "SkillHub"
+kind = "skillhub"
+url = "https://api.skillhub.cn"
+search_template = "/api/skills?keyword={{query}}"
+download_template = "/api/v1/download?slug={{slug}}"
+enabled = false
+priority = 1
+cache_ttl_seconds = 900
+"#,
+    )
+    .expect("disabled catalog source should be written");
+    write_test_skill(
+        &user_root,
+        "review",
+        "Review code changes.",
+        "# Review\n\nReview code carefully.\n",
+    );
+
+    let manager = Arc::new(FakeSkillPackageManager::default());
+    *manager.check_updates_result.lock().await = SkillUpdateState::UpToDate;
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let model = FakeModelClient::new(vec!["ok".into()]);
+    let runtime = Arc::new(
+        LocalRuntime::new(store, model)
+            .with_skill_package_manager(manager.clone())
+            .with_skill_settings_roots(SkillSettingsRoots {
+                workspace_root: None,
+                user_root: Some(user_root.clone()),
+                builtin_root: None,
+                plugin_roots: Vec::new(),
+            })
+            .with_skill_catalog(Some(catalog_root)),
+    );
+
+    let workspace_id = WorkspaceId::new();
+    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id);
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::ListSkillCatalog {
+                keyword: Some("review".into()),
+            },
+            Command::InstallRemoteSkill {
+                request: InstallRemoteSkillRequest {
+                    package: "@skills/review".into(),
+                    source: "skillhub".into(),
+                    target: SkillInstallTarget::User,
+                    package_url: Some("https://example.test/review.zip".into()),
+                },
+            },
+            Command::UpdateSkillSettings {
+                skill_id: "review".into(),
+            },
+            Command::DeleteSkillSettings {
+                skill_id: "review".into(),
+            },
+        ],
+    )
+    .await;
+
+    let visible_messages: Vec<&str> = app
+        .state
+        .current_session
+        .messages
+        .iter()
+        .filter(|message| message.role == ProjectedRole::Assistant)
+        .map(|message| message.content.as_str())
+        .collect();
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("No catalog skills found for review")),
+        "expected visible catalog empty-state message; got {visible_messages:?}"
+    );
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("installed skill review")),
+        "expected visible install confirmation; got {visible_messages:?}"
+    );
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("updated skill review")),
+        "expected visible update confirmation; got {visible_messages:?}"
+    );
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("deleted skill review")),
+        "expected visible delete confirmation; got {visible_messages:?}"
+    );
+    assert_eq!(manager.registry_install_requests.lock().await.len(), 1);
+    assert_eq!(
+        manager.registry_install_requests.lock().await[0].package,
+        "@skills/review"
+    );
+    assert_eq!(manager.update_skill_ids.lock().await.as_slice(), ["review"]);
+    assert!(
+        !user_root.join("review").exists(),
+        "delete command should remove the user skill directory"
+    );
+
+    std::fs::remove_dir_all(temp_root).expect("test skill settings root should be cleaned up");
 }

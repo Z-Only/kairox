@@ -1,11 +1,11 @@
-use agent_core::facade::{McpFacade, PluginsFacade};
+use agent_core::facade::{McpFacade, PluginsFacade, SkillCatalogQuery, SkillInstallTarget};
 use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{ActivateSkillRequest, AppFacade, DeactivateSkillRequest};
 
 use super::App;
 use crate::components::{
     Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry, PluginOverlaySnapshot,
-    SkillEntry,
+    SkillEntry, SkillOverlaySnapshot,
 };
 
 pub async fn dispatch_commands<F>(
@@ -22,7 +22,7 @@ pub async fn dispatch_commands<F>(
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::OpenSkillsOverlay => {
-                refresh_skills_overlay(runtime, app).await;
+                refresh_skills_overlay(runtime, app, None).await;
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::OpenPluginsOverlay => {
@@ -30,7 +30,7 @@ pub async fn dispatch_commands<F>(
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::ListSkills if app.skills_overlay.is_visible() => {
-                refresh_skills_overlay(runtime, app).await;
+                refresh_skills_overlay(runtime, app, None).await;
             }
             Command::ListSkills => match AppFacade::list_skills(runtime.as_ref()).await {
                 Ok(skills) if skills.is_empty() => {
@@ -88,7 +88,7 @@ pub async fn dispatch_commands<F>(
                 match AppFacade::activate_skill(runtime.as_ref(), request).await {
                     Ok(active_skill) => {
                         if app.skills_overlay.is_visible() {
-                            refresh_skills_overlay(runtime, app).await;
+                            refresh_skills_overlay(runtime, app, None).await;
                         } else {
                             push_status_message(
                                 app,
@@ -114,13 +114,148 @@ pub async fn dispatch_commands<F>(
                 match AppFacade::deactivate_skill(runtime.as_ref(), request).await {
                     Ok(()) => {
                         if app.skills_overlay.is_visible() {
-                            refresh_skills_overlay(runtime, app).await;
+                            refresh_skills_overlay(runtime, app, None).await;
                         } else {
                             push_status_message(app, format!("deactivated {skill_id}"));
                         }
                     }
                     Err(error) => {
                         push_status_message(app, format!("[skill deactivate error: {error}]"));
+                    }
+                }
+            }
+            Command::ListSkillCatalog { keyword } => {
+                let query = SkillCatalogQuery {
+                    keyword: keyword.clone(),
+                    sources: None,
+                    limit: Some(50),
+                };
+                match AppFacade::list_skill_catalog(runtime.as_ref(), query).await {
+                    Ok(entries) if entries.is_empty() => {
+                        let suffix = keyword
+                            .as_deref()
+                            .map(|value| format!(" for {value}"))
+                            .unwrap_or_default();
+                        push_status_message(app, format!("No catalog skills found{suffix}"));
+                    }
+                    Ok(entries) => {
+                        let skill_lines = entries
+                            .iter()
+                            .map(|entry| {
+                                format!(
+                                    "- {}: {} [{}]",
+                                    entry.name, entry.description, entry.source
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        push_status_message(app, format!("Catalog skills:\n{skill_lines}"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill catalog error: {error}]"));
+                    }
+                }
+            }
+            Command::InstallRemoteSkill { request } => {
+                match AppFacade::install_remote_skill(runtime.as_ref(), request.clone()).await {
+                    Ok(skill) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            push_status_message(app, format!("installed skill {}", skill.id));
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill install error: {error}]"));
+                    }
+                }
+            }
+            Command::InstallGithubSkill { request } => {
+                match AppFacade::install_github_skill(runtime.as_ref(), request.clone()).await {
+                    Ok(skill) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            push_status_message(app, format!("installed skill {}", skill.id));
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill install error: {error}]"));
+                    }
+                }
+            }
+            Command::UpdateSkillSettings { skill_id } => {
+                match AppFacade::update_skill(runtime.as_ref(), skill_id.clone()).await {
+                    Ok(skill) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            push_status_message(app, format!("updated skill {}", skill.id));
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill update error: {error}]"));
+                    }
+                }
+            }
+            Command::DeleteSkillSettings { skill_id } => {
+                match AppFacade::delete_skill_settings(runtime.as_ref(), skill_id.clone()).await {
+                    Ok(()) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            push_status_message(app, format!("deleted skill {skill_id}"));
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill delete error: {error}]"));
+                    }
+                }
+            }
+            Command::SetSkillEnabled { skill_id, enabled } => {
+                match AppFacade::set_skill_enabled(runtime.as_ref(), skill_id.clone(), enabled)
+                    .await
+                {
+                    Ok(()) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            let state = if enabled { "enabled" } else { "disabled" };
+                            push_status_message(app, format!("{state} skill {skill_id}"));
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill enable error: {error}]"));
+                    }
+                }
+            }
+            Command::SetSkillSourceEnabled { source_id, enabled } => {
+                match AppFacade::set_skill_source_enabled(
+                    runtime.as_ref(),
+                    source_id.clone(),
+                    enabled,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        refresh_skills_overlay(runtime, app, None).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill source error: {error}]"));
+                    }
+                }
+            }
+            Command::RefreshSkillCatalog => {
+                match AppFacade::refresh_skill_catalog(runtime.as_ref()).await {
+                    Ok(()) => {
+                        if app.skills_overlay.is_visible() {
+                            refresh_skills_overlay(runtime, app, None).await;
+                        } else {
+                            push_status_message(app, "refreshed skill catalog".to_string());
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill catalog refresh error: {error}]"));
                     }
                 }
             }
@@ -278,8 +413,11 @@ fn push_status_message(app: &mut App, content: String) {
     app.state.render_scheduler.mark_dirty();
 }
 
-async fn refresh_skills_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)
-where
+async fn refresh_skills_overlay<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &mut App,
+    catalog_keyword: Option<String>,
+) where
     F: AppFacade + ?Sized,
 {
     let skills = match AppFacade::list_skills(runtime.as_ref()).await {
@@ -318,7 +456,48 @@ where
         })
         .collect();
 
-    app.dispatch_effects(vec![CrossPanelEffect::ShowSkillsOverlay(entries)]);
+    let installed = match AppFacade::list_skill_settings(runtime.as_ref()).await {
+        Ok(installed) => installed,
+        Err(error) => {
+            push_status_message(app, format!("[skill settings error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    let catalog = match AppFacade::list_skill_catalog(
+        runtime.as_ref(),
+        SkillCatalogQuery {
+            keyword: catalog_keyword,
+            sources: None,
+            limit: Some(50),
+        },
+    )
+    .await
+    {
+        Ok(catalog) => catalog,
+        Err(error) => {
+            push_status_message(app, format!("[skill catalog error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    let sources = match AppFacade::list_skill_sources(runtime.as_ref()).await {
+        Ok(sources) => sources,
+        Err(error) => {
+            push_status_message(app, format!("[skill sources error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    app.dispatch_effects(vec![CrossPanelEffect::ShowSkillsOverlay(
+        SkillOverlaySnapshot {
+            discovered: entries,
+            installed,
+            catalog,
+            sources,
+            install_target: SkillInstallTarget::User,
+        },
+    )]);
 }
 
 pub async fn refresh_mcp_overlay<F>(

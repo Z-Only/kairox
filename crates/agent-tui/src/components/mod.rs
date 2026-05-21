@@ -99,6 +99,28 @@ pub struct SkillEntry {
     pub active: bool,
 }
 
+/// Snapshot payload for opening the skills manager overlay.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SkillOverlaySnapshot {
+    pub discovered: Vec<SkillEntry>,
+    pub installed: Vec<agent_core::facade::SkillSettingsView>,
+    pub catalog: Vec<agent_core::facade::SkillCatalogEntry>,
+    pub sources: Vec<agent_core::facade::SkillSourceView>,
+    pub install_target: agent_core::facade::SkillInstallTarget,
+}
+
+impl From<Vec<SkillEntry>> for SkillOverlaySnapshot {
+    fn from(discovered: Vec<SkillEntry>) -> Self {
+        Self {
+            discovered,
+            installed: Vec::new(),
+            catalog: Vec::new(),
+            sources: Vec::new(),
+            install_target: agent_core::facade::SkillInstallTarget::User,
+        }
+    }
+}
+
 /// Snapshot row used to populate the model profile selector overlay.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelProfileEntry {
@@ -185,7 +207,7 @@ pub struct StatusInfo {
     pub compacting: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum CrossPanelEffect {
     SwitchFocus(FocusTarget),
@@ -207,7 +229,7 @@ pub enum CrossPanelEffect {
     /// prefix that needs an argument.
     PrefillChatInput(String),
     /// Build/refresh the skills overlay snapshot and open it.
-    ShowSkillsOverlay(Vec<SkillEntry>),
+    ShowSkillsOverlay(SkillOverlaySnapshot),
     /// Close the skills overlay.
     DismissSkillsOverlay,
     /// Deliver a skill's rendered markdown body to the open overlay so it
@@ -361,6 +383,38 @@ pub enum Command {
         session_id: SessionId,
         skill_id: String,
     },
+    /// Search/list skills from the configured skill catalog.
+    ListSkillCatalog {
+        keyword: Option<String>,
+    },
+    /// Install one remote catalog skill into the selected target.
+    InstallRemoteSkill {
+        request: agent_core::facade::InstallRemoteSkillRequest,
+    },
+    /// Install one GitHub skill into user settings.
+    InstallGithubSkill {
+        request: agent_core::facade::InstallGithubSkillRequest,
+    },
+    /// Update one installed skill.
+    UpdateSkillSettings {
+        skill_id: String,
+    },
+    /// Delete one installed skill configuration.
+    DeleteSkillSettings {
+        skill_id: String,
+    },
+    /// Enable or disable one installed skill setting.
+    SetSkillEnabled {
+        skill_id: String,
+        enabled: bool,
+    },
+    /// Enable or disable one skill catalog source.
+    SetSkillSourceEnabled {
+        source_id: String,
+        enabled: bool,
+    },
+    /// Refresh the configured skill catalog provider cache.
+    RefreshSkillCatalog,
     /// Enable or disable one installed plugin.
     SetPluginEnabled {
         settings_id: String,

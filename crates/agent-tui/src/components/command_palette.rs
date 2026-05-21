@@ -29,6 +29,11 @@ pub enum PaletteAction {
     PrefillSkillShow,
     PrefillSkillActivate,
     PrefillSkillDeactivate,
+    PrefillSkillCatalog,
+    PrefillSkillInstall,
+    PrefillSkillInstallGithub,
+    PrefillSkillUpdate,
+    PrefillSkillDelete,
 }
 
 /// A static entry in the palette registry.
@@ -86,6 +91,36 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             description: "Deactivate one skill for the current session",
             action: PaletteAction::PrefillSkillDeactivate,
         },
+        PaletteEntry {
+            id: "skill-catalog",
+            label: ":skill catalog <keyword>",
+            description: "Search the configured skill catalog",
+            action: PaletteAction::PrefillSkillCatalog,
+        },
+        PaletteEntry {
+            id: "skill-install",
+            label: ":skill install <package>",
+            description: "Install one skill package into user settings",
+            action: PaletteAction::PrefillSkillInstall,
+        },
+        PaletteEntry {
+            id: "skill-install-github",
+            label: ":skill install github <repo>",
+            description: "Install one GitHub skill into user settings",
+            action: PaletteAction::PrefillSkillInstallGithub,
+        },
+        PaletteEntry {
+            id: "skill-update",
+            label: ":skill update <id>",
+            description: "Update one installed skill",
+            action: PaletteAction::PrefillSkillUpdate,
+        },
+        PaletteEntry {
+            id: "skill-delete",
+            label: ":skill delete <id>",
+            description: "Delete one installed skill setting",
+            action: PaletteAction::PrefillSkillDelete,
+        },
     ];
     ENTRIES
 }
@@ -115,6 +150,11 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::PrefillSkillShow => Some(":skill show "),
         PaletteAction::PrefillSkillActivate => Some(":skill activate "),
         PaletteAction::PrefillSkillDeactivate => Some(":skill deactivate "),
+        PaletteAction::PrefillSkillCatalog => Some(":skill catalog "),
+        PaletteAction::PrefillSkillInstall => Some(":skill install "),
+        PaletteAction::PrefillSkillInstallGithub => Some(":skill install github "),
+        PaletteAction::PrefillSkillUpdate => Some(":skill update "),
+        PaletteAction::PrefillSkillDelete => Some(":skill delete "),
         PaletteAction::Compact | PaletteAction::Plugins | PaletteAction::Skills => None,
     }
 }

@@ -372,6 +372,14 @@ async fn dispatch_commands(
             | Command::ShowSkill { .. }
             | Command::ActivateSkill { .. }
             | Command::DeactivateSkill { .. }
+            | Command::ListSkillCatalog { .. }
+            | Command::InstallRemoteSkill { .. }
+            | Command::InstallGithubSkill { .. }
+            | Command::UpdateSkillSettings { .. }
+            | Command::DeleteSkillSettings { .. }
+            | Command::SetSkillEnabled { .. }
+            | Command::SetSkillSourceEnabled { .. }
+            | Command::RefreshSkillCatalog
             | Command::SetPluginEnabled { .. }
             | Command::DeletePluginSettings { .. }
             | Command::SetPluginMarketplaceSourceEnabled { .. }
@@ -737,6 +745,8 @@ async fn main() -> Result<()> {
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
     let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &workspace_path);
+    let skill_settings_roots =
+        agent_runtime::skills::build_default_skill_settings_roots(&home_dir, &workspace_path);
     let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots).await?;
 
     let ollama_clients = agent_config::build_ollama_clients(&config);
@@ -749,6 +759,8 @@ async fn main() -> Result<()> {
             .with_config(config_arc)
             .with_ollama_clients(ollama_clients)
             .with_skill_registry(Arc::new(skill_registry))
+            .with_skill_settings_roots(skill_settings_roots)
+            .with_skill_catalog(Some(data_dir.clone()))
             .with_builtin_tools(workspace_path.clone())
             .await,
     );
