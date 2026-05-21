@@ -7,10 +7,10 @@
 //! [`Command`] values that the main loop dispatches back to `AppFacade`.
 
 use agent_core::facade::{
-    InstallRemoteSkillRequest, SkillCatalogEntry, SkillInstallSource, SkillInstallTarget,
-    SkillSettingsScope, SkillSettingsView, SkillSourceView,
+    InstallRemoteSkillRequest, SkillCatalogEntry, SkillFieldMappingView, SkillInstallSource,
+    SkillInstallTarget, SkillSettingsScope, SkillSettingsView, SkillSourceView,
 };
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -27,6 +27,13 @@ pub struct BodyView {
     pub skill_id: String,
     pub body: String,
 }
+
+const DEFAULT_SKILL_SEARCH_TEMPLATE: &str =
+    "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc";
+const DEFAULT_SKILL_DOWNLOAD_TEMPLATE: &str = "/api/v1/download?slug={{slug}}";
+const DEFAULT_SKILL_LIST_TEMPLATE: &str =
+    "/api/skills?page=1&pageSize={{limit}}&sortBy=downloads&order=desc";
+const DEFAULT_SKILL_DETAIL_TEMPLATE: &str = "/api/v1/skills/{{slug}}";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SkillTab {
@@ -65,9 +72,193 @@ impl SkillTab {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SkillOverlayMode {
+    List,
+    SourceEditor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SkillSourceEditorField {
+    Id,
+    DisplayName,
+    Url,
+    Kind,
+    SearchTemplate,
+    DownloadTemplate,
+    ListTemplate,
+    DetailTemplate,
+    Priority,
+    CacheTtlSeconds,
+    Enabled,
+}
+
+const SKILL_SOURCE_EDITOR_FIELDS: [SkillSourceEditorField; 11] = [
+    SkillSourceEditorField::Id,
+    SkillSourceEditorField::DisplayName,
+    SkillSourceEditorField::Url,
+    SkillSourceEditorField::Kind,
+    SkillSourceEditorField::SearchTemplate,
+    SkillSourceEditorField::DownloadTemplate,
+    SkillSourceEditorField::ListTemplate,
+    SkillSourceEditorField::DetailTemplate,
+    SkillSourceEditorField::Priority,
+    SkillSourceEditorField::CacheTtlSeconds,
+    SkillSourceEditorField::Enabled,
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SkillSourceDraft {
+    id: String,
+    display_name: String,
+    kind: String,
+    url: String,
+    search_template: String,
+    download_template: String,
+    list_template: String,
+    detail_template: String,
+    priority: String,
+    cache_ttl_seconds: String,
+    enabled: bool,
+}
+
+impl SkillSourceDraft {
+    fn new() -> Self {
+        Self {
+            id: String::new(),
+            display_name: String::new(),
+            kind: "skillhub".to_string(),
+            url: String::new(),
+            search_template: DEFAULT_SKILL_SEARCH_TEMPLATE.to_string(),
+            download_template: DEFAULT_SKILL_DOWNLOAD_TEMPLATE.to_string(),
+            list_template: DEFAULT_SKILL_LIST_TEMPLATE.to_string(),
+            detail_template: DEFAULT_SKILL_DETAIL_TEMPLATE.to_string(),
+            priority: "100".to_string(),
+            cache_ttl_seconds: "900".to_string(),
+            enabled: true,
+        }
+    }
+
+    fn to_view(&self) -> Option<SkillSourceView> {
+        let id = self.id.trim();
+        let display_name = self.display_name.trim();
+        let kind = self.kind.trim();
+        let url = self.url.trim();
+        let search_template = self.search_template.trim();
+        let download_template = self.download_template.trim();
+        if id.is_empty()
+            || display_name.is_empty()
+            || kind.is_empty()
+            || search_template.is_empty()
+            || download_template.is_empty()
+            || !(url.starts_with("http://") || url.starts_with("https://"))
+        {
+            return None;
+        }
+
+        Some(SkillSourceView {
+            id: id.to_string(),
+            display_name: display_name.to_string(),
+            kind: kind.to_string(),
+            url: url.to_string(),
+            search_template: search_template.to_string(),
+            download_template: download_template.to_string(),
+            list_template: trim_option(&self.list_template),
+            detail_template: trim_option(&self.detail_template),
+            field_mapping: SkillFieldMappingView::default(),
+            enabled: self.enabled,
+            priority: self.priority.trim().parse::<u32>().unwrap_or(100),
+            cache_ttl_seconds: self.cache_ttl_seconds.trim().parse::<u64>().unwrap_or(900),
+            last_error: None,
+        })
+    }
+
+    fn push_char(&mut self, field: SkillSourceEditorField, ch: char) {
+        match field {
+            SkillSourceEditorField::Id => self.id.push(ch),
+            SkillSourceEditorField::DisplayName => self.display_name.push(ch),
+            SkillSourceEditorField::Kind => self.kind.push(ch),
+            SkillSourceEditorField::Url => self.url.push(ch),
+            SkillSourceEditorField::SearchTemplate => self.search_template.push(ch),
+            SkillSourceEditorField::DownloadTemplate => self.download_template.push(ch),
+            SkillSourceEditorField::ListTemplate => self.list_template.push(ch),
+            SkillSourceEditorField::DetailTemplate => self.detail_template.push(ch),
+            SkillSourceEditorField::Priority => {
+                if ch.is_ascii_digit() {
+                    self.priority.push(ch);
+                }
+            }
+            SkillSourceEditorField::CacheTtlSeconds => {
+                if ch.is_ascii_digit() {
+                    self.cache_ttl_seconds.push(ch);
+                }
+            }
+            SkillSourceEditorField::Enabled => match ch {
+                ' ' => self.enabled = !self.enabled,
+                'y' | 'Y' | '1' | 't' | 'T' => self.enabled = true,
+                'n' | 'N' | '0' | 'f' | 'F' => self.enabled = false,
+                _ => {}
+            },
+        }
+    }
+
+    fn backspace(&mut self, field: SkillSourceEditorField) {
+        match field {
+            SkillSourceEditorField::Id => {
+                self.id.pop();
+            }
+            SkillSourceEditorField::DisplayName => {
+                self.display_name.pop();
+            }
+            SkillSourceEditorField::Kind => {
+                self.kind.pop();
+            }
+            SkillSourceEditorField::Url => {
+                self.url.pop();
+            }
+            SkillSourceEditorField::SearchTemplate => {
+                self.search_template.pop();
+            }
+            SkillSourceEditorField::DownloadTemplate => {
+                self.download_template.pop();
+            }
+            SkillSourceEditorField::ListTemplate => {
+                self.list_template.pop();
+            }
+            SkillSourceEditorField::DetailTemplate => {
+                self.detail_template.pop();
+            }
+            SkillSourceEditorField::Priority => {
+                self.priority.pop();
+            }
+            SkillSourceEditorField::CacheTtlSeconds => {
+                self.cache_ttl_seconds.pop();
+            }
+            SkillSourceEditorField::Enabled => {}
+        }
+    }
+
+    fn clear_field(&mut self, field: SkillSourceEditorField) {
+        match field {
+            SkillSourceEditorField::Id => self.id.clear(),
+            SkillSourceEditorField::DisplayName => self.display_name.clear(),
+            SkillSourceEditorField::Kind => self.kind.clear(),
+            SkillSourceEditorField::Url => self.url.clear(),
+            SkillSourceEditorField::SearchTemplate => self.search_template.clear(),
+            SkillSourceEditorField::DownloadTemplate => self.download_template.clear(),
+            SkillSourceEditorField::ListTemplate => self.list_template.clear(),
+            SkillSourceEditorField::DetailTemplate => self.detail_template.clear(),
+            SkillSourceEditorField::Priority => self.priority.clear(),
+            SkillSourceEditorField::CacheTtlSeconds => self.cache_ttl_seconds.clear(),
+            SkillSourceEditorField::Enabled => {}
+        }
+    }
+}
+
 pub struct SkillsOverlay {
     focused: bool,
     visible: bool,
+    mode: SkillOverlayMode,
     tab: SkillTab,
     discovered: Vec<SkillEntry>,
     installed: Vec<SkillSettingsView>,
@@ -78,6 +269,8 @@ pub struct SkillsOverlay {
     installed_state: ListState,
     catalog_state: ListState,
     sources_state: ListState,
+    source_draft: SkillSourceDraft,
+    source_field_index: usize,
     body: Option<BodyView>,
 }
 
@@ -92,6 +285,7 @@ impl SkillsOverlay {
         Self {
             focused: false,
             visible: false,
+            mode: SkillOverlayMode::List,
             tab: SkillTab::Discovered,
             discovered: Vec::new(),
             installed: Vec::new(),
@@ -102,6 +296,8 @@ impl SkillsOverlay {
             installed_state: ListState::default(),
             catalog_state: ListState::default(),
             sources_state: ListState::default(),
+            source_draft: SkillSourceDraft::new(),
+            source_field_index: 0,
             body: None,
         }
     }
@@ -150,6 +346,9 @@ impl SkillsOverlay {
         self.installed_state.select(None);
         self.catalog_state.select(None);
         self.sources_state.select(None);
+        self.mode = SkillOverlayMode::List;
+        self.source_draft = SkillSourceDraft::new();
+        self.source_field_index = 0;
         self.body = None;
     }
 
@@ -266,6 +465,49 @@ impl SkillsOverlay {
         self.select_current(Some(next));
     }
 
+    fn start_source_create(&mut self) {
+        self.mode = SkillOverlayMode::SourceEditor;
+        self.source_draft = SkillSourceDraft::new();
+        self.source_field_index = 0;
+    }
+
+    fn current_source_field(&self) -> SkillSourceEditorField {
+        SKILL_SOURCE_EDITOR_FIELDS[self.source_field_index]
+    }
+
+    fn move_source_field_down(&mut self) {
+        self.source_field_index = (self.source_field_index + 1) % SKILL_SOURCE_EDITOR_FIELDS.len();
+    }
+
+    fn move_source_field_up(&mut self) {
+        self.source_field_index = if self.source_field_index == 0 {
+            SKILL_SOURCE_EDITOR_FIELDS.len() - 1
+        } else {
+            self.source_field_index - 1
+        };
+    }
+
+    fn handle_source_editor_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Vec<Command> {
+        match key {
+            KeyCode::Tab | KeyCode::Down => self.move_source_field_down(),
+            KeyCode::BackTab | KeyCode::Up => self.move_source_field_up(),
+            KeyCode::Esc => self.mode = SkillOverlayMode::List,
+            KeyCode::Backspace => self.source_draft.backspace(self.current_source_field()),
+            KeyCode::Delete => self.source_draft.clear_field(self.current_source_field()),
+            KeyCode::Enter => {
+                if let Some(config) = self.source_draft.to_view() {
+                    self.mode = SkillOverlayMode::List;
+                    return vec![Command::AddSkillSource { config }];
+                }
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.source_draft.push_char(self.current_source_field(), ch);
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
     fn command_for_current_tab(&mut self, key: KeyCode) -> Option<Command> {
         match (self.tab, key) {
             (SkillTab::Installed, KeyCode::Char('e') | KeyCode::Char('E')) => self
@@ -307,6 +549,11 @@ impl SkillsOverlay {
                 .map(|source| Command::SetSkillSourceEnabled {
                     source_id: source.id.clone(),
                     enabled: !source.enabled,
+                }),
+            (SkillTab::Sources, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => self
+                .selected_source()
+                .map(|source| Command::RemoveSkillSource {
+                    source_id: source.id.clone(),
                 }),
             _ => None,
         }
@@ -383,6 +630,11 @@ pub fn render_skills_overlay(
     }
 
     if inner.height < 5 {
+        return;
+    }
+
+    if overlay.mode == SkillOverlayMode::SourceEditor {
+        render_source_editor(inner, frame, overlay);
         return;
     }
 
@@ -673,7 +925,7 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
         SkillTab::Discovered => "[Enter] body  [a] activate  [d] deactivate  ",
         SkillTab::Installed => "[e] enable  [u] update  [x] delete  ",
         SkillTab::Catalog => "[i] install  [t] target  ",
-        SkillTab::Sources => "[e] enable source  ",
+        SkillTab::Sources => "[n] new  [e] enable source  [x] remove  ",
     };
     let hints = Line::from(vec![
         Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
@@ -683,6 +935,94 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
         Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
     ]);
     frame.render_widget(Paragraph::new(hints), area);
+}
+
+fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
+    let list_height = area.height.saturating_sub(1);
+    let list_area = Rect::new(area.x, area.y, area.width, list_height);
+    let hint_area = Rect::new(
+        area.x,
+        area.y + list_height,
+        area.width,
+        area.height.saturating_sub(list_height),
+    );
+    let items = SKILL_SOURCE_EDITOR_FIELDS
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let marker = if index == overlay.source_field_index {
+                "> "
+            } else {
+                "  "
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    format!("{:<14}", skill_source_field_label(*field)),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+                Span::styled(
+                    skill_source_field_value(&overlay.source_draft, *field),
+                    Style::default().fg(Color::Gray),
+                ),
+            ]))
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(List::new(items), list_area);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                "[Tab/Up/Down] field  ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
+            Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        ])),
+        hint_area,
+    );
+}
+
+fn skill_source_field_label(field: SkillSourceEditorField) -> &'static str {
+    match field {
+        SkillSourceEditorField::Id => "ID",
+        SkillSourceEditorField::DisplayName => "Name",
+        SkillSourceEditorField::Url => "URL",
+        SkillSourceEditorField::Kind => "Kind",
+        SkillSourceEditorField::SearchTemplate => "Search",
+        SkillSourceEditorField::DownloadTemplate => "Download",
+        SkillSourceEditorField::ListTemplate => "List",
+        SkillSourceEditorField::DetailTemplate => "Detail",
+        SkillSourceEditorField::Priority => "Priority",
+        SkillSourceEditorField::CacheTtlSeconds => "TTL",
+        SkillSourceEditorField::Enabled => "Enabled",
+    }
+}
+
+fn skill_source_field_value(draft: &SkillSourceDraft, field: SkillSourceEditorField) -> String {
+    match field {
+        SkillSourceEditorField::Id => draft.id.clone(),
+        SkillSourceEditorField::DisplayName => draft.display_name.clone(),
+        SkillSourceEditorField::Url => draft.url.clone(),
+        SkillSourceEditorField::Kind => draft.kind.clone(),
+        SkillSourceEditorField::SearchTemplate => draft.search_template.clone(),
+        SkillSourceEditorField::DownloadTemplate => draft.download_template.clone(),
+        SkillSourceEditorField::ListTemplate => draft.list_template.clone(),
+        SkillSourceEditorField::DetailTemplate => draft.detail_template.clone(),
+        SkillSourceEditorField::Priority => draft.priority.clone(),
+        SkillSourceEditorField::CacheTtlSeconds => draft.cache_ttl_seconds.clone(),
+        SkillSourceEditorField::Enabled => draft.enabled.to_string(),
+    }
+}
+
+fn trim_option(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 impl Component for SkillsOverlay {
@@ -710,6 +1050,11 @@ impl Component for SkillsOverlay {
             return (effects, commands);
         }
 
+        if self.mode == SkillOverlayMode::SourceEditor {
+            commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
+            return (effects, commands);
+        }
+
         match key.code {
             KeyCode::Tab => {
                 self.tab = self.tab.next();
@@ -726,6 +1071,9 @@ impl Component for SkillsOverlay {
                 effects.push(CrossPanelEffect::DismissSkillsOverlay);
             }
             KeyCode::Char('r') | KeyCode::Char('R') => commands.push(Command::RefreshSkillCatalog),
+            KeyCode::Char('n') | KeyCode::Char('N') if self.tab == SkillTab::Sources => {
+                self.start_source_create();
+            }
             KeyCode::Enter => {
                 if let Some(entry) = self
                     .selected_discovered()
@@ -895,6 +1243,12 @@ mod tests {
             code,
             crossterm::event::KeyModifiers::NONE,
         ))
+    }
+
+    fn type_text(overlay: &mut SkillsOverlay, text: &str) {
+        for ch in text.chars() {
+            let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char(ch)));
+        }
     }
 
     fn test_ctx_session(
@@ -1195,6 +1549,51 @@ mod tests {
             &commands[..],
             [Command::SetSkillSourceEnabled { source_id, enabled }]
                 if source_id == "skillhub" && !enabled
+        ));
+    }
+
+    #[test]
+    fn sources_tab_adds_and_removes_skill_sources() {
+        let mut overlay = SkillsOverlay::new();
+        overlay.show(SkillOverlaySnapshot {
+            discovered: vec![],
+            installed: vec![],
+            catalog: vec![],
+            sources: vec![source("skillhub", true)],
+            install_target: SkillInstallTarget::User,
+        });
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
+
+        let (_, remove_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('x')));
+        assert!(matches!(
+            &remove_commands[..],
+            [Command::RemoveSkillSource { source_id }] if source_id == "skillhub"
+        ));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('n')));
+        assert!(commands.is_empty());
+        type_text(&mut overlay, "corp");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "Corporate Skills");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "https://skills.example.com");
+        let (_, add_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(
+            &add_commands[..],
+            [Command::AddSkillSource { config }]
+                if config.id == "corp"
+                    && config.display_name == "Corporate Skills"
+                    && config.kind == "skillhub"
+                    && config.url == "https://skills.example.com"
+                    && config.search_template == "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc"
+                    && config.download_template == "/api/v1/download?slug={{slug}}"
+                    && config.list_template.as_deref() == Some("/api/skills?page=1&pageSize={{limit}}&sortBy=downloads&order=desc")
+                    && config.detail_template.as_deref() == Some("/api/v1/skills/{{slug}}")
+                    && config.enabled
+                    && config.priority == 100
+                    && config.cache_ttl_seconds == 900
+                    && config.last_error.is_none()
         ));
     }
 

@@ -685,6 +685,14 @@ pub enum Command {
         source_id: String,
         enabled: bool,
     },
+    /// Add one skill catalog source.
+    AddSkillSource {
+        config: agent_core::facade::SkillSourceView,
+    },
+    /// Remove one skill catalog source.
+    RemoveSkillSource {
+        source_id: String,
+    },
     /// Refresh the configured skill catalog provider cache.
     RefreshSkillCatalog,
     /// Enable or disable one installed plugin.
