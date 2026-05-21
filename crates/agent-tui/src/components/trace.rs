@@ -20,7 +20,11 @@ pub struct TracePanel {
     pub scroll_offset: usize,
     pub selected_task_index: usize,
     pub selected_memory_index: usize,
+    pub memory_scope_filter: MemoryScopeFilter,
+    pub memory_search_query: String,
+    pub memory_search_active: bool,
     pub memory_rows: Vec<MemoryRow>,
+    pending_delete_memory_id: Option<String>,
 }
 
 impl Default for TracePanel {
@@ -39,17 +43,23 @@ impl TracePanel {
             scroll_offset: 0,
             selected_task_index: 0,
             selected_memory_index: 0,
+            memory_scope_filter: MemoryScopeFilter::All,
+            memory_search_query: String::new(),
+            memory_search_active: false,
             memory_rows: Vec::new(),
+            pending_delete_memory_id: None,
         }
     }
 
     pub fn cycle_tab_next(&mut self) {
         self.active_tab = self.active_tab.next();
+        self.clear_memory_transient_state_if_hidden();
         self.clamp_selection();
     }
 
     pub fn cycle_tab_previous(&mut self) {
         self.active_tab = self.active_tab.previous();
+        self.clear_memory_transient_state_if_hidden();
         self.clamp_selection();
     }
 
@@ -60,6 +70,7 @@ impl TracePanel {
         } else {
             RightPanelTab::Trace
         };
+        self.clear_memory_transient_state_if_hidden();
     }
 
     pub fn select_next(&mut self, row_count: usize) {
@@ -108,11 +119,15 @@ impl TracePanel {
 
     pub fn set_memory_rows(&mut self, rows: Vec<MemoryRow>) {
         self.memory_rows = rows;
+        self.pending_delete_memory_id = None;
         self.clamp_selection();
     }
 
     pub fn remove_memory_row(&mut self, memory_id: &str) {
         self.memory_rows.retain(|row| row.id != memory_id);
+        if self.pending_delete_memory_id.as_deref() == Some(memory_id) {
+            self.pending_delete_memory_id = None;
+        }
         self.clamp_selection();
     }
 
@@ -123,6 +138,70 @@ impl TracePanel {
         self.memory_rows
             .get(self.selected_memory_index)
             .map(|row| row.id.clone())
+    }
+
+    pub fn memory_keywords(&self) -> Vec<String> {
+        self.memory_search_query
+            .split_whitespace()
+            .map(str::to_string)
+            .collect()
+    }
+
+    pub fn memory_load_command(&self) -> Command {
+        Command::LoadMemories {
+            scope: self.memory_scope_filter.scope(),
+            keywords: self.memory_keywords(),
+            limit: 100,
+        }
+    }
+
+    pub fn cycle_memory_scope_filter(&mut self) {
+        self.memory_scope_filter = self.memory_scope_filter.next();
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn start_memory_search(&mut self) {
+        self.memory_search_active = true;
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn apply_memory_search(&mut self) {
+        self.memory_search_active = false;
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn push_memory_search_char(&mut self, ch: char) {
+        self.memory_search_query.push(ch);
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn pop_memory_search_char(&mut self) {
+        self.memory_search_query.pop();
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn clear_memory_transient_state(&mut self) {
+        self.memory_search_active = false;
+        self.pending_delete_memory_id = None;
+    }
+
+    pub fn begin_memory_delete_confirmation(&mut self) -> Option<String> {
+        let memory_id = self.selected_memory_id()?;
+        if self.pending_delete_memory_id.as_deref() == Some(memory_id.as_str()) {
+            self.pending_delete_memory_id = None;
+            return Some(memory_id);
+        }
+        self.memory_search_active = false;
+        self.pending_delete_memory_id = Some(memory_id);
+        None
+    }
+
+    pub fn confirm_memory_delete(&mut self) -> Option<String> {
+        self.pending_delete_memory_id.take()
+    }
+
+    pub fn pending_delete_memory_id(&self) -> Option<String> {
+        self.pending_delete_memory_id.clone()
     }
 
     fn selected_task<'a>(&self, snapshot: &'a TaskGraphSnapshot) -> Option<&'a TaskSnapshot> {
@@ -152,8 +231,52 @@ impl TracePanel {
     fn clamp_selection(&mut self) {
         if self.memory_rows.is_empty() {
             self.selected_memory_index = 0;
+            self.pending_delete_memory_id = None;
         } else if self.selected_memory_index >= self.memory_rows.len() {
             self.selected_memory_index = self.memory_rows.len() - 1;
+        }
+    }
+
+    fn clear_memory_transient_state_if_hidden(&mut self) {
+        if self.active_tab != RightPanelTab::Memory {
+            self.clear_memory_transient_state();
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryScopeFilter {
+    All,
+    Session,
+    User,
+    Workspace,
+}
+
+impl MemoryScopeFilter {
+    pub fn next(self) -> Self {
+        match self {
+            Self::All => Self::Session,
+            Self::Session => Self::User,
+            Self::User => Self::Workspace,
+            Self::Workspace => Self::All,
+        }
+    }
+
+    pub fn scope(self) -> Option<agent_memory::MemoryScope> {
+        match self {
+            Self::All => None,
+            Self::Session => Some(agent_memory::MemoryScope::Session),
+            Self::User => Some(agent_memory::MemoryScope::User),
+            Self::Workspace => Some(agent_memory::MemoryScope::Workspace),
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Session => "session",
+            Self::User => "user",
+            Self::Workspace => "workspace",
         }
     }
 }
@@ -241,6 +364,7 @@ pub struct MemoryRow {
     pub scope: String,
     pub key: Option<String>,
     pub content: String,
+    pub accepted: bool,
 }
 
 impl MemoryRow {
@@ -250,13 +374,15 @@ impl MemoryRow {
             scope,
             key,
             content,
+            accepted: true,
         }
     }
 
     pub fn label(&self) -> String {
+        let pending = if self.accepted { "" } else { " pending" };
         match &self.key {
-            Some(key) => format!("[{}] {}: {}", self.scope, key, self.content),
-            None => format!("[{}] {}", self.scope, self.content),
+            Some(key) => format!("[{}]{} {}: {}", self.scope, pending, key, self.content),
+            None => format!("[{}]{} {}", self.scope, pending, self.content),
         }
     }
 }
@@ -268,7 +394,9 @@ impl From<agent_memory::MemoryEntry> for MemoryRow {
             agent_memory::MemoryScope::Workspace => "workspace",
             agent_memory::MemoryScope::Session => "session",
         };
-        Self::new(entry.id, scope.into(), entry.key, entry.content)
+        let mut row = Self::new(entry.id, scope.into(), entry.key, entry.content);
+        row.accepted = entry.accepted;
+        row
     }
 }
 
@@ -645,24 +773,21 @@ pub fn render_task_graph_placeholder(area: Rect, frame: &mut Frame, focused: boo
     frame.render_widget(paragraph, area);
 }
 
-pub fn render_memory_browser(
-    area: Rect,
-    frame: &mut Frame,
-    memories: &[MemoryRow],
-    focused: bool,
-    selected_index: usize,
-) {
+pub fn render_memory_browser(area: Rect, frame: &mut Frame, panel: &TracePanel) {
+    let memories = &panel.memory_rows;
+    let focused = panel.focused();
     let border_style = if focused {
         Style::default().fg(Color::Cyan)
     } else {
         Style::default().fg(Color::DarkGray)
     };
+    let title = memory_browser_title(panel);
 
     if memories.is_empty() {
-        let paragraph = Paragraph::new("No saved memories").block(
+        let paragraph = Paragraph::new(memory_browser_empty_text(panel)).block(
             Block::default()
                 .borders(Borders::LEFT)
-                .title(right_panel_title(RightPanelTab::Memory))
+                .title(title)
                 .border_style(border_style),
         );
         frame.render_widget(paragraph, area);
@@ -673,14 +798,21 @@ pub fn render_memory_browser(
         .iter()
         .enumerate()
         .map(|(index, row)| {
-            let cursor = if focused && index == selected_index {
+            let cursor = if focused && index == panel.selected_memory_index {
                 ">"
             } else {
                 " "
             };
+            let delete_hint = if panel.pending_delete_memory_id.as_deref() == Some(row.id.as_str())
+            {
+                " delete? y/N"
+            } else {
+                ""
+            };
             ListItem::new(Line::from(vec![
                 Span::styled(cursor, Style::default().fg(Color::Cyan)),
                 Span::raw(row.label()),
+                Span::styled(delete_hint, Style::default().fg(Color::Red)),
             ]))
         })
         .collect();
@@ -688,10 +820,42 @@ pub fn render_memory_browser(
     let list = List::new(items).block(
         Block::default()
             .borders(Borders::LEFT)
-            .title(right_panel_title(RightPanelTab::Memory))
+            .title(title)
             .border_style(border_style),
     );
     frame.render_widget(list, area);
+}
+
+fn memory_browser_title(panel: &TracePanel) -> String {
+    let search = if panel.memory_search_query.is_empty() {
+        String::from("-")
+    } else if panel.memory_search_active {
+        format!("{}_", panel.memory_search_query)
+    } else {
+        panel.memory_search_query.clone()
+    };
+    format!(
+        "{} · scope:{} · search:{}",
+        right_panel_title(RightPanelTab::Memory),
+        panel.memory_scope_filter.label(),
+        search
+    )
+}
+
+fn memory_browser_empty_text(panel: &TracePanel) -> String {
+    if panel.memory_search_query.is_empty() && panel.memory_scope_filter == MemoryScopeFilter::All {
+        "No saved memories\n\n[s] scope  [/] search  [r] refresh".to_string()
+    } else {
+        format!(
+            "No saved memories for scope:{} search:{}\n\n[s] scope  [/] search  [r] refresh",
+            panel.memory_scope_filter.label(),
+            if panel.memory_search_query.is_empty() {
+                "-"
+            } else {
+                panel.memory_search_query.as_str()
+            }
+        )
+    }
 }
 
 fn right_panel_title(active: RightPanelTab) -> String {
@@ -959,16 +1123,25 @@ mod tests {
 
     #[test]
     fn memory_rows_render_scope_key_and_preview() {
-        let row = MemoryRow::new(
+        let mut row = MemoryRow::new(
             "mem_user".into(),
             "user".into(),
             Some("preferred-command".into()),
             "Use cargo test -p agent-tui trace task memory before opening the PR".into(),
         );
+        row.accepted = false;
 
         assert_eq!(
             row.label(),
-            "[user] preferred-command: Use cargo test -p agent-tui trace task memory before opening the PR"
+            "[user] pending preferred-command: Use cargo test -p agent-tui trace task memory before opening the PR"
         );
+    }
+
+    #[test]
+    fn memory_scope_filter_cycles_through_all_gui_scopes() {
+        assert_eq!(MemoryScopeFilter::All.next(), MemoryScopeFilter::Session);
+        assert_eq!(MemoryScopeFilter::Session.next(), MemoryScopeFilter::User);
+        assert_eq!(MemoryScopeFilter::User.next(), MemoryScopeFilter::Workspace);
+        assert_eq!(MemoryScopeFilter::Workspace.next(), MemoryScopeFilter::All);
     }
 }

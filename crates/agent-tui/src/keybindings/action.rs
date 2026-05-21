@@ -42,9 +42,12 @@ pub enum KeyAction {
     ToggleTraceDensity,
     CycleTraceTabNext,
     CycleTraceTabPrevious,
+    CycleMemoryScope,
+    StartMemorySearch,
     RetrySelectedTask,
     CancelSelectedTask,
     DeleteSelectedMemory,
+    ConfirmMemoryDelete,
     OpenArchiveManager,
 
     // -- Status bar shortcuts ---------------------------------------------

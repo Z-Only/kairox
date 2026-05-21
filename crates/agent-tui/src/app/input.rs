@@ -274,6 +274,32 @@ impl App {
                 let permission_pending =
                     matches!(self.chat.input_state, InputState::PermissionWait { .. })
                         || self.permission_modal.is_visible();
+                if !permission_pending
+                    && self.state.focus_manager.current() == FocusTarget::Trace
+                    && self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active
+                {
+                    let search_action = match key_event.code {
+                        crossterm::event::KeyCode::Enter => Some(KeyAction::FocusCycleNext),
+                        crossterm::event::KeyCode::Esc => Some(KeyAction::Escape),
+                        crossterm::event::KeyCode::Backspace => Some(KeyAction::InputBackspace),
+                        crossterm::event::KeyCode::Delete => Some(KeyAction::InputDelete),
+                        crossterm::event::KeyCode::Char(ch)
+                            if !key_event
+                                .modifiers
+                                .intersects(crossterm::event::KeyModifiers::CONTROL)
+                                && !key_event
+                                    .modifiers
+                                    .intersects(crossterm::event::KeyModifiers::ALT) =>
+                        {
+                            Some(KeyAction::InputCharacter(ch))
+                        }
+                        _ => None,
+                    };
+                    if let Some(action) = search_action {
+                        return self.apply_action(action);
+                    }
+                }
                 let action = resolve_key(
                     *key_event,
                     self.state.focus_manager.current(),
@@ -326,6 +352,14 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::Escape => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && (self.trace.memory_search_active
+                        || self.trace.pending_delete_memory_id().is_some())
+                {
+                    self.trace.clear_memory_transient_state();
+                    self.state.render_scheduler.mark_dirty();
+                    return commands;
+                }
                 if self.quit_confirmed {
                     self.quit_confirmed = false;
                     self.state.reset_ctrl_c();
@@ -334,6 +368,14 @@ impl App {
                 let (effects, cmds) = self.apply_chat_action(KeyAction::Escape);
                 commands.extend(cmds);
                 self.dispatch_effects(effects);
+            }
+            KeyAction::FocusCycleNext
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.apply_memory_search();
+                commands.push(self.trace.memory_load_command());
+                self.state.render_scheduler.mark_dirty();
             }
             KeyAction::ToggleSessionsSidebar => {
                 self.state.sidebar_left_visible = !self.state.sidebar_left_visible;
@@ -426,27 +468,34 @@ impl App {
             KeyAction::CycleTraceTabNext => {
                 self.trace.cycle_tab_next();
                 if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
-                    commands.push(Command::LoadMemories {
-                        scope: None,
-                        keywords: Vec::new(),
-                        limit: 100,
-                    });
+                    commands.push(self.trace.memory_load_command());
                 }
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::CycleTraceTabPrevious => {
                 self.trace.cycle_tab_previous();
                 if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
-                    commands.push(Command::LoadMemories {
-                        scope: None,
-                        keywords: Vec::new(),
-                        limit: 100,
-                    });
+                    commands.push(self.trace.memory_load_command());
                 }
                 self.state.render_scheduler.mark_dirty();
             }
+            KeyAction::CycleMemoryScope => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    self.trace.cycle_memory_scope_filter();
+                    commands.push(self.trace.memory_load_command());
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::StartMemorySearch => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    self.trace.start_memory_search();
+                    self.state.render_scheduler.mark_dirty();
+                }
+            }
             KeyAction::RetrySelectedTask => {
-                if let Some(session_id) = &self.current_session_id {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(self.trace.memory_load_command());
+                } else if let Some(session_id) = &self.current_session_id {
                     if let Some(task_id) = self
                         .trace
                         .selected_retry_task_id(&self.state.current_session.task_graph)
@@ -476,7 +525,13 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::DeleteSelectedMemory => {
-                if let Some(memory_id) = self.trace.selected_memory_id() {
+                if let Some(memory_id) = self.trace.begin_memory_delete_confirmation() {
+                    commands.push(Command::DeleteMemory { memory_id });
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::ConfirmMemoryDelete => {
+                if let Some(memory_id) = self.trace.confirm_memory_delete() {
                     commands.push(Command::DeleteMemory { memory_id });
                 }
                 self.state.render_scheduler.mark_dirty();
@@ -507,6 +562,27 @@ impl App {
                 if self.state.focus_manager.current() == FocusTarget::Sessions =>
             {
                 self.sessions.open_archive_manager(&self.state.sessions);
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputCharacter(ch)
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.push_memory_search_char(ch);
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputBackspace
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.pop_memory_search_char();
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputDelete
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.memory_search_query.clear();
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::SendInput
@@ -682,12 +758,13 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::trace::{MemoryRow, RightPanelTab};
+    use crate::components::trace::{MemoryRow, MemoryScopeFilter, RightPanelTab};
     use crate::components::{SessionInfo, SessionState};
     use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
     use agent_core::{
         AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId,
     };
+    use agent_memory::MemoryScope;
     use agent_tools::PermissionMode;
 
     fn task_snapshot(
@@ -814,6 +891,91 @@ mod tests {
     }
 
     #[test]
+    fn memory_scope_cycle_updates_filter_and_loads_memories() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+
+        let commands = app.apply_action(KeyAction::CycleMemoryScope);
+
+        assert_eq!(app.trace.memory_scope_filter, MemoryScopeFilter::Session);
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: Some(MemoryScope::Session),
+                keywords: Vec::new(),
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_search_enter_loads_keyword_filter() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+
+        assert!(app.apply_action(KeyAction::StartMemorySearch).is_empty());
+        for ch in "cargo test".chars() {
+            assert!(app.apply_action(KeyAction::InputCharacter(ch)).is_empty());
+        }
+        let commands = app.apply_action(KeyAction::FocusCycleNext);
+
+        assert_eq!(app.trace.memory_search_query, "cargo test");
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: None,
+                keywords: vec!["cargo".into(), "test".into()],
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_search_mode_captures_filter_shortcut_characters() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.focus_manager.set(FocusTarget::Trace);
+        app.sync_component_focus();
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.start_memory_search();
+
+        for ch in ['s', 'r'] {
+            let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+                crossterm::event::KeyEvent::new(
+                    crossterm::event::KeyCode::Char(ch),
+                    crossterm::event::KeyModifiers::NONE,
+                ),
+            ));
+            assert!(commands.is_empty());
+        }
+
+        assert_eq!(app.trace.memory_search_query, "sr");
+        assert_eq!(app.trace.memory_scope_filter, MemoryScopeFilter::All);
+    }
+
+    #[test]
+    fn memory_refresh_uses_current_filters() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.memory_scope_filter = MemoryScopeFilter::Workspace;
+        app.trace.memory_search_query = "release notes".into();
+
+        let commands = app.apply_action(KeyAction::RetrySelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: Some(MemoryScope::Workspace),
+                keywords: vec!["release".into(), "notes".into()],
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
     fn memory_tab_emits_delete_command_for_selected_memory() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
@@ -828,12 +990,20 @@ mod tests {
 
         let commands = app.apply_action(KeyAction::DeleteSelectedMemory);
 
+        assert!(commands.is_empty());
+        assert_eq!(
+            app.trace.pending_delete_memory_id(),
+            Some("mem_user".to_string())
+        );
+        let commands = app.apply_action(KeyAction::ConfirmMemoryDelete);
+
         assert_eq!(
             commands,
             vec![Command::DeleteMemory {
                 memory_id: "mem_user".into(),
             }]
         );
+        assert!(app.trace.pending_delete_memory_id().is_none());
     }
 
     #[test]

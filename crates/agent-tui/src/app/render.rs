@@ -135,13 +135,7 @@ impl App {
                     }
                 }
                 crate::components::trace::RightPanelTab::Memory => {
-                    crate::components::trace::render_memory_browser(
-                        trace_area,
-                        frame,
-                        &self.trace.memory_rows,
-                        self.trace.focused(),
-                        self.trace.selected_memory_index,
-                    );
+                    crate::components::trace::render_memory_browser(trace_area, frame, &self.trace);
                 }
                 crate::components::trace::RightPanelTab::Trace => {
                     let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
