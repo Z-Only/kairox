@@ -40,6 +40,7 @@ pub fn resolve_key(
             KeyCode::Char('l') => KeyAction::Redraw,
             KeyCode::Char('m') => KeyAction::ToggleMcpOverlay,
             KeyCode::Char('p') => KeyAction::ToggleCommandPalette,
+            KeyCode::Char('s') => KeyAction::ToggleSkillsOverlay,
             KeyCode::Enter => KeyAction::SendInput,
             _ => KeyAction::Unhandled,
         };
