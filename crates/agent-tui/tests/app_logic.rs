@@ -918,6 +918,52 @@ fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
     commands
 }
 
+fn chat_commands_for_project_input(
+    input: &str,
+) -> (agent_core::ProjectId, Vec<agent_tui::components::Command>) {
+    use agent_core::projection::SessionProjection;
+    use agent_core::{ProjectId, ProjectSessionVisibility, SessionId, WorkspaceId};
+    use agent_tui::components::chat::ChatPanel;
+    use agent_tui::components::{EventContext, FocusTarget, SessionInfo, SessionState};
+    use agent_tui::keybindings::KeyAction;
+
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let project_id = ProjectId::new();
+    let projection = SessionProjection::default();
+    let sessions = vec![SessionInfo {
+        id: session_id.clone(),
+        title: "project session".into(),
+        model_profile: "fake".into(),
+        state: SessionState::Idle,
+        pinned: false,
+        archived: false,
+        project_id: Some(project_id.clone()),
+        worktree_path: Some("/tmp/project".into()),
+        branch: Some("main".into()),
+        visibility: Some(ProjectSessionVisibility::Visible),
+    }];
+    let current_session_id = Some(session_id);
+    let ctx = EventContext {
+        focus: FocusTarget::Chat,
+        current_session: &projection,
+        sessions: &sessions,
+        model_profile: "fake",
+        permission_mode: PermissionMode::Suggest,
+        sidebar_left_visible: true,
+        sidebar_right_visible: false,
+        workspace_id: &workspace_id,
+        current_session_id: &current_session_id,
+    };
+
+    let mut chat = ChatPanel::new();
+    for character in input.chars() {
+        let _ = chat.apply_key_action(KeyAction::InputCharacter(character), &ctx);
+    }
+    let (_effects, commands) = chat.apply_key_action(KeyAction::SendInput, &ctx);
+    (project_id, commands)
+}
+
 #[test]
 fn colon_attach_then_send_carries_attachment_payload() {
     use agent_core::projection::SessionProjection;
@@ -1034,6 +1080,49 @@ fn colon_instructions_input_dispatches_open_instructions_overlay_command() {
             .iter()
             .any(|command| matches!(command, Command::OpenInstructionsOverlay)),
         "expected Command::OpenInstructionsOverlay; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_project_draft_input_dispatches_create_project_draft_command() {
+    use agent_tui::components::Command;
+
+    let (expected_project_id, commands) = chat_commands_for_project_input(":project draft");
+
+    assert!(
+        commands.iter().any(
+            |command| matches!(command, Command::CreateProjectDraftSession { project_id } if project_id == &expected_project_id)
+        ),
+        "expected CreateProjectDraftSession; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_project_worktree_input_dispatches_create_worktree_command() {
+    use agent_tui::components::Command;
+
+    let (expected_project_id, commands) =
+        chat_commands_for_project_input(":project worktree feat/tui");
+
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            Command::CreateProjectWorktreeSession { project_id, branch_name }
+                if project_id == &expected_project_id && branch_name == "feat/tui"
+        )),
+        "expected CreateProjectWorktreeSession; got {commands:?}"
     );
     assert!(
         !commands
