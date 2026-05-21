@@ -32,6 +32,7 @@ fn test_ctx() -> &'static EventContext<'static> {
         EventContext {
             focus: FocusTarget::Chat,
             current_session: projection,
+            projects: &[],
             sessions,
             model_profile: "test",
             permission_mode: agent_tools::PermissionMode::Suggest,
@@ -72,6 +73,7 @@ fn test_ctx_with_session() -> &'static EventContext<'static> {
         EventContext {
             focus: FocusTarget::Chat,
             current_session: projection,
+            projects: &[],
             sessions,
             model_profile: "test",
             permission_mode: agent_tools::PermissionMode::Suggest,
@@ -112,6 +114,7 @@ fn test_ctx_busy_session() -> &'static EventContext<'static> {
         EventContext {
             focus: FocusTarget::Chat,
             current_session: projection,
+            projects: &[],
             sessions,
             model_profile: "test",
             permission_mode: agent_tools::PermissionMode::Suggest,

@@ -181,8 +181,12 @@ impl App {
             self.agent_overlay.render(area, frame);
         }
 
-        self.sessions
-            .render_action_overlay(area, frame, &self.state.sessions);
+        self.sessions.render_action_overlay(
+            area,
+            frame,
+            &self.state.projects,
+            &self.state.sessions,
+        );
 
         if self.plugin_overlay.is_visible() {
             self.plugin_overlay.render(area, frame);

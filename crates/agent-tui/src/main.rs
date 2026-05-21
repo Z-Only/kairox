@@ -697,7 +697,16 @@ async fn dispatch_commands(
             | Command::DeleteMcpServerSettings { .. }
             | Command::InstallMcpServer { .. }
             | Command::UninstallMcpServer { .. }
-            | Command::SetMcpCatalogSourceEnabled { .. } => {
+            | Command::SetMcpCatalogSourceEnabled { .. }
+            | Command::CreateBlankProject { .. }
+            | Command::AddExistingProject { .. }
+            | Command::RenameProject { .. }
+            | Command::RemoveProject { .. }
+            | Command::MoveProject { .. }
+            | Command::SetProjectExpanded { .. }
+            | Command::RefreshProjectGitStatus { .. }
+            | Command::InitProjectGit { .. }
+            | Command::ShowProjectInstructions { .. } => {
                 let refresh_mcp_after = matches!(
                     command,
                     Command::SetMcpServerEnabled { .. }
@@ -933,6 +942,8 @@ fn project_info_from_meta(project: ProjectMeta) -> ProjectInfo {
         display_name: project.display_name,
         root_path: project.root_path,
         expanded: project.expanded,
+        git_status: None,
+        instruction_summary: None,
     }
 }
 
@@ -1161,18 +1172,21 @@ fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
 }
 
 fn select_session_row(app: &mut App, session_id: &agent_core::SessionId) {
-    if let Some(index) = app
-        .state
-        .sessions
-        .iter()
-        .position(|session| &session.id == session_id)
-    {
+    if let Some(index) = components::sessions::session_list_rows(
+        &app.state.projects,
+        &app.state.sessions,
+    )
+    .iter()
+    .position(
+        |row| matches!(row, components::sessions::SessionListRow::Session(id) if id == session_id),
+    ) {
         app.sessions.state.select(Some(index));
     }
 }
 
 fn clamp_session_selection(app: &mut App) {
-    let len = app.state.sessions.len();
+    let len =
+        components::sessions::session_list_rows(&app.state.projects, &app.state.sessions).len();
     if len == 0 {
         app.sessions.state.select(None);
         return;
@@ -1444,10 +1458,20 @@ async fn main() -> Result<()> {
                 .list_projects(&ws.workspace_id)
                 .await
                 .unwrap_or_default();
-            let projects: Vec<ProjectInfo> = projects_meta
+            let mut projects: Vec<ProjectInfo> = projects_meta
                 .into_iter()
                 .map(project_info_from_meta)
                 .collect();
+            for project in &mut projects {
+                project.git_status = runtime
+                    .get_project_git_status(project.id.clone())
+                    .await
+                    .ok();
+                project.instruction_summary = runtime
+                    .get_project_instruction_summary(project.id.clone())
+                    .await
+                    .ok();
+            }
             let mut session_infos: Vec<SessionInfo> = sessions
                 .into_iter()
                 .map(|s| session_info_from_meta(s, false, &None))
@@ -1527,12 +1551,14 @@ async fn main() -> Result<()> {
 
     // Select the current session in the sessions panel
     if !app.state.sessions.is_empty() {
-        let selected = app
-            .state
-            .sessions
+        let rows =
+            components::sessions::session_list_rows(&app.state.projects, &app.state.sessions);
+        let selected = rows
             .iter()
-            .position(|session| session.id == active_session_id)
-            .unwrap_or_else(|| app.state.sessions.len() - 1);
+            .position(|row| {
+                matches!(row, components::sessions::SessionListRow::Session(session_id) if session_id == &active_session_id)
+            })
+            .unwrap_or_else(|| rows.len().saturating_sub(1));
         app.sessions.state.select(Some(selected));
     }
 

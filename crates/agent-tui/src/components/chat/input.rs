@@ -85,6 +85,22 @@ impl ChatPanel {
                     if let Some(project_id) = active_project_id(ctx) {
                         commands.push(Command::CreateProjectDraftSession { project_id });
                     }
+                } else if trimmed == ":project create" || trimmed.starts_with(":project create ") {
+                    let display_name = trimmed
+                        .strip_prefix(":project create")
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_string);
+                    self.clear_input();
+                    commands.push(Command::CreateBlankProject { display_name });
+                } else if let Some(path) = trimmed
+                    .strip_prefix(":project import ")
+                    .map(str::trim)
+                    .filter(|path| !path.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    commands.push(Command::AddExistingProject { path });
                 } else if let Some(branch_name) = trimmed
                     .strip_prefix(":project worktree ")
                     .map(str::trim)
