@@ -1,13 +1,8 @@
-//! Model profile selector overlay — pop-up modal listing profiles with the
-//! current profile/effort highlighted. Mirrors the GUI's `ChatModelSelector`
-//! (`apps/agent-gui/src/components/ChatModelSelector.vue`):
-//! reasoning-capable profiles expose a side panel for picking effort.
-//!
-//! Read-only over `ProfileDef`: the App builds a snapshot of
-//! [`ModelProfileEntry`] values via `Config::profile_info()` and dispatches
-//! `ShowModelOverlay`; the overlay produces a single
-//! [`Command::SwitchModel`] on commit which the main loop forwards to
-//! `LocalRuntime::switch_model`.
+//! Model profile manager overlay — pop-up modal listing profile settings with
+//! the current profile/effort highlighted. It keeps the fast model switch path
+//! while exposing the same first-pass settings actions as the GUI model pane.
+
+use std::collections::BTreeMap;
 
 use crossterm::event::{Event, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -18,6 +13,7 @@ use ratatui::Frame;
 
 use crate::components::{
     Command, Component, CrossPanelEffect, EventContext, ModelOverlaySnapshot, ModelProfileEntry,
+    ModelProfileTestResult,
 };
 
 /// Effort presets exposed for reasoning-capable profiles. Mirrors the GUI's
@@ -40,6 +36,7 @@ pub struct ModelOverlay {
     list_state: ListState,
     effort_state: ListState,
     overlay_focus: OverlayFocus,
+    test_results: BTreeMap<String, ModelProfileTestResult>,
 }
 
 impl Default for ModelOverlay {
@@ -59,6 +56,7 @@ impl ModelOverlay {
             list_state: ListState::default(),
             effort_state: ListState::default(),
             overlay_focus: OverlayFocus::ProfileList,
+            test_results: BTreeMap::new(),
         }
     }
 
@@ -103,6 +101,7 @@ impl ModelOverlay {
         self.current_alias = None;
         self.current_effort = None;
         self.overlay_focus = OverlayFocus::ProfileList;
+        self.test_results.clear();
     }
 
     #[allow(dead_code)]
@@ -125,7 +124,7 @@ impl ModelOverlay {
     /// picker should be rendered.
     pub fn shows_effort_picker(&self) -> bool {
         self.selected_profile()
-            .map(|p| p.supports_reasoning)
+            .map(|p| p.enabled && p.supports_reasoning)
             .unwrap_or(false)
     }
 
@@ -210,6 +209,9 @@ impl ModelOverlay {
 
     fn commit_command(&self, ctx: &EventContext) -> Option<Command> {
         let entry = self.selected_profile()?;
+        if !entry.enabled {
+            return None;
+        }
         let session_id = ctx.current_session_id.clone()?;
         let reasoning_effort = if entry.supports_reasoning {
             self.selected_effort().map(|s| s.to_string())
@@ -223,6 +225,50 @@ impl ModelOverlay {
             reasoning_effort,
         })
     }
+
+    fn settings_command(&self, key: KeyCode) -> Option<Command> {
+        match key {
+            KeyCode::Char('e') | KeyCode::Char('E') => {
+                self.selected_profile()
+                    .map(|entry| Command::SetProfileEnabled {
+                        alias: entry.alias.clone(),
+                        enabled: !entry.enabled,
+                    })
+            }
+            KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete => self
+                .selected_profile()
+                .filter(|entry| entry.writable)
+                .map(|entry| Command::DeleteProfileSettings {
+                    alias: entry.alias.clone(),
+                }),
+            KeyCode::Char('J') => {
+                self.selected_profile()
+                    .map(|entry| Command::MoveProfileInOrder {
+                        alias: entry.alias.clone(),
+                        direction: 1,
+                    })
+            }
+            KeyCode::Char('K') => {
+                self.selected_profile()
+                    .map(|entry| Command::MoveProfileInOrder {
+                        alias: entry.alias.clone(),
+                        direction: -1,
+                    })
+            }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                self.selected_profile()
+                    .map(|entry| Command::TestModelProfile {
+                        alias: entry.alias.clone(),
+                    })
+            }
+            KeyCode::Char('o') | KeyCode::Char('O') => Some(Command::OpenProfilesConfig),
+            _ => None,
+        }
+    }
+
+    fn set_test_result(&mut self, result: ModelProfileTestResult) {
+        self.test_results.insert(result.alias.clone(), result);
+    }
 }
 
 pub fn render_model_overlay(
@@ -232,8 +278,8 @@ pub fn render_model_overlay(
     list_state: &mut ListState,
     effort_state: &mut ListState,
 ) {
-    let modal_width = 72.min(area.width.saturating_sub(4));
-    let modal_height = 20.min(area.height.saturating_sub(4));
+    let modal_width = 96.min(area.width.saturating_sub(4));
+    let modal_height = 22.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(modal_width)) / 2;
     let y = (area.height.saturating_sub(modal_height)) / 2;
     let modal_area = Rect::new(x, y, modal_width, modal_height);
@@ -288,9 +334,38 @@ pub fn render_model_overlay(
             .map(|p| {
                 let is_current = overlay.current_alias.as_deref() == Some(p.alias.as_str());
                 let marker = if is_current { "● " } else { "  " };
+                let enabled_label = if p.enabled { "enabled " } else { "disabled" };
+                let enabled_color = if p.enabled {
+                    Color::Green
+                } else {
+                    Color::DarkGray
+                };
                 let reasoning_tag = if p.supports_reasoning { " [R]" } else { "" };
+                let writable_tag = if p.writable {
+                    " writable"
+                } else {
+                    " read-only"
+                };
+                let key_tag = if p.has_api_key { " key" } else { " no-key" };
+                let test_tag = overlay
+                    .test_results
+                    .get(&p.alias)
+                    .map(|result| {
+                        if result.ok {
+                            " test:ok".to_string()
+                        } else {
+                            result
+                                .message
+                                .as_deref()
+                                .map(|message| format!(" test:{message}"))
+                                .unwrap_or_else(|| " test:failed".to_string())
+                        }
+                    })
+                    .unwrap_or_default();
                 let line = Line::from(vec![
                     Span::styled(marker, Style::default().fg(Color::Green)),
+                    Span::styled(enabled_label, Style::default().fg(enabled_color)),
+                    Span::raw("  "),
                     Span::styled(
                         p.alias.clone(),
                         Style::default().add_modifier(Modifier::BOLD),
@@ -300,6 +375,10 @@ pub fn render_model_overlay(
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(reasoning_tag, Style::default().fg(Color::Magenta)),
+                    Span::styled(
+                        format!("  [{}{writable_tag}{key_tag}{test_tag}]", p.source),
+                        Style::default().fg(Color::DarkGray),
+                    ),
                 ]);
                 ListItem::new(line)
             })
@@ -351,6 +430,11 @@ pub fn render_model_overlay(
 
     let hints = Line::from(vec![
         Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
+        Span::styled("[J/K] order  ", Style::default().fg(Color::Cyan)),
+        Span::styled("[e] enable  ", Style::default().fg(Color::Green)),
+        Span::styled("[t] test  ", Style::default().fg(Color::Yellow)),
+        Span::styled("[x] delete  ", Style::default().fg(Color::Red)),
+        Span::styled("[o] config  ", Style::default().fg(Color::Blue)),
         Span::styled("[Tab] effort  ", Style::default().fg(Color::Magenta)),
         Span::styled("[Enter] switch  ", Style::default().fg(Color::Yellow)),
         Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
@@ -378,6 +462,21 @@ impl Component for ModelOverlay {
             KeyCode::Char('j') | KeyCode::Down => self.move_down(),
             KeyCode::Char('k') | KeyCode::Up => self.move_up(),
             KeyCode::Tab | KeyCode::Char('l') | KeyCode::Char('h') => self.cycle_inner_focus(),
+            KeyCode::Char('e')
+            | KeyCode::Char('E')
+            | KeyCode::Char('x')
+            | KeyCode::Char('X')
+            | KeyCode::Char('J')
+            | KeyCode::Char('K')
+            | KeyCode::Char('t')
+            | KeyCode::Char('T')
+            | KeyCode::Char('o')
+            | KeyCode::Char('O')
+            | KeyCode::Delete => {
+                if let Some(cmd) = self.settings_command(key.code) {
+                    commands.push(cmd);
+                }
+            }
             KeyCode::Esc => {
                 self.hide();
                 effects.push(CrossPanelEffect::DismissModelOverlay);
@@ -398,6 +497,7 @@ impl Component for ModelOverlay {
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
         match effect {
             CrossPanelEffect::ShowModelOverlay(snapshot) => self.show(snapshot.clone()),
+            CrossPanelEffect::ModelProfileTested(result) => self.set_test_result(result.clone()),
             CrossPanelEffect::DismissModelOverlay => self.hide(),
             _ => {}
         }
@@ -432,6 +532,17 @@ mod tests {
             provider_display: "provider".to_string(),
             model_display: format!("{alias}-model"),
             supports_reasoning,
+            enabled: true,
+            writable: true,
+            source: "profiles_toml".to_string(),
+            has_api_key: true,
+        }
+    }
+
+    fn disabled_entry(alias: &str) -> ModelProfileEntry {
+        ModelProfileEntry {
+            enabled: false,
+            ..entry(alias, false)
         }
     }
 
@@ -560,6 +671,84 @@ mod tests {
         ));
         assert!(effects.contains(&CrossPanelEffect::DismissModelOverlay));
         assert!(!overlay.is_visible());
+    }
+
+    #[test]
+    fn enter_does_not_switch_disabled_profile() {
+        let mut overlay = ModelOverlay::new();
+        overlay.show(snapshot(vec![disabled_entry("slow")], Some("fast"), None));
+        let (ws, sid, sessions, proj) = test_ctx_with_session(Some(agent_core::SessionId::new()));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Enter));
+
+        assert!(
+            commands.is_empty(),
+            "disabled profiles are visible for management but cannot be switched to"
+        );
+        assert!(overlay.is_visible());
+    }
+
+    #[test]
+    fn profile_management_keys_emit_settings_commands() {
+        let mut overlay = ModelOverlay::new();
+        overlay.show(snapshot(
+            vec![entry("fast", false), disabled_entry("slow")],
+            Some("fast"),
+            None,
+        ));
+        let (ws, sid, sessions, proj) = test_ctx_with_session(Some(agent_core::SessionId::new()));
+        let _ = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('j')));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('e')));
+        assert!(matches!(
+            &commands[..],
+            [Command::SetProfileEnabled { alias, enabled }] if alias == "slow" && *enabled
+        ));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('x')));
+        assert!(matches!(
+            &commands[..],
+            [Command::DeleteProfileSettings { alias }] if alias == "slow"
+        ));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('t')));
+        assert!(matches!(
+            &commands[..],
+            [Command::TestModelProfile { alias }] if alias == "slow"
+        ));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('o')));
+        assert!(matches!(&commands[..], [Command::OpenProfilesConfig]));
+    }
+
+    #[test]
+    fn shift_j_and_k_emit_profile_reorder_commands() {
+        let mut overlay = ModelOverlay::new();
+        overlay.show(snapshot(
+            vec![entry("fast", false), entry("slow", false)],
+            Some("fast"),
+            None,
+        ));
+        let (ws, sid, sessions, proj) = test_ctx_with_session(Some(agent_core::SessionId::new()));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('J')));
+        assert!(matches!(
+            &commands[..],
+            [Command::MoveProfileInOrder { alias, direction }] if alias == "fast" && *direction == 1
+        ));
+
+        let (_, commands) =
+            overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('K')));
+        assert!(matches!(
+            &commands[..],
+            [Command::MoveProfileInOrder { alias, direction }] if alias == "fast" && *direction == -1
+        ));
     }
 
     #[test]
