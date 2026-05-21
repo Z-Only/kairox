@@ -137,6 +137,7 @@ pub struct SessionInfo {
     pub model_profile: String,
     pub state: SessionState,
     pub pinned: bool,
+    pub archived: bool,
 }
 
 /// A message typed while the session is busy and held until the session
@@ -235,6 +236,19 @@ pub enum Command {
         model_profile: String,
     },
     SwitchSession {
+        session_id: SessionId,
+    },
+    RenameSession {
+        session_id: SessionId,
+        title: String,
+    },
+    ArchiveSession {
+        session_id: SessionId,
+    },
+    RestoreSession {
+        session_id: SessionId,
+    },
+    DeleteSession {
         session_id: SessionId,
     },
     /// P3: user typed `:compact` in the chat panel; ask the runtime to

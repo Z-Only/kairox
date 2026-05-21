@@ -306,6 +306,7 @@ async fn dispatch_commands(
                             model_profile: mp,
                             state: SessionState::Idle,
                             pinned: false,
+                            archived: false,
                         });
                         app.state.current_session =
                             agent_core::projection::SessionProjection::default();
@@ -329,33 +330,157 @@ async fn dispatch_commands(
             }
 
             Command::SwitchSession { session_id } => {
-                let sid = session_id.clone();
-                app.current_session_id = Some(sid.clone());
+                switch_app_to_session(runtime, app, session_id).await;
+            }
 
-                // Update session states
-                for session in &mut app.state.sessions {
-                    if session.id == sid {
-                        session.state = SessionState::Active;
-                    } else if session.state == SessionState::Active {
-                        session.state = SessionState::Idle;
+            Command::RenameSession { session_id, title } => {
+                match runtime.rename_session(&session_id, title.clone()).await {
+                    Ok(()) => {
+                        if let Some(session) =
+                            app.state.sessions.iter_mut().find(|s| s.id == session_id)
+                        {
+                            session.title = title;
+                        }
+                        app.state.render_scheduler.mark_dirty();
                     }
+                    Err(e) => push_status_error(app, format!("[rename session error: {e}]")),
                 }
+            }
 
-                // Load historical data for the switched-to session
-                let projection = runtime.get_session_projection(sid.clone()).await;
-                let trace = runtime.get_trace(sid.clone()).await;
-
-                if let Ok(proj) = projection {
-                    app.state.current_session = proj;
+            Command::ArchiveSession { session_id } => {
+                match runtime.soft_delete_session(&session_id).await {
+                    Ok(()) => {
+                        if let Some(session) =
+                            app.state.sessions.iter_mut().find(|s| s.id == session_id)
+                        {
+                            session.archived = true;
+                            session.state = SessionState::Idle;
+                        }
+                        if app.current_session_id.as_ref() == Some(&session_id) {
+                            switch_to_first_active_session(runtime, app).await;
+                        } else {
+                            select_session_row(app, &session_id);
+                            app.state.render_scheduler.mark_dirty();
+                        }
+                    }
+                    Err(e) => push_status_error(app, format!("[archive session error: {e}]")),
                 }
-                if let Ok(trc) = trace {
-                    app.domain_events = trc.into_iter().map(|t| t.event).collect();
-                }
+            }
 
-                app.state.render_scheduler.mark_dirty_immediate();
+            Command::RestoreSession { session_id } => {
+                match runtime.restore_archived_session(&session_id).await {
+                    Ok(()) => {
+                        if let Some(session) =
+                            app.state.sessions.iter_mut().find(|s| s.id == session_id)
+                        {
+                            session.archived = false;
+                            session.state = SessionState::Idle;
+                        }
+                        select_session_row(app, &session_id);
+                        app.state.render_scheduler.mark_dirty();
+                    }
+                    Err(e) => push_status_error(app, format!("[restore session error: {e}]")),
+                }
+            }
+
+            Command::DeleteSession { session_id } => {
+                match runtime.permanently_delete_session(&session_id).await {
+                    Ok(()) => {
+                        app.state.sessions.retain(|s| s.id != session_id);
+                        if app.current_session_id.as_ref() == Some(&session_id) {
+                            switch_to_first_active_session(runtime, app).await;
+                        } else {
+                            clamp_session_selection(app);
+                            app.state.render_scheduler.mark_dirty();
+                        }
+                    }
+                    Err(e) => push_status_error(app, format!("[delete session error: {e}]")),
+                }
             }
         }
     }
+}
+
+async fn switch_app_to_session(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+    sid: agent_core::SessionId,
+) {
+    app.current_session_id = Some(sid.clone());
+
+    for session in &mut app.state.sessions {
+        if session.id == sid {
+            session.state = SessionState::Active;
+        } else if session.state == SessionState::Active {
+            session.state = SessionState::Idle;
+        }
+    }
+    select_session_row(app, &sid);
+
+    let projection = runtime.get_session_projection(sid.clone()).await;
+    let trace = runtime.get_trace(sid).await;
+
+    if let Ok(proj) = projection {
+        app.state.current_session = proj;
+    }
+    if let Ok(trc) = trace {
+        app.domain_events = trc.into_iter().map(|t| t.event).collect();
+    }
+
+    app.state.render_scheduler.mark_dirty_immediate();
+}
+
+async fn switch_to_first_active_session(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+) {
+    if let Some(session_id) = app
+        .state
+        .sessions
+        .iter()
+        .find(|session| !session.archived)
+        .map(|session| session.id.clone())
+    {
+        switch_app_to_session(runtime, app, session_id).await;
+    } else {
+        app.current_session_id = None;
+        app.state.current_session = agent_core::projection::SessionProjection::default();
+        app.domain_events.clear();
+        clamp_session_selection(app);
+        app.state.render_scheduler.mark_dirty_immediate();
+    }
+}
+
+fn select_session_row(app: &mut App, session_id: &agent_core::SessionId) {
+    if let Some(index) = app
+        .state
+        .sessions
+        .iter()
+        .position(|session| &session.id == session_id)
+    {
+        app.sessions.state.select(Some(index));
+    }
+}
+
+fn clamp_session_selection(app: &mut App) {
+    let len = app.state.sessions.len();
+    if len == 0 {
+        app.sessions.state.select(None);
+        return;
+    }
+    let selected = app.sessions.state.selected().unwrap_or(0).min(len - 1);
+    app.sessions.state.select(Some(selected));
+}
+
+fn push_status_error(app: &mut App, content: String) {
+    app.state
+        .current_session
+        .messages
+        .push(agent_core::projection::ProjectedMessage {
+            role: agent_core::projection::ProjectedRole::Assistant,
+            content,
+        });
+    app.state.render_scheduler.mark_dirty();
 }
 
 // ---------------------------------------------------------------------------
@@ -526,7 +651,11 @@ async fn main() -> Result<()> {
                 .list_sessions(&ws.workspace_id)
                 .await
                 .unwrap_or_default();
-            let session_infos: Vec<SessionInfo> = sessions
+            let archived_sessions = runtime
+                .list_archived_sessions(&ws.workspace_id)
+                .await
+                .unwrap_or_default();
+            let mut session_infos: Vec<SessionInfo> = sessions
                 .iter()
                 .map(|s| SessionInfo {
                     id: s.session_id.clone(),
@@ -534,8 +663,17 @@ async fn main() -> Result<()> {
                     model_profile: s.model_profile.clone(),
                     state: SessionState::Idle,
                     pinned: false,
+                    archived: false,
                 })
                 .collect();
+            session_infos.extend(archived_sessions.iter().map(|s| SessionInfo {
+                id: s.session_id.clone(),
+                title: s.title.clone(),
+                model_profile: s.model_profile.clone(),
+                state: SessionState::Idle,
+                pinned: false,
+                archived: true,
+            }));
             (ws.workspace_id.clone(), session_infos)
         } else {
             let ws = runtime.open_workspace(workspace_path_str).await?;
@@ -544,7 +682,7 @@ async fn main() -> Result<()> {
     };
 
     // If no sessions exist, create a new one
-    if app_sessions.is_empty() {
+    if app_sessions.iter().all(|session| session.archived) {
         let session_id = runtime
             .start_session(StartSessionRequest {
                 workspace_id: workspace_id.clone(),
@@ -558,11 +696,17 @@ async fn main() -> Result<()> {
             model_profile: profile.clone(),
             state: SessionState::Idle,
             pinned: false,
+            archived: false,
         });
     }
 
     // 4. Create App with restored sessions
-    let active_session_id = app_sessions.last().unwrap().id.clone();
+    let active_session_id = app_sessions
+        .iter()
+        .rfind(|session| !session.archived)
+        .expect("at least one active session must exist")
+        .id
+        .clone();
 
     let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
     app.current_session_id = Some(active_session_id.clone());
@@ -581,9 +725,13 @@ async fn main() -> Result<()> {
 
     // Select the current session in the sessions panel
     if !app.state.sessions.is_empty() {
-        app.sessions
+        let selected = app
             .state
-            .select(Some(app.state.sessions.len() - 1));
+            .sessions
+            .iter()
+            .position(|session| session.id == active_session_id)
+            .unwrap_or_else(|| app.state.sessions.len() - 1);
+        app.sessions.state.select(Some(selected));
     }
 
     app.sync_status_bar();

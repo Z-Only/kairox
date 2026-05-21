@@ -2,12 +2,29 @@ use crate::components::{
     Command, Component, CrossPanelEffect, EventContext, SessionInfo, SessionState,
 };
 use agent_core::SessionId;
-use crossterm::event::Event;
-use ratatui::layout::Rect;
+use crossterm::event::{Event, KeyCode};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionAction {
+    Rename,
+    Archive,
+    Restore,
+    Delete,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SessionActionMode {
+    Menu,
+    Rename {
+        session_id: SessionId,
+        title: String,
+    },
+}
 
 #[allow(dead_code)]
 pub struct SessionsPanel {
@@ -15,6 +32,8 @@ pub struct SessionsPanel {
     pub state: ListState,
     pub context_menu_open: bool,
     pub search_query: Option<String>,
+    action_cursor: usize,
+    action_mode: SessionActionMode,
 }
 
 impl Default for SessionsPanel {
@@ -32,15 +51,18 @@ impl SessionsPanel {
             state,
             context_menu_open: false,
             search_query: None,
+            action_cursor: 0,
+            action_mode: SessionActionMode::Menu,
         }
+    }
+
+    pub fn selected_session<'a>(&self, sessions: &'a [SessionInfo]) -> Option<&'a SessionInfo> {
+        self.state.selected().and_then(|i| sessions.get(i))
     }
 
     #[allow(dead_code)]
     pub fn selected_session_id(&self, sessions: &[SessionInfo]) -> Option<SessionId> {
-        self.state
-            .selected()
-            .and_then(|i| sessions.get(i))
-            .map(|s| s.id.clone())
+        self.selected_session(sessions).map(|s| s.id.clone())
     }
 
     #[allow(dead_code)]
@@ -76,6 +98,218 @@ impl SessionsPanel {
         let next = if i >= len - 1 { 0 } else { i + 1 };
         self.state.select(Some(next));
     }
+
+    pub fn open_action_menu(&mut self, sessions: &[SessionInfo]) -> bool {
+        if self.selected_session(sessions).is_none() {
+            self.close_action_menu();
+            return false;
+        }
+        self.context_menu_open = true;
+        self.action_cursor = 0;
+        self.action_mode = SessionActionMode::Menu;
+        true
+    }
+
+    pub fn start_rename_for_selected(&mut self, sessions: &[SessionInfo]) -> bool {
+        let Some(session) = self.selected_session(sessions) else {
+            self.close_action_menu();
+            return false;
+        };
+        if session.archived {
+            return false;
+        }
+        self.context_menu_open = true;
+        self.action_cursor = 0;
+        self.action_mode = SessionActionMode::Rename {
+            session_id: session.id.clone(),
+            title: session.title.clone(),
+        };
+        true
+    }
+
+    pub fn close_action_menu(&mut self) {
+        self.context_menu_open = false;
+        self.action_cursor = 0;
+        self.action_mode = SessionActionMode::Menu;
+    }
+
+    fn available_actions_for(session: &SessionInfo) -> &'static [SessionAction] {
+        if session.archived {
+            &[SessionAction::Restore, SessionAction::Delete]
+        } else {
+            &[SessionAction::Rename, SessionAction::Archive]
+        }
+    }
+
+    fn available_actions(&self, sessions: &[SessionInfo]) -> &'static [SessionAction] {
+        self.selected_session(sessions)
+            .map(Self::available_actions_for)
+            .unwrap_or(&[])
+    }
+
+    fn current_action(&self, sessions: &[SessionInfo]) -> Option<SessionAction> {
+        self.available_actions(sessions)
+            .get(self.action_cursor)
+            .copied()
+    }
+
+    fn move_action_down(&mut self, sessions: &[SessionInfo]) {
+        let len = self.available_actions(sessions).len();
+        if len == 0 {
+            self.action_cursor = 0;
+            return;
+        }
+        self.action_cursor = (self.action_cursor + 1).min(len - 1);
+    }
+
+    fn move_action_up(&mut self) {
+        self.action_cursor = self.action_cursor.saturating_sub(1);
+    }
+
+    fn activate_action(&mut self, action: SessionAction, session: &SessionInfo) -> Vec<Command> {
+        match action {
+            SessionAction::Rename => {
+                if !session.archived {
+                    self.action_mode = SessionActionMode::Rename {
+                        session_id: session.id.clone(),
+                        title: session.title.clone(),
+                    };
+                }
+                Vec::new()
+            }
+            SessionAction::Archive => {
+                self.close_action_menu();
+                vec![Command::ArchiveSession {
+                    session_id: session.id.clone(),
+                }]
+            }
+            SessionAction::Restore => {
+                self.close_action_menu();
+                vec![Command::RestoreSession {
+                    session_id: session.id.clone(),
+                }]
+            }
+            SessionAction::Delete => {
+                self.close_action_menu();
+                vec![Command::DeleteSession {
+                    session_id: session.id.clone(),
+                }]
+            }
+        }
+    }
+
+    fn handle_menu_key(&mut self, ctx: &EventContext, code: KeyCode) -> Vec<Command> {
+        match code {
+            KeyCode::Esc => {
+                self.close_action_menu();
+                Vec::new()
+            }
+            KeyCode::Char('x') => {
+                self.open_action_menu(ctx.sessions);
+                Vec::new()
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.move_action_down(ctx.sessions);
+                Vec::new()
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.move_action_up();
+                Vec::new()
+            }
+            KeyCode::Enter => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                let Some(action) = self.current_action(ctx.sessions) else {
+                    return Vec::new();
+                };
+                self.activate_action(action, &session)
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                let action = if session.archived {
+                    SessionAction::Restore
+                } else {
+                    SessionAction::Rename
+                };
+                self.activate_action(action, &session)
+            }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                if session.archived {
+                    Vec::new()
+                } else {
+                    self.activate_action(SessionAction::Archive, &session)
+                }
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                let Some(session) = self.selected_session(ctx.sessions).cloned() else {
+                    self.close_action_menu();
+                    return Vec::new();
+                };
+                if session.archived {
+                    self.activate_action(SessionAction::Delete, &session)
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn handle_rename_key(&mut self, code: KeyCode) -> Vec<Command> {
+        match code {
+            KeyCode::Esc => {
+                self.close_action_menu();
+                Vec::new()
+            }
+            KeyCode::Enter => {
+                let command = match &self.action_mode {
+                    SessionActionMode::Rename { session_id, title } => {
+                        let title = title.trim().to_string();
+                        if title.is_empty() {
+                            None
+                        } else {
+                            Some(Command::RenameSession {
+                                session_id: session_id.clone(),
+                                title,
+                            })
+                        }
+                    }
+                    SessionActionMode::Menu => None,
+                };
+                self.close_action_menu();
+                command.into_iter().collect()
+            }
+            KeyCode::Backspace => {
+                if let SessionActionMode::Rename { title, .. } = &mut self.action_mode {
+                    title.pop();
+                }
+                Vec::new()
+            }
+            KeyCode::Char(c) => {
+                if let SessionActionMode::Rename { title, .. } = &mut self.action_mode {
+                    title.push(c);
+                }
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn render_action_overlay(&self, area: Rect, frame: &mut Frame, sessions: &[SessionInfo]) {
+        if !self.context_menu_open {
+            return;
+        }
+        render_session_action_overlay(area, frame, self, sessions);
+    }
 }
 
 fn session_state_icon(state: &SessionState) -> (&'static str, Color) {
@@ -105,11 +339,12 @@ pub fn render_sessions(
         .map(|session| {
             let (icon, icon_color) = session_state_icon(&session.state);
             let pin = if session.pinned { "📌 " } else { "" };
+            let archived = if session.archived { " [archived]" } else { "" };
             let mut spans = vec![
                 Span::styled(format!("{pin}{icon} "), Style::default().fg(icon_color)),
                 Span::raw(&session.title),
                 Span::styled(
-                    format!(" [{}]", session.model_profile),
+                    format!(" [{}]{archived}", session.model_profile),
                     Style::default().add_modifier(Modifier::DIM),
                 ),
             ];
@@ -135,13 +370,159 @@ pub fn render_sessions(
     frame.render_stateful_widget(list, area, state);
 }
 
+fn action_label(action: SessionAction) -> &'static str {
+    match action {
+        SessionAction::Rename => "Rename",
+        SessionAction::Archive => "Archive",
+        SessionAction::Restore => "Restore",
+        SessionAction::Delete => "Delete permanently",
+    }
+}
+
+fn action_key(action: SessionAction) -> &'static str {
+    match action {
+        SessionAction::Rename => "r",
+        SessionAction::Archive => "a",
+        SessionAction::Restore => "r",
+        SessionAction::Delete => "d",
+    }
+}
+
+fn render_session_action_overlay(
+    area: Rect,
+    frame: &mut Frame,
+    panel: &SessionsPanel,
+    sessions: &[SessionInfo],
+) {
+    let modal_width = 56.min(area.width.saturating_sub(4));
+    let modal_height = 10.min(area.height.saturating_sub(4));
+    let x = (area.width.saturating_sub(modal_width)) / 2;
+    let y = (area.height.saturating_sub(modal_height)) / 2;
+    let modal_area = Rect::new(x, y, modal_width, modal_height);
+
+    frame.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(Span::styled(
+            " Session Actions ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ))
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let inner = block.inner(modal_area);
+    frame.render_widget(block, modal_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+    let title = panel
+        .selected_session(sessions)
+        .map(|s| s.title.as_str())
+        .unwrap_or("No session selected");
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Session: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                title.to_string(),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+        ])),
+        chunks[0],
+    );
+
+    match &panel.action_mode {
+        SessionActionMode::Menu => {
+            let actions = panel.available_actions(sessions);
+            if actions.is_empty() {
+                frame.render_widget(
+                    Paragraph::new(Line::from(Span::styled(
+                        "No actions available",
+                        Style::default().fg(Color::DarkGray),
+                    ))),
+                    chunks[1],
+                );
+            } else {
+                let items: Vec<ListItem> = actions
+                    .iter()
+                    .map(|action| {
+                        ListItem::new(Line::from(vec![
+                            Span::styled(
+                                format!("[{}] ", action_key(*action)),
+                                Style::default().fg(Color::Yellow),
+                            ),
+                            Span::raw(action_label(*action)),
+                        ]))
+                    })
+                    .collect();
+                let mut state = ListState::default();
+                state.select(Some(panel.action_cursor.min(actions.len() - 1)));
+                let list = List::new(items).highlight_style(
+                    Style::default()
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                );
+                frame.render_stateful_widget(list, chunks[1], &mut state);
+            }
+            frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
+                    Span::styled("[Enter] run  ", Style::default().fg(Color::Yellow)),
+                    Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+                ])),
+                chunks[2],
+            );
+        }
+        SessionActionMode::Rename { title, .. } => {
+            frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("Title: ", Style::default().fg(Color::Yellow)),
+                    Span::raw(title.clone()),
+                    Span::styled("▌", Style::default().fg(Color::Cyan)),
+                ])),
+                chunks[1],
+            );
+            frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
+                    Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+                ])),
+                chunks[2],
+            );
+        }
+    }
+}
+
 impl Component for SessionsPanel {
     fn handle_event(
         &mut self,
-        _ctx: &EventContext,
-        _event: &Event,
+        ctx: &EventContext,
+        event: &Event,
     ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        (Vec::new(), Vec::new())
+        let Event::Key(key) = event else {
+            return (Vec::new(), Vec::new());
+        };
+
+        if !self.context_menu_open {
+            if matches!(key.code, KeyCode::Char('x')) {
+                self.open_action_menu(ctx.sessions);
+            }
+            return (Vec::new(), Vec::new());
+        }
+
+        let commands = match self.action_mode {
+            SessionActionMode::Menu => self.handle_menu_key(ctx, key.code),
+            SessionActionMode::Rename { .. } => self.handle_rename_key(key.code),
+        };
+        (Vec::new(), commands)
     }
 
     fn handle_effect(&mut self, _effect: &CrossPanelEffect) {}
@@ -162,6 +543,7 @@ impl Component for SessionsPanel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn make_session(title: &str, state: SessionState, pinned: bool) -> SessionInfo {
         SessionInfo {
@@ -170,7 +552,38 @@ mod tests {
             model_profile: "fast".into(),
             state,
             pinned,
+            archived: false,
         }
+    }
+
+    fn make_archived_session(title: &str) -> SessionInfo {
+        SessionInfo {
+            archived: true,
+            ..make_session(title, SessionState::Idle, false)
+        }
+    }
+
+    fn ctx<'a>(
+        sessions: &'a [SessionInfo],
+        current_session_id: &'a Option<SessionId>,
+        workspace_id: &'a agent_core::WorkspaceId,
+        projection: &'a agent_core::projection::SessionProjection,
+    ) -> EventContext<'a> {
+        EventContext {
+            focus: crate::components::FocusTarget::Sessions,
+            current_session: projection,
+            sessions,
+            model_profile: "fast",
+            permission_mode: agent_tools::PermissionMode::Suggest,
+            sidebar_left_visible: true,
+            sidebar_right_visible: false,
+            workspace_id,
+            current_session_id,
+        }
+    }
+
+    fn key(code: KeyCode) -> Event {
+        Event::Key(KeyEvent::new(code, KeyModifiers::NONE))
     }
 
     #[test]
@@ -220,5 +633,130 @@ mod tests {
             "✕"
         );
         assert_eq!(session_state_icon(&SessionState::AwaitingPermission).0, "⚠");
+    }
+
+    #[test]
+    fn context_menu_key_opens_session_actions_for_selection() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![
+            make_session("main", SessionState::Active, false),
+            make_session("debug", SessionState::Idle, false),
+        ];
+        panel.state.select(Some(1));
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (effects, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('x')),
+        );
+
+        assert!(effects.is_empty());
+        assert!(commands.is_empty());
+        assert!(panel.context_menu_open);
+    }
+
+    #[test]
+    fn action_overlay_emits_archive_for_visible_session() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![
+            make_session("main", SessionState::Active, false),
+            make_session("debug", SessionState::Idle, false),
+        ];
+        panel.state.select(Some(1));
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('a')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::ArchiveSession { session_id }] if session_id == &sessions[1].id
+        ));
+        assert!(!panel.context_menu_open);
+    }
+
+    #[test]
+    fn action_overlay_emits_restore_for_archived_session() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![
+            make_session("main", SessionState::Active, false),
+            make_archived_session("old"),
+        ];
+        panel.state.select(Some(1));
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('r')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::RestoreSession { session_id }] if session_id == &sessions[1].id
+        ));
+        assert!(!panel.context_menu_open);
+    }
+
+    #[test]
+    fn action_overlay_emits_delete_for_archived_session() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![make_archived_session("old")];
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = None;
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('d')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::DeleteSession { session_id }] if session_id == &sessions[0].id
+        ));
+        assert!(!panel.context_menu_open);
+    }
+
+    #[test]
+    fn rename_inline_mode_emits_rename_command() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![make_session("main", SessionState::Active, false)];
+        panel.context_menu_open = true;
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+        let current = Some(sessions[0].id.clone());
+
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('r')),
+        );
+        assert!(commands.is_empty());
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Char('!')),
+        );
+        assert!(commands.is_empty());
+        let (_, commands) = panel.handle_event(
+            &ctx(&sessions, &current, &workspace, &projection),
+            &key(KeyCode::Enter),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::RenameSession { session_id, title }]
+                if session_id == &sessions[0].id && title == "main!"
+        ));
+        assert!(!panel.context_menu_open);
     }
 }
