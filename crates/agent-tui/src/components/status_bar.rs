@@ -454,6 +454,7 @@ mod tests {
         let ctx = EventContext {
             focus: super::super::FocusTarget::Chat,
             current_session: &agent_core::projection::SessionProjection::default(),
+            projects: &[],
             sessions: &[],
             model_profile: "fast",
             permission_mode: agent_tools::PermissionMode::Suggest,

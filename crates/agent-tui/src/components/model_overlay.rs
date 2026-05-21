@@ -583,6 +583,7 @@ mod tests {
         EventContext {
             focus: FocusTarget::ModelOverlay,
             current_session: projection,
+            projects: &[],
             sessions,
             model_profile: "fake",
             permission_mode: agent_tools::PermissionMode::Suggest,

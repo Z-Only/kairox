@@ -35,6 +35,8 @@ pub enum PaletteAction {
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
     PrefillModel,
+    PrefillProjectCreate,
+    PrefillProjectImport,
     PrefillProjectWorktree,
     PrefillSkillShow,
     PrefillSkillActivate,
@@ -124,6 +126,18 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: ":project draft",
             description: "Start a draft session in the active project",
             action: PaletteAction::ProjectDraftSession,
+        },
+        PaletteEntry {
+            id: "project-create",
+            label: ":project create <name>",
+            description: "Create a new local project",
+            action: PaletteAction::PrefillProjectCreate,
+        },
+        PaletteEntry {
+            id: "project-import",
+            label: ":project import <path>",
+            description: "Import an existing project path",
+            action: PaletteAction::PrefillProjectImport,
         },
         PaletteEntry {
             id: "project-worktree",
@@ -258,6 +272,8 @@ pub fn filter_entries<'a>(filter: &str, entries: &'a [PaletteEntry]) -> Vec<&'a 
 pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
     match action {
         PaletteAction::PrefillModel => Some(":model "),
+        PaletteAction::PrefillProjectCreate => Some(":project create "),
+        PaletteAction::PrefillProjectImport => Some(":project import "),
         PaletteAction::PrefillProjectWorktree => Some(":project worktree "),
         PaletteAction::PrefillSkillShow => Some(":skill show "),
         PaletteAction::PrefillSkillActivate => Some(":skill activate "),
@@ -642,6 +658,7 @@ mod tests {
         EventContext {
             focus: FocusTarget::CommandPalette,
             current_session: projection,
+            projects: &[],
             sessions,
             model_profile: "fake",
             permission_mode: agent_tools::PermissionMode::Suggest,
@@ -802,6 +819,31 @@ mod tests {
                 _ => unreachable!(),
             }
         }
+    }
+
+    #[test]
+    fn palette_exposes_project_create_and_import_prefills() {
+        let entries = builtin_entries();
+
+        let create = entries
+            .iter()
+            .find(|entry| entry.id == "project-create")
+            .expect("project create entry should exist");
+        assert_eq!(
+            prefill_text(&create.action),
+            Some(":project create "),
+            "project create should prefill a slash command"
+        );
+
+        let import = entries
+            .iter()
+            .find(|entry| entry.id == "project-import")
+            .expect("project import entry should exist");
+        assert_eq!(
+            prefill_text(&import.action),
+            Some(":project import "),
+            "project import should prefill a slash command"
+        );
     }
 
     #[test]

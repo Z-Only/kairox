@@ -43,6 +43,7 @@ impl App {
                     .contains(crossterm::event::KeyModifiers::ALT)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('i'));
                 if self.command_palette.is_visible() && !is_ctrl_p {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -52,6 +53,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -66,6 +68,7 @@ impl App {
                     return cmds;
                 }
                 if self.mcp_overlay.is_visible() && !is_ctrl_m {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -75,6 +78,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -89,6 +93,7 @@ impl App {
                     return cmds;
                 }
                 if self.skills_overlay.is_visible() && !is_ctrl_s {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -98,6 +103,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -112,6 +118,7 @@ impl App {
                     return cmds;
                 }
                 if self.plugin_overlay.is_visible() && !is_ctrl_g {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -121,6 +128,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -135,6 +143,7 @@ impl App {
                     return cmds;
                 }
                 if self.model_overlay.is_visible() && !is_ctrl_l {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -144,6 +153,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -158,6 +168,7 @@ impl App {
                     return cmds;
                 }
                 if self.agent_overlay.is_visible() {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -167,6 +178,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -181,6 +193,7 @@ impl App {
                     return cmds;
                 }
                 if self.instructions_overlay.is_visible() && !is_alt_i {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -190,6 +203,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -204,6 +218,7 @@ impl App {
                     return cmds;
                 }
                 if self.sessions.context_menu_open {
+                    let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
                     let permission_mode = self.state.permission_mode;
@@ -213,6 +228,7 @@ impl App {
                     let ctx = EventContext {
                         focus,
                         current_session: &self.state.current_session,
+                        projects: &projects,
                         sessions: &sessions,
                         model_profile: &model_profile,
                         permission_mode,
@@ -446,7 +462,8 @@ impl App {
             KeyAction::ContextMenu
                 if self.state.focus_manager.current() == FocusTarget::Sessions =>
             {
-                self.sessions.open_action_menu(&self.state.sessions);
+                self.sessions
+                    .open_action_menu(&self.state.projects, &self.state.sessions);
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::SendInput
@@ -468,7 +485,10 @@ impl App {
                 self.dispatch_effects(effects);
             }
             KeyAction::SelectSession => {
-                if let Some(session) = self.sessions.selected_session(&self.state.sessions) {
+                if let Some(session) = self
+                    .sessions
+                    .selected_session_in(&self.state.projects, &self.state.sessions)
+                {
                     if !session.archived {
                         if self.current_session_id.as_ref() == Some(&session.id) {
                             return commands;
@@ -484,7 +504,13 @@ impl App {
             }
             KeyAction::ScrollUp => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
-                    self.sessions.scroll_up(self.state.sessions.len());
+                    self.sessions.scroll_up(
+                        crate::components::sessions::session_list_rows(
+                            &self.state.projects,
+                            &self.state.sessions,
+                        )
+                        .len(),
+                    );
                 } else if self.state.focus_manager.current() == FocusTarget::Trace {
                     self.trace.select_previous();
                 }
@@ -492,7 +518,13 @@ impl App {
             }
             KeyAction::ScrollDown => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
-                    self.sessions.scroll_down(self.state.sessions.len());
+                    self.sessions.scroll_down(
+                        crate::components::sessions::session_list_rows(
+                            &self.state.projects,
+                            &self.state.sessions,
+                        )
+                        .len(),
+                    );
                 } else if self.state.focus_manager.current() == FocusTarget::Trace {
                     let row_count = match self.trace.active_tab {
                         crate::components::trace::RightPanelTab::Tasks => {
@@ -523,7 +555,7 @@ impl App {
             KeyAction::RenameSession => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
                     self.sessions
-                        .start_rename_for_selected(&self.state.sessions);
+                        .start_rename_for_selected(&self.state.projects, &self.state.sessions);
                     self.state.render_scheduler.mark_dirty();
                 }
             }
@@ -536,6 +568,7 @@ impl App {
     fn apply_chat_action(&mut self, action: KeyAction) -> (Vec<CrossPanelEffect>, Vec<Command>) {
         let draft_before = self.chat.input_content.clone();
         let focus = self.state.focus_manager.current();
+        let projects = self.state.projects.clone();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
         let permission_mode = self.state.permission_mode;
@@ -544,6 +577,7 @@ impl App {
         let ctx = EventContext {
             focus,
             current_session: &self.state.current_session,
+            projects: &projects,
             sessions: &sessions,
             model_profile: &model_profile,
             permission_mode,
@@ -564,6 +598,7 @@ impl App {
     pub fn apply_queue_action(&mut self, action: crate::components::QueueAction) -> Vec<Command> {
         let draft_before = self.chat.input_content.clone();
         let focus = self.state.focus_manager.current();
+        let projects = self.state.projects.clone();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
         let permission_mode = self.state.permission_mode;
@@ -572,6 +607,7 @@ impl App {
         let ctx = EventContext {
             focus,
             current_session: &self.state.current_session,
+            projects: &projects,
             sessions: &sessions,
             model_profile: &model_profile,
             permission_mode,
