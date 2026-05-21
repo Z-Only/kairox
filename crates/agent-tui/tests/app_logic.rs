@@ -376,7 +376,64 @@ impl agent_core::facade::SessionFacade for TuiMcpFakeFacade {
 }
 
 #[async_trait::async_trait]
-impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {}
+impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {
+    async fn list_skill_settings(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::SkillSettingsView>> {
+        self.record("list_skill_settings");
+        Ok(Vec::new())
+    }
+
+    async fn list_skill_catalog(
+        &self,
+        query: agent_core::facade::SkillCatalogQuery,
+    ) -> agent_core::Result<Vec<agent_core::facade::SkillCatalogEntry>> {
+        self.record(format!(
+            "list_skill_catalog:{:?}:{:?}:{:?}",
+            query.keyword, query.sources, query.limit
+        ));
+        Ok(Vec::new())
+    }
+
+    async fn list_skill_sources(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::SkillSourceView>> {
+        self.record("list_skill_sources");
+        Ok(vec![agent_core::facade::SkillSourceView {
+            id: "skillhub".into(),
+            display_name: "SkillHub".into(),
+            kind: "skillhub".into(),
+            url: "https://api.skillhub.cn".into(),
+            search_template: "/api/skills?keyword={{query}}".into(),
+            download_template: "/api/v1/download?slug={{slug}}".into(),
+            list_template: None,
+            detail_template: None,
+            field_mapping: agent_core::facade::SkillFieldMappingView::default(),
+            enabled: true,
+            priority: 1,
+            cache_ttl_seconds: 900,
+            last_error: None,
+        }])
+    }
+
+    async fn add_skill_source(
+        &self,
+        config: agent_core::facade::SkillSourceView,
+    ) -> agent_core::Result<()> {
+        self.record(format!("add_skill_source:{}", config.id));
+        Ok(())
+    }
+
+    async fn remove_skill_source(&self, id: String) -> agent_core::Result<()> {
+        self.record(format!("remove_skill_source:{id}"));
+        Ok(())
+    }
+
+    async fn set_skill_source_enabled(&self, id: String, enabled: bool) -> agent_core::Result<()> {
+        self.record(format!("set_skill_source_enabled:{id}:{enabled}"));
+        Ok(())
+    }
+}
 
 fn project_meta(
     project_id: &str,
@@ -1746,6 +1803,87 @@ async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
             "expected call {expected}, got {calls:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn tui_skill_source_commands_call_facade_and_refresh_overlay() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenSkillsOverlay]).await;
+
+    assert!(app.skills_overlay.is_visible());
+    let calls = runtime.calls();
+    assert!(
+        calls.iter().any(|call| call == "list_skill_settings"),
+        "expected settings list call, got {calls:?}"
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|call| call.starts_with("list_skill_catalog")),
+        "expected skill catalog list call, got {calls:?}"
+    );
+    assert!(
+        calls.iter().any(|call| call == "list_skill_sources"),
+        "expected skill sources call, got {calls:?}"
+    );
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::AddSkillSource {
+                config: agent_core::facade::SkillSourceView {
+                    id: "corp".into(),
+                    display_name: "Corporate Skills".into(),
+                    kind: "skillhub".into(),
+                    url: "https://skills.example.com".into(),
+                    search_template: "/api/skills?keyword={{query}}".into(),
+                    download_template: "/api/v1/download?slug={{slug}}".into(),
+                    list_template: None,
+                    detail_template: None,
+                    field_mapping: agent_core::facade::SkillFieldMappingView::default(),
+                    enabled: true,
+                    priority: 100,
+                    cache_ttl_seconds: 900,
+                    last_error: None,
+                },
+            },
+            Command::RemoveSkillSource {
+                source_id: "corp".into(),
+            },
+            Command::SetSkillSourceEnabled {
+                source_id: "skillhub".into(),
+                enabled: false,
+            },
+        ],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    for expected in [
+        "add_skill_source:corp",
+        "remove_skill_source:corp",
+        "set_skill_source_enabled:skillhub:false",
+    ] {
+        assert!(
+            calls.iter().any(|call| call == expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
+    assert!(
+        calls
+            .iter()
+            .filter(|call| call.as_str() == "list_skill_sources")
+            .count()
+            >= 4,
+        "expected source mutations to refresh overlay, got {calls:?}"
+    );
 }
 
 #[tokio::test]

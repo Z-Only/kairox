@@ -387,6 +387,28 @@ pub async fn dispatch_commands<F>(
                     }
                 }
             }
+            Command::AddSkillSource { config } => {
+                match AppFacade::add_skill_source(runtime.as_ref(), config.clone()).await {
+                    Ok(()) => {
+                        push_status_message(app, format!("added skill source {}", config.id));
+                        refresh_skills_overlay(runtime, app, None).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill source add error: {error}]"));
+                    }
+                }
+            }
+            Command::RemoveSkillSource { source_id } => {
+                match AppFacade::remove_skill_source(runtime.as_ref(), source_id.clone()).await {
+                    Ok(()) => {
+                        push_status_message(app, format!("removed skill source {source_id}"));
+                        refresh_skills_overlay(runtime, app, None).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skill source remove error: {error}]"));
+                    }
+                }
+            }
             Command::RefreshSkillCatalog => {
                 match AppFacade::refresh_skill_catalog(runtime.as_ref()).await {
                     Ok(()) => {
