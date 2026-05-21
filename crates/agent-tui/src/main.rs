@@ -29,8 +29,9 @@ use tokio::sync::mpsc;
 use app::App;
 use components::trace::MemoryRow;
 use components::{
-    Command, CrossPanelEffect, McpServerEntry, McpServerStatusView, ModelOverlaySnapshot,
-    ModelProfileEntry, SessionInfo, SessionState,
+    Command, CrossPanelEffect, McpConnectivityEntry, McpPromptEntry, McpResourceEntry,
+    McpServerEntry, McpServerStatusView, McpToolEntry, ModelOverlaySnapshot, ModelProfileEntry,
+    SessionInfo, SessionState,
 };
 
 // ---------------------------------------------------------------------------
@@ -113,22 +114,34 @@ async fn dispatch_commands(
                 // Trust the MCP server via the runtime's MCP manager
                 if let Some(mcp_manager) = runtime.mcp_manager() {
                     let manager = mcp_manager.lock().await;
-                    if let Err(e) = manager.trust_server(&server_id).await {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("[MCP trust error: {e}]"),
-                            },
-                        );
+                    let result = manager.trust_server(&server_id).await;
+                    drop(manager);
+                    if let Err(e) = result {
+                        push_status_message(app, format!("[MCP trust error: {e}]"));
                     } else {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("MCP server '{}' is now trusted", server_id),
-                            },
+                        push_status_message(
+                            app,
+                            format!("MCP server '{}' is now trusted", server_id),
                         );
+                        refresh_mcp_overlay(runtime, app).await;
                     }
-                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::RevokeMcpTrust { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let manager = mcp_manager.lock().await;
+                    let result = manager.revoke_trust(&server_id).await;
+                    drop(manager);
+                    if let Err(e) = result {
+                        push_status_message(app, format!("[MCP revoke trust error: {e}]"));
+                    } else {
+                        push_status_message(
+                            app,
+                            format!("MCP server '{}' trust revoked", server_id),
+                        );
+                        refresh_mcp_overlay(runtime, app).await;
+                    }
                 }
             }
 
@@ -191,29 +204,249 @@ async fn dispatch_commands(
                     let mut manager = mcp_manager.lock().await;
                     match manager.refresh_tools(&server_id).await {
                         Ok(tools) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!(
-                                        "MCP server '{}' refreshed ({} tools)",
-                                        server_id,
-                                        tools.len()
-                                    ),
-                                },
+                            let disabled = manager.get_disabled_tools(&server_id);
+                            let entries = mcp_tool_entries(&server_id, tools, &disabled);
+                            drop(manager);
+                            app.dispatch_effects(vec![CrossPanelEffect::McpToolsLoaded {
+                                server_id: server_id.clone(),
+                                healthy: true,
+                                error: None,
+                                tools: entries,
+                            }]);
+                            push_status_message(
+                                app,
+                                format!("MCP server '{}' refreshed", server_id),
                             );
+                            refresh_mcp_overlay(runtime, app).await;
                         }
                         Err(e) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("[MCP refresh error: {e}]"),
-                                },
+                            drop(manager);
+                            push_status_message(app, format!("[MCP refresh error: {e}]"));
+                        }
+                    }
+                }
+            }
+
+            Command::CheckMcpHealth { server_id } => {
+                match runtime.check_mcp_health(&server_id).await {
+                    Ok(result) => {
+                        let disabled = runtime
+                            .get_mcp_disabled_tools(&server_id)
+                            .await
+                            .unwrap_or_default();
+                        let healthy = result.healthy;
+                        let error = result.error.clone();
+                        let tool_count = result.tools.len();
+                        let entries = mcp_tool_entries(&server_id, result.tools, &disabled);
+                        refresh_mcp_overlay(runtime, app).await;
+                        app.dispatch_effects(vec![CrossPanelEffect::McpToolsLoaded {
+                            server_id: server_id.clone(),
+                            tools: entries,
+                            healthy,
+                            error: error.clone(),
+                        }]);
+                        if healthy {
+                            push_status_message(
+                                app,
+                                format!(
+                                    "MCP server '{}' healthy ({} tools)",
+                                    server_id, tool_count
+                                ),
+                            );
+                        } else {
+                            let reason = error.unwrap_or_else(|| "unknown error".to_string());
+                            push_status_message(
+                                app,
+                                format!("[MCP health error: {server_id}: {reason}]"),
                             );
                         }
                     }
+                    Err(e) => {
+                        push_status_message(app, format!("[MCP health error: {e}]"));
+                    }
+                }
+            }
+
+            Command::TestMcpConnectivity { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let mut manager = mcp_manager.lock().await;
+                    let result = manager
+                        .test_connectivity(&server_id, Some(Duration::from_secs(15)))
+                        .await;
                     drop(manager);
-                    refresh_mcp_overlay(runtime, app).await;
-                    app.state.render_scheduler.mark_dirty();
+                    match result {
+                        Ok(agent_mcp::ConnectivityResult::Connected { tool_count }) => {
+                            app.dispatch_effects(vec![CrossPanelEffect::McpConnectivityChecked(
+                                McpConnectivityEntry {
+                                    server_id: server_id.clone(),
+                                    connected: true,
+                                    tool_count: Some(tool_count),
+                                    reason: None,
+                                },
+                            )]);
+                            push_status_message(
+                                app,
+                                format!(
+                                    "MCP server '{}' connected ({} tools)",
+                                    server_id, tool_count
+                                ),
+                            );
+                            refresh_mcp_overlay(runtime, app).await;
+                        }
+                        Ok(agent_mcp::ConnectivityResult::Failed { reason }) => {
+                            app.dispatch_effects(vec![CrossPanelEffect::McpConnectivityChecked(
+                                McpConnectivityEntry {
+                                    server_id: server_id.clone(),
+                                    connected: false,
+                                    tool_count: None,
+                                    reason: Some(reason.clone()),
+                                },
+                            )]);
+                            push_status_message(
+                                app,
+                                format!("[MCP connectivity error: {server_id}: {reason}]"),
+                            );
+                        }
+                        Err(e) => {
+                            push_status_message(app, format!("[MCP connectivity error: {e}]"));
+                        }
+                    }
+                }
+            }
+
+            Command::SetMcpToolDisabled {
+                server_id,
+                tool_name,
+                disabled,
+            } => {
+                match runtime
+                    .set_mcp_tool_disabled(&server_id, &tool_name, disabled)
+                    .await
+                {
+                    Ok(()) => {
+                        let state = if disabled { "disabled" } else { "enabled" };
+                        push_status_message(
+                            app,
+                            format!("MCP tool '{}.{}' {}", server_id, tool_name, state),
+                        );
+                        match runtime.check_mcp_health(&server_id).await {
+                            Ok(result) => {
+                                let disabled_tools = runtime
+                                    .get_mcp_disabled_tools(&server_id)
+                                    .await
+                                    .unwrap_or_default();
+                                app.dispatch_effects(vec![CrossPanelEffect::McpToolsLoaded {
+                                    server_id: server_id.clone(),
+                                    tools: mcp_tool_entries(
+                                        &server_id,
+                                        result.tools,
+                                        &disabled_tools,
+                                    ),
+                                    healthy: result.healthy,
+                                    error: result.error,
+                                }]);
+                                refresh_mcp_overlay(runtime, app).await;
+                            }
+                            Err(e) => {
+                                push_status_message(app, format!("[MCP health error: {e}]"));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        push_status_message(app, format!("[MCP tool state error: {e}]"));
+                    }
+                }
+            }
+
+            Command::ListMcpResources { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let manager = mcp_manager.lock().await;
+                    let result = manager.list_resources(&server_id).await;
+                    drop(manager);
+                    match result {
+                        Ok(resources) => {
+                            let entries = resources
+                                .into_iter()
+                                .map(|resource| McpResourceEntry {
+                                    server_id: server_id.clone(),
+                                    uri: resource.uri,
+                                    name: resource.name,
+                                    description: resource.description,
+                                    mime_type: resource.mime_type,
+                                })
+                                .collect::<Vec<_>>();
+                            let count = entries.len();
+                            app.dispatch_effects(vec![CrossPanelEffect::McpResourcesLoaded {
+                                server_id: server_id.clone(),
+                                resources: entries,
+                            }]);
+                            push_status_message(
+                                app,
+                                format!("MCP server '{}' resources: {}", server_id, count),
+                            );
+                        }
+                        Err(e) => {
+                            push_status_message(app, format!("[MCP resources error: {e}]"));
+                        }
+                    }
+                }
+            }
+
+            Command::ListMcpPrompts { server_id } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let manager = mcp_manager.lock().await;
+                    let result = manager.list_prompts(&server_id).await;
+                    drop(manager);
+                    match result {
+                        Ok(prompts) => {
+                            let entries = prompts
+                                .into_iter()
+                                .map(|prompt| McpPromptEntry {
+                                    server_id: server_id.clone(),
+                                    name: prompt.name,
+                                    description: prompt.description,
+                                    argument_count: prompt.arguments.len(),
+                                })
+                                .collect::<Vec<_>>();
+                            let count = entries.len();
+                            app.dispatch_effects(vec![CrossPanelEffect::McpPromptsLoaded {
+                                server_id: server_id.clone(),
+                                prompts: entries,
+                            }]);
+                            push_status_message(
+                                app,
+                                format!("MCP server '{}' prompts: {}", server_id, count),
+                            );
+                        }
+                        Err(e) => {
+                            push_status_message(app, format!("[MCP prompts error: {e}]"));
+                        }
+                    }
+                }
+            }
+
+            Command::ReadMcpResource { server_id, uri } => {
+                if let Some(mcp_manager) = runtime.mcp_manager() {
+                    let manager = mcp_manager.lock().await;
+                    let result = manager.read_resource(&server_id, &uri).await;
+                    drop(manager);
+                    match result {
+                        Ok(blocks) => {
+                            let preview = mcp_content_preview(&blocks);
+                            app.dispatch_effects(vec![CrossPanelEffect::McpResourceRead {
+                                server_id: server_id.clone(),
+                                uri: uri.clone(),
+                                preview: preview.clone(),
+                            }]);
+                            push_status_message(
+                                app,
+                                format!("MCP resource '{}'\n{}", uri, preview),
+                            );
+                        }
+                        Err(e) => {
+                            push_status_message(app, format!("[MCP resource read error: {e}]"));
+                        }
+                    }
                 }
             }
 
@@ -595,7 +828,7 @@ fn clamp_session_selection(app: &mut App) {
     app.sessions.state.select(Some(selected));
 }
 
-fn push_status_error(app: &mut App, content: String) {
+fn push_status_message(app: &mut App, content: String) {
     app.state
         .current_session
         .messages
@@ -604,6 +837,57 @@ fn push_status_error(app: &mut App, content: String) {
             content,
         });
     app.state.render_scheduler.mark_dirty();
+}
+
+fn push_status_error(app: &mut App, content: String) {
+    push_status_message(app, content);
+}
+
+fn mcp_tool_entries(
+    server_id: &str,
+    tools: Vec<agent_mcp::McpToolDef>,
+    disabled_tools: &std::collections::HashSet<String>,
+) -> Vec<McpToolEntry> {
+    tools
+        .into_iter()
+        .map(|tool| {
+            let disabled = disabled_tools.contains(&tool.name);
+            McpToolEntry {
+                server_id: server_id.to_string(),
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.input_schema,
+                disabled,
+            }
+        })
+        .collect()
+}
+
+fn mcp_content_preview(blocks: &[agent_mcp::McpContentBlock]) -> String {
+    let rendered = blocks
+        .iter()
+        .map(|block| match block {
+            agent_mcp::McpContentBlock::Text { text } => text.clone(),
+            agent_mcp::McpContentBlock::Image { mime_type, .. } => {
+                format!("[image: {mime_type}]")
+            }
+            agent_mcp::McpContentBlock::Resource { resource } => {
+                let text = resource
+                    .text
+                    .as_ref()
+                    .map(|value| format!(" {}", value))
+                    .unwrap_or_default();
+                format!("[resource: {}]{}", resource.uri, text)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if rendered.chars().count() > 800 {
+        let preview: String = rendered.chars().take(800).collect();
+        format!("{preview}...")
+    } else {
+        rendered
+    }
 }
 
 // ---------------------------------------------------------------------------
