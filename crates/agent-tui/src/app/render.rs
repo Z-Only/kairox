@@ -179,16 +179,25 @@ impl App {
             InputMode::SingleLine => "│ ",
             InputMode::MultiLine => "│M ",
         };
-        let display_content =
-            if let InputState::PermissionWait { pending_prompt, .. } = &self.state.input_state {
-                format!("[permission] {}", pending_prompt)
-            } else {
-                let mut content = format!("{}{}", mode_label, self.chat.input_content);
-                if self.state.render_scheduler.is_streaming() {
-                    content.push('▌');
+        let display_content = if let InputState::PermissionWait { pending_prompt, .. } =
+            &self.state.input_state
+        {
+            format!("[permission] {}", pending_prompt)
+        } else {
+            let mut content = format!("{}{}", mode_label, self.chat.input_content);
+            let attachment_labels =
+                crate::components::chat::format_attachment_labels(&self.chat.pending_attachments);
+            if !attachment_labels.is_empty() {
+                if !self.chat.input_content.is_empty() {
+                    content.push(' ');
                 }
-                content
-            };
+                content.push_str(&attachment_labels);
+            }
+            if self.state.render_scheduler.is_streaming() {
+                content.push('▌');
+            }
+            content
+        };
 
         let input_line = Line::from(vec![
             Span::styled(
