@@ -45,6 +45,7 @@ pub fn resolve_key(
             KeyCode::Char('p') => KeyAction::OpenProfileSelector,
             KeyCode::Char('n') => KeyAction::NewSession,
             KeyCode::Char('q') => KeyAction::Quit,
+            KeyCode::Char('i') => KeyAction::ToggleInstructionsOverlay,
             KeyCode::Char('1') => KeyAction::FocusChat,
             KeyCode::Char('2') => KeyAction::FocusSessions,
             KeyCode::Char('3') => KeyAction::FocusTrace,
