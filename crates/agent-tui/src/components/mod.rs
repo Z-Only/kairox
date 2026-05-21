@@ -1,5 +1,6 @@
 pub mod chat;
 pub mod command_palette;
+pub mod instructions_overlay;
 pub mod mcp_overlay;
 pub mod model_overlay;
 pub mod permission_modal;
@@ -52,6 +53,7 @@ pub enum FocusTarget {
     SkillsOverlay,
     ModelOverlay,
     PluginOverlay,
+    InstructionsOverlay,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -311,6 +313,8 @@ pub enum CrossPanelEffect {
     DismissModelOverlay,
     ShowPluginsOverlay(PluginOverlaySnapshot),
     DismissPluginsOverlay,
+    ShowInstructionsOverlay(agent_core::facade::InstructionsView),
+    DismissInstructionsOverlay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -471,6 +475,13 @@ pub enum Command {
     OpenModelOverlay,
     /// Build a plugin manager snapshot and open the plugin overlay.
     OpenPluginsOverlay,
+    /// Build an instructions snapshot and open the instructions settings overlay.
+    OpenInstructionsOverlay,
+    /// Save user/project instructions from the instructions overlay.
+    SaveInstructions {
+        scope: agent_core::ConfigScope,
+        text: String,
+    },
     /// User typed `:skills` to list discovered native skills.
     ListSkills,
     /// User typed `:skill show <id>` to show one native skill.

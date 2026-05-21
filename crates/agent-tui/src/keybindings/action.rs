@@ -20,6 +20,7 @@ pub enum KeyAction {
     FocusChat,
     FocusSessions,
     FocusTrace,
+    ToggleInstructionsOverlay,
 
     // -- L3 Ctrl -----------------------------------------------------------
     InterruptOrQuit,

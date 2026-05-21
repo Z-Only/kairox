@@ -48,6 +48,9 @@ impl ChatPanel {
                 } else if trimmed == ":skills" {
                     self.clear_input();
                     commands.push(Command::ListSkills);
+                } else if trimmed == ":instructions" {
+                    self.clear_input();
+                    commands.push(Command::OpenInstructionsOverlay);
                 } else if trimmed == ":plugins" {
                     self.clear_input();
                     commands.push(Command::OpenPluginsOverlay);
