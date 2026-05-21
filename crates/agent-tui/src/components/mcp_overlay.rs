@@ -5,17 +5,18 @@
 //! tab and selection state, then emits [`Command`] values that the main loop
 //! dispatches to the runtime manager or MCP facade.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use agent_core::facade::{
     AddCatalogSourceRequest, CatalogSourceView, InstalledEntry, McpServerSettingsInput,
     McpServerSettingsTransport, McpServerSettingsView, ServerEntry,
 };
+use agent_mcp::catalog::{EnvVarSpec, InstallSpec, RuntimeRequirement};
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
 use crate::components::{
@@ -84,10 +85,44 @@ struct McpHealthState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CatalogTrustFilter {
+    All,
+    Community,
+    Verified,
+}
+
+impl CatalogTrustFilter {
+    fn next(self) -> Self {
+        match self {
+            Self::All => Self::Community,
+            Self::Community => Self::Verified,
+            Self::Verified => Self::All,
+        }
+    }
+
+    fn min_rank(self) -> Option<u8> {
+        match self {
+            Self::All => None,
+            Self::Community => Some(1),
+            Self::Verified => Some(2),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Community => "community+",
+            Self::Verified => "verified",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum McpOverlayMode {
     List,
     ServerEditor,
     SourceEditor,
+    CatalogFilter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -416,6 +451,8 @@ pub struct McpOverlay {
     health: BTreeMap<String, McpHealthState>,
     connectivity: BTreeMap<String, McpConnectivityEntry>,
     resource_previews: BTreeMap<String, String>,
+    catalog_keyword: String,
+    catalog_trust_filter: CatalogTrustFilter,
     runtime_state: ListState,
     settings_state: ListState,
     installed_state: ListState,
@@ -465,6 +502,8 @@ impl McpOverlay {
             health: BTreeMap::new(),
             connectivity: BTreeMap::new(),
             resource_previews: BTreeMap::new(),
+            catalog_keyword: String::new(),
+            catalog_trust_filter: CatalogTrustFilter::All,
             runtime_state: ListState::default(),
             settings_state: ListState::default(),
             installed_state: ListState::default(),
@@ -562,7 +601,7 @@ impl McpOverlay {
             McpOverlayTab::Runtime => self.runtime_servers.len(),
             McpOverlayTab::Settings => self.settings.len(),
             McpOverlayTab::Installed => self.installed.len(),
-            McpOverlayTab::Catalog => self.catalog.len(),
+            McpOverlayTab::Catalog => self.visible_catalog_len(),
             McpOverlayTab::Sources => self.sources.len(),
             McpOverlayTab::Tools => self.current_tools().len(),
             McpOverlayTab::Resources => self.current_resources().len(),
@@ -600,11 +639,12 @@ impl McpOverlay {
         let tools_len = self.current_tools().len();
         let resources_len = self.current_resources().len();
         let prompts_len = self.current_prompts().len();
+        let catalog_len = self.visible_catalog_len();
         for (len, state) in [
             (self.runtime_servers.len(), &mut self.runtime_state),
             (self.settings.len(), &mut self.settings_state),
             (self.installed.len(), &mut self.installed_state),
-            (self.catalog.len(), &mut self.catalog_state),
+            (catalog_len, &mut self.catalog_state),
             (self.sources.len(), &mut self.sources_state),
             (tools_len, &mut self.tools_state),
             (resources_len, &mut self.resources_state),
@@ -638,9 +678,82 @@ impl McpOverlay {
     }
 
     fn selected_catalog_entry(&self) -> Option<&ServerEntry> {
-        self.catalog_state
-            .selected()
-            .and_then(|index| self.catalog.get(index))
+        let visible_index = self.catalog_state.selected()?;
+        let catalog_index = self.visible_catalog_indices().get(visible_index).copied()?;
+        self.catalog.get(catalog_index)
+    }
+
+    fn visible_catalog_len(&self) -> usize {
+        self.catalog
+            .iter()
+            .filter(|entry| self.catalog_entry_visible(entry))
+            .count()
+    }
+
+    fn visible_catalog_indices(&self) -> Vec<usize> {
+        self.catalog
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| self.catalog_entry_visible(entry).then_some(index))
+            .collect()
+    }
+
+    fn visible_catalog_entries(&self) -> Vec<&ServerEntry> {
+        self.visible_catalog_indices()
+            .into_iter()
+            .filter_map(|index| self.catalog.get(index))
+            .collect()
+    }
+
+    fn catalog_entry_visible(&self, entry: &ServerEntry) -> bool {
+        if !self.catalog_source_enabled(&entry.source) {
+            return false;
+        }
+
+        if let Some(min_rank) = self.catalog_trust_filter.min_rank() {
+            if trust_rank(&entry.trust) < min_rank {
+                return false;
+            }
+        }
+
+        let keyword = self.catalog_keyword.trim().to_lowercase();
+        if keyword.is_empty() {
+            return true;
+        }
+
+        let haystack = format!(
+            "{} {} {} {} {} {}",
+            entry.id,
+            entry.display_name,
+            entry.summary,
+            entry.description,
+            entry.categories.join(" "),
+            entry.tags.join(" ")
+        )
+        .to_lowercase();
+        haystack.contains(&keyword)
+    }
+
+    fn catalog_source_enabled(&self, source_id: &str) -> bool {
+        self.sources
+            .iter()
+            .find(|source| source.id == source_id)
+            .map(|source| source.enabled)
+            .unwrap_or(source_id == "builtin")
+    }
+
+    fn catalog_filters_active(&self) -> bool {
+        !self.catalog_keyword.trim().is_empty()
+            || self.catalog_trust_filter != CatalogTrustFilter::All
+            || self
+                .catalog
+                .iter()
+                .any(|entry| !self.catalog_source_enabled(&entry.source))
+    }
+
+    fn cycle_catalog_trust_filter(&mut self) {
+        self.catalog_trust_filter = self.catalog_trust_filter.next();
+        self.ensure_selection();
     }
 
     fn selected_source(&self) -> Option<&CatalogSourceView> {
@@ -808,6 +921,31 @@ impl McpOverlay {
             _ => {}
         }
         Vec::new()
+    }
+
+    fn handle_catalog_filter_key(&mut self, key: KeyCode, modifiers: KeyModifiers) {
+        match key {
+            KeyCode::Enter | KeyCode::Esc => {
+                self.mode = McpOverlayMode::List;
+            }
+            KeyCode::Backspace => {
+                self.catalog_keyword.pop();
+                self.ensure_selection();
+            }
+            KeyCode::Delete => {
+                self.catalog_keyword.clear();
+                self.ensure_selection();
+            }
+            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword.clear();
+                self.ensure_selection();
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword.push(ch);
+                self.ensure_selection();
+            }
+            _ => {}
+        }
     }
 
     fn command_for_current_tab(&self, key: KeyCode) -> Option<Command> {
@@ -990,7 +1128,7 @@ fn render_mcp_overlay(
             render_source_editor(inner, frame, overlay);
             return;
         }
-        McpOverlayMode::List => {}
+        McpOverlayMode::List | McpOverlayMode::CatalogFilter => {}
     }
 
     let chunks = Layout::default()
@@ -1014,7 +1152,7 @@ fn render_mcp_overlay(
             render_installed(chunks[1], frame, &overlay.installed, state.installed);
         }
         McpOverlayTab::Catalog => {
-            render_catalog(chunks[1], frame, &overlay.catalog, state.catalog);
+            render_catalog(chunks[1], frame, overlay, state.catalog);
         }
         McpOverlayTab::Sources => {
             render_sources(chunks[1], frame, &overlay.sources, state.sources);
@@ -1029,7 +1167,7 @@ fn render_mcp_overlay(
             render_prompts(chunks[1], frame, overlay, state.prompts);
         }
     }
-    render_hints(chunks[2], frame, overlay.tab);
+    render_hints(chunks[2], frame, overlay);
 }
 
 fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
@@ -1053,6 +1191,22 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
         };
         spans.push(Span::styled(format!(" {} ", tab.label()), style));
         spans.push(Span::raw(" "));
+    }
+    if overlay.tab == McpOverlayTab::Catalog || overlay.catalog_filters_active() {
+        let keyword = if overlay.catalog_keyword.trim().is_empty() {
+            "*".to_string()
+        } else {
+            clip(overlay.catalog_keyword.trim(), 18)
+        };
+        spans.push(Span::styled(
+            format!(
+                "catalog: {}/{}  search:{keyword}  trust:{}",
+                overlay.visible_catalog_len(),
+                overlay.catalog.len(),
+                overlay.catalog_trust_filter.label()
+            ),
+            Style::default().fg(Color::Cyan),
+        ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
@@ -1233,17 +1387,32 @@ fn render_installed(
     render_list(area, frame, items, state);
 }
 
-fn render_catalog(area: Rect, frame: &mut Frame, catalog: &[ServerEntry], state: &mut ListState) {
+fn render_catalog(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &mut ListState) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(46), Constraint::Percentage(54)])
+        .split(area);
+    let list_area = chunks[0];
+    let detail_area = chunks[1];
+
+    let catalog = overlay.visible_catalog_entries();
     if catalog.is_empty() {
-        render_empty(area, frame, "No MCP catalog entries available");
+        let label = if overlay.catalog_filters_active() {
+            "No MCP catalog entries match filters"
+        } else {
+            "No MCP catalog entries available"
+        };
+        render_empty(list_area, frame, label);
+        render_catalog_detail(detail_area, frame, None);
         return;
     }
+
     let items: Vec<ListItem> = catalog
         .iter()
         .map(|entry| {
             ListItem::new(Line::from(vec![
                 Span::styled(
-                    entry.display_name.clone(),
+                    entry.display_name.as_str(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
@@ -1252,14 +1421,320 @@ fn render_catalog(area: Rect, frame: &mut Frame, catalog: &[ServerEntry], state:
                 ),
                 Span::styled(
                     format!("  {}", entry.trust),
-                    Style::default().fg(Color::Magenta),
+                    Style::default().fg(trust_color(&entry.trust)),
                 ),
                 Span::raw("  "),
-                Span::styled(entry.summary.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(entry.summary.as_str(), Style::default().fg(Color::Gray)),
             ]))
         })
         .collect();
-    render_list(area, frame, items, state);
+    render_list(list_area, frame, items, state);
+    render_catalog_detail(detail_area, frame, overlay.selected_catalog_entry());
+}
+
+fn render_catalog_detail(area: Rect, frame: &mut Frame, entry: Option<&ServerEntry>) {
+    let block = Block::default()
+        .borders(Borders::LEFT)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(
+            " Detail ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let Some(entry) = entry else {
+        render_empty(inner, frame, "Select a catalog entry to view details");
+        return;
+    };
+
+    let mut lines = vec![
+        Line::from(vec![Span::styled(
+            entry.display_name.clone(),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(clip(&entry.description, 96)),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("id: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.id.clone()),
+            Span::styled("  source: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.source.clone()),
+        ]),
+        Line::from(vec![
+            Span::styled("trust: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                entry.trust.clone(),
+                Style::default().fg(trust_color(&entry.trust)),
+            ),
+            Span::styled("  version: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.version.as_deref().unwrap_or("unknown").to_string()),
+        ]),
+    ];
+
+    if let Some(author) = &entry.author {
+        lines.push(Line::from(vec![
+            Span::styled("author: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(author.clone()),
+        ]));
+    }
+    if let Some(homepage) = &entry.homepage {
+        lines.push(Line::from(vec![
+            Span::styled("home: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(clip(homepage, 72)),
+        ]));
+    }
+    if !entry.categories.is_empty() || !entry.tags.is_empty() {
+        lines.push(Line::from(vec![
+            Span::styled("categories: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(join_or_dash(&entry.categories)),
+            Span::styled("  tags: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(join_or_dash(&entry.tags)),
+        ]));
+    }
+
+    lines.push(Line::from(""));
+    lines.extend(render_install_lines(entry));
+    lines.push(Line::from(""));
+    lines.extend(render_requirement_lines(entry));
+    lines.push(Line::from(""));
+    lines.extend(render_config_lines(entry));
+
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CatalogConfigItem {
+    kind: &'static str,
+    key: String,
+    description: String,
+    required: bool,
+    secret: bool,
+    default: Option<String>,
+}
+
+fn render_install_lines(entry: &ServerEntry) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    match parse_install_spec(entry) {
+        Some(InstallSpec::Stdio { command, args, .. }) => {
+            let mut command_line = command;
+            if !args.is_empty() {
+                command_line.push(' ');
+                command_line.push_str(&args.join(" "));
+            }
+            lines.push(Line::from(vec![
+                Span::styled("install: ", Style::default().fg(Color::DarkGray)),
+                Span::raw(format!("stdio {}", clip(&command_line, 76))),
+            ]));
+        }
+        Some(InstallSpec::Sse { url, headers }) => {
+            lines.push(Line::from(vec![
+                Span::styled("install: ", Style::default().fg(Color::DarkGray)),
+                Span::raw(format!("sse {}", clip(&url, 76))),
+            ]));
+            if !headers.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("headers: ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(headers.keys().cloned().collect::<Vec<_>>().join(", ")),
+                ]));
+            }
+        }
+        Some(InstallSpec::StreamableHttp { url, headers }) => {
+            lines.push(Line::from(vec![
+                Span::styled("install: ", Style::default().fg(Color::DarkGray)),
+                Span::raw(format!("streamable_http {}", clip(&url, 68))),
+            ]));
+            if !headers.is_empty() {
+                lines.push(Line::from(vec![
+                    Span::styled("headers: ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(headers.keys().cloned().collect::<Vec<_>>().join(", ")),
+                ]));
+            }
+        }
+        None => lines.push(Line::from(vec![
+            Span::styled("install: ", Style::default().fg(Color::DarkGray)),
+            Span::raw("unknown"),
+        ])),
+    }
+    lines
+}
+
+fn render_requirement_lines(entry: &ServerEntry) -> Vec<Line<'static>> {
+    let requirements = parse_requirements(entry);
+    if requirements.is_empty() {
+        return vec![Line::from(vec![
+            Span::styled("requirements: ", Style::default().fg(Color::DarkGray)),
+            Span::raw("none"),
+        ])];
+    }
+
+    let mut lines = vec![Line::from(Span::styled(
+        "requirements:",
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD),
+    ))];
+    for requirement in requirements.into_iter().take(4) {
+        let mut label = requirement.kind.as_str().to_string();
+        if let Some(version) = requirement.min_version {
+            label.push_str(" >=");
+            label.push_str(&version);
+        }
+        if let Some(hint) = requirement.install_hint {
+            label.push_str(" - ");
+            label.push_str(&clip(&hint, 52));
+        }
+        lines.push(Line::from(format!("  {label}")));
+    }
+    lines
+}
+
+fn render_config_lines(entry: &ServerEntry) -> Vec<Line<'static>> {
+    let config = catalog_config_items(entry);
+    if config.is_empty() {
+        return vec![Line::from(vec![
+            Span::styled("configuration: ", Style::default().fg(Color::DarkGray)),
+            Span::raw("none"),
+        ])];
+    }
+
+    let required_count = config.iter().filter(|item| item.required).count();
+    let mut lines = vec![Line::from(vec![
+        Span::styled(
+            "configuration:",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(format!(
+            " {} item{}",
+            config.len(),
+            if config.len() == 1 { "" } else { "s" }
+        )),
+        Span::styled(
+            format!(" required:{required_count}"),
+            Style::default().fg(if required_count == 0 {
+                Color::DarkGray
+            } else {
+                Color::Yellow
+            }),
+        ),
+    ])];
+
+    for item in config.into_iter().take(5) {
+        let mut meta = format!(
+            "{} {}{}",
+            item.kind,
+            if item.required {
+                "required"
+            } else {
+                "optional"
+            },
+            if item.secret { " secret" } else { "" }
+        );
+        if let Some(default) = item.default.as_ref().filter(|value| !value.is_empty()) {
+            if item.secret {
+                meta.push_str(" default:set");
+            } else {
+                meta.push_str(" default:");
+                meta.push_str(&clip(default, 20));
+            }
+        }
+
+        let description = if item.description.trim().is_empty() {
+            String::new()
+        } else {
+            format!(" - {}", clip(&item.description, 42))
+        };
+
+        lines.push(Line::from(vec![
+            Span::raw(format!("  {}  ", item.key)),
+            Span::styled(meta, Style::default().fg(Color::Cyan)),
+            Span::styled(description, Style::default().fg(Color::Gray)),
+        ]));
+    }
+    lines
+}
+
+fn catalog_config_items(entry: &ServerEntry) -> Vec<CatalogConfigItem> {
+    let env = parse_default_env(entry);
+    let mut header_keys = BTreeSet::new();
+    let mut items = Vec::new();
+
+    if let Some(InstallSpec::Sse { headers, .. } | InstallSpec::StreamableHttp { headers, .. }) =
+        parse_install_spec(entry)
+    {
+        for key in headers.keys() {
+            header_keys.insert(key.clone());
+            let meta = env.iter().find(|spec| spec.key == *key);
+            items.push(CatalogConfigItem {
+                kind: "HTTP header",
+                key: key.clone(),
+                description: meta
+                    .map(|spec| spec.description.clone())
+                    .unwrap_or_default(),
+                required: meta.map(|spec| spec.required).unwrap_or(false),
+                secret: meta.map(|spec| spec.secret).unwrap_or(false),
+                default: meta.and_then(|spec| spec.default.clone()),
+            });
+        }
+    }
+
+    for spec in env {
+        if header_keys.contains(&spec.key) {
+            continue;
+        }
+        items.push(CatalogConfigItem {
+            kind: "env",
+            key: spec.key,
+            description: spec.description,
+            required: spec.required,
+            secret: spec.secret,
+            default: spec.default,
+        });
+    }
+
+    items
+}
+
+fn parse_install_spec(entry: &ServerEntry) -> Option<InstallSpec> {
+    serde_json::from_str(&entry.install_spec_json).ok()
+}
+
+fn parse_requirements(entry: &ServerEntry) -> Vec<RuntimeRequirement> {
+    serde_json::from_str(&entry.requirements_json).unwrap_or_default()
+}
+
+fn parse_default_env(entry: &ServerEntry) -> Vec<EnvVarSpec> {
+    serde_json::from_str(&entry.default_env_json).unwrap_or_default()
+}
+
+fn join_or_dash(values: &[String]) -> String {
+    if values.is_empty() {
+        "-".to_string()
+    } else {
+        values.join(", ")
+    }
+}
+
+fn trust_rank(value: &str) -> u8 {
+    match value {
+        "verified" => 2,
+        "community" => 1,
+        _ => 0,
+    }
+}
+
+fn trust_color(value: &str) -> Color {
+    match value {
+        "verified" => Color::Green,
+        "community" => Color::Yellow,
+        _ => Color::Gray,
+    }
 }
 
 fn render_sources(
@@ -1641,22 +2116,26 @@ fn render_list(area: Rect, frame: &mut Frame, items: Vec<ListItem>, state: &mut 
     frame.render_stateful_widget(list, area, state);
 }
 
-fn render_hints(area: Rect, frame: &mut Frame, tab: McpOverlayTab) {
-    let action = match tab {
-        McpOverlayTab::Runtime => {
-            "[Enter] start/stop  [t] trust/revoke  [h] health  [c] test  [r] tools  "
+fn render_hints(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
+    let action = if overlay.mode == McpOverlayMode::CatalogFilter {
+        "[Enter/Esc] apply search  [Backspace] edit  "
+    } else {
+        match overlay.tab {
+            McpOverlayTab::Runtime => {
+                "[Enter] start/stop  [t] trust/revoke  [h] health  [c] test  [r] tools  "
+            }
+            McpOverlayTab::Settings => {
+                "[n] new  [Enter] edit  [e] enable  [d/a] project off/on  [o] config  [x] delete  "
+            }
+            McpOverlayTab::Installed => "[x/u] uninstall  [r] reload  ",
+            McpOverlayTab::Catalog => "[i] install  [/] search  [t] trust  [r] reload  ",
+            McpOverlayTab::Sources => {
+                "[n] new  [e] enable source  [x] remove  [o] config  [r] reload  "
+            }
+            McpOverlayTab::Tools => "[r] health  [e/Enter] enable tool  ",
+            McpOverlayTab::Resources => "[r] list  [Enter] read  ",
+            McpOverlayTab::Prompts => "[r] list  ",
         }
-        McpOverlayTab::Settings => {
-            "[n] new  [Enter] edit  [e] enable  [d/a] project off/on  [o] config  [x] delete  "
-        }
-        McpOverlayTab::Installed => "[x/u] uninstall  [r] reload  ",
-        McpOverlayTab::Catalog => "[i] install  [r] reload  ",
-        McpOverlayTab::Sources => {
-            "[n] new  [e] enable source  [x] remove  [o] config  [r] reload  "
-        }
-        McpOverlayTab::Tools => "[r] health  [e/Enter] enable tool  ",
-        McpOverlayTab::Resources => "[r] list  [Enter] read  ",
-        McpOverlayTab::Prompts => "[r] list  ",
     };
     let hints = Line::from(vec![
         Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
@@ -1692,6 +2171,10 @@ impl Component for McpOverlay {
                 commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
                 return (effects, commands);
             }
+            McpOverlayMode::CatalogFilter => {
+                self.handle_catalog_filter_key(key.code, key.modifiers);
+                return (effects, commands);
+            }
             McpOverlayMode::List => {}
         }
 
@@ -1714,6 +2197,12 @@ impl Component for McpOverlay {
             }
             KeyCode::Char('n') | KeyCode::Char('N') if self.tab == McpOverlayTab::Sources => {
                 self.start_source_create();
+            }
+            KeyCode::Char('/') if self.tab == McpOverlayTab::Catalog => {
+                self.mode = McpOverlayMode::CatalogFilter;
+            }
+            KeyCode::Char('t') | KeyCode::Char('T') if self.tab == McpOverlayTab::Catalog => {
+                self.cycle_catalog_trust_filter();
             }
             KeyCode::Esc => {
                 self.hide();
@@ -2000,6 +2489,15 @@ mod tests {
         for ch in text.chars() {
             let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char(ch)));
         }
+    }
+
+    fn rendered_overlay(overlay: &McpOverlay) -> String {
+        let backend = ratatui::backend::TestBackend::new(120, 30);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| overlay.render(f.area(), f))
+            .expect("render");
+        terminal.backend().to_string()
     }
 
     #[test]
@@ -2427,6 +2925,99 @@ mod tests {
                     && request.auto_start
                     && !request.trust_grant
         ));
+    }
+
+    #[test]
+    fn catalog_tab_filters_by_keyword_trust_and_enabled_source() {
+        let mut filesystem = catalog_entry("filesystem", "builtin");
+        filesystem.summary = "Browse local files".to_string();
+
+        let mut slack = catalog_entry("slack", "registry");
+        slack.summary = "Search Slack messages".to_string();
+        slack.tags = vec!["chat".to_string()];
+        slack.trust = "community".to_string();
+        slack.verified = false;
+
+        let mut risky = catalog_entry("risky", "corp");
+        risky.summary = "Internal unverified tool".to_string();
+        risky.trust = "unverified".to_string();
+        risky.verified = false;
+
+        let mut registry = source("registry", true);
+        registry.default_trust = "verified".to_string();
+        let disabled_corp = source("corp", false);
+
+        let mut overlay = McpOverlay::new();
+        overlay.show(McpOverlaySnapshot {
+            runtime_servers: Vec::new(),
+            settings: Vec::new(),
+            installed: Vec::new(),
+            catalog: vec![filesystem, slack, risky],
+            sources: vec![registry, disabled_corp],
+        });
+        advance_tabs(&mut overlay, 3);
+
+        assert_eq!(overlay.current_len(), 2);
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('t')));
+        assert_eq!(overlay.current_len(), 2);
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+        type_text(&mut overlay, "slack");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert_eq!(overlay.current_len(), 1);
+        assert_eq!(
+            overlay
+                .selected_catalog_entry()
+                .map(|entry| entry.id.as_str()),
+            Some("slack")
+        );
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('t')));
+        assert_eq!(overlay.current_len(), 0);
+        assert!(overlay.selected_catalog_entry().is_none());
+    }
+
+    #[test]
+    fn catalog_tab_renders_detail_metadata_for_selected_entry() {
+        let mut entry = catalog_entry("github", "registry");
+        entry.description = "Browse repositories and issues".to_string();
+        entry.categories = vec!["dev".to_string(), "source-control".to_string()];
+        entry.tags = vec!["git".to_string(), "issues".to_string()];
+        entry.homepage = Some("https://github.com/modelcontextprotocol".to_string());
+        entry.install_spec_json = r#"{"transport":"sse","url":"https://mcp.example.com/sse","headers":{"Authorization":"Bearer ${Authorization}"}}"#.to_string();
+        entry.requirements_json =
+            r#"[{"kind":"node","min_version":"18","install_hint":"Install Node.js"}]"#.to_string();
+        entry.default_env_json = r#"[
+            {"key":"Authorization","label":"Authorization","description":"Bearer token","required":true,"secret":true,"default":null},
+            {"key":"OPTIONAL_MODE","label":"Mode","description":"Optional mode","required":false,"secret":false,"default":"read"}
+        ]"#.to_string();
+
+        let mut overlay = McpOverlay::new();
+        overlay.show(McpOverlaySnapshot {
+            runtime_servers: Vec::new(),
+            settings: Vec::new(),
+            installed: Vec::new(),
+            catalog: vec![entry],
+            sources: vec![source("registry", true)],
+        });
+        advance_tabs(&mut overlay, 3);
+
+        let rendered = rendered_overlay(&overlay);
+        assert!(
+            rendered.contains("Browse repositories and issues"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("trust: verified"), "{rendered}");
+        assert!(rendered.contains("requirements"), "{rendered}");
+        assert!(rendered.contains("node >=18"), "{rendered}");
+        assert!(rendered.contains("configuration"), "{rendered}");
+        assert!(rendered.contains("Authorization"), "{rendered}");
+        assert!(rendered.contains("HTTP header"), "{rendered}");
+        assert!(rendered.contains("required secret"), "{rendered}");
+        assert!(rendered.contains("OPTIONAL_MODE"), "{rendered}");
+        assert!(rendered.contains("env optional"), "{rendered}");
     }
 
     #[test]
