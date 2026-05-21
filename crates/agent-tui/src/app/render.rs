@@ -139,6 +139,10 @@ impl App {
             self.command_palette.render(area, frame);
         }
 
+        if self.skills_overlay.is_visible() {
+            self.skills_overlay.render(area, frame);
+        }
+
         self.state.render_scheduler.did_render();
     }
 
