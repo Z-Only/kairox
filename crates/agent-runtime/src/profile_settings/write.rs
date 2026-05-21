@@ -29,8 +29,9 @@ pub async fn set_profile_enabled_in_file(
         // If the profile doesn't exist yet in profiles.toml, seed it with
         // the full definition from the merged Config so we don't override
         // defaults with an empty table.
-        let exists_in_file = document["profiles"]
-            .as_table()
+        let exists_in_file = document
+            .get("profiles")
+            .and_then(|item| item.as_table())
             .map(|t| t.contains_key(alias))
             .unwrap_or(false);
         if !exists_in_file {
@@ -87,7 +88,10 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
 
 pub async fn delete_profile_in_file(config_path: &Path, alias: &str) -> agent_core::Result<()> {
     mutate_profiles_config(config_path, |document| {
-        if let Some(profiles) = document["profiles"].as_table_mut() {
+        if let Some(profiles) = document
+            .get_mut("profiles")
+            .and_then(|item| item.as_table_mut())
+        {
             profiles.remove(alias);
         }
         Ok(())

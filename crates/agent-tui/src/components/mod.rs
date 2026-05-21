@@ -164,6 +164,10 @@ pub struct ModelProfileEntry {
     pub provider_display: String,
     pub model_display: String,
     pub supports_reasoning: bool,
+    pub enabled: bool,
+    pub writable: bool,
+    pub source: String,
+    pub has_api_key: bool,
 }
 
 /// Snapshot payload for opening the model overlay. `current_alias`/`current_effort`
@@ -173,6 +177,13 @@ pub struct ModelOverlaySnapshot {
     pub profiles: Vec<ModelProfileEntry>,
     pub current_alias: Option<String>,
     pub current_effort: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelProfileTestResult {
+    pub alias: String,
+    pub ok: bool,
+    pub message: Option<String>,
 }
 
 /// Snapshot payload for opening the plugin manager overlay.
@@ -310,6 +321,7 @@ pub enum CrossPanelEffect {
         body: String,
     },
     ShowModelOverlay(ModelOverlaySnapshot),
+    ModelProfileTested(ModelProfileTestResult),
     DismissModelOverlay,
     ShowPluginsOverlay(PluginOverlaySnapshot),
     DismissPluginsOverlay,
@@ -473,6 +485,26 @@ pub enum Command {
     OpenSkillsOverlay,
     /// Build a model-profile snapshot and open the model overlay.
     OpenModelOverlay,
+    /// Enable or disable one writable model profile setting.
+    SetProfileEnabled {
+        alias: String,
+        enabled: bool,
+    },
+    /// Delete one writable model profile setting.
+    DeleteProfileSettings {
+        alias: String,
+    },
+    /// Move a profile up or down in display order.
+    MoveProfileInOrder {
+        alias: String,
+        direction: i32,
+    },
+    /// Run a lightweight connectivity check for one model profile.
+    TestModelProfile {
+        alias: String,
+    },
+    /// Open the writable profiles config file.
+    OpenProfilesConfig,
     /// Build a plugin manager snapshot and open the plugin overlay.
     OpenPluginsOverlay,
     /// Build an instructions snapshot and open the instructions settings overlay.

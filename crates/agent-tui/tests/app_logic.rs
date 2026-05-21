@@ -165,6 +165,51 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
         self.record(format!("set_catalog_source_enabled:{id}:{enabled}"));
         Ok(())
     }
+
+    async fn list_profile_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> agent_core::Result<Vec<agent_core::facade::ProfileSettingsView>> {
+        self.record(format!("list_profile_settings:{source_filter:?}"));
+        Ok(vec![agent_core::facade::ProfileSettingsView {
+            alias: "fast".into(),
+            provider: "fake".into(),
+            model_id: "fast".into(),
+            enabled: true,
+            context_window: Some(128000),
+            output_limit: Some(4096),
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            max_tokens: None,
+            base_url: None,
+            api_key_env: None,
+            has_api_key: true,
+            writable: true,
+            config_path: Some("/tmp/kairox/profiles.toml".into()),
+            source: "profiles_toml".into(),
+        }])
+    }
+
+    async fn set_profile_enabled(&self, alias: String, enabled: bool) -> agent_core::Result<()> {
+        self.record(format!("set_profile_enabled:{alias}:{enabled}"));
+        Ok(())
+    }
+
+    async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {
+        self.record(format!("delete_profile_settings:{alias}"));
+        Ok(())
+    }
+
+    async fn move_profile_in_order(&self, alias: String, direction: i32) -> agent_core::Result<()> {
+        self.record(format!("move_profile_in_order:{alias}:{direction}"));
+        Ok(())
+    }
+
+    async fn open_profiles_config_file(&self) -> agent_core::Result<Option<String>> {
+        self.record("open_profiles_config_file");
+        Ok(Some("/tmp/kairox/profiles.toml".into()))
+    }
 }
 
 #[async_trait::async_trait]
@@ -1333,6 +1378,67 @@ async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
             "expected call {expected}, got {calls:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
+    use agent_core::projection::ProjectedRole;
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::SetProfileEnabled {
+                alias: "fast".into(),
+                enabled: false,
+            },
+            Command::MoveProfileInOrder {
+                alias: "fast".into(),
+                direction: 1,
+            },
+            Command::TestModelProfile {
+                alias: "fast".into(),
+            },
+            Command::DeleteProfileSettings {
+                alias: "fast".into(),
+            },
+        ],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    for expected in [
+        "set_profile_enabled:fast:false",
+        "move_profile_in_order:fast:1",
+        "list_profile_settings:None",
+        "delete_profile_settings:fast",
+    ] {
+        assert!(
+            calls.iter().any(|call| call == expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
+
+    let visible_messages: Vec<&str> = app
+        .state
+        .current_session
+        .messages
+        .iter()
+        .filter(|message| message.role == ProjectedRole::Assistant)
+        .map(|message| message.content.as_str())
+        .collect();
+    assert!(
+        visible_messages
+            .iter()
+            .any(|message| message.contains("model profile fast connectivity ok")),
+        "expected visible model test result; got {visible_messages:?}"
+    );
 }
 
 #[tokio::test]

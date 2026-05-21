@@ -95,7 +95,30 @@ where
                 "config dir not configured; cannot reorder profiles".into(),
             )
         })?;
-        crate::profile_settings::move_profile_in_order(&config_path, &alias, direction).await
+        let mut order = self
+            .list_profile_settings(None)
+            .await?
+            .into_iter()
+            .map(|profile| profile.alias)
+            .collect::<Vec<_>>();
+
+        if let Some(pos) = order
+            .iter()
+            .position(|profile_alias| profile_alias == &alias)
+        {
+            let new_pos = if direction < 0 {
+                pos.saturating_sub(1)
+            } else {
+                (pos + 1).min(order.len().saturating_sub(1))
+            };
+            if new_pos != pos {
+                order.swap(pos, new_pos);
+            }
+        } else {
+            order.push(alias);
+        }
+
+        crate::profile_settings::save_profile_display_order(&config_path, &order).await
     }
 
     pub(crate) async fn open_config_dir(&self) -> agent_core::Result<Option<String>> {
@@ -112,5 +135,63 @@ where
             )?
             .map(|path| path.display().to_string()),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_core::AppFacade;
+    use agent_models::FakeModelClient;
+    use agent_store::SqliteEventStore;
+    use std::sync::Arc;
+
+    fn config_with_three_profiles() -> Arc<agent_config::Config> {
+        Arc::new(
+            agent_config::load_from_str(
+                r#"
+[profiles.alpha]
+provider = "fake"
+model_id = "alpha"
+
+[profiles.bravo]
+provider = "fake"
+model_id = "bravo"
+
+[profiles.charlie]
+provider = "fake"
+model_id = "charlie"
+"#,
+                "test.toml",
+            )
+            .expect("config should parse"),
+        )
+    }
+
+    #[tokio::test]
+    async fn move_profile_in_order_uses_current_display_order_for_unordered_profiles() {
+        let config_dir = tempfile::tempdir().expect("config dir");
+        let store = SqliteEventStore::in_memory()
+            .await
+            .expect("in-memory store");
+        let runtime = LocalRuntime::new(store, FakeModelClient::new(vec!["ok".into()]))
+            .with_config(config_with_three_profiles())
+            .with_marketplace(config_dir.path().to_path_buf())
+            .expect("marketplace wiring");
+
+        runtime
+            .move_profile_in_order("charlie".into(), -1)
+            .await
+            .expect("profile should move up");
+
+        let aliases = AppFacade::list_profile_settings(&runtime, None)
+            .await
+            .expect("profiles should list")
+            .into_iter()
+            .map(|profile| profile.alias)
+            .filter(|alias| ["alpha", "bravo", "charlie"].contains(&alias.as_str()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(aliases, vec!["alpha", "charlie", "bravo"]);
     }
 }
