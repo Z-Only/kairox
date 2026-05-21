@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_state::InputMode;
-use crate::components::FocusTarget;
+use crate::components::{FocusTarget, QueueAction};
 
 use super::KeyAction;
 
@@ -21,6 +21,24 @@ pub fn resolve_key(
 
     if mods.contains(KeyModifiers::ALT) {
         return match code {
+            KeyCode::Up if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SelectPrevious)
+            }
+            KeyCode::Down if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SelectNext)
+            }
+            KeyCode::Left if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::MoveSelectedUp)
+            }
+            KeyCode::Right if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::MoveSelectedDown)
+            }
+            KeyCode::Enter if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SendSelectedNow)
+            }
+            KeyCode::Delete | KeyCode::Backspace if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::DeleteSelected)
+            }
             KeyCode::Char('s') => KeyAction::ToggleSessionsSidebar,
             KeyCode::Char('t') => KeyAction::ToggleTraceSidebar,
             KeyCode::Char('e') => KeyAction::ToggleInputMode,

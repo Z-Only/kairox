@@ -60,32 +60,59 @@ pub fn render_messages(
     frame.render_widget(paragraph, area);
 }
 
-/// Render a one-line queue strip summarising messages waiting to be sent.
-/// Returns silently when the queue is empty.
-pub fn render_queue_strip(area: Rect, frame: &mut Frame, queue: &[QueuedMessage]) {
+/// Render a compact queue strip showing the first queued messages and the
+/// selected row. Returns silently when the queue is empty.
+pub fn render_queue_strip(
+    area: Rect,
+    frame: &mut Frame,
+    queue: &[QueuedMessage],
+    selected_index: Option<usize>,
+) {
     if queue.is_empty() {
         return;
     }
 
-    let count = queue.len();
-    let preview_display = queue
-        .first()
-        .map(queued_message_preview)
-        .unwrap_or_default();
+    let selected = selected_index.unwrap_or(0).min(queue.len() - 1);
+    let max_rows = area.height.saturating_sub(1).max(1) as usize;
+    let start = selected.saturating_sub(max_rows.saturating_sub(1));
+    let visible = queue
+        .iter()
+        .enumerate()
+        .skip(start)
+        .take(max_rows)
+        .map(|(idx, message)| {
+            let marker = if idx == selected { ">" } else { " " };
+            let style = if idx == selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::DIM)
+            };
+            Line::from(vec![Span::styled(
+                format!("{marker} Q{} {}", idx + 1, queued_message_preview(message)),
+                style,
+            )])
+        });
 
-    let label = if count == 1 {
-        format!("⏳ 1 message queued: {preview_display}")
+    let mut lines: Vec<Line> = visible.collect();
+    let hint = if queue.len() == 1 {
+        "1 queued | Alt+Enter send | :queue edit/delete".to_string()
     } else {
-        format!("⏳ {count} messages queued, next: {preview_display}")
+        format!(
+            "{} queued | Alt+Up/Down select | Alt+Left/Right reorder | :queue send/edit/delete",
+            queue.len()
+        )
     };
-
-    let line = Line::from(vec![Span::styled(
-        label,
+    lines.push(Line::from(Span::styled(
+        hint,
         Style::default()
-            .fg(Color::Yellow)
+            .fg(Color::DarkGray)
             .add_modifier(Modifier::DIM),
-    )]);
-    frame.render_widget(Paragraph::new(line), area);
+    )));
+    frame.render_widget(Paragraph::new(lines), area);
 }
 
 pub fn format_attachment_labels(attachments: &[AttachmentInfo]) -> String {
