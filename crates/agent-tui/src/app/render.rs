@@ -125,12 +125,13 @@ impl App {
                             self.trace.focused(),
                         );
                     } else {
-                        crate::components::trace::render_task_graph(
+                        crate::components::trace::render_task_graph_with_collapsed(
                             trace_area,
                             frame,
                             &tasks,
                             self.trace.focused(),
                             self.trace.selected_task_index,
+                            self.trace.collapsed_task_ids(),
                         );
                     }
                 }

@@ -2,7 +2,7 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 use crate::keybindings::TraceDensity;
 use agent_core::events::EventPayload;
 use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
-use agent_core::TaskState;
+use agent_core::{TaskFailureReason, TaskState};
 use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
@@ -24,6 +24,7 @@ pub struct TracePanel {
     pub memory_search_query: String,
     pub memory_search_active: bool,
     pub memory_rows: Vec<MemoryRow>,
+    collapsed_task_ids: BTreeSet<String>,
     pending_delete_memory_id: Option<String>,
 }
 
@@ -47,6 +48,7 @@ impl TracePanel {
             memory_search_query: String::new(),
             memory_search_active: false,
             memory_rows: Vec::new(),
+            collapsed_task_ids: BTreeSet::new(),
             pending_delete_memory_id: None,
         }
     }
@@ -115,6 +117,42 @@ impl TracePanel {
         } else {
             None
         }
+    }
+
+    pub fn visible_task_rows(&self, snapshot: &TaskGraphSnapshot) -> Vec<TaskListRow> {
+        let tree = build_task_tree_from_snapshot(snapshot);
+        flatten_task_tree_with_collapsed(&tree, &self.collapsed_task_ids)
+    }
+
+    pub fn visible_task_row_count(&self, snapshot: &TaskGraphSnapshot) -> usize {
+        self.visible_task_rows(snapshot).len()
+    }
+
+    pub fn collapsed_task_ids(&self) -> &BTreeSet<String> {
+        &self.collapsed_task_ids
+    }
+
+    pub fn toggle_selected_task_expansion(&mut self, snapshot: &TaskGraphSnapshot) -> bool {
+        if self.active_tab != RightPanelTab::Tasks {
+            return false;
+        }
+
+        let selected_id = {
+            let rows = self.visible_task_rows(snapshot);
+            let Some(row) = rows.get(self.selected_task_index) else {
+                return false;
+            };
+            if row.node.children.is_empty() {
+                return false;
+            }
+            row.node.id.clone()
+        };
+
+        if !self.collapsed_task_ids.insert(selected_id.clone()) {
+            self.collapsed_task_ids.remove(&selected_id);
+        }
+        self.clamp_task_selection(snapshot);
+        true
     }
 
     pub fn set_memory_rows(&mut self, rows: Vec<MemoryRow>) {
@@ -205,8 +243,7 @@ impl TracePanel {
     }
 
     fn selected_task<'a>(&self, snapshot: &'a TaskGraphSnapshot) -> Option<&'a TaskSnapshot> {
-        let tree = build_task_tree_from_snapshot(snapshot);
-        let rows = flatten_task_tree(&tree);
+        let rows = self.visible_task_rows(snapshot);
         let selected = rows.get(self.selected_task_index)?;
         snapshot
             .tasks
@@ -225,6 +262,15 @@ impl TracePanel {
         match self.active_tab {
             RightPanelTab::Trace | RightPanelTab::Tasks => self.selected_task_index = index,
             RightPanelTab::Memory => self.selected_memory_index = index,
+        }
+    }
+
+    fn clamp_task_selection(&mut self, snapshot: &TaskGraphSnapshot) {
+        let row_count = self.visible_task_row_count(snapshot);
+        if row_count == 0 {
+            self.selected_task_index = 0;
+        } else if self.selected_task_index >= row_count {
+            self.selected_task_index = row_count - 1;
         }
     }
 
@@ -349,6 +395,8 @@ pub struct TaskTreeNode {
     pub error: Option<String>,
     pub retry_count: usize,
     pub max_retries: usize,
+    pub assigned_agent_id: Option<String>,
+    pub failure_reason: Option<TaskFailureReason>,
     pub children: Vec<TaskTreeNode>,
 }
 
@@ -560,6 +608,8 @@ pub fn extract_task_traces(events: &[agent_core::DomainEvent]) -> Vec<TaskTreeNo
             error: t.error,
             retry_count: 0,
             max_retries: 0,
+            assigned_agent_id: None,
+            failure_reason: None,
             children: Vec::new(),
         })
         .collect()
@@ -597,21 +647,32 @@ pub fn build_task_tree_from_snapshot(snapshot: &TaskGraphSnapshot) -> Vec<TaskTr
     roots
 }
 
-pub fn flatten_task_tree(tasks: &[TaskTreeNode]) -> Vec<TaskListRow> {
+pub fn flatten_task_tree_with_collapsed(
+    tasks: &[TaskTreeNode],
+    collapsed_task_ids: &BTreeSet<String>,
+) -> Vec<TaskListRow> {
     let mut rows = Vec::new();
     for task in tasks {
-        flatten_task_tree_inner(task, 0, &mut rows);
+        flatten_task_tree_inner(task, 0, collapsed_task_ids, &mut rows);
     }
     rows
 }
 
-fn flatten_task_tree_inner(task: &TaskTreeNode, depth: usize, rows: &mut Vec<TaskListRow>) {
+fn flatten_task_tree_inner(
+    task: &TaskTreeNode,
+    depth: usize,
+    collapsed_task_ids: &BTreeSet<String>,
+    rows: &mut Vec<TaskListRow>,
+) {
     rows.push(TaskListRow {
         node: task.clone(),
         depth,
     });
+    if collapsed_task_ids.contains(&task.id) {
+        return;
+    }
     for child in &task.children {
-        flatten_task_tree_inner(child, depth + 1, rows);
+        flatten_task_tree_inner(child, depth + 1, collapsed_task_ids, rows);
     }
 }
 
@@ -625,6 +686,8 @@ fn task_node_from_snapshot(task: &TaskSnapshot) -> TaskTreeNode {
         error: task.error.clone(),
         retry_count: task.retry_count,
         max_retries: task.max_retries,
+        assigned_agent_id: task.assigned_agent_id.clone(),
+        failure_reason: task.failure_reason.clone(),
         children: Vec::new(),
     }
 }
@@ -693,12 +756,13 @@ pub fn render_trace_l1(area: Rect, frame: &mut Frame, traces: &[TraceEntry], foc
     frame.render_widget(list, area);
 }
 
-pub fn render_task_graph(
+pub fn render_task_graph_with_collapsed(
     area: Rect,
     frame: &mut Frame,
     tasks: &[TaskTreeNode],
     focused: bool,
     selected_index: usize,
+    collapsed_task_ids: &BTreeSet<String>,
 ) {
     let border_style = if focused {
         Style::default().fg(Color::Cyan)
@@ -706,7 +770,7 @@ pub fn render_task_graph(
         Style::default().fg(Color::DarkGray)
     };
 
-    let rows = flatten_task_tree(tasks);
+    let rows = flatten_task_tree_with_collapsed(tasks, collapsed_task_ids);
     let items: Vec<ListItem> = rows
         .iter()
         .enumerate()
@@ -718,33 +782,12 @@ pub fn render_task_graph(
                 TraceStatus::Failed => Color::Red,
                 TraceStatus::Pending => Color::Magenta,
             };
-            let role_label = match task.role.as_str() {
-                "Planner" => "P",
-                "Worker" => "W",
-                "Reviewer" => "R",
-                _ => "?",
-            };
-            let cursor = if focused && index == selected_index {
-                ">"
-            } else {
-                " "
-            };
-            let indent = "  ".repeat(row.depth);
-            let retry = if task.retry_count > 0 {
-                format!(" ↻{}/{}", task.retry_count, task.max_retries)
-            } else {
-                String::new()
-            };
-            let line = Line::from(vec![
-                Span::styled(cursor, Style::default().fg(Color::Cyan)),
-                Span::raw(indent),
-                Span::styled(format!("{} ", role_label), Style::default().fg(Color::Blue)),
-                Span::styled(&task.title, Style::default()),
-                Span::styled(
-                    format!(" {}{}", task.status, retry),
-                    Style::default().fg(status_color),
-                ),
-            ]);
+            let selected = focused && index == selected_index;
+            let collapsed = collapsed_task_ids.contains(&task.id);
+            let line = Line::from(Span::styled(
+                task_row_label_with_collapsed(row, selected, collapsed),
+                Style::default().fg(status_color),
+            ));
             ListItem::new(line)
         })
         .collect();
@@ -756,6 +799,120 @@ pub fn render_task_graph(
             .border_style(border_style),
     );
     frame.render_widget(list, area);
+}
+
+#[cfg(test)]
+pub fn task_row_label(row: &TaskListRow, selected: bool) -> String {
+    task_row_label_with_collapsed(row, selected, false)
+}
+
+fn task_row_label_with_collapsed(row: &TaskListRow, selected: bool, collapsed: bool) -> String {
+    let task = &row.node;
+    let cursor = if selected { ">" } else { " " };
+    let branch = if row.depth == 0 {
+        String::new()
+    } else {
+        format!("{}├─ ", "│ ".repeat(row.depth.saturating_sub(1)))
+    };
+    let spacer = if row.depth == 0 {
+        String::new()
+    } else {
+        "  ".repeat(row.depth)
+    };
+    let expander = if task.children.is_empty() {
+        " "
+    } else if collapsed {
+        "▸"
+    } else {
+        "▾"
+    };
+    let retry = if task.retry_count > 0 {
+        format!(" ↻{}/{}", task.retry_count, task.max_retries)
+    } else {
+        String::new()
+    };
+    let summary = if collapsed && !task.children.is_empty() {
+        let summary = child_status_summary(&task.children);
+        if summary.is_empty() {
+            String::new()
+        } else {
+            format!(" {{{summary}}}")
+        }
+    } else {
+        String::new()
+    };
+    let error = task
+        .error
+        .as_ref()
+        .map(|error| format!(" error: {error}"))
+        .unwrap_or_default();
+    let failure_reason = task
+        .failure_reason
+        .as_ref()
+        .map(|reason| format!(" reason: {}", task_failure_reason_label(reason)))
+        .unwrap_or_default();
+    let (state_icon, state_label) = task_state_display(task.state);
+
+    format!(
+        "{cursor}{spacer}{branch}{expander} {} {} {state_icon} {state_label}{retry}{summary}{error}{failure_reason}",
+        task_agent_badge(task),
+        task.title,
+    )
+}
+
+fn task_agent_badge(task: &TaskTreeNode) -> String {
+    if let Some(agent_id) = &task.assigned_agent_id {
+        return format!("[{agent_id}]");
+    }
+    let role_label = match task.role.as_str() {
+        "Planner" => "P",
+        "Worker" => "W",
+        "Reviewer" => "R",
+        _ => "?",
+    };
+    format!("[{role_label}]")
+}
+
+fn task_state_display(state: TaskState) -> (&'static str, &'static str) {
+    match state {
+        TaskState::Pending => ("⏳", "Pending"),
+        TaskState::Ready => ("⏳", "Ready"),
+        TaskState::Running => ("🔄", "Running"),
+        TaskState::Blocked => ("⏸", "Blocked"),
+        TaskState::Completed => ("✅", "Completed"),
+        TaskState::Failed => ("❌", "Failed"),
+        TaskState::Skipped => ("⏭", "Skipped"),
+        TaskState::Cancelled => ("🚫", "Cancelled"),
+    }
+}
+
+fn child_status_summary(children: &[TaskTreeNode]) -> String {
+    let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    for child in children {
+        let (icon, _) = task_state_display(child.state);
+        *counts.entry(icon).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .map(|(icon, count)| format!("{icon} {count}"))
+        .collect::<Vec<_>>()
+        .join(" · ")
+}
+
+fn task_failure_reason_label(reason: &TaskFailureReason) -> String {
+    match reason {
+        TaskFailureReason::ModelError { retries } => format!("model error after {retries} retries"),
+        TaskFailureReason::ToolExhausted {
+            tool_id,
+            attempts,
+            last_error,
+        } => format!("tool {tool_id} exhausted after {attempts} attempts: {last_error}"),
+        TaskFailureReason::PermissionDenied { tool_id } => {
+            format!("permission denied for {tool_id}")
+        }
+        TaskFailureReason::Cancelled => "cancelled".to_string(),
+        TaskFailureReason::MaxIterations => "max iterations reached".to_string(),
+    }
 }
 
 pub fn render_task_graph_placeholder(area: Rect, frame: &mut Frame, focused: bool) {
@@ -903,7 +1060,9 @@ impl Component for TracePanel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
+    use agent_core::{
+        AgentId, DomainEvent, PrivacyClassification, SessionId, TaskFailureReason, WorkspaceId,
+    };
 
     fn make_event(payload: EventPayload) -> DomainEvent {
         DomainEvent::new(
@@ -1101,6 +1260,156 @@ mod tests {
         assert_eq!(tree[0].children[0].id, "task_child");
         assert_eq!(tree[0].children[0].children[0].id, "task_grandchild");
         assert_eq!(tree[0].children[0].status, TraceStatus::Failed);
+    }
+
+    #[test]
+    fn task_row_label_distinguishes_blocked_skipped_and_cancelled_states() {
+        for (state, expected) in [
+            (TaskState::Blocked, "⏸ Blocked"),
+            (TaskState::Skipped, "⏭ Skipped"),
+            (TaskState::Cancelled, "🚫 Cancelled"),
+        ] {
+            let row = TaskListRow {
+                node: TaskTreeNode {
+                    id: format!("task_{state:?}"),
+                    title: "Task state".into(),
+                    role: "Worker".into(),
+                    state,
+                    status: trace_status_from_task_state(state),
+                    error: None,
+                    retry_count: 0,
+                    max_retries: 3,
+                    assigned_agent_id: None,
+                    failure_reason: None,
+                    children: Vec::new(),
+                },
+                depth: 0,
+            };
+
+            assert!(task_row_label(&row, false).contains(expected));
+        }
+    }
+
+    #[test]
+    fn task_row_label_includes_failure_reason_and_error_details() {
+        let row = TaskListRow {
+            node: TaskTreeNode {
+                id: "task_failed".into(),
+                title: "Run tests".into(),
+                role: "Worker".into(),
+                state: TaskState::Failed,
+                status: TraceStatus::Failed,
+                error: Some("cargo test failed".into()),
+                retry_count: 2,
+                max_retries: 3,
+                assigned_agent_id: None,
+                failure_reason: Some(TaskFailureReason::ToolExhausted {
+                    tool_id: "shell.exec".into(),
+                    attempts: 2,
+                    last_error: "exit 101".into(),
+                }),
+                children: Vec::new(),
+            },
+            depth: 0,
+        };
+
+        let label = task_row_label(&row, false);
+
+        assert!(label.contains("error: cargo test failed"));
+        assert!(label.contains("tool shell.exec exhausted after 2 attempts: exit 101"));
+    }
+
+    #[test]
+    fn task_row_label_prefers_assigned_agent_badge_over_role_initial() {
+        let row = TaskListRow {
+            node: TaskTreeNode {
+                id: "task_assigned".into(),
+                title: "Implement task".into(),
+                role: "Worker".into(),
+                state: TaskState::Running,
+                status: TraceStatus::Running,
+                error: None,
+                retry_count: 0,
+                max_retries: 3,
+                assigned_agent_id: Some("agent_worker_1".into()),
+                failure_reason: None,
+                children: Vec::new(),
+            },
+            depth: 0,
+        };
+
+        let label = task_row_label(&row, false);
+
+        assert!(label.contains("[agent_worker_1]"));
+        assert!(!label.contains("[W]"));
+    }
+
+    #[test]
+    fn visible_task_rows_skip_descendants_of_collapsed_nodes() {
+        use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
+        use agent_core::{AgentRole, TaskId, TaskState};
+
+        fn task_snapshot(
+            id: TaskId,
+            title: &str,
+            role: AgentRole,
+            state: TaskState,
+            dependencies: Vec<TaskId>,
+        ) -> TaskSnapshot {
+            TaskSnapshot {
+                id,
+                title: title.into(),
+                role,
+                state,
+                dependencies,
+                error: None,
+                retry_count: 0,
+                max_retries: 3,
+                assigned_agent_id: None,
+                failure_reason: None,
+            }
+        }
+
+        let root_id = TaskId::from_string("task_root".into());
+        let child_id = TaskId::from_string("task_child".into());
+        let grandchild_id = TaskId::from_string("task_grandchild".into());
+        let snapshot = TaskGraphSnapshot {
+            tasks: vec![
+                task_snapshot(
+                    root_id.clone(),
+                    "Plan",
+                    AgentRole::Planner,
+                    TaskState::Completed,
+                    vec![],
+                ),
+                task_snapshot(
+                    child_id.clone(),
+                    "Build",
+                    AgentRole::Worker,
+                    TaskState::Running,
+                    vec![root_id.clone()],
+                ),
+                task_snapshot(
+                    grandchild_id,
+                    "Review",
+                    AgentRole::Reviewer,
+                    TaskState::Pending,
+                    vec![child_id.clone()],
+                ),
+            ],
+        };
+        let mut panel = TracePanel::new();
+        panel.active_tab = RightPanelTab::Tasks;
+
+        assert_eq!(panel.visible_task_row_count(&snapshot), 3);
+
+        assert!(panel.toggle_selected_task_expansion(&snapshot));
+        assert_eq!(panel.visible_task_row_count(&snapshot), 1);
+
+        assert!(panel.toggle_selected_task_expansion(&snapshot));
+        panel.selected_task_index = 1;
+        assert!(panel.toggle_selected_task_expansion(&snapshot));
+        assert_eq!(panel.visible_task_row_count(&snapshot), 2);
     }
 
     #[test]

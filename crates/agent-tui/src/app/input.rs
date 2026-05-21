@@ -305,6 +305,18 @@ impl App {
                         || self.permission_modal.is_visible();
                 if !permission_pending
                     && self.state.focus_manager.current() == FocusTarget::Trace
+                    && self.trace.active_tab == crate::components::trace::RightPanelTab::Tasks
+                    && matches!(key_event.code, crossterm::event::KeyCode::Enter)
+                    && key_event.modifiers.is_empty()
+                    && self
+                        .trace
+                        .toggle_selected_task_expansion(&self.state.current_session.task_graph)
+                {
+                    self.state.render_scheduler.mark_dirty();
+                    return Vec::new();
+                }
+                if !permission_pending
+                    && self.state.focus_manager.current() == FocusTarget::Trace
                     && self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
                     && self.trace.memory_search_active
                 {
@@ -680,14 +692,9 @@ impl App {
                     );
                 } else if self.state.focus_manager.current() == FocusTarget::Trace {
                     let row_count = match self.trace.active_tab {
-                        crate::components::trace::RightPanelTab::Tasks => {
-                            crate::components::trace::flatten_task_tree(
-                                &crate::components::trace::build_task_tree_from_snapshot(
-                                    &self.state.current_session.task_graph,
-                                ),
-                            )
-                            .len()
-                        }
+                        crate::components::trace::RightPanelTab::Tasks => self
+                            .trace
+                            .visible_task_row_count(&self.state.current_session.task_graph),
                         crate::components::trace::RightPanelTab::Memory => {
                             self.trace.memory_rows.len()
                         }
@@ -901,6 +908,65 @@ mod tests {
                 session_id,
                 task_id,
             }]
+        );
+    }
+
+    #[test]
+    fn trace_tasks_tab_enter_toggles_selected_task_fold_without_cycling_focus() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let root_id = TaskId::from_string("task_root".into());
+        let child_id = TaskId::from_string("task_child".into());
+        let grandchild_id = TaskId::from_string("task_grandchild".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.focus_manager.set(FocusTarget::Trace);
+        app.sync_component_focus();
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![
+                task_snapshot(
+                    root_id.clone(),
+                    "Plan",
+                    AgentRole::Planner,
+                    TaskState::Completed,
+                    vec![],
+                    0,
+                    3,
+                ),
+                task_snapshot(
+                    child_id.clone(),
+                    "Build",
+                    AgentRole::Worker,
+                    TaskState::Running,
+                    vec![root_id.clone()],
+                    0,
+                    3,
+                ),
+                task_snapshot(
+                    grandchild_id,
+                    "Review",
+                    AgentRole::Reviewer,
+                    TaskState::Pending,
+                    vec![child_id],
+                    0,
+                    3,
+                ),
+            ],
+        };
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Trace);
+        assert_eq!(
+            app.trace
+                .visible_task_row_count(&app.state.current_session.task_graph),
+            1
         );
     }
 
