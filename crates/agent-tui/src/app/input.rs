@@ -204,13 +204,13 @@ impl App {
                     return cmds;
                 }
                 let permission_pending =
-                    matches!(self.state.input_state, InputState::PermissionWait { .. })
+                    matches!(self.chat.input_state, InputState::PermissionWait { .. })
                         || self.permission_modal.is_visible();
                 let action = resolve_key(
                     *key_event,
                     self.state.focus_manager.current(),
                     permission_pending,
-                    self.state.input_mode,
+                    self.chat.input_mode,
                 );
                 self.apply_action(action)
             }
@@ -219,7 +219,7 @@ impl App {
                 Vec::new()
             }
             Event::Paste(text) => {
-                if text.contains('\n') && self.state.input_mode == InputMode::SingleLine {
+                if text.contains('\n') && self.chat.input_mode == InputMode::SingleLine {
                     self.state.input_mode = InputMode::MultiLine;
                     self.chat.input_mode = InputMode::MultiLine;
                 }
@@ -412,6 +412,9 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::NewSession => {
+                if let Some(command) = self.current_draft_save_command() {
+                    commands.push(command);
+                }
                 commands.push(Command::StartSession {
                     workspace_id: self.workspace_id.clone(),
                     model_profile: self.state.model_profile.clone(),
@@ -444,6 +447,12 @@ impl App {
             KeyAction::SelectSession => {
                 if let Some(session) = self.sessions.selected_session(&self.state.sessions) {
                     if !session.archived {
+                        if self.current_session_id.as_ref() == Some(&session.id) {
+                            return commands;
+                        }
+                        if let Some(command) = self.current_draft_save_command() {
+                            commands.push(command);
+                        }
                         commands.push(Command::SwitchSession {
                             session_id: session.id.clone(),
                         });
@@ -502,6 +511,7 @@ impl App {
     }
 
     fn apply_chat_action(&mut self, action: KeyAction) -> (Vec<CrossPanelEffect>, Vec<Command>) {
+        let draft_before = self.chat.input_content.clone();
         let focus = self.state.focus_manager.current();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
@@ -519,10 +529,17 @@ impl App {
             workspace_id: &self.workspace_id,
             current_session_id: &self.current_session_id,
         };
-        self.chat.apply_key_action(action, &ctx)
+        let (effects, mut commands) = self.chat.apply_key_action(action, &ctx);
+        if self.chat.input_content != draft_before {
+            if let Some(command) = self.current_draft_save_command() {
+                commands.push(command);
+            }
+        }
+        (effects, commands)
     }
 
     pub fn apply_queue_action(&mut self, action: crate::components::QueueAction) -> Vec<Command> {
+        let draft_before = self.chat.input_content.clone();
         let focus = self.state.focus_manager.current();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
@@ -542,7 +559,20 @@ impl App {
         };
         let command = self.chat.apply_queue_action(action, &ctx);
         self.state.render_scheduler.mark_dirty();
-        command.into_iter().collect()
+        let mut commands: Vec<Command> = command.into_iter().collect();
+        if self.chat.input_content != draft_before {
+            if let Some(command) = self.current_draft_save_command() {
+                commands.push(command);
+            }
+        }
+        commands
+    }
+
+    fn current_draft_save_command(&self) -> Option<Command> {
+        Some(Command::SaveDraft {
+            session_id: self.current_session_id.clone()?,
+            draft_text: self.chat.input_content.clone(),
+        })
     }
 }
 
@@ -550,8 +580,11 @@ impl App {
 mod tests {
     use super::*;
     use crate::components::trace::{MemoryRow, RightPanelTab};
+    use crate::components::{SessionInfo, SessionState};
     use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
-    use agent_core::{AgentRole, TaskId, TaskState, WorkspaceId};
+    use agent_core::{
+        AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId,
+    };
     use agent_tools::PermissionMode;
 
     fn task_snapshot(
@@ -574,6 +607,21 @@ mod tests {
             max_retries,
             assigned_agent_id: None,
             failure_reason: None,
+        }
+    }
+
+    fn session_info(id: SessionId, title: &str) -> SessionInfo {
+        SessionInfo {
+            id,
+            title: title.to_string(),
+            model_profile: "fast".to_string(),
+            state: SessionState::Idle,
+            pinned: false,
+            archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: Some(ProjectSessionVisibility::Visible),
         }
     }
 
@@ -682,6 +730,87 @@ mod tests {
             vec![Command::DeleteMemory {
                 memory_id: "mem_user".into(),
             }]
+        );
+    }
+
+    #[test]
+    fn selecting_session_saves_current_draft_before_switching() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let current = SessionId::from_string("ses_current".into());
+        let next = SessionId::from_string("ses_next".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.current_session_id = Some(current.clone());
+        app.state.sessions = vec![
+            session_info(current.clone(), "current"),
+            session_info(next.clone(), "next"),
+        ];
+        app.sessions.state.select(Some(1));
+        app.chat.input_content = "unfinished draft".to_string();
+        app.chat.input_cursor = app.chat.input_content.len();
+
+        let commands = app.apply_action(KeyAction::SelectSession);
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::SaveDraft {
+                    session_id: current,
+                    draft_text: "unfinished draft".to_string(),
+                },
+                Command::SwitchSession { session_id: next },
+            ]
+        );
+    }
+
+    #[test]
+    fn typing_updates_current_session_draft() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.current_session_id = Some(session_id.clone());
+
+        let commands = app.apply_action(KeyAction::InputCharacter('a'));
+
+        assert_eq!(
+            commands,
+            vec![Command::SaveDraft {
+                session_id,
+                draft_text: "a".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn sending_message_clears_current_session_draft_after_send_command() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.state.sessions = vec![session_info(session_id.clone(), "current")];
+        app.chat.input_content = "ready to send".to_string();
+        app.chat.input_cursor = app.chat.input_content.len();
+
+        let commands = app.apply_action(KeyAction::SendInput);
+
+        assert_eq!(commands.len(), 2);
+        assert!(matches!(
+            &commands[0],
+            Command::SendMessage {
+                workspace_id: command_workspace_id,
+                session_id: command_session_id,
+                content,
+                attachments,
+            } if command_workspace_id == &workspace_id
+                && command_session_id == &session_id
+                && content == "ready to send"
+                && attachments.is_empty()
+        ));
+        assert_eq!(
+            commands[1],
+            Command::SaveDraft {
+                session_id,
+                draft_text: String::new(),
+            }
         );
     }
 }

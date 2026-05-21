@@ -66,16 +66,19 @@ impl App {
         }
 
         let has_queue = !self.chat.message_queue.is_empty();
-        let queue_height = queue_strip_height(self.chat.message_queue.len());
-        let chat_constraints: Vec<Constraint> = if has_queue {
-            vec![
-                Constraint::Min(1),
-                Constraint::Length(queue_height),
-                Constraint::Length(3),
-            ]
-        } else {
-            vec![Constraint::Min(1), Constraint::Length(3)]
-        };
+        let has_file_mentions = self.chat.file_mentions_visible();
+        let mut chat_constraints = vec![Constraint::Min(1)];
+        if has_queue {
+            chat_constraints.push(Constraint::Length(queue_strip_height(
+                self.chat.message_queue.len(),
+            )));
+        }
+        if has_file_mentions {
+            chat_constraints.push(Constraint::Length(file_mention_palette_height(
+                self.chat.file_mention_matches().len(),
+            )));
+        }
+        chat_constraints.push(Constraint::Length(3));
         let chat_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(chat_constraints)
@@ -85,17 +88,26 @@ impl App {
             frame,
             &self.state.current_session,
         );
+        let mut chat_chunk_idx = 1;
         if has_queue {
             crate::components::chat::render_queue_strip(
-                chat_chunks[1],
+                chat_chunks[chat_chunk_idx],
                 frame,
                 &self.chat.message_queue,
                 self.chat.selected_queue_index(),
             );
-            self.render_input(chat_chunks[2], frame);
-        } else {
-            self.render_input(chat_chunks[1], frame);
+            chat_chunk_idx += 1;
         }
+        if has_file_mentions {
+            crate::components::chat::render_file_mention_palette(
+                chat_chunks[chat_chunk_idx],
+                frame,
+                self.chat.file_mention_matches(),
+                self.chat.selected_file_mention_index(),
+            );
+            chat_chunk_idx += 1;
+        }
+        self.render_input(chat_chunks[chat_chunk_idx], frame);
 
         if let Some(trace_area) = trace_area {
             match self.trace.active_tab {
@@ -186,12 +198,12 @@ impl App {
         } else {
             Style::default().fg(Color::DarkGray)
         };
-        let mode_label = match self.state.input_mode {
+        let mode_label = match self.chat.input_mode {
             InputMode::SingleLine => "│ ",
             InputMode::MultiLine => "│M ",
         };
         let display_content = if let InputState::PermissionWait { pending_prompt, .. } =
-            &self.state.input_state
+            &self.chat.input_state
         {
             format!("[permission] {}", pending_prompt)
         } else {
@@ -240,5 +252,10 @@ impl App {
 
 fn queue_strip_height(queue_len: usize) -> u16 {
     let visible_rows = queue_len.min(4) as u16;
+    visible_rows.saturating_add(1).max(2)
+}
+
+fn file_mention_palette_height(match_count: usize) -> u16 {
+    let visible_rows = match_count.clamp(1, 4) as u16;
     visible_rows.saturating_add(1).max(2)
 }

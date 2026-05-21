@@ -115,6 +115,52 @@ pub fn render_queue_strip(
     frame.render_widget(Paragraph::new(lines), area);
 }
 
+pub fn render_file_mention_palette(
+    area: Rect,
+    frame: &mut Frame,
+    matches: &[String],
+    selected_index: Option<usize>,
+) {
+    let mut lines = Vec::new();
+    if matches.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No file matches",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
+        )));
+    } else {
+        let selected = selected_index.unwrap_or(0).min(matches.len() - 1);
+        let max_rows = area.height.saturating_sub(1).max(1) as usize;
+        let start = selected.saturating_sub(max_rows.saturating_sub(1));
+        lines.extend(
+            matches
+                .iter()
+                .enumerate()
+                .skip(start)
+                .take(max_rows)
+                .map(|(idx, path)| {
+                    let marker = if idx == selected { ">" } else { " " };
+                    let style = if idx == selected {
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    };
+                    Line::from(Span::styled(format!("{marker} @{path}"), style))
+                }),
+        );
+    }
+    lines.push(Line::from(Span::styled(
+        "Enter attach | Up/Down select | Esc close",
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM),
+    )));
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
 pub fn format_attachment_labels(attachments: &[AttachmentInfo]) -> String {
     if attachments.is_empty() {
         return String::new();
