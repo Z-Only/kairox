@@ -6,8 +6,8 @@ use agent_core::{ActivateSkillRequest, AppFacade, DeactivateSkillRequest};
 
 use super::App;
 use crate::components::{
-    Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry, PluginOverlaySnapshot,
-    SkillEntry, SkillOverlaySnapshot,
+    Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry, ModelProfileTestResult,
+    PluginOverlaySnapshot, SkillEntry, SkillOverlaySnapshot,
 };
 
 pub async fn dispatch_commands<F>(
@@ -417,6 +417,95 @@ pub async fn dispatch_commands<F>(
                     }
                 }
             }
+            Command::SetProfileEnabled { alias, enabled } => {
+                match AppFacade::set_profile_enabled(runtime.as_ref(), alias.clone(), enabled).await
+                {
+                    Ok(()) => {
+                        let state = if enabled { "enabled" } else { "disabled" };
+                        push_status_message(app, format!("{state} model profile {alias}"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[model profile enable error: {error}]"));
+                    }
+                }
+            }
+            Command::DeleteProfileSettings { alias } => {
+                match AppFacade::delete_profile_settings(runtime.as_ref(), alias.clone()).await {
+                    Ok(()) => {
+                        push_status_message(app, format!("deleted model profile {alias}"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[model profile delete error: {error}]"));
+                    }
+                }
+            }
+            Command::MoveProfileInOrder { alias, direction } => {
+                match AppFacade::move_profile_in_order(runtime.as_ref(), alias.clone(), direction)
+                    .await
+                {
+                    Ok(()) => {
+                        push_status_message(app, format!("moved model profile {alias}"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[model profile order error: {error}]"));
+                    }
+                }
+            }
+            Command::TestModelProfile { alias } => {
+                match test_model_connectivity(runtime, alias.clone()).await {
+                    Ok(result) => {
+                        let message = if result.ok {
+                            format!("model profile {alias} connectivity ok")
+                        } else {
+                            format!(
+                                "model profile {alias} connectivity failed: {}",
+                                result
+                                    .message
+                                    .as_deref()
+                                    .unwrap_or("unknown connectivity error")
+                            )
+                        };
+                        app.dispatch_effects(vec![CrossPanelEffect::ModelProfileTested(result)]);
+                        push_status_message(app, message);
+                    }
+                    Err(error) => {
+                        let result = ModelProfileTestResult {
+                            alias: alias.clone(),
+                            ok: false,
+                            message: Some(error.to_string()),
+                        };
+                        app.dispatch_effects(vec![CrossPanelEffect::ModelProfileTested(result)]);
+                        push_status_message(app, format!("[model profile test error: {error}]"));
+                    }
+                }
+            }
+            Command::OpenProfilesConfig => {
+                match AppFacade::open_profiles_config_file(runtime.as_ref()).await {
+                    Ok(Some(path)) => {
+                        let path_buf = std::path::PathBuf::from(&path);
+                        match open_path_in_system_file_manager(&path_buf) {
+                            Ok(()) => {
+                                push_status_message(
+                                    app,
+                                    format!("opened profiles config {}", path_buf.display()),
+                                );
+                            }
+                            Err(error) => {
+                                push_status_message(
+                                    app,
+                                    format!("[profiles config open error: {error}]"),
+                                );
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        push_status_message(app, "profiles config path unavailable".to_string());
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[profiles config error: {error}]"));
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -481,6 +570,103 @@ fn save_instructions(scope: agent_core::ConfigScope, text: String) -> Result<(),
         Some(project_config_path.as_path()),
     )
     .map_err(|error| error.to_string())
+}
+
+async fn test_model_connectivity<F>(
+    runtime: &std::sync::Arc<F>,
+    alias: String,
+) -> agent_core::Result<ModelProfileTestResult>
+where
+    F: AppFacade + ?Sized,
+{
+    let profiles = AppFacade::list_profile_settings(runtime.as_ref(), None).await?;
+    let profile = profiles
+        .into_iter()
+        .find(|profile| profile.alias == alias)
+        .ok_or_else(|| {
+            agent_core::CoreError::InvalidState(format!("model profile '{alias}' not found"))
+        })?;
+
+    if let Some(base_url) = profile.base_url.as_deref().filter(|url| !url.is_empty()) {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let endpoints = [
+            base_url.to_string(),
+            format!("{}/models", base_url.trim_end_matches('/')),
+        ];
+
+        let mut last_error = None;
+        for endpoint in endpoints {
+            match client.get(&endpoint).send().await {
+                Ok(response)
+                    if response.status().is_success() || response.status().is_client_error() =>
+                {
+                    return Ok(ModelProfileTestResult {
+                        alias,
+                        ok: true,
+                        message: None,
+                    });
+                }
+                Ok(response) => {
+                    last_error = Some(format!("unexpected status: {}", response.status()));
+                }
+                Err(error) => {
+                    last_error = Some(format!("connection failed: {error}"));
+                }
+            }
+        }
+
+        return Ok(ModelProfileTestResult {
+            alias,
+            ok: false,
+            message: last_error,
+        });
+    }
+
+    Ok(ModelProfileTestResult {
+        alias,
+        ok: true,
+        message: None,
+    })
+}
+
+fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
+    let mut command = system_file_manager_command(path);
+    let status = command
+        .status()
+        .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "failed to open {}: system opener exited with {status}",
+        path.display()
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("open");
+    command.arg(path);
+    command
+}
+
+#[cfg(target_os = "windows")]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("explorer");
+    command.arg(path);
+    command
+}
+
+#[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+fn system_file_manager_command(path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new("xdg-open");
+    command.arg(path);
+    command
 }
 
 async fn refresh_skills_overlay<F>(

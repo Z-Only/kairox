@@ -68,3 +68,14 @@ pub async fn move_profile_in_order(
     })
     .await
 }
+
+pub async fn save_profile_display_order(
+    config_path: &Path,
+    order: &[String],
+) -> agent_core::Result<()> {
+    write::mutate_profiles_config(config_path, |document| {
+        save_display_order(document, order);
+        Ok(())
+    })
+    .await
+}

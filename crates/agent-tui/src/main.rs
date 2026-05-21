@@ -625,12 +625,17 @@ async fn dispatch_commands(
             }
 
             Command::OpenModelOverlay => {
-                refresh_model_overlay(runtime, app);
+                refresh_model_overlay(runtime, app).await;
             }
 
             Command::OpenSkillsOverlay
             | Command::OpenPluginsOverlay
             | Command::OpenInstructionsOverlay
+            | Command::SetProfileEnabled { .. }
+            | Command::DeleteProfileSettings { .. }
+            | Command::MoveProfileInOrder { .. }
+            | Command::TestModelProfile { .. }
+            | Command::OpenProfilesConfig
             | Command::SaveInstructions { .. }
             | Command::ListSkills
             | Command::ShowSkill { .. }
@@ -661,9 +666,18 @@ async fn dispatch_commands(
                         | Command::UninstallMcpServer { .. }
                         | Command::SetMcpCatalogSourceEnabled { .. }
                 );
+                let refresh_model_after = matches!(
+                    command,
+                    Command::SetProfileEnabled { .. }
+                        | Command::DeleteProfileSettings { .. }
+                        | Command::MoveProfileInOrder { .. }
+                );
                 app::dispatch_commands(runtime, app, vec![command]).await;
                 if refresh_mcp_after && app.mcp_overlay.is_visible() {
                     refresh_mcp_overlay(runtime, app).await;
+                }
+                if refresh_model_after && app.model_overlay.is_visible() {
+                    refresh_model_overlay(runtime, app).await;
                 }
             }
 
@@ -1010,21 +1024,41 @@ async fn refresh_mcp_overlay(
 /// Build a `ModelOverlaySnapshot` from the runtime's config and dispatch the
 /// `ShowModelOverlay` effect.
 ///
-/// Read-only over `ProfileDef`/`ProfileInfo`. The overlay reflects the
-/// currently active session's profile and reasoning effort so it can preselect
-/// them on open.
-fn refresh_model_overlay(
+/// Uses the profile settings facade so disabled and writable profiles appear
+/// alongside the active session profile and reasoning effort.
+async fn refresh_model_overlay(
     runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
     app: &mut App,
 ) {
-    let infos = runtime.config().profile_info();
-    let profiles: Vec<ModelProfileEntry> = infos
+    let settings = match AppFacade::list_profile_settings(runtime.as_ref(), None).await {
+        Ok(settings) => settings,
+        Err(error) => {
+            app.state
+                .current_session
+                .messages
+                .push(agent_core::projection::ProjectedMessage {
+                    role: agent_core::projection::ProjectedRole::Assistant,
+                    content: format!("[model settings error: {error}]"),
+                });
+            app.state.render_scheduler.mark_dirty();
+            return;
+        }
+    };
+    let config = runtime.config();
+    let profiles: Vec<ModelProfileEntry> = settings
         .into_iter()
         .map(|p| ModelProfileEntry {
+            supports_reasoning: config
+                .get_profile(&p.alias)
+                .map(agent_config::profile_supports_reasoning)
+                .unwrap_or(false),
             alias: p.alias,
-            provider_display: p.provider_display,
-            model_display: p.model_display,
-            supports_reasoning: p.supports_reasoning,
+            provider_display: p.provider,
+            model_display: p.model_id,
+            enabled: p.enabled,
+            writable: p.writable,
+            source: p.source,
+            has_api_key: p.has_api_key,
         })
         .collect();
     let snapshot = ModelOverlaySnapshot {

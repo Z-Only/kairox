@@ -56,7 +56,7 @@ pub async fn list_profile_settings(
                 CoreError::InvalidState(format!("failed to read profiles config: {error}"))
             })?;
             let document = super::parse_document(&raw)?;
-            if let Some(profiles) = document["profiles"].as_table() {
+            if let Some(profiles) = document.get("profiles").and_then(|item| item.as_table()) {
                 for (alias, item) in profiles.iter() {
                     let alias_str = alias.to_string();
                     let row = row::profile_row_from_toml_table(item, "profiles_toml", true);
@@ -149,7 +149,7 @@ async fn rows_from_config_toml(
         .await
         .map_err(|error| CoreError::InvalidState(format!("failed to read config: {error}")))?;
     let document = super::parse_document(&raw)?;
-    let Some(profiles) = document["profiles"].as_table() else {
+    let Some(profiles) = document.get("profiles").and_then(|item| item.as_table()) else {
         return Ok(None);
     };
 
