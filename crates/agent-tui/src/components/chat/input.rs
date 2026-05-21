@@ -74,6 +74,9 @@ impl ChatPanel {
                 } else if trimmed == ":instructions" {
                     self.clear_input();
                     commands.push(Command::OpenInstructionsOverlay);
+                } else if trimmed == ":hooks" {
+                    self.clear_input();
+                    commands.push(Command::OpenHooksOverlay);
                 } else if trimmed == ":plugins" {
                     self.clear_input();
                     commands.push(Command::OpenPluginsOverlay);

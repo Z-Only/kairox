@@ -64,6 +64,7 @@ impl FocusManager {
                 | FocusTarget::ModelOverlay
                 | FocusTarget::AgentOverlay
                 | FocusTarget::PluginOverlay
+                | FocusTarget::HooksOverlay
                 | FocusTarget::InstructionsOverlay
         ) {
             return; // don't cycle while a modal is focused
@@ -80,6 +81,7 @@ impl FocusManager {
             | FocusTarget::ModelOverlay
             | FocusTarget::AgentOverlay
             | FocusTarget::PluginOverlay
+            | FocusTarget::HooksOverlay
             | FocusTarget::InstructionsOverlay => unreachable!(),
         };
 

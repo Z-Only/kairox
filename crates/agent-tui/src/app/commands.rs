@@ -1,6 +1,6 @@
 use agent_core::facade::{
-    InstructionsUpdateInput, McpFacade, PluginsFacade, ProjectFacade, SkillCatalogQuery,
-    SkillInstallTarget,
+    HookSettingsInput, HooksSettingsView, InstructionsUpdateInput, McpFacade, PluginsFacade,
+    ProjectFacade, SkillCatalogQuery, SkillInstallTarget,
 };
 use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{
@@ -38,6 +38,41 @@ pub async fn dispatch_commands<F>(
             }
             Command::OpenInstructionsOverlay => {
                 refresh_instructions_overlay(app);
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenHooksOverlay => {
+                refresh_hooks_overlay(app);
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::SaveHookSettings { input } => {
+                match save_hook_settings(input.clone()) {
+                    Ok(()) => {
+                        push_status_message(
+                            app,
+                            format!("saved hook {}.{}", input.event, input.id),
+                        );
+                        if app.hooks_overlay.is_visible() {
+                            refresh_hooks_overlay(app);
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[hooks save error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::DeleteHookSettings { scope, event, id } => {
+                match delete_hook_settings(scope, event.clone(), id.clone()) {
+                    Ok(()) => {
+                        push_status_message(app, format!("deleted hook {event}.{id}"));
+                        if app.hooks_overlay.is_visible() {
+                            refresh_hooks_overlay(app);
+                        }
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[hooks delete error: {error}]"));
+                    }
+                }
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::OpenAgentSettingsOverlay => {
@@ -1018,6 +1053,64 @@ fn save_instructions(scope: agent_core::ConfigScope, text: String) -> Result<(),
         Some(project_config_path.as_path()),
     )
     .map_err(|error| error.to_string())
+}
+
+fn load_hooks_view() -> Result<HooksSettingsView, String> {
+    let user_config_path = user_config_path();
+    let project_config_path = project_config_path()?;
+    let user = agent_runtime::hooks_settings::read_hooks_from_config(
+        &user_config_path,
+        agent_core::ConfigScope::User,
+    )
+    .map_err(|error| error.to_string())?;
+    let project = agent_runtime::hooks_settings::read_hooks_from_config(
+        &project_config_path,
+        agent_core::ConfigScope::Project,
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(HooksSettingsView {
+        user,
+        project,
+        templates: agent_runtime::hooks_settings::builtin_hook_templates(),
+        user_config_path: user_config_path.display().to_string(),
+        project_config_path: Some(project_config_path.display().to_string()),
+    })
+}
+
+fn refresh_hooks_overlay(app: &mut App) {
+    match load_hooks_view() {
+        Ok(view) => app.dispatch_effects(vec![CrossPanelEffect::ShowHooksOverlay(view)]),
+        Err(error) => push_status_message(app, format!("[hooks error: {error}]")),
+    }
+}
+
+fn hooks_config_path_for_scope(
+    scope: agent_core::ConfigScope,
+) -> Result<std::path::PathBuf, String> {
+    match scope {
+        agent_core::ConfigScope::User => Ok(user_config_path()),
+        agent_core::ConfigScope::Project => project_config_path(),
+        other => Err(format!(
+            "hooks can only be managed at User or Project scope, got {other}"
+        )),
+    }
+}
+
+fn save_hook_settings(input: HookSettingsInput) -> Result<(), String> {
+    let config_path = hooks_config_path_for_scope(input.scope)?;
+    agent_runtime::hooks_settings::upsert_hook(&input, &config_path)
+        .map_err(|error| error.to_string())
+}
+
+fn delete_hook_settings(
+    scope: agent_core::ConfigScope,
+    event: String,
+    id: String,
+) -> Result<(), String> {
+    let config_path = hooks_config_path_for_scope(scope)?;
+    agent_runtime::hooks_settings::delete_hook(&config_path, &event, &id)
+        .map_err(|error| error.to_string())
 }
 
 async fn refresh_agent_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)

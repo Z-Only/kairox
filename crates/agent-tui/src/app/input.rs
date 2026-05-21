@@ -42,6 +42,10 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::ALT)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('i'));
+                let is_alt_h = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::ALT)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('h'));
                 if self.command_palette.is_visible() && !is_ctrl_p {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
@@ -217,6 +221,31 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
+                if self.hooks_overlay.is_visible() && !is_alt_h {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.hooks_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
                 if self.sessions.context_menu_open {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
@@ -380,6 +409,14 @@ impl App {
                     self.state.render_scheduler.mark_dirty_immediate();
                 } else {
                     commands.push(Command::OpenInstructionsOverlay);
+                }
+            }
+            KeyAction::ToggleHooksOverlay => {
+                if self.hooks_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissHooksOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenHooksOverlay);
                 }
             }
             KeyAction::ToggleTraceDensity => {

@@ -21,6 +21,7 @@ pub enum KeyAction {
     FocusSessions,
     FocusTrace,
     ToggleInstructionsOverlay,
+    ToggleHooksOverlay,
 
     // -- L3 Ctrl -----------------------------------------------------------
     InterruptOrQuit,
