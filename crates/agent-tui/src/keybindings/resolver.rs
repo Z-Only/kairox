@@ -50,6 +50,8 @@ pub fn resolve_key(
         KeyCode::F(1) => return KeyAction::Help,
         KeyCode::F(2) if focus == FocusTarget::Sessions => return KeyAction::RenameSession,
         KeyCode::F(5) if focus == FocusTarget::Trace => return KeyAction::ToggleTraceDensity,
+        KeyCode::Right if focus == FocusTarget::Trace => return KeyAction::CycleTraceTabNext,
+        KeyCode::Left if focus == FocusTarget::Trace => return KeyAction::CycleTraceTabPrevious,
         _ => {}
     }
 
@@ -90,6 +92,17 @@ pub fn resolve_key(
         }
         KeyCode::Backspace => KeyAction::InputBackspace,
         KeyCode::Delete => KeyAction::InputDelete,
+        KeyCode::Char(']') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabNext,
+        KeyCode::Char('[') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabPrevious,
+        KeyCode::Char('r') | KeyCode::Char('R') if focus == FocusTarget::Trace => {
+            KeyAction::RetrySelectedTask
+        }
+        KeyCode::Char('c') | KeyCode::Char('C') if focus == FocusTarget::Trace => {
+            KeyAction::CancelSelectedTask
+        }
+        KeyCode::Char('d') | KeyCode::Char('D') if focus == FocusTarget::Trace => {
+            KeyAction::DeleteSelectedMemory
+        }
         KeyCode::Char('x') => KeyAction::ContextMenu,
         KeyCode::Char('P') => KeyAction::CyclePermissionMode,
         KeyCode::Char(c) => KeyAction::InputCharacter(c),
