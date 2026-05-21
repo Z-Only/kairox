@@ -216,6 +216,14 @@ pub struct PluginOverlaySnapshot {
     pub install_target: agent_core::facade::PluginInstallTarget,
 }
 
+/// Catalog filters owned by the plugin overlay and applied by the app layer
+/// when refreshing marketplace results.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PluginCatalogFilters {
+    pub marketplace_id: Option<String>,
+    pub keyword: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RiskLevel {
     Write,

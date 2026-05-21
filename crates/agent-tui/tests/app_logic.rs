@@ -629,7 +629,44 @@ impl agent_core::facade::AgentsFacade for TuiMcpFakeFacade {
 }
 
 #[async_trait::async_trait]
-impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {}
+impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {
+    async fn list_plugin_settings(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::PluginSettingsView>> {
+        self.record("list_plugin_settings");
+        Ok(Vec::new())
+    }
+
+    async fn list_plugin_marketplace_sources(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::PluginMarketplaceSourceView>> {
+        self.record("list_plugin_marketplace_sources");
+        Ok(vec![agent_core::facade::PluginMarketplaceSourceView {
+            id: "local-market".into(),
+            display_name: "Local market".into(),
+            source: "/tmp/local-market".into(),
+            enabled: true,
+            builtin: false,
+        }])
+    }
+
+    async fn list_plugin_catalog(
+        &self,
+        marketplace_id: Option<String>,
+        keyword: Option<String>,
+    ) -> agent_core::Result<Vec<agent_core::facade::PluginCatalogEntry>> {
+        self.record(format!(
+            "list_plugin_catalog:{marketplace_id:?}:{keyword:?}"
+        ));
+        Ok(vec![agent_core::facade::PluginCatalogEntry {
+            marketplace_id: marketplace_id.unwrap_or_else(|| "local-market".into()),
+            name: keyword.unwrap_or_else(|| "delta".into()),
+            description: "Delta plugin".into(),
+            version: Some("0.1.0".into()),
+            source: "/tmp/local-market/delta".into(),
+        }])
+    }
+}
 
 impl AppFacade for TuiMcpFakeFacade {}
 
@@ -1989,6 +2026,77 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
             .iter()
             .any(|message| message.contains("model profile fast connectivity ok")),
         "expected visible model test result; got {visible_messages:?}"
+    );
+}
+
+#[tokio::test]
+async fn tui_plugin_overlay_refresh_passes_catalog_filters_to_facade() {
+    use agent_core::facade::{PluginInstallTarget, PluginMarketplaceSourceView};
+    use agent_core::projection::SessionProjection;
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::{
+        Command, Component, EventContext, FocusTarget, PluginOverlaySnapshot,
+    };
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+
+    fn key(code: KeyCode) -> Event {
+        Event::Key(KeyEvent::new(code, KeyModifiers::NONE))
+    }
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let workspace_id = WorkspaceId::new();
+    let current_session_id = None;
+    let projection = SessionProjection::default();
+    let ctx = EventContext {
+        focus: FocusTarget::PluginOverlay,
+        current_session: &projection,
+        projects: &[],
+        sessions: &[],
+        model_profile: "fake",
+        permission_mode: PermissionMode::Suggest,
+        sidebar_left_visible: true,
+        sidebar_right_visible: true,
+        workspace_id: &workspace_id,
+        current_session_id: &current_session_id,
+    };
+    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    app.plugin_overlay.show(PluginOverlaySnapshot {
+        plugins: Vec::new(),
+        catalog: Vec::new(),
+        sources: vec![PluginMarketplaceSourceView {
+            id: "local-market".into(),
+            display_name: "Local market".into(),
+            source: "/tmp/local-market".into(),
+            enabled: true,
+            builtin: false,
+        }],
+        install_target: PluginInstallTarget::User,
+    });
+
+    let _ = app.plugin_overlay.handle_event(&ctx, &key(KeyCode::Tab));
+    let _ = app
+        .plugin_overlay
+        .handle_event(&ctx, &key(KeyCode::Char('s')));
+    let _ = app
+        .plugin_overlay
+        .handle_event(&ctx, &key(KeyCode::Char('/')));
+    for ch in "delta".chars() {
+        let _ = app
+            .plugin_overlay
+            .handle_event(&ctx, &key(KeyCode::Char(ch)));
+    }
+    let (_, commands) = app.plugin_overlay.handle_event(&ctx, &key(KeyCode::Enter));
+    assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
+
+    agent_tui::app::dispatch_commands(&runtime, &mut app, commands).await;
+
+    let calls = runtime.calls();
+    assert!(
+        calls
+            .iter()
+            .any(|call| call == "list_plugin_catalog:Some(\"local-market\"):Some(\"delta\")"),
+        "expected filtered plugin catalog call, got {calls:?}"
     );
 }
 

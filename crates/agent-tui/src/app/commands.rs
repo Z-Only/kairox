@@ -1592,6 +1592,7 @@ async fn refresh_plugins_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)
 where
     F: AppFacade + ?Sized,
 {
+    let filters = app.plugin_overlay.catalog_filters();
     let plugins = match PluginsFacade::list_plugin_settings(runtime.as_ref()).await {
         Ok(plugins) => plugins,
         Err(error) => {
@@ -1608,7 +1609,13 @@ where
         }
     };
 
-    let catalog = match PluginsFacade::list_plugin_catalog(runtime.as_ref(), None, None).await {
+    let catalog = match PluginsFacade::list_plugin_catalog(
+        runtime.as_ref(),
+        filters.marketplace_id,
+        filters.keyword,
+    )
+    .await
+    {
         Ok(catalog) => catalog,
         Err(error) => {
             push_status_message(app, format!("[plugin catalog error: {error}]"));
