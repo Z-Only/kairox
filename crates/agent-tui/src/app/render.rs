@@ -192,6 +192,10 @@ impl App {
             self.plugin_overlay.render(area, frame);
         }
 
+        if self.hooks_overlay.is_visible() {
+            self.hooks_overlay.render(area, frame);
+        }
+
         if self.instructions_overlay.is_visible() {
             self.instructions_overlay.render(area, frame);
         }

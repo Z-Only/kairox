@@ -1306,6 +1306,26 @@ fn colon_instructions_input_dispatches_open_instructions_overlay_command() {
 }
 
 #[test]
+fn colon_hooks_input_dispatches_open_hooks_overlay_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":hooks");
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::OpenHooksOverlay)),
+        "expected Command::OpenHooksOverlay; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
 fn colon_project_draft_input_dispatches_create_project_draft_command() {
     use agent_tui::components::Command;
 

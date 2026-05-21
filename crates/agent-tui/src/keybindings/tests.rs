@@ -51,6 +51,10 @@ fn l2_alt_keys_resolve_globally() {
         KeyAction::Quit
     );
     assert_eq!(
+        resolve_key(alt_key(KeyCode::Char('h')), focus, no_pending, single),
+        KeyAction::ToggleHooksOverlay
+    );
+    assert_eq!(
         resolve_key(alt_key(KeyCode::Char('1')), focus, no_pending, single),
         KeyAction::FocusChat
     );

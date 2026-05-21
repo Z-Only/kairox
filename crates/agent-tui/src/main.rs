@@ -665,6 +665,9 @@ async fn dispatch_commands(
 
             Command::OpenSkillsOverlay
             | Command::OpenPluginsOverlay
+            | Command::OpenHooksOverlay
+            | Command::SaveHookSettings { .. }
+            | Command::DeleteHookSettings { .. }
             | Command::OpenInstructionsOverlay
             | Command::OpenAgentSettingsOverlay
             | Command::SaveAgentSettings { .. }

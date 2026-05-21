@@ -1,6 +1,7 @@
 pub mod agent_overlay;
 pub mod chat;
 pub mod command_palette;
+pub mod hooks_overlay;
 pub mod instructions_overlay;
 pub mod mcp_overlay;
 pub mod model_overlay;
@@ -58,6 +59,7 @@ pub enum FocusTarget {
     ModelOverlay,
     AgentOverlay,
     PluginOverlay,
+    HooksOverlay,
     InstructionsOverlay,
 }
 
@@ -352,6 +354,8 @@ pub enum CrossPanelEffect {
     DismissAgentSettingsOverlay,
     ShowPluginsOverlay(PluginOverlaySnapshot),
     DismissPluginsOverlay,
+    ShowHooksOverlay(agent_core::facade::HooksSettingsView),
+    DismissHooksOverlay,
     ShowInstructionsOverlay(agent_core::facade::InstructionsView),
     DismissInstructionsOverlay,
 }
@@ -592,6 +596,18 @@ pub enum Command {
     OpenAgentsDir,
     /// Build a plugin manager snapshot and open the plugin overlay.
     OpenPluginsOverlay,
+    /// Build a hooks settings snapshot and open the hooks overlay.
+    OpenHooksOverlay,
+    /// Save one user/project hook setting.
+    SaveHookSettings {
+        input: agent_core::facade::HookSettingsInput,
+    },
+    /// Delete one user/project hook setting.
+    DeleteHookSettings {
+        scope: agent_core::ConfigScope,
+        event: String,
+        id: String,
+    },
     /// Build an instructions snapshot and open the instructions settings overlay.
     OpenInstructionsOverlay,
     /// Save user/project instructions from the instructions overlay.
