@@ -1,0 +1,25 @@
+[package]
+name = "agent-eval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "kairox-eval"
+path = "src/main.rs"
+
+[dependencies]
+agent-core = { path = "../agent-core" }
+agent-config = { path = "../agent-config" }
+agent-memory = { path = "../agent-memory" }
+agent-models = { path = "../agent-models" }
+agent-runtime = { path = "../agent-runtime" }
+agent-store = { path = "../agent-store" }
+agent-tools = { path = "../agent-tools" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
