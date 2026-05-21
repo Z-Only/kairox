@@ -14,6 +14,7 @@ use crate::app_state::AppState;
 use crate::components::agent_overlay::AgentOverlay;
 use crate::components::chat::ChatPanel;
 use crate::components::command_palette::CommandPalette;
+use crate::components::hooks_overlay::HooksOverlay;
 use crate::components::instructions_overlay::InstructionsOverlay;
 use crate::components::mcp_overlay::McpOverlay;
 use crate::components::model_overlay::ModelOverlay;
@@ -38,6 +39,7 @@ pub struct App {
     pub model_overlay: ModelOverlay,
     pub agent_overlay: AgentOverlay,
     pub plugin_overlay: PluginOverlay,
+    pub hooks_overlay: HooksOverlay,
     pub instructions_overlay: InstructionsOverlay,
     pub workspace_id: WorkspaceId,
     pub current_session_id: Option<SessionId>,
@@ -69,6 +71,7 @@ impl App {
             model_overlay: ModelOverlay::new(),
             agent_overlay: AgentOverlay::new(),
             plugin_overlay: PluginOverlay::new(),
+            hooks_overlay: HooksOverlay::new(),
             instructions_overlay: InstructionsOverlay::new(),
             workspace_id,
             current_session_id: None,
@@ -162,6 +165,16 @@ impl App {
                 {
                     self.state.focus_manager.pop();
                 }
+                CrossPanelEffect::ShowHooksOverlay(_)
+                    if self.state.focus_manager.current() != FocusTarget::HooksOverlay =>
+                {
+                    self.state.focus_manager.push(FocusTarget::HooksOverlay);
+                }
+                CrossPanelEffect::DismissHooksOverlay
+                    if self.state.focus_manager.current() == FocusTarget::HooksOverlay =>
+                {
+                    self.state.focus_manager.pop();
+                }
                 CrossPanelEffect::ShowInstructionsOverlay(_)
                     if self.state.focus_manager.current() != FocusTarget::InstructionsOverlay =>
                 {
@@ -187,6 +200,7 @@ impl App {
             self.model_overlay.handle_effect(&effect);
             self.agent_overlay.handle_effect(&effect);
             self.plugin_overlay.handle_effect(&effect);
+            self.hooks_overlay.handle_effect(&effect);
             self.instructions_overlay.handle_effect(&effect);
         }
         self.sync_component_focus();
@@ -225,6 +239,8 @@ impl App {
             .set_focused(current == FocusTarget::AgentOverlay);
         self.plugin_overlay
             .set_focused(current == FocusTarget::PluginOverlay);
+        self.hooks_overlay
+            .set_focused(current == FocusTarget::HooksOverlay);
         self.instructions_overlay
             .set_focused(current == FocusTarget::InstructionsOverlay);
         self.status_bar.set_focused(false);

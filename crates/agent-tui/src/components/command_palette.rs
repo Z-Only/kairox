@@ -24,6 +24,7 @@ pub enum PaletteAction {
     NewSession,
     ProjectDraftSession,
     McpManager,
+    Hooks,
     Instructions,
     Plugins,
     Agents,
@@ -102,6 +103,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: ":instructions",
             description: "Open user/project instructions settings",
             action: PaletteAction::Instructions,
+        },
+        PaletteEntry {
+            id: "hooks",
+            label: ":hooks",
+            description: "Open user/project hooks settings",
+            action: PaletteAction::Hooks,
         },
         PaletteEntry {
             id: "plugins",
@@ -288,6 +295,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::NewSession
         | PaletteAction::ProjectDraftSession
         | PaletteAction::McpManager
+        | PaletteAction::Hooks
         | PaletteAction::Instructions
         | PaletteAction::Plugins
         | PaletteAction::Agents
@@ -437,6 +445,9 @@ impl CommandPalette {
             }
             PaletteAction::Instructions => {
                 commands.push(Command::OpenInstructionsOverlay);
+            }
+            PaletteAction::Hooks => {
+                commands.push(Command::OpenHooksOverlay);
             }
             PaletteAction::Plugins => {
                 commands.push(Command::OpenPluginsOverlay);
@@ -793,6 +804,7 @@ mod tests {
         let expected = [
             ("mcp", "mcp-manager"),
             ("skills manager", "skills-manager"),
+            ("hooks", "hooks"),
             ("model selector", "model-selector"),
             ("new session", "session-new"),
             ("cancel session", "session-cancel"),
@@ -811,6 +823,7 @@ mod tests {
                 "skills-manager" => {
                     assert!(matches!(&commands[..], [Command::OpenSkillsOverlay]))
                 }
+                "hooks" => assert!(matches!(&commands[..], [Command::OpenHooksOverlay])),
                 "model-selector" => assert!(matches!(&commands[..], [Command::OpenModelOverlay])),
                 "session-new" => assert!(matches!(&commands[..], [Command::StartSession { .. }])),
                 "session-cancel" => {
