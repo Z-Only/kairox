@@ -270,6 +270,7 @@ dependencies = [
  "insta",
  "ratatui",
  "reqwest",
+ "serde_json",
  "tokio",
  "toml_edit 0.25.11+spec-1.1.0",
 ]
