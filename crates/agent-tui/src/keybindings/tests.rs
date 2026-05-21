@@ -43,6 +43,10 @@ fn l2_alt_keys_resolve_globally() {
         KeyAction::OpenProfileSelector
     );
     assert_eq!(
+        resolve_key(alt_key(KeyCode::Char('c')), focus, no_pending, single),
+        KeyAction::ToggleContextDetails
+    );
+    assert_eq!(
         resolve_key(alt_key(KeyCode::Char('n')), focus, no_pending, single),
         KeyAction::NewSession
     );

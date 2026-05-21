@@ -53,6 +53,8 @@ pub enum KeyAction {
     // -- Status bar shortcuts ---------------------------------------------
     /// Cycle through permission modes (Shift+P).
     CyclePermissionMode,
+    /// Toggle the context usage details popover (Alt+C).
+    ToggleContextDetails,
 
     // -- Input -------------------------------------------------------------
     InputCharacter(char),
