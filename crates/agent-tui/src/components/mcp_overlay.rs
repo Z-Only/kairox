@@ -7,8 +7,11 @@
 
 use std::collections::BTreeMap;
 
-use agent_core::facade::{CatalogSourceView, InstalledEntry, McpServerSettingsView, ServerEntry};
-use crossterm::event::{Event, KeyCode};
+use agent_core::facade::{
+    AddCatalogSourceRequest, CatalogSourceView, InstalledEntry, McpServerSettingsInput,
+    McpServerSettingsTransport, McpServerSettingsView, ServerEntry,
+};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -80,9 +83,327 @@ struct McpHealthState {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum McpOverlayMode {
+    List,
+    ServerEditor,
+    SourceEditor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ServerEditorField {
+    Name,
+    Transport,
+    CommandOrUrl,
+    Args,
+    Description,
+    Enabled,
+}
+
+const SERVER_EDITOR_FIELDS: [ServerEditorField; 6] = [
+    ServerEditorField::Name,
+    ServerEditorField::Transport,
+    ServerEditorField::CommandOrUrl,
+    ServerEditorField::Args,
+    ServerEditorField::Description,
+    ServerEditorField::Enabled,
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ServerTransportDraft {
+    Stdio,
+    Sse,
+    StreamableHttp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ServerDraft {
+    name: String,
+    transport: ServerTransportDraft,
+    command: String,
+    args_text: String,
+    url: String,
+    description: String,
+    enabled: bool,
+}
+
+impl ServerDraft {
+    fn new() -> Self {
+        Self {
+            name: String::new(),
+            transport: ServerTransportDraft::Stdio,
+            command: String::new(),
+            args_text: String::new(),
+            url: String::new(),
+            description: String::new(),
+            enabled: true,
+        }
+    }
+
+    fn from_view(view: &McpServerSettingsView) -> Self {
+        let transport = match view.transport.as_str() {
+            "sse" => ServerTransportDraft::Sse,
+            "streamable_http" => ServerTransportDraft::StreamableHttp,
+            _ => ServerTransportDraft::Stdio,
+        };
+        Self {
+            name: view.name.clone(),
+            transport,
+            command: String::new(),
+            args_text: String::new(),
+            url: String::new(),
+            description: view.description.clone().unwrap_or_default(),
+            enabled: view.enabled,
+        }
+    }
+
+    fn to_input(&self) -> Option<McpServerSettingsInput> {
+        let name = self.name.trim();
+        if name.is_empty() {
+            return None;
+        }
+
+        let transport = match self.transport {
+            ServerTransportDraft::Stdio => {
+                let command = self.command.trim();
+                if command.is_empty() {
+                    return None;
+                }
+                McpServerSettingsTransport::Stdio {
+                    command: command.to_string(),
+                    args: split_args(&self.args_text),
+                    env: BTreeMap::new(),
+                }
+            }
+            ServerTransportDraft::Sse => {
+                let url = self.url.trim();
+                if url.is_empty() {
+                    return None;
+                }
+                McpServerSettingsTransport::Sse {
+                    url: url.to_string(),
+                    headers: BTreeMap::new(),
+                }
+            }
+            ServerTransportDraft::StreamableHttp => {
+                let url = self.url.trim();
+                if url.is_empty() {
+                    return None;
+                }
+                McpServerSettingsTransport::StreamableHttp {
+                    url: url.to_string(),
+                    headers: BTreeMap::new(),
+                }
+            }
+        };
+
+        Some(McpServerSettingsInput {
+            name: name.to_string(),
+            transport,
+            enabled: self.enabled,
+            description: trim_option(&self.description),
+        })
+    }
+
+    fn push_char(&mut self, field: ServerEditorField, ch: char) {
+        match field {
+            ServerEditorField::Name => self.name.push(ch),
+            ServerEditorField::Transport => match ch {
+                's' | 'S' => self.transport = ServerTransportDraft::Stdio,
+                'e' | 'E' => self.transport = ServerTransportDraft::Sse,
+                'h' | 'H' => self.transport = ServerTransportDraft::StreamableHttp,
+                _ => {}
+            },
+            ServerEditorField::CommandOrUrl => {
+                if self.transport == ServerTransportDraft::Stdio {
+                    self.command.push(ch);
+                } else {
+                    self.url.push(ch);
+                }
+            }
+            ServerEditorField::Args => {
+                if self.transport == ServerTransportDraft::Stdio {
+                    self.args_text.push(ch);
+                }
+            }
+            ServerEditorField::Description => self.description.push(ch),
+            ServerEditorField::Enabled => match ch {
+                ' ' => self.enabled = !self.enabled,
+                'y' | 'Y' | '1' | 't' | 'T' => self.enabled = true,
+                'n' | 'N' | '0' | 'f' | 'F' => self.enabled = false,
+                _ => {}
+            },
+        }
+    }
+
+    fn backspace(&mut self, field: ServerEditorField) {
+        match field {
+            ServerEditorField::Name => {
+                self.name.pop();
+            }
+            ServerEditorField::CommandOrUrl => {
+                if self.transport == ServerTransportDraft::Stdio {
+                    self.command.pop();
+                } else {
+                    self.url.pop();
+                }
+            }
+            ServerEditorField::Args => {
+                self.args_text.pop();
+            }
+            ServerEditorField::Description => {
+                self.description.pop();
+            }
+            ServerEditorField::Transport | ServerEditorField::Enabled => {}
+        }
+    }
+
+    fn clear_field(&mut self, field: ServerEditorField) {
+        match field {
+            ServerEditorField::Name => self.name.clear(),
+            ServerEditorField::CommandOrUrl => {
+                if self.transport == ServerTransportDraft::Stdio {
+                    self.command.clear();
+                } else {
+                    self.url.clear();
+                }
+            }
+            ServerEditorField::Args => self.args_text.clear(),
+            ServerEditorField::Description => self.description.clear(),
+            ServerEditorField::Transport | ServerEditorField::Enabled => {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SourceEditorField {
+    Id,
+    DisplayName,
+    Url,
+    ApiKeyEnv,
+    Priority,
+    DefaultTrust,
+    Enabled,
+}
+
+const SOURCE_EDITOR_FIELDS: [SourceEditorField; 7] = [
+    SourceEditorField::Id,
+    SourceEditorField::DisplayName,
+    SourceEditorField::Url,
+    SourceEditorField::ApiKeyEnv,
+    SourceEditorField::Priority,
+    SourceEditorField::DefaultTrust,
+    SourceEditorField::Enabled,
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceDraft {
+    id: String,
+    display_name: String,
+    url: String,
+    api_key_env: String,
+    priority: String,
+    default_trust: String,
+    enabled: bool,
+}
+
+impl SourceDraft {
+    fn new() -> Self {
+        Self {
+            id: String::new(),
+            display_name: String::new(),
+            url: String::new(),
+            api_key_env: String::new(),
+            priority: "100".to_string(),
+            default_trust: "community".to_string(),
+            enabled: true,
+        }
+    }
+
+    fn to_request(&self) -> Option<AddCatalogSourceRequest> {
+        let id = self.id.trim();
+        let display_name = self.display_name.trim();
+        let url = self.url.trim();
+        if id.is_empty() || display_name.is_empty() || url.is_empty() {
+            return None;
+        }
+
+        Some(AddCatalogSourceRequest {
+            id: id.to_string(),
+            display_name: display_name.to_string(),
+            kind: "mcp_registry".to_string(),
+            url: url.to_string(),
+            api_key_env: trim_option(&self.api_key_env),
+            priority: self.priority.trim().parse::<u32>().ok().or(Some(100)),
+            default_trust: trim_option(&self.default_trust)
+                .or_else(|| Some("community".to_string())),
+            enabled: Some(self.enabled),
+            cache_ttl_seconds: None,
+        })
+    }
+
+    fn push_char(&mut self, field: SourceEditorField, ch: char) {
+        match field {
+            SourceEditorField::Id => self.id.push(ch),
+            SourceEditorField::DisplayName => self.display_name.push(ch),
+            SourceEditorField::Url => self.url.push(ch),
+            SourceEditorField::ApiKeyEnv => self.api_key_env.push(ch),
+            SourceEditorField::Priority => {
+                if ch.is_ascii_digit() {
+                    self.priority.push(ch);
+                }
+            }
+            SourceEditorField::DefaultTrust => self.default_trust.push(ch),
+            SourceEditorField::Enabled => match ch {
+                ' ' => self.enabled = !self.enabled,
+                'y' | 'Y' | '1' | 't' | 'T' => self.enabled = true,
+                'n' | 'N' | '0' | 'f' | 'F' => self.enabled = false,
+                _ => {}
+            },
+        }
+    }
+
+    fn backspace(&mut self, field: SourceEditorField) {
+        match field {
+            SourceEditorField::Id => {
+                self.id.pop();
+            }
+            SourceEditorField::DisplayName => {
+                self.display_name.pop();
+            }
+            SourceEditorField::Url => {
+                self.url.pop();
+            }
+            SourceEditorField::ApiKeyEnv => {
+                self.api_key_env.pop();
+            }
+            SourceEditorField::Priority => {
+                self.priority.pop();
+            }
+            SourceEditorField::DefaultTrust => {
+                self.default_trust.pop();
+            }
+            SourceEditorField::Enabled => {}
+        }
+    }
+
+    fn clear_field(&mut self, field: SourceEditorField) {
+        match field {
+            SourceEditorField::Id => self.id.clear(),
+            SourceEditorField::DisplayName => self.display_name.clear(),
+            SourceEditorField::Url => self.url.clear(),
+            SourceEditorField::ApiKeyEnv => self.api_key_env.clear(),
+            SourceEditorField::Priority => self.priority.clear(),
+            SourceEditorField::DefaultTrust => self.default_trust.clear(),
+            SourceEditorField::Enabled => {}
+        }
+    }
+}
+
 pub struct McpOverlay {
     focused: bool,
     visible: bool,
+    mode: McpOverlayMode,
     tab: McpOverlayTab,
     runtime_servers: Vec<McpServerEntry>,
     settings: Vec<McpServerSettingsView>,
@@ -103,6 +424,10 @@ pub struct McpOverlay {
     tools_state: ListState,
     resources_state: ListState,
     prompts_state: ListState,
+    server_draft: ServerDraft,
+    server_field_index: usize,
+    source_draft: SourceDraft,
+    source_field_index: usize,
 }
 
 struct McpOverlayRenderState<'a> {
@@ -127,6 +452,7 @@ impl McpOverlay {
         Self {
             focused: false,
             visible: false,
+            mode: McpOverlayMode::List,
             tab: McpOverlayTab::Runtime,
             runtime_servers: Vec::new(),
             settings: Vec::new(),
@@ -147,6 +473,10 @@ impl McpOverlay {
             tools_state: ListState::default(),
             resources_state: ListState::default(),
             prompts_state: ListState::default(),
+            server_draft: ServerDraft::new(),
+            server_field_index: 0,
+            source_draft: SourceDraft::new(),
+            source_field_index: 0,
         }
     }
 
@@ -161,6 +491,7 @@ impl McpOverlay {
         self.catalog = snapshot.catalog;
         self.sources = snapshot.sources;
         self.visible = true;
+        self.mode = McpOverlayMode::List;
         self.ensure_selection();
     }
 
@@ -177,6 +508,7 @@ impl McpOverlay {
         self.health.clear();
         self.connectivity.clear();
         self.resource_previews.clear();
+        self.mode = McpOverlayMode::List;
         self.runtime_state.select(None);
         self.settings_state.select(None);
         self.installed_state.select(None);
@@ -185,6 +517,10 @@ impl McpOverlay {
         self.tools_state.select(None);
         self.resources_state.select(None);
         self.prompts_state.select(None);
+        self.server_draft = ServerDraft::new();
+        self.server_field_index = 0;
+        self.source_draft = SourceDraft::new();
+        self.source_field_index = 0;
     }
 
     #[allow(dead_code)]
@@ -210,6 +546,15 @@ impl McpOverlay {
     #[allow(dead_code)]
     pub fn selected_index(&self) -> Option<usize> {
         self.current_selected()
+    }
+
+    #[cfg(test)]
+    fn server_draft_name_for_test(&self) -> Option<&str> {
+        if self.mode == McpOverlayMode::ServerEditor {
+            Some(self.server_draft.name.as_str())
+        } else {
+            None
+        }
     }
 
     fn current_len(&self) -> usize {
@@ -366,6 +711,105 @@ impl McpOverlay {
         self.select_current(Some(next));
     }
 
+    fn start_server_create(&mut self) {
+        self.mode = McpOverlayMode::ServerEditor;
+        self.server_draft = ServerDraft::new();
+        self.server_field_index = 0;
+    }
+
+    fn start_server_edit_selected(&mut self) {
+        let Some(setting) = self
+            .selected_setting()
+            .filter(|setting| setting.writable)
+            .cloned()
+        else {
+            return;
+        };
+        self.mode = McpOverlayMode::ServerEditor;
+        self.server_draft = ServerDraft::from_view(&setting);
+        self.server_field_index = 0;
+    }
+
+    fn start_source_create(&mut self) {
+        self.mode = McpOverlayMode::SourceEditor;
+        self.source_draft = SourceDraft::new();
+        self.source_field_index = 0;
+    }
+
+    fn current_server_field(&self) -> ServerEditorField {
+        SERVER_EDITOR_FIELDS[self.server_field_index]
+    }
+
+    fn current_source_field(&self) -> SourceEditorField {
+        SOURCE_EDITOR_FIELDS[self.source_field_index]
+    }
+
+    fn move_server_field_down(&mut self) {
+        self.server_field_index = (self.server_field_index + 1) % SERVER_EDITOR_FIELDS.len();
+    }
+
+    fn move_server_field_up(&mut self) {
+        self.server_field_index = if self.server_field_index == 0 {
+            SERVER_EDITOR_FIELDS.len() - 1
+        } else {
+            self.server_field_index - 1
+        };
+    }
+
+    fn move_source_field_down(&mut self) {
+        self.source_field_index = (self.source_field_index + 1) % SOURCE_EDITOR_FIELDS.len();
+    }
+
+    fn move_source_field_up(&mut self) {
+        self.source_field_index = if self.source_field_index == 0 {
+            SOURCE_EDITOR_FIELDS.len() - 1
+        } else {
+            self.source_field_index - 1
+        };
+    }
+
+    fn handle_server_editor_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Vec<Command> {
+        match key {
+            KeyCode::Tab | KeyCode::Down => self.move_server_field_down(),
+            KeyCode::BackTab | KeyCode::Up => self.move_server_field_up(),
+            KeyCode::Esc => self.mode = McpOverlayMode::List,
+            KeyCode::Backspace => self.server_draft.backspace(self.current_server_field()),
+            KeyCode::Delete => self.server_draft.clear_field(self.current_server_field()),
+            KeyCode::Enter => {
+                if let Some(input) = self.server_draft.to_input() {
+                    self.mode = McpOverlayMode::List;
+                    return vec![Command::SaveMcpServerSettings { input }];
+                }
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.server_draft.push_char(self.current_server_field(), ch);
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn handle_source_editor_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Vec<Command> {
+        match key {
+            KeyCode::Tab | KeyCode::Down => self.move_source_field_down(),
+            KeyCode::BackTab | KeyCode::Up => self.move_source_field_up(),
+            KeyCode::Esc => self.mode = McpOverlayMode::List,
+            KeyCode::Backspace => self.source_draft.backspace(self.current_source_field()),
+            KeyCode::Delete => self.source_draft.clear_field(self.current_source_field()),
+            KeyCode::Enter => {
+                if let Some(request) = self.source_draft.to_request() {
+                    self.mode = McpOverlayMode::List;
+                    return vec![Command::AddMcpCatalogSource { request }];
+                }
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.source_draft.push_char(self.current_source_field(), ch);
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
     fn command_for_current_tab(&self, key: KeyCode) -> Option<Command> {
         match (self.tab, key) {
             (McpOverlayTab::Runtime, KeyCode::Enter) => {
@@ -443,6 +887,19 @@ impl McpOverlay {
                     server_id: setting.id.clone(),
                     enabled: !setting.enabled,
                 }),
+            (McpOverlayTab::Settings, KeyCode::Char('o') | KeyCode::Char('O')) => {
+                Some(Command::OpenMcpConfig)
+            }
+            (McpOverlayTab::Settings, KeyCode::Char('d') | KeyCode::Char('D')) => self
+                .selected_setting()
+                .map(|setting| Command::DisableMcpServerAtScope {
+                    server_id: setting.id.clone(),
+                }),
+            (McpOverlayTab::Settings, KeyCode::Char('a') | KeyCode::Char('A')) => self
+                .selected_setting()
+                .map(|setting| Command::EnableMcpServerAtScope {
+                    server_id: setting.id.clone(),
+                }),
             (
                 McpOverlayTab::Settings,
                 KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete,
@@ -478,6 +935,16 @@ impl McpOverlay {
                     source_id: source.id.clone(),
                     enabled: !source.enabled,
                 }),
+            (McpOverlayTab::Sources, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => {
+                self.selected_source()
+                    .filter(|source| source.id != "builtin")
+                    .map(|source| Command::RemoveMcpCatalogSource {
+                        source_id: source.id.clone(),
+                    })
+            }
+            (McpOverlayTab::Sources, KeyCode::Char('o') | KeyCode::Char('O')) => {
+                Some(Command::OpenMcpConfig)
+            }
             _ => None,
         }
     }
@@ -512,6 +979,18 @@ fn render_mcp_overlay(
 
     if inner.height < 5 {
         return;
+    }
+
+    match overlay.mode {
+        McpOverlayMode::ServerEditor => {
+            render_server_editor(inner, frame, overlay);
+            return;
+        }
+        McpOverlayMode::SourceEditor => {
+            render_source_editor(inner, frame, overlay);
+            return;
+        }
+        McpOverlayMode::List => {}
     }
 
     let chunks = Layout::default()
@@ -963,6 +1442,182 @@ fn render_prompts(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &m
     render_list(area, frame, items, state);
 }
 
+fn render_server_editor(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
+    let list_height = area.height.saturating_sub(1);
+    let list_area = Rect::new(area.x, area.y, area.width, list_height);
+    let hint_area = Rect::new(
+        area.x,
+        area.y + list_height,
+        area.width,
+        area.height.saturating_sub(list_height),
+    );
+    let items = SERVER_EDITOR_FIELDS
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let marker = if index == overlay.server_field_index {
+                "> "
+            } else {
+                "  "
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Magenta)),
+                Span::styled(
+                    format!("{:<12}", server_field_label(*field)),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+                Span::styled(
+                    server_field_value(&overlay.server_draft, *field),
+                    Style::default().fg(Color::Gray),
+                ),
+            ]))
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(List::new(items), list_area);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                "[Tab/Up/Down] field  ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled("[s/e/h] transport  ", Style::default().fg(Color::Cyan)),
+            Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
+            Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        ])),
+        hint_area,
+    );
+}
+
+fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
+    let list_height = area.height.saturating_sub(1);
+    let list_area = Rect::new(area.x, area.y, area.width, list_height);
+    let hint_area = Rect::new(
+        area.x,
+        area.y + list_height,
+        area.width,
+        area.height.saturating_sub(list_height),
+    );
+    let items = SOURCE_EDITOR_FIELDS
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let marker = if index == overlay.source_field_index {
+                "> "
+            } else {
+                "  "
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(marker, Style::default().fg(Color::Magenta)),
+                Span::styled(
+                    format!("{:<12}", source_field_label(*field)),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+                Span::styled(
+                    source_field_value(&overlay.source_draft, *field),
+                    Style::default().fg(Color::Gray),
+                ),
+            ]))
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(List::new(items), list_area);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                "[Tab/Up/Down] field  ",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
+            Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        ])),
+        hint_area,
+    );
+}
+
+fn server_field_label(field: ServerEditorField) -> &'static str {
+    match field {
+        ServerEditorField::Name => "Name",
+        ServerEditorField::Transport => "Transport",
+        ServerEditorField::CommandOrUrl => "Command/URL",
+        ServerEditorField::Args => "Args",
+        ServerEditorField::Description => "Description",
+        ServerEditorField::Enabled => "Enabled",
+    }
+}
+
+fn server_field_value(draft: &ServerDraft, field: ServerEditorField) -> String {
+    match field {
+        ServerEditorField::Name => draft.name.clone(),
+        ServerEditorField::Transport => server_transport_label(draft.transport).to_string(),
+        ServerEditorField::CommandOrUrl if draft.transport == ServerTransportDraft::Stdio => {
+            draft.command.clone()
+        }
+        ServerEditorField::CommandOrUrl => draft.url.clone(),
+        ServerEditorField::Args => {
+            if draft.transport == ServerTransportDraft::Stdio {
+                draft.args_text.clone()
+            } else {
+                "n/a".to_string()
+            }
+        }
+        ServerEditorField::Description => draft.description.clone(),
+        ServerEditorField::Enabled => draft.enabled.to_string(),
+    }
+}
+
+fn source_field_label(field: SourceEditorField) -> &'static str {
+    match field {
+        SourceEditorField::Id => "ID",
+        SourceEditorField::DisplayName => "Name",
+        SourceEditorField::Url => "URL",
+        SourceEditorField::ApiKeyEnv => "API key env",
+        SourceEditorField::Priority => "Priority",
+        SourceEditorField::DefaultTrust => "Trust",
+        SourceEditorField::Enabled => "Enabled",
+    }
+}
+
+fn source_field_value(draft: &SourceDraft, field: SourceEditorField) -> String {
+    match field {
+        SourceEditorField::Id => draft.id.clone(),
+        SourceEditorField::DisplayName => draft.display_name.clone(),
+        SourceEditorField::Url => draft.url.clone(),
+        SourceEditorField::ApiKeyEnv => draft.api_key_env.clone(),
+        SourceEditorField::Priority => draft.priority.clone(),
+        SourceEditorField::DefaultTrust => draft.default_trust.clone(),
+        SourceEditorField::Enabled => draft.enabled.to_string(),
+    }
+}
+
+fn server_transport_label(transport: ServerTransportDraft) -> &'static str {
+    match transport {
+        ServerTransportDraft::Stdio => "stdio",
+        ServerTransportDraft::Sse => "sse",
+        ServerTransportDraft::StreamableHttp => "streamable_http",
+    }
+}
+
+fn split_args(value: &str) -> Vec<String> {
+    value
+        .split_whitespace()
+        .map(str::trim)
+        .filter(|arg| !arg.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn trim_option(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 fn resource_preview_key(server_id: &str, uri: &str) -> String {
     format!("{server_id}\n{uri}")
 }
@@ -991,10 +1646,14 @@ fn render_hints(area: Rect, frame: &mut Frame, tab: McpOverlayTab) {
         McpOverlayTab::Runtime => {
             "[Enter] start/stop  [t] trust/revoke  [h] health  [c] test  [r] tools  "
         }
-        McpOverlayTab::Settings => "[e] enable  [x] delete  [r] reload  ",
+        McpOverlayTab::Settings => {
+            "[n] new  [Enter] edit  [e] enable  [d/a] project off/on  [o] config  [x] delete  "
+        }
         McpOverlayTab::Installed => "[x/u] uninstall  [r] reload  ",
         McpOverlayTab::Catalog => "[i] install  [r] reload  ",
-        McpOverlayTab::Sources => "[e] enable source  [r] reload  ",
+        McpOverlayTab::Sources => {
+            "[n] new  [e] enable source  [x] remove  [o] config  [r] reload  "
+        }
         McpOverlayTab::Tools => "[r] health  [e/Enter] enable tool  ",
         McpOverlayTab::Resources => "[r] list  [Enter] read  ",
         McpOverlayTab::Prompts => "[r] list  ",
@@ -1024,6 +1683,18 @@ impl Component for McpOverlay {
         let mut effects = Vec::new();
         let mut commands = Vec::new();
 
+        match self.mode {
+            McpOverlayMode::ServerEditor => {
+                commands.extend(self.handle_server_editor_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
+            McpOverlayMode::SourceEditor => {
+                commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
+            McpOverlayMode::List => {}
+        }
+
         match key.code {
             KeyCode::Tab => {
                 self.tab = self.tab.next();
@@ -1035,6 +1706,15 @@ impl Component for McpOverlay {
             }
             KeyCode::Char('j') | KeyCode::Down => self.move_down(),
             KeyCode::Char('k') | KeyCode::Up => self.move_up(),
+            KeyCode::Char('n') | KeyCode::Char('N') if self.tab == McpOverlayTab::Settings => {
+                self.start_server_create();
+            }
+            KeyCode::Enter if self.tab == McpOverlayTab::Settings => {
+                self.start_server_edit_selected();
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') if self.tab == McpOverlayTab::Sources => {
+                self.start_source_create();
+            }
             KeyCode::Esc => {
                 self.hide();
                 effects.push(CrossPanelEffect::DismissMcpOverlay);
@@ -1314,6 +1994,12 @@ mod tests {
             code,
             crossterm::event::KeyModifiers::NONE,
         ))
+    }
+
+    fn type_text(overlay: &mut McpOverlay, text: &str) {
+        for ch in text.chars() {
+            let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char(ch)));
+        }
     }
 
     #[test]
@@ -1648,6 +2334,75 @@ mod tests {
     }
 
     #[test]
+    fn settings_tab_opens_config_and_updates_project_scope_disablement() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(snapshot());
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, open_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('o')));
+        assert!(matches!(&open_commands[..], [Command::OpenMcpConfig]));
+
+        let (_, disable_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('d')));
+        assert!(matches!(
+            &disable_commands[..],
+            [Command::DisableMcpServerAtScope { server_id }] if server_id == "alpha"
+        ));
+
+        let (_, enable_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('a')));
+        assert!(matches!(
+            &enable_commands[..],
+            [Command::EnableMcpServerAtScope { server_id }] if server_id == "alpha"
+        ));
+    }
+
+    #[test]
+    fn settings_tab_server_editor_saves_new_stdio_server() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(snapshot());
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('n')));
+        assert!(commands.is_empty());
+        type_text(&mut overlay, "gamma");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "npx");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "-y @modelcontextprotocol/server-filesystem");
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(
+            &commands[..],
+            [Command::SaveMcpServerSettings { input }]
+                if input.name == "gamma"
+                    && input.enabled
+                    && input.description.is_none()
+                    && matches!(
+                        &input.transport,
+                        agent_core::facade::McpServerSettingsTransport::Stdio { command, args, env }
+                            if command == "npx"
+                                && args.as_slice() == [
+                                    "-y".to_string(),
+                                    "@modelcontextprotocol/server-filesystem".to_string()
+                                ]
+                                && env.is_empty()
+                    )
+        ));
+    }
+
+    #[test]
+    fn settings_tab_enter_edits_selected_server() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(snapshot());
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(commands.is_empty());
+
+        assert_eq!(overlay.server_draft_name_for_test(), Some("alpha"));
+    }
+
+    #[test]
     fn catalog_and_installed_tabs_emit_install_uninstall_commands() {
         let mut overlay = McpOverlay::new();
         overlay.show(snapshot());
@@ -1685,6 +2440,42 @@ mod tests {
             &commands[..],
             [Command::SetMcpCatalogSourceEnabled { source_id, enabled }]
                 if source_id == "registry" && !enabled
+        ));
+    }
+
+    #[test]
+    fn sources_tab_adds_and_removes_catalog_sources() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(snapshot());
+        advance_tabs(&mut overlay, 4);
+
+        let (_, remove_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('x')));
+        assert!(matches!(
+            &remove_commands[..],
+            [Command::RemoveMcpCatalogSource { source_id }] if source_id == "registry"
+        ));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('n')));
+        assert!(commands.is_empty());
+        type_text(&mut overlay, "corp");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "Corporate Registry");
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        type_text(&mut overlay, "https://registry.example.com/catalog.json");
+        let (_, add_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(
+            &add_commands[..],
+            [Command::AddMcpCatalogSource { request }]
+                if request.id == "corp"
+                    && request.display_name == "Corporate Registry"
+                    && request.kind == "mcp_registry"
+                    && request.url == "https://registry.example.com/catalog.json"
+                    && request.api_key_env.is_none()
+                    && request.priority == Some(100)
+                    && request.default_trust.as_deref() == Some("community")
+                    && request.enabled == Some(true)
+                    && request.cache_ttl_seconds.is_none()
         ));
     }
 }

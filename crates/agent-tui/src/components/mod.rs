@@ -437,8 +437,22 @@ pub enum Command {
         server_id: String,
         enabled: bool,
     },
+    /// Save one MCP server setting into the writable MCP config.
+    SaveMcpServerSettings {
+        input: agent_core::facade::McpServerSettingsInput,
+    },
     /// Delete one writable MCP server setting.
     DeleteMcpServerSettings {
+        server_id: String,
+    },
+    /// Open the writable MCP config file.
+    OpenMcpConfig,
+    /// Disable an inherited MCP server at project scope.
+    DisableMcpServerAtScope {
+        server_id: String,
+    },
+    /// Re-enable an inherited MCP server at project scope.
+    EnableMcpServerAtScope {
         server_id: String,
     },
     /// Install one MCP catalog entry.
@@ -453,6 +467,14 @@ pub enum Command {
     SetMcpCatalogSourceEnabled {
         source_id: String,
         enabled: bool,
+    },
+    /// Add one MCP catalog source.
+    AddMcpCatalogSource {
+        request: agent_core::facade::AddCatalogSourceRequest,
+    },
+    /// Remove one MCP catalog source.
+    RemoveMcpCatalogSource {
+        source_id: String,
     },
     CancelSession {
         workspace_id: agent_core::WorkspaceId,

@@ -697,10 +697,16 @@ async fn dispatch_commands(
             | Command::SetPluginMarketplaceSourceEnabled { .. }
             | Command::InstallPlugin { .. }
             | Command::SetMcpServerEnabled { .. }
+            | Command::SaveMcpServerSettings { .. }
             | Command::DeleteMcpServerSettings { .. }
+            | Command::OpenMcpConfig
+            | Command::DisableMcpServerAtScope { .. }
+            | Command::EnableMcpServerAtScope { .. }
             | Command::InstallMcpServer { .. }
             | Command::UninstallMcpServer { .. }
             | Command::SetMcpCatalogSourceEnabled { .. }
+            | Command::AddMcpCatalogSource { .. }
+            | Command::RemoveMcpCatalogSource { .. }
             | Command::CreateBlankProject { .. }
             | Command::AddExistingProject { .. }
             | Command::RenameProject { .. }
@@ -713,10 +719,15 @@ async fn dispatch_commands(
                 let refresh_mcp_after = matches!(
                     command,
                     Command::SetMcpServerEnabled { .. }
+                        | Command::SaveMcpServerSettings { .. }
                         | Command::DeleteMcpServerSettings { .. }
+                        | Command::DisableMcpServerAtScope { .. }
+                        | Command::EnableMcpServerAtScope { .. }
                         | Command::InstallMcpServer { .. }
                         | Command::UninstallMcpServer { .. }
                         | Command::SetMcpCatalogSourceEnabled { .. }
+                        | Command::AddMcpCatalogSource { .. }
+                        | Command::RemoveMcpCatalogSource { .. }
                 );
                 let refresh_model_after = matches!(
                     command,

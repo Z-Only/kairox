@@ -20,6 +20,7 @@ futures.workspace = true
 ratatui.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
+toml_edit.workspace = true
 
 [dev-dependencies]
 agent-core = { path = "../agent-core" }
