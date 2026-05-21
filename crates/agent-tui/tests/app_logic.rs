@@ -22,6 +22,297 @@ async fn make_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
     LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest)
 }
 
+#[derive(Default)]
+struct TuiMcpFakeFacade {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl TuiMcpFakeFacade {
+    fn record(&self, call: impl Into<String>) {
+        self.calls.lock().expect("calls lock").push(call.into());
+    }
+
+    fn calls(&self) -> Vec<String> {
+        self.calls.lock().expect("calls lock").clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
+    async fn list_mcp_server_settings(
+        &self,
+        source_filter: Option<String>,
+    ) -> agent_core::Result<Vec<agent_core::facade::McpServerSettingsView>> {
+        self.record(format!("list_mcp_server_settings:{source_filter:?}"));
+        Ok(vec![agent_core::facade::McpServerSettingsView {
+            id: "alpha".into(),
+            name: "alpha".into(),
+            transport: "stdio".into(),
+            enabled: true,
+            runtime_status: "stopped".into(),
+            trusted: false,
+            tool_count: Some(2),
+            last_error: None,
+            writable: true,
+            config_path: Some("/tmp/kairox/config.toml".into()),
+            description: Some("Alpha server".into()),
+            source: "user".into(),
+            verified: false,
+        }])
+    }
+
+    async fn set_mcp_server_enabled(
+        &self,
+        server_id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        self.record(format!("set_mcp_server_enabled:{server_id}:{enabled}"));
+        Ok(())
+    }
+
+    async fn delete_mcp_server_settings(&self, server_id: String) -> agent_core::Result<()> {
+        self.record(format!("delete_mcp_server_settings:{server_id}"));
+        Ok(())
+    }
+
+    async fn list_catalog(
+        &self,
+        query: agent_core::facade::CatalogQuery,
+    ) -> agent_core::Result<Vec<agent_core::facade::ServerEntry>> {
+        self.record(format!(
+            "list_catalog:{:?}:{:?}:{:?}:{:?}:{:?}",
+            query.keyword, query.category, query.trust_min, query.source, query.limit
+        ));
+        Ok(vec![agent_core::facade::ServerEntry {
+            id: "filesystem".into(),
+            source: "builtin".into(),
+            display_name: "Filesystem".into(),
+            summary: "File access".into(),
+            description: "Filesystem MCP server".into(),
+            categories: vec!["dev".into()],
+            tags: vec!["files".into()],
+            author: Some("Kairox".into()),
+            homepage: None,
+            version: Some("1.0.0".into()),
+            trust: "verified".into(),
+            verified: true,
+            icon: None,
+            install_spec_json: "{}".into(),
+            requirements_json: "[]".into(),
+            default_env_json: "[]".into(),
+        }])
+    }
+
+    async fn install_catalog_entry(
+        &self,
+        request: agent_core::facade::InstallRequest,
+    ) -> agent_core::Result<agent_core::facade::InstallOutcomeView> {
+        self.record(format!(
+            "install_catalog_entry:{}:{}:{}",
+            request.catalog_id, request.source, request.auto_start
+        ));
+        Ok(agent_core::facade::InstallOutcomeView {
+            kind: "installed".into(),
+            server_id: Some(request.catalog_id),
+            started: Some(request.auto_start),
+            missing_runtimes: Vec::new(),
+            missing_env_keys: Vec::new(),
+        })
+    }
+
+    async fn uninstall_catalog_entry(&self, server_id: String) -> agent_core::Result<()> {
+        self.record(format!("uninstall_catalog_entry:{server_id}"));
+        Ok(())
+    }
+
+    async fn list_installed_entries(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::InstalledEntry>> {
+        self.record("list_installed_entries");
+        Ok(vec![agent_core::facade::InstalledEntry {
+            server_id: "alpha".into(),
+            catalog_id: Some("filesystem".into()),
+            source: Some("builtin".into()),
+            display_name: "Alpha".into(),
+            installed_at: "2026-05-21T00:00:00Z".into(),
+            running: true,
+        }])
+    }
+
+    async fn list_catalog_sources(
+        &self,
+    ) -> agent_core::Result<Vec<agent_core::facade::CatalogSourceView>> {
+        self.record("list_catalog_sources");
+        Ok(vec![agent_core::facade::CatalogSourceView {
+            id: "builtin".into(),
+            display_name: "Built-in".into(),
+            kind: "builtin".into(),
+            url: String::new(),
+            api_key_env: None,
+            priority: 0,
+            default_trust: "verified".into(),
+            enabled: true,
+            cache_ttl_seconds: None,
+            last_error: None,
+        }])
+    }
+
+    async fn set_catalog_source_enabled(
+        &self,
+        id: String,
+        enabled: bool,
+    ) -> agent_core::Result<()> {
+        self.record(format!("set_catalog_source_enabled:{id}:{enabled}"));
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl agent_core::facade::SessionFacade for TuiMcpFakeFacade {
+    async fn open_workspace(
+        &self,
+        path: String,
+    ) -> agent_core::Result<agent_core::facade::WorkspaceInfo> {
+        Ok(agent_core::facade::WorkspaceInfo {
+            workspace_id: agent_core::WorkspaceId::new(),
+            path,
+        })
+    }
+
+    async fn start_session(
+        &self,
+        _request: agent_core::facade::StartSessionRequest,
+    ) -> agent_core::Result<agent_core::SessionId> {
+        Ok(agent_core::SessionId::new())
+    }
+
+    async fn send_message(
+        &self,
+        _request: agent_core::facade::SendMessageRequest,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn decide_permission(
+        &self,
+        _decision: agent_core::facade::PermissionDecision,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn cancel_session(
+        &self,
+        _workspace_id: agent_core::WorkspaceId,
+        _session_id: agent_core::SessionId,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn get_session_projection(
+        &self,
+        _session_id: agent_core::SessionId,
+    ) -> agent_core::Result<agent_core::projection::SessionProjection> {
+        Ok(agent_core::projection::SessionProjection::default())
+    }
+
+    async fn get_trace(
+        &self,
+        _session_id: agent_core::SessionId,
+    ) -> agent_core::Result<Vec<agent_core::facade::TraceEntry>> {
+        Ok(Vec::new())
+    }
+
+    fn subscribe_session(
+        &self,
+        _session_id: agent_core::SessionId,
+    ) -> futures::stream::BoxStream<'static, agent_core::DomainEvent> {
+        Box::pin(futures::stream::empty())
+    }
+
+    fn subscribe_all(&self) -> futures::stream::BoxStream<'static, agent_core::DomainEvent> {
+        Box::pin(futures::stream::empty())
+    }
+
+    async fn list_workspaces(&self) -> agent_core::Result<Vec<agent_core::facade::WorkspaceInfo>> {
+        Ok(Vec::new())
+    }
+
+    async fn list_sessions(
+        &self,
+        _workspace_id: &agent_core::WorkspaceId,
+    ) -> agent_core::Result<Vec<agent_core::facade::SessionMeta>> {
+        Ok(Vec::new())
+    }
+
+    async fn rename_session(
+        &self,
+        _session_id: &agent_core::SessionId,
+        _title: String,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn soft_delete_session(
+        &self,
+        _session_id: &agent_core::SessionId,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn cleanup_expired_sessions(
+        &self,
+        _older_than: std::time::Duration,
+    ) -> agent_core::Result<usize> {
+        Ok(0)
+    }
+
+    async fn get_task_graph(
+        &self,
+        _session_id: agent_core::SessionId,
+    ) -> agent_core::Result<agent_core::facade::TaskGraphSnapshot> {
+        Ok(agent_core::facade::TaskGraphSnapshot::default())
+    }
+
+    async fn retry_task(
+        &self,
+        _workspace_id: agent_core::WorkspaceId,
+        _session_id: agent_core::SessionId,
+        _task_id: agent_core::TaskId,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn cancel_task(
+        &self,
+        _workspace_id: agent_core::WorkspaceId,
+        _session_id: agent_core::SessionId,
+        _task_id: agent_core::TaskId,
+    ) -> agent_core::Result<()> {
+        Ok(())
+    }
+
+    async fn get_agent_status(
+        &self,
+        _session_id: agent_core::SessionId,
+    ) -> agent_core::Result<Vec<agent_core::facade::AgentStatusInfo>> {
+        Ok(Vec::new())
+    }
+}
+
+#[async_trait::async_trait]
+impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {}
+
+#[async_trait::async_trait]
+impl agent_core::facade::ProjectFacade for TuiMcpFakeFacade {}
+
+#[async_trait::async_trait]
+impl agent_core::facade::AgentsFacade for TuiMcpFakeFacade {}
+
+#[async_trait::async_trait]
+impl agent_core::facade::PluginsFacade for TuiMcpFakeFacade {}
+
+impl AppFacade for TuiMcpFakeFacade {}
+
 // ---------------------------------------------------------------------------
 // Test: Workspace → Session → SendMessage → Projection
 // ---------------------------------------------------------------------------
@@ -840,4 +1131,87 @@ async fn tui_skill_commands_call_facade_and_render_visible_messages() {
     );
 
     std::fs::remove_dir_all(skill_root).expect("test skill root should be cleaned up");
+}
+
+#[tokio::test]
+async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+    use std::collections::BTreeMap;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenMcpOverlay]).await;
+
+    assert!(app.mcp_overlay.is_visible());
+    assert_eq!(app.mcp_overlay.settings_len(), 1);
+    assert_eq!(app.mcp_overlay.catalog_len(), 1);
+    assert_eq!(app.mcp_overlay.sources_len(), 1);
+    let calls = runtime.calls();
+    assert!(
+        calls
+            .iter()
+            .any(|call| call.starts_with("list_mcp_server_settings")),
+        "expected settings list call, got {calls:?}"
+    );
+    assert!(
+        calls.iter().any(|call| call == "list_installed_entries"),
+        "expected installed list call, got {calls:?}"
+    );
+    assert!(
+        calls.iter().any(|call| call.starts_with("list_catalog")),
+        "expected catalog list call, got {calls:?}"
+    );
+    assert!(
+        calls.iter().any(|call| call == "list_catalog_sources"),
+        "expected catalog sources call, got {calls:?}"
+    );
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![
+            Command::SetMcpServerEnabled {
+                server_id: "alpha".into(),
+                enabled: false,
+            },
+            Command::DeleteMcpServerSettings {
+                server_id: "alpha".into(),
+            },
+            Command::InstallMcpServer {
+                request: agent_core::facade::InstallRequest {
+                    catalog_id: "filesystem".into(),
+                    source: "builtin".into(),
+                    server_id_override: None,
+                    env_overrides: BTreeMap::new(),
+                    trust_grant: false,
+                    auto_start: true,
+                },
+            },
+            Command::UninstallMcpServer {
+                server_id: "alpha".into(),
+            },
+            Command::SetMcpCatalogSourceEnabled {
+                source_id: "builtin".into(),
+                enabled: false,
+            },
+        ],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    for expected in [
+        "set_mcp_server_enabled:alpha:false",
+        "delete_mcp_server_settings:alpha",
+        "install_catalog_entry:filesystem:builtin:true",
+        "uninstall_catalog_entry:alpha",
+        "set_catalog_source_enabled:builtin:false",
+    ] {
+        assert!(
+            calls.iter().any(|call| call == expected),
+            "expected call {expected}, got {calls:?}"
+        );
+    }
 }

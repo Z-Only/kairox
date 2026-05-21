@@ -1,9 +1,12 @@
-use agent_core::facade::PluginsFacade;
+use agent_core::facade::{McpFacade, PluginsFacade};
 use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{ActivateSkillRequest, AppFacade, DeactivateSkillRequest};
 
 use super::App;
-use crate::components::{Command, CrossPanelEffect, PluginOverlaySnapshot, SkillEntry};
+use crate::components::{
+    Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry, PluginOverlaySnapshot,
+    SkillEntry,
+};
 
 pub async fn dispatch_commands<F>(
     runtime: &std::sync::Arc<F>,
@@ -14,6 +17,10 @@ pub async fn dispatch_commands<F>(
 {
     for command in commands {
         match command {
+            Command::OpenMcpOverlay => {
+                refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
             Command::OpenSkillsOverlay => {
                 refresh_skills_overlay(runtime, app).await;
                 app.state.render_scheduler.mark_dirty_immediate();
@@ -187,6 +194,77 @@ pub async fn dispatch_commands<F>(
                     }
                 }
             }
+            Command::SetMcpServerEnabled { server_id, enabled } => {
+                match McpFacade::set_mcp_server_enabled(
+                    runtime.as_ref(),
+                    server_id.clone(),
+                    enabled,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP settings error: {error}]"));
+                    }
+                }
+            }
+            Command::DeleteMcpServerSettings { server_id } => {
+                match McpFacade::delete_mcp_server_settings(runtime.as_ref(), server_id.clone())
+                    .await
+                {
+                    Ok(()) => {
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP delete error: {error}]"));
+                    }
+                }
+            }
+            Command::InstallMcpServer { request } => {
+                match McpFacade::install_catalog_entry(runtime.as_ref(), request.clone()).await {
+                    Ok(outcome) => {
+                        if !app.mcp_overlay.is_visible() {
+                            push_status_message(
+                                app,
+                                format!("MCP install {} {:?}", outcome.kind, outcome.server_id),
+                            );
+                        }
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP install error: {error}]"));
+                    }
+                }
+            }
+            Command::UninstallMcpServer { server_id } => {
+                match McpFacade::uninstall_catalog_entry(runtime.as_ref(), server_id.clone()).await
+                {
+                    Ok(()) => {
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP uninstall error: {error}]"));
+                    }
+                }
+            }
+            Command::SetMcpCatalogSourceEnabled { source_id, enabled } => {
+                match McpFacade::set_catalog_source_enabled(
+                    runtime.as_ref(),
+                    source_id.clone(),
+                    enabled,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[MCP source error: {error}]"));
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -241,6 +319,62 @@ where
         .collect();
 
     app.dispatch_effects(vec![CrossPanelEffect::ShowSkillsOverlay(entries)]);
+}
+
+pub async fn refresh_mcp_overlay<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &mut App,
+    runtime_servers: Vec<McpServerEntry>,
+) where
+    F: AppFacade + ?Sized,
+{
+    let settings = match McpFacade::list_mcp_server_settings(runtime.as_ref(), None).await {
+        Ok(settings) => settings,
+        Err(error) => {
+            push_status_message(app, format!("[MCP settings error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    let installed = match McpFacade::list_installed_entries(runtime.as_ref()).await {
+        Ok(installed) => installed,
+        Err(error) => {
+            push_status_message(app, format!("[MCP installed error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    let catalog = match McpFacade::list_catalog(
+        runtime.as_ref(),
+        agent_core::facade::CatalogQuery {
+            limit: Some(100),
+            ..Default::default()
+        },
+    )
+    .await
+    {
+        Ok(catalog) => catalog,
+        Err(error) => {
+            push_status_message(app, format!("[MCP catalog error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    let sources = match McpFacade::list_catalog_sources(runtime.as_ref()).await {
+        Ok(sources) => sources,
+        Err(error) => {
+            push_status_message(app, format!("[MCP sources error: {error}]"));
+            Vec::new()
+        }
+    };
+
+    app.dispatch_effects(vec![CrossPanelEffect::ShowMcpOverlay(McpOverlaySnapshot {
+        runtime_servers,
+        settings,
+        installed,
+        catalog,
+        sources,
+    })]);
 }
 
 async fn refresh_plugins_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)
