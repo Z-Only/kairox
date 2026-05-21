@@ -58,13 +58,14 @@ async fn dispatch_commands(
                 workspace_id,
                 session_id,
                 content,
+                attachments,
             } => {
                 if let Err(e) = runtime
                     .send_message(SendMessageRequest {
                         workspace_id,
                         session_id,
                         content,
-                        attachments: vec![],
+                        attachments,
                     })
                     .await
                 {
@@ -908,6 +909,7 @@ async fn main() -> Result<()> {
                                                 workspace_id: workspace_id.clone(),
                                                 session_id: session_id.clone(),
                                                 content: q.content,
+                                                attachments: q.attachments,
                                             })
                                             .collect();
                                         dispatch_commands(&runtime, &mut app, drain_cmds).await;

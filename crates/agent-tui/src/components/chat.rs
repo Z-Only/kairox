@@ -3,8 +3,9 @@
 mod input;
 mod render;
 
-pub use render::{render_messages, render_queue_strip};
+pub use render::{format_attachment_labels, render_messages, render_queue_strip};
 
+use agent_core::AttachmentInfo;
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -31,6 +32,8 @@ pub struct ChatPanel {
     /// `None` means we're at the "live" position (not browsing history).
     pub input_history_index: Option<usize>,
     pub scroll_offset: usize,
+    /// Files attached to the next user message.
+    pub pending_attachments: Vec<AttachmentInfo>,
     /// Messages typed while the session was busy. Drained in FIFO order when
     /// the session returns to idle (see `drain_queue`).
     pub message_queue: Vec<QueuedMessage>,
@@ -47,6 +50,7 @@ impl ChatPanel {
             input_history: Vec::new(),
             input_history_index: None,
             scroll_offset: 0,
+            pending_attachments: Vec::new(),
             message_queue: Vec::new(),
         }
     }

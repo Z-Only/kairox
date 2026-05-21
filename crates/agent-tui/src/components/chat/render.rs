@@ -4,6 +4,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
 
+use agent_core::AttachmentInfo;
+
 use crate::components::QueuedMessage;
 
 /// Render the message list from a [`SessionProjection`] into the given area.
@@ -66,14 +68,10 @@ pub fn render_queue_strip(area: Rect, frame: &mut Frame, queue: &[QueuedMessage]
     }
 
     let count = queue.len();
-    let preview = queue.first().map(|m| m.content.as_str()).unwrap_or("");
-    // Keep the preview short — composer space is tight.
-    let preview_trimmed: String = preview.chars().take(40).collect();
-    let preview_display = if preview.chars().count() > 40 {
-        format!("{preview_trimmed}…")
-    } else {
-        preview_trimmed
-    };
+    let preview_display = queue
+        .first()
+        .map(queued_message_preview)
+        .unwrap_or_default();
 
     let label = if count == 1 {
         format!("⏳ 1 message queued: {preview_display}")
@@ -88,4 +86,41 @@ pub fn render_queue_strip(area: Rect, frame: &mut Frame, queue: &[QueuedMessage]
             .add_modifier(Modifier::DIM),
     )]);
     frame.render_widget(Paragraph::new(line), area);
+}
+
+pub fn format_attachment_labels(attachments: &[AttachmentInfo]) -> String {
+    if attachments.is_empty() {
+        return String::new();
+    }
+
+    let mut labels: Vec<String> = attachments
+        .iter()
+        .take(2)
+        .map(|attachment| format!("[{}]", truncate_chars(&attachment.name, 18)))
+        .collect();
+    if attachments.len() > 2 {
+        labels.push(format!("[+{}]", attachments.len() - 2));
+    }
+    labels.join(" ")
+}
+
+fn queued_message_preview(message: &QueuedMessage) -> String {
+    let content = truncate_chars(message.content.as_str(), 40);
+    let labels = format_attachment_labels(&message.attachments);
+    match (content.is_empty(), labels.is_empty()) {
+        (true, true) => String::new(),
+        (true, false) => labels,
+        (false, true) => content,
+        (false, false) => format!("{content} {labels}"),
+    }
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}…")
+    } else {
+        truncated
+    }
 }

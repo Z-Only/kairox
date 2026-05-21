@@ -8,7 +8,7 @@ pub mod skills_overlay;
 pub mod status_bar;
 pub mod trace;
 
-use agent_core::SessionId;
+use agent_core::{AttachmentInfo, SessionId};
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -141,11 +141,11 @@ pub struct SessionInfo {
 }
 
 /// A message typed while the session is busy and held until the session
-/// returns to idle. Mirrors the GUI `QueuedMessage` contract (attachments are
-/// not yet supported in the TUI).
+/// returns to idle. Mirrors the GUI `QueuedMessage` contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueuedMessage {
     pub content: String,
+    pub attachments: Vec<AttachmentInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -204,6 +204,7 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
         content: String,
+        attachments: Vec<AttachmentInfo>,
     },
     DecidePermission {
         request_id: String,

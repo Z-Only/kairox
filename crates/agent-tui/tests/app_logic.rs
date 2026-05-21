@@ -582,6 +582,61 @@ fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
     commands
 }
 
+#[test]
+fn colon_attach_then_send_carries_attachment_payload() {
+    use agent_core::projection::SessionProjection;
+    use agent_core::{SessionId, WorkspaceId};
+    use agent_tui::components::chat::ChatPanel;
+    use agent_tui::components::{Command, EventContext, FocusTarget};
+    use agent_tui::keybindings::KeyAction;
+
+    let workspace_id = WorkspaceId::new();
+    let session_id = Some(SessionId::new());
+    let projection = SessionProjection::default();
+    let ctx = EventContext {
+        focus: FocusTarget::Chat,
+        current_session: &projection,
+        sessions: &[],
+        model_profile: "fake",
+        permission_mode: PermissionMode::Suggest,
+        sidebar_left_visible: true,
+        sidebar_right_visible: false,
+        workspace_id: &workspace_id,
+        current_session_id: &session_id,
+    };
+
+    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let canonical = manifest.canonicalize().unwrap();
+    let mut chat = ChatPanel::new();
+    for character in format!(":attach {}", manifest.display()).chars() {
+        let _ = chat.apply_key_action(KeyAction::InputCharacter(character), &ctx);
+    }
+    let (_effects, attach_commands) = chat.apply_key_action(KeyAction::SendInput, &ctx);
+    assert!(
+        attach_commands.is_empty(),
+        "attach should only update composer state, got {attach_commands:?}"
+    );
+
+    for character in "summarize this".chars() {
+        let _ = chat.apply_key_action(KeyAction::InputCharacter(character), &ctx);
+    }
+    let (_effects, commands) = chat.apply_key_action(KeyAction::SendInput, &ctx);
+
+    assert_eq!(commands.len(), 1);
+    assert!(matches!(
+        &commands[0],
+        Command::SendMessage {
+            content,
+            attachments,
+            ..
+        } if content == "summarize this"
+            && attachments.len() == 1
+            && attachments[0].path == canonical.display().to_string()
+            && attachments[0].name == "Cargo.toml"
+            && attachments[0].mime_type == "application/toml"
+    ));
+}
+
 fn write_test_skill(root: &std::path::Path, name: &str, description: &str, body: &str) {
     let skill_directory = root.join(name);
     std::fs::create_dir_all(&skill_directory).expect("skill directory should be created");
