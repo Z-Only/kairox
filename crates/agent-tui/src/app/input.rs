@@ -28,6 +28,12 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('s'));
+                // Ctrl+L toggles the model overlay even when the overlay is
+                // already visible; route through the resolver in that case.
+                let is_ctrl_l = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('l'));
                 if self.command_palette.is_visible() && !is_ctrl_p {
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -93,6 +99,29 @@ impl App {
                         current_session_id: &self.current_session_id,
                     };
                     let (effects, cmds) = self.skills_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.model_overlay.is_visible() && !is_ctrl_l {
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.model_overlay.handle_event(&ctx, event);
                     self.dispatch_effects(effects);
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
@@ -189,9 +218,6 @@ impl App {
                 self.sync_component_focus();
                 self.state.render_scheduler.mark_dirty();
             }
-            KeyAction::Redraw => {
-                self.state.render_scheduler.mark_dirty_immediate();
-            }
             KeyAction::ToggleMcpOverlay => {
                 if self.mcp_overlay.is_visible() {
                     self.dispatch_effects(vec![CrossPanelEffect::DismissMcpOverlay]);
@@ -214,6 +240,14 @@ impl App {
                     self.state.render_scheduler.mark_dirty_immediate();
                 } else {
                     commands.push(Command::OpenSkillsOverlay);
+                }
+            }
+            KeyAction::ToggleModelOverlay => {
+                if self.model_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissModelOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenModelOverlay);
                 }
             }
             KeyAction::ToggleTraceDensity => {
@@ -266,10 +300,15 @@ impl App {
                 }
                 self.state.render_scheduler.mark_dirty();
             }
-            KeyAction::Help
-            | KeyAction::OpenProfileSelector
-            | KeyAction::RenameSession
-            | KeyAction::Unhandled => {}
+            KeyAction::OpenProfileSelector => {
+                if self.model_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissModelOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenModelOverlay);
+                }
+            }
+            KeyAction::Help | KeyAction::RenameSession | KeyAction::Unhandled => {}
         }
 
         commands

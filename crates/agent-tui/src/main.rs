@@ -28,7 +28,8 @@ use tokio::sync::mpsc;
 
 use app::App;
 use components::{
-    Command, CrossPanelEffect, McpServerEntry, McpServerStatusView, SessionInfo, SessionState,
+    Command, CrossPanelEffect, McpServerEntry, McpServerStatusView, ModelOverlaySnapshot,
+    ModelProfileEntry, SessionInfo, SessionState,
 };
 
 // ---------------------------------------------------------------------------
@@ -251,8 +252,12 @@ async fn dispatch_commands(
                 workspace_id: _,
                 session_id,
                 alias,
+                reasoning_effort,
             } => {
-                if let Err(e) = runtime.switch_model(session_id, alias, None).await {
+                if let Err(e) = runtime
+                    .switch_model(session_id, alias, reasoning_effort)
+                    .await
+                {
                     app.state.current_session.messages.push(
                         agent_core::projection::ProjectedMessage {
                             role: agent_core::projection::ProjectedRole::Assistant,
@@ -261,6 +266,10 @@ async fn dispatch_commands(
                     );
                     app.state.render_scheduler.mark_dirty();
                 }
+            }
+
+            Command::OpenModelOverlay => {
+                refresh_model_overlay(runtime, app);
             }
 
             Command::OpenSkillsOverlay
@@ -403,6 +412,34 @@ async fn refresh_mcp_overlay(
     };
 
     app.dispatch_effects(vec![CrossPanelEffect::ShowMcpOverlay(entries)]);
+}
+
+/// Build a `ModelOverlaySnapshot` from the runtime's config and dispatch the
+/// `ShowModelOverlay` effect.
+///
+/// Read-only over `ProfileDef`/`ProfileInfo`. The overlay reflects the
+/// currently active session's profile and reasoning effort so it can preselect
+/// them on open.
+fn refresh_model_overlay(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+) {
+    let infos = runtime.config().profile_info();
+    let profiles: Vec<ModelProfileEntry> = infos
+        .into_iter()
+        .map(|p| ModelProfileEntry {
+            alias: p.alias,
+            provider_display: p.provider_display,
+            model_display: p.model_display,
+            supports_reasoning: p.supports_reasoning,
+        })
+        .collect();
+    let snapshot = ModelOverlaySnapshot {
+        profiles,
+        current_alias: Some(app.state.model_profile.clone()),
+        current_effort: app.state.reasoning_effort.clone(),
+    };
+    app.dispatch_effects(vec![CrossPanelEffect::ShowModelOverlay(snapshot)]);
 }
 
 // ---------------------------------------------------------------------------

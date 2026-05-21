@@ -1,6 +1,7 @@
 pub mod chat;
 pub mod command_palette;
 pub mod mcp_overlay;
+pub mod model_overlay;
 pub mod permission_modal;
 pub mod sessions;
 pub mod skills_overlay;
@@ -48,6 +49,7 @@ pub enum FocusTarget {
     McpOverlay,
     CommandPalette,
     SkillsOverlay,
+    ModelOverlay,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -81,6 +83,24 @@ pub struct SkillEntry {
     pub source: String,
     pub activation_mode: String,
     pub active: bool,
+}
+
+/// Snapshot row used to populate the model profile selector overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelProfileEntry {
+    pub alias: String,
+    pub provider_display: String,
+    pub model_display: String,
+    pub supports_reasoning: bool,
+}
+
+/// Snapshot payload for opening the model overlay. `current_alias`/`current_effort`
+/// reflect the active session at snapshot time so the overlay can highlight them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelOverlaySnapshot {
+    pub profiles: Vec<ModelProfileEntry>,
+    pub current_alias: Option<String>,
+    pub current_effort: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +192,8 @@ pub enum CrossPanelEffect {
         skill_id: String,
         body: String,
     },
+    ShowModelOverlay(ModelOverlaySnapshot),
+    DismissModelOverlay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -221,19 +243,24 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
     },
-    /// P4: user typed `:model <alias>` in the chat panel; ask the runtime
-    /// to switch the active model profile mid-session. `workspace_id` is
-    /// carried for symmetry with sibling variants. The TUI command leaves
-    /// reasoning effort unset and uses the runtime default for reasoning
-    /// models.
+    /// P4: user typed `:model <alias>` in the chat panel, or selected a
+    /// profile from the model overlay; ask the runtime to switch the active
+    /// model profile mid-session. `workspace_id` is carried for symmetry
+    /// with sibling variants. When `reasoning_effort` is `None` the runtime
+    /// keeps the existing effort (or default) for reasoning models; the
+    /// `:model <alias>` parser always sends `None`, while the overlay's
+    /// effort picker populates it.
     SwitchModel {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
         alias: String,
+        reasoning_effort: Option<String>,
     },
     /// Build a skill snapshot and open the skills overlay (Ctrl+S or
     /// `:skills` typed in the chat panel).
     OpenSkillsOverlay,
+    /// Build a model-profile snapshot and open the model overlay.
+    OpenModelOverlay,
     /// User typed `:skills` to list discovered native skills.
     ListSkills,
     /// User typed `:skill show <id>` to show one native skill.

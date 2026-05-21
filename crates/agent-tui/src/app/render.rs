@@ -143,6 +143,10 @@ impl App {
             self.skills_overlay.render(area, frame);
         }
 
+        if self.model_overlay.is_visible() {
+            self.model_overlay.render(area, frame);
+        }
+
         self.state.render_scheduler.did_render();
     }
 
