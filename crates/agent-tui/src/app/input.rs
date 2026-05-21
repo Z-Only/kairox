@@ -46,6 +46,10 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::ALT)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('h'));
+                let is_alt_c = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::ALT)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('c'));
                 if self.command_palette.is_visible() && !is_ctrl_p {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
@@ -267,6 +271,31 @@ impl App {
                         current_session_id: &self.current_session_id,
                     };
                     let (effects, cmds) = self.sessions.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.status_bar.context_details_visible() && !is_alt_c {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.status_bar.handle_event(&ctx, event);
                     self.dispatch_effects(effects);
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
@@ -541,6 +570,10 @@ impl App {
                 commands.push(Command::SetPermissionMode { mode: new_mode });
                 self.sync_status_bar();
                 self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::ToggleContextDetails => {
+                self.status_bar.toggle_context_details();
+                self.state.render_scheduler.mark_dirty_immediate();
             }
             KeyAction::NewSession => {
                 if let Some(command) = self.current_draft_save_command() {
@@ -1004,6 +1037,49 @@ mod tests {
             }]
         );
         assert!(app.trace.pending_delete_memory_id().is_none());
+    }
+
+    #[test]
+    fn context_details_shortcut_routes_compact_command() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.last_context_usage = Some(agent_core::context_types::ContextUsage {
+            total_tokens: 110_000,
+            budget_tokens: 180_000,
+            context_window: 200_000,
+            output_reservation: 20_000,
+            by_source: vec![(agent_core::context_types::ContextSource::History, 90_000)],
+            estimator: "cl100k_base".to_string(),
+            corrected_by_real_usage: false,
+        });
+        app.sync_status_bar();
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('c'),
+                crossterm::event::KeyModifiers::ALT,
+            ),
+        ));
+        assert!(commands.is_empty());
+        assert!(app.status_bar.context_details_visible());
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('c'),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![Command::CompactSession {
+                workspace_id,
+                session_id,
+            }]
+        );
+        assert!(!app.status_bar.context_details_visible());
     }
 
     #[test]

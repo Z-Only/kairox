@@ -43,6 +43,7 @@ pub fn resolve_key(
             KeyCode::Char('t') => KeyAction::ToggleTraceSidebar,
             KeyCode::Char('e') => KeyAction::ToggleInputMode,
             KeyCode::Char('p') => KeyAction::OpenProfileSelector,
+            KeyCode::Char('c') => KeyAction::ToggleContextDetails,
             KeyCode::Char('n') => KeyAction::NewSession,
             KeyCode::Char('q') => KeyAction::Quit,
             KeyCode::Char('h') => KeyAction::ToggleHooksOverlay,

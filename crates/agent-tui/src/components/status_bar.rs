@@ -3,7 +3,7 @@
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::{Command, Component, CrossPanelEffect, EventContext, StatusInfo};
@@ -75,6 +75,7 @@ impl StatusInfo {
 pub struct StatusBar {
     focused: bool,
     info: StatusInfo,
+    context_details_visible: bool,
 }
 
 impl StatusBar {
@@ -91,7 +92,20 @@ impl StatusBar {
                 context_usage: None,
                 compacting: false,
             },
+            context_details_visible: false,
         }
+    }
+
+    pub fn close_context_details(&mut self) {
+        self.context_details_visible = false;
+    }
+
+    pub fn toggle_context_details(&mut self) {
+        self.context_details_visible = !self.context_details_visible;
+    }
+
+    pub fn context_details_visible(&self) -> bool {
+        self.context_details_visible
     }
 }
 
@@ -104,11 +118,39 @@ impl Default for StatusBar {
 impl Component for StatusBar {
     fn handle_event(
         &mut self,
-        _ctx: &EventContext,
-        _event: &crossterm::event::Event,
+        ctx: &EventContext,
+        event: &crossterm::event::Event,
     ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        // Status bar is display-only; it never produces effects or commands.
-        (Vec::new(), Vec::new())
+        if !self.context_details_visible {
+            return (Vec::new(), Vec::new());
+        }
+
+        let crossterm::event::Event::Key(key) = event else {
+            return (Vec::new(), Vec::new());
+        };
+
+        match key.code {
+            crossterm::event::KeyCode::Esc => {
+                self.close_context_details();
+                (Vec::new(), Vec::new())
+            }
+            crossterm::event::KeyCode::Char('c') | crossterm::event::KeyCode::Char('C')
+                if self.info.context_usage.is_some() && !self.info.compacting =>
+            {
+                self.close_context_details();
+                let Some(session_id) = ctx.current_session_id.as_ref() else {
+                    return (Vec::new(), Vec::new());
+                };
+                (
+                    Vec::new(),
+                    vec![Command::CompactSession {
+                        workspace_id: ctx.workspace_id.clone(),
+                        session_id: session_id.clone(),
+                    }],
+                )
+            }
+            _ => (Vec::new(), Vec::new()),
+        }
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
@@ -119,6 +161,9 @@ impl Component for StatusBar {
 
     fn render(&self, area: Rect, frame: &mut Frame) {
         render_status_bar(area, frame, &self.info);
+        if self.context_details_visible {
+            render_context_details_overlay(area, frame, &self.info);
+        }
     }
 
     fn focused(&self) -> bool {
@@ -128,6 +173,42 @@ impl Component for StatusBar {
     fn set_focused(&mut self, focused: bool) {
         self.focused = focused;
     }
+}
+
+fn render_context_details_overlay(status_area: Rect, frame: &mut Frame, info: &StatusInfo) {
+    let detail_lines = render_context_details_lines(info);
+    let Some(area) = context_details_overlay_area(status_area, detail_lines.len()) else {
+        return;
+    };
+
+    frame.render_widget(Clear, area);
+    let block = Block::default()
+        .title(" Context Details ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let lines = detail_lines.into_iter().map(Line::from).collect::<Vec<_>>();
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
+fn context_details_overlay_area(status_area: Rect, line_count: usize) -> Option<Rect> {
+    if status_area.width == 0 || status_area.y < 3 {
+        return None;
+    }
+
+    let desired_height = (line_count as u16).saturating_add(2);
+    let height = desired_height.min(status_area.y).max(3);
+    let width = status_area.width.min(78);
+    let x = status_area.x + status_area.width.saturating_sub(width);
+    let y = status_area.y.saturating_sub(height);
+
+    Some(Rect {
+        x,
+        y,
+        width,
+        height,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -235,12 +316,35 @@ fn fmt_tokens(n: u64) -> String {
     }
 }
 
+fn percent_of(tokens: u64, budget_tokens: u64) -> u64 {
+    if budget_tokens == 0 {
+        0
+    } else {
+        (((tokens as f64) / (budget_tokens as f64)) * 100.0).round() as u64
+    }
+}
+
 /// Compact form of `fmt_tokens` for per-source breakdown chips: `12k` (no decimal).
 fn fmt_short(n: u64) -> String {
     if n >= 1_000 {
         format!("{}k", n / 1_000)
     } else {
         n.to_string()
+    }
+}
+
+fn source_label(source: &ContextSource) -> &'static str {
+    match source {
+        ContextSource::System => "System",
+        ContextSource::ToolDefinitions => "Tools",
+        ContextSource::Request => "Request",
+        ContextSource::Memory => "Memory",
+        ContextSource::History => "History",
+        ContextSource::ToolResult => "Tool result",
+        ContextSource::SelectedFile => "Selected file",
+        ContextSource::CompactionSummary => "Compaction summary",
+        ContextSource::Skill => "Skill",
+        ContextSource::ProjectInstruction => "Project instructions",
     }
 }
 
@@ -258,6 +362,56 @@ fn source_short_label(source: &ContextSource) -> &'static str {
         ContextSource::Skill => "skill",
         ContextSource::ProjectInstruction => "proj",
     }
+}
+
+pub fn render_context_details_lines(info: &StatusInfo) -> Vec<String> {
+    let Some(usage) = &info.context_usage else {
+        return vec![
+            "No context usage yet".to_string(),
+            format!(
+                "Compaction: {}",
+                if info.compacting { "running" } else { "idle" }
+            ),
+            "[Esc] close".to_string(),
+        ];
+    };
+
+    let pct = percent_of(usage.total_tokens, usage.budget_tokens);
+    let mut lines = vec![
+        format!(
+            "Used: {} / {} ({}%)",
+            fmt_tokens(usage.total_tokens),
+            fmt_tokens(usage.budget_tokens),
+            pct
+        ),
+        format!("Context window: {}", fmt_tokens(usage.context_window)),
+        format!(
+            "Reserved for response: {}",
+            fmt_tokens(usage.output_reservation)
+        ),
+        format!(
+            "Compaction: {}",
+            if info.compacting { "running" } else { "idle" }
+        ),
+        "Source breakdown:".to_string(),
+    ];
+
+    for (source, tokens) in &usage.by_source {
+        lines.push(format!(
+            "  {:<20} {:>7} {:>3}%",
+            source_label(source),
+            fmt_tokens(*tokens),
+            percent_of(*tokens, usage.budget_tokens)
+        ));
+    }
+
+    let compact_hint = if info.compacting {
+        "[c] compacting...  [Esc] close"
+    } else {
+        "[c] compact now  [Esc] close"
+    };
+    lines.push(compact_hint.to_string());
+    lines
 }
 
 /// Render a single status line including the context-meter info as a plain
@@ -315,6 +469,10 @@ pub fn render_context_line_string(info: &StatusInfo, width: u16) -> String {
             }
         }
         None => parts.push("ctx: -".into()),
+    }
+
+    if info.context_usage.is_some() {
+        parts.push("Alt+C details".into());
     }
 
     if info.compacting {
@@ -504,6 +662,7 @@ mod tests {
 mod context_line_tests {
     use super::*;
     use agent_core::context_types::{ContextSource, ContextUsage};
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
     fn usage(total: u64, budget: u64) -> ContextUsage {
         ContextUsage {
@@ -577,5 +736,66 @@ mod context_line_tests {
         let rendered = render_context_line_string(&info, 120);
         assert!(rendered.contains("profile: fast"), "got: {rendered}");
         assert!(rendered.contains("ctx: -"), "got: {rendered}");
+    }
+
+    #[test]
+    fn render_context_details_includes_breakdown_and_reservation() {
+        let info = make_info(Some(usage(110_000, 180_000)), false);
+        let rendered = render_context_details_lines(&info)
+            .into_iter()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            rendered.contains("Used: 110.0k / 180.0k (61%)"),
+            "got: {rendered}"
+        );
+        assert!(rendered.contains("System"), "got: {rendered}");
+        assert!(rendered.contains("2.0k"), "got: {rendered}");
+        assert!(rendered.contains("History"), "got: {rendered}");
+        assert!(rendered.contains("64.0k"), "got: {rendered}");
+        assert!(
+            rendered.contains("Reserved for response: 20.0k"),
+            "got: {rendered}"
+        );
+        assert!(rendered.contains("Compaction: idle"), "got: {rendered}");
+    }
+
+    #[test]
+    fn context_details_c_emits_compact_session_command() {
+        let workspace_id = agent_core::WorkspaceId::from_string("wrk_test".into());
+        let session_id = agent_core::SessionId::from_string("ses_test".into());
+        let current_session_id = Some(session_id.clone());
+        let projection = agent_core::projection::SessionProjection::default();
+        let ctx = EventContext {
+            focus: super::super::FocusTarget::Chat,
+            current_session: &projection,
+            projects: &[],
+            sessions: &[],
+            model_profile: "fast",
+            permission_mode: agent_tools::PermissionMode::Suggest,
+            sidebar_left_visible: true,
+            sidebar_right_visible: false,
+            workspace_id: &workspace_id,
+            current_session_id: &current_session_id,
+        };
+        let event = Event::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+        let mut bar = StatusBar::new();
+        bar.handle_effect(&CrossPanelEffect::SetStatus(make_info(
+            Some(usage(110_000, 180_000)),
+            false,
+        )));
+        bar.toggle_context_details();
+
+        let (_effects, commands) = bar.handle_event(&ctx, &event);
+
+        assert_eq!(
+            commands,
+            vec![Command::CompactSession {
+                workspace_id,
+                session_id,
+            }]
+        );
     }
 }
