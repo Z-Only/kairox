@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2026-05-21
+
+### 🚀 Features
+
+- **gui**: expose MCP connectivity actions (#302)
+
+### 🐛 Bug Fixes
+
+- **runtime**: enforce task retry limits (#304)
+- **gui**: harden chat attachment handling (#305)
+- **gui**: constrain sidebar list layouts (#312)
+- **gui**: show claude reasoning and worktree controls (#313)
+
+### 🧪 Testing
+
+- **mcp**: harden sse transport integration tests (#303)
+- **gui**: cover project MCP scope toggle (#306)
+- **gui**: harden task graph e2e coverage (#307)
+- **runtime**: split DAG executor integration tests (#308)
+- **gui**: cover real MCP settings actions (#311)
+
+### 🧹 Refactor
+
+- **config**: consolidate effective view builders (#309)
+
+### 👷 CI
+
+- add live tauri pilot model coverage (#314)
+
+### 📦 Dependencies
+
+- **deps-dev**: bump vitest from 4.1.6 to 4.1.7 (#317)
+- **deps-dev**: bump stylelint from 17.11.1 to 17.12.0 (#315)
+- **deps-dev**: bump vue-tsc from 3.2.9 to 3.3.1 (#320)
+- **deps**: bump @rolldown/binding-linux-x64-gnu from 1.0.1 to 1.0.2 (#324)
+- **deps-dev**: bump oxlint from 1.65.0 to 1.66.0 (#318)
+- **deps**: bump @rolldown/binding-darwin-arm64 from 1.0.1 to 1.0.2 (#325)
+- **deps**: bump vue-i18n from 11.4.2 to 11.4.4 (#319)
+- **deps-dev**: bump @vitest/coverage-v8 from 4.1.6 to 4.1.7 (#322)
+- **deps-dev**: bump oxfmt from 0.50.0 to 0.51.0 (#321)
+- **deps**: bump @rolldown/binding-win32-x64-msvc from 1.0.1 to 1.0.2 (#323)
+- **deps**: bump zip from 4.6.1 to 8.6.0 (#316)
+
 ## [0.24.0] - 2026-05-20
 
 ### 🚀 Features
