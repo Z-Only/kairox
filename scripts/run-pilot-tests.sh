@@ -10,6 +10,17 @@
 # Usage:
 #   scripts/run-pilot-tests.sh [BINARY_PATH]
 #
+# Environment:
+#   PILOT_SCENARIO=name
+#       Run one scenario from apps/agent-gui/e2e-pilot/.
+#   PILOT_SCENARIOS="name-a,name-b"
+#       Run a comma/space separated scenario subset.
+#   KAIROX_PILOT_LIVE_MODELS=1
+#       Configure the app with GitHub Models and, unless an explicit scenario
+#       subset is provided, run only the low-request live model scenarios.
+#   KAIROX_PILOT_LIST_SCENARIOS=1
+#       Print the selected scenario set and exit without launching the app.
+#
 # Exit code: 0 on all-pass, 1 on first scenario failure (or env error).
 
 set -euo pipefail
@@ -29,22 +40,13 @@ APP_BIN="${1:-$REPO_ROOT/target/debug/agent-gui-tauri}"
 SCENARIO_DIR="$REPO_ROOT/apps/agent-gui/e2e-pilot"
 JUNIT_DIR="$REPO_ROOT/pilot-results"
 FAILURE_DIR="$REPO_ROOT/tauri-pilot-failures"
-
-if [[ ! -x "$APP_BIN" ]]; then
-    echo "ERROR: Tauri debug binary not found or not executable: $APP_BIN" >&2
-    echo "       Build it first with: cargo tauri build --debug --no-bundle --features pilot" >&2
-    exit 1
-fi
-
-if ! command -v tauri-pilot >/dev/null 2>&1; then
-    echo "ERROR: tauri-pilot CLI not on PATH." >&2
-    echo "       Install it: cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli" >&2
-    exit 1
-fi
-
-# Pre-create the directories that scenarios write into so tauri-pilot doesn't
-# fail on a missing path (the screenshot action does not auto-create dirs).
-mkdir -p "$JUNIT_DIR" "$FAILURE_DIR"
+LIVE_MODEL_ENABLED="${KAIROX_PILOT_LIVE_MODELS:-0}"
+LIVE_MODEL_PROFILE="${KAIROX_PILOT_MODEL_PROFILE:-github-gpt4o-mini}"
+LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
+LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
+LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
+DEFAULT_LIVE_SCENARIOS=(chat-live attachment-live)
+scenarios=()
 
 # ─── Fixture registration ──────────────────────────────────────────────────────
 
@@ -156,6 +158,29 @@ _restore_project_config() {
 
 _write_pilot_project_config() {
     mkdir -p "$PROJECT_CONFIG_DIR"
+    if [[ "$LIVE_MODEL_ENABLED" = "1" ]]; then
+        if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+            echo "ERROR: KAIROX_PILOT_LIVE_MODELS=1 requires GITHUB_TOKEN for GitHub Models." >&2
+            exit 1
+        fi
+        cat >"$PROJECT_CONFIG_TOML" <<EOF
+[profiles.$LIVE_MODEL_PROFILE]
+provider = "openai_compatible"
+model_id = "$LIVE_MODEL_ID"
+base_url = "$LIVE_MODEL_BASE_URL"
+api_key_env = "GITHUB_TOKEN"
+temperature = 0
+
+[profiles.$LIVE_MODEL_PROFILE.extra_params]
+max_tokens = $LIVE_MODEL_MAX_TOKENS
+
+[features]
+hooks = true
+EOF
+        echo "Configured live GitHub Models pilot profile: $LIVE_MODEL_PROFILE ($LIVE_MODEL_ID)"
+        return
+    fi
+
     cat >"$PROJECT_CONFIG_TOML" <<'EOF'
 [profiles.fake]
 provider = "fake"
@@ -165,6 +190,81 @@ response = "hello from pilot"
 [features]
 hooks = true
 EOF
+}
+
+_scenario_path_for_name() {
+    local scenario_name="$1"
+    local scenario_path="$SCENARIO_DIR/${scenario_name%.toml}.toml"
+    if [[ ! -f "$scenario_path" ]]; then
+        echo "ERROR: requested pilot scenario not found: $scenario_path" >&2
+        exit 1
+    fi
+    printf '%s\n' "$scenario_path"
+}
+
+_select_scenarios() {
+    local explicit_subset=0
+
+    shopt -s nullglob
+    scenarios=("$SCENARIO_DIR"/*.toml)
+    shopt -u nullglob
+
+    if [[ -n "${PILOT_SCENARIO:-}" && -n "${PILOT_SCENARIOS:-}" ]]; then
+        echo "ERROR: set only one of PILOT_SCENARIO or PILOT_SCENARIOS." >&2
+        exit 1
+    fi
+
+    if [[ -n "${PILOT_SCENARIO:-}" ]]; then
+        explicit_subset=1
+        scenarios=("$(_scenario_path_for_name "$PILOT_SCENARIO")")
+    elif [[ -n "${PILOT_SCENARIOS:-}" ]]; then
+        explicit_subset=1
+        scenarios=()
+        local scenario_name
+        for scenario_name in ${PILOT_SCENARIOS//,/ }; do
+            [[ -z "$scenario_name" ]] && continue
+            scenarios+=("$(_scenario_path_for_name "$scenario_name")")
+        done
+    elif [[ "$LIVE_MODEL_ENABLED" = "1" ]]; then
+        scenarios=()
+        local scenario_name
+        for scenario_name in "${DEFAULT_LIVE_SCENARIOS[@]}"; do
+            scenarios+=("$(_scenario_path_for_name "$scenario_name")")
+        done
+    fi
+
+    local filtered=()
+    local scenario_base
+    for sc in "${scenarios[@]}"; do
+        scenario_base="$(basename "$sc")"
+        if [[ "$LIVE_MODEL_ENABLED" != "1" && "$scenario_base" == *-live.toml ]]; then
+            if [[ "$explicit_subset" -eq 1 ]]; then
+                echo "ERROR: $scenario_base requires KAIROX_PILOT_LIVE_MODELS=1." >&2
+                exit 1
+            fi
+            echo "SKIP $scenario_base (live model scenario)" >&2
+            continue
+        fi
+        filtered+=("$sc")
+    done
+    scenarios=("${filtered[@]}")
+
+    # In non-live CI, skip scenarios that send chat turns through the model.
+    # The live pilot job runs the bounded *-live.toml scenarios instead.
+    if [[ "${CI:-}" = "true" && "$LIVE_MODEL_ENABLED" != "1" ]]; then
+        filtered=()
+        for sc in "${scenarios[@]}"; do
+            case "$(basename "$sc")" in
+                audit-chat.toml | chat-flow.toml)
+                    echo "SKIP $(basename "$sc") (CI: no LLM backend available)" >&2
+                    ;;
+                *)
+                    filtered+=("$sc")
+                    ;;
+            esac
+        done
+        scenarios=("${filtered[@]}")
+    fi
 }
 
 _write_pilot_browser_state() {
@@ -275,6 +375,38 @@ if [[ ! -f "$FIXTURE_MCP_SERVER_SCRIPT" ]]; then
     exit 1
 fi
 
+_select_scenarios
+
+if [[ ${#scenarios[@]} -eq 0 ]]; then
+    echo "ERROR: no scenario .toml files under $SCENARIO_DIR" >&2
+    exit 1
+fi
+
+echo "Selected pilot scenarios:"
+for scenario in "${scenarios[@]}"; do
+    echo "  - $(basename "$scenario")"
+done
+
+if [[ "${KAIROX_PILOT_LIST_SCENARIOS:-0}" = "1" ]]; then
+    exit 0
+fi
+
+if [[ ! -x "$APP_BIN" ]]; then
+    echo "ERROR: Tauri debug binary not found or not executable: $APP_BIN" >&2
+    echo "       Build it first with: cargo tauri build --debug --no-bundle --features pilot" >&2
+    exit 1
+fi
+
+if ! command -v tauri-pilot >/dev/null 2>&1; then
+    echo "ERROR: tauri-pilot CLI not on PATH." >&2
+    echo "       Install it: cargo install --git https://github.com/mpiton/tauri-pilot tauri-pilot-cli" >&2
+    exit 1
+fi
+
+# Pre-create the directories that scenarios write into so tauri-pilot doesn't
+# fail on a missing path (the screenshot action does not auto-create dirs).
+mkdir -p "$JUNIT_DIR" "$FAILURE_DIR"
+
 echo "Registering pilot fixtures:"
 echo "  home:        $PILOT_HOME"
 echo "  marketplace: $FIXTURE_MARKETPLACE_DIR"
@@ -331,44 +463,6 @@ _write_pilot_browser_state
 _wait_for_app_shell "browser state applied" "app shell did not return after browser state reset"
 
 # ─── Run every scenario ────────────────────────────────────────────────────────
-
-# `tauri-pilot run` accepts exactly one scenario path; iterate explicitly.
-shopt -s nullglob
-scenarios=("$SCENARIO_DIR"/*.toml)
-shopt -u nullglob
-
-if [[ -n "${PILOT_SCENARIO:-}" ]]; then
-    scenario_path="$SCENARIO_DIR/${PILOT_SCENARIO%.toml}.toml"
-    if [[ ! -f "$scenario_path" ]]; then
-        echo "ERROR: requested pilot scenario not found: $scenario_path" >&2
-        exit 1
-    fi
-    scenarios=("$scenario_path")
-fi
-
-# In CI, skip scenarios that require a live LLM backend.
-# chat-flow.toml and audit-chat.toml send real messages and wait for the response;
-# without a configured model the app fails with an HTTP error
-# and the user-message element never appears.
-if [ "${CI:-}" = "true" ]; then
-    filtered=()
-    for sc in "${scenarios[@]}"; do
-        case "$(basename "$sc")" in
-            audit-chat.toml | chat-flow.toml)
-                echo "SKIP $(basename "$sc") (CI: no LLM backend available)" >&2
-                ;;
-            *)
-                filtered+=("$sc")
-                ;;
-        esac
-    done
-    scenarios=("${filtered[@]}")
-fi
-
-if [[ ${#scenarios[@]} -eq 0 ]]; then
-    echo "ERROR: no scenario .toml files under $SCENARIO_DIR" >&2
-    exit 1
-fi
 
 failed=0
 for scenario in "${scenarios[@]}"; do

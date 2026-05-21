@@ -178,3 +178,10 @@ test-pilot:
     bun --filter agent-gui tauri build --debug --no-bundle --features pilot
     scripts/run-pilot-tests.sh
     @echo "✅ tauri-pilot E2E scenarios passed"
+
+# Run the bounded tauri-pilot scenarios that exercise GitHub Models through
+# the desktop app. Requires GITHUB_TOKEN with GitHub Models access.
+test-pilot-live:
+    bun --filter agent-gui tauri build --debug --no-bundle --features pilot
+    KAIROX_PILOT_LIVE_MODELS=1 scripts/run-pilot-tests.sh
+    @echo "✅ live tauri-pilot E2E scenarios passed"
