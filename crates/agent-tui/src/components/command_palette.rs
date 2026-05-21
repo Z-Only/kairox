@@ -24,18 +24,25 @@ pub enum PaletteAction {
     NewSession,
     ProjectDraftSession,
     McpManager,
+    McpConfig,
     Hooks,
     Instructions,
     Plugins,
     Agents,
+    AgentsDir,
     Skills,
     SkillsManager,
     ModelSelector,
+    ProfilesConfig,
+    RefreshSkillCatalog,
     QueueAction(QueueAction),
     /// Argument-taking slash command — prefill chat input with the slash
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
     PrefillModel,
+    PrefillAttach,
+    PrefillDetachAll,
+    PrefillDetach,
     PrefillProjectCreate,
     PrefillProjectImport,
     PrefillProjectWorktree,
@@ -81,10 +88,22 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             action: PaletteAction::ModelSelector,
         },
         PaletteEntry {
+            id: "profiles-config",
+            label: "Models: open profiles config",
+            description: "Open the writable model profiles config file",
+            action: PaletteAction::ProfilesConfig,
+        },
+        PaletteEntry {
             id: "mcp-manager",
             label: "MCP: open manager",
             description: "Open MCP servers, catalog, and sources",
             action: PaletteAction::McpManager,
+        },
+        PaletteEntry {
+            id: "mcp-config",
+            label: "MCP: open config",
+            description: "Open the writable MCP config file",
+            action: PaletteAction::McpConfig,
         },
         PaletteEntry {
             id: "skills",
@@ -97,6 +116,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Skills: open manager",
             description: "Open installed skills and catalog controls",
             action: PaletteAction::SkillsManager,
+        },
+        PaletteEntry {
+            id: "skill-catalog-refresh",
+            label: "Skills: refresh catalog",
+            description: "Refresh the configured skill catalog cache",
+            action: PaletteAction::RefreshSkillCatalog,
         },
         PaletteEntry {
             id: "instructions",
@@ -121,6 +146,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: ":agents",
             description: "Open planner, worker, and reviewer agent settings",
             action: PaletteAction::Agents,
+        },
+        PaletteEntry {
+            id: "agents-dir",
+            label: "Agents: open directory",
+            description: "Open the writable user agents directory",
+            action: PaletteAction::AgentsDir,
         },
         PaletteEntry {
             id: "session-new",
@@ -157,6 +188,24 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Session: cancel",
             description: "Cancel the current running session",
             action: PaletteAction::CancelSession,
+        },
+        PaletteEntry {
+            id: "attach",
+            label: ":attach <path>",
+            description: "Attach a local file path to the next message",
+            action: PaletteAction::PrefillAttach,
+        },
+        PaletteEntry {
+            id: "detach-all",
+            label: ":detach",
+            description: "Detach all pending attachments from the composer",
+            action: PaletteAction::PrefillDetachAll,
+        },
+        PaletteEntry {
+            id: "detach",
+            label: ":detach <name-or-path>",
+            description: "Detach one pending attachment by name or path",
+            action: PaletteAction::PrefillDetach,
         },
         PaletteEntry {
             id: "queue-send-now",
@@ -279,6 +328,9 @@ pub fn filter_entries<'a>(filter: &str, entries: &'a [PaletteEntry]) -> Vec<&'a 
 pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
     match action {
         PaletteAction::PrefillModel => Some(":model "),
+        PaletteAction::PrefillAttach => Some(":attach "),
+        PaletteAction::PrefillDetachAll => Some(":detach"),
+        PaletteAction::PrefillDetach => Some(":detach "),
         PaletteAction::PrefillProjectCreate => Some(":project create "),
         PaletteAction::PrefillProjectImport => Some(":project import "),
         PaletteAction::PrefillProjectWorktree => Some(":project worktree "),
@@ -295,13 +347,17 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::NewSession
         | PaletteAction::ProjectDraftSession
         | PaletteAction::McpManager
+        | PaletteAction::McpConfig
         | PaletteAction::Hooks
         | PaletteAction::Instructions
         | PaletteAction::Plugins
         | PaletteAction::Agents
+        | PaletteAction::AgentsDir
         | PaletteAction::Skills
         | PaletteAction::SkillsManager
         | PaletteAction::ModelSelector
+        | PaletteAction::ProfilesConfig
+        | PaletteAction::RefreshSkillCatalog
         | PaletteAction::QueueAction(_) => None,
     }
 }
@@ -437,11 +493,17 @@ impl CommandPalette {
             PaletteAction::McpManager => {
                 commands.push(Command::OpenMcpOverlay);
             }
+            PaletteAction::McpConfig => {
+                commands.push(Command::OpenMcpConfig);
+            }
             PaletteAction::Skills => {
                 commands.push(Command::ListSkills);
             }
             PaletteAction::SkillsManager => {
                 commands.push(Command::OpenSkillsOverlay);
+            }
+            PaletteAction::RefreshSkillCatalog => {
+                commands.push(Command::RefreshSkillCatalog);
             }
             PaletteAction::Instructions => {
                 commands.push(Command::OpenInstructionsOverlay);
@@ -455,8 +517,14 @@ impl CommandPalette {
             PaletteAction::Agents => {
                 commands.push(Command::OpenAgentSettingsOverlay);
             }
+            PaletteAction::AgentsDir => {
+                commands.push(Command::OpenAgentsDir);
+            }
             PaletteAction::ModelSelector => {
                 commands.push(Command::OpenModelOverlay);
+            }
+            PaletteAction::ProfilesConfig => {
+                commands.push(Command::OpenProfilesConfig);
             }
             PaletteAction::QueueAction(action) => {
                 commands.push(Command::ApplyQueueAction(action));
@@ -860,6 +928,29 @@ mod tests {
     }
 
     #[test]
+    fn palette_exposes_attachment_prefills() {
+        let entries = builtin_entries();
+
+        let attach = entries
+            .iter()
+            .find(|entry| entry.id == "attach")
+            .expect("attach entry should exist");
+        assert_eq!(prefill_text(&attach.action), Some(":attach "));
+
+        let detach_all = entries
+            .iter()
+            .find(|entry| entry.id == "detach-all")
+            .expect("detach all entry should exist");
+        assert_eq!(prefill_text(&detach_all.action), Some(":detach"));
+
+        let detach = entries
+            .iter()
+            .find(|entry| entry.id == "detach")
+            .expect("detach entry should exist");
+        assert_eq!(prefill_text(&detach.action), Some(":detach "));
+    }
+
+    #[test]
     fn enter_dispatches_queue_actions() {
         let expected = [
             (
@@ -901,6 +992,37 @@ mod tests {
                 commands.as_slice(),
                 [Command::ApplyQueueAction(action)] if action == &expected_action
             ));
+        }
+    }
+
+    #[test]
+    fn enter_dispatches_overlay_utility_actions() {
+        let expected = [
+            ("mcp config", "mcp-config"),
+            ("profiles config", "profiles-config"),
+            ("agents dir", "agents-dir"),
+            ("refresh catalog", "skill-catalog-refresh"),
+        ];
+
+        for (filter, expected_id) in expected {
+            let mut p = CommandPalette::new();
+            p.show();
+            for c in filter.chars() {
+                let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+            }
+            assert_eq!(p.visible_entries()[0].id, expected_id);
+            let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+            match expected_id {
+                "mcp-config" => assert!(matches!(&commands[..], [Command::OpenMcpConfig])),
+                "profiles-config" => {
+                    assert!(matches!(&commands[..], [Command::OpenProfilesConfig]))
+                }
+                "agents-dir" => assert!(matches!(&commands[..], [Command::OpenAgentsDir])),
+                "skill-catalog-refresh" => {
+                    assert!(matches!(&commands[..], [Command::RefreshSkillCatalog]))
+                }
+                _ => unreachable!(),
+            }
         }
     }
 
