@@ -1,4 +1,4 @@
-//! Command palette — discoverable overlay for TUI slash commands.
+//! Command palette — discoverable overlay for TUI actions and slash commands.
 //!
 //! Search-only view over a static registry. Each entry maps to either a
 //! direct [`Command`] or a chat-input prefill (e.g. `:model `) so the user
@@ -13,15 +13,21 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use crate::components::{Command, Component, CrossPanelEffect, EventContext};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext, QueueAction};
 
 /// What happens when an entry is activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaletteAction {
     /// Zero-arg slash command — dispatch immediately.
     Compact,
+    CancelSession,
+    NewSession,
+    McpManager,
     Plugins,
     Skills,
+    SkillsManager,
+    ModelSelector,
+    QueueAction(QueueAction),
     /// Argument-taking slash command — prefill chat input with the slash
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
@@ -62,16 +68,88 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             action: PaletteAction::PrefillModel,
         },
         PaletteEntry {
+            id: "model-selector",
+            label: "Models: open selector",
+            description: "Open the model profile selector",
+            action: PaletteAction::ModelSelector,
+        },
+        PaletteEntry {
+            id: "mcp-manager",
+            label: "MCP: open manager",
+            description: "Open MCP servers, catalog, and sources",
+            action: PaletteAction::McpManager,
+        },
+        PaletteEntry {
             id: "skills",
             label: ":skills",
             description: "List discovered native skills",
             action: PaletteAction::Skills,
         },
         PaletteEntry {
+            id: "skills-manager",
+            label: "Skills: open manager",
+            description: "Open installed skills and catalog controls",
+            action: PaletteAction::SkillsManager,
+        },
+        PaletteEntry {
             id: "plugins",
-            label: ":plugins",
+            label: "Plugins: open manager",
             description: "Open the plugin manager",
             action: PaletteAction::Plugins,
+        },
+        PaletteEntry {
+            id: "session-new",
+            label: "Session: new",
+            description: "Start a new session using the active model",
+            action: PaletteAction::NewSession,
+        },
+        PaletteEntry {
+            id: "session-cancel",
+            label: "Session: cancel",
+            description: "Cancel the current running session",
+            action: PaletteAction::CancelSession,
+        },
+        PaletteEntry {
+            id: "queue-send-now",
+            label: "Queue: send selected now",
+            description: "Send the selected queued message immediately",
+            action: PaletteAction::QueueAction(QueueAction::SendSelectedNow),
+        },
+        PaletteEntry {
+            id: "queue-edit",
+            label: "Queue: restore selected for edit",
+            description: "Move the selected queued message back into the composer",
+            action: PaletteAction::QueueAction(QueueAction::RestoreSelectedForEdit),
+        },
+        PaletteEntry {
+            id: "queue-delete",
+            label: "Queue: delete selected",
+            description: "Remove the selected queued message",
+            action: PaletteAction::QueueAction(QueueAction::DeleteSelected),
+        },
+        PaletteEntry {
+            id: "queue-move-up",
+            label: "Queue: move selected up",
+            description: "Move the selected queued message earlier",
+            action: PaletteAction::QueueAction(QueueAction::MoveSelectedUp),
+        },
+        PaletteEntry {
+            id: "queue-move-down",
+            label: "Queue: move selected down",
+            description: "Move the selected queued message later",
+            action: PaletteAction::QueueAction(QueueAction::MoveSelectedDown),
+        },
+        PaletteEntry {
+            id: "queue-previous",
+            label: "Queue: select previous",
+            description: "Select the previous queued message",
+            action: PaletteAction::QueueAction(QueueAction::SelectPrevious),
+        },
+        PaletteEntry {
+            id: "queue-next",
+            label: "Queue: select next",
+            description: "Select the next queued message",
+            action: PaletteAction::QueueAction(QueueAction::SelectNext),
         },
         PaletteEntry {
             id: "skill-show",
@@ -133,12 +211,17 @@ pub fn filter_entries<'a>(filter: &str, entries: &'a [PaletteEntry]) -> Vec<&'a 
         return entries.iter().collect();
     }
     let needle = trimmed.to_lowercase();
+    let tokens: Vec<&str> = needle.split_whitespace().collect();
     entries
         .iter()
         .filter(|e| {
-            e.label.to_lowercase().contains(&needle)
-                || e.description.to_lowercase().contains(&needle)
-                || e.id.to_lowercase().contains(&needle)
+            let haystack = format!(
+                "{} {} {}",
+                e.label.to_lowercase(),
+                e.description.to_lowercase(),
+                e.id.to_lowercase()
+            );
+            haystack.contains(&needle) || tokens.iter().all(|token| haystack.contains(token))
         })
         .collect()
 }
@@ -155,7 +238,15 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::PrefillSkillInstallGithub => Some(":skill install github "),
         PaletteAction::PrefillSkillUpdate => Some(":skill update "),
         PaletteAction::PrefillSkillDelete => Some(":skill delete "),
-        PaletteAction::Compact | PaletteAction::Plugins | PaletteAction::Skills => None,
+        PaletteAction::Compact
+        | PaletteAction::CancelSession
+        | PaletteAction::NewSession
+        | PaletteAction::McpManager
+        | PaletteAction::Plugins
+        | PaletteAction::Skills
+        | PaletteAction::SkillsManager
+        | PaletteAction::ModelSelector
+        | PaletteAction::QueueAction(_) => None,
     }
 }
 
@@ -268,11 +359,37 @@ impl CommandPalette {
                     });
                 }
             }
+            PaletteAction::CancelSession => {
+                if let Some(session_id) = ctx.current_session_id {
+                    commands.push(Command::CancelSession {
+                        workspace_id: ctx.workspace_id.clone(),
+                        session_id: session_id.clone(),
+                    });
+                }
+            }
+            PaletteAction::NewSession => {
+                commands.push(Command::StartSession {
+                    workspace_id: ctx.workspace_id.clone(),
+                    model_profile: ctx.model_profile.to_string(),
+                });
+            }
+            PaletteAction::McpManager => {
+                commands.push(Command::OpenMcpOverlay);
+            }
             PaletteAction::Skills => {
                 commands.push(Command::ListSkills);
             }
+            PaletteAction::SkillsManager => {
+                commands.push(Command::OpenSkillsOverlay);
+            }
             PaletteAction::Plugins => {
                 commands.push(Command::OpenPluginsOverlay);
+            }
+            PaletteAction::ModelSelector => {
+                commands.push(Command::OpenModelOverlay);
+            }
+            PaletteAction::QueueAction(action) => {
+                commands.push(Command::ApplyQueueAction(action));
             }
             ref prefill => {
                 if let Some(text) = prefill_text(prefill) {
@@ -590,6 +707,84 @@ mod tests {
         }
         let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
         assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
+    }
+
+    #[test]
+    fn enter_dispatches_overlay_and_session_actions() {
+        let expected = [
+            ("mcp", "mcp-manager"),
+            ("skills manager", "skills-manager"),
+            ("model selector", "model-selector"),
+            ("new session", "session-new"),
+            ("cancel session", "session-cancel"),
+        ];
+
+        for (filter, expected_id) in expected {
+            let mut p = CommandPalette::new();
+            p.show();
+            for c in filter.chars() {
+                let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+            }
+            assert_eq!(p.visible_entries()[0].id, expected_id);
+            let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+            match expected_id {
+                "mcp-manager" => assert!(matches!(&commands[..], [Command::OpenMcpOverlay])),
+                "skills-manager" => {
+                    assert!(matches!(&commands[..], [Command::OpenSkillsOverlay]))
+                }
+                "model-selector" => assert!(matches!(&commands[..], [Command::OpenModelOverlay])),
+                "session-new" => assert!(matches!(&commands[..], [Command::StartSession { .. }])),
+                "session-cancel" => {
+                    assert!(matches!(&commands[..], [Command::CancelSession { .. }]))
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    #[test]
+    fn enter_dispatches_queue_actions() {
+        let expected = [
+            (
+                "queue send",
+                "queue-send-now",
+                crate::components::QueueAction::SendSelectedNow,
+            ),
+            (
+                "queue edit",
+                "queue-edit",
+                crate::components::QueueAction::RestoreSelectedForEdit,
+            ),
+            (
+                "queue delete",
+                "queue-delete",
+                crate::components::QueueAction::DeleteSelected,
+            ),
+            (
+                "queue up",
+                "queue-move-up",
+                crate::components::QueueAction::MoveSelectedUp,
+            ),
+            (
+                "queue down",
+                "queue-move-down",
+                crate::components::QueueAction::MoveSelectedDown,
+            ),
+        ];
+
+        for (filter, expected_id, expected_action) in expected {
+            let mut p = CommandPalette::new();
+            p.show();
+            for c in filter.chars() {
+                let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+            }
+            assert_eq!(p.visible_entries()[0].id, expected_id);
+            let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+            assert!(matches!(
+                commands.as_slice(),
+                [Command::ApplyQueueAction(action)] if action == &expected_action
+            ));
+        }
     }
 
     #[test]
