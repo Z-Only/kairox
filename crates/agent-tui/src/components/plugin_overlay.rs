@@ -9,7 +9,7 @@ use agent_core::facade::{
     PluginSettingsView,
 };
 use agent_core::ConfigScope;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -17,7 +17,7 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragra
 use ratatui::Frame;
 
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, PluginOverlaySnapshot,
+    Command, Component, CrossPanelEffect, EventContext, PluginCatalogFilters, PluginOverlaySnapshot,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,14 +53,23 @@ impl PluginTab {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluginOverlayMode {
+    List,
+    CatalogSearch,
+}
+
 pub struct PluginOverlay {
     focused: bool,
     visible: bool,
+    mode: PluginOverlayMode,
     tab: PluginTab,
     plugins: Vec<PluginSettingsView>,
     catalog: Vec<PluginCatalogEntry>,
     sources: Vec<PluginMarketplaceSourceView>,
     install_target: PluginInstallTarget,
+    catalog_keyword: String,
+    catalog_marketplace_filter: Option<String>,
     plugins_state: ListState,
     catalog_state: ListState,
     sources_state: ListState,
@@ -77,11 +86,14 @@ impl PluginOverlay {
         Self {
             focused: false,
             visible: false,
+            mode: PluginOverlayMode::List,
             tab: PluginTab::Installed,
             plugins: Vec::new(),
             catalog: Vec::new(),
             sources: Vec::new(),
             install_target: PluginInstallTarget::User,
+            catalog_keyword: String::new(),
+            catalog_marketplace_filter: None,
             plugins_state: ListState::default(),
             catalog_state: ListState::default(),
             sources_state: ListState::default(),
@@ -98,11 +110,14 @@ impl PluginOverlay {
         self.sources = snapshot.sources;
         self.install_target = snapshot.install_target;
         self.visible = true;
+        self.mode = PluginOverlayMode::List;
+        self.reconcile_catalog_marketplace_filter();
         self.ensure_selection();
     }
 
     pub fn hide(&mut self) {
         self.visible = false;
+        self.mode = PluginOverlayMode::List;
         self.plugins.clear();
         self.catalog.clear();
         self.sources.clear();
@@ -119,6 +134,13 @@ impl PluginOverlay {
     #[allow(dead_code)]
     pub fn selected_index(&self) -> Option<usize> {
         self.current_selected()
+    }
+
+    pub fn catalog_filters(&self) -> PluginCatalogFilters {
+        PluginCatalogFilters {
+            marketplace_id: self.catalog_marketplace_filter.clone(),
+            keyword: non_empty_trimmed(&self.catalog_keyword),
+        }
     }
 
     fn current_len(&self) -> usize {
@@ -202,6 +224,82 @@ impl PluginOverlay {
             .and_then(|index| self.sources.get(index))
     }
 
+    fn reconcile_catalog_marketplace_filter(&mut self) {
+        if let Some(source_id) = &self.catalog_marketplace_filter {
+            if !self.sources.iter().any(|source| &source.id == source_id) {
+                self.catalog_marketplace_filter = None;
+            }
+        }
+    }
+
+    fn cycle_catalog_marketplace_filter(&mut self) {
+        if self.sources.is_empty() {
+            self.catalog_marketplace_filter = None;
+            return;
+        }
+
+        self.catalog_marketplace_filter = match self.catalog_marketplace_filter.as_deref() {
+            None => self.sources.first().map(|source| source.id.clone()),
+            Some(current) => {
+                let next_index = self
+                    .sources
+                    .iter()
+                    .position(|source| source.id == current)
+                    .and_then(|index| index.checked_add(1))
+                    .filter(|index| *index < self.sources.len());
+                next_index.map(|index| self.sources[index].id.clone())
+            }
+        };
+        self.ensure_selection();
+    }
+
+    fn catalog_marketplace_label(&self) -> String {
+        match self.catalog_marketplace_filter.as_deref() {
+            Some(source_id) => self
+                .sources
+                .iter()
+                .find(|source| source.id == source_id)
+                .map(|source| {
+                    if source.display_name.is_empty() {
+                        source.id.clone()
+                    } else {
+                        source.display_name.clone()
+                    }
+                })
+                .unwrap_or_else(|| source_id.to_string()),
+            None => "all".to_string(),
+        }
+    }
+
+    fn catalog_filters_active(&self) -> bool {
+        self.catalog_marketplace_filter.is_some() || !self.catalog_keyword.trim().is_empty()
+    }
+
+    fn handle_catalog_search_key(&mut self, code: KeyCode, modifiers: KeyModifiers) -> bool {
+        match code {
+            KeyCode::Enter | KeyCode::Esc => {
+                self.mode = PluginOverlayMode::List;
+                true
+            }
+            KeyCode::Backspace => {
+                self.catalog_keyword.pop();
+                false
+            }
+            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword.clear();
+                false
+            }
+            KeyCode::Char(ch)
+                if !modifiers.contains(KeyModifiers::CONTROL)
+                    && !modifiers.contains(KeyModifiers::ALT) =>
+            {
+                self.catalog_keyword.push(ch);
+                false
+            }
+            _ => false,
+        }
+    }
+
     fn toggle_install_target(&mut self) {
         self.install_target = match self.install_target {
             PluginInstallTarget::User => PluginInstallTarget::Project,
@@ -254,6 +352,11 @@ fn target_label(target: PluginInstallTarget) -> &'static str {
         PluginInstallTarget::User => "user",
         PluginInstallTarget::Project => "project",
     }
+}
+
+fn non_empty_trimmed(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 pub fn render_plugin_overlay(
@@ -332,6 +435,19 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &PluginOverlay) {
         format!("target: {}", target_label(overlay.install_target)),
         Style::default().fg(Color::Cyan),
     ));
+    if overlay.tab == PluginTab::Catalog || overlay.catalog_filters_active() {
+        let keyword = non_empty_trimmed(&overlay.catalog_keyword).unwrap_or_else(|| "*".into());
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!(
+                "catalog:{}  search:{}  source:{}",
+                overlay.catalog.len(),
+                keyword,
+                overlay.catalog_marketplace_label()
+            ),
+            Style::default().fg(Color::Cyan),
+        ));
+    }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
@@ -509,10 +625,14 @@ fn render_sources(
 }
 
 fn render_hints(area: Rect, frame: &mut Frame, overlay: &PluginOverlay) {
-    let action = match overlay.tab {
-        PluginTab::Installed => "[e] enable  [x] delete  ",
-        PluginTab::Catalog => "[i] install  [t] target  ",
-        PluginTab::Sources => "[e] enable source  ",
+    let action = if overlay.mode == PluginOverlayMode::CatalogSearch {
+        "[Enter/Esc] apply search  [Backspace] edit  "
+    } else {
+        match overlay.tab {
+            PluginTab::Installed => "[e] enable  [x] delete  ",
+            PluginTab::Catalog => "[/] search  [s] source  [i] install  [t] target  ",
+            PluginTab::Sources => "[e] enable source  ",
+        }
     };
     let hints = Line::from(vec![
         Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
@@ -540,6 +660,13 @@ impl Component for PluginOverlay {
         let mut effects = Vec::new();
         let mut commands = Vec::new();
 
+        if self.mode == PluginOverlayMode::CatalogSearch {
+            if self.handle_catalog_search_key(key.code, key.modifiers) {
+                commands.push(Command::OpenPluginsOverlay);
+            }
+            return (effects, commands);
+        }
+
         match key.code {
             KeyCode::Tab => {
                 self.tab = self.tab.next();
@@ -551,6 +678,13 @@ impl Component for PluginOverlay {
             }
             KeyCode::Char('j') | KeyCode::Down => self.move_down(),
             KeyCode::Char('k') | KeyCode::Up => self.move_up(),
+            KeyCode::Char('/') if self.tab == PluginTab::Catalog => {
+                self.mode = PluginOverlayMode::CatalogSearch;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') if self.tab == PluginTab::Catalog => {
+                self.cycle_catalog_marketplace_filter();
+                commands.push(Command::OpenPluginsOverlay);
+            }
             KeyCode::Esc => {
                 self.hide();
                 effects.push(CrossPanelEffect::DismissPluginsOverlay);
@@ -642,14 +776,18 @@ mod tests {
         }
     }
 
-    fn catalog_entry(name: &str) -> PluginCatalogEntry {
+    fn catalog_entry_from(marketplace_id: &str, name: &str) -> PluginCatalogEntry {
         PluginCatalogEntry {
-            marketplace_id: "local-market".to_string(),
+            marketplace_id: marketplace_id.to_string(),
             name: name.to_string(),
             description: format!("{name} catalog plugin"),
             version: Some("0.1.0".to_string()),
             source: format!("/tmp/catalog/{name}"),
         }
+    }
+
+    fn catalog_entry(name: &str) -> PluginCatalogEntry {
+        catalog_entry_from("local-market", name)
     }
 
     fn source(id: &str, enabled: bool) -> PluginMarketplaceSourceView {
@@ -668,8 +806,11 @@ mod tests {
                 installed_plugin("user:alpha", true),
                 installed_plugin("user:beta", false),
             ],
-            catalog: vec![catalog_entry("delta")],
-            sources: vec![source("local-market", true)],
+            catalog: vec![
+                catalog_entry("delta"),
+                catalog_entry_from("remote-market", "epsilon"),
+            ],
+            sources: vec![source("local-market", true), source("remote-market", true)],
             install_target: PluginInstallTarget::User,
         }
     }
@@ -700,6 +841,12 @@ mod tests {
             code,
             crossterm::event::KeyModifiers::NONE,
         ))
+    }
+
+    fn type_text(overlay: &mut PluginOverlay, text: &str) {
+        for ch in text.chars() {
+            let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char(ch)));
+        }
     }
 
     #[test]
@@ -792,6 +939,37 @@ mod tests {
             [Command::InstallPlugin { request }]
                 if request.plugin_name == "delta" && request.target == PluginInstallTarget::Project
         ));
+    }
+
+    #[test]
+    fn slash_search_updates_catalog_keyword_and_requests_refresh() {
+        let mut overlay = PluginOverlay::new();
+        overlay.show(snapshot());
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+        assert!(commands.is_empty());
+        type_text(&mut overlay, "delta");
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
+        let filters = overlay.catalog_filters();
+        assert_eq!(filters.keyword.as_deref(), Some("delta"));
+        assert_eq!(filters.marketplace_id, None);
+    }
+
+    #[test]
+    fn s_cycles_catalog_marketplace_filter_and_requests_refresh() {
+        let mut overlay = PluginOverlay::new();
+        overlay.show(snapshot());
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('s')));
+
+        assert!(matches!(&commands[..], [Command::OpenPluginsOverlay]));
+        let filters = overlay.catalog_filters();
+        assert_eq!(filters.marketplace_id.as_deref(), Some("local-market"));
+        assert_eq!(filters.keyword, None);
     }
 
     #[test]
