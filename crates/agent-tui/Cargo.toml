@@ -31,3 +31,4 @@ agent-tools = { path = "../agent-tools" }
 insta.workspace = true
 tokio.workspace = true
 futures.workspace = true
+async-trait.workspace = true
