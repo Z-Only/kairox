@@ -147,6 +147,9 @@ impl App {
             self.model_overlay.render(area, frame);
         }
 
+        self.sessions
+            .render_action_overlay(area, frame, &self.state.sessions);
+
         self.state.render_scheduler.did_render();
     }
 
