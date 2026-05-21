@@ -1,3 +1,4 @@
+pub mod agent_overlay;
 pub mod chat;
 pub mod command_palette;
 pub mod instructions_overlay;
@@ -52,6 +53,7 @@ pub enum FocusTarget {
     CommandPalette,
     SkillsOverlay,
     ModelOverlay,
+    AgentOverlay,
     PluginOverlay,
     InstructionsOverlay,
 }
@@ -184,6 +186,12 @@ pub struct ModelProfileTestResult {
     pub alias: String,
     pub ok: bool,
     pub message: Option<String>,
+}
+
+/// Snapshot payload for opening the agent settings overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AgentOverlaySnapshot {
+    pub agents: Vec<agent_core::facade::AgentSettingsView>,
 }
 
 /// Snapshot payload for opening the plugin manager overlay.
@@ -335,6 +343,8 @@ pub enum CrossPanelEffect {
     ShowModelOverlay(ModelOverlaySnapshot),
     ModelProfileTested(ModelProfileTestResult),
     DismissModelOverlay,
+    ShowAgentSettingsOverlay(AgentOverlaySnapshot),
+    DismissAgentSettingsOverlay,
     ShowPluginsOverlay(PluginOverlaySnapshot),
     DismissPluginsOverlay,
     ShowInstructionsOverlay(agent_core::facade::InstructionsView),
@@ -528,6 +538,23 @@ pub enum Command {
     },
     /// Open the writable profiles config file.
     OpenProfilesConfig,
+    /// Build an agent settings snapshot and open the agent manager overlay.
+    OpenAgentSettingsOverlay,
+    /// Save a user/project agent settings profile.
+    SaveAgentSettings {
+        input: agent_core::facade::AgentSettingsInput,
+    },
+    /// Delete one editable agent settings profile.
+    DeleteAgentSettings {
+        settings_id: String,
+    },
+    /// Copy one agent settings profile to a writable scope.
+    CopyAgentSettings {
+        settings_id: String,
+        scope: agent_core::facade::AgentSettingsScope,
+    },
+    /// Open the writable user agents directory.
+    OpenAgentsDir,
     /// Build a plugin manager snapshot and open the plugin overlay.
     OpenPluginsOverlay,
     /// Build an instructions snapshot and open the instructions settings overlay.

@@ -177,6 +177,10 @@ impl App {
             self.model_overlay.render(area, frame);
         }
 
+        if self.agent_overlay.is_visible() {
+            self.agent_overlay.render(area, frame);
+        }
+
         self.sessions
             .render_action_overlay(area, frame, &self.state.sessions);
 

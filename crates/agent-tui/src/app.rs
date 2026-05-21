@@ -11,6 +11,7 @@ use agent_core::{DomainEvent, SessionId, WorkspaceId};
 use agent_tools::PermissionMode;
 
 use crate::app_state::AppState;
+use crate::components::agent_overlay::AgentOverlay;
 use crate::components::chat::ChatPanel;
 use crate::components::command_palette::CommandPalette;
 use crate::components::instructions_overlay::InstructionsOverlay;
@@ -35,6 +36,7 @@ pub struct App {
     pub command_palette: CommandPalette,
     pub skills_overlay: SkillsOverlay,
     pub model_overlay: ModelOverlay,
+    pub agent_overlay: AgentOverlay,
     pub plugin_overlay: PluginOverlay,
     pub instructions_overlay: InstructionsOverlay,
     pub workspace_id: WorkspaceId,
@@ -65,6 +67,7 @@ impl App {
             command_palette: CommandPalette::new(),
             skills_overlay: SkillsOverlay::new(),
             model_overlay: ModelOverlay::new(),
+            agent_overlay: AgentOverlay::new(),
             plugin_overlay: PluginOverlay::new(),
             instructions_overlay: InstructionsOverlay::new(),
             workspace_id,
@@ -139,6 +142,16 @@ impl App {
                 {
                     self.state.focus_manager.pop();
                 }
+                CrossPanelEffect::ShowAgentSettingsOverlay(_)
+                    if self.state.focus_manager.current() != FocusTarget::AgentOverlay =>
+                {
+                    self.state.focus_manager.push(FocusTarget::AgentOverlay);
+                }
+                CrossPanelEffect::DismissAgentSettingsOverlay
+                    if self.state.focus_manager.current() == FocusTarget::AgentOverlay =>
+                {
+                    self.state.focus_manager.pop();
+                }
                 CrossPanelEffect::ShowPluginsOverlay(_)
                     if self.state.focus_manager.current() != FocusTarget::PluginOverlay =>
                 {
@@ -172,6 +185,7 @@ impl App {
             self.command_palette.handle_effect(&effect);
             self.skills_overlay.handle_effect(&effect);
             self.model_overlay.handle_effect(&effect);
+            self.agent_overlay.handle_effect(&effect);
             self.plugin_overlay.handle_effect(&effect);
             self.instructions_overlay.handle_effect(&effect);
         }
@@ -207,6 +221,8 @@ impl App {
             .set_focused(current == FocusTarget::SkillsOverlay);
         self.model_overlay
             .set_focused(current == FocusTarget::ModelOverlay);
+        self.agent_overlay
+            .set_focused(current == FocusTarget::AgentOverlay);
         self.plugin_overlay
             .set_focused(current == FocusTarget::PluginOverlay);
         self.instructions_overlay
