@@ -47,6 +47,7 @@ fn test_ctx_with_session() -> &'static EventContext<'static> {
                 model_profile: "fast".to_string(),
                 state: SessionState::Idle,
                 pinned: false,
+                archived: false,
             }]
             .into_boxed_slice(),
         );
@@ -82,6 +83,7 @@ fn test_ctx_busy_session() -> &'static EventContext<'static> {
                 model_profile: "fast".to_string(),
                 state: SessionState::Active,
                 pinned: false,
+                archived: false,
             }]
             .into_boxed_slice(),
         );

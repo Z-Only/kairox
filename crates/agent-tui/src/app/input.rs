@@ -126,6 +126,29 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
+                if self.sessions.context_menu_open {
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.sessions.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
                 let permission_pending =
                     matches!(self.state.input_state, InputState::PermissionWait { .. })
                         || self.permission_modal.is_visible();
@@ -266,6 +289,12 @@ impl App {
                     model_profile: self.state.model_profile.clone(),
                 });
             }
+            KeyAction::ContextMenu
+                if self.state.focus_manager.current() == FocusTarget::Sessions =>
+            {
+                self.sessions.open_action_menu(&self.state.sessions);
+                self.state.render_scheduler.mark_dirty();
+            }
             KeyAction::SendInput
             | KeyAction::InputCharacter(_)
             | KeyAction::InputBackspace
@@ -284,8 +313,12 @@ impl App {
                 self.dispatch_effects(effects);
             }
             KeyAction::SelectSession => {
-                if let Some(session_id) = self.sessions.selected_session_id(&self.state.sessions) {
-                    commands.push(Command::SwitchSession { session_id });
+                if let Some(session) = self.sessions.selected_session(&self.state.sessions) {
+                    if !session.archived {
+                        commands.push(Command::SwitchSession {
+                            session_id: session.id.clone(),
+                        });
+                    }
                 }
             }
             KeyAction::ScrollUp => {
@@ -308,7 +341,14 @@ impl App {
                     commands.push(Command::OpenModelOverlay);
                 }
             }
-            KeyAction::Help | KeyAction::RenameSession | KeyAction::Unhandled => {}
+            KeyAction::RenameSession => {
+                if self.state.focus_manager.current() == FocusTarget::Sessions {
+                    self.sessions
+                        .start_rename_for_selected(&self.state.sessions);
+                    self.state.render_scheduler.mark_dirty();
+                }
+            }
+            KeyAction::Help | KeyAction::Unhandled => {}
         }
 
         commands
