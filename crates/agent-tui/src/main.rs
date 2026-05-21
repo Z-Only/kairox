@@ -375,8 +375,24 @@ async fn dispatch_commands(
             | Command::SetPluginEnabled { .. }
             | Command::DeletePluginSettings { .. }
             | Command::SetPluginMarketplaceSourceEnabled { .. }
-            | Command::InstallPlugin { .. } => {
+            | Command::InstallPlugin { .. }
+            | Command::SetMcpServerEnabled { .. }
+            | Command::DeleteMcpServerSettings { .. }
+            | Command::InstallMcpServer { .. }
+            | Command::UninstallMcpServer { .. }
+            | Command::SetMcpCatalogSourceEnabled { .. } => {
+                let refresh_mcp_after = matches!(
+                    command,
+                    Command::SetMcpServerEnabled { .. }
+                        | Command::DeleteMcpServerSettings { .. }
+                        | Command::InstallMcpServer { .. }
+                        | Command::UninstallMcpServer { .. }
+                        | Command::SetMcpCatalogSourceEnabled { .. }
+                );
                 app::dispatch_commands(runtime, app, vec![command]).await;
+                if refresh_mcp_after && app.mcp_overlay.is_visible() {
+                    refresh_mcp_overlay(runtime, app).await;
+                }
             }
 
             Command::SetPermissionMode { mode } => {
@@ -635,7 +651,7 @@ async fn refresh_mcp_overlay(
         None => Vec::new(),
     };
 
-    app.dispatch_effects(vec![CrossPanelEffect::ShowMcpOverlay(entries)]);
+    app::refresh_mcp_overlay(runtime, app, entries).await;
 }
 
 /// Build a `ModelOverlaySnapshot` from the runtime's config and dispatch the

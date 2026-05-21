@@ -5,7 +5,7 @@ mod events;
 mod input;
 mod render;
 
-pub use commands::dispatch_commands;
+pub use commands::{dispatch_commands, refresh_mcp_overlay};
 
 use agent_core::{DomainEvent, SessionId, WorkspaceId};
 use agent_tools::PermissionMode;

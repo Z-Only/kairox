@@ -264,6 +264,7 @@ dependencies = [
  "agent-store",
  "agent-tools",
  "anyhow",
+ "async-trait",
  "crossterm",
  "futures",
  "insta",

@@ -73,6 +73,18 @@ pub struct McpServerEntry {
     pub tool_count: usize,
 }
 
+/// Snapshot payload for opening the MCP overlay. Runtime server state is
+/// supplied by the TUI main loop, while settings/catalog data comes from the
+/// MCP facade so tests can exercise the command path with fake facades.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct McpOverlaySnapshot {
+    pub runtime_servers: Vec<McpServerEntry>,
+    pub settings: Vec<agent_core::facade::McpServerSettingsView>,
+    pub installed: Vec<agent_core::facade::InstalledEntry>,
+    pub catalog: Vec<agent_core::facade::ServerEntry>,
+    pub sources: Vec<agent_core::facade::CatalogSourceView>,
+}
+
 /// Snapshot row used to populate the skills overlay. Built from
 /// `SkillView` + the per-session active list before opening the overlay,
 /// kept local to the TUI so the overlay can be tested without spinning
@@ -184,7 +196,7 @@ pub enum CrossPanelEffect {
     NavigateToSession(SessionId),
     StartStreaming,
     StopStreaming,
-    ShowMcpOverlay(Vec<McpServerEntry>),
+    ShowMcpOverlay(McpOverlaySnapshot),
     DismissMcpOverlay,
     /// Open the command palette overlay.
     ShowCommandPalette,
@@ -240,6 +252,28 @@ pub enum Command {
     /// Refresh the cached tool list from a running MCP server.
     RefreshMcpTools {
         server_id: String,
+    },
+    /// Enable or disable one MCP server in writable settings.
+    SetMcpServerEnabled {
+        server_id: String,
+        enabled: bool,
+    },
+    /// Delete one writable MCP server setting.
+    DeleteMcpServerSettings {
+        server_id: String,
+    },
+    /// Install one MCP catalog entry.
+    InstallMcpServer {
+        request: agent_core::facade::InstallRequest,
+    },
+    /// Uninstall one installed MCP server.
+    UninstallMcpServer {
+        server_id: String,
+    },
+    /// Enable or disable one MCP catalog source.
+    SetMcpCatalogSourceEnabled {
+        source_id: String,
+        enabled: bool,
     },
     CancelSession {
         workspace_id: agent_core::WorkspaceId,
