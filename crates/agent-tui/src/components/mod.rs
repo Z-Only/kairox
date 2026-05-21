@@ -3,6 +3,7 @@ pub mod command_palette;
 pub mod mcp_overlay;
 pub mod model_overlay;
 pub mod permission_modal;
+pub mod plugin_overlay;
 pub mod sessions;
 pub mod skills_overlay;
 pub mod status_bar;
@@ -50,6 +51,7 @@ pub enum FocusTarget {
     CommandPalette,
     SkillsOverlay,
     ModelOverlay,
+    PluginOverlay,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -101,6 +103,15 @@ pub struct ModelOverlaySnapshot {
     pub profiles: Vec<ModelProfileEntry>,
     pub current_alias: Option<String>,
     pub current_effort: Option<String>,
+}
+
+/// Snapshot payload for opening the plugin manager overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginOverlaySnapshot {
+    pub plugins: Vec<agent_core::facade::PluginSettingsView>,
+    pub catalog: Vec<agent_core::facade::PluginCatalogEntry>,
+    pub sources: Vec<agent_core::facade::PluginMarketplaceSourceView>,
+    pub install_target: agent_core::facade::PluginInstallTarget,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -195,6 +206,8 @@ pub enum CrossPanelEffect {
     },
     ShowModelOverlay(ModelOverlaySnapshot),
     DismissModelOverlay,
+    ShowPluginsOverlay(PluginOverlaySnapshot),
+    DismissPluginsOverlay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -294,6 +307,8 @@ pub enum Command {
     OpenSkillsOverlay,
     /// Build a model-profile snapshot and open the model overlay.
     OpenModelOverlay,
+    /// Build a plugin manager snapshot and open the plugin overlay.
+    OpenPluginsOverlay,
     /// User typed `:skills` to list discovered native skills.
     ListSkills,
     /// User typed `:skill show <id>` to show one native skill.
@@ -311,6 +326,24 @@ pub enum Command {
         workspace_id: agent_core::WorkspaceId,
         session_id: SessionId,
         skill_id: String,
+    },
+    /// Enable or disable one installed plugin.
+    SetPluginEnabled {
+        settings_id: String,
+        enabled: bool,
+    },
+    /// Delete one installed plugin configuration.
+    DeletePluginSettings {
+        settings_id: String,
+    },
+    /// Enable or disable one plugin marketplace source.
+    SetPluginMarketplaceSourceEnabled {
+        source_id: String,
+        enabled: bool,
+    },
+    /// Install one catalog plugin into the selected target.
+    InstallPlugin {
+        request: agent_core::facade::InstallPluginRequest,
     },
     /// User cycled the permission mode from the status bar (Shift+P).
     /// The runtime should apply the new mode for subsequent permission checks.

@@ -48,6 +48,9 @@ impl ChatPanel {
                 } else if trimmed == ":skills" {
                     self.clear_input();
                     commands.push(Command::ListSkills);
+                } else if trimmed == ":plugins" {
+                    self.clear_input();
+                    commands.push(Command::OpenPluginsOverlay);
                 } else if let Some(path) = trimmed
                     .strip_prefix(":attach ")
                     .map(str::trim)
