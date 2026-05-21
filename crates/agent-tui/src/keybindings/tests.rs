@@ -277,6 +277,28 @@ fn sessions_focus_a_opens_archive_manager() {
     );
 }
 
+#[test]
+fn trace_focus_memory_browser_keys_resolve() {
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('/')),
+            FocusTarget::Trace,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::StartMemorySearch
+    );
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('s')),
+            FocusTarget::Trace,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::CycleMemoryScope
+    );
+}
+
 // -- L4 F1 → Help (global among L4) -----------------------------------
 
 #[test]

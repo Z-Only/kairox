@@ -115,6 +115,13 @@ pub fn resolve_key(
         KeyCode::Delete => KeyAction::InputDelete,
         KeyCode::Char(']') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabNext,
         KeyCode::Char('[') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabPrevious,
+        KeyCode::Char('/') if focus == FocusTarget::Trace => KeyAction::StartMemorySearch,
+        KeyCode::Char('s') | KeyCode::Char('S') if focus == FocusTarget::Trace => {
+            KeyAction::CycleMemoryScope
+        }
+        KeyCode::Char('y') | KeyCode::Char('Y') if focus == FocusTarget::Trace => {
+            KeyAction::ConfirmMemoryDelete
+        }
         KeyCode::Char('r') | KeyCode::Char('R') if focus == FocusTarget::Trace => {
             KeyAction::RetrySelectedTask
         }
