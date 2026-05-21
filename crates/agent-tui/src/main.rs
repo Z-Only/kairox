@@ -691,6 +691,8 @@ async fn dispatch_commands(
             | Command::DeleteSkillSettings { .. }
             | Command::SetSkillEnabled { .. }
             | Command::SetSkillSourceEnabled { .. }
+            | Command::AddSkillSource { .. }
+            | Command::RemoveSkillSource { .. }
             | Command::RefreshSkillCatalog
             | Command::SetPluginEnabled { .. }
             | Command::DeletePluginSettings { .. }
