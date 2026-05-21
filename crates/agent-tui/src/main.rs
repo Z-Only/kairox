@@ -694,7 +694,7 @@ async fn dispatch_commands(
             | Command::SetSkillSourceEnabled { .. }
             | Command::AddSkillSource { .. }
             | Command::RemoveSkillSource { .. }
-            | Command::RefreshSkillCatalog
+            | Command::RefreshSkillCatalog { .. }
             | Command::SetPluginEnabled { .. }
             | Command::DeletePluginSettings { .. }
             | Command::SetPluginMarketplaceSourceEnabled { .. }

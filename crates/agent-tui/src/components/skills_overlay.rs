@@ -75,6 +75,7 @@ impl SkillTab {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SkillOverlayMode {
     List,
+    CatalogFilter,
     SourceEditor,
 }
 
@@ -264,6 +265,9 @@ pub struct SkillsOverlay {
     installed: Vec<SkillSettingsView>,
     catalog: Vec<SkillCatalogEntry>,
     sources: Vec<SkillSourceView>,
+    catalog_keyword: String,
+    catalog_keyword_draft: String,
+    catalog_source_filter: Option<String>,
     install_target: SkillInstallTarget,
     discovered_state: ListState,
     installed_state: ListState,
@@ -291,6 +295,9 @@ impl SkillsOverlay {
             installed: Vec::new(),
             catalog: Vec::new(),
             sources: Vec::new(),
+            catalog_keyword: String::new(),
+            catalog_keyword_draft: String::new(),
+            catalog_source_filter: None,
             install_target: SkillInstallTarget::User,
             discovered_state: ListState::default(),
             installed_state: ListState::default(),
@@ -331,6 +338,7 @@ impl SkillsOverlay {
         self.catalog = snapshot.catalog;
         self.sources = snapshot.sources;
         self.install_target = snapshot.install_target;
+        self.prune_catalog_source_filter();
         self.discovered_state.select(select);
         self.ensure_selection();
         self.visible = true;
@@ -342,6 +350,9 @@ impl SkillsOverlay {
         self.installed.clear();
         self.catalog.clear();
         self.sources.clear();
+        self.catalog_keyword.clear();
+        self.catalog_keyword_draft.clear();
+        self.catalog_source_filter = None;
         self.discovered_state.select(None);
         self.installed_state.select(None);
         self.catalog_state.select(None);
@@ -365,6 +376,15 @@ impl SkillsOverlay {
     #[allow(dead_code)]
     pub fn body_skill_id(&self) -> Option<&str> {
         self.body.as_ref().map(|b| b.skill_id.as_str())
+    }
+
+    pub fn catalog_query(&self) -> (Option<String>, Option<Vec<String>>) {
+        (
+            trim_option(&self.catalog_keyword),
+            self.catalog_source_filter
+                .as_ref()
+                .map(|source| vec![source.clone()]),
+        )
     }
 
     fn selected_discovered(&self) -> Option<&SkillEntry> {
@@ -471,6 +491,73 @@ impl SkillsOverlay {
         self.source_field_index = 0;
     }
 
+    fn prune_catalog_source_filter(&mut self) {
+        if let Some(source_id) = self.catalog_source_filter.as_ref() {
+            if !self.sources.iter().any(|source| source.id == *source_id) {
+                self.catalog_source_filter = None;
+            }
+        }
+    }
+
+    fn catalog_filters_active(&self) -> bool {
+        self.mode == SkillOverlayMode::CatalogFilter
+            || !self.catalog_keyword.trim().is_empty()
+            || self.catalog_source_filter.is_some()
+    }
+
+    fn catalog_keyword_for_display(&self) -> &str {
+        if self.mode == SkillOverlayMode::CatalogFilter {
+            &self.catalog_keyword_draft
+        } else {
+            &self.catalog_keyword
+        }
+    }
+
+    fn catalog_source_filter_label(&self) -> String {
+        self.catalog_source_filter
+            .as_ref()
+            .map(|source_id| {
+                self.sources
+                    .iter()
+                    .find(|source| source.id == *source_id)
+                    .map(|source| source.display_name.as_str())
+                    .unwrap_or(source_id)
+            })
+            .unwrap_or("*")
+            .to_string()
+    }
+
+    fn cycle_catalog_source_filter(&mut self) {
+        if self.sources.is_empty() {
+            self.catalog_source_filter = None;
+            return;
+        }
+        let next_index = self
+            .catalog_source_filter
+            .as_ref()
+            .and_then(|source_id| {
+                self.sources
+                    .iter()
+                    .position(|source| source.id == *source_id)
+            })
+            .map_or(Some(0), |index| {
+                let next = index + 1;
+                (next < self.sources.len()).then_some(next)
+            });
+        self.catalog_source_filter = next_index.map(|index| self.sources[index].id.clone());
+        self.ensure_selection();
+    }
+
+    fn list_catalog_command(&self) -> Command {
+        let (keyword, sources) = self.catalog_query();
+        Command::ListSkillCatalog { keyword, sources }
+    }
+
+    fn refresh_catalog_command(&self) -> Command {
+        let (keyword, sources) = self.catalog_query();
+        Command::RefreshSkillCatalog { keyword, sources }
+    }
+
     fn current_source_field(&self) -> SkillSourceEditorField {
         SKILL_SOURCE_EDITOR_FIELDS[self.source_field_index]
     }
@@ -502,6 +589,34 @@ impl SkillsOverlay {
             }
             KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
                 self.source_draft.push_char(self.current_source_field(), ch);
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn handle_catalog_filter_key(&mut self, key: KeyCode, modifiers: KeyModifiers) -> Vec<Command> {
+        match key {
+            KeyCode::Enter => {
+                self.catalog_keyword = self.catalog_keyword_draft.trim().to_string();
+                self.mode = SkillOverlayMode::List;
+                return vec![self.list_catalog_command()];
+            }
+            KeyCode::Esc => {
+                self.catalog_keyword_draft = self.catalog_keyword.clone();
+                self.mode = SkillOverlayMode::List;
+            }
+            KeyCode::Backspace => {
+                self.catalog_keyword_draft.pop();
+            }
+            KeyCode::Delete => {
+                self.catalog_keyword_draft.clear();
+            }
+            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword_draft.clear();
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword_draft.push(ch);
             }
             _ => {}
         }
@@ -696,6 +811,24 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
         format!("target: {}", target_label(overlay.install_target)),
         Style::default().fg(Color::Cyan),
     ));
+    if overlay.tab == SkillTab::Catalog || overlay.catalog_filters_active() {
+        let keyword_value = overlay.catalog_keyword_for_display().trim();
+        let keyword = if keyword_value.is_empty() {
+            "*".to_string()
+        } else {
+            clip(keyword_value, 18)
+        };
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            format!(
+                "catalog:{} search:{} source:{}",
+                overlay.catalog.len(),
+                keyword,
+                clip(&overlay.catalog_source_filter_label(), 18)
+            ),
+            Style::default().fg(Color::Cyan),
+        ));
+    }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
@@ -921,11 +1054,15 @@ fn render_sources(
 }
 
 fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
-    let action = match overlay.tab {
-        SkillTab::Discovered => "[Enter] body  [a] activate  [d] deactivate  ",
-        SkillTab::Installed => "[e] enable  [u] update  [x] delete  ",
-        SkillTab::Catalog => "[i] install  [t] target  ",
-        SkillTab::Sources => "[n] new  [e] enable source  [x] remove  ",
+    let action = if overlay.mode == SkillOverlayMode::CatalogFilter {
+        "[Enter] search  [Esc] close search  [Backspace] edit  "
+    } else {
+        match overlay.tab {
+            SkillTab::Discovered => "[Enter] body  [a] activate  [d] deactivate  ",
+            SkillTab::Installed => "[e] enable  [u] update  [x] delete  ",
+            SkillTab::Catalog => "[i] install  [/] search  [s] source  [t] target  ",
+            SkillTab::Sources => "[n] new  [e] enable source  [x] remove  ",
+        }
     };
     let hints = Line::from(vec![
         Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
@@ -1025,6 +1162,16 @@ fn trim_option(value: &str) -> Option<String> {
     }
 }
 
+fn clip(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let clipped: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{clipped}...")
+    } else {
+        clipped
+    }
+}
+
 impl Component for SkillsOverlay {
     fn handle_event(
         &mut self,
@@ -1050,9 +1197,16 @@ impl Component for SkillsOverlay {
             return (effects, commands);
         }
 
-        if self.mode == SkillOverlayMode::SourceEditor {
-            commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
-            return (effects, commands);
+        match self.mode {
+            SkillOverlayMode::SourceEditor => {
+                commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
+            SkillOverlayMode::CatalogFilter => {
+                commands.extend(self.handle_catalog_filter_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
+            SkillOverlayMode::List => {}
         }
 
         match key.code {
@@ -1070,7 +1224,17 @@ impl Component for SkillsOverlay {
                 self.hide();
                 effects.push(CrossPanelEffect::DismissSkillsOverlay);
             }
-            KeyCode::Char('r') | KeyCode::Char('R') => commands.push(Command::RefreshSkillCatalog),
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                commands.push(self.refresh_catalog_command());
+            }
+            KeyCode::Char('/') if self.tab == SkillTab::Catalog => {
+                self.catalog_keyword_draft = self.catalog_keyword.clone();
+                self.mode = SkillOverlayMode::CatalogFilter;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') if self.tab == SkillTab::Catalog => {
+                self.cycle_catalog_source_filter();
+                commands.push(self.list_catalog_command());
+            }
             KeyCode::Char('n') | KeyCode::Char('N') if self.tab == SkillTab::Sources => {
                 self.start_source_create();
             }
@@ -1529,6 +1693,43 @@ mod tests {
             &project_install_commands[..],
             [Command::InstallRemoteSkill { request }]
                 if request.package == "review" && request.target == SkillInstallTarget::Project
+        ));
+    }
+
+    #[test]
+    fn catalog_tab_searches_and_refreshes_with_active_source_filter() {
+        let mut overlay = SkillsOverlay::new();
+        overlay.show(SkillOverlaySnapshot {
+            discovered: vec![],
+            installed: vec![],
+            catalog: vec![catalog_entry("review")],
+            sources: vec![source("skillhub", true), source("corp", true)],
+            install_target: SkillInstallTarget::User,
+        });
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (_, source_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('s')));
+        assert!(matches!(
+            &source_commands[..],
+            [Command::ListSkillCatalog { keyword: None, sources: Some(sources) }]
+                if sources == &vec!["skillhub".to_string()]
+        ));
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+        type_text(&mut overlay, "review");
+        let (_, search_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(matches!(
+            &search_commands[..],
+            [Command::ListSkillCatalog { keyword: Some(keyword), sources: Some(sources) }]
+                if keyword == "review" && sources == &vec!["skillhub".to_string()]
+        ));
+
+        let (_, refresh_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('r')));
+        assert!(matches!(
+            &refresh_commands[..],
+            [Command::RefreshSkillCatalog { keyword: Some(keyword), sources: Some(sources) }]
+                if keyword == "review" && sources == &vec!["skillhub".to_string()]
         ));
     }
 

@@ -678,6 +678,7 @@ pub enum Command {
     /// Search/list skills from the configured skill catalog.
     ListSkillCatalog {
         keyword: Option<String>,
+        sources: Option<Vec<String>>,
     },
     /// Install one remote catalog skill into the selected target.
     InstallRemoteSkill {
@@ -714,7 +715,10 @@ pub enum Command {
         source_id: String,
     },
     /// Refresh the configured skill catalog provider cache.
-    RefreshSkillCatalog,
+    RefreshSkillCatalog {
+        keyword: Option<String>,
+        sources: Option<Vec<String>>,
+    },
     /// Enable or disable one installed plugin.
     SetPluginEnabled {
         settings_id: String,
