@@ -57,7 +57,7 @@ impl FocusManager {
 
         if matches!(
             self.current(),
-            FocusTarget::PermissionModal | FocusTarget::McpOverlay
+            FocusTarget::PermissionModal | FocusTarget::McpOverlay | FocusTarget::CommandPalette
         ) {
             return; // don't cycle while a modal is focused
         }
@@ -66,7 +66,9 @@ impl FocusManager {
             FocusTarget::Chat => FocusTarget::Sessions,
             FocusTarget::Sessions => FocusTarget::Trace,
             FocusTarget::Trace => FocusTarget::Chat,
-            FocusTarget::PermissionModal | FocusTarget::McpOverlay => unreachable!(),
+            FocusTarget::PermissionModal
+            | FocusTarget::McpOverlay
+            | FocusTarget::CommandPalette => unreachable!(),
         };
 
         let last = self
