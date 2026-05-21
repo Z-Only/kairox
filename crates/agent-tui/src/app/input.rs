@@ -246,7 +246,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.sessions.context_menu_open {
+                if self.sessions.is_overlay_open() {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -503,6 +503,12 @@ impl App {
                     .open_action_menu(&self.state.projects, &self.state.sessions);
                 self.state.render_scheduler.mark_dirty();
             }
+            KeyAction::OpenArchiveManager
+                if self.state.focus_manager.current() == FocusTarget::Sessions =>
+            {
+                self.sessions.open_archive_manager(&self.state.sessions);
+                self.state.render_scheduler.mark_dirty();
+            }
             KeyAction::SendInput
             | KeyAction::InputCharacter(_)
             | KeyAction::InputBackspace
@@ -516,6 +522,7 @@ impl App {
             | KeyAction::AllowPermission
             | KeyAction::DenyPermission
             | KeyAction::DenyAllPermission
+            | KeyAction::OpenArchiveManager
             | KeyAction::ContextMenu => {
                 let (effects, cmds) = self.apply_chat_action(action);
                 commands.extend(cmds);
@@ -856,6 +863,37 @@ mod tests {
                 Command::SwitchSession { session_id: next },
             ]
         );
+    }
+
+    #[test]
+    fn archive_manager_restores_selected_archived_session_from_app_event_route() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let archived_id = SessionId::from_string("ses_archived".into());
+        let mut archived = session_info(archived_id.clone(), "archived");
+        archived.archived = true;
+        archived.visibility = Some(ProjectSessionVisibility::Archived);
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.sessions = vec![archived];
+        app.state.focus_manager.set(FocusTarget::Sessions);
+
+        let commands = app.apply_action(KeyAction::OpenArchiveManager);
+        assert!(commands.is_empty());
+        assert!(app.sessions.archive_manager_open);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![Command::RestoreSession {
+                session_id: archived_id,
+            }]
+        );
+        assert!(!app.sessions.archive_manager_open);
     }
 
     #[test]

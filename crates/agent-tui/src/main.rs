@@ -831,7 +831,7 @@ async fn dispatch_commands(
                         if app.current_session_id.as_ref() == Some(&session_id) {
                             switch_to_first_active_session(runtime, app).await;
                         } else {
-                            select_session_row(app, &session_id);
+                            clamp_session_selection(app);
                             app.state.render_scheduler.mark_dirty();
                         }
                     }

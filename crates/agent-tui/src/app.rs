@@ -257,7 +257,12 @@ impl App {
         let info = crate::components::StatusInfo {
             profile: self.state.model_profile.clone(),
             permission_mode: self.state.permission_mode.as_str().to_string(),
-            session_count: self.state.sessions.len(),
+            session_count: self
+                .state
+                .sessions
+                .iter()
+                .filter(|session| !session.archived)
+                .count(),
             mcp_server_count: 0,
             hint,
             error: None,

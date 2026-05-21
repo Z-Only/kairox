@@ -45,6 +45,7 @@ pub enum KeyAction {
     RetrySelectedTask,
     CancelSelectedTask,
     DeleteSelectedMemory,
+    OpenArchiveManager,
 
     // -- Status bar shortcuts ---------------------------------------------
     /// Cycle through permission modes (Shift+P).

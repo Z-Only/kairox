@@ -51,9 +51,17 @@ pub struct SessionsPanel {
     focused: bool,
     pub state: ListState,
     pub context_menu_open: bool,
+    pub archive_manager_open: bool,
     pub search_query: Option<String>,
     action_cursor: usize,
+    archive_cursor: usize,
     action_mode: SessionActionMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArchiveStats {
+    pub total: usize,
+    pub projects: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,8 +90,10 @@ impl SessionsPanel {
             focused: false,
             state,
             context_menu_open: false,
+            archive_manager_open: false,
             search_query: None,
             action_cursor: 0,
+            archive_cursor: 0,
             action_mode: SessionActionMode::Menu,
         }
     }
@@ -141,17 +151,17 @@ impl SessionsPanel {
 
     #[allow(dead_code)]
     pub fn filtered_sessions<'a>(&self, sessions: &'a [SessionInfo]) -> Vec<&'a SessionInfo> {
+        let visible_sessions = sessions.iter().filter(|session| !session.archived);
         if let Some(query) = &self.search_query {
             let q = query.to_lowercase();
-            sessions
-                .iter()
+            visible_sessions
                 .filter(|s| {
                     s.title.to_lowercase().contains(&q)
                         || s.model_profile.to_lowercase().contains(&q)
                 })
                 .collect()
         } else {
-            sessions.iter().collect()
+            visible_sessions.collect()
         }
     }
 
@@ -178,10 +188,29 @@ impl SessionsPanel {
             self.close_action_menu();
             return false;
         }
+        self.close_archive_manager();
         self.context_menu_open = true;
         self.action_cursor = 0;
         self.action_mode = SessionActionMode::Menu;
         true
+    }
+
+    pub fn open_archive_manager(&mut self, sessions: &[SessionInfo]) -> bool {
+        self.close_action_menu();
+        self.archive_manager_open = true;
+        self.archive_cursor = self
+            .archive_cursor
+            .min(archive_stats(sessions).total.saturating_sub(1));
+        true
+    }
+
+    pub fn close_archive_manager(&mut self) {
+        self.archive_manager_open = false;
+        self.archive_cursor = 0;
+    }
+
+    pub fn is_overlay_open(&self) -> bool {
+        self.context_menu_open || self.archive_manager_open
     }
 
     pub fn start_rename_for_selected(
@@ -222,6 +251,64 @@ impl SessionsPanel {
         self.context_menu_open = false;
         self.action_cursor = 0;
         self.action_mode = SessionActionMode::Menu;
+    }
+
+    fn move_archive_down(&mut self, sessions: &[SessionInfo]) {
+        let len = archive_stats(sessions).total;
+        if len == 0 {
+            self.archive_cursor = 0;
+            return;
+        }
+        self.archive_cursor = (self.archive_cursor + 1).min(len - 1);
+    }
+
+    fn move_archive_up(&mut self) {
+        self.archive_cursor = self.archive_cursor.saturating_sub(1);
+    }
+
+    fn selected_archived_session<'a>(
+        &self,
+        sessions: &'a [SessionInfo],
+    ) -> Option<&'a SessionInfo> {
+        archived_sessions(sessions)
+            .get(self.archive_cursor)
+            .copied()
+    }
+
+    fn handle_archive_manager_key(&mut self, ctx: &EventContext, code: KeyCode) -> Vec<Command> {
+        match code {
+            KeyCode::Esc | KeyCode::Char('x') => {
+                self.close_archive_manager();
+                Vec::new()
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.move_archive_down(ctx.sessions);
+                Vec::new()
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.move_archive_up();
+                Vec::new()
+            }
+            KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
+                let command = self.selected_archived_session(ctx.sessions).map(|session| {
+                    Command::RestoreSession {
+                        session_id: session.id.clone(),
+                    }
+                });
+                self.close_archive_manager();
+                command.into_iter().collect()
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                let command = self.selected_archived_session(ctx.sessions).map(|session| {
+                    Command::DeleteSession {
+                        session_id: session.id.clone(),
+                    }
+                });
+                self.close_archive_manager();
+                command.into_iter().collect()
+            }
+            _ => Vec::new(),
+        }
     }
 
     fn available_actions_for(session: &SessionInfo) -> &'static [SessionAction] {
@@ -658,6 +745,10 @@ impl SessionsPanel {
         projects: &[ProjectInfo],
         sessions: &[SessionInfo],
     ) {
+        if self.archive_manager_open {
+            render_archive_manager(area, frame, self, projects, sessions);
+            return;
+        }
         if !self.context_menu_open {
             return;
         }
@@ -689,6 +780,7 @@ pub fn render_sessions(
     };
 
     let rows = session_list_rows(projects, sessions);
+    let stats = archive_stats(sessions);
     if rows.is_empty() {
         state.select(None);
     } else if state
@@ -718,13 +810,19 @@ pub fn render_sessions(
         })
         .collect();
 
+    let title = if stats.total == 0 {
+        " Projects / Sessions ".to_string()
+    } else {
+        format!(" Projects / Sessions · [A] Archive {} ", stats.total)
+    };
+
     let list = List::new(items)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("❯ ")
         .block(
             Block::default()
                 .borders(Borders::RIGHT)
-                .title(" Projects / Sessions ")
+                .title(title)
                 .border_style(border_style),
         );
     frame.render_stateful_widget(list, area, state);
@@ -741,7 +839,9 @@ pub fn session_list_rows(
             rows.extend(
                 sessions
                     .iter()
-                    .filter(|session| session.project_id.as_ref() == Some(&project.id))
+                    .filter(|session| {
+                        !session.archived && session.project_id.as_ref() == Some(&project.id)
+                    })
                     .map(|session| SessionListRow::Session(session.id.clone())),
             );
         }
@@ -751,10 +851,11 @@ pub fn session_list_rows(
         sessions
             .iter()
             .filter(|session| {
-                session
-                    .project_id
-                    .as_ref()
-                    .is_none_or(|project_id| !project_exists(projects, project_id))
+                !session.archived
+                    && session
+                        .project_id
+                        .as_ref()
+                        .is_none_or(|project_id| !project_exists(projects, project_id))
             })
             .map(|session| SessionListRow::Session(session.id.clone())),
     );
@@ -768,7 +869,7 @@ fn project_exists(projects: &[ProjectInfo], project_id: &ProjectId) -> bool {
 fn project_row_line(project: &ProjectInfo, sessions: &[SessionInfo]) -> Line<'static> {
     let session_count = sessions
         .iter()
-        .filter(|session| session.project_id.as_ref() == Some(&project.id))
+        .filter(|session| !session.archived && session.project_id.as_ref() == Some(&project.id))
         .count();
     let expanded = if project.expanded { "▾" } else { "▸" };
     let mut spans = vec![
@@ -794,6 +895,77 @@ fn project_row_line(project: &ProjectInfo, sessions: &[SessionInfo]) -> Line<'st
     if let Some(summary) = &project.instruction_summary {
         spans.push(Span::styled(
             format!(" · {}", project_instruction_label(summary)),
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+
+    Line::from(spans)
+}
+
+fn archived_sessions(sessions: &[SessionInfo]) -> Vec<&SessionInfo> {
+    sessions.iter().filter(|session| session.archived).collect()
+}
+
+fn archive_stats(sessions: &[SessionInfo]) -> ArchiveStats {
+    let mut project_ids: Vec<ProjectId> = Vec::new();
+    let mut total = 0;
+    for session in sessions.iter().filter(|session| session.archived) {
+        total += 1;
+        if let Some(project_id) = &session.project_id {
+            if !project_ids.iter().any(|existing| existing == project_id) {
+                project_ids.push(project_id.clone());
+            }
+        }
+    }
+    ArchiveStats {
+        total,
+        projects: project_ids.len(),
+    }
+}
+
+fn archive_project_label(projects: &[ProjectInfo], session: &SessionInfo) -> Option<String> {
+    let project_id = session.project_id.as_ref()?;
+    Some(
+        projects
+            .iter()
+            .find(|project| &project.id == project_id)
+            .map(|project| project.display_name.clone())
+            .unwrap_or_else(|| project_id.to_string()),
+    )
+}
+
+fn archived_session_row_line(session: &SessionInfo, projects: &[ProjectInfo]) -> Line<'static> {
+    let mut spans = vec![
+        Span::styled("○ ", Style::default().fg(Color::DarkGray)),
+        Span::raw(session.title.clone()),
+        Span::styled(
+            format!(" [{}]", session.model_profile),
+            Style::default().add_modifier(Modifier::DIM),
+        ),
+    ];
+
+    let mut metadata = Vec::new();
+    if let Some(project) = archive_project_label(projects, session) {
+        metadata.push(project);
+    }
+    if let Some(branch) = session
+        .branch
+        .as_deref()
+        .filter(|branch| !branch.is_empty())
+    {
+        metadata.push(format!("branch {branch}"));
+    }
+    if let Some(path) = session
+        .worktree_path
+        .as_deref()
+        .filter(|path| !path.is_empty())
+        .map(compact_worktree_path)
+    {
+        metadata.push(path);
+    }
+    if !metadata.is_empty() {
+        spans.push(Span::styled(
+            format!(" · {}", metadata.join(" · ")),
             Style::default().fg(Color::DarkGray),
         ));
     }
@@ -954,6 +1126,100 @@ fn action_key(action: SessionAction) -> &'static str {
     }
 }
 
+fn render_archive_manager(
+    area: Rect,
+    frame: &mut Frame,
+    panel: &SessionsPanel,
+    projects: &[ProjectInfo],
+    sessions: &[SessionInfo],
+) {
+    let modal_width = 72.min(area.width.saturating_sub(4));
+    let modal_height = 16.min(area.height.saturating_sub(4));
+    let x = (area.width.saturating_sub(modal_width)) / 2;
+    let y = (area.height.saturating_sub(modal_height)) / 2;
+    let modal_area = Rect::new(x, y, modal_width, modal_height);
+
+    frame.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(Span::styled(
+            " Archive Manager ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ))
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = block.inner(modal_area);
+    frame.render_widget(block, modal_area);
+
+    if inner.height < 3 {
+        return;
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+    let stats = archive_stats(sessions);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Total: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                stats.total.to_string(),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("  Projects: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                stats.projects.to_string(),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+        ])),
+        chunks[0],
+    );
+
+    let archived = archived_sessions(sessions);
+    if archived.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "No archived sessions",
+                Style::default().fg(Color::DarkGray),
+            ))),
+            chunks[1],
+        );
+    } else {
+        let items: Vec<ListItem> = archived
+            .iter()
+            .map(|session| ListItem::new(archived_session_row_line(session, projects)))
+            .collect();
+        let mut state = ListState::default();
+        state.select(Some(panel.archive_cursor.min(archived.len() - 1)));
+        let list = List::new(items)
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("❯ ");
+        frame.render_stateful_widget(list, chunks[1], &mut state);
+    }
+
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
+            Span::styled("[Enter/r] restore  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[d] delete  ", Style::default().fg(Color::Yellow)),
+            Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        ])),
+        chunks[2],
+    );
+}
+
 fn render_session_action_overlay(
     area: Rect,
     frame: &mut Frame,
@@ -1110,6 +1376,11 @@ impl Component for SessionsPanel {
             return (Vec::new(), Vec::new());
         };
 
+        if self.archive_manager_open {
+            let commands = self.handle_archive_manager_key(ctx, key.code);
+            return (Vec::new(), commands);
+        }
+
         if !self.context_menu_open {
             if matches!(key.code, KeyCode::Char('x')) {
                 self.open_action_menu(ctx.projects, ctx.sessions);
@@ -1246,6 +1517,20 @@ mod tests {
     }
 
     #[test]
+    fn filtered_sessions_excludes_archived_sessions() {
+        let panel = SessionsPanel::new();
+        let sessions = vec![
+            make_session("visible", SessionState::Active, false),
+            make_archived_session("archived"),
+        ];
+
+        let filtered = panel.filtered_sessions(&sessions);
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].title, "visible");
+    }
+
+    #[test]
     fn selected_session_id_returns_correct_id() {
         let mut panel = SessionsPanel::new();
         let sessions = vec![
@@ -1318,14 +1603,13 @@ mod tests {
     }
 
     #[test]
-    fn action_overlay_emits_restore_for_archived_session() {
+    fn archive_manager_emits_restore_for_archived_session() {
         let mut panel = SessionsPanel::new();
         let sessions = vec![
             make_session("main", SessionState::Active, false),
             make_archived_session("old"),
         ];
-        panel.state.select(Some(1));
-        panel.context_menu_open = true;
+        panel.open_archive_manager(&sessions);
         let workspace = agent_core::WorkspaceId::new();
         let projection = agent_core::projection::SessionProjection::default();
         let current = Some(sessions[0].id.clone());
@@ -1339,14 +1623,14 @@ mod tests {
             commands.as_slice(),
             [Command::RestoreSession { session_id }] if session_id == &sessions[1].id
         ));
-        assert!(!panel.context_menu_open);
+        assert!(!panel.archive_manager_open);
     }
 
     #[test]
-    fn action_overlay_emits_delete_for_archived_session() {
+    fn archive_manager_emits_delete_for_archived_session() {
         let mut panel = SessionsPanel::new();
         let sessions = vec![make_archived_session("old")];
-        panel.context_menu_open = true;
+        panel.open_archive_manager(&sessions);
         let workspace = agent_core::WorkspaceId::new();
         let projection = agent_core::projection::SessionProjection::default();
         let current = None;
@@ -1360,7 +1644,7 @@ mod tests {
             commands.as_slice(),
             [Command::DeleteSession { session_id }] if session_id == &sessions[0].id
         ));
-        assert!(!panel.context_menu_open);
+        assert!(!panel.archive_manager_open);
     }
 
     #[test]
@@ -1434,6 +1718,116 @@ mod tests {
         assert!(text.contains("Worktree session"));
         assert!(text.contains("feat/tui"));
         assert!(text.contains("worktrees/feat-tui"));
+    }
+
+    #[test]
+    fn session_list_rows_excludes_archived_sessions_from_primary_list() {
+        let active = make_session("active", SessionState::Idle, false);
+        let archived = make_archived_session("archived");
+        let rows = session_list_rows(&[], &[active.clone(), archived]);
+
+        assert_eq!(rows, vec![SessionListRow::Session(active.id)]);
+    }
+
+    #[test]
+    fn archive_stats_count_archived_sessions_and_projects() {
+        let project = make_project("alpha");
+        let mut project_archived =
+            make_project_session("archived project", project.id.clone(), Some("main"), None);
+        project_archived.archived = true;
+        let sessions = vec![
+            make_session("active", SessionState::Idle, false),
+            project_archived,
+            make_archived_session("loose archived"),
+        ];
+
+        let stats = archive_stats(&sessions);
+
+        assert_eq!(stats.total, 2);
+        assert_eq!(stats.projects, 1);
+    }
+
+    #[test]
+    fn render_archive_manager_shows_stats_and_archived_rows() {
+        let project = make_project("alpha");
+        let mut project_archived =
+            make_project_session("archived project", project.id.clone(), Some("main"), None);
+        project_archived.archived = true;
+        let sessions = vec![project_archived, make_archived_session("loose archived")];
+        let mut panel = SessionsPanel::new();
+        panel.open_archive_manager(&sessions);
+
+        let backend = ratatui::backend::TestBackend::new(80, 20);
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal");
+        terminal
+            .draw(|frame| {
+                panel.render_action_overlay(
+                    frame.area(),
+                    frame,
+                    std::slice::from_ref(&project),
+                    &sessions,
+                );
+            })
+            .expect("draw");
+
+        let buffer = terminal.backend().buffer();
+        let text: String = buffer
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<Vec<_>>()
+            .join("");
+
+        assert!(text.contains("Archive Manager"));
+        assert!(text.contains("Total: 2"));
+        assert!(text.contains("Projects: 1"));
+        assert!(text.contains("archived project"));
+        assert!(text.contains("alpha"));
+        assert!(text.contains("[Enter/r] restore"));
+    }
+
+    #[test]
+    fn archive_manager_restore_shortcut_emits_restore_for_selected_archived_session() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![
+            make_archived_session("first"),
+            make_archived_session("second"),
+        ];
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+
+        assert!(panel.open_archive_manager(&sessions));
+        panel.archive_cursor = 1;
+        let (_, commands) = panel.handle_event(
+            &ctx(&[], &sessions, &None, &workspace, &projection),
+            &key(KeyCode::Char('r')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::RestoreSession { session_id }] if session_id == &sessions[1].id
+        ));
+        assert!(!panel.archive_manager_open);
+    }
+
+    #[test]
+    fn archive_manager_delete_shortcut_emits_delete_for_selected_archived_session() {
+        let mut panel = SessionsPanel::new();
+        let sessions = vec![make_archived_session("archived")];
+        let workspace = agent_core::WorkspaceId::new();
+        let projection = agent_core::projection::SessionProjection::default();
+
+        assert!(panel.open_archive_manager(&sessions));
+        let (_, commands) = panel.handle_event(
+            &ctx(&[], &sessions, &None, &workspace, &projection),
+            &key(KeyCode::Char('d')),
+        );
+
+        assert!(matches!(
+            commands.as_slice(),
+            [Command::DeleteSession { session_id }] if session_id == &sessions[0].id
+        ));
+        assert!(!panel.archive_manager_open);
     }
 
     #[test]

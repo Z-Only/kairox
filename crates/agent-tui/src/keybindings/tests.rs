@@ -255,6 +255,28 @@ fn l4_f2_rename_in_sessions_focus() {
     );
 }
 
+#[test]
+fn sessions_focus_a_opens_archive_manager() {
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('a')),
+            FocusTarget::Sessions,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::OpenArchiveManager
+    );
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('A')),
+            FocusTarget::Sessions,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::OpenArchiveManager
+    );
+}
+
 // -- L4 F1 → Help (global among L4) -----------------------------------
 
 #[test]
