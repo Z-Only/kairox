@@ -75,6 +75,7 @@ impl SkillTab {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SkillOverlayMode {
     List,
+    CatalogDetail,
     CatalogFilter,
     SourceEditor,
 }
@@ -623,6 +624,33 @@ impl SkillsOverlay {
         Vec::new()
     }
 
+    fn install_selected_catalog_command(&self) -> Option<Command> {
+        self.selected_catalog_entry()
+            .map(|entry| Command::InstallRemoteSkill {
+                request: InstallRemoteSkillRequest {
+                    package: entry.package.clone(),
+                    source: entry.source.clone(),
+                    target: self.install_target,
+                    package_url: entry.package_url.clone(),
+                },
+            })
+    }
+
+    fn handle_catalog_detail_key(&mut self, key: KeyCode) -> Vec<Command> {
+        match key {
+            KeyCode::Esc => self.mode = SkillOverlayMode::List,
+            KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
+                return self
+                    .install_selected_catalog_command()
+                    .into_iter()
+                    .collect();
+            }
+            KeyCode::Char('t') | KeyCode::Char('T') => self.toggle_install_target(),
+            _ => {}
+        }
+        Vec::new()
+    }
+
     fn command_for_current_tab(&mut self, key: KeyCode) -> Option<Command> {
         match (self.tab, key) {
             (SkillTab::Installed, KeyCode::Char('e') | KeyCode::Char('E')) => self
@@ -645,16 +673,9 @@ impl SkillsOverlay {
                         skill_id: skill.id.clone(),
                     })
             }
-            (SkillTab::Catalog, KeyCode::Char('i') | KeyCode::Char('I')) => self
-                .selected_catalog_entry()
-                .map(|entry| Command::InstallRemoteSkill {
-                    request: InstallRemoteSkillRequest {
-                        package: entry.package.clone(),
-                        source: entry.source.clone(),
-                        target: self.install_target,
-                        package_url: entry.package_url.clone(),
-                    },
-                }),
+            (SkillTab::Catalog, KeyCode::Char('i') | KeyCode::Char('I')) => {
+                self.install_selected_catalog_command()
+            }
             (SkillTab::Catalog, KeyCode::Char('t') | KeyCode::Char('T')) => {
                 self.toggle_install_target();
                 None
@@ -692,10 +713,10 @@ pub fn render_skills_overlay(
 
     frame.render_widget(Clear, modal_area);
 
-    let title = if overlay.body.is_some() {
-        " 🧠 Skill detail "
-    } else {
-        " 🧠 Skills Manager "
+    let title = match (overlay.body.is_some(), overlay.mode) {
+        (true, _) => " 🧠 Skill detail ",
+        (false, SkillOverlayMode::CatalogDetail) => " 🧠 Skill catalog detail ",
+        (false, _) => " 🧠 Skills Manager ",
     };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -770,13 +791,21 @@ pub fn render_skills_overlay(
         SkillTab::Installed => {
             render_installed(chunks[1], frame, &overlay.installed, installed_state)
         }
-        SkillTab::Catalog => render_catalog(
-            chunks[1],
-            frame,
-            &overlay.catalog,
-            catalog_state,
-            overlay.install_target,
-        ),
+        SkillTab::Catalog if overlay.mode == SkillOverlayMode::CatalogDetail => {
+            let selected = catalog_state
+                .selected()
+                .and_then(|index| overlay.catalog.get(index));
+            render_catalog_detail(chunks[1], frame, selected, overlay.install_target);
+        }
+        SkillTab::Catalog => {
+            render_catalog(
+                chunks[1],
+                frame,
+                &overlay.catalog,
+                catalog_state,
+                overlay.install_target,
+            );
+        }
         SkillTab::Sources => render_sources(chunks[1], frame, &overlay.sources, sources_state),
     }
     render_hints(chunks[2], frame, overlay);
@@ -997,6 +1026,96 @@ fn render_catalog(
     frame.render_stateful_widget(list, area, state);
 }
 
+fn render_catalog_detail(
+    area: Rect,
+    frame: &mut Frame,
+    entry: Option<&SkillCatalogEntry>,
+    install_target: SkillInstallTarget,
+) {
+    let Some(entry) = entry else {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "No catalog skill selected",
+                Style::default().fg(Color::DarkGray),
+            ))),
+            area,
+        );
+        return;
+    };
+
+    let source_url = if entry.source_url.trim().is_empty() {
+        "unknown"
+    } else {
+        entry.source_url.as_str()
+    };
+    let package_url = entry.package_url.as_deref().unwrap_or("unknown");
+    let installs = entry
+        .install_count
+        .map(|count| count.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let stars = entry
+        .github_stars
+        .map(|count| count.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let security = entry
+        .security_score
+        .map(|score| score.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let rating = entry
+        .rating
+        .map(|rating| format!("{rating:.1}"))
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let lines = vec![
+        Line::from(vec![Span::styled(
+            entry.name.clone(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(entry.description.clone()),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Catalog: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.source.clone()),
+        ]),
+        Line::from(vec![
+            Span::styled("Source: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(source_url.to_string()),
+        ]),
+        Line::from(vec![
+            Span::styled("Package: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(entry.package.clone()),
+        ]),
+        Line::from(vec![
+            Span::styled("Download: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(package_url.to_string()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Installs: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(installs),
+            Span::styled("  Stars: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(stars),
+            Span::styled("  Security: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(security),
+            Span::styled("  Rating: ", Style::default().fg(Color::DarkGray)),
+            Span::raw(rating),
+        ]),
+        Line::from(vec![
+            Span::styled("Target: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                target_label(install_target),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]),
+    ];
+
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+}
+
 fn render_sources(
     area: Rect,
     frame: &mut Frame,
@@ -1056,11 +1175,15 @@ fn render_sources(
 fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
     let action = if overlay.mode == SkillOverlayMode::CatalogFilter {
         "[Enter] search  [Esc] close search  [Backspace] edit  "
+    } else if overlay.mode == SkillOverlayMode::CatalogDetail {
+        "[Enter/i] install  [t] target  [Esc] back  "
     } else {
         match overlay.tab {
             SkillTab::Discovered => "[Enter] body  [a] activate  [d] deactivate  ",
             SkillTab::Installed => "[e] enable  [u] update  [x] delete  ",
-            SkillTab::Catalog => "[i] install  [/] search  [s] source  [t] target  ",
+            SkillTab::Catalog => {
+                "[Enter] detail  [i] install  [/] search  [s] source  [t] target  "
+            }
             SkillTab::Sources => "[n] new  [e] enable source  [x] remove  ",
         }
     };
@@ -1202,6 +1325,10 @@ impl Component for SkillsOverlay {
                 commands.extend(self.handle_source_editor_key(key.code, key.modifiers));
                 return (effects, commands);
             }
+            SkillOverlayMode::CatalogDetail => {
+                commands.extend(self.handle_catalog_detail_key(key.code));
+                return (effects, commands);
+            }
             SkillOverlayMode::CatalogFilter => {
                 commands.extend(self.handle_catalog_filter_key(key.code, key.modifiers));
                 return (effects, commands);
@@ -1238,16 +1365,21 @@ impl Component for SkillsOverlay {
             KeyCode::Char('n') | KeyCode::Char('N') if self.tab == SkillTab::Sources => {
                 self.start_source_create();
             }
-            KeyCode::Enter => {
-                if let Some(entry) = self
-                    .selected_discovered()
-                    .filter(|_| self.tab == SkillTab::Discovered)
-                {
-                    commands.push(Command::ShowSkill {
-                        skill_id: entry.id.clone(),
-                    });
+            KeyCode::Enter => match self.tab {
+                SkillTab::Discovered => {
+                    if let Some(entry) = self.selected_discovered() {
+                        commands.push(Command::ShowSkill {
+                            skill_id: entry.id.clone(),
+                        });
+                    }
                 }
-            }
+                SkillTab::Catalog => {
+                    if self.selected_catalog_entry().is_some() {
+                        self.mode = SkillOverlayMode::CatalogDetail;
+                    }
+                }
+                SkillTab::Installed | SkillTab::Sources => {}
+            },
             KeyCode::Char('a') | KeyCode::Char('A') => {
                 if let (Some(entry), Some(session_id)) =
                     (self.selected_discovered(), ctx.current_session_id.as_ref())
@@ -1413,6 +1545,23 @@ mod tests {
         for ch in text.chars() {
             let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char(ch)));
         }
+    }
+
+    fn render_overlay_text(overlay: &SkillsOverlay) -> String {
+        let backend = ratatui::backend::TestBackend::new(140, 32);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| overlay.render(f.area(), f))
+            .expect("render");
+        let buf = terminal.backend().buffer().clone();
+        let mut rendered = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                rendered.push_str(buf[(x, y)].symbol());
+            }
+            rendered.push('\n');
+        }
+        rendered
     }
 
     fn test_ctx_session(
@@ -1693,6 +1842,87 @@ mod tests {
             &project_install_commands[..],
             [Command::InstallRemoteSkill { request }]
                 if request.package == "review" && request.target == SkillInstallTarget::Project
+        ));
+    }
+
+    #[test]
+    fn catalog_enter_opens_detail_and_esc_returns_to_list() {
+        let mut overlay = SkillsOverlay::new();
+        overlay.show(SkillOverlaySnapshot {
+            discovered: vec![],
+            installed: vec![],
+            catalog: vec![catalog_entry("review")],
+            sources: vec![],
+            install_target: SkillInstallTarget::User,
+        });
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let (effects, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(effects.is_empty());
+        assert!(commands.is_empty());
+        let rendered = render_overlay_text(&overlay);
+        assert!(
+            rendered.contains("Source: https://example.test/review"),
+            "source URL missing from detail: {rendered}"
+        );
+        assert!(
+            rendered.contains("Package: review"),
+            "package missing from detail: {rendered}"
+        );
+        assert!(
+            rendered.contains("Download: https://example.test/review.zip"),
+            "download URL missing from detail: {rendered}"
+        );
+        assert!(
+            rendered.contains("Installs: 42"),
+            "install stats missing from detail: {rendered}"
+        );
+        assert!(
+            rendered.contains("Target: user"),
+            "target confirmation missing from detail: {rendered}"
+        );
+
+        let (effects, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Esc));
+        assert!(effects.is_empty());
+        assert!(commands.is_empty());
+        assert!(overlay.is_visible());
+        let rendered = render_overlay_text(&overlay);
+        assert!(
+            rendered.contains("review catalog skill"),
+            "Esc should return to catalog list: {rendered}"
+        );
+    }
+
+    #[test]
+    fn catalog_detail_installs_selected_entry_to_current_target() {
+        let mut overlay = SkillsOverlay::new();
+        overlay.show(SkillOverlaySnapshot {
+            discovered: vec![],
+            installed: vec![],
+            catalog: vec![catalog_entry("review")],
+            sources: vec![],
+            install_target: SkillInstallTarget::User,
+        });
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('t')));
+        let rendered = render_overlay_text(&overlay);
+        assert!(
+            rendered.contains("Target: project"),
+            "target toggle should update detail confirmation: {rendered}"
+        );
+
+        let (_, install_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('i')));
+        assert!(matches!(
+            &install_commands[..],
+            [Command::InstallRemoteSkill { request }]
+                if request.package == "review"
+                    && request.source == "skillhub"
+                    && request.target == SkillInstallTarget::Project
+                    && request.package_url.as_deref() == Some("https://example.test/review.zip")
         ));
     }
 
