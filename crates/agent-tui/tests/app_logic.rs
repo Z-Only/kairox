@@ -227,6 +227,34 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
         Ok(())
     }
 
+    async fn upsert_profile_settings(
+        &self,
+        input: agent_core::facade::ProfileSettingsInput,
+    ) -> agent_core::Result<agent_core::facade::ProfileSettingsView> {
+        self.record(format!(
+            "upsert_profile_settings:{}:{}:{}",
+            input.alias, input.provider, input.model_id
+        ));
+        Ok(agent_core::facade::ProfileSettingsView {
+            alias: input.alias,
+            provider: input.provider,
+            model_id: input.model_id,
+            enabled: input.enabled,
+            context_window: input.context_window,
+            output_limit: input.output_limit,
+            temperature: input.temperature,
+            top_p: input.top_p,
+            top_k: input.top_k,
+            max_tokens: input.max_tokens,
+            base_url: input.base_url,
+            api_key_env: input.api_key_env,
+            has_api_key: true,
+            writable: true,
+            config_path: Some("/tmp/kairox/profiles.toml".into()),
+            source: "profiles_toml".into(),
+        })
+    }
+
     async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {
         self.record(format!("delete_profile_settings:{alias}"));
         Ok(())
@@ -1900,6 +1928,22 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
         &runtime,
         &mut app,
         vec![
+            Command::SaveProfileSettings {
+                input: agent_core::facade::ProfileSettingsInput {
+                    alias: "local".into(),
+                    provider: "fake".into(),
+                    model_id: "local-model".into(),
+                    enabled: true,
+                    context_window: Some(128000),
+                    output_limit: Some(8192),
+                    temperature: Some(0.2),
+                    top_p: Some(0.9),
+                    top_k: Some(40),
+                    max_tokens: Some(4096),
+                    base_url: Some("http://localhost:11434/v1".into()),
+                    api_key_env: Some("LOCAL_LLM_API_KEY".into()),
+                },
+            },
             Command::SetProfileEnabled {
                 alias: "fast".into(),
                 enabled: false,
@@ -1920,6 +1964,7 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
 
     let calls = runtime.calls();
     for expected in [
+        "upsert_profile_settings:local:fake:local-model",
         "set_profile_enabled:fast:false",
         "move_profile_in_order:fast:1",
         "list_profile_settings:None",

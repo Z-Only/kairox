@@ -165,11 +165,19 @@ impl From<Vec<SkillEntry>> for SkillOverlaySnapshot {
 }
 
 /// Snapshot row used to populate the model profile selector overlay.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModelProfileEntry {
     pub alias: String,
     pub provider_display: String,
     pub model_display: String,
+    pub context_window: Option<u64>,
+    pub output_limit: Option<u64>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub top_k: Option<u32>,
+    pub max_tokens: Option<u64>,
+    pub base_url: Option<String>,
+    pub api_key_env: Option<String>,
     pub supports_reasoning: bool,
     pub enabled: bool,
     pub writable: bool,
@@ -179,7 +187,7 @@ pub struct ModelProfileEntry {
 
 /// Snapshot payload for opening the model overlay. `current_alias`/`current_effort`
 /// reflect the active session at snapshot time so the overlay can highlight them.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModelOverlaySnapshot {
     pub profiles: Vec<ModelProfileEntry>,
     pub current_alias: Option<String>,
@@ -360,7 +368,7 @@ pub enum CrossPanelEffect {
     DismissInstructionsOverlay,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum Command {
     SendMessage {
@@ -583,6 +591,10 @@ pub enum Command {
     SetProfileEnabled {
         alias: String,
         enabled: bool,
+    },
+    /// Save one writable model profile setting.
+    SaveProfileSettings {
+        input: agent_core::facade::ProfileSettingsInput,
     },
     /// Delete one writable model profile setting.
     DeleteProfileSettings {

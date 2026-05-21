@@ -668,6 +668,17 @@ pub async fn dispatch_commands<F>(
                     }
                 }
             }
+            Command::SaveProfileSettings { input } => {
+                let alias = input.alias.clone();
+                match AppFacade::upsert_profile_settings(runtime.as_ref(), input).await {
+                    Ok(_) => {
+                        push_status_message(app, format!("saved model profile {alias}"));
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[model profile save error: {error}]"));
+                    }
+                }
+            }
             Command::DeleteProfileSettings { alias } => {
                 match AppFacade::delete_profile_settings(runtime.as_ref(), alias.clone()).await {
                     Ok(()) => {
