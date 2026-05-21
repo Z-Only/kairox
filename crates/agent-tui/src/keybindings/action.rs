@@ -23,13 +23,14 @@ pub enum KeyAction {
 
     // -- L3 Ctrl -----------------------------------------------------------
     InterruptOrQuit,
-    Redraw,
     /// Ctrl+M — open/close the MCP server overlay.
     ToggleMcpOverlay,
     /// Ctrl+P — open/close the command palette.
     ToggleCommandPalette,
     /// Ctrl+S — open/close the native skills overlay.
     ToggleSkillsOverlay,
+    /// Ctrl+L — open/close the model profile selector overlay.
+    ToggleModelOverlay,
 
     // -- L4 Function -------------------------------------------------------
     Help,

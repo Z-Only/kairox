@@ -61,6 +61,7 @@ impl FocusManager {
                 | FocusTarget::McpOverlay
                 | FocusTarget::CommandPalette
                 | FocusTarget::SkillsOverlay
+                | FocusTarget::ModelOverlay
         ) {
             return; // don't cycle while a modal is focused
         }
@@ -72,7 +73,8 @@ impl FocusManager {
             FocusTarget::PermissionModal
             | FocusTarget::McpOverlay
             | FocusTarget::CommandPalette
-            | FocusTarget::SkillsOverlay => unreachable!(),
+            | FocusTarget::SkillsOverlay
+            | FocusTarget::ModelOverlay => unreachable!(),
         };
 
         let last = self
@@ -273,6 +275,10 @@ pub struct AppState {
 
     // Model / permissions
     pub model_profile: String,
+    /// Latest reasoning effort for the active session, mirrored from
+    /// `EventPayload::ModelProfileSwitched.reasoning_effort`. `None` until the
+    /// first switch event lands, or for non-reasoning profiles.
+    pub reasoning_effort: Option<String>,
     pub permission_mode: PermissionMode,
 
     // Input
@@ -301,6 +307,7 @@ impl AppState {
             current_session: SessionProjection::default(),
             sessions: Vec::new(),
             model_profile: model_profile.into(),
+            reasoning_effort: None,
             permission_mode,
             input_mode: InputMode::SingleLine,
             input_state: InputState::Normal,
