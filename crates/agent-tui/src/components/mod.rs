@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod command_palette;
 pub mod mcp_overlay;
 pub mod permission_modal;
 pub mod sessions;
@@ -44,6 +45,7 @@ pub enum FocusTarget {
     Trace,
     PermissionModal,
     McpOverlay,
+    CommandPalette,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -136,6 +138,14 @@ pub enum CrossPanelEffect {
     StopStreaming,
     ShowMcpOverlay(Vec<McpServerEntry>),
     DismissMcpOverlay,
+    /// Open the command palette overlay.
+    ShowCommandPalette,
+    /// Close the command palette overlay.
+    DismissCommandPalette,
+    /// Insert the given text at the start of the chat input and place the
+    /// cursor at the end. Used by the command palette to hand back a slash
+    /// prefix that needs an argument.
+    PrefillChatInput(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

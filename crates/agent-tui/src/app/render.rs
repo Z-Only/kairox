@@ -135,6 +135,10 @@ impl App {
             self.mcp_overlay.render(area, frame);
         }
 
+        if self.command_palette.is_visible() {
+            self.command_palette.render(area, frame);
+        }
+
         self.state.render_scheduler.did_render();
     }
 
