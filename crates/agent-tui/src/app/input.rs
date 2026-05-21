@@ -274,7 +274,65 @@ impl App {
                 }
             }
             KeyAction::ToggleTraceDensity => {
-                self.trace.density = self.trace.density.next();
+                self.trace.cycle_density();
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CycleTraceTabNext => {
+                self.trace.cycle_tab_next();
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(Command::LoadMemories {
+                        scope: None,
+                        keywords: Vec::new(),
+                        limit: 100,
+                    });
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CycleTraceTabPrevious => {
+                self.trace.cycle_tab_previous();
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(Command::LoadMemories {
+                        scope: None,
+                        keywords: Vec::new(),
+                        limit: 100,
+                    });
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::RetrySelectedTask => {
+                if let Some(session_id) = &self.current_session_id {
+                    if let Some(task_id) = self
+                        .trace
+                        .selected_retry_task_id(&self.state.current_session.task_graph)
+                    {
+                        commands.push(Command::RetryTask {
+                            workspace_id: self.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            task_id,
+                        });
+                    }
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CancelSelectedTask => {
+                if let Some(session_id) = &self.current_session_id {
+                    if let Some(task_id) = self
+                        .trace
+                        .selected_cancel_task_id(&self.state.current_session.task_graph)
+                    {
+                        commands.push(Command::CancelTask {
+                            workspace_id: self.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            task_id,
+                        });
+                    }
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::DeleteSelectedMemory => {
+                if let Some(memory_id) = self.trace.selected_memory_id() {
+                    commands.push(Command::DeleteMemory { memory_id });
+                }
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::CyclePermissionMode => {
@@ -324,12 +382,30 @@ impl App {
             KeyAction::ScrollUp => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
                     self.sessions.scroll_up(self.state.sessions.len());
+                } else if self.state.focus_manager.current() == FocusTarget::Trace {
+                    self.trace.select_previous();
                 }
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::ScrollDown => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
                     self.sessions.scroll_down(self.state.sessions.len());
+                } else if self.state.focus_manager.current() == FocusTarget::Trace {
+                    let row_count = match self.trace.active_tab {
+                        crate::components::trace::RightPanelTab::Tasks => {
+                            crate::components::trace::flatten_task_tree(
+                                &crate::components::trace::build_task_tree_from_snapshot(
+                                    &self.state.current_session.task_graph,
+                                ),
+                            )
+                            .len()
+                        }
+                        crate::components::trace::RightPanelTab::Memory => {
+                            self.trace.memory_rows.len()
+                        }
+                        _ => 0,
+                    };
+                    self.trace.select_next(row_count);
                 }
                 self.state.render_scheduler.mark_dirty();
             }
@@ -373,5 +449,145 @@ impl App {
             current_session_id: &self.current_session_id,
         };
         self.chat.apply_key_action(action, &ctx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::trace::{MemoryRow, RightPanelTab};
+    use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
+    use agent_core::{AgentRole, TaskId, TaskState, WorkspaceId};
+    use agent_tools::PermissionMode;
+
+    fn task_snapshot(
+        id: TaskId,
+        title: &str,
+        role: AgentRole,
+        state: TaskState,
+        dependencies: Vec<TaskId>,
+        retry_count: usize,
+        max_retries: usize,
+    ) -> TaskSnapshot {
+        TaskSnapshot {
+            id,
+            title: title.into(),
+            role,
+            state,
+            dependencies,
+            error: None,
+            retry_count,
+            max_retries,
+            assigned_agent_id: None,
+            failure_reason: None,
+        }
+    }
+
+    #[test]
+    fn tasks_tab_emits_retry_command_for_selected_failed_task() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = agent_core::SessionId::from_string("ses_test".into());
+        let task_id = TaskId::from_string("task_failed".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![task_snapshot(
+                task_id.clone(),
+                "Fix failure",
+                AgentRole::Worker,
+                TaskState::Failed,
+                vec![],
+                1,
+                3,
+            )],
+        };
+
+        let commands = app.apply_action(KeyAction::RetrySelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::RetryTask {
+                workspace_id,
+                session_id,
+                task_id,
+            }]
+        );
+    }
+
+    #[test]
+    fn tasks_tab_emits_cancel_command_for_selected_blocked_task() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = agent_core::SessionId::from_string("ses_test".into());
+        let task_id = TaskId::from_string("task_blocked".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![task_snapshot(
+                task_id.clone(),
+                "Blocked task",
+                AgentRole::Reviewer,
+                TaskState::Blocked,
+                vec![],
+                0,
+                3,
+            )],
+        };
+
+        let commands = app.apply_action(KeyAction::CancelSelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::CancelTask {
+                workspace_id,
+                session_id,
+                task_id,
+            }]
+        );
+    }
+
+    #[test]
+    fn cycling_to_memory_tab_requests_memory_load() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Tasks;
+
+        let commands = app.apply_action(KeyAction::CycleTraceTabNext);
+
+        assert_eq!(app.trace.active_tab, RightPanelTab::Memory);
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: None,
+                keywords: Vec::new(),
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_tab_emits_delete_command_for_selected_memory() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.set_memory_rows(vec![MemoryRow::new(
+            "mem_user".into(),
+            "user".into(),
+            Some("preferred-command".into()),
+            "Use cargo test".into(),
+        )]);
+        app.trace.selected_memory_index = 0;
+
+        let commands = app.apply_action(KeyAction::DeleteSelectedMemory);
+
+        assert_eq!(
+            commands,
+            vec![Command::DeleteMemory {
+                memory_id: "mem_user".into(),
+            }]
+        );
     }
 }

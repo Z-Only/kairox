@@ -95,9 +95,14 @@ impl App {
         }
 
         if let Some(trace_area) = trace_area {
-            match self.trace.density {
-                crate::keybindings::TraceDensity::TaskGraph => {
-                    let tasks = crate::components::trace::extract_task_traces(&self.domain_events);
+            match self.trace.active_tab {
+                crate::components::trace::RightPanelTab::Tasks => {
+                    let mut tasks = crate::components::trace::build_task_tree_from_snapshot(
+                        &self.state.current_session.task_graph,
+                    );
+                    if tasks.is_empty() {
+                        tasks = crate::components::trace::extract_task_traces(&self.domain_events);
+                    }
                     if tasks.is_empty() {
                         crate::components::trace::render_task_graph_placeholder(
                             trace_area,
@@ -110,10 +115,20 @@ impl App {
                             frame,
                             &tasks,
                             self.trace.focused(),
+                            self.trace.selected_task_index,
                         );
                     }
                 }
-                _ => {
+                crate::components::trace::RightPanelTab::Memory => {
+                    crate::components::trace::render_memory_browser(
+                        trace_area,
+                        frame,
+                        &self.trace.memory_rows,
+                        self.trace.focused(),
+                        self.trace.selected_memory_index,
+                    );
+                }
+                crate::components::trace::RightPanelTab::Trace => {
                     let traces = crate::components::trace::extract_tool_traces(&self.domain_events);
                     crate::components::trace::render_trace_l1(
                         trace_area,

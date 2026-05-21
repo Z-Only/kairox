@@ -36,6 +36,11 @@ pub enum KeyAction {
     Help,
     RenameSession,
     ToggleTraceDensity,
+    CycleTraceTabNext,
+    CycleTraceTabPrevious,
+    RetrySelectedTask,
+    CancelSelectedTask,
+    DeleteSelectedMemory,
 
     // -- Status bar shortcuts ---------------------------------------------
     /// Cycle through permission modes (Shift+P).

@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use agent_config::Config;
 use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
-use agent_memory::SqliteMemoryStore;
+use agent_memory::{MemoryQuery, SqliteMemoryStore};
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
@@ -27,6 +27,7 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 
 use app::App;
+use components::trace::MemoryRow;
 use components::{
     Command, CrossPanelEffect, McpServerEntry, McpServerStatusView, ModelOverlaySnapshot,
     ModelProfileEntry, SessionInfo, SessionState,
@@ -228,6 +229,98 @@ async fn dispatch_commands(
                     );
                     app.state.render_scheduler.mark_dirty();
                 }
+            }
+
+            Command::RetryTask {
+                workspace_id,
+                session_id,
+                task_id,
+            } => {
+                if let Err(e) = runtime.retry_task(workspace_id, session_id, task_id).await {
+                    app.state.current_session.messages.push(
+                        agent_core::projection::ProjectedMessage {
+                            role: agent_core::projection::ProjectedRole::Assistant,
+                            content: format!("[task retry error: {e}]"),
+                        },
+                    );
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::CancelTask {
+                workspace_id,
+                session_id,
+                task_id,
+            } => {
+                if let Err(e) = runtime.cancel_task(workspace_id, session_id, task_id).await {
+                    app.state.current_session.messages.push(
+                        agent_core::projection::ProjectedMessage {
+                            role: agent_core::projection::ProjectedRole::Assistant,
+                            content: format!("[task cancel error: {e}]"),
+                        },
+                    );
+                    app.state.render_scheduler.mark_dirty();
+                }
+            }
+
+            Command::LoadMemories {
+                scope,
+                keywords,
+                limit,
+            } => {
+                match runtime.memory_store() {
+                    Some(memory_store) => {
+                        match memory_store
+                            .query(MemoryQuery {
+                                scope,
+                                keywords,
+                                limit,
+                                session_id: None,
+                                workspace_id: None,
+                            })
+                            .await
+                        {
+                            Ok(entries) => {
+                                app.trace.set_memory_rows(
+                                    entries.into_iter().map(MemoryRow::from).collect(),
+                                );
+                            }
+                            Err(e) => {
+                                app.state.current_session.messages.push(
+                                    agent_core::projection::ProjectedMessage {
+                                        role: agent_core::projection::ProjectedRole::Assistant,
+                                        content: format!("[memory query error: {e}]"),
+                                    },
+                                );
+                            }
+                        }
+                    }
+                    None => {
+                        app.trace.set_memory_rows(Vec::new());
+                    }
+                }
+                app.state.render_scheduler.mark_dirty();
+            }
+
+            Command::DeleteMemory { memory_id } => {
+                match runtime.memory_store() {
+                    Some(memory_store) => {
+                        if let Err(e) = memory_store.delete(&memory_id).await {
+                            app.state.current_session.messages.push(
+                                agent_core::projection::ProjectedMessage {
+                                    role: agent_core::projection::ProjectedRole::Assistant,
+                                    content: format!("[memory delete error: {e}]"),
+                                },
+                            );
+                        } else {
+                            app.trace.remove_memory_row(&memory_id);
+                        }
+                    }
+                    None => {
+                        app.trace.remove_memory_row(&memory_id);
+                    }
+                }
+                app.state.render_scheduler.mark_dirty();
             }
 
             Command::CompactSession {
