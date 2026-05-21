@@ -5,6 +5,18 @@ use crate::components::{
 use crate::keybindings::KeyAction;
 use std::sync::OnceLock;
 
+fn fixture_attachment(name: &str) -> agent_core::AttachmentInfo {
+    agent_core::AttachmentInfo {
+        path: format!("/tmp/{name}"),
+        name: name.to_string(),
+        mime_type: "text/plain".to_string(),
+    }
+}
+
+fn agent_tui_manifest_path() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
+}
+
 /// Shared static [`EventContext`] for tests. We leak the owned data so
 /// that the references inside `EventContext` can be `'static`.
 static TEST_CTX: OnceLock<EventContext<'static>> = OnceLock::new();
@@ -270,7 +282,14 @@ fn send_input_clears_content_and_emits_command() {
     assert_eq!(cmds.len(), 1);
 
     match &cmds[0] {
-        Command::SendMessage { content, .. } => assert_eq!(content, "hi"),
+        Command::SendMessage {
+            content,
+            attachments,
+            ..
+        } => {
+            assert_eq!(content, "hi");
+            assert!(attachments.is_empty());
+        }
         other => panic!("expected SendMessage, got {:?}", other),
     }
 
@@ -283,6 +302,113 @@ fn send_input_clears_content_and_emits_command() {
 
     // History index should be reset
     assert_eq!(panel.input_history_index, None);
+}
+
+#[test]
+fn attach_command_adds_pending_attachment() {
+    let manifest = agent_tui_manifest_path();
+    let canonical = manifest.canonicalize().unwrap();
+    let mut panel = ChatPanel::new();
+
+    for ch in format!(":attach {}", manifest.display()).chars() {
+        panel.apply_key_action(KeyAction::InputCharacter(ch), test_ctx_with_session());
+    }
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert!(effects.is_empty());
+    assert!(cmds.is_empty());
+    assert_eq!(panel.pending_attachments.len(), 1);
+    assert_eq!(
+        panel.pending_attachments[0],
+        agent_core::AttachmentInfo {
+            path: canonical.display().to_string(),
+            name: "Cargo.toml".to_string(),
+            mime_type: "application/toml".to_string(),
+        }
+    );
+    assert!(panel.input_content.is_empty());
+}
+
+#[test]
+fn detach_command_clears_pending_attachments() {
+    let mut panel = ChatPanel::new();
+    panel
+        .pending_attachments
+        .push(fixture_attachment("first.txt"));
+    panel
+        .pending_attachments
+        .push(fixture_attachment("second.txt"));
+
+    for ch in ":detach".chars() {
+        panel.apply_key_action(KeyAction::InputCharacter(ch), test_ctx_with_session());
+    }
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert!(effects.is_empty());
+    assert!(cmds.is_empty());
+    assert!(panel.pending_attachments.is_empty());
+    assert!(panel.input_content.is_empty());
+}
+
+#[test]
+fn send_input_emits_attachment_payloads_and_clears_pending() {
+    let mut panel = ChatPanel::new();
+    panel
+        .pending_attachments
+        .push(fixture_attachment("notes.txt"));
+    for ch in "review this".chars() {
+        panel.apply_key_action(KeyAction::InputCharacter(ch), test_ctx_with_session());
+    }
+
+    let (effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert!(effects.is_empty());
+    assert_eq!(cmds.len(), 1);
+    match &cmds[0] {
+        Command::SendMessage {
+            content,
+            attachments,
+            ..
+        } => {
+            assert_eq!(content, "review this");
+            assert_eq!(attachments, &vec![fixture_attachment("notes.txt")]);
+        }
+        other => panic!("expected SendMessage, got {other:?}"),
+    }
+    assert!(panel.pending_attachments.is_empty());
+}
+
+#[test]
+fn attachment_only_send_emits_message() {
+    let mut panel = ChatPanel::new();
+    panel
+        .pending_attachments
+        .push(fixture_attachment("screenshot.png"));
+
+    let (_effects, cmds) = panel.apply_key_action(KeyAction::SendInput, test_ctx_with_session());
+
+    assert_eq!(cmds.len(), 1);
+    assert!(matches!(
+        &cmds[0],
+        Command::SendMessage {
+            content,
+            attachments,
+            ..
+        } if content.is_empty() && attachments == &vec![fixture_attachment("screenshot.png")]
+    ));
+    assert!(panel.pending_attachments.is_empty());
+}
+
+#[test]
+fn attachment_labels_are_compact() {
+    assert_eq!(
+        format_attachment_labels(&[
+            fixture_attachment("one.txt"),
+            fixture_attachment("two.txt"),
+            fixture_attachment("three.txt"),
+        ]),
+        "[one.txt] [two.txt] [+1]"
+    );
 }
 
 #[test]
@@ -458,6 +584,9 @@ fn render_messages_with_streaming_and_cancelled() {
 #[test]
 fn queues_message_while_session_running() {
     let mut panel = ChatPanel::new();
+    panel
+        .pending_attachments
+        .push(fixture_attachment("queued.txt"));
     panel.apply_key_action(KeyAction::InputCharacter('h'), test_ctx_busy_session());
     panel.apply_key_action(KeyAction::InputCharacter('i'), test_ctx_busy_session());
     assert_eq!(panel.input_content, "hi");
@@ -475,10 +604,15 @@ fn queues_message_while_session_running() {
 
     assert_eq!(panel.message_queue.len(), 1);
     assert_eq!(panel.message_queue[0].content, "hi");
+    assert_eq!(
+        panel.message_queue[0].attachments,
+        vec![fixture_attachment("queued.txt")]
+    );
 
     // input cleared so user can keep typing
     assert_eq!(panel.input_content, "");
     assert_eq!(panel.input_cursor, 0);
+    assert!(panel.pending_attachments.is_empty());
 }
 
 #[test]
@@ -486,15 +620,25 @@ fn queue_drain_returns_all_pending_in_fifo_order() {
     let mut panel = ChatPanel::new();
     panel.message_queue.push(QueuedMessage {
         content: "first".to_string(),
+        attachments: vec![fixture_attachment("first.txt")],
     });
     panel.message_queue.push(QueuedMessage {
         content: "second".to_string(),
+        attachments: vec![fixture_attachment("second.txt")],
     });
 
     let drained = panel.drain_queue();
     assert_eq!(drained.len(), 2);
     assert_eq!(drained[0].content, "first");
+    assert_eq!(
+        drained[0].attachments,
+        vec![fixture_attachment("first.txt")]
+    );
     assert_eq!(drained[1].content, "second");
+    assert_eq!(
+        drained[1].attachments,
+        vec![fixture_attachment("second.txt")]
+    );
     assert!(panel.message_queue.is_empty());
 }
 
