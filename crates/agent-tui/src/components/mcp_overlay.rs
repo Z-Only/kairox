@@ -16,8 +16,8 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragra
 use ratatui::Frame;
 
 use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, McpOverlaySnapshot, McpServerEntry,
-    McpServerStatusView,
+    Command, Component, CrossPanelEffect, EventContext, McpConnectivityEntry, McpOverlaySnapshot,
+    McpPromptEntry, McpResourceEntry, McpServerEntry, McpServerStatusView, McpToolEntry,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +27,9 @@ enum McpOverlayTab {
     Installed,
     Catalog,
     Sources,
+    Tools,
+    Resources,
+    Prompts,
 }
 
 impl McpOverlayTab {
@@ -36,17 +39,23 @@ impl McpOverlayTab {
             Self::Settings => Self::Installed,
             Self::Installed => Self::Catalog,
             Self::Catalog => Self::Sources,
-            Self::Sources => Self::Runtime,
+            Self::Sources => Self::Tools,
+            Self::Tools => Self::Resources,
+            Self::Resources => Self::Prompts,
+            Self::Prompts => Self::Runtime,
         }
     }
 
     fn previous(self) -> Self {
         match self {
-            Self::Runtime => Self::Sources,
+            Self::Runtime => Self::Prompts,
             Self::Settings => Self::Runtime,
             Self::Installed => Self::Settings,
             Self::Catalog => Self::Installed,
             Self::Sources => Self::Catalog,
+            Self::Tools => Self::Sources,
+            Self::Resources => Self::Tools,
+            Self::Prompts => Self::Resources,
         }
     }
 
@@ -57,8 +66,18 @@ impl McpOverlayTab {
             Self::Installed => "Installed",
             Self::Catalog => "Catalog",
             Self::Sources => "Sources",
+            Self::Tools => "Tools",
+            Self::Resources => "Resources",
+            Self::Prompts => "Prompts",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct McpHealthState {
+    healthy: bool,
+    tool_count: usize,
+    error: Option<String>,
 }
 
 pub struct McpOverlay {
@@ -70,11 +89,20 @@ pub struct McpOverlay {
     installed: Vec<InstalledEntry>,
     catalog: Vec<ServerEntry>,
     sources: Vec<CatalogSourceView>,
+    tools: BTreeMap<String, Vec<McpToolEntry>>,
+    resources: BTreeMap<String, Vec<McpResourceEntry>>,
+    prompts: BTreeMap<String, Vec<McpPromptEntry>>,
+    health: BTreeMap<String, McpHealthState>,
+    connectivity: BTreeMap<String, McpConnectivityEntry>,
+    resource_previews: BTreeMap<String, String>,
     runtime_state: ListState,
     settings_state: ListState,
     installed_state: ListState,
     catalog_state: ListState,
     sources_state: ListState,
+    tools_state: ListState,
+    resources_state: ListState,
+    prompts_state: ListState,
 }
 
 struct McpOverlayRenderState<'a> {
@@ -83,6 +111,9 @@ struct McpOverlayRenderState<'a> {
     installed: &'a mut ListState,
     catalog: &'a mut ListState,
     sources: &'a mut ListState,
+    tools: &'a mut ListState,
+    resources: &'a mut ListState,
+    prompts: &'a mut ListState,
 }
 
 impl Default for McpOverlay {
@@ -102,11 +133,20 @@ impl McpOverlay {
             installed: Vec::new(),
             catalog: Vec::new(),
             sources: Vec::new(),
+            tools: BTreeMap::new(),
+            resources: BTreeMap::new(),
+            prompts: BTreeMap::new(),
+            health: BTreeMap::new(),
+            connectivity: BTreeMap::new(),
+            resource_previews: BTreeMap::new(),
             runtime_state: ListState::default(),
             settings_state: ListState::default(),
             installed_state: ListState::default(),
             catalog_state: ListState::default(),
             sources_state: ListState::default(),
+            tools_state: ListState::default(),
+            resources_state: ListState::default(),
+            prompts_state: ListState::default(),
         }
     }
 
@@ -131,11 +171,20 @@ impl McpOverlay {
         self.installed.clear();
         self.catalog.clear();
         self.sources.clear();
+        self.tools.clear();
+        self.resources.clear();
+        self.prompts.clear();
+        self.health.clear();
+        self.connectivity.clear();
+        self.resource_previews.clear();
         self.runtime_state.select(None);
         self.settings_state.select(None);
         self.installed_state.select(None);
         self.catalog_state.select(None);
         self.sources_state.select(None);
+        self.tools_state.select(None);
+        self.resources_state.select(None);
+        self.prompts_state.select(None);
     }
 
     #[allow(dead_code)]
@@ -170,6 +219,9 @@ impl McpOverlay {
             McpOverlayTab::Installed => self.installed.len(),
             McpOverlayTab::Catalog => self.catalog.len(),
             McpOverlayTab::Sources => self.sources.len(),
+            McpOverlayTab::Tools => self.current_tools().len(),
+            McpOverlayTab::Resources => self.current_resources().len(),
+            McpOverlayTab::Prompts => self.current_prompts().len(),
         }
     }
 
@@ -180,6 +232,9 @@ impl McpOverlay {
             McpOverlayTab::Installed => self.installed_state.selected(),
             McpOverlayTab::Catalog => self.catalog_state.selected(),
             McpOverlayTab::Sources => self.sources_state.selected(),
+            McpOverlayTab::Tools => self.tools_state.selected(),
+            McpOverlayTab::Resources => self.resources_state.selected(),
+            McpOverlayTab::Prompts => self.prompts_state.selected(),
         }
     }
 
@@ -190,16 +245,25 @@ impl McpOverlay {
             McpOverlayTab::Installed => self.installed_state.select(selected),
             McpOverlayTab::Catalog => self.catalog_state.select(selected),
             McpOverlayTab::Sources => self.sources_state.select(selected),
+            McpOverlayTab::Tools => self.tools_state.select(selected),
+            McpOverlayTab::Resources => self.resources_state.select(selected),
+            McpOverlayTab::Prompts => self.prompts_state.select(selected),
         }
     }
 
     fn ensure_selection(&mut self) {
+        let tools_len = self.current_tools().len();
+        let resources_len = self.current_resources().len();
+        let prompts_len = self.current_prompts().len();
         for (len, state) in [
             (self.runtime_servers.len(), &mut self.runtime_state),
             (self.settings.len(), &mut self.settings_state),
             (self.installed.len(), &mut self.installed_state),
             (self.catalog.len(), &mut self.catalog_state),
             (self.sources.len(), &mut self.sources_state),
+            (tools_len, &mut self.tools_state),
+            (resources_len, &mut self.resources_state),
+            (prompts_len, &mut self.prompts_state),
         ] {
             let selected = if len == 0 {
                 None
@@ -238,6 +302,44 @@ impl McpOverlay {
         self.sources_state
             .selected()
             .and_then(|index| self.sources.get(index))
+    }
+
+    fn selected_server_id(&self) -> Option<&str> {
+        self.selected_runtime_server()
+            .map(|entry| entry.server_id.as_str())
+    }
+
+    fn current_tools(&self) -> &[McpToolEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.tools.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    fn current_resources(&self) -> &[McpResourceEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.resources.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    fn current_prompts(&self) -> &[McpPromptEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.prompts.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    fn selected_tool(&self) -> Option<&McpToolEntry> {
+        self.tools_state
+            .selected()
+            .and_then(|index| self.current_tools().get(index))
+    }
+
+    fn selected_resource(&self) -> Option<&McpResourceEntry> {
+        self.resources_state
+            .selected()
+            .and_then(|index| self.current_resources().get(index))
     }
 
     fn move_down(&mut self) {
@@ -279,15 +381,60 @@ impl McpOverlay {
                     }
                 })
             }
-            (McpOverlayTab::Runtime, KeyCode::Char('t') | KeyCode::Char('T')) => self
+            (McpOverlayTab::Runtime, KeyCode::Char('t') | KeyCode::Char('T')) => {
+                self.selected_runtime_server().map(|entry| {
+                    let server_id = entry.server_id.clone();
+                    if entry.trusted {
+                        Command::RevokeMcpTrust { server_id }
+                    } else {
+                        Command::TrustMcpServer { server_id }
+                    }
+                })
+            }
+            (McpOverlayTab::Runtime, KeyCode::Char('h') | KeyCode::Char('H')) => self
                 .selected_runtime_server()
-                .map(|entry| Command::TrustMcpServer {
+                .map(|entry| Command::CheckMcpHealth {
+                    server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Runtime, KeyCode::Char('c') | KeyCode::Char('C')) => self
+                .selected_runtime_server()
+                .map(|entry| Command::TestMcpConnectivity {
                     server_id: entry.server_id.clone(),
                 }),
             (McpOverlayTab::Runtime, KeyCode::Char('r') | KeyCode::Char('R')) => self
                 .selected_runtime_server()
                 .map(|entry| Command::RefreshMcpTools {
                     server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Tools, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::CheckMcpHealth {
+                    server_id: server_id.to_string(),
+                }),
+            (McpOverlayTab::Tools, KeyCode::Char('e') | KeyCode::Char('E') | KeyCode::Enter) => {
+                self.selected_tool()
+                    .map(|tool| Command::SetMcpToolDisabled {
+                        server_id: tool.server_id.clone(),
+                        tool_name: tool.name.clone(),
+                        disabled: !tool.disabled,
+                    })
+            }
+            (McpOverlayTab::Resources, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::ListMcpResources {
+                    server_id: server_id.to_string(),
+                }),
+            (McpOverlayTab::Resources, KeyCode::Enter) => {
+                self.selected_resource()
+                    .map(|resource| Command::ReadMcpResource {
+                        server_id: resource.server_id.clone(),
+                        uri: resource.uri.clone(),
+                    })
+            }
+            (McpOverlayTab::Prompts, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::ListMcpPrompts {
+                    server_id: server_id.to_string(),
                 }),
             (McpOverlayTab::Settings, KeyCode::Char('e') | KeyCode::Char('E')) => self
                 .selected_setting()
@@ -379,7 +526,7 @@ fn render_mcp_overlay(
     render_tabs(chunks[0], frame, overlay);
     match overlay.tab {
         McpOverlayTab::Runtime => {
-            render_runtime(chunks[1], frame, &overlay.runtime_servers, state.runtime);
+            render_runtime(chunks[1], frame, overlay, state.runtime);
         }
         McpOverlayTab::Settings => {
             render_settings(chunks[1], frame, &overlay.settings, state.settings);
@@ -393,6 +540,15 @@ fn render_mcp_overlay(
         McpOverlayTab::Sources => {
             render_sources(chunks[1], frame, &overlay.sources, state.sources);
         }
+        McpOverlayTab::Tools => {
+            render_tools(chunks[1], frame, overlay, state.tools);
+        }
+        McpOverlayTab::Resources => {
+            render_resources(chunks[1], frame, overlay, state.resources);
+        }
+        McpOverlayTab::Prompts => {
+            render_prompts(chunks[1], frame, overlay, state.prompts);
+        }
     }
     render_hints(chunks[2], frame, overlay.tab);
 }
@@ -405,6 +561,9 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
         McpOverlayTab::Installed,
         McpOverlayTab::Catalog,
         McpOverlayTab::Sources,
+        McpOverlayTab::Tools,
+        McpOverlayTab::Resources,
+        McpOverlayTab::Prompts,
     ] {
         let style = if tab == overlay.tab {
             Style::default()
@@ -429,12 +588,8 @@ fn render_empty(area: Rect, frame: &mut Frame, label: &'static str) {
     );
 }
 
-fn render_runtime(
-    area: Rect,
-    frame: &mut Frame,
-    servers: &[McpServerEntry],
-    state: &mut ListState,
-) {
+fn render_runtime(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &mut ListState) {
+    let servers = &overlay.runtime_servers;
     if servers.is_empty() {
         render_empty(area, frame, "No MCP runtime servers configured");
         return;
@@ -449,6 +604,42 @@ fn render_runtime(
                 McpServerStatusView::Failed => ("failed  ", Color::Red),
             };
             let trust_label = if s.trusted { " trusted" } else { "" };
+            let health = overlay.health.get(&s.server_id);
+            let health_label = health
+                .map(|state| {
+                    if state.healthy {
+                        format!(" health:ok({})", state.tool_count)
+                    } else if let Some(error) = &state.error {
+                        format!(" health:fail({})", clip(error, 18))
+                    } else {
+                        " health:fail".to_string()
+                    }
+                })
+                .unwrap_or_default();
+            let health_color = match health {
+                Some(state) if state.healthy => Color::Green,
+                Some(_) => Color::Red,
+                None => Color::DarkGray,
+            };
+            let connectivity = overlay.connectivity.get(&s.server_id);
+            let connectivity_label = connectivity
+                .map(|state| {
+                    if state.connected {
+                        let count = state
+                            .tool_count
+                            .map(|tool_count| format!("({tool_count})"))
+                            .unwrap_or_default();
+                        format!(" conn:ok{count}")
+                    } else {
+                        " conn:fail".to_string()
+                    }
+                })
+                .unwrap_or_default();
+            let connectivity_color = match connectivity {
+                Some(state) if state.connected => Color::Green,
+                Some(_) => Color::Red,
+                None => Color::DarkGray,
+            };
             ListItem::new(Line::from(vec![
                 Span::styled(status_label, Style::default().fg(status_color)),
                 Span::raw("  "),
@@ -461,6 +652,8 @@ fn render_runtime(
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::styled(trust_label, Style::default().fg(Color::Magenta)),
+                Span::styled(health_label, Style::default().fg(health_color)),
+                Span::styled(connectivity_label, Style::default().fg(connectivity_color)),
             ]))
         })
         .collect();
@@ -637,6 +830,153 @@ fn render_sources(
     render_list(area, frame, items, state);
 }
 
+fn render_tools(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &mut ListState) {
+    let Some(server_id) = overlay.selected_server_id() else {
+        render_empty(area, frame, "Select a runtime server before browsing tools");
+        return;
+    };
+    let tools = overlay.current_tools();
+    if tools.is_empty() {
+        let label = if overlay.health.contains_key(server_id) {
+            "No MCP tools discovered for selected server"
+        } else {
+            "Press [r] to health-check selected server and load tools"
+        };
+        render_empty(area, frame, label);
+        return;
+    }
+    let items: Vec<ListItem> = tools
+        .iter()
+        .map(|tool| {
+            let state_label = if tool.disabled {
+                "disabled"
+            } else {
+                "enabled "
+            };
+            let state_color = if tool.disabled {
+                Color::DarkGray
+            } else {
+                Color::Green
+            };
+            let description = tool
+                .description
+                .as_ref()
+                .map(|value| format!("  {}", clip(value, 56)))
+                .unwrap_or_default();
+            ListItem::new(Line::from(vec![
+                Span::styled(state_label, Style::default().fg(state_color)),
+                Span::raw("  "),
+                Span::styled(
+                    tool.name.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(description, Style::default().fg(Color::Gray)),
+            ]))
+        })
+        .collect();
+    render_list(area, frame, items, state);
+}
+
+fn render_resources(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &mut ListState) {
+    if overlay.selected_server_id().is_none() {
+        render_empty(
+            area,
+            frame,
+            "Select a runtime server before browsing resources",
+        );
+        return;
+    }
+    let resources = overlay.current_resources();
+    if resources.is_empty() {
+        render_empty(
+            area,
+            frame,
+            "Press [r] to list resources for selected server",
+        );
+        return;
+    }
+    let items: Vec<ListItem> = resources
+        .iter()
+        .map(|resource| {
+            let mime = resource
+                .mime_type
+                .as_ref()
+                .map(|value| format!("  {value}"))
+                .unwrap_or_default();
+            let preview = overlay
+                .resource_previews
+                .get(&resource_preview_key(&resource.server_id, &resource.uri))
+                .map(|value| format!("  {}", clip(value, 56)))
+                .unwrap_or_default();
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    resource.name.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("  {}", clip(&resource.uri, 42)),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(mime, Style::default().fg(Color::DarkGray)),
+                Span::styled(preview, Style::default().fg(Color::Gray)),
+            ]))
+        })
+        .collect();
+    render_list(area, frame, items, state);
+}
+
+fn render_prompts(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &mut ListState) {
+    if overlay.selected_server_id().is_none() {
+        render_empty(
+            area,
+            frame,
+            "Select a runtime server before browsing prompts",
+        );
+        return;
+    }
+    let prompts = overlay.current_prompts();
+    if prompts.is_empty() {
+        render_empty(area, frame, "Press [r] to list prompts for selected server");
+        return;
+    }
+    let items: Vec<ListItem> = prompts
+        .iter()
+        .map(|prompt| {
+            let description = prompt
+                .description
+                .as_ref()
+                .map(|value| format!("  {}", clip(value, 56)))
+                .unwrap_or_default();
+            ListItem::new(Line::from(vec![
+                Span::styled(
+                    prompt.name.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("  args:{}", prompt.argument_count),
+                    Style::default().fg(Color::Cyan),
+                ),
+                Span::styled(description, Style::default().fg(Color::Gray)),
+            ]))
+        })
+        .collect();
+    render_list(area, frame, items, state);
+}
+
+fn resource_preview_key(server_id: &str, uri: &str) -> String {
+    format!("{server_id}\n{uri}")
+}
+
+fn clip(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let clipped: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{clipped}...")
+    } else {
+        clipped
+    }
+}
+
 fn render_list(area: Rect, frame: &mut Frame, items: Vec<ListItem>, state: &mut ListState) {
     let list = List::new(items).highlight_style(
         Style::default()
@@ -648,11 +988,16 @@ fn render_list(area: Rect, frame: &mut Frame, items: Vec<ListItem>, state: &mut 
 
 fn render_hints(area: Rect, frame: &mut Frame, tab: McpOverlayTab) {
     let action = match tab {
-        McpOverlayTab::Runtime => "[Enter] start/stop  [t] trust  [r] tools  ",
+        McpOverlayTab::Runtime => {
+            "[Enter] start/stop  [t] trust/revoke  [h] health  [c] test  [r] tools  "
+        }
         McpOverlayTab::Settings => "[e] enable  [x] delete  [r] reload  ",
         McpOverlayTab::Installed => "[x/u] uninstall  [r] reload  ",
         McpOverlayTab::Catalog => "[i] install  [r] reload  ",
         McpOverlayTab::Sources => "[e] enable source  [r] reload  ",
+        McpOverlayTab::Tools => "[r] health  [e/Enter] enable tool  ",
+        McpOverlayTab::Resources => "[r] list  [Enter] read  ",
+        McpOverlayTab::Prompts => "[r] list  ",
     };
     let hints = Line::from(vec![
         Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
@@ -694,7 +1039,15 @@ impl Component for McpOverlay {
                 self.hide();
                 effects.push(CrossPanelEffect::DismissMcpOverlay);
             }
-            KeyCode::Char('r') | KeyCode::Char('R') if self.tab != McpOverlayTab::Runtime => {
+            KeyCode::Char('r') | KeyCode::Char('R')
+                if matches!(
+                    self.tab,
+                    McpOverlayTab::Settings
+                        | McpOverlayTab::Installed
+                        | McpOverlayTab::Catalog
+                        | McpOverlayTab::Sources
+                ) =>
+            {
                 commands.push(Command::OpenMcpOverlay);
             }
             key => {
@@ -711,6 +1064,46 @@ impl Component for McpOverlay {
         match effect {
             CrossPanelEffect::ShowMcpOverlay(snapshot) => self.show(snapshot.clone()),
             CrossPanelEffect::DismissMcpOverlay => self.hide(),
+            CrossPanelEffect::McpToolsLoaded {
+                server_id,
+                tools,
+                healthy,
+                error,
+            } => {
+                self.tools.insert(server_id.clone(), tools.clone());
+                self.health.insert(
+                    server_id.clone(),
+                    McpHealthState {
+                        healthy: *healthy,
+                        tool_count: tools.len(),
+                        error: error.clone(),
+                    },
+                );
+                self.ensure_selection();
+            }
+            CrossPanelEffect::McpConnectivityChecked(entry) => {
+                self.connectivity
+                    .insert(entry.server_id.clone(), entry.clone());
+            }
+            CrossPanelEffect::McpResourcesLoaded {
+                server_id,
+                resources,
+            } => {
+                self.resources.insert(server_id.clone(), resources.clone());
+                self.ensure_selection();
+            }
+            CrossPanelEffect::McpPromptsLoaded { server_id, prompts } => {
+                self.prompts.insert(server_id.clone(), prompts.clone());
+                self.ensure_selection();
+            }
+            CrossPanelEffect::McpResourceRead {
+                server_id,
+                uri,
+                preview,
+            } => {
+                self.resource_previews
+                    .insert(resource_preview_key(server_id, uri), preview.clone());
+            }
             _ => {}
         }
     }
@@ -724,12 +1117,18 @@ impl Component for McpOverlay {
         let mut installed_state = self.installed_state;
         let mut catalog_state = self.catalog_state;
         let mut sources_state = self.sources_state;
+        let mut tools_state = self.tools_state;
+        let mut resources_state = self.resources_state;
+        let mut prompts_state = self.prompts_state;
         let mut render_state = McpOverlayRenderState {
             runtime: &mut runtime_state,
             settings: &mut settings_state,
             installed: &mut installed_state,
             catalog: &mut catalog_state,
             sources: &mut sources_state,
+            tools: &mut tools_state,
+            resources: &mut resources_state,
+            prompts: &mut prompts_state,
         };
         render_mcp_overlay(area, frame, self, &mut render_state);
     }
@@ -752,7 +1151,10 @@ mod tests {
         CatalogSourceView, InstalledEntry, McpServerSettingsView, ServerEntry,
     };
 
-    use crate::components::{FocusTarget, McpOverlaySnapshot, McpServerStatusView};
+    use crate::components::{
+        FocusTarget, McpOverlaySnapshot, McpPromptEntry, McpResourceEntry, McpServerStatusView,
+        McpToolEntry,
+    };
 
     fn entry(id: &str, status: McpServerStatusView, trusted: bool, tools: usize) -> McpServerEntry {
         McpServerEntry {
@@ -825,6 +1227,41 @@ mod tests {
             enabled,
             cache_ttl_seconds: Some(300),
             last_error: None,
+        }
+    }
+
+    fn tool(name: &str, disabled: bool) -> McpToolEntry {
+        McpToolEntry {
+            server_id: "alpha".to_string(),
+            name: name.to_string(),
+            description: Some(format!("{name} tool")),
+            input_schema: None,
+            disabled,
+        }
+    }
+
+    fn resource(uri: &str) -> McpResourceEntry {
+        McpResourceEntry {
+            server_id: "alpha".to_string(),
+            uri: uri.to_string(),
+            name: "App log".to_string(),
+            description: Some("Application log".to_string()),
+            mime_type: Some("text/plain".to_string()),
+        }
+    }
+
+    fn prompt(name: &str) -> McpPromptEntry {
+        McpPromptEntry {
+            server_id: "alpha".to_string(),
+            name: name.to_string(),
+            description: Some(format!("{name} prompt")),
+            argument_count: 2,
+        }
+    }
+
+    fn advance_tabs(overlay: &mut McpOverlay, count: usize) {
+        for _ in 0..count {
+            let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Tab));
         }
     }
 
@@ -993,6 +1430,22 @@ mod tests {
     }
 
     #[test]
+    fn t_emits_revoke_command_for_trusted_server() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(runtime_snapshot(vec![entry(
+            "alpha",
+            McpServerStatusView::Running,
+            true,
+            1,
+        )]));
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('t')));
+        assert!(matches!(
+            &commands[..],
+            [Command::RevokeMcpTrust { server_id }] if server_id == "alpha"
+        ));
+    }
+
+    #[test]
     fn r_emits_refresh_tools_command() {
         let mut overlay = McpOverlay::new();
         overlay.show(runtime_snapshot(vec![entry(
@@ -1006,6 +1459,112 @@ mod tests {
             &commands[0],
             Command::RefreshMcpTools { server_id } if server_id == "alpha"
         ));
+    }
+
+    #[test]
+    fn runtime_tab_emits_health_and_connectivity_commands() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(runtime_snapshot(vec![entry(
+            "alpha",
+            McpServerStatusView::Running,
+            false,
+            1,
+        )]));
+
+        let (_, health_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('h')));
+        assert!(matches!(
+            &health_commands[..],
+            [Command::CheckMcpHealth { server_id }] if server_id == "alpha"
+        ));
+
+        let (_, connectivity_commands) =
+            overlay.handle_event(&test_ctx(), &key(KeyCode::Char('c')));
+        assert!(matches!(
+            &connectivity_commands[..],
+            [Command::TestMcpConnectivity { server_id }] if server_id == "alpha"
+        ));
+    }
+
+    #[test]
+    fn tools_tab_toggles_selected_tool_disabled_state() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(runtime_snapshot(vec![entry(
+            "alpha",
+            McpServerStatusView::Running,
+            false,
+            2,
+        )]));
+        overlay.handle_effect(&CrossPanelEffect::McpToolsLoaded {
+            server_id: "alpha".to_string(),
+            tools: vec![tool("search", false), tool("write", true)],
+            healthy: true,
+            error: None,
+        });
+        advance_tabs(&mut overlay, 5);
+
+        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('j')));
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('e')));
+        assert!(matches!(
+            &commands[..],
+            [Command::SetMcpToolDisabled {
+                server_id,
+                tool_name,
+                disabled,
+            }] if server_id == "alpha" && tool_name == "write" && !disabled
+        ));
+    }
+
+    #[test]
+    fn resources_tab_lists_and_reads_selected_resource() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(runtime_snapshot(vec![entry(
+            "alpha",
+            McpServerStatusView::Running,
+            false,
+            1,
+        )]));
+        advance_tabs(&mut overlay, 6);
+
+        let (_, list_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('r')));
+        assert!(matches!(
+            &list_commands[..],
+            [Command::ListMcpResources { server_id }] if server_id == "alpha"
+        ));
+
+        overlay.handle_effect(&CrossPanelEffect::McpResourcesLoaded {
+            server_id: "alpha".to_string(),
+            resources: vec![resource("file://logs/app.log")],
+        });
+        let (_, read_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+        assert!(matches!(
+            &read_commands[..],
+            [Command::ReadMcpResource { server_id, uri }]
+                if server_id == "alpha" && uri == "file://logs/app.log"
+        ));
+    }
+
+    #[test]
+    fn prompts_tab_lists_prompts_for_selected_runtime_server() {
+        let mut overlay = McpOverlay::new();
+        overlay.show(runtime_snapshot(vec![entry(
+            "alpha",
+            McpServerStatusView::Running,
+            false,
+            1,
+        )]));
+        advance_tabs(&mut overlay, 7);
+
+        let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('r')));
+        assert!(matches!(
+            &commands[..],
+            [Command::ListMcpPrompts { server_id }] if server_id == "alpha"
+        ));
+
+        overlay.handle_effect(&CrossPanelEffect::McpPromptsLoaded {
+            server_id: "alpha".to_string(),
+            prompts: vec![prompt("summarize")],
+        });
+        assert_eq!(overlay.selected_index(), Some(0));
     }
 
     #[test]
@@ -1118,7 +1677,7 @@ mod tests {
     fn sources_tab_emits_source_enable_command() {
         let mut overlay = McpOverlay::new();
         overlay.show(snapshot());
-        let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
+        advance_tabs(&mut overlay, 4);
 
         let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('e')));
         assert!(matches!(
