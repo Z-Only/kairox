@@ -21,8 +21,9 @@ use agent_tui::components::model_overlay::ModelOverlay;
 use agent_tui::components::skills_overlay::SkillsOverlay;
 use agent_tui::components::trace::{MemoryRow, MemoryScopeFilter, RightPanelTab};
 use agent_tui::components::{
-    Command, Component, CrossPanelEffect, EventContext, FocusTarget, McpOverlaySnapshot,
-    ModelOverlaySnapshot, ModelProfileEntry, QueueAction, SkillOverlaySnapshot,
+    Command, CommandPaletteSnapshot, Component, CrossPanelEffect, EventContext, FocusTarget,
+    McpOverlaySnapshot, ModelOverlaySnapshot, ModelProfileEntry, QueueAction, SkillEntry,
+    SkillOverlaySnapshot,
 };
 use agent_tui::keybindings::KeyAction;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
@@ -90,7 +91,7 @@ fn activate_palette_entry(
     let visible_ids = palette
         .visible_entries()
         .into_iter()
-        .map(|entry| entry.id)
+        .map(|entry| entry.id.into_owned())
         .collect::<Vec<_>>();
     assert_eq!(
         visible_ids,
@@ -201,6 +202,17 @@ fn model_profile(alias: &str, supports_reasoning: bool) -> ModelProfileEntry {
     }
 }
 
+fn skill_entry(id: &str, active: bool) -> SkillEntry {
+    SkillEntry {
+        id: id.into(),
+        name: format!("{id} skill"),
+        description: format!("{id} description"),
+        source: "test".into(),
+        activation_mode: "manual".into(),
+        active,
+    }
+}
+
 fn task_snapshot(
     id: TaskId,
     title: &str,
@@ -304,6 +316,70 @@ fn parity_smoke_command_palette_opens_overlay_entry_points_and_queue_actions() {
         let (_effects, commands) = activate_palette_entry(case.expected_id, case.filter);
         (case.assert_command)(&commands);
     }
+}
+
+#[test]
+fn parity_smoke_command_palette_runs_clear_and_dynamic_entries() {
+    let ctx = test_ctx(
+        FocusTarget::CommandPalette,
+        Some(SessionId::from_string("ses_palette_dynamic".into())),
+    );
+    let mut palette = CommandPalette::new();
+    palette.handle_effect(&CrossPanelEffect::UpdateCommandPalette(
+        CommandPaletteSnapshot {
+            model_profiles: vec![model_profile("fast", false)],
+            skills: vec![skill_entry("review", true)],
+        },
+    ));
+    palette.handle_effect(&CrossPanelEffect::ShowCommandPalette);
+
+    type_text(&mut palette, &ctx, "clear");
+    assert_eq!(
+        palette
+            .visible_entries()
+            .into_iter()
+            .map(|entry| entry.id.into_owned())
+            .collect::<Vec<_>>(),
+        vec!["clear".to_string()]
+    );
+    let (_effects, commands) = palette.handle_event(&ctx, &key(KeyCode::Enter));
+    assert!(matches!(&commands[..], [Command::ClearSessionProjection]));
+
+    palette.handle_effect(&CrossPanelEffect::ShowCommandPalette);
+    type_text(&mut palette, &ctx, "fast");
+    assert_eq!(
+        palette
+            .visible_entries()
+            .into_iter()
+            .map(|entry| entry.id.into_owned())
+            .collect::<Vec<_>>(),
+        vec!["model-profile-fast".to_string()]
+    );
+    let (_effects, commands) = palette.handle_event(&ctx, &key(KeyCode::Enter));
+    assert!(matches!(
+        &commands[..],
+        [Command::SwitchModel {
+            alias,
+            reasoning_effort: None,
+            ..
+        }] if alias == "fast"
+    ));
+
+    palette.handle_effect(&CrossPanelEffect::ShowCommandPalette);
+    type_text(&mut palette, &ctx, "skill-review");
+    assert_eq!(
+        palette
+            .visible_entries()
+            .into_iter()
+            .map(|entry| entry.id.into_owned())
+            .collect::<Vec<_>>(),
+        vec!["skill-review".to_string()]
+    );
+    let (_effects, commands) = palette.handle_event(&ctx, &key(KeyCode::Enter));
+    assert!(matches!(
+        &commands[..],
+        [Command::ActivateSkill { skill_id, .. }] if skill_id == "review"
+    ));
 }
 
 #[test]

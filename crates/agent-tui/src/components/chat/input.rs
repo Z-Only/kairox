@@ -45,7 +45,10 @@ impl ChatPanel {
                 if !self.input_content.is_empty() || !self.pending_attachments.is_empty() =>
             {
                 let trimmed = self.input_content.trim();
-                if trimmed == ":compact" {
+                if trimmed == ":clear" {
+                    self.clear_input();
+                    commands.push(Command::ClearSessionProjection);
+                } else if trimmed == ":compact" {
                     self.clear_input();
                     if let Some(session_id) = ctx.current_session_id {
                         commands.push(Command::CompactSession {

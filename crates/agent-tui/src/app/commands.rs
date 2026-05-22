@@ -10,9 +10,9 @@ use agent_core::{
 use super::App;
 use crate::app_state::SettingsConfigSource;
 use crate::components::{
-    AgentOverlaySnapshot, Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry,
-    ModelOverlaySnapshot, ModelProfileEntry, ModelProfileTestResult, PluginOverlaySnapshot,
-    ProjectInfo, SkillEntry, SkillOverlaySnapshot,
+    AgentOverlaySnapshot, Command, CommandPaletteSnapshot, CrossPanelEffect, McpOverlaySnapshot,
+    McpServerEntry, ModelOverlaySnapshot, ModelProfileEntry, ModelProfileTestResult,
+    PluginOverlaySnapshot, ProjectInfo, SkillEntry, SkillOverlaySnapshot,
 };
 
 pub async fn dispatch_commands<F>(
@@ -201,6 +201,11 @@ pub async fn dispatch_commands<F>(
                         push_status_message(app, format!("[skills dir error: {error}]"));
                     }
                 }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::ClearSessionProjection => {
+                clear_session_projection(app);
+                push_status_message(app, "cleared local conversation projection".to_string());
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::SaveInstructions { scope, text } => {
@@ -1012,6 +1017,14 @@ fn push_status_message(app: &mut App, content: String) {
         app.status_bar.push_notification(entry.message.clone());
     }
     app.state.render_scheduler.mark_dirty();
+}
+
+pub fn clear_session_projection(app: &mut App) {
+    app.state.current_session = agent_core::projection::SessionProjection::default();
+    app.last_context_usage = None;
+    app.compacting = false;
+    app.state.render_scheduler.reset();
+    app.sync_status_bar();
 }
 
 fn project_info_from_meta(project: ProjectMeta) -> ProjectInfo {
@@ -1847,19 +1860,59 @@ fn system_file_manager_command(path: &std::path::Path) -> std::process::Command 
     command
 }
 
-async fn refresh_skills_overlay<F>(
+pub async fn refresh_command_palette<F>(runtime: &std::sync::Arc<F>, app: &mut App)
+where
+    F: AppFacade + ?Sized,
+{
+    let model_profiles = command_palette_model_profiles(runtime, app).await;
+    let skills = load_skill_entries(runtime, app).await.unwrap_or_default();
+    app.dispatch_effects(vec![
+        CrossPanelEffect::UpdateCommandPalette(CommandPaletteSnapshot {
+            model_profiles,
+            skills,
+        }),
+        CrossPanelEffect::ShowCommandPalette,
+    ]);
+}
+
+async fn command_palette_model_profiles<F>(
     runtime: &std::sync::Arc<F>,
     app: &mut App,
-    catalog_keyword: Option<String>,
-    catalog_sources: Option<Vec<String>>,
-) where
+) -> Vec<ModelProfileEntry>
+where
+    F: AppFacade + ?Sized,
+{
+    match AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await
+    {
+        Ok(settings) => settings
+            .into_iter()
+            .filter(|profile| profile.enabled)
+            .map(model_profile_entry_from_settings)
+            .collect(),
+        Err(error) => {
+            push_status_message(app, format!("[model settings error: {error}]"));
+            Vec::new()
+        }
+    }
+}
+
+async fn load_skill_entries<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &mut App,
+) -> Option<Vec<SkillEntry>>
+where
     F: AppFacade + ?Sized,
 {
     let skills = match AppFacade::list_skills(runtime.as_ref()).await {
         Ok(skills) => skills,
         Err(error) => {
             push_status_message(app, format!("[skills error: {error}]"));
-            return;
+            return None;
         }
     };
 
@@ -1876,20 +1929,35 @@ async fn refresh_skills_overlay<F>(
             std::collections::HashSet::new()
         };
 
-    let entries: Vec<SkillEntry> = skills
-        .into_iter()
-        .map(|s| {
-            let active = active_ids.contains(&s.id);
-            SkillEntry {
-                id: s.id,
-                name: s.name,
-                description: s.description,
-                source: s.source,
-                activation_mode: s.activation_mode,
-                active,
-            }
-        })
-        .collect();
+    Some(
+        skills
+            .into_iter()
+            .map(|s| {
+                let active = active_ids.contains(&s.id);
+                SkillEntry {
+                    id: s.id,
+                    name: s.name,
+                    description: s.description,
+                    source: s.source,
+                    activation_mode: s.activation_mode,
+                    active,
+                }
+            })
+            .collect(),
+    )
+}
+
+async fn refresh_skills_overlay<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &mut App,
+    catalog_keyword: Option<String>,
+    catalog_sources: Option<Vec<String>>,
+) where
+    F: AppFacade + ?Sized,
+{
+    let Some(entries) = load_skill_entries(runtime, app).await else {
+        return;
+    };
 
     let installed = match AppFacade::list_skill_settings(runtime.as_ref()).await {
         Ok(installed) => installed,
@@ -1962,24 +2030,7 @@ where
     };
     let profiles = settings
         .into_iter()
-        .map(|profile| ModelProfileEntry {
-            alias: profile.alias,
-            provider_display: profile.provider,
-            model_display: profile.model_id,
-            context_window: profile.context_window,
-            output_limit: profile.output_limit,
-            temperature: profile.temperature,
-            top_p: profile.top_p,
-            top_k: profile.top_k,
-            max_tokens: profile.max_tokens,
-            base_url: profile.base_url,
-            api_key_env: profile.api_key_env,
-            supports_reasoning: false,
-            enabled: profile.enabled,
-            writable: profile.writable,
-            source: profile.source,
-            has_api_key: profile.has_api_key,
-        })
+        .map(model_profile_entry_from_settings)
         .collect();
 
     app.dispatch_effects(vec![CrossPanelEffect::ShowModelOverlay(
@@ -1989,6 +2040,29 @@ where
             current_effort: app.state.reasoning_effort.clone(),
         },
     )]);
+}
+
+fn model_profile_entry_from_settings(
+    profile: agent_core::facade::ProfileSettingsView,
+) -> ModelProfileEntry {
+    ModelProfileEntry {
+        alias: profile.alias,
+        provider_display: profile.provider,
+        model_display: profile.model_id,
+        context_window: profile.context_window,
+        output_limit: profile.output_limit,
+        temperature: profile.temperature,
+        top_p: profile.top_p,
+        top_k: profile.top_k,
+        max_tokens: profile.max_tokens,
+        base_url: profile.base_url,
+        api_key_env: profile.api_key_env,
+        supports_reasoning: false,
+        enabled: profile.enabled,
+        writable: profile.writable,
+        source: profile.source,
+        has_api_key: profile.has_api_key,
+    }
 }
 
 pub async fn refresh_mcp_overlay<F>(

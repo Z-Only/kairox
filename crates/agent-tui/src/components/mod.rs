@@ -170,6 +170,12 @@ impl From<Vec<SkillEntry>> for SkillOverlaySnapshot {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CommandPaletteSnapshot {
+    pub model_profiles: Vec<ModelProfileEntry>,
+    pub skills: Vec<SkillEntry>,
+}
+
 /// Snapshot row used to populate the model profile selector overlay.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModelProfileEntry {
@@ -385,6 +391,8 @@ pub enum CrossPanelEffect {
     },
     /// Open the command palette overlay.
     ShowCommandPalette,
+    /// Refresh command palette dynamic rows before opening or while visible.
+    UpdateCommandPalette(CommandPaletteSnapshot),
     /// Close the command palette overlay.
     DismissCommandPalette,
     /// Insert the given text at the start of the chat input and place the
@@ -436,6 +444,8 @@ pub enum Command {
         queue_index: usize,
     },
     ApplyQueueAction(QueueAction),
+    /// Clear only the local projection for the current session.
+    ClearSessionProjection,
     DecidePermission {
         request_id: String,
         approved: bool,
