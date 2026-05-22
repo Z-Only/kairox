@@ -34,6 +34,10 @@ pub enum PaletteAction {
     SkillsManager,
     ModelSelector,
     ProfilesConfig,
+    SettingsSourceUser,
+    SettingsSourceProject,
+    SettingsProjectNext,
+    SettingsProjectPrevious,
     RefreshSkillCatalog,
     QueueAction(QueueAction),
     /// Argument-taking slash command — prefill chat input with the slash
@@ -92,6 +96,30 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: "Models: open profiles config",
             description: "Open the writable model profiles config file",
             action: PaletteAction::ProfilesConfig,
+        },
+        PaletteEntry {
+            id: "settings-source-user",
+            label: "Settings: use user config",
+            description: "Read and save settings against user config",
+            action: PaletteAction::SettingsSourceUser,
+        },
+        PaletteEntry {
+            id: "settings-source-project",
+            label: "Settings: use project config",
+            description: "Read and save settings against the selected project config",
+            action: PaletteAction::SettingsSourceProject,
+        },
+        PaletteEntry {
+            id: "settings-project-next",
+            label: "Settings: next project",
+            description: "Select the next project for project-scoped settings",
+            action: PaletteAction::SettingsProjectNext,
+        },
+        PaletteEntry {
+            id: "settings-project-previous",
+            label: "Settings: previous project",
+            description: "Select the previous project for project-scoped settings",
+            action: PaletteAction::SettingsProjectPrevious,
         },
         PaletteEntry {
             id: "mcp-manager",
@@ -357,6 +385,10 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::SkillsManager
         | PaletteAction::ModelSelector
         | PaletteAction::ProfilesConfig
+        | PaletteAction::SettingsSourceUser
+        | PaletteAction::SettingsSourceProject
+        | PaletteAction::SettingsProjectNext
+        | PaletteAction::SettingsProjectPrevious
         | PaletteAction::RefreshSkillCatalog
         | PaletteAction::QueueAction(_) => None,
     }
@@ -528,6 +560,22 @@ impl CommandPalette {
             }
             PaletteAction::ProfilesConfig => {
                 commands.push(Command::OpenProfilesConfig);
+            }
+            PaletteAction::SettingsSourceUser => {
+                commands.push(Command::SetSettingsConfigSource {
+                    source: crate::app_state::SettingsConfigSource::User,
+                });
+            }
+            PaletteAction::SettingsSourceProject => {
+                commands.push(Command::SetSettingsConfigSource {
+                    source: crate::app_state::SettingsConfigSource::Project,
+                });
+            }
+            PaletteAction::SettingsProjectNext => {
+                commands.push(Command::CycleSettingsProject { direction: 1 });
+            }
+            PaletteAction::SettingsProjectPrevious => {
+                commands.push(Command::CycleSettingsProject { direction: -1 });
             }
             PaletteAction::QueueAction(action) => {
                 commands.push(Command::ApplyQueueAction(action));

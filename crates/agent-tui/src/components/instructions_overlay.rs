@@ -82,6 +82,13 @@ impl InstructionsOverlay {
         self.visible = true;
     }
 
+    pub fn set_active_scope(&mut self, scope: ConfigScope) {
+        self.tab = match scope {
+            ConfigScope::Project => InstructionsTab::Project,
+            _ => InstructionsTab::User,
+        };
+    }
+
     pub fn hide(&mut self) {
         self.visible = false;
         self.tab = InstructionsTab::User;

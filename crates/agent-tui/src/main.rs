@@ -608,6 +608,8 @@ async fn dispatch_commands(
             | Command::MoveProfileInOrder { .. }
             | Command::TestModelProfile { .. }
             | Command::OpenProfilesConfig
+            | Command::SetSettingsConfigSource { .. }
+            | Command::CycleSettingsProject { .. }
             | Command::SaveInstructions { .. }
             | Command::ListSkills
             | Command::ShowSkill { .. }
@@ -1262,7 +1264,17 @@ async fn refresh_model_overlay(
     runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
     app: &mut App,
 ) {
-    let settings = match AppFacade::list_profile_settings(runtime.as_ref(), None).await {
+    let project_root = app
+        .state
+        .selected_settings_project_root()
+        .map(|root| root.display().to_string());
+    let settings = match AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        project_root,
+    )
+    .await
+    {
         Ok(settings) => settings,
         Err(error) => {
             push_status_error(app, format!("[model settings error: {error}]"));
