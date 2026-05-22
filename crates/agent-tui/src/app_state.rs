@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use agent_core::projection::SessionProjection;
+use agent_core::{ConfigScope, ProjectId};
 use agent_tools::PermissionMode;
 
 use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
@@ -273,6 +274,33 @@ pub struct StatusLogEntry {
 }
 
 // ---------------------------------------------------------------------------
+// SettingsConfigSource
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SettingsConfigSource {
+    #[default]
+    User,
+    Project,
+}
+
+impl SettingsConfigSource {
+    pub fn as_filter(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Project => "project",
+        }
+    }
+
+    pub fn as_scope(self) -> ConfigScope {
+        match self {
+            Self::User => ConfigScope::User,
+            Self::Project => ConfigScope::Project,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AppState
 // ---------------------------------------------------------------------------
 
@@ -290,6 +318,10 @@ pub struct AppState {
     pub current_session: SessionProjection,
     pub sessions: Vec<SessionInfo>,
     pub projects: Vec<ProjectInfo>,
+
+    // Settings source selection
+    settings_config_source: SettingsConfigSource,
+    settings_project_id: Option<ProjectId>,
 
     // Model / permissions
     pub model_profile: String,
@@ -329,6 +361,8 @@ impl AppState {
             current_session: SessionProjection::default(),
             sessions: Vec::new(),
             projects: Vec::new(),
+            settings_config_source: SettingsConfigSource::User,
+            settings_project_id: None,
             model_profile: model_profile.into(),
             reasoning_effort: None,
             permission_mode,
@@ -342,6 +376,54 @@ impl AppState {
             ctrl_c_count: 0,
             last_ctrl_c: None,
         }
+    }
+
+    pub fn settings_config_source(&self) -> SettingsConfigSource {
+        self.settings_config_source
+    }
+
+    pub fn set_settings_config_source(&mut self, source: SettingsConfigSource) {
+        self.settings_config_source = source;
+    }
+
+    pub fn settings_scope(&self) -> ConfigScope {
+        self.settings_config_source.as_scope()
+    }
+
+    pub fn settings_source_filter(&self) -> Option<String> {
+        Some(self.settings_config_source.as_filter().to_string())
+    }
+
+    pub fn select_settings_project(&mut self, project_id: ProjectId) {
+        self.settings_project_id = Some(project_id);
+    }
+
+    pub fn selected_settings_project_id(&self) -> Option<&ProjectId> {
+        self.settings_project_id.as_ref()
+    }
+
+    pub fn selected_settings_project(&self) -> Option<&ProjectInfo> {
+        if self.settings_config_source != SettingsConfigSource::Project {
+            return None;
+        }
+        self.settings_project_id
+            .as_ref()
+            .and_then(|project_id| {
+                self.projects
+                    .iter()
+                    .find(|project| &project.id == project_id)
+            })
+            .or_else(|| self.projects.first())
+    }
+
+    pub fn selected_settings_project_root(&self) -> Option<std::path::PathBuf> {
+        self.selected_settings_project()
+            .map(|project| std::path::PathBuf::from(&project.root_path))
+    }
+
+    pub fn selected_settings_project_config_path(&self) -> Option<std::path::PathBuf> {
+        self.selected_settings_project_root()
+            .map(|root| root.join(".kairox").join("config.toml"))
     }
 
     /// Build a borrow of `EventContext` from the current state.

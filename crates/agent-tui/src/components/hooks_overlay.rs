@@ -331,6 +331,14 @@ impl HooksOverlay {
         self.ensure_selection();
     }
 
+    pub fn set_active_scope(&mut self, scope: ConfigScope) {
+        self.tab = match scope {
+            ConfigScope::Project => HooksTab::Project,
+            _ => HooksTab::User,
+        };
+        self.ensure_selection();
+    }
+
     pub fn hide(&mut self) {
         self.visible = false;
         self.mode = HooksMode::List;

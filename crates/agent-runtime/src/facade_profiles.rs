@@ -12,6 +12,15 @@ where
         &self,
         source_filter: Option<String>,
     ) -> agent_core::Result<Vec<ProfileSettingsView>> {
+        self.list_profile_settings_for_project(source_filter, None)
+            .await
+    }
+
+    pub(crate) async fn list_profile_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> agent_core::Result<Vec<ProfileSettingsView>> {
         let profiles_toml_path = crate::profile_settings::writable_profiles_config_path(
             self.marketplace_dir.as_deref(),
         )?;
@@ -20,9 +29,14 @@ where
                 .join(".kairox")
                 .join("config.toml")
         });
-        let project_config_path = std::env::current_dir()
-            .ok()
-            .map(|d| d.join(".kairox").join("config.toml"));
+        let project_config_path = project_root
+            .map(std::path::PathBuf::from)
+            .map(|root| root.join(".kairox").join("config.toml"))
+            .or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .map(|d| d.join(".kairox").join("config.toml"))
+            });
         crate::profile_settings::list_profile_settings(
             &self.config,
             profiles_toml_path.as_deref(),

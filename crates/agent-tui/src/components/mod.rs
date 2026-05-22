@@ -632,6 +632,14 @@ pub enum Command {
     },
     /// Open the writable profiles config file.
     OpenProfilesConfig,
+    /// Select whether settings overlays read/write user or project config.
+    SetSettingsConfigSource {
+        source: crate::app_state::SettingsConfigSource,
+    },
+    /// Cycle the project used by project-scoped settings overlays.
+    CycleSettingsProject {
+        direction: i32,
+    },
     /// Build an agent settings snapshot and open the agent manager overlay.
     OpenAgentSettingsOverlay,
     /// Save a user/project agent settings profile.

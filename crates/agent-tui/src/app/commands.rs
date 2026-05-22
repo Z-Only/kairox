@@ -8,9 +8,11 @@ use agent_core::{
 };
 
 use super::App;
+use crate::app_state::SettingsConfigSource;
 use crate::components::{
     AgentOverlaySnapshot, Command, CrossPanelEffect, McpOverlaySnapshot, McpServerEntry,
-    ModelProfileTestResult, PluginOverlaySnapshot, ProjectInfo, SkillEntry, SkillOverlaySnapshot,
+    ModelOverlaySnapshot, ModelProfileEntry, ModelProfileTestResult, PluginOverlaySnapshot,
+    ProjectInfo, SkillEntry, SkillOverlaySnapshot,
 };
 
 pub async fn dispatch_commands<F>(
@@ -25,6 +27,10 @@ pub async fn dispatch_commands<F>(
             Command::SaveDraft { .. } => {}
             Command::OpenMcpOverlay => {
                 refresh_mcp_overlay(runtime, app, Vec::new()).await;
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenModelOverlay => {
+                refresh_model_overlay(runtime, app).await;
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::OpenSkillsOverlay => {
@@ -43,8 +49,36 @@ pub async fn dispatch_commands<F>(
                 refresh_hooks_overlay(app);
                 app.state.render_scheduler.mark_dirty_immediate();
             }
+            Command::SetSettingsConfigSource { source } => {
+                app.state.set_settings_config_source(source);
+                let detail = match source {
+                    SettingsConfigSource::User => "user config".to_string(),
+                    SettingsConfigSource::Project => app
+                        .state
+                        .selected_settings_project()
+                        .map(|project| format!("project config {}", project.display_name))
+                        .unwrap_or_else(|| "project config".to_string()),
+                };
+                push_status_message(app, format!("settings source: {detail}"));
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::CycleSettingsProject { direction } => {
+                app.state
+                    .set_settings_config_source(SettingsConfigSource::Project);
+                match cycle_settings_project(app, direction) {
+                    Some(project) => {
+                        let display_name = project.display_name.clone();
+                        app.state.select_settings_project(project.id);
+                        push_status_message(app, format!("settings project: {display_name}"));
+                    }
+                    None => {
+                        push_status_message(app, "settings project unavailable".to_string());
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
             Command::SaveHookSettings { input } => {
-                match save_hook_settings(input.clone()) {
+                match save_hook_settings(app, input.clone()) {
                     Ok(()) => {
                         push_status_message(
                             app,
@@ -61,7 +95,7 @@ pub async fn dispatch_commands<F>(
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::DeleteHookSettings { scope, event, id } => {
-                match delete_hook_settings(scope, event.clone(), id.clone()) {
+                match delete_hook_settings(app, scope, event.clone(), id.clone()) {
                     Ok(()) => {
                         push_status_message(app, format!("deleted hook {event}.{id}"));
                         if app.hooks_overlay.is_visible() {
@@ -160,7 +194,7 @@ pub async fn dispatch_commands<F>(
                 app.state.render_scheduler.mark_dirty_immediate();
             }
             Command::SaveInstructions { scope, text } => {
-                match save_instructions(scope, text) {
+                match save_instructions(app, scope, text) {
                     Ok(()) => {
                         refresh_instructions_overlay(app);
                     }
@@ -501,8 +535,9 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::SetMcpServerEnabled { server_id, enabled } => {
-                match McpFacade::set_mcp_server_enabled(
-                    runtime.as_ref(),
+                match set_mcp_server_enabled_for_selected_source(
+                    runtime,
+                    app,
                     server_id.clone(),
                     enabled,
                 )
@@ -517,7 +552,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::SaveMcpServerSettings { input } => {
-                match McpFacade::upsert_mcp_server_settings(runtime.as_ref(), input.clone()).await {
+                match upsert_mcp_server_for_selected_source(runtime, app, input.clone()).await {
                     Ok(view) => {
                         push_status_message(app, format!("saved MCP server {}", view.id));
                         refresh_mcp_overlay(runtime, app, Vec::new()).await;
@@ -528,9 +563,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::DeleteMcpServerSettings { server_id } => {
-                match McpFacade::delete_mcp_server_settings(runtime.as_ref(), server_id.clone())
-                    .await
-                {
+                match delete_mcp_server_for_selected_source(runtime, app, server_id.clone()).await {
                     Ok(()) => {
                         refresh_mcp_overlay(runtime, app, Vec::new()).await;
                     }
@@ -567,7 +600,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::DisableMcpServerAtScope { server_id } => {
-                match project_config_path()
+                match selected_project_config_path(app)
                     .and_then(|path| apply_mcp_scope_disabled(&path, &server_id, true))
                 {
                     Ok(()) => {
@@ -583,7 +616,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::EnableMcpServerAtScope { server_id } => {
-                match project_config_path()
+                match selected_project_config_path(app)
                     .and_then(|path| apply_mcp_scope_disabled(&path, &server_id, false))
                 {
                     Ok(()) => {
@@ -664,7 +697,8 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::SetProfileEnabled { alias, enabled } => {
-                match AppFacade::set_profile_enabled(runtime.as_ref(), alias.clone(), enabled).await
+                match set_profile_enabled_for_selected_source(runtime, app, alias.clone(), enabled)
+                    .await
                 {
                     Ok(()) => {
                         let state = if enabled { "enabled" } else { "disabled" };
@@ -677,8 +711,8 @@ pub async fn dispatch_commands<F>(
             }
             Command::SaveProfileSettings { input } => {
                 let alias = input.alias.clone();
-                match AppFacade::upsert_profile_settings(runtime.as_ref(), input).await {
-                    Ok(_) => {
+                match upsert_profile_for_selected_source(runtime, app, input).await {
+                    Ok(()) => {
                         push_status_message(app, format!("saved model profile {alias}"));
                     }
                     Err(error) => {
@@ -687,7 +721,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::DeleteProfileSettings { alias } => {
-                match AppFacade::delete_profile_settings(runtime.as_ref(), alias.clone()).await {
+                match delete_profile_for_selected_source(runtime, app, alias.clone()).await {
                     Ok(()) => {
                         push_status_message(app, format!("deleted model profile {alias}"));
                     }
@@ -697,8 +731,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::MoveProfileInOrder { alias, direction } => {
-                match AppFacade::move_profile_in_order(runtime.as_ref(), alias.clone(), direction)
-                    .await
+                match move_profile_in_selected_source(runtime, app, alias.clone(), direction).await
                 {
                     Ok(()) => {
                         push_status_message(app, format!("moved model profile {alias}"));
@@ -709,7 +742,7 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::TestModelProfile { alias } => {
-                match test_model_connectivity(runtime, alias.clone()).await {
+                match test_model_connectivity(runtime, app, alias.clone()).await {
                     Ok(result) => {
                         let message = if result.ok {
                             format!("model profile {alias} connectivity ok")
@@ -1152,6 +1185,62 @@ fn project_config_path() -> Result<std::path::PathBuf, String> {
         .map_err(|error| format!("failed to resolve project config path: {error}"))
 }
 
+fn selected_project_config_path(app: &App) -> Result<std::path::PathBuf, String> {
+    app.state
+        .selected_settings_project_config_path()
+        .map(Ok)
+        .unwrap_or_else(project_config_path)
+}
+
+fn selected_project_config_path_for_source(
+    app: &App,
+) -> Result<Option<std::path::PathBuf>, String> {
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        selected_project_config_path(app).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn selected_project_root_for_source(app: &App) -> Option<String> {
+    app.state
+        .selected_settings_project_root()
+        .map(|root| root.display().to_string())
+}
+
+fn cycle_settings_project(app: &App, direction: i32) -> Option<ProjectInfo> {
+    if app.state.projects.is_empty() {
+        return None;
+    }
+    let current_index = app
+        .state
+        .selected_settings_project_id()
+        .and_then(|project_id| {
+            app.state
+                .projects
+                .iter()
+                .position(|project| &project.id == project_id)
+        })
+        .unwrap_or(0);
+    let last = app.state.projects.len() - 1;
+    let next_index = if direction < 0 {
+        if current_index == 0 {
+            last
+        } else {
+            current_index - 1
+        }
+    } else if direction > 0 {
+        if current_index >= last {
+            0
+        } else {
+            current_index + 1
+        }
+    } else {
+        current_index
+    };
+    app.state.projects.get(next_index).cloned()
+}
+
 fn apply_mcp_scope_disabled(
     config_path: &std::path::Path,
     server_id: &str,
@@ -1242,16 +1331,19 @@ fn apply_project_disabled_scope(
     }
 }
 
-fn load_instructions_view() -> Result<agent_core::facade::InstructionsView, String> {
+fn load_instructions_view(app: &App) -> Result<agent_core::facade::InstructionsView, String> {
     let user_config_path = user_config_path();
     let user_instructions =
         agent_runtime::instructions_settings::read_instructions(&user_config_path)
             .map_err(|error| error.to_string())?;
 
-    let project_config_path = project_config_path()?;
     let project_instructions =
-        agent_runtime::instructions_settings::read_instructions(&project_config_path)
-            .map_err(|error| error.to_string())?;
+        if let Some(project_config_path) = selected_project_config_path_for_source(app)? {
+            agent_runtime::instructions_settings::read_instructions(&project_config_path)
+                .map_err(|error| error.to_string())?
+        } else {
+            None
+        };
 
     Ok(
         agent_runtime::instructions_settings::build_instructions_view(
@@ -1262,78 +1354,100 @@ fn load_instructions_view() -> Result<agent_core::facade::InstructionsView, Stri
 }
 
 fn refresh_instructions_overlay(app: &mut App) {
-    match load_instructions_view() {
-        Ok(view) => app.dispatch_effects(vec![CrossPanelEffect::ShowInstructionsOverlay(view)]),
+    let scope = app.state.settings_scope();
+    match load_instructions_view(app) {
+        Ok(view) => {
+            app.dispatch_effects(vec![CrossPanelEffect::ShowInstructionsOverlay(view)]);
+            app.instructions_overlay.set_active_scope(scope);
+        }
         Err(error) => push_status_message(app, format!("[instructions error: {error}]")),
     }
 }
 
-fn save_instructions(scope: agent_core::ConfigScope, text: String) -> Result<(), String> {
+fn save_instructions(
+    app: &App,
+    scope: agent_core::ConfigScope,
+    text: String,
+) -> Result<(), String> {
     let input = InstructionsUpdateInput { scope, text };
     let user_config_path = user_config_path();
-    let project_config_path = project_config_path()?;
+    let project_config_path = if scope == agent_core::ConfigScope::Project {
+        Some(selected_project_config_path(app)?)
+    } else {
+        None
+    };
     agent_runtime::instructions_settings::upsert_instructions(
         &input,
         &user_config_path,
-        Some(project_config_path.as_path()),
+        project_config_path.as_deref(),
     )
     .map_err(|error| error.to_string())
 }
 
-fn load_hooks_view() -> Result<HooksSettingsView, String> {
+fn load_hooks_view(app: &App) -> Result<HooksSettingsView, String> {
     let user_config_path = user_config_path();
-    let project_config_path = project_config_path()?;
     let user = agent_runtime::hooks_settings::read_hooks_from_config(
         &user_config_path,
         agent_core::ConfigScope::User,
     )
     .map_err(|error| error.to_string())?;
-    let project = agent_runtime::hooks_settings::read_hooks_from_config(
-        &project_config_path,
-        agent_core::ConfigScope::Project,
-    )
-    .map_err(|error| error.to_string())?;
+    let project_config_path = selected_project_config_path_for_source(app)?;
+    let project = if let Some(path) = project_config_path.as_deref() {
+        agent_runtime::hooks_settings::read_hooks_from_config(
+            path,
+            agent_core::ConfigScope::Project,
+        )
+        .map_err(|error| error.to_string())?
+    } else {
+        Vec::new()
+    };
 
     Ok(HooksSettingsView {
         user,
         project,
         templates: agent_runtime::hooks_settings::builtin_hook_templates(),
         user_config_path: user_config_path.display().to_string(),
-        project_config_path: Some(project_config_path.display().to_string()),
+        project_config_path: project_config_path.map(|path| path.display().to_string()),
     })
 }
 
 fn refresh_hooks_overlay(app: &mut App) {
-    match load_hooks_view() {
-        Ok(view) => app.dispatch_effects(vec![CrossPanelEffect::ShowHooksOverlay(view)]),
+    let scope = app.state.settings_scope();
+    match load_hooks_view(app) {
+        Ok(view) => {
+            app.dispatch_effects(vec![CrossPanelEffect::ShowHooksOverlay(view)]);
+            app.hooks_overlay.set_active_scope(scope);
+        }
         Err(error) => push_status_message(app, format!("[hooks error: {error}]")),
     }
 }
 
 fn hooks_config_path_for_scope(
+    app: &App,
     scope: agent_core::ConfigScope,
 ) -> Result<std::path::PathBuf, String> {
     match scope {
         agent_core::ConfigScope::User => Ok(user_config_path()),
-        agent_core::ConfigScope::Project => project_config_path(),
+        agent_core::ConfigScope::Project => selected_project_config_path(app),
         other => Err(format!(
             "hooks can only be managed at User or Project scope, got {other}"
         )),
     }
 }
 
-fn save_hook_settings(input: HookSettingsInput) -> Result<(), String> {
-    let config_path = hooks_config_path_for_scope(input.scope)?;
+fn save_hook_settings(app: &App, input: HookSettingsInput) -> Result<(), String> {
+    let config_path = hooks_config_path_for_scope(app, input.scope)?;
     agent_runtime::hooks_settings::upsert_hook(&input, &config_path)
         .map_err(|error| error.to_string())
 }
 
 fn delete_hook_settings(
+    app: &App,
     scope: agent_core::ConfigScope,
     event: String,
     id: String,
 ) -> Result<(), String> {
-    let config_path = hooks_config_path_for_scope(scope)?;
+    let config_path = hooks_config_path_for_scope(app, scope)?;
     agent_runtime::hooks_settings::delete_hook(&config_path, &event, &id)
         .map_err(|error| error.to_string())
 }
@@ -1354,14 +1468,232 @@ where
     }
 }
 
+async fn upsert_mcp_server_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    input: agent_core::facade::McpServerSettingsInput,
+) -> Result<agent_core::facade::McpServerSettingsView, String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        let config_path = selected_project_config_path(app)?;
+        return agent_runtime::mcp_settings::upsert_mcp_server_settings(&config_path, input)
+            .await
+            .map_err(|error| error.to_string());
+    }
+
+    McpFacade::upsert_mcp_server_settings(runtime.as_ref(), input)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn set_mcp_server_enabled_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    server_id: String,
+    enabled: bool,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        let config_path = selected_project_config_path(app)?;
+        return apply_mcp_scope_disabled(&config_path, &server_id, !enabled);
+    }
+
+    McpFacade::set_mcp_server_enabled(runtime.as_ref(), server_id, enabled)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn delete_mcp_server_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    server_id: String,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        let config_path = selected_project_config_path(app)?;
+        return agent_runtime::mcp_settings::delete_mcp_server_settings(
+            &config_path,
+            None,
+            &server_id,
+        )
+        .await
+        .map_err(|error| error.to_string());
+    }
+
+    McpFacade::delete_mcp_server_settings(runtime.as_ref(), server_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn upsert_profile_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    input: agent_core::facade::ProfileSettingsInput,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        let config_path = selected_project_config_path(app)?;
+        agent_runtime::profile_settings::upsert_profile_settings_in_file(&config_path, &input)
+            .await
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    } else {
+        AppFacade::upsert_profile_settings(runtime.as_ref(), input)
+            .await
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    }
+}
+
+async fn set_profile_enabled_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    alias: String,
+    enabled: bool,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() != SettingsConfigSource::Project {
+        return AppFacade::set_profile_enabled(runtime.as_ref(), alias, enabled)
+            .await
+            .map_err(|error| error.to_string());
+    }
+
+    let input = profile_input_for_alias(runtime, app, alias, enabled).await?;
+    let config_path = selected_project_config_path(app)?;
+    agent_runtime::profile_settings::upsert_profile_settings_in_file(&config_path, &input)
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+async fn delete_profile_for_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    alias: String,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        let config_path = selected_project_config_path(app)?;
+        return agent_runtime::profile_settings::delete_profile_in_file(&config_path, &alias)
+            .await
+            .map_err(|error| error.to_string());
+    }
+
+    AppFacade::delete_profile_settings(runtime.as_ref(), alias)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn move_profile_in_selected_source<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    alias: String,
+    direction: i32,
+) -> Result<(), String>
+where
+    F: AppFacade + ?Sized,
+{
+    if app.state.settings_config_source() != SettingsConfigSource::Project {
+        return AppFacade::move_profile_in_order(runtime.as_ref(), alias, direction)
+            .await
+            .map_err(|error| error.to_string());
+    }
+
+    let mut order = AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .map(|profile| profile.alias)
+    .collect::<Vec<_>>();
+
+    if let Some(pos) = order
+        .iter()
+        .position(|profile_alias| profile_alias == &alias)
+    {
+        let new_pos = if direction < 0 {
+            pos.saturating_sub(1)
+        } else {
+            (pos + 1).min(order.len().saturating_sub(1))
+        };
+        if new_pos != pos {
+            order.swap(pos, new_pos);
+        }
+    } else {
+        order.push(alias);
+    }
+
+    let config_path = selected_project_config_path(app)?;
+    agent_runtime::profile_settings::save_profile_display_order(&config_path, &order)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn profile_input_for_alias<F>(
+    runtime: &std::sync::Arc<F>,
+    app: &App,
+    alias: String,
+    enabled: bool,
+) -> Result<agent_core::facade::ProfileSettingsInput, String>
+where
+    F: AppFacade + ?Sized,
+{
+    let profile = AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .find(|profile| profile.alias == alias)
+    .ok_or_else(|| format!("model profile '{alias}' not found"))?;
+
+    Ok(agent_core::facade::ProfileSettingsInput {
+        alias: profile.alias,
+        provider: profile.provider,
+        model_id: profile.model_id,
+        enabled,
+        context_window: profile.context_window,
+        output_limit: profile.output_limit,
+        temperature: profile.temperature,
+        top_p: profile.top_p,
+        top_k: profile.top_k,
+        max_tokens: profile.max_tokens,
+        base_url: profile.base_url,
+        api_key_env: profile.api_key_env,
+    })
+}
+
 async fn test_model_connectivity<F>(
     runtime: &std::sync::Arc<F>,
+    app: &App,
     alias: String,
 ) -> agent_core::Result<ModelProfileTestResult>
 where
     F: AppFacade + ?Sized,
 {
-    let profiles = AppFacade::list_profile_settings(runtime.as_ref(), None).await?;
+    let profiles = AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await?;
     let profile = profiles
         .into_iter()
         .find(|profile| profile.alias == alias)
@@ -1547,6 +1879,54 @@ where
     refresh_skills_overlay(runtime, app, catalog_keyword, catalog_sources).await;
 }
 
+pub async fn refresh_model_overlay<F>(runtime: &std::sync::Arc<F>, app: &mut App)
+where
+    F: AppFacade + ?Sized,
+{
+    let settings = match AppFacade::list_profile_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await
+    {
+        Ok(settings) => settings,
+        Err(error) => {
+            push_status_message(app, format!("[model settings error: {error}]"));
+            return;
+        }
+    };
+    let profiles = settings
+        .into_iter()
+        .map(|profile| ModelProfileEntry {
+            alias: profile.alias,
+            provider_display: profile.provider,
+            model_display: profile.model_id,
+            context_window: profile.context_window,
+            output_limit: profile.output_limit,
+            temperature: profile.temperature,
+            top_p: profile.top_p,
+            top_k: profile.top_k,
+            max_tokens: profile.max_tokens,
+            base_url: profile.base_url,
+            api_key_env: profile.api_key_env,
+            supports_reasoning: false,
+            enabled: profile.enabled,
+            writable: profile.writable,
+            source: profile.source,
+            has_api_key: profile.has_api_key,
+        })
+        .collect();
+
+    app.dispatch_effects(vec![CrossPanelEffect::ShowModelOverlay(
+        ModelOverlaySnapshot {
+            profiles,
+            current_alias: Some(app.state.model_profile.clone()),
+            current_effort: app.state.reasoning_effort.clone(),
+        },
+    )]);
+}
+
 pub async fn refresh_mcp_overlay<F>(
     runtime: &std::sync::Arc<F>,
     app: &mut App,
@@ -1554,16 +1934,24 @@ pub async fn refresh_mcp_overlay<F>(
 ) where
     F: AppFacade + ?Sized,
 {
-    let mut settings = match McpFacade::list_mcp_server_settings(runtime.as_ref(), None).await {
+    let mut settings = match McpFacade::list_mcp_server_settings_for_project(
+        runtime.as_ref(),
+        app.state.settings_source_filter(),
+        selected_project_root_for_source(app),
+    )
+    .await
+    {
         Ok(settings) => settings,
         Err(error) => {
             push_status_message(app, format!("[MCP settings error: {error}]"));
             Vec::new()
         }
     };
-    match project_config_path().and_then(|path| read_disabled_mcp_scope(&path)) {
-        Ok(disabled_ids) => apply_project_disabled_scope(&mut settings, &disabled_ids),
-        Err(error) => push_status_message(app, format!("[MCP project scope error: {error}]")),
+    if app.state.settings_config_source() == SettingsConfigSource::Project {
+        match selected_project_config_path(app).and_then(|path| read_disabled_mcp_scope(&path)) {
+            Ok(disabled_ids) => apply_project_disabled_scope(&mut settings, &disabled_ids),
+            Err(error) => push_status_message(app, format!("[MCP project scope error: {error}]")),
+        }
     }
 
     let installed = match McpFacade::list_installed_entries(runtime.as_ref()).await {

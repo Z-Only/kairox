@@ -19,6 +19,15 @@ pub trait McpFacade: Send + Sync {
         Ok(Vec::new())
     }
 
+    async fn list_mcp_server_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> crate::Result<Vec<McpServerSettingsView>> {
+        let _ = project_root;
+        self.list_mcp_server_settings(source_filter).await
+    }
+
     async fn upsert_mcp_server_settings(
         &self,
         input: McpServerSettingsInput,
@@ -55,6 +64,15 @@ pub trait McpFacade: Send + Sync {
     ) -> crate::Result<Vec<ProfileSettingsView>> {
         let _ = source_filter;
         Ok(Vec::new())
+    }
+
+    async fn list_profile_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> crate::Result<Vec<ProfileSettingsView>> {
+        let _ = project_root;
+        self.list_profile_settings(source_filter).await
     }
 
     async fn upsert_profile_settings(
