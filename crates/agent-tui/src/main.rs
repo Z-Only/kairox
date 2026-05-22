@@ -104,13 +104,7 @@ async fn dispatch_commands(
                         }
                     }
                     Err(e) => {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("[error: {e}]"),
-                            },
-                        );
-                        app.state.render_scheduler.mark_dirty();
+                        push_status_error(app, format!("[error: {e}]"));
                     }
                 }
             }
@@ -159,13 +153,7 @@ async fn dispatch_commands(
                     )
                     .await
                 {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[permission error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[permission error: {e}]"));
                 }
             }
 
@@ -214,20 +202,10 @@ async fn dispatch_commands(
                     let mut manager = mcp_manager.lock().await;
                     match manager.ensure_server(&server_id).await {
                         Ok(_) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("MCP server '{}' started", server_id),
-                                },
-                            );
+                            push_status_message(app, format!("MCP server '{}' started", server_id));
                         }
                         Err(e) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("[MCP start error: {e}]"),
-                                },
-                            );
+                            push_status_error(app, format!("[MCP start error: {e}]"));
                         }
                     }
                     drop(manager);
@@ -241,20 +219,10 @@ async fn dispatch_commands(
                     let mut manager = mcp_manager.lock().await;
                     match manager.shutdown_server(&server_id).await {
                         Ok(()) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("MCP server '{}' stopped", server_id),
-                                },
-                            );
+                            push_status_message(app, format!("MCP server '{}' stopped", server_id));
                         }
                         Err(e) => {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("[MCP stop error: {e}]"),
-                                },
-                            );
+                            push_status_error(app, format!("[MCP stop error: {e}]"));
                         }
                     }
                     drop(manager);
@@ -519,13 +487,7 @@ async fn dispatch_commands(
                 session_id,
             } => {
                 if let Err(e) = runtime.cancel_session(workspace_id, session_id).await {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[cancel error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[cancel error: {e}]"));
                 }
             }
 
@@ -535,13 +497,7 @@ async fn dispatch_commands(
                 task_id,
             } => {
                 if let Err(e) = runtime.retry_task(workspace_id, session_id, task_id).await {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[task retry error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[task retry error: {e}]"));
                 }
             }
 
@@ -551,13 +507,7 @@ async fn dispatch_commands(
                 task_id,
             } => {
                 if let Err(e) = runtime.cancel_task(workspace_id, session_id, task_id).await {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[task cancel error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[task cancel error: {e}]"));
                 }
             }
 
@@ -584,12 +534,7 @@ async fn dispatch_commands(
                                 );
                             }
                             Err(e) => {
-                                app.state.current_session.messages.push(
-                                    agent_core::projection::ProjectedMessage {
-                                        role: agent_core::projection::ProjectedRole::Assistant,
-                                        content: format!("[memory query error: {e}]"),
-                                    },
-                                );
+                                push_status_error(app, format!("[memory query error: {e}]"));
                             }
                         }
                     }
@@ -604,12 +549,7 @@ async fn dispatch_commands(
                 match runtime.memory_store() {
                     Some(memory_store) => {
                         if let Err(e) = memory_store.delete(&memory_id).await {
-                            app.state.current_session.messages.push(
-                                agent_core::projection::ProjectedMessage {
-                                    role: agent_core::projection::ProjectedRole::Assistant,
-                                    content: format!("[memory delete error: {e}]"),
-                                },
-                            );
+                            push_status_error(app, format!("[memory delete error: {e}]"));
                         } else {
                             app.trace.remove_memory_row(&memory_id);
                         }
@@ -629,13 +569,7 @@ async fn dispatch_commands(
                     .compact_session(session_id, agent_core::CompactionReason::UserRequested)
                     .await
                 {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[compact error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[compact error: {e}]"));
                 }
             }
 
@@ -649,13 +583,7 @@ async fn dispatch_commands(
                     .switch_model(session_id, alias, reasoning_effort)
                     .await
                 {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[switch_model error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    push_status_error(app, format!("[switch_model error: {e}]"));
                 }
             }
 
@@ -791,13 +719,7 @@ async fn dispatch_commands(
                             .select(Some(app.state.sessions.len() - 1));
                     }
                     Err(e) => {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("[start session error: {e}]"),
-                            },
-                        );
-                        app.state.render_scheduler.mark_dirty();
+                        push_status_error(app, format!("[start session error: {e}]"));
                     }
                 }
             }
@@ -1214,13 +1136,13 @@ fn clamp_session_selection(app: &mut App) {
 }
 
 fn push_status_message(app: &mut App, content: String) {
-    app.state
-        .current_session
-        .messages
-        .push(agent_core::projection::ProjectedMessage {
-            role: agent_core::projection::ProjectedRole::Assistant,
-            content,
-        });
+    if content.trim().is_empty() {
+        return;
+    }
+    app.state.push_status_message(content);
+    if let Some(entry) = app.state.latest_status_message() {
+        app.status_bar.push_notification(entry.message.clone());
+    }
     app.state.render_scheduler.mark_dirty();
 }
 
@@ -1343,14 +1265,7 @@ async fn refresh_model_overlay(
     let settings = match AppFacade::list_profile_settings(runtime.as_ref(), None).await {
         Ok(settings) => settings,
         Err(error) => {
-            app.state
-                .current_session
-                .messages
-                .push(agent_core::projection::ProjectedMessage {
-                    role: agent_core::projection::ProjectedRole::Assistant,
-                    content: format!("[model settings error: {error}]"),
-                });
-            app.state.render_scheduler.mark_dirty();
+            push_status_error(app, format!("[model settings error: {error}]"));
             return;
         }
     };

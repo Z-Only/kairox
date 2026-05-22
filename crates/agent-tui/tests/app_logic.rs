@@ -2015,7 +2015,6 @@ fn skill_catalog_install_update_delete_command_variants_carry_payloads() {
 
 #[tokio::test]
 async fn tui_skill_commands_call_facade_and_render_visible_messages() {
-    use agent_core::projection::ProjectedRole;
     use agent_core::{EventPayload, SessionId, WorkspaceId};
     use agent_tui::app::App;
     use agent_tui::components::Command;
@@ -2073,31 +2072,29 @@ async fn tui_skill_commands_call_facade_and_render_visible_messages() {
     )
     .await;
 
-    let visible_messages: Vec<&str> = app
+    let status_messages: Vec<&str> = app
         .state
-        .current_session
-        .messages
+        .status_log
         .iter()
-        .filter(|message| message.role == ProjectedRole::Assistant)
-        .map(|message| message.content.as_str())
+        .map(|entry| entry.message.as_str())
         .collect();
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("test-driven-rust")),
-        "expected a visible skill list/detail message; got {visible_messages:?}"
+        "expected a skill list/detail status; got {status_messages:?}"
     );
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("activated test-driven-rust")),
-        "expected visible activation confirmation; got {visible_messages:?}"
+        "expected activation confirmation status; got {status_messages:?}"
     );
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("deactivated test-driven-rust")),
-        "expected visible deactivation confirmation; got {visible_messages:?}"
+        "expected deactivation confirmation status; got {status_messages:?}"
     );
 
     let trace = runtime
@@ -2381,7 +2378,6 @@ async fn tui_skill_catalog_overlay_queries_include_keyword_and_sources() {
 
 #[tokio::test]
 async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
-    use agent_core::projection::ProjectedRole;
     use agent_core::WorkspaceId;
     use agent_tui::app::App;
     use agent_tui::components::Command;
@@ -2441,19 +2437,76 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
         );
     }
 
-    let visible_messages: Vec<&str> = app
-        .state
-        .current_session
-        .messages
-        .iter()
-        .filter(|message| message.role == ProjectedRole::Assistant)
-        .map(|message| message.content.as_str())
-        .collect();
     assert!(
-        visible_messages
+        app.state
+            .status_log
             .iter()
+            .map(|entry| entry.message.as_str())
             .any(|message| message.contains("model profile fast connectivity ok")),
-        "expected visible model test result; got {visible_messages:?}"
+        "expected model test result in status log; got {:?}",
+        app.state.status_log
+    );
+}
+
+#[tokio::test]
+async fn app_logic_command_status_success_does_not_pollute_chat_transcript() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let initial_chat_count = app.state.current_session.messages.len();
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::SetProfileEnabled {
+            alias: "fast".into(),
+            enabled: false,
+        }],
+    )
+    .await;
+
+    assert_eq!(app.state.current_session.messages.len(), initial_chat_count);
+    assert_eq!(
+        app.state
+            .latest_status_message()
+            .map(|entry| entry.message.as_str()),
+        Some("disabled model profile fast")
+    );
+}
+
+#[tokio::test]
+async fn app_logic_command_status_failure_does_not_pollute_chat_transcript() {
+    use agent_core::{ConfigScope, WorkspaceId};
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let initial_chat_count = app.state.current_session.messages.len();
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::DeleteHookSettings {
+            scope: ConfigScope::Builtin,
+            event: "PreToolUse".into(),
+            id: "readonly".into(),
+        }],
+    )
+    .await;
+
+    assert_eq!(app.state.current_session.messages.len(), initial_chat_count);
+    let latest = app
+        .state
+        .latest_status_message()
+        .map(|entry| entry.message.as_str())
+        .unwrap_or_default();
+    assert!(
+        latest.contains("[hooks delete error:"),
+        "expected hook delete error in status log, got {latest:?}"
     );
 }
 
@@ -2682,18 +2735,16 @@ async fn tui_project_manager_commands_call_facade_and_update_state() {
     );
     assert!(
         app.state
-            .current_session
-            .messages
+            .status_log
             .iter()
-            .any(|message| message.content.contains("project instructions")),
-        "instruction command should surface summary content"
+            .any(|entry| entry.message.contains("project instructions")),
+        "instruction command should surface summary content in the status log"
     );
 }
 
 #[tokio::test]
 async fn tui_skill_catalog_settings_commands_call_facade_and_render_visible_messages() {
     use agent_core::facade::{InstallRemoteSkillRequest, SkillInstallTarget, SkillUpdateState};
-    use agent_core::projection::ProjectedRole;
     use agent_core::WorkspaceId;
     use agent_runtime::skill_package::FakeSkillPackageManager;
     use agent_runtime::skill_settings::SkillSettingsRoots;
@@ -2781,37 +2832,35 @@ cache_ttl_seconds = 900
     )
     .await;
 
-    let visible_messages: Vec<&str> = app
+    let status_messages: Vec<&str> = app
         .state
-        .current_session
-        .messages
+        .status_log
         .iter()
-        .filter(|message| message.role == ProjectedRole::Assistant)
-        .map(|message| message.content.as_str())
+        .map(|entry| entry.message.as_str())
         .collect();
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("No catalog skills found for review")),
-        "expected visible catalog empty-state message; got {visible_messages:?}"
+        "expected catalog empty-state status; got {status_messages:?}"
     );
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("installed skill review")),
-        "expected visible install confirmation; got {visible_messages:?}"
+        "expected install confirmation status; got {status_messages:?}"
     );
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("updated skill review")),
-        "expected visible update confirmation; got {visible_messages:?}"
+        "expected update confirmation status; got {status_messages:?}"
     );
     assert!(
-        visible_messages
+        status_messages
             .iter()
             .any(|message| message.contains("deleted skill review")),
-        "expected visible delete confirmation; got {visible_messages:?}"
+        "expected delete confirmation status; got {status_messages:?}"
     );
     assert_eq!(manager.registry_install_requests.lock().await.len(), 1);
     assert_eq!(
