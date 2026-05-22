@@ -1,0 +1,663 @@
+use std::collections::BTreeMap;
+
+use agent_core::facade::{CatalogSourceView, InstalledEntry, McpServerSettingsView, ServerEntry};
+use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::widgets::ListState;
+
+use crate::components::{
+    Command, McpConnectivityEntry, McpOverlaySnapshot, McpPromptEntry, McpResourceEntry,
+    McpServerEntry, McpServerStatusView, McpToolEntry,
+};
+
+use super::editor::{CatalogInstallDraft, ServerDraft, SourceDraft};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum McpOverlayTab {
+    Runtime,
+    Settings,
+    Installed,
+    Catalog,
+    Sources,
+    Tools,
+    Resources,
+    Prompts,
+}
+
+impl McpOverlayTab {
+    pub(super) fn next(self) -> Self {
+        match self {
+            Self::Runtime => Self::Settings,
+            Self::Settings => Self::Installed,
+            Self::Installed => Self::Catalog,
+            Self::Catalog => Self::Sources,
+            Self::Sources => Self::Tools,
+            Self::Tools => Self::Resources,
+            Self::Resources => Self::Prompts,
+            Self::Prompts => Self::Runtime,
+        }
+    }
+
+    pub(super) fn previous(self) -> Self {
+        match self {
+            Self::Runtime => Self::Prompts,
+            Self::Settings => Self::Runtime,
+            Self::Installed => Self::Settings,
+            Self::Catalog => Self::Installed,
+            Self::Sources => Self::Catalog,
+            Self::Tools => Self::Sources,
+            Self::Resources => Self::Tools,
+            Self::Prompts => Self::Resources,
+        }
+    }
+
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            Self::Runtime => "Runtime",
+            Self::Settings => "Settings",
+            Self::Installed => "Installed",
+            Self::Catalog => "Catalog",
+            Self::Sources => "Sources",
+            Self::Tools => "Tools",
+            Self::Resources => "Resources",
+            Self::Prompts => "Prompts",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct McpHealthState {
+    pub(super) healthy: bool,
+    pub(super) tool_count: usize,
+    pub(super) error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CatalogTrustFilter {
+    All,
+    Community,
+    Verified,
+}
+
+impl CatalogTrustFilter {
+    pub(super) fn next(self) -> Self {
+        match self {
+            Self::All => Self::Community,
+            Self::Community => Self::Verified,
+            Self::Verified => Self::All,
+        }
+    }
+
+    pub(super) fn min_rank(self) -> Option<u8> {
+        match self {
+            Self::All => None,
+            Self::Community => Some(1),
+            Self::Verified => Some(2),
+        }
+    }
+
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Community => "community+",
+            Self::Verified => "verified",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum McpOverlayMode {
+    List,
+    ServerEditor,
+    SourceEditor,
+    CatalogFilter,
+    CatalogInstallConfig,
+}
+
+pub struct McpOverlay {
+    pub(super) focused: bool,
+    pub(super) visible: bool,
+    pub(super) mode: McpOverlayMode,
+    pub(super) tab: McpOverlayTab,
+    pub(super) runtime_servers: Vec<McpServerEntry>,
+    pub(super) settings: Vec<McpServerSettingsView>,
+    pub(super) installed: Vec<InstalledEntry>,
+    pub(super) catalog: Vec<ServerEntry>,
+    pub(super) sources: Vec<CatalogSourceView>,
+    pub(super) tools: BTreeMap<String, Vec<McpToolEntry>>,
+    pub(super) resources: BTreeMap<String, Vec<McpResourceEntry>>,
+    pub(super) prompts: BTreeMap<String, Vec<McpPromptEntry>>,
+    pub(super) health: BTreeMap<String, McpHealthState>,
+    pub(super) connectivity: BTreeMap<String, McpConnectivityEntry>,
+    pub(super) resource_previews: BTreeMap<String, String>,
+    pub(super) catalog_keyword: String,
+    pub(super) catalog_trust_filter: CatalogTrustFilter,
+    pub(super) runtime_state: ListState,
+    pub(super) settings_state: ListState,
+    pub(super) installed_state: ListState,
+    pub(super) catalog_state: ListState,
+    pub(super) sources_state: ListState,
+    pub(super) tools_state: ListState,
+    pub(super) resources_state: ListState,
+    pub(super) prompts_state: ListState,
+    pub(super) server_draft: ServerDraft,
+    pub(super) server_field_index: usize,
+    pub(super) source_draft: SourceDraft,
+    pub(super) source_field_index: usize,
+    pub(super) catalog_install_draft: CatalogInstallDraft,
+    pub(super) catalog_install_field_index: usize,
+}
+
+impl Default for McpOverlay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl McpOverlay {
+    pub fn new() -> Self {
+        Self {
+            focused: false,
+            visible: false,
+            mode: McpOverlayMode::List,
+            tab: McpOverlayTab::Runtime,
+            runtime_servers: Vec::new(),
+            settings: Vec::new(),
+            installed: Vec::new(),
+            catalog: Vec::new(),
+            sources: Vec::new(),
+            tools: BTreeMap::new(),
+            resources: BTreeMap::new(),
+            prompts: BTreeMap::new(),
+            health: BTreeMap::new(),
+            connectivity: BTreeMap::new(),
+            resource_previews: BTreeMap::new(),
+            catalog_keyword: String::new(),
+            catalog_trust_filter: CatalogTrustFilter::All,
+            runtime_state: ListState::default(),
+            settings_state: ListState::default(),
+            installed_state: ListState::default(),
+            catalog_state: ListState::default(),
+            sources_state: ListState::default(),
+            tools_state: ListState::default(),
+            resources_state: ListState::default(),
+            prompts_state: ListState::default(),
+            server_draft: ServerDraft::new(),
+            server_field_index: 0,
+            source_draft: SourceDraft::new(),
+            source_field_index: 0,
+            catalog_install_draft: CatalogInstallDraft::new(),
+            catalog_install_field_index: 0,
+        }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    pub fn show(&mut self, snapshot: McpOverlaySnapshot) {
+        self.runtime_servers = snapshot.runtime_servers;
+        self.settings = snapshot.settings;
+        self.installed = snapshot.installed;
+        self.catalog = snapshot.catalog;
+        self.sources = snapshot.sources;
+        self.visible = true;
+        self.mode = McpOverlayMode::List;
+        self.ensure_selection();
+    }
+
+    pub fn hide(&mut self) {
+        self.visible = false;
+        self.runtime_servers.clear();
+        self.settings.clear();
+        self.installed.clear();
+        self.catalog.clear();
+        self.sources.clear();
+        self.tools.clear();
+        self.resources.clear();
+        self.prompts.clear();
+        self.health.clear();
+        self.connectivity.clear();
+        self.resource_previews.clear();
+        self.mode = McpOverlayMode::List;
+        self.runtime_state.select(None);
+        self.settings_state.select(None);
+        self.installed_state.select(None);
+        self.catalog_state.select(None);
+        self.sources_state.select(None);
+        self.tools_state.select(None);
+        self.resources_state.select(None);
+        self.prompts_state.select(None);
+        self.server_draft = ServerDraft::new();
+        self.server_field_index = 0;
+        self.source_draft = SourceDraft::new();
+        self.source_field_index = 0;
+        self.catalog_install_draft = CatalogInstallDraft::new();
+        self.catalog_install_field_index = 0;
+    }
+
+    #[allow(dead_code)]
+    pub fn servers(&self) -> &[McpServerEntry] {
+        &self.runtime_servers
+    }
+
+    #[allow(dead_code)]
+    pub fn settings_len(&self) -> usize {
+        self.settings.len()
+    }
+
+    #[allow(dead_code)]
+    pub fn catalog_len(&self) -> usize {
+        self.catalog.len()
+    }
+
+    #[allow(dead_code)]
+    pub fn sources_len(&self) -> usize {
+        self.sources.len()
+    }
+
+    #[allow(dead_code)]
+    pub fn selected_index(&self) -> Option<usize> {
+        self.current_selected()
+    }
+
+    #[cfg(test)]
+    pub(super) fn server_draft_name_for_test(&self) -> Option<&str> {
+        if self.mode == McpOverlayMode::ServerEditor {
+            Some(self.server_draft.name.as_str())
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn current_len(&self) -> usize {
+        match self.tab {
+            McpOverlayTab::Runtime => self.runtime_servers.len(),
+            McpOverlayTab::Settings => self.settings.len(),
+            McpOverlayTab::Installed => self.installed.len(),
+            McpOverlayTab::Catalog => self.visible_catalog_len(),
+            McpOverlayTab::Sources => self.sources.len(),
+            McpOverlayTab::Tools => self.current_tools().len(),
+            McpOverlayTab::Resources => self.current_resources().len(),
+            McpOverlayTab::Prompts => self.current_prompts().len(),
+        }
+    }
+
+    pub(super) fn current_selected(&self) -> Option<usize> {
+        match self.tab {
+            McpOverlayTab::Runtime => self.runtime_state.selected(),
+            McpOverlayTab::Settings => self.settings_state.selected(),
+            McpOverlayTab::Installed => self.installed_state.selected(),
+            McpOverlayTab::Catalog => self.catalog_state.selected(),
+            McpOverlayTab::Sources => self.sources_state.selected(),
+            McpOverlayTab::Tools => self.tools_state.selected(),
+            McpOverlayTab::Resources => self.resources_state.selected(),
+            McpOverlayTab::Prompts => self.prompts_state.selected(),
+        }
+    }
+
+    pub(super) fn select_current(&mut self, selected: Option<usize>) {
+        match self.tab {
+            McpOverlayTab::Runtime => self.runtime_state.select(selected),
+            McpOverlayTab::Settings => self.settings_state.select(selected),
+            McpOverlayTab::Installed => self.installed_state.select(selected),
+            McpOverlayTab::Catalog => self.catalog_state.select(selected),
+            McpOverlayTab::Sources => self.sources_state.select(selected),
+            McpOverlayTab::Tools => self.tools_state.select(selected),
+            McpOverlayTab::Resources => self.resources_state.select(selected),
+            McpOverlayTab::Prompts => self.prompts_state.select(selected),
+        }
+    }
+
+    pub(super) fn ensure_selection(&mut self) {
+        let tools_len = self.current_tools().len();
+        let resources_len = self.current_resources().len();
+        let prompts_len = self.current_prompts().len();
+        let catalog_len = self.visible_catalog_len();
+        for (len, state) in [
+            (self.runtime_servers.len(), &mut self.runtime_state),
+            (self.settings.len(), &mut self.settings_state),
+            (self.installed.len(), &mut self.installed_state),
+            (catalog_len, &mut self.catalog_state),
+            (self.sources.len(), &mut self.sources_state),
+            (tools_len, &mut self.tools_state),
+            (resources_len, &mut self.resources_state),
+            (prompts_len, &mut self.prompts_state),
+        ] {
+            let selected = if len == 0 {
+                None
+            } else {
+                Some(state.selected().map_or(0, |index| index.min(len - 1)))
+            };
+            state.select(selected);
+        }
+    }
+
+    pub(super) fn selected_runtime_server(&self) -> Option<&McpServerEntry> {
+        self.runtime_state
+            .selected()
+            .and_then(|index| self.runtime_servers.get(index))
+    }
+
+    pub(super) fn selected_setting(&self) -> Option<&McpServerSettingsView> {
+        self.settings_state
+            .selected()
+            .and_then(|index| self.settings.get(index))
+    }
+
+    pub(super) fn selected_installed(&self) -> Option<&InstalledEntry> {
+        self.installed_state
+            .selected()
+            .and_then(|index| self.installed.get(index))
+    }
+
+    pub(super) fn selected_catalog_entry(&self) -> Option<&ServerEntry> {
+        let visible_index = self.catalog_state.selected()?;
+        let catalog_index = self.visible_catalog_indices().get(visible_index).copied()?;
+        self.catalog.get(catalog_index)
+    }
+
+    pub(super) fn visible_catalog_len(&self) -> usize {
+        self.catalog
+            .iter()
+            .filter(|entry| self.catalog_entry_visible(entry))
+            .count()
+    }
+
+    pub(super) fn visible_catalog_indices(&self) -> Vec<usize> {
+        self.catalog
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| self.catalog_entry_visible(entry).then_some(index))
+            .collect()
+    }
+
+    pub(super) fn visible_catalog_entries(&self) -> Vec<&ServerEntry> {
+        self.visible_catalog_indices()
+            .into_iter()
+            .filter_map(|index| self.catalog.get(index))
+            .collect()
+    }
+
+    pub(super) fn catalog_entry_visible(&self, entry: &ServerEntry) -> bool {
+        if !self.catalog_source_enabled(&entry.source) {
+            return false;
+        }
+
+        if let Some(min_rank) = self.catalog_trust_filter.min_rank() {
+            if trust_rank(&entry.trust) < min_rank {
+                return false;
+            }
+        }
+
+        let keyword = self.catalog_keyword.trim().to_lowercase();
+        if keyword.is_empty() {
+            return true;
+        }
+
+        let haystack = format!(
+            "{} {} {} {} {} {}",
+            entry.id,
+            entry.display_name,
+            entry.summary,
+            entry.description,
+            entry.categories.join(" "),
+            entry.tags.join(" ")
+        )
+        .to_lowercase();
+        haystack.contains(&keyword)
+    }
+
+    pub(super) fn catalog_source_enabled(&self, source_id: &str) -> bool {
+        self.sources
+            .iter()
+            .find(|source| source.id == source_id)
+            .map(|source| source.enabled)
+            .unwrap_or(source_id == "builtin")
+    }
+
+    pub(super) fn catalog_filters_active(&self) -> bool {
+        !self.catalog_keyword.trim().is_empty()
+            || self.catalog_trust_filter != CatalogTrustFilter::All
+            || self
+                .catalog
+                .iter()
+                .any(|entry| !self.catalog_source_enabled(&entry.source))
+    }
+
+    pub(super) fn cycle_catalog_trust_filter(&mut self) {
+        self.catalog_trust_filter = self.catalog_trust_filter.next();
+        self.ensure_selection();
+    }
+
+    pub(super) fn selected_source(&self) -> Option<&CatalogSourceView> {
+        self.sources_state
+            .selected()
+            .and_then(|index| self.sources.get(index))
+    }
+
+    pub(super) fn selected_server_id(&self) -> Option<&str> {
+        self.selected_runtime_server()
+            .map(|entry| entry.server_id.as_str())
+    }
+
+    pub(super) fn current_tools(&self) -> &[McpToolEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.tools.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub(super) fn current_resources(&self) -> &[McpResourceEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.resources.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub(super) fn current_prompts(&self) -> &[McpPromptEntry] {
+        self.selected_server_id()
+            .and_then(|server_id| self.prompts.get(server_id))
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub(super) fn selected_tool(&self) -> Option<&McpToolEntry> {
+        self.tools_state
+            .selected()
+            .and_then(|index| self.current_tools().get(index))
+    }
+
+    pub(super) fn selected_resource(&self) -> Option<&McpResourceEntry> {
+        self.resources_state
+            .selected()
+            .and_then(|index| self.current_resources().get(index))
+    }
+
+    pub(super) fn move_down(&mut self) {
+        let len = self.current_len();
+        if len == 0 {
+            return;
+        }
+        let next = match self.current_selected() {
+            Some(i) if i + 1 < len => i + 1,
+            Some(_) => len - 1,
+            None => 0,
+        };
+        self.select_current(Some(next));
+    }
+
+    pub(super) fn move_up(&mut self) {
+        if self.current_len() == 0 {
+            return;
+        }
+        let next = match self.current_selected() {
+            Some(i) if i > 0 => i - 1,
+            _ => 0,
+        };
+        self.select_current(Some(next));
+    }
+
+    pub(super) fn handle_catalog_filter_key(&mut self, key: KeyCode, modifiers: KeyModifiers) {
+        match key {
+            KeyCode::Enter | KeyCode::Esc => {
+                self.mode = McpOverlayMode::List;
+            }
+            KeyCode::Backspace => {
+                self.catalog_keyword.pop();
+                self.ensure_selection();
+            }
+            KeyCode::Delete => {
+                self.catalog_keyword.clear();
+                self.ensure_selection();
+            }
+            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword.clear();
+                self.ensure_selection();
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.catalog_keyword.push(ch);
+                self.ensure_selection();
+            }
+            _ => {}
+        }
+    }
+
+    pub(super) fn command_for_current_tab(&self, key: KeyCode) -> Option<Command> {
+        match (self.tab, key) {
+            (McpOverlayTab::Runtime, KeyCode::Enter) => {
+                self.selected_runtime_server().map(|entry| {
+                    let server_id = entry.server_id.clone();
+                    match entry.status {
+                        McpServerStatusView::Running | McpServerStatusView::Starting => {
+                            Command::StopMcpServer { server_id }
+                        }
+                        McpServerStatusView::Stopped | McpServerStatusView::Failed => {
+                            Command::StartMcpServer { server_id }
+                        }
+                    }
+                })
+            }
+            (McpOverlayTab::Runtime, KeyCode::Char('t') | KeyCode::Char('T')) => {
+                self.selected_runtime_server().map(|entry| {
+                    let server_id = entry.server_id.clone();
+                    if entry.trusted {
+                        Command::RevokeMcpTrust { server_id }
+                    } else {
+                        Command::TrustMcpServer { server_id }
+                    }
+                })
+            }
+            (McpOverlayTab::Runtime, KeyCode::Char('h') | KeyCode::Char('H')) => self
+                .selected_runtime_server()
+                .map(|entry| Command::CheckMcpHealth {
+                    server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Runtime, KeyCode::Char('c') | KeyCode::Char('C')) => self
+                .selected_runtime_server()
+                .map(|entry| Command::TestMcpConnectivity {
+                    server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Runtime, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_runtime_server()
+                .map(|entry| Command::RefreshMcpTools {
+                    server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Tools, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::CheckMcpHealth {
+                    server_id: server_id.to_string(),
+                }),
+            (McpOverlayTab::Tools, KeyCode::Char('e') | KeyCode::Char('E') | KeyCode::Enter) => {
+                self.selected_tool()
+                    .map(|tool| Command::SetMcpToolDisabled {
+                        server_id: tool.server_id.clone(),
+                        tool_name: tool.name.clone(),
+                        disabled: !tool.disabled,
+                    })
+            }
+            (McpOverlayTab::Resources, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::ListMcpResources {
+                    server_id: server_id.to_string(),
+                }),
+            (McpOverlayTab::Resources, KeyCode::Enter) => {
+                self.selected_resource()
+                    .map(|resource| Command::ReadMcpResource {
+                        server_id: resource.server_id.clone(),
+                        uri: resource.uri.clone(),
+                    })
+            }
+            (McpOverlayTab::Prompts, KeyCode::Char('r') | KeyCode::Char('R')) => self
+                .selected_server_id()
+                .map(|server_id| Command::ListMcpPrompts {
+                    server_id: server_id.to_string(),
+                }),
+            (McpOverlayTab::Settings, KeyCode::Char('e') | KeyCode::Char('E')) => self
+                .selected_setting()
+                .filter(|setting| setting.writable)
+                .map(|setting| Command::SetMcpServerEnabled {
+                    server_id: setting.id.clone(),
+                    enabled: !setting.enabled,
+                }),
+            (McpOverlayTab::Settings, KeyCode::Char('o') | KeyCode::Char('O')) => {
+                Some(Command::OpenMcpConfig)
+            }
+            (McpOverlayTab::Settings, KeyCode::Char('d') | KeyCode::Char('D')) => self
+                .selected_setting()
+                .map(|setting| Command::DisableMcpServerAtScope {
+                    server_id: setting.id.clone(),
+                }),
+            (McpOverlayTab::Settings, KeyCode::Char('a') | KeyCode::Char('A')) => self
+                .selected_setting()
+                .map(|setting| Command::EnableMcpServerAtScope {
+                    server_id: setting.id.clone(),
+                }),
+            (
+                McpOverlayTab::Settings,
+                KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete,
+            ) => self
+                .selected_setting()
+                .filter(|setting| setting.writable)
+                .map(|setting| Command::DeleteMcpServerSettings {
+                    server_id: setting.id.clone(),
+                }),
+            (
+                McpOverlayTab::Installed,
+                KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Char('u') | KeyCode::Char('U'),
+            ) => self
+                .selected_installed()
+                .map(|entry| Command::UninstallMcpServer {
+                    server_id: entry.server_id.clone(),
+                }),
+            (McpOverlayTab::Sources, KeyCode::Char('e') | KeyCode::Char('E')) => self
+                .selected_source()
+                .map(|source| Command::SetMcpCatalogSourceEnabled {
+                    source_id: source.id.clone(),
+                    enabled: !source.enabled,
+                }),
+            (McpOverlayTab::Sources, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => {
+                self.selected_source()
+                    .filter(|source| source.id != "builtin")
+                    .map(|source| Command::RemoveMcpCatalogSource {
+                        source_id: source.id.clone(),
+                    })
+            }
+            (McpOverlayTab::Sources, KeyCode::Char('o') | KeyCode::Char('O')) => {
+                Some(Command::OpenMcpConfig)
+            }
+            _ => None,
+        }
+    }
+}
+
+pub(super) fn trust_rank(value: &str) -> u8 {
+    match value {
+        "verified" => 2,
+        "community" => 1,
+        _ => 0,
+    }
+}
+
+pub(super) fn resource_preview_key(server_id: &str, uri: &str) -> String {
+    format!("{server_id}\n{uri}")
+}
