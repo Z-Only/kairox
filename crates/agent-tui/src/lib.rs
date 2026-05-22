@@ -6,3 +6,4 @@ pub mod components;
 pub mod keybindings;
 pub mod runtime_dispatch;
 pub mod view;
+pub mod workspace_recovery;
