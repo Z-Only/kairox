@@ -3,9 +3,12 @@ import { usePluginsStore } from "@/stores/plugins";
 import type { PluginInstallTarget, PluginSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
+import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
+
+type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 
 const store = usePluginsStore();
 const { t } = useI18n();
@@ -29,6 +32,19 @@ function slugify(value: string): string {
 
 function settingsTestId(plugin: PluginSettingsView): string {
   return slugify(plugin.settings_id);
+}
+
+function sourceTone(source: string): SourceTone {
+  switch (source.toLowerCase()) {
+    case "builtin":
+      return "source-builtin";
+    case "project":
+      return "source-project";
+    case "local":
+      return "source-local";
+    default:
+      return "source-user";
+  }
 }
 
 async function refreshInstalled(): Promise<void> {
@@ -136,6 +152,16 @@ watch(activeSubTab, (tab) => {
                 {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
               </SettingsStatusTag>
             </template>
+
+            <SettingsEffectiveAudit
+              :source="plugin.scope"
+              :source-tone="sourceTone(plugin.scope)"
+              :enabled="plugin.enabled"
+              :effective="plugin.effective"
+              :shadowed-by="plugin.shadowed_by"
+              :valid="plugin.valid"
+              :data-test="`plugin-audit-${settingsTestId(plugin)}`"
+            />
 
             <SettingsItemMeta wrap-values>
               <div>

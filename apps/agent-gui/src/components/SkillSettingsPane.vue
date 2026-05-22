@@ -3,6 +3,7 @@ import { useSkillsStore } from "@/stores/skills";
 import type { ConfigScope, EffectiveSkillView, SkillInstallTarget } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
+import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
@@ -216,6 +217,18 @@ async function installFromGithub(): Promise<void> {
                   {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
                 </SettingsStatusTag>
               </template>
+
+              <SettingsEffectiveAudit
+                :source="skill.source"
+                :source-tone="sourceTone(skill.source)"
+                :enabled="skill.enabled"
+                :effective="skill.value.effective"
+                :shadowed-by="skill.value.shadowed_by"
+                :overrides="skill.overrides"
+                :disabled-by="skill.disabledBy"
+                :valid="skill.value.valid"
+                :data-test="`skill-audit-${skillSettingsTestId(skill)}`"
+              />
 
               <SettingsItemMeta columns="four">
                 <div>
