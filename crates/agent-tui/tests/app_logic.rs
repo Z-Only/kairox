@@ -303,6 +303,11 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
         self.record("open_profiles_config_file");
         Ok(Some("/tmp/kairox/profiles.toml".into()))
     }
+
+    async fn open_config_dir(&self) -> agent_core::Result<Option<String>> {
+        self.record("open_config_dir");
+        Ok(None)
+    }
 }
 
 #[async_trait::async_trait]
@@ -499,6 +504,11 @@ impl agent_core::facade::SkillsFacade for TuiMcpFakeFacade {
     async fn refresh_skill_catalog(&self) -> agent_core::Result<()> {
         self.record("refresh_skill_catalog");
         Ok(())
+    }
+
+    async fn open_skills_dir(&self) -> agent_core::Result<Option<String>> {
+        self.record("open_skills_dir");
+        Ok(None)
     }
 }
 
@@ -2990,6 +3000,33 @@ async fn tui_project_manager_commands_call_facade_and_update_state() {
             .iter()
             .any(|entry| entry.message.contains("project instructions")),
         "instruction command should surface summary content in the status log"
+    );
+}
+
+#[tokio::test]
+async fn settings_utility_commands_call_facade_open_dir_methods() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::Command;
+
+    let runtime = Arc::new(TuiMcpFakeFacade::default());
+    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+    agent_tui::app::dispatch_commands(
+        &runtime,
+        &mut app,
+        vec![Command::OpenConfigDir, Command::OpenSkillsDir],
+    )
+    .await;
+
+    let calls = runtime.calls();
+    assert!(
+        calls.contains(&"open_config_dir".to_string()),
+        "expected open_config_dir facade call; got {calls:?}"
+    );
+    assert!(
+        calls.contains(&"open_skills_dir".to_string()),
+        "expected open_skills_dir facade call; got {calls:?}"
     );
 }
 

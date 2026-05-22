@@ -525,6 +525,22 @@ impl ModelOverlay {
         }
     }
 
+    fn draft_test_command(&self) -> Option<Command> {
+        let base_url = self.draft.base_url.trim();
+        if base_url.is_empty() {
+            return None;
+        }
+        let alias = self.draft.alias.trim();
+        Some(Command::TestModelProfileUrl {
+            alias: if alias.is_empty() {
+                base_url.to_string()
+            } else {
+                alias.to_string()
+            },
+            base_url: base_url.to_string(),
+        })
+    }
+
     fn handle_list_key(
         &mut self,
         ctx: &EventContext,
@@ -584,6 +600,13 @@ impl ModelOverlay {
             KeyCode::Esc => self.mode = OverlayMode::List,
             KeyCode::Backspace => self.draft.backspace(self.current_editor_field()),
             KeyCode::Delete => self.draft.clear_field(self.current_editor_field()),
+            KeyCode::Char('t') | KeyCode::Char('T')
+                if modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                if let Some(command) = self.draft_test_command() {
+                    commands.push(command);
+                }
+            }
             KeyCode::Enter => {
                 if let Some(input) = self.draft.to_input() {
                     commands.push(Command::SaveProfileSettings { input });
@@ -868,6 +891,7 @@ fn render_model_profile_editor(area: Rect, frame: &mut Frame, overlay: &ModelOve
     let hints = Line::from(vec![
         Span::styled("[Tab/j/k] field  ", Style::default().fg(Color::DarkGray)),
         Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
+        Span::styled("[Ctrl+T] test URL  ", Style::default().fg(Color::Yellow)),
         Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
         Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
     ]);
@@ -1042,6 +1066,10 @@ mod tests {
         ))
     }
 
+    fn modified_key(code: KeyCode, modifiers: crossterm::event::KeyModifiers) -> Event {
+        Event::Key(crossterm::event::KeyEvent::new(code, modifiers))
+    }
+
     fn press(overlay: &mut ModelOverlay, code: KeyCode) -> Vec<Command> {
         let (ws, sid, sessions, proj) = test_ctx_with_session(None);
         let (_, commands) = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(code));
@@ -1178,6 +1206,33 @@ mod tests {
         let (_, commands) =
             overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('o')));
         assert!(matches!(&commands[..], [Command::OpenProfilesConfig]));
+    }
+
+    #[test]
+    fn editor_ctrl_t_tests_draft_base_url() {
+        let mut overlay = ModelOverlay::new();
+        overlay.show(snapshot(vec![entry("fast", false)], Some("fast"), None));
+        let (ws, sid, sessions, proj) = test_ctx_with_session(Some(agent_core::SessionId::new()));
+
+        let _ = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Char('n')));
+        type_text(&mut overlay, "draft");
+        let _ = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Down));
+        type_text(&mut overlay, "openai");
+        let _ = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Down));
+        type_text(&mut overlay, "gpt-4.1");
+        let _ = overlay.handle_event(&ctx(&ws, &sid, &sessions, &proj), &key(KeyCode::Down));
+        type_text(&mut overlay, "https://api.example.test/v1");
+
+        let (_, commands) = overlay.handle_event(
+            &ctx(&ws, &sid, &sessions, &proj),
+            &modified_key(KeyCode::Char('t'), crossterm::event::KeyModifiers::CONTROL),
+        );
+
+        assert!(matches!(
+            &commands[..],
+            [Command::TestModelProfileUrl { alias, base_url }]
+                if alias == "draft" && base_url == "https://api.example.test/v1"
+        ));
     }
 
     #[test]

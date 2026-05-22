@@ -179,6 +179,7 @@ impl App {
                     self.state.focus_manager.pop();
                 }
                 CrossPanelEffect::ShowInstructionsOverlay(_)
+                | CrossPanelEffect::ShowSystemPromptOverlay(_)
                     if self.state.focus_manager.current() != FocusTarget::InstructionsOverlay =>
                 {
                     self.state

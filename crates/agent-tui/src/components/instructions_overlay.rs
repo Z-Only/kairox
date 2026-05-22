@@ -14,6 +14,7 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InstructionsTab {
+    System,
     User,
     Project,
     Effective,
@@ -22,15 +23,17 @@ enum InstructionsTab {
 impl InstructionsTab {
     fn next(self) -> Self {
         match self {
+            Self::System => Self::User,
             Self::User => Self::Project,
             Self::Project => Self::Effective,
-            Self::Effective => Self::User,
+            Self::Effective => Self::System,
         }
     }
 
     fn previous(self) -> Self {
         match self {
-            Self::User => Self::Effective,
+            Self::System => Self::Effective,
+            Self::User => Self::System,
             Self::Project => Self::User,
             Self::Effective => Self::Project,
         }
@@ -89,6 +92,11 @@ impl InstructionsOverlay {
         };
     }
 
+    pub fn show_system_prompt(&mut self, view: InstructionsView) {
+        self.show(view);
+        self.tab = InstructionsTab::System;
+    }
+
     pub fn hide(&mut self) {
         self.visible = false;
         self.tab = InstructionsTab::User;
@@ -96,9 +104,25 @@ impl InstructionsOverlay {
 
     pub fn active_scope(&self) -> ConfigScope {
         match self.tab {
-            InstructionsTab::User | InstructionsTab::Effective => ConfigScope::User,
+            InstructionsTab::System | InstructionsTab::User | InstructionsTab::Effective => {
+                ConfigScope::User
+            }
             InstructionsTab::Project => ConfigScope::Project,
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn active_tab_label(&self) -> &'static str {
+        match self.tab {
+            InstructionsTab::System => "System",
+            InstructionsTab::User => "User",
+            InstructionsTab::Project => "Project",
+            InstructionsTab::Effective => "Effective",
+        }
+    }
+
+    pub fn system_text(&self) -> &str {
+        &self.system_text
     }
 
     pub fn user_text(&self) -> &str {
@@ -127,7 +151,7 @@ impl InstructionsOverlay {
         match self.tab {
             InstructionsTab::User => Some((&mut self.user_text, &mut self.user_cursor)),
             InstructionsTab::Project => Some((&mut self.project_text, &mut self.project_cursor)),
-            InstructionsTab::Effective => None,
+            InstructionsTab::System | InstructionsTab::Effective => None,
         }
     }
 
@@ -162,6 +186,7 @@ impl InstructionsOverlay {
     fn save_command(&self) -> Option<Command> {
         let scope = self.active_scope();
         match self.tab {
+            InstructionsTab::System => None,
             InstructionsTab::User => Some(Command::SaveInstructions {
                 scope,
                 text: self.user_text.trim().to_string(),
@@ -210,6 +235,8 @@ pub fn render_instructions_overlay(area: Rect, frame: &mut Frame, overlay: &Inst
         .split(inner);
 
     let tabs = Line::from(vec![
+        tab_span("System", overlay.tab == InstructionsTab::System),
+        Span::raw("  "),
         tab_span("User", overlay.tab == InstructionsTab::User),
         Span::raw("  "),
         tab_span("Project", overlay.tab == InstructionsTab::Project),
@@ -219,6 +246,7 @@ pub fn render_instructions_overlay(area: Rect, frame: &mut Frame, overlay: &Inst
     frame.render_widget(Paragraph::new(tabs), chunks[0]);
 
     let (title, content, editable) = match overlay.tab {
+        InstructionsTab::System => ("System prompt", overlay.system_text(), false),
         InstructionsTab::User => ("User instructions", overlay.user_text(), true),
         InstructionsTab::Project => ("Project instructions", overlay.project_text(), true),
         InstructionsTab::Effective => ("Effective preview", "", false),
@@ -345,6 +373,9 @@ impl Component for InstructionsOverlay {
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
         match effect {
             CrossPanelEffect::ShowInstructionsOverlay(view) => self.show(view.clone()),
+            CrossPanelEffect::ShowSystemPromptOverlay(view) => {
+                self.show_system_prompt(view.clone())
+            }
             CrossPanelEffect::DismissInstructionsOverlay => self.hide(),
             _ => {}
         }

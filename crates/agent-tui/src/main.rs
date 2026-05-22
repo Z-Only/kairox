@@ -597,16 +597,20 @@ async fn dispatch_commands(
             | Command::SaveHookSettings { .. }
             | Command::DeleteHookSettings { .. }
             | Command::OpenInstructionsOverlay
+            | Command::OpenSystemPromptOverlay
             | Command::OpenAgentSettingsOverlay
             | Command::SaveAgentSettings { .. }
             | Command::DeleteAgentSettings { .. }
             | Command::CopyAgentSettings { .. }
+            | Command::OpenConfigDir
             | Command::OpenAgentsDir
+            | Command::OpenSkillsDir
             | Command::SaveProfileSettings { .. }
             | Command::SetProfileEnabled { .. }
             | Command::DeleteProfileSettings { .. }
             | Command::MoveProfileInOrder { .. }
             | Command::TestModelProfile { .. }
+            | Command::TestModelProfileUrl { .. }
             | Command::OpenProfilesConfig
             | Command::SetSettingsConfigSource { .. }
             | Command::CycleSettingsProject { .. }

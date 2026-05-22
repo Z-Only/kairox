@@ -248,6 +248,11 @@ fn parity_smoke_command_palette_opens_overlay_entry_points_and_queue_actions() {
             assert_command: |commands| assert!(matches!(commands, [Command::OpenModelOverlay])),
         },
         Case {
+            expected_id: "config-dir",
+            filter: "config-dir",
+            assert_command: |commands| assert!(matches!(commands, [Command::OpenConfigDir])),
+        },
+        Case {
             expected_id: "plugins",
             filter: "plugins",
             assert_command: |commands| assert!(matches!(commands, [Command::OpenPluginsOverlay])),
@@ -259,9 +264,16 @@ fn parity_smoke_command_palette_opens_overlay_entry_points_and_queue_actions() {
         },
         Case {
             expected_id: "instructions",
-            filter: "instructions",
+            filter: ":instructions",
             assert_command: |commands| {
                 assert!(matches!(commands, [Command::OpenInstructionsOverlay]))
+            },
+        },
+        Case {
+            expected_id: "system-prompt",
+            filter: "system-prompt",
+            assert_command: |commands| {
+                assert!(matches!(commands, [Command::OpenSystemPromptOverlay]))
             },
         },
         Case {
@@ -270,6 +282,11 @@ fn parity_smoke_command_palette_opens_overlay_entry_points_and_queue_actions() {
             assert_command: |commands| {
                 assert!(matches!(commands, [Command::OpenAgentSettingsOverlay]))
             },
+        },
+        Case {
+            expected_id: "skills-dir",
+            filter: "skills-dir",
+            assert_command: |commands| assert!(matches!(commands, [Command::OpenSkillsDir])),
         },
         Case {
             expected_id: "queue-send-now",

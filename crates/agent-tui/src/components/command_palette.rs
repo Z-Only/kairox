@@ -23,6 +23,7 @@ pub enum PaletteAction {
     CancelSession,
     NewSession,
     ProjectDraftSession,
+    ConfigDir,
     McpManager,
     McpConfig,
     Hooks,
@@ -31,7 +32,9 @@ pub enum PaletteAction {
     Agents,
     AgentsDir,
     Skills,
+    SkillsDir,
     SkillsManager,
+    SystemPrompt,
     ModelSelector,
     ProfilesConfig,
     SettingsSourceUser,
@@ -92,6 +95,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             action: PaletteAction::ModelSelector,
         },
         PaletteEntry {
+            id: "config-dir",
+            label: "Settings: open config directory",
+            description: "Open the writable Kairox config directory",
+            action: PaletteAction::ConfigDir,
+        },
+        PaletteEntry {
             id: "profiles-config",
             label: "Models: open profiles config",
             description: "Open the writable model profiles config file",
@@ -146,6 +155,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             action: PaletteAction::SkillsManager,
         },
         PaletteEntry {
+            id: "skills-dir",
+            label: "Skills: open directory",
+            description: "Open the writable user skills directory",
+            action: PaletteAction::SkillsDir,
+        },
+        PaletteEntry {
             id: "skill-catalog-refresh",
             label: "Skills: refresh catalog",
             description: "Refresh the configured skill catalog cache",
@@ -156,6 +171,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             label: ":instructions",
             description: "Open user/project instructions settings",
             action: PaletteAction::Instructions,
+        },
+        PaletteEntry {
+            id: "system-prompt",
+            label: "Instructions: view system prompt",
+            description: "Open the read-only system prompt view",
+            action: PaletteAction::SystemPrompt,
         },
         PaletteEntry {
             id: "hooks",
@@ -374,6 +395,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::CancelSession
         | PaletteAction::NewSession
         | PaletteAction::ProjectDraftSession
+        | PaletteAction::ConfigDir
         | PaletteAction::McpManager
         | PaletteAction::McpConfig
         | PaletteAction::Hooks
@@ -382,7 +404,9 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::Agents
         | PaletteAction::AgentsDir
         | PaletteAction::Skills
+        | PaletteAction::SkillsDir
         | PaletteAction::SkillsManager
+        | PaletteAction::SystemPrompt
         | PaletteAction::ModelSelector
         | PaletteAction::ProfilesConfig
         | PaletteAction::SettingsSourceUser
@@ -522,6 +546,9 @@ impl CommandPalette {
                     commands.push(Command::CreateProjectDraftSession { project_id });
                 }
             }
+            PaletteAction::ConfigDir => {
+                commands.push(Command::OpenConfigDir);
+            }
             PaletteAction::McpManager => {
                 commands.push(Command::OpenMcpOverlay);
             }
@@ -534,6 +561,9 @@ impl CommandPalette {
             PaletteAction::SkillsManager => {
                 commands.push(Command::OpenSkillsOverlay);
             }
+            PaletteAction::SkillsDir => {
+                commands.push(Command::OpenSkillsDir);
+            }
             PaletteAction::RefreshSkillCatalog => {
                 commands.push(Command::RefreshSkillCatalog {
                     keyword: None,
@@ -542,6 +572,9 @@ impl CommandPalette {
             }
             PaletteAction::Instructions => {
                 commands.push(Command::OpenInstructionsOverlay);
+            }
+            PaletteAction::SystemPrompt => {
+                commands.push(Command::OpenSystemPromptOverlay);
             }
             PaletteAction::Hooks => {
                 commands.push(Command::OpenHooksOverlay);
@@ -1049,9 +1082,12 @@ mod tests {
     #[test]
     fn enter_dispatches_overlay_utility_actions() {
         let expected = [
+            ("config dir", "config-dir"),
             ("mcp config", "mcp-config"),
             ("profiles config", "profiles-config"),
             ("agents dir", "agents-dir"),
+            ("skills dir", "skills-dir"),
+            ("system prompt", "system-prompt"),
             ("refresh catalog", "skill-catalog-refresh"),
         ];
 
@@ -1064,11 +1100,16 @@ mod tests {
             assert_eq!(p.visible_entries()[0].id, expected_id);
             let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
             match expected_id {
+                "config-dir" => assert!(matches!(&commands[..], [Command::OpenConfigDir])),
                 "mcp-config" => assert!(matches!(&commands[..], [Command::OpenMcpConfig])),
                 "profiles-config" => {
                     assert!(matches!(&commands[..], [Command::OpenProfilesConfig]))
                 }
                 "agents-dir" => assert!(matches!(&commands[..], [Command::OpenAgentsDir])),
+                "skills-dir" => assert!(matches!(&commands[..], [Command::OpenSkillsDir])),
+                "system-prompt" => {
+                    assert!(matches!(&commands[..], [Command::OpenSystemPromptOverlay]))
+                }
                 "skill-catalog-refresh" => {
                     assert!(matches!(
                         &commands[..],

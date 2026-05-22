@@ -384,6 +384,7 @@ pub enum CrossPanelEffect {
     ShowHooksOverlay(agent_core::facade::HooksSettingsView),
     DismissHooksOverlay,
     ShowInstructionsOverlay(agent_core::facade::InstructionsView),
+    ShowSystemPromptOverlay(agent_core::facade::InstructionsView),
     DismissInstructionsOverlay,
     ShowHelpOverlay(HelpOverlaySnapshot),
     DismissHelpOverlay,
@@ -630,6 +631,13 @@ pub enum Command {
     TestModelProfile {
         alias: String,
     },
+    /// Run a lightweight connectivity check for an unsaved model profile base URL.
+    TestModelProfileUrl {
+        alias: String,
+        base_url: String,
+    },
+    /// Open the writable Kairox config directory.
+    OpenConfigDir,
     /// Open the writable profiles config file.
     OpenProfilesConfig,
     /// Select whether settings overlays read/write user or project config.
@@ -657,6 +665,8 @@ pub enum Command {
     },
     /// Open the writable user agents directory.
     OpenAgentsDir,
+    /// Open the writable user skills directory.
+    OpenSkillsDir,
     /// Build a plugin manager snapshot and open the plugin overlay.
     OpenPluginsOverlay,
     /// Build a hooks settings snapshot and open the hooks overlay.
@@ -673,6 +683,8 @@ pub enum Command {
     },
     /// Build an instructions snapshot and open the instructions settings overlay.
     OpenInstructionsOverlay,
+    /// Build an instructions snapshot and show the system prompt read-only tab.
+    OpenSystemPromptOverlay,
     /// Save user/project instructions from the instructions overlay.
     SaveInstructions {
         scope: agent_core::ConfigScope,
