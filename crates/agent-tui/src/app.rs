@@ -5,7 +5,9 @@ mod events;
 mod input;
 mod render;
 
-pub use commands::{dispatch_commands, refresh_mcp_overlay};
+pub use commands::{
+    clear_session_projection, dispatch_commands, refresh_command_palette, refresh_mcp_overlay,
+};
 
 use agent_core::{DomainEvent, SessionId, WorkspaceId};
 use agent_tools::PermissionMode;

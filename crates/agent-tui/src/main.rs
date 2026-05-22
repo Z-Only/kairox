@@ -561,6 +561,12 @@ async fn dispatch_commands(
                 app.state.render_scheduler.mark_dirty();
             }
 
+            Command::ClearSessionProjection => {
+                app::clear_session_projection(app);
+                push_status_message(app, "cleared local conversation projection".to_string());
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+
             Command::CompactSession {
                 workspace_id: _,
                 session_id,
@@ -1602,7 +1608,11 @@ async fn main() -> Result<()> {
             match event {
                 AppEvent::Key(key) => {
                     let crossterm_event = Event::Key(key);
+                    let command_palette_was_visible = app.command_palette.is_visible();
                     let commands = app.handle_crossterm_event(&crossterm_event);
+                    if !command_palette_was_visible && app.command_palette.is_visible() {
+                        app::refresh_command_palette(&runtime, &mut app).await;
+                    }
                     dispatch_commands(&runtime, &mut app, commands).await;
                 }
                 AppEvent::DomainEvent(domain_event) => {

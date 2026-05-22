@@ -6,6 +6,8 @@
 //! `:`-prefixed slash form; selection routes the same [`Command`] the slash
 //! parser would produce, or hands the prefill back to [`ChatPanel`].
 
+use std::borrow::Cow;
+
 use crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
@@ -13,12 +15,15 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use crate::components::{Command, Component, CrossPanelEffect, EventContext, QueueAction};
+use crate::components::{
+    Command, Component, CrossPanelEffect, EventContext, ModelProfileEntry, QueueAction, SkillEntry,
+};
 
 /// What happens when an entry is activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaletteAction {
     /// Zero-arg slash command — dispatch immediately.
+    Clear,
     Compact,
     CancelSession,
     NewSession,
@@ -43,6 +48,12 @@ pub enum PaletteAction {
     SettingsProjectPrevious,
     RefreshSkillCatalog,
     QueueAction(QueueAction),
+    SwitchModel {
+        alias: String,
+    },
+    ActivateSkill {
+        skill_id: String,
+    },
     /// Argument-taking slash command — prefill chat input with the slash
     /// prefix (trailing space) and hand focus back to chat so the user can
     /// type the argument.
@@ -66,286 +77,322 @@ pub enum PaletteAction {
 /// A static entry in the palette registry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaletteEntry {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub description: &'static str,
+    pub id: Cow<'static, str>,
+    pub label: Cow<'static, str>,
+    pub description: Cow<'static, str>,
     pub action: PaletteAction,
+}
+
+impl PaletteEntry {
+    const fn static_entry(
+        id: &'static str,
+        label: &'static str,
+        description: &'static str,
+        action: PaletteAction,
+    ) -> Self {
+        Self {
+            id: Cow::Borrowed(id),
+            label: Cow::Borrowed(label),
+            description: Cow::Borrowed(description),
+            action,
+        }
+    }
+
+    fn dynamic(
+        id: impl Into<String>,
+        label: impl Into<String>,
+        description: impl Into<String>,
+        action: PaletteAction,
+    ) -> Self {
+        Self {
+            id: Cow::Owned(id.into()),
+            label: Cow::Owned(label.into()),
+            description: Cow::Owned(description.into()),
+            action,
+        }
+    }
 }
 
 /// The fixed list of palette entries. Mirrors the slash forms parsed in
 /// `chat::input::apply_key_action` — keep both in sync.
 pub fn builtin_entries() -> &'static [PaletteEntry] {
     const ENTRIES: &[PaletteEntry] = &[
-        PaletteEntry {
-            id: "compact",
-            label: ":compact",
-            description: "Summarise older history into a compaction summary",
-            action: PaletteAction::Compact,
-        },
-        PaletteEntry {
-            id: "model",
-            label: ":model <alias>",
-            description: "Switch the active model profile mid-session",
-            action: PaletteAction::PrefillModel,
-        },
-        PaletteEntry {
-            id: "model-selector",
-            label: "Models: open selector",
-            description: "Open the model profile selector",
-            action: PaletteAction::ModelSelector,
-        },
-        PaletteEntry {
-            id: "config-dir",
-            label: "Settings: open config directory",
-            description: "Open the writable Kairox config directory",
-            action: PaletteAction::ConfigDir,
-        },
-        PaletteEntry {
-            id: "profiles-config",
-            label: "Models: open profiles config",
-            description: "Open the writable model profiles config file",
-            action: PaletteAction::ProfilesConfig,
-        },
-        PaletteEntry {
-            id: "settings-source-user",
-            label: "Settings: use user config",
-            description: "Read and save settings against user config",
-            action: PaletteAction::SettingsSourceUser,
-        },
-        PaletteEntry {
-            id: "settings-source-project",
-            label: "Settings: use project config",
-            description: "Read and save settings against the selected project config",
-            action: PaletteAction::SettingsSourceProject,
-        },
-        PaletteEntry {
-            id: "settings-project-next",
-            label: "Settings: next project",
-            description: "Select the next project for project-scoped settings",
-            action: PaletteAction::SettingsProjectNext,
-        },
-        PaletteEntry {
-            id: "settings-project-previous",
-            label: "Settings: previous project",
-            description: "Select the previous project for project-scoped settings",
-            action: PaletteAction::SettingsProjectPrevious,
-        },
-        PaletteEntry {
-            id: "mcp-manager",
-            label: "MCP: open manager",
-            description: "Open MCP servers, catalog, and sources",
-            action: PaletteAction::McpManager,
-        },
-        PaletteEntry {
-            id: "mcp-config",
-            label: "MCP: open config",
-            description: "Open the writable MCP config file",
-            action: PaletteAction::McpConfig,
-        },
-        PaletteEntry {
-            id: "skills",
-            label: ":skills",
-            description: "List discovered native skills",
-            action: PaletteAction::Skills,
-        },
-        PaletteEntry {
-            id: "skills-manager",
-            label: "Skills: open manager",
-            description: "Open installed skills and catalog controls",
-            action: PaletteAction::SkillsManager,
-        },
-        PaletteEntry {
-            id: "skills-dir",
-            label: "Skills: open directory",
-            description: "Open the writable user skills directory",
-            action: PaletteAction::SkillsDir,
-        },
-        PaletteEntry {
-            id: "skill-catalog-refresh",
-            label: "Skills: refresh catalog",
-            description: "Refresh the configured skill catalog cache",
-            action: PaletteAction::RefreshSkillCatalog,
-        },
-        PaletteEntry {
-            id: "instructions",
-            label: ":instructions",
-            description: "Open user/project instructions settings",
-            action: PaletteAction::Instructions,
-        },
-        PaletteEntry {
-            id: "system-prompt",
-            label: "Instructions: view system prompt",
-            description: "Open the read-only system prompt view",
-            action: PaletteAction::SystemPrompt,
-        },
-        PaletteEntry {
-            id: "hooks",
-            label: ":hooks",
-            description: "Open user/project hooks settings",
-            action: PaletteAction::Hooks,
-        },
-        PaletteEntry {
-            id: "plugins",
-            label: "Plugins: open manager",
-            description: "Open the plugin manager",
-            action: PaletteAction::Plugins,
-        },
-        PaletteEntry {
-            id: "agents",
-            label: ":agents",
-            description: "Open planner, worker, and reviewer agent settings",
-            action: PaletteAction::Agents,
-        },
-        PaletteEntry {
-            id: "agents-dir",
-            label: "Agents: open directory",
-            description: "Open the writable user agents directory",
-            action: PaletteAction::AgentsDir,
-        },
-        PaletteEntry {
-            id: "session-new",
-            label: "Session: new",
-            description: "Start a new session using the active model",
-            action: PaletteAction::NewSession,
-        },
-        PaletteEntry {
-            id: "project-draft",
-            label: ":project draft",
-            description: "Start a draft session in the active project",
-            action: PaletteAction::ProjectDraftSession,
-        },
-        PaletteEntry {
-            id: "project-create",
-            label: ":project create <name>",
-            description: "Create a new local project",
-            action: PaletteAction::PrefillProjectCreate,
-        },
-        PaletteEntry {
-            id: "project-import",
-            label: ":project import <path>",
-            description: "Import an existing project path",
-            action: PaletteAction::PrefillProjectImport,
-        },
-        PaletteEntry {
-            id: "project-worktree",
-            label: ":project worktree <branch>",
-            description: "Start a worktree session in the active project",
-            action: PaletteAction::PrefillProjectWorktree,
-        },
-        PaletteEntry {
-            id: "session-cancel",
-            label: "Session: cancel",
-            description: "Cancel the current running session",
-            action: PaletteAction::CancelSession,
-        },
-        PaletteEntry {
-            id: "attach",
-            label: ":attach <path>",
-            description: "Attach a local file path to the next message",
-            action: PaletteAction::PrefillAttach,
-        },
-        PaletteEntry {
-            id: "detach-all",
-            label: ":detach",
-            description: "Detach all pending attachments from the composer",
-            action: PaletteAction::PrefillDetachAll,
-        },
-        PaletteEntry {
-            id: "detach",
-            label: ":detach <name-or-path>",
-            description: "Detach one pending attachment by name or path",
-            action: PaletteAction::PrefillDetach,
-        },
-        PaletteEntry {
-            id: "queue-send-now",
-            label: "Queue: send selected now",
-            description: "Send the selected queued message immediately",
-            action: PaletteAction::QueueAction(QueueAction::SendSelectedNow),
-        },
-        PaletteEntry {
-            id: "queue-edit",
-            label: "Queue: restore selected for edit",
-            description: "Move the selected queued message back into the composer",
-            action: PaletteAction::QueueAction(QueueAction::RestoreSelectedForEdit),
-        },
-        PaletteEntry {
-            id: "queue-delete",
-            label: "Queue: delete selected",
-            description: "Remove the selected queued message",
-            action: PaletteAction::QueueAction(QueueAction::DeleteSelected),
-        },
-        PaletteEntry {
-            id: "queue-move-up",
-            label: "Queue: move selected up",
-            description: "Move the selected queued message earlier",
-            action: PaletteAction::QueueAction(QueueAction::MoveSelectedUp),
-        },
-        PaletteEntry {
-            id: "queue-move-down",
-            label: "Queue: move selected down",
-            description: "Move the selected queued message later",
-            action: PaletteAction::QueueAction(QueueAction::MoveSelectedDown),
-        },
-        PaletteEntry {
-            id: "queue-previous",
-            label: "Queue: select previous",
-            description: "Select the previous queued message",
-            action: PaletteAction::QueueAction(QueueAction::SelectPrevious),
-        },
-        PaletteEntry {
-            id: "queue-next",
-            label: "Queue: select next",
-            description: "Select the next queued message",
-            action: PaletteAction::QueueAction(QueueAction::SelectNext),
-        },
-        PaletteEntry {
-            id: "skill-show",
-            label: ":skill show <id>",
-            description: "Show one native skill's body",
-            action: PaletteAction::PrefillSkillShow,
-        },
-        PaletteEntry {
-            id: "skill-activate",
-            label: ":skill activate <id>",
-            description: "Activate one skill for the current session",
-            action: PaletteAction::PrefillSkillActivate,
-        },
-        PaletteEntry {
-            id: "skill-deactivate",
-            label: ":skill deactivate <id>",
-            description: "Deactivate one skill for the current session",
-            action: PaletteAction::PrefillSkillDeactivate,
-        },
-        PaletteEntry {
-            id: "skill-catalog",
-            label: ":skill catalog <keyword>",
-            description: "Search the configured skill catalog",
-            action: PaletteAction::PrefillSkillCatalog,
-        },
-        PaletteEntry {
-            id: "skill-install",
-            label: ":skill install <package>",
-            description: "Install one skill package into user settings",
-            action: PaletteAction::PrefillSkillInstall,
-        },
-        PaletteEntry {
-            id: "skill-install-github",
-            label: ":skill install github <repo>",
-            description: "Install one GitHub skill into user settings",
-            action: PaletteAction::PrefillSkillInstallGithub,
-        },
-        PaletteEntry {
-            id: "skill-update",
-            label: ":skill update <id>",
-            description: "Update one installed skill",
-            action: PaletteAction::PrefillSkillUpdate,
-        },
-        PaletteEntry {
-            id: "skill-delete",
-            label: ":skill delete <id>",
-            description: "Delete one installed skill setting",
-            action: PaletteAction::PrefillSkillDelete,
-        },
+        PaletteEntry::static_entry(
+            "clear",
+            ":clear",
+            "Clear the current conversation projection locally",
+            PaletteAction::Clear,
+        ),
+        PaletteEntry::static_entry(
+            "compact",
+            ":compact",
+            "Summarise older history into a compaction summary",
+            PaletteAction::Compact,
+        ),
+        PaletteEntry::static_entry(
+            "model",
+            ":model <alias>",
+            "Switch the active model profile mid-session",
+            PaletteAction::PrefillModel,
+        ),
+        PaletteEntry::static_entry(
+            "model-selector",
+            "Models: open selector",
+            "Open the model profile selector",
+            PaletteAction::ModelSelector,
+        ),
+        PaletteEntry::static_entry(
+            "config-dir",
+            "Settings: open config directory",
+            "Open the writable Kairox config directory",
+            PaletteAction::ConfigDir,
+        ),
+        PaletteEntry::static_entry(
+            "profiles-config",
+            "Models: open profiles config",
+            "Open the writable model profiles config file",
+            PaletteAction::ProfilesConfig,
+        ),
+        PaletteEntry::static_entry(
+            "settings-source-user",
+            "Settings: use user config",
+            "Read and save settings against user config",
+            PaletteAction::SettingsSourceUser,
+        ),
+        PaletteEntry::static_entry(
+            "settings-source-project",
+            "Settings: use project config",
+            "Read and save settings against the selected project config",
+            PaletteAction::SettingsSourceProject,
+        ),
+        PaletteEntry::static_entry(
+            "settings-project-next",
+            "Settings: next project",
+            "Select the next project for project-scoped settings",
+            PaletteAction::SettingsProjectNext,
+        ),
+        PaletteEntry::static_entry(
+            "settings-project-previous",
+            "Settings: previous project",
+            "Select the previous project for project-scoped settings",
+            PaletteAction::SettingsProjectPrevious,
+        ),
+        PaletteEntry::static_entry(
+            "mcp-manager",
+            "MCP: open manager",
+            "Open MCP servers, catalog, and sources",
+            PaletteAction::McpManager,
+        ),
+        PaletteEntry::static_entry(
+            "mcp-config",
+            "MCP: open config",
+            "Open the writable MCP config file",
+            PaletteAction::McpConfig,
+        ),
+        PaletteEntry::static_entry(
+            "skills",
+            ":skills",
+            "List discovered native skills",
+            PaletteAction::Skills,
+        ),
+        PaletteEntry::static_entry(
+            "skills-manager",
+            "Skills: open manager",
+            "Open installed skills and catalog controls",
+            PaletteAction::SkillsManager,
+        ),
+        PaletteEntry::static_entry(
+            "skills-dir",
+            "Skills: open directory",
+            "Open the writable user skills directory",
+            PaletteAction::SkillsDir,
+        ),
+        PaletteEntry::static_entry(
+            "skill-catalog-refresh",
+            "Skills: refresh catalog",
+            "Refresh the configured skill catalog cache",
+            PaletteAction::RefreshSkillCatalog,
+        ),
+        PaletteEntry::static_entry(
+            "instructions",
+            ":instructions",
+            "Open user/project instructions settings",
+            PaletteAction::Instructions,
+        ),
+        PaletteEntry::static_entry(
+            "system-prompt",
+            "Instructions: view system prompt",
+            "Open the read-only system prompt view",
+            PaletteAction::SystemPrompt,
+        ),
+        PaletteEntry::static_entry(
+            "hooks",
+            ":hooks",
+            "Open user/project hooks settings",
+            PaletteAction::Hooks,
+        ),
+        PaletteEntry::static_entry(
+            "plugins",
+            "Plugins: open manager",
+            "Open the plugin manager",
+            PaletteAction::Plugins,
+        ),
+        PaletteEntry::static_entry(
+            "agents",
+            ":agents",
+            "Open planner, worker, and reviewer agent settings",
+            PaletteAction::Agents,
+        ),
+        PaletteEntry::static_entry(
+            "agents-dir",
+            "Agents: open directory",
+            "Open the writable user agents directory",
+            PaletteAction::AgentsDir,
+        ),
+        PaletteEntry::static_entry(
+            "session-new",
+            "Session: new",
+            "Start a new session using the active model",
+            PaletteAction::NewSession,
+        ),
+        PaletteEntry::static_entry(
+            "project-draft",
+            ":project draft",
+            "Start a draft session in the active project",
+            PaletteAction::ProjectDraftSession,
+        ),
+        PaletteEntry::static_entry(
+            "project-create",
+            ":project create <name>",
+            "Create a new local project",
+            PaletteAction::PrefillProjectCreate,
+        ),
+        PaletteEntry::static_entry(
+            "project-import",
+            ":project import <path>",
+            "Import an existing project path",
+            PaletteAction::PrefillProjectImport,
+        ),
+        PaletteEntry::static_entry(
+            "project-worktree",
+            ":project worktree <branch>",
+            "Start a worktree session in the active project",
+            PaletteAction::PrefillProjectWorktree,
+        ),
+        PaletteEntry::static_entry(
+            "session-cancel",
+            "Session: cancel",
+            "Cancel the current running session",
+            PaletteAction::CancelSession,
+        ),
+        PaletteEntry::static_entry(
+            "attach",
+            ":attach <path>",
+            "Attach a local file path to the next message",
+            PaletteAction::PrefillAttach,
+        ),
+        PaletteEntry::static_entry(
+            "detach-all",
+            ":detach",
+            "Detach all pending attachments from the composer",
+            PaletteAction::PrefillDetachAll,
+        ),
+        PaletteEntry::static_entry(
+            "detach",
+            ":detach <name-or-path>",
+            "Detach one pending attachment by name or path",
+            PaletteAction::PrefillDetach,
+        ),
+        PaletteEntry::static_entry(
+            "queue-send-now",
+            "Queue: send selected now",
+            "Send the selected queued message immediately",
+            PaletteAction::QueueAction(QueueAction::SendSelectedNow),
+        ),
+        PaletteEntry::static_entry(
+            "queue-edit",
+            "Queue: restore selected for edit",
+            "Move the selected queued message back into the composer",
+            PaletteAction::QueueAction(QueueAction::RestoreSelectedForEdit),
+        ),
+        PaletteEntry::static_entry(
+            "queue-delete",
+            "Queue: delete selected",
+            "Remove the selected queued message",
+            PaletteAction::QueueAction(QueueAction::DeleteSelected),
+        ),
+        PaletteEntry::static_entry(
+            "queue-move-up",
+            "Queue: move selected up",
+            "Move the selected queued message earlier",
+            PaletteAction::QueueAction(QueueAction::MoveSelectedUp),
+        ),
+        PaletteEntry::static_entry(
+            "queue-move-down",
+            "Queue: move selected down",
+            "Move the selected queued message later",
+            PaletteAction::QueueAction(QueueAction::MoveSelectedDown),
+        ),
+        PaletteEntry::static_entry(
+            "queue-previous",
+            "Queue: select previous",
+            "Select the previous queued message",
+            PaletteAction::QueueAction(QueueAction::SelectPrevious),
+        ),
+        PaletteEntry::static_entry(
+            "queue-next",
+            "Queue: select next",
+            "Select the next queued message",
+            PaletteAction::QueueAction(QueueAction::SelectNext),
+        ),
+        PaletteEntry::static_entry(
+            "skill-show",
+            ":skill show <id>",
+            "Show one native skill's body",
+            PaletteAction::PrefillSkillShow,
+        ),
+        PaletteEntry::static_entry(
+            "skill-activate",
+            ":skill activate <id>",
+            "Activate one skill for the current session",
+            PaletteAction::PrefillSkillActivate,
+        ),
+        PaletteEntry::static_entry(
+            "skill-deactivate",
+            ":skill deactivate <id>",
+            "Deactivate one skill for the current session",
+            PaletteAction::PrefillSkillDeactivate,
+        ),
+        PaletteEntry::static_entry(
+            "skill-catalog",
+            ":skill catalog <keyword>",
+            "Search the configured skill catalog",
+            PaletteAction::PrefillSkillCatalog,
+        ),
+        PaletteEntry::static_entry(
+            "skill-install",
+            ":skill install <package>",
+            "Install one skill package into user settings",
+            PaletteAction::PrefillSkillInstall,
+        ),
+        PaletteEntry::static_entry(
+            "skill-install-github",
+            ":skill install github <repo>",
+            "Install one GitHub skill into user settings",
+            PaletteAction::PrefillSkillInstallGithub,
+        ),
+        PaletteEntry::static_entry(
+            "skill-update",
+            ":skill update <id>",
+            "Update one installed skill",
+            PaletteAction::PrefillSkillUpdate,
+        ),
+        PaletteEntry::static_entry(
+            "skill-delete",
+            ":skill delete <id>",
+            "Delete one installed skill setting",
+            PaletteAction::PrefillSkillDelete,
+        ),
     ];
     ENTRIES
 }
@@ -391,7 +438,8 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::PrefillSkillInstallGithub => Some(":skill install github "),
         PaletteAction::PrefillSkillUpdate => Some(":skill update "),
         PaletteAction::PrefillSkillDelete => Some(":skill delete "),
-        PaletteAction::Compact
+        PaletteAction::Clear
+        | PaletteAction::Compact
         | PaletteAction::CancelSession
         | PaletteAction::NewSession
         | PaletteAction::ProjectDraftSession
@@ -414,7 +462,9 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::SettingsProjectNext
         | PaletteAction::SettingsProjectPrevious
         | PaletteAction::RefreshSkillCatalog
-        | PaletteAction::QueueAction(_) => None,
+        | PaletteAction::QueueAction(_)
+        | PaletteAction::SwitchModel { .. }
+        | PaletteAction::ActivateSkill { .. } => None,
     }
 }
 
@@ -424,6 +474,8 @@ pub struct CommandPalette {
     filter: String,
     selected: usize,
     list_state: ListState,
+    model_profiles: Vec<ModelProfileEntry>,
+    skills: Vec<SkillEntry>,
 }
 
 impl Default for CommandPalette {
@@ -440,6 +492,8 @@ impl CommandPalette {
             filter: String::new(),
             selected: 0,
             list_state: ListState::default(),
+            model_profiles: Vec::new(),
+            skills: Vec::new(),
         }
     }
 
@@ -470,8 +524,49 @@ impl CommandPalette {
         self.selected
     }
 
-    pub fn visible_entries(&self) -> Vec<&'static PaletteEntry> {
-        filter_entries(&self.filter, builtin_entries())
+    pub fn visible_entries(&self) -> Vec<PaletteEntry> {
+        let entries = self.all_entries();
+        filter_entries(&self.filter, &entries)
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
+    fn all_entries(&self) -> Vec<PaletteEntry> {
+        let mut entries = builtin_entries().to_vec();
+        entries.extend(self.dynamic_entries());
+        entries
+    }
+
+    fn dynamic_entries(&self) -> Vec<PaletteEntry> {
+        let mut entries = Vec::new();
+        for profile in &self.model_profiles {
+            if !profile.enabled {
+                continue;
+            }
+            let display = model_profile_display(profile);
+            entries.push(PaletteEntry::dynamic(
+                format!("model-profile-{}", profile.alias),
+                format!(":model {}", profile.alias),
+                format!("Switch to {display}"),
+                PaletteAction::SwitchModel {
+                    alias: profile.alias.clone(),
+                },
+            ));
+        }
+
+        for skill in &self.skills {
+            let active_suffix = if skill.active { " (active)" } else { "" };
+            entries.push(PaletteEntry::dynamic(
+                format!("skill-{}", skill.id),
+                format!(":skill activate {}", skill.id),
+                format!("Activate {}{}", skill.name, active_suffix),
+                PaletteAction::ActivateSkill {
+                    skill_id: skill.id.clone(),
+                },
+            ));
+        }
+        entries
     }
 
     fn clamp_selection(&mut self) {
@@ -519,6 +614,9 @@ impl CommandPalette {
         let mut commands = Vec::new();
 
         match action {
+            PaletteAction::Clear => {
+                commands.push(Command::ClearSessionProjection);
+            }
             PaletteAction::Compact => {
                 if let Some(session_id) = ctx.current_session_id {
                     commands.push(Command::CompactSession {
@@ -613,6 +711,25 @@ impl CommandPalette {
             PaletteAction::QueueAction(action) => {
                 commands.push(Command::ApplyQueueAction(action));
             }
+            PaletteAction::SwitchModel { alias } => {
+                if let Some(session_id) = ctx.current_session_id {
+                    commands.push(Command::SwitchModel {
+                        workspace_id: ctx.workspace_id.clone(),
+                        session_id: session_id.clone(),
+                        alias,
+                        reasoning_effort: None,
+                    });
+                }
+            }
+            PaletteAction::ActivateSkill { skill_id } => {
+                if let Some(session_id) = ctx.current_session_id {
+                    commands.push(Command::ActivateSkill {
+                        workspace_id: ctx.workspace_id.clone(),
+                        session_id: session_id.clone(),
+                        skill_id,
+                    });
+                }
+            }
             ref prefill => {
                 if let Some(text) = prefill_text(prefill) {
                     effects.push(CrossPanelEffect::PrefillChatInput(text.to_string()));
@@ -634,11 +751,21 @@ fn active_project_id(ctx: &EventContext) -> Option<agent_core::ProjectId> {
         .and_then(|session| session.project_id.clone())
 }
 
+fn model_profile_display(profile: &ModelProfileEntry) -> String {
+    if !profile.provider_display.is_empty() && !profile.model_display.is_empty() {
+        format!("{} / {}", profile.provider_display, profile.model_display)
+    } else if !profile.model_display.is_empty() {
+        profile.model_display.clone()
+    } else {
+        profile.alias.clone()
+    }
+}
+
 pub fn render_command_palette(
     area: Rect,
     frame: &mut Frame,
     palette: &CommandPalette,
-    entries: &[&PaletteEntry],
+    entries: &[PaletteEntry],
     list_state: &mut ListState,
 ) {
     let modal_width = 72.min(area.width.saturating_sub(4));
@@ -704,13 +831,13 @@ pub fn render_command_palette(
             .map(|e| {
                 let line = Line::from(vec![
                     Span::styled(
-                        e.label,
+                        e.label.as_ref(),
                         Style::default()
                             .fg(Color::Yellow)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("  "),
-                    Span::styled(e.description, Style::default().fg(Color::Gray)),
+                    Span::styled(e.description.as_ref(), Style::default().fg(Color::Gray)),
                 ]);
                 ListItem::new(line)
             })
@@ -779,6 +906,11 @@ impl Component for CommandPalette {
         match effect {
             CrossPanelEffect::ShowCommandPalette => self.show(),
             CrossPanelEffect::DismissCommandPalette => self.hide(),
+            CrossPanelEffect::UpdateCommandPalette(snapshot) => {
+                self.model_profiles = snapshot.model_profiles.clone();
+                self.skills = snapshot.skills.clone();
+                self.clamp_selection();
+            }
             _ => {}
         }
     }
@@ -804,7 +936,39 @@ impl Component for CommandPalette {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::components::FocusTarget;
+    use crate::components::{CommandPaletteSnapshot, FocusTarget};
+
+    fn model_profile(alias: &str) -> ModelProfileEntry {
+        ModelProfileEntry {
+            alias: alias.into(),
+            provider_display: "fake".into(),
+            model_display: alias.into(),
+            context_window: Some(128_000),
+            output_limit: Some(4096),
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            max_tokens: None,
+            base_url: None,
+            api_key_env: None,
+            supports_reasoning: false,
+            enabled: true,
+            writable: true,
+            source: "test".into(),
+            has_api_key: true,
+        }
+    }
+
+    fn skill_entry(id: &str, active: bool) -> SkillEntry {
+        SkillEntry {
+            id: id.into(),
+            name: format!("{id} skill"),
+            description: format!("{id} description"),
+            source: "test".into(),
+            activation_mode: "manual".into(),
+            active,
+        }
+    }
 
     fn test_ctx() -> EventContext<'static> {
         use agent_core::projection::SessionProjection;
@@ -888,10 +1052,14 @@ mod tests {
         p.show();
         let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char('s')));
         let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char('k')));
-        let visible: Vec<_> = p.visible_entries().iter().map(|e| e.id).collect();
+        let visible: Vec<_> = p
+            .visible_entries()
+            .iter()
+            .map(|e| e.id.as_ref().to_string())
+            .collect();
         assert!(visible
             .iter()
-            .all(|id| id.contains("skill") || id == &"skills"));
+            .all(|id| id.contains("skill") || id == "skills"));
         // Navigate past end and back.
         for _ in 0..10 {
             let _ = p.handle_event(&test_ctx(), &key(KeyCode::Down));
@@ -905,13 +1073,37 @@ mod tests {
     fn enter_dispatches_compact_command() {
         let mut p = CommandPalette::new();
         p.show();
-        // First entry is :compact.
+        for c in "compact".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
         let (effects, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
         assert!(matches!(&commands[..], [Command::CompactSession { .. }]));
         assert!(effects
             .iter()
             .any(|e| matches!(e, CrossPanelEffect::DismissCommandPalette)));
         assert!(!p.is_visible());
+    }
+
+    #[test]
+    fn enter_dispatches_clear_projection_command() {
+        let mut p = CommandPalette::new();
+        p.show();
+        for c in "clear".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
+
+        let visible_ids: Vec<_> = p
+            .visible_entries()
+            .into_iter()
+            .map(|e| e.id.into_owned())
+            .collect();
+        assert_eq!(visible_ids, vec!["clear".to_string()]);
+        let (effects, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(&commands[..], [Command::ClearSessionProjection]));
+        assert!(effects
+            .iter()
+            .any(|e| matches!(e, CrossPanelEffect::DismissCommandPalette)));
     }
 
     #[test]
@@ -923,7 +1115,7 @@ mod tests {
             let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
         }
         // The first matching entry should be ":skills" itself.
-        let first = p.visible_entries()[0].id;
+        let first = p.visible_entries()[0].id.clone();
         assert_eq!(first, "skills");
         let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
         assert!(matches!(&commands[..], [Command::ListSkills]));
@@ -968,7 +1160,7 @@ mod tests {
             for c in filter.chars() {
                 let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
             }
-            assert_eq!(p.visible_entries()[0].id, expected_id);
+            assert_eq!(p.visible_entries()[0].id.as_ref(), expected_id);
             let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
             match expected_id {
                 "mcp-manager" => assert!(matches!(&commands[..], [Command::OpenMcpOverlay])),
@@ -1070,7 +1262,7 @@ mod tests {
             for c in filter.chars() {
                 let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
             }
-            assert_eq!(p.visible_entries()[0].id, expected_id);
+            assert_eq!(p.visible_entries()[0].id.as_ref(), expected_id);
             let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
             assert!(matches!(
                 commands.as_slice(),
@@ -1097,7 +1289,7 @@ mod tests {
             for c in filter.chars() {
                 let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
             }
-            assert_eq!(p.visible_entries()[0].id, expected_id);
+            assert_eq!(p.visible_entries()[0].id.as_ref(), expected_id);
             let (_, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
             match expected_id {
                 "config-dir" => assert!(matches!(&commands[..], [Command::OpenConfigDir])),
@@ -1122,6 +1314,66 @@ mod tests {
                 _ => unreachable!(),
             }
         }
+    }
+
+    #[test]
+    fn dynamic_model_profile_entries_switch_model_directly() {
+        let mut p = CommandPalette::new();
+        p.handle_effect(&CrossPanelEffect::UpdateCommandPalette(
+            CommandPaletteSnapshot {
+                model_profiles: vec![model_profile("fast")],
+                skills: Vec::new(),
+            },
+        ));
+        p.show();
+        for c in "fast".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
+
+        let visible_ids: Vec<_> = p
+            .visible_entries()
+            .into_iter()
+            .map(|e| e.id.into_owned())
+            .collect();
+        assert_eq!(visible_ids, vec!["model-profile-fast".to_string()]);
+        let (_effects, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(
+            &commands[..],
+            [Command::SwitchModel {
+                alias,
+                reasoning_effort: None,
+                ..
+            }] if alias == "fast"
+        ));
+    }
+
+    #[test]
+    fn dynamic_skill_entries_activate_discovered_skill() {
+        let mut p = CommandPalette::new();
+        p.handle_effect(&CrossPanelEffect::UpdateCommandPalette(
+            CommandPaletteSnapshot {
+                model_profiles: Vec::new(),
+                skills: vec![skill_entry("review", true)],
+            },
+        ));
+        p.show();
+        for c in "skill-review".chars() {
+            let _ = p.handle_event(&test_ctx(), &key(KeyCode::Char(c)));
+        }
+
+        let visible_ids: Vec<_> = p
+            .visible_entries()
+            .into_iter()
+            .map(|e| e.id.into_owned())
+            .collect();
+        assert_eq!(visible_ids, vec!["skill-review".to_string()]);
+        let (_effects, commands) = p.handle_event(&test_ctx(), &key(KeyCode::Enter));
+
+        assert!(matches!(
+            &commands[..],
+            [Command::ActivateSkill { skill_id, .. }] if skill_id == "review"
+        ));
     }
 
     #[test]
