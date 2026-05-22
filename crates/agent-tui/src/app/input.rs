@@ -50,6 +50,39 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::ALT)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('c'));
+                if self.permission_modal.is_visible() {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.permission_modal.handle_event(&ctx, event);
+                    if !effects.is_empty() || !cmds.is_empty() {
+                        self.dispatch_effects(effects);
+                        if !self.permission_modal.is_visible()
+                            && self.state.focus_manager.current() == FocusTarget::PermissionModal
+                        {
+                            self.state.focus_manager.pop();
+                            self.sync_component_focus();
+                        }
+                        self.state.render_scheduler.mark_dirty();
+                        return cmds;
+                    }
+                }
                 if self.command_palette.is_visible() && !is_ctrl_p {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
@@ -799,7 +832,7 @@ impl App {
 mod tests {
     use super::*;
     use crate::components::trace::{MemoryRow, MemoryScopeFilter, RightPanelTab};
-    use crate::components::{SessionInfo, SessionState};
+    use crate::components::{PermissionRequest, RiskLevel, SessionInfo, SessionState};
     use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
     use agent_core::{
         AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId,
@@ -1257,6 +1290,42 @@ mod tests {
                 session_id,
                 draft_text: String::new(),
             }
+        );
+    }
+
+    #[test]
+    fn mcp_trust_key_routes_to_permission_modal() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.dispatch_effects(vec![CrossPanelEffect::ShowPermissionPrompt(
+            PermissionRequest {
+                request_id: "req_mcp".into(),
+                tool_id: "mcp.beta.echo".into(),
+                tool_preview: "MCP tool call".into(),
+                risk_level: RiskLevel::McpTool {
+                    server_id: "beta".into(),
+                },
+            },
+        )]);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('t'),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::TrustMcpServer {
+                    server_id: "beta".into(),
+                },
+                Command::DecidePermission {
+                    request_id: "req_mcp".into(),
+                    approved: true,
+                },
+            ]
         );
     }
 }

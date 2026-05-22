@@ -225,6 +225,7 @@ pub struct PluginCatalogFilters {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum RiskLevel {
     Write,
     Destructive,
@@ -317,6 +318,10 @@ pub struct StatusInfo {
 pub enum CrossPanelEffect {
     SwitchFocus(FocusTarget),
     ShowPermissionPrompt(PermissionRequest),
+    ResolvePermissionPrompt {
+        request_id: String,
+        approved: bool,
+    },
     DismissPermissionPrompt,
     UpdateSessionList(Vec<SessionInfo>),
     SetStatus(StatusInfo),
