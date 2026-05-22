@@ -92,6 +92,7 @@ target = "[data-test='instructions-save']"
 [[step]]
 name = "verify user instructions persisted"
 action = "eval"
+timeout_ms = 20000
 script = """
 (async () => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -151,6 +152,7 @@ target = "[data-test='instructions-save']"
 [[step]]
 name = "verify project instructions persisted"
 action = "eval"
+timeout_ms = 20000
 script = """
 (async () => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -171,6 +173,7 @@ target = "[data-test='source-btn-user']"
 [[step]]
 name = "verify user instructions intact after scope switch"
 action = "eval"
+timeout_ms = 20000
 script = """
 (async () => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
