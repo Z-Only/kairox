@@ -79,6 +79,61 @@ def send_and_wait(
     wait_for(fd, buffer, predicate, timeout, label)
 
 
+def open_palette_entry(
+    fd: int,
+    buffer: bytearray,
+    filter_text: bytes,
+    expected_entry: str,
+    result_predicate,
+    label: str,
+    timeout: float = 10.0,
+) -> None:
+    send_and_wait(
+        fd,
+        buffer,
+        b"\x10",
+        lambda _raw, text: "Command Palette" in text,
+        5.0,
+        f"{label} palette opened",
+    )
+    send_and_wait(
+        fd,
+        buffer,
+        filter_text,
+        lambda _raw, text: expected_entry in text,
+        5.0,
+        f"{label} command filtered",
+    )
+    send_and_wait(
+        fd,
+        buffer,
+        b"\x0d",
+        result_predicate,
+        timeout,
+        label,
+    )
+
+
+def clear_visible_composer_text(
+    fd: int,
+    buffer: bytearray,
+    text_to_clear: str,
+    label: str,
+) -> None:
+    send_and_wait(
+        fd,
+        buffer,
+        b"\x7f" * len(text_to_clear),
+        lambda _raw, text: not has_visible_text(text, text_to_clear),
+        5.0,
+        label,
+    )
+
+
+def has_visible_text(screen: str, expected: str) -> bool:
+    return expected in screen or expected.replace(" ", "") in screen.replace(" ", "")
+
+
 def shell_without_overlay(text: str) -> bool:
     overlay_titles = [
         "Command Palette",
@@ -87,6 +142,10 @@ def shell_without_overlay(text: str) -> bool:
         "MCP Servers",
         "Skills Manager",
         "Plugin Manager",
+        "Agent Settings",
+        "Hooks Settings",
+        "Instructions",
+        "Archive Manager",
     ]
     return (
         "Projects" in text
@@ -104,6 +163,10 @@ def composer_without_overlay(text: str) -> bool:
         "MCP Servers",
         "Skills Manager",
         "Plugin Manager",
+        "Agent Settings",
+        "Hooks Settings",
+        "Instructions",
+        "Archive Manager",
     ]
     return ">" in text and all(title not in text for title in overlay_titles)
 
@@ -205,28 +268,12 @@ def main() -> int:
                 "help overlay closed",
             )
 
-            send_and_wait(
-                master,
-                captured,
-                b"\x10",
-                lambda _raw, text: "Command Palette" in text and ":compact" in text,
-                5.0,
-                "Ctrl+P command palette",
-            )
-            send_and_wait(
+            open_palette_entry(
                 master,
                 captured,
                 b"mcp",
-                lambda _raw, text: "MCP: open manager" in text,
-                5.0,
-                "command palette filtering",
-            )
-            send_and_wait(
-                master,
-                captured,
-                b"\x0d",
+                "MCP: open manager",
                 lambda _raw, text: "MCP Servers" in text,
-                10.0,
                 "command palette opens MCP overlay",
             )
             send_and_wait(
@@ -291,6 +338,123 @@ def main() -> int:
                 lambda _raw, text: composer_without_overlay(text),
                 5.0,
                 "plugins overlay closed",
+            )
+
+            for filter_text, expected_entry, title, label in [
+                (
+                    b"agents",
+                    "agents",
+                    "Agent Settings",
+                    "agents overlay",
+                ),
+                (
+                    b"hooks",
+                    "hooks",
+                    "Hooks Settings",
+                    "hooks overlay",
+                ),
+                (
+                    b"instructions",
+                    "instructions",
+                    "Instructions",
+                    "instructions overlay",
+                ),
+            ]:
+                open_palette_entry(
+                    master,
+                    captured,
+                    filter_text,
+                    expected_entry,
+                    lambda _raw, text, marker=title: marker in text,
+                    f"command palette opens {label}",
+                )
+                send_and_wait(
+                    master,
+                    captured,
+                    b"\x1b",
+                    lambda _raw, text: composer_without_overlay(text),
+                    5.0,
+                    f"{label} closed",
+                )
+
+            for filter_text, expected_entry, prefill in [
+                (b"project create", "Create a new local project", ":project create "),
+                (b"project import", "existing project path", ":project import "),
+                (
+                    b"project worktree",
+                    "worktree",
+                    ":project worktree ",
+                ),
+            ]:
+                open_palette_entry(
+                    master,
+                    captured,
+                    filter_text,
+                    expected_entry,
+                    lambda _raw, text, expected=prefill: has_visible_text(text, expected),
+                    f"command palette prefills {prefill.strip()}",
+                    timeout=5.0,
+                )
+                clear_visible_composer_text(
+                    master,
+                    captured,
+                    prefill,
+                    f"{prefill.strip()} prefill cleared",
+                )
+
+            os.write(master, b"\x1b2")
+            time.sleep(0.1)
+            send_and_wait(
+                master,
+                captured,
+                b"a",
+                lambda _raw, text: "Archive Manager" in text and "No archived sessions" in text,
+                5.0,
+                "archive manager opens",
+            )
+            send_and_wait(
+                master,
+                captured,
+                b"\x1b",
+                lambda _raw, text: "Archive Manager" not in text,
+                5.0,
+                "archive manager closed",
+            )
+
+            send_and_wait(
+                master,
+                captured,
+                b"\x1bt",
+                lambda _raw, text: has_visible_text(text, "Trace | Tasks | Memory")
+                or has_visible_text(text, "[Trace] | Tasks | Memory"),
+                5.0,
+                "trace sidebar visible",
+            )
+            os.write(master, b"\x1b3")
+            time.sleep(0.1)
+            send_and_wait(
+                master,
+                captured,
+                b"\x1b[C",
+                lambda _raw, text: "[Tasks]" in text and has_visible_text(text, "No tasks yet"),
+                5.0,
+                "tasks tab reached",
+            )
+            send_and_wait(
+                master,
+                captured,
+                b"\x1b[C",
+                lambda _raw, text: "[Memory]" in text,
+                5.0,
+                "memory tab reached",
+            )
+            send_and_wait(
+                master,
+                captured,
+                b"s",
+                lambda _raw, text: "scope:ses" in text,
+                5.0,
+                "memory scope cycles",
             )
         finally:
             if process.poll() is None:
