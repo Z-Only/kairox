@@ -311,12 +311,39 @@ pub struct StatusInfo {
     pub permission_mode: String,
     pub session_count: usize,
     pub mcp_server_count: usize,
+    pub session_metadata: Vec<String>,
     pub hint: String,
     pub error: Option<String>,
     /// P3: latest `ContextAssembled.usage`. `None` until the first event.
     pub context_usage: Option<agent_core::context_types::ContextUsage>,
     /// P3: `true` between `ContextCompactionStarted` and `Completed`/`Failed`.
     pub compacting: bool,
+}
+
+pub fn compact_worktree_path(path: &str) -> String {
+    path.split_once(".kairox/")
+        .map(|(_, suffix)| suffix.to_string())
+        .unwrap_or_else(|| path.to_string())
+}
+
+pub fn project_instruction_source_label(summary: &ProjectInstructionSummary) -> Option<String> {
+    if summary.source_paths.is_empty() {
+        return None;
+    }
+
+    let names = summary
+        .source_paths
+        .iter()
+        .filter_map(|path| std::path::Path::new(path).file_name())
+        .filter_map(std::ffi::OsStr::to_str)
+        .take(2)
+        .collect::<Vec<_>>();
+
+    if names.is_empty() {
+        Some(summary.source_paths.len().to_string())
+    } else {
+        Some(names.join(", "))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

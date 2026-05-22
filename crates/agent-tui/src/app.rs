@@ -92,6 +92,82 @@ impl App {
         self.state.sessions.iter_mut().find(|s| s.id == sid)
     }
 
+    fn current_session(&self) -> Option<&SessionInfo> {
+        let sid = self.current_session_id.as_ref()?;
+        self.state
+            .sessions
+            .iter()
+            .find(|session| &session.id == sid)
+    }
+
+    fn current_project(&self) -> Option<&crate::components::ProjectInfo> {
+        let project_id = self.current_session()?.project_id.as_ref()?;
+        self.state
+            .projects
+            .iter()
+            .find(|project| &project.id == project_id)
+    }
+
+    pub(crate) fn current_session_git_metadata(&self) -> Vec<String> {
+        let Some(session) = self.current_session() else {
+            return Vec::new();
+        };
+
+        let branch = session
+            .branch
+            .as_deref()
+            .filter(|branch| !branch.is_empty());
+        let worktree_path = session
+            .worktree_path
+            .as_deref()
+            .filter(|path| !path.is_empty());
+        let project_root = self
+            .current_project()
+            .map(|project| project.root_path.as_str());
+        let is_worktree_session = match (worktree_path, project_root) {
+            (Some(path), Some(root)) => path != root,
+            (Some(path), None) => {
+                path.contains("/.worktrees/")
+                    || path.contains("/.kairox/worktrees/")
+                    || branch.is_some()
+            }
+            (None, _) => false,
+        };
+
+        let mut parts = Vec::new();
+        if is_worktree_session {
+            parts.push("worktree".to_string());
+        }
+        if let Some(branch) = branch {
+            parts.push(branch.to_string());
+        }
+        if let Some(path) = worktree_path {
+            let compact = crate::components::compact_worktree_path(path);
+            if !parts.contains(&compact) {
+                parts.push(compact);
+            }
+        }
+        if parts.is_empty() {
+            parts.extend(session.project_id.iter().map(ToString::to_string));
+        }
+
+        parts
+    }
+
+    pub(crate) fn current_project_instruction_summary(&self) -> Option<String> {
+        let summary = self.current_project()?.instruction_summary.as_ref()?;
+        crate::components::project_instruction_source_label(summary)
+            .map(|label| format!("Loaded {label}"))
+    }
+
+    pub(crate) fn current_session_metadata(&self) -> Vec<String> {
+        let mut parts = self.current_session_git_metadata();
+        if let Some(summary) = self.current_project_instruction_summary() {
+            parts.push(summary);
+        }
+        parts
+    }
+
     /// Fan-out cross-panel effects to all components.
     pub fn dispatch_effects(&mut self, effects: Vec<CrossPanelEffect>) {
         for effect in effects {
@@ -271,6 +347,7 @@ impl App {
                 .filter(|session| !session.archived)
                 .count(),
             mcp_server_count: 0,
+            session_metadata: self.current_session_metadata(),
             hint,
             error: None,
             context_usage: self.last_context_usage.clone(),
