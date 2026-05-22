@@ -264,6 +264,15 @@ pub enum CtrlCAction {
 }
 
 // ---------------------------------------------------------------------------
+// StatusLog
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusLogEntry {
+    pub message: String,
+}
+
+// ---------------------------------------------------------------------------
 // AppState
 // ---------------------------------------------------------------------------
 
@@ -298,12 +307,16 @@ pub struct AppState {
     pub input_history: Vec<String>,
     pub input_history_index: usize,
 
+    // Local operation feedback
+    pub status_log: Vec<StatusLogEntry>,
+
     // Ctrl-C progressive exit
     ctrl_c_count: u8,
     last_ctrl_c: Option<Instant>,
 }
 
 impl AppState {
+    const STATUS_LOG_LIMIT: usize = 100;
     const CTRL_C_CONFIRM_WINDOW: Duration = Duration::from_secs(5);
     const CTRL_C_FORCE_WINDOW: Duration = Duration::from_secs(2);
 
@@ -325,6 +338,7 @@ impl AppState {
             input_cursor: 0,
             input_history: Vec::new(),
             input_history_index: 0,
+            status_log: Vec::new(),
             ctrl_c_count: 0,
             last_ctrl_c: None,
         }
@@ -407,6 +421,22 @@ impl AppState {
         use crate::components::status_bar::PermissionModeExt;
         self.permission_mode = self.permission_mode.next();
         self.permission_mode
+    }
+
+    pub fn push_status_message(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        if message.trim().is_empty() {
+            return;
+        }
+        self.status_log.push(StatusLogEntry { message });
+        if self.status_log.len() > Self::STATUS_LOG_LIMIT {
+            let overflow = self.status_log.len() - Self::STATUS_LOG_LIMIT;
+            self.status_log.drain(0..overflow);
+        }
+    }
+
+    pub fn latest_status_message(&self) -> Option<&StatusLogEntry> {
+        self.status_log.last()
     }
 }
 
@@ -535,5 +565,26 @@ mod tests {
 
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
         assert_eq!(state.ctrl_c_count, 1);
+    }
+
+    #[test]
+    fn status_log_keeps_latest_entries_only() {
+        let mut state = AppState::new("fake", PermissionMode::Suggest);
+
+        for index in 0..105 {
+            state.push_status_message(format!("status {index}"));
+        }
+
+        assert_eq!(state.status_log.len(), AppState::STATUS_LOG_LIMIT);
+        assert_eq!(
+            state
+                .latest_status_message()
+                .map(|entry| entry.message.as_str()),
+            Some("status 104")
+        );
+        assert_eq!(
+            state.status_log.first().map(|entry| entry.message.as_str()),
+            Some("status 5")
+        );
     }
 }

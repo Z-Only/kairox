@@ -2,7 +2,6 @@ use agent_core::facade::{
     HookSettingsInput, HooksSettingsView, InstructionsUpdateInput, McpFacade, PluginsFacade,
     ProjectFacade, SkillCatalogQuery, SkillInstallTarget,
 };
-use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{
     ActivateSkillRequest, AppFacade, DeactivateSkillRequest, ProjectGitStatus,
     ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta,
@@ -946,10 +945,13 @@ pub async fn dispatch_commands<F>(
 }
 
 fn push_status_message(app: &mut App, content: String) {
-    app.state.current_session.messages.push(ProjectedMessage {
-        role: ProjectedRole::Assistant,
-        content,
-    });
+    if content.trim().is_empty() {
+        return;
+    }
+    app.state.push_status_message(content);
+    if let Some(entry) = app.state.latest_status_message() {
+        app.status_bar.push_notification(entry.message.clone());
+    }
     app.state.render_scheduler.mark_dirty();
 }
 

@@ -76,9 +76,12 @@ pub struct StatusBar {
     focused: bool,
     info: StatusInfo,
     context_details_visible: bool,
+    notifications: Vec<String>,
 }
 
 impl StatusBar {
+    const NOTIFICATION_LOG_LIMIT: usize = 100;
+
     pub fn new() -> Self {
         Self {
             focused: false,
@@ -93,6 +96,7 @@ impl StatusBar {
                 compacting: false,
             },
             context_details_visible: false,
+            notifications: Vec::new(),
         }
     }
 
@@ -106,6 +110,22 @@ impl StatusBar {
 
     pub fn context_details_visible(&self) -> bool {
         self.context_details_visible
+    }
+
+    pub fn push_notification(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        if message.trim().is_empty() {
+            return;
+        }
+        self.notifications.push(message);
+        if self.notifications.len() > Self::NOTIFICATION_LOG_LIMIT {
+            let overflow = self.notifications.len() - Self::NOTIFICATION_LOG_LIMIT;
+            self.notifications.drain(0..overflow);
+        }
+    }
+
+    pub fn latest_notification(&self) -> Option<&str> {
+        self.notifications.last().map(String::as_str)
     }
 }
 
@@ -160,7 +180,7 @@ impl Component for StatusBar {
     }
 
     fn render(&self, area: Rect, frame: &mut Frame) {
-        render_status_bar(area, frame, &self.info);
+        render_status_bar_with_notification(area, frame, &self.info, self.latest_notification());
         if self.context_details_visible {
             render_context_details_overlay(area, frame, &self.info);
         }
@@ -229,12 +249,26 @@ fn context_details_overlay_area(status_area: Rect, line_count: usize) -> Option<
 /// - **MCP server count** — magenta, shown only if > 0
 /// - **hint** — dim
 /// - **error** (if present) — red foreground, bold
+#[allow(dead_code)]
 pub fn render_status_bar(area: Rect, frame: &mut Frame, info: &StatusInfo) {
+    render_status_bar_with_notification(area, frame, info, None);
+}
+
+fn render_status_bar_with_notification(
+    area: Rect,
+    frame: &mut Frame,
+    info: &StatusInfo,
+    notification: Option<&str>,
+) {
     // P3: when we have observed at least one ContextAssembled event, switch
     // to the dedicated context-meter line. The legacy renderer below remains
     // the fallback for the cold-start case (no usage yet).
     if info.context_usage.is_some() {
-        let line_text = render_context_line_string(info, area.width);
+        let mut line_text = render_context_line_string(info, area.width);
+        if let Some(notification) = notification.filter(|value| !value.is_empty()) {
+            line_text.push_str("  status: ");
+            line_text.push_str(notification);
+        }
         frame.render_widget(Paragraph::new(Line::from(Span::raw(line_text))), area);
         return;
     }
@@ -299,8 +333,24 @@ pub fn render_status_bar(area: Rect, frame: &mut Frame, info: &StatusInfo) {
         ));
     }
 
+    if let Some(notification) = notification.filter(|value| !value.is_empty()) {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            notification,
+            status_notification_style(notification),
+        ));
+    }
+
     let paragraph = Paragraph::new(Line::from(spans));
     frame.render_widget(paragraph, area);
+}
+
+fn status_notification_style(message: &str) -> Style {
+    if message.starts_with('[') && message.contains("error") {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -655,6 +705,22 @@ mod tests {
     fn status_bar_component_not_focused_by_default() {
         let bar = StatusBar::new();
         assert!(!bar.focused());
+    }
+
+    #[test]
+    fn status_bar_keeps_bounded_notification_log() {
+        let mut bar = StatusBar::new();
+
+        for index in 0..105 {
+            bar.push_notification(format!("status {index}"));
+        }
+
+        assert_eq!(bar.notifications.len(), StatusBar::NOTIFICATION_LOG_LIMIT);
+        assert_eq!(bar.latest_notification(), Some("status 104"));
+        assert_eq!(
+            bar.notifications.first().map(String::as_str),
+            Some("status 5")
+        );
     }
 }
 
