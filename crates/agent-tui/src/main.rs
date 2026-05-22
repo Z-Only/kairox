@@ -117,11 +117,6 @@ async fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    eprintln!(
-        "Kairox TUI {}",
-        agent_core::build_info::BuildInfo::from_env()
-    );
-
     // 2. Check size
     let size = terminal.size()?;
     if size.width < 80 || size.height < 24 {
@@ -135,16 +130,16 @@ async fn main() -> Result<()> {
     }
 
     // 3. Load config and build runtime
-    let config = Config::load().unwrap_or_else(|e| {
-        eprintln!("Config warning: {e}, using defaults");
-        Config::defaults()
-    });
+    let mut startup_messages = Vec::new();
+    let config = match Config::load() {
+        Ok(config) => config,
+        Err(e) => {
+            startup_messages.push(format!("Config warning: {e}, using defaults"));
+            Config::defaults()
+        }
+    };
     let router = config.build_router();
-    let profiles = config.profile_names();
     let profile = config.default_profile();
-
-    eprintln!("Available model profiles: {:?}", profiles);
-    eprintln!("Using profile: {profile}");
 
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let home_dir = std::path::PathBuf::from(home);
@@ -307,7 +302,12 @@ async fn main() -> Result<()> {
     }
 
     app.sync_status_bar();
+    for message in startup_messages {
+        app.state.push_status_message(message.clone());
+        app.status_bar.push_notification(message);
+    }
     app.sync_component_focus();
+    terminal.clear()?;
 
     // 5. Create channels + spawn tasks
     let (tx, mut rx) = mpsc::channel::<AppEvent>(256);

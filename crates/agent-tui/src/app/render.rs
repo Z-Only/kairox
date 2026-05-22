@@ -260,15 +260,16 @@ impl App {
                 .borders(ratatui::widgets::Borders::NONE)
                 .style(Style::default()),
         );
-        frame.render_widget(paragraph, area);
 
         let border_block = ratatui::widgets::Block::default()
             .borders(ratatui::widgets::Borders::TOP)
             .border_style(border_style);
+        let input_area = border_block.inner(area);
         frame.render_widget(
             ratatui::widgets::Paragraph::new("").block(border_block),
             area,
         );
+        frame.render_widget(paragraph, input_area);
     }
 }
 
