@@ -82,14 +82,14 @@ jobs:
                   live_models=true
                   live_pilot=true
                   ;;
-                Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/src-tauri/**)
+                Cargo.toml|Cargo.lock|crates/**|apps/agent-gui/src-tauri/**|scripts/check-rust-coverage.mjs|scripts/run-rust-coverage.sh)
                   rust=true
                   desktop=true
                   ;;
               esac
 
               case "$file" in
-                package.json|bun.lock|apps/agent-gui/package.json|apps/agent-gui/bun.lock|apps/agent-gui/index.html|apps/agent-gui/playwright.config.*|apps/agent-gui/vite.config.*|apps/agent-gui/vitest.config.*|apps/agent-gui/tsconfig*.json|apps/agent-gui/src/**|apps/agent-gui/e2e/**|apps/agent-gui/public/**)
+                package.json|bun.lock|scripts/check-rust-coverage.mjs|scripts/run-rust-coverage.sh|apps/agent-gui/package.json|apps/agent-gui/bun.lock|apps/agent-gui/index.html|apps/agent-gui/playwright.config.*|apps/agent-gui/vite.config.*|apps/agent-gui/vitest.config.*|apps/agent-gui/tsconfig*.json|apps/agent-gui/src/**|apps/agent-gui/e2e/**|apps/agent-gui/public/**)
                   web=true
                   ;;
               esac
@@ -313,6 +313,99 @@ jobs:
         with:
           name: playwright-report
           path: apps/agent-gui/playwright-report/
+          retention-days: 7
+
+  coverage-rust:
+    name: Coverage (Rust)
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-coverage
+
+      - name: Install Linux system deps for Tauri crates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install MCP fixture deps
+        run: bun install --cwd crates/agent-mcp/tests/fixtures --no-save
+
+      - name: Run Rust coverage gate
+        run: bun run coverage:rust
+
+      - name: Upload Rust coverage summary
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: rust-coverage-summary
+          path: target/coverage/rust.lcov
+          retention-days: 7
+
+  coverage-web:
+    name: Coverage (web)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install repo tooling deps
+        run: bun ci
+
+      - name: Run web coverage gate
+        run: bun run coverage:web
+
+      - name: Upload web coverage report
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: web-coverage
+          path: apps/agent-gui/coverage/
           retention-days: 7
 
   type-sync:
@@ -638,6 +731,8 @@ jobs:
         lint-web,
         test,
         test-e2e,
+        coverage-rust,
+        coverage-web,
         type-sync,
         build-tui,
         build-gui,

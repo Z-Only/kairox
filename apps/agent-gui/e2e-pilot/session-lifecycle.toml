@@ -16,8 +16,3 @@ timeout_ms = 15000
 name = "assert initial session exists"
 action = "assert-visible"
 target = "[data-test='sessions-sidebar']"
-
-[[step]]
-name = "screenshot initial state"
-action = "screenshot"
-path = "tauri-pilot-failures/session-lifecycle-init.png"
