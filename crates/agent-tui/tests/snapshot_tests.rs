@@ -10,12 +10,9 @@ use agent_tui::components::FocusTarget;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 
-fn render_app(app: &mut App, width: u16, height: u16) -> String {
-    let backend = TestBackend::new(width, height);
-    let mut terminal = Terminal::new(backend).unwrap();
-    terminal.draw(|frame| app.render(frame)).unwrap();
-    terminal.backend().to_string()
-}
+mod support;
+
+use support::render::render_app;
 
 #[test]
 fn chat_panel_renders_user_and_assistant_messages() {

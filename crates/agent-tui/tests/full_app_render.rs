@@ -10,22 +10,12 @@ use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::components::trace::RightPanelTab;
 use agent_tui::components::{FocusTarget, QueuedMessage, SessionInfo, SessionState};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::backend::TestBackend;
-use ratatui::Terminal;
+use crossterm::event::{KeyCode, KeyModifiers};
 
-fn render_app(app: &mut App, width: u16, height: u16) -> String {
-    let backend = TestBackend::new(width, height);
-    let mut terminal = Terminal::new(backend).expect("test terminal should be created");
-    terminal
-        .draw(|frame| app.render(frame))
-        .expect("app should render");
-    terminal.backend().to_string()
-}
+mod support;
 
-fn key(code: KeyCode, modifiers: KeyModifiers) -> Event {
-    Event::Key(KeyEvent::new(code, modifiers))
-}
+use support::input::key;
+use support::render::render_app;
 
 fn seeded_app() -> App {
     let workspace_id = WorkspaceId::from_string("wrk_full_app_render".into());
