@@ -19,6 +19,9 @@
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "lint:web": "oxlint && stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
+    "coverage": "bun run coverage:rust && bun run coverage:web",
+    "coverage:rust": "bash scripts/run-rust-coverage.sh",
+    "coverage:web": "cd apps/agent-gui && NODE_OPTIONS=\"--localstorage-file=/tmp/kairox-vitest-localstorage.json\" bun run test -- --coverage",
     "prepare": "bun scripts/prepare.cjs"
   },
   "devDependencies": {

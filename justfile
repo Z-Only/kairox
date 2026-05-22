@@ -26,6 +26,17 @@ test:
 test-gui:
     bun --filter agent-gui test
 
+# Run Rust and GUI coverage gates
+coverage: coverage-rust coverage-web
+
+# Run Rust source-based coverage with branch-first thresholds
+coverage-rust:
+    bun run coverage:rust
+
+# Run GUI coverage with Vitest V8 thresholds
+coverage-web:
+    bun run coverage:web
+
 # Run everything: format check + lint + test (the full CI gate)
 check: fmt-check lint test
     @echo "✅ All checks passed"
