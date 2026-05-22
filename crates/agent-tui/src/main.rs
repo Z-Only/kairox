@@ -4,6 +4,7 @@ mod components;
 mod keybindings;
 mod runtime_dispatch;
 mod view;
+mod workspace_recovery;
 
 use std::io::stdout;
 use std::sync::Arc;
@@ -30,6 +31,10 @@ use app::App;
 use components::{Command, ProjectInfo, SessionInfo, SessionState};
 use runtime_dispatch::{
     dispatch_commands, project_info_from_meta, restore_session_draft, session_info_from_meta,
+};
+use workspace_recovery::{
+    format_known_workspaces, parse_workspace_args, prompt_workspace_selector,
+    resolve_workspace_selector, workspace_usage, KnownWorkspace, WorkspaceCliMode,
 };
 
 // ---------------------------------------------------------------------------
@@ -111,6 +116,62 @@ fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let cli = parse_workspace_args(std::env::args().skip(1)).map_err(anyhow::Error::msg)?;
+    if matches!(&cli.mode, WorkspaceCliMode::Help) {
+        println!("{}", workspace_usage());
+        return Ok(());
+    }
+
+    let mut startup_messages = Vec::new();
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let home_dir = std::path::PathBuf::from(home);
+    let data_dir = home_dir.join(".kairox");
+    tokio::fs::create_dir_all(&data_dir).await?;
+    let db_path = data_dir.join("kairox.sqlite");
+    let database_url = format!(
+        "sqlite:///{}",
+        db_path.display().to_string().trim_start_matches('/')
+    );
+    let store = SqliteEventStore::connect(&database_url).await?;
+    let known_workspaces: Vec<KnownWorkspace> = store
+        .list_workspaces()
+        .await?
+        .into_iter()
+        .map(|workspace| KnownWorkspace {
+            workspace_id: workspace.workspace_id,
+            path: workspace.path,
+        })
+        .collect();
+
+    match cli.mode {
+        WorkspaceCliMode::CurrentDir | WorkspaceCliMode::Help => {}
+        WorkspaceCliMode::List => {
+            print!("{}", format_known_workspaces(&known_workspaces));
+            return Ok(());
+        }
+        WorkspaceCliMode::Select => {
+            if known_workspaces.is_empty() {
+                print!("{}", format_known_workspaces(&known_workspaces));
+                return Ok(());
+            }
+            let Some(selector) =
+                prompt_workspace_selector(&known_workspaces).map_err(anyhow::Error::msg)?
+            else {
+                return Ok(());
+            };
+            let path = resolve_workspace_selector(&known_workspaces, &selector)
+                .map_err(anyhow::Error::msg)?;
+            std::env::set_current_dir(&path)?;
+            startup_messages.push(format!("Recovered workspace {}", path.display()));
+        }
+        WorkspaceCliMode::Use(selector) => {
+            let path = resolve_workspace_selector(&known_workspaces, &selector)
+                .map_err(anyhow::Error::msg)?;
+            std::env::set_current_dir(&path)?;
+            startup_messages.push(format!("Recovered workspace {}", path.display()));
+        }
+    }
+
     // 1. Setup terminal
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
@@ -130,7 +191,6 @@ async fn main() -> Result<()> {
     }
 
     // 3. Load config and build runtime
-    let mut startup_messages = Vec::new();
     let config = match Config::load() {
         Ok(config) => config,
         Err(e) => {
@@ -141,16 +201,6 @@ async fn main() -> Result<()> {
     let router = config.build_router();
     let profile = config.default_profile();
 
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let home_dir = std::path::PathBuf::from(home);
-    let data_dir = home_dir.join(".kairox");
-    tokio::fs::create_dir_all(&data_dir).await?;
-    let db_path = data_dir.join("kairox.sqlite");
-    let database_url = format!(
-        "sqlite:///{}",
-        db_path.display().to_string().trim_start_matches('/')
-    );
-    let store = SqliteEventStore::connect(&database_url).await?;
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
