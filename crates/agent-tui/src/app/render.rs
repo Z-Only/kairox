@@ -195,6 +195,10 @@ impl App {
             self.instructions_overlay.render(area, frame);
         }
 
+        if self.help_overlay.is_visible() {
+            self.help_overlay.render(area, frame);
+        }
+
         self.state.render_scheduler.did_render();
     }
 

@@ -50,7 +50,34 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::ALT)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('c'));
-                if self.permission_modal.is_visible() {
+                let is_f1 = matches!(key_event.code, crossterm::event::KeyCode::F(1))
+                    && key_event.modifiers.is_empty();
+                if self.help_overlay.is_visible() && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.help_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.permission_modal.is_visible() && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -83,7 +110,7 @@ impl App {
                         return cmds;
                     }
                 }
-                if self.command_palette.is_visible() && !is_ctrl_p {
+                if self.command_palette.is_visible() && !is_ctrl_p && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -108,7 +135,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.mcp_overlay.is_visible() && !is_ctrl_m {
+                if self.mcp_overlay.is_visible() && !is_ctrl_m && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -133,7 +160,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.skills_overlay.is_visible() && !is_ctrl_s {
+                if self.skills_overlay.is_visible() && !is_ctrl_s && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -158,7 +185,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.plugin_overlay.is_visible() && !is_ctrl_g {
+                if self.plugin_overlay.is_visible() && !is_ctrl_g && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -183,7 +210,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.model_overlay.is_visible() && !is_ctrl_l {
+                if self.model_overlay.is_visible() && !is_ctrl_l && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -208,7 +235,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.agent_overlay.is_visible() {
+                if self.agent_overlay.is_visible() && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -233,7 +260,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.instructions_overlay.is_visible() && !is_alt_i {
+                if self.instructions_overlay.is_visible() && !is_alt_i && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -258,7 +285,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.hooks_overlay.is_visible() && !is_alt_h {
+                if self.hooks_overlay.is_visible() && !is_alt_h && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -283,7 +310,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.sessions.is_overlay_open() {
+                if self.sessions.is_overlay_open() && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -308,7 +335,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                     return cmds;
                 }
-                if self.status_bar.context_details_visible() && !is_alt_c {
+                if self.status_bar.context_details_visible() && !is_alt_c && !is_f1 {
                     let projects = self.state.projects.clone();
                     let sessions = self.state.sessions.clone();
                     let model_profile = self.state.model_profile.clone();
@@ -620,6 +647,16 @@ impl App {
                 self.status_bar.toggle_context_details();
                 self.state.render_scheduler.mark_dirty_immediate();
             }
+            KeyAction::Help => {
+                if self.help_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissHelpOverlay]);
+                } else {
+                    self.dispatch_effects(vec![CrossPanelEffect::ShowHelpOverlay(
+                        self.help_overlay_snapshot(),
+                    )]);
+                }
+                self.state.render_scheduler.mark_dirty_immediate();
+            }
             KeyAction::NewSession => {
                 if let Some(command) = self.current_draft_save_command() {
                     commands.push(command);
@@ -752,7 +789,7 @@ impl App {
                     self.state.render_scheduler.mark_dirty();
                 }
             }
-            KeyAction::Help | KeyAction::Unhandled => {}
+            KeyAction::Unhandled => {}
         }
 
         commands
@@ -825,6 +862,12 @@ impl App {
             session_id: self.current_session_id.clone()?,
             draft_text: self.chat.input_content.clone(),
         })
+    }
+
+    fn help_overlay_snapshot(&self) -> crate::components::HelpOverlaySnapshot {
+        crate::components::HelpOverlaySnapshot {
+            focus: self.state.focus_manager.current(),
+        }
     }
 }
 
@@ -1179,6 +1222,56 @@ mod tests {
             }]
         );
         assert!(!app.status_bar.context_details_visible());
+    }
+
+    #[test]
+    fn f1_toggles_help_overlay_without_commands() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(app.help_overlay.is_visible());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Chat);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(!app.help_overlay.is_visible());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Chat);
+    }
+
+    #[test]
+    fn f1_opens_help_overlay_above_existing_overlay() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.dispatch_effects(vec![CrossPanelEffect::ShowCommandPalette]);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(app.command_palette.is_visible());
+        assert!(app.help_overlay.is_visible());
+        assert_eq!(
+            app.state.focus_manager.current(),
+            FocusTarget::CommandPalette
+        );
     }
 
     #[test]

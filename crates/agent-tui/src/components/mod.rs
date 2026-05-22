@@ -1,6 +1,7 @@
 pub mod agent_overlay;
 pub mod chat;
 pub mod command_palette;
+pub mod help_overlay;
 pub mod hooks_overlay;
 pub mod instructions_overlay;
 pub mod mcp_overlay;
@@ -61,6 +62,11 @@ pub enum FocusTarget {
     PluginOverlay,
     HooksOverlay,
     InstructionsOverlay,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HelpOverlaySnapshot {
+    pub focus: FocusTarget,
 }
 
 /// User-facing status of an MCP server, mirrored from `agent_mcp::types::McpServerStatus`.
@@ -379,6 +385,8 @@ pub enum CrossPanelEffect {
     DismissHooksOverlay,
     ShowInstructionsOverlay(agent_core::facade::InstructionsView),
     DismissInstructionsOverlay,
+    ShowHelpOverlay(HelpOverlaySnapshot),
+    DismissHelpOverlay,
 }
 
 #[derive(Debug, Clone, PartialEq)]

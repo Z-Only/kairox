@@ -14,6 +14,7 @@ use crate::app_state::AppState;
 use crate::components::agent_overlay::AgentOverlay;
 use crate::components::chat::ChatPanel;
 use crate::components::command_palette::CommandPalette;
+use crate::components::help_overlay::HelpOverlay;
 use crate::components::hooks_overlay::HooksOverlay;
 use crate::components::instructions_overlay::InstructionsOverlay;
 use crate::components::mcp_overlay::McpOverlay;
@@ -35,6 +36,7 @@ pub struct App {
     pub permission_modal: PermissionModal,
     pub mcp_overlay: McpOverlay,
     pub command_palette: CommandPalette,
+    pub help_overlay: HelpOverlay,
     pub skills_overlay: SkillsOverlay,
     pub model_overlay: ModelOverlay,
     pub agent_overlay: AgentOverlay,
@@ -67,6 +69,7 @@ impl App {
             permission_modal: PermissionModal::new(),
             mcp_overlay: McpOverlay::new(),
             command_palette: CommandPalette::new(),
+            help_overlay: HelpOverlay::new(),
             skills_overlay: SkillsOverlay::new(),
             model_overlay: ModelOverlay::new(),
             agent_overlay: AgentOverlay::new(),
@@ -187,6 +190,7 @@ impl App {
                 {
                     self.state.focus_manager.pop();
                 }
+                CrossPanelEffect::ShowHelpOverlay(_) | CrossPanelEffect::DismissHelpOverlay => {}
                 _ => {}
             }
             self.chat.handle_effect(&effect);
@@ -196,6 +200,7 @@ impl App {
             self.permission_modal.handle_effect(&effect);
             self.mcp_overlay.handle_effect(&effect);
             self.command_palette.handle_effect(&effect);
+            self.help_overlay.handle_effect(&effect);
             self.skills_overlay.handle_effect(&effect);
             self.model_overlay.handle_effect(&effect);
             self.agent_overlay.handle_effect(&effect);
@@ -231,6 +236,7 @@ impl App {
             .set_focused(current == FocusTarget::McpOverlay);
         self.command_palette
             .set_focused(current == FocusTarget::CommandPalette);
+        self.help_overlay.set_focused(false);
         self.skills_overlay
             .set_focused(current == FocusTarget::SkillsOverlay);
         self.model_overlay
