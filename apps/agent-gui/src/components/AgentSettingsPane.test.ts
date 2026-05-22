@@ -94,6 +94,33 @@ describe("AgentSettingsPane", () => {
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("fast");
   });
 
+  it("renders a consistent effective-state audit for shadowed agents", async () => {
+    mockedCommands.listAgentSettings.mockResolvedValueOnce(
+      ok([
+        {
+          ...workerAgent,
+          effective: false,
+          shadowedBy: "User:worker"
+        },
+        reviewerAgent
+      ])
+    );
+
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const audit = wrapper.find('[data-test="agent-audit-worker-builtin"]');
+    expect(audit.exists()).toBe(true);
+    expect(audit.text()).toContain("Source");
+    expect(audit.text()).toContain("Built-in");
+    expect(audit.text()).toContain("State");
+    expect(audit.text()).toContain("Enabled");
+    expect(audit.text()).toContain("Effective");
+    expect(audit.text()).toContain("Shadowed by User:worker");
+    expect(audit.text()).toContain("Validity");
+    expect(audit.text()).toContain("Valid");
+  });
+
   it("loads selected agent into the editor and saves changes", async () => {
     const wrapper = mountPane();
     await flushPromises();

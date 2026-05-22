@@ -100,6 +100,31 @@ describe("PluginSettingsPane", () => {
               hook_count: 0
             },
             manifest_kind: "claude"
+          },
+          {
+            settings_id: "Builtin:github",
+            id: "github",
+            name: "GitHub",
+            description: "Bundled GitHub plugin.",
+            version: "1.0.0",
+            scope: "Builtin",
+            path: "builtin://plugins/github",
+            enabled: true,
+            install_source: "builtin",
+            marketplace: null,
+            effective: false,
+            shadowed_by: "User:github",
+            valid: true,
+            validation_error: null,
+            inventory: {
+              skill_count: 0,
+              skill_names: [],
+              mcp_server_count: 1,
+              app_count: 0,
+              agent_count: 0,
+              hook_count: 0
+            },
+            manifest_kind: "builtin"
           }
         ])
       );
@@ -116,6 +141,14 @@ describe("PluginSettingsPane", () => {
       );
       expect(row.text()).toContain("GitHub");
       expect(row.text()).toContain("User");
+      const audit = wrapper.find('[data-test="plugin-audit-builtin-github"]');
+      expect(audit.exists()).toBe(true);
+      expect(audit.text()).toContain("Source");
+      expect(audit.text()).toContain("Builtin");
+      expect(audit.text()).toContain("Effective");
+      expect(audit.text()).toContain("Shadowed by User:github");
+      expect(audit.text()).toContain("Validity");
+      expect(audit.text()).toContain("Valid");
     });
 
     it("uses shared card content hierarchy instead of plugin-local title and meta css", () => {

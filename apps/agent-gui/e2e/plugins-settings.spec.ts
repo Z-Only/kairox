@@ -13,9 +13,12 @@ test.describe("Plugin Settings", () => {
     await expect(page.getByTestId("plugin-settings-pane")).toBeVisible();
     await expect(page.getByTestId("plugin-row-user-github")).toContainText("GitHub");
     await expect(page.getByTestId("plugin-row-user-github")).toContainText("Enabled");
+    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Source");
+    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Active");
 
     await page.getByTestId("plugin-enabled-user-github").click();
     await expect(page.getByTestId("plugin-row-user-github")).toContainText("Disabled");
+    await expect(page.getByTestId("plugin-audit-user-github")).toContainText("Disabled");
 
     await page.getByTestId("plugin-enabled-user-github").click();
     await expect(page.getByTestId("plugin-row-user-github")).toContainText("Enabled");
