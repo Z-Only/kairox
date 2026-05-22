@@ -647,8 +647,12 @@ pub async fn dispatch_commands<F>(
                 }
             }
             Command::InstallMcpServer { request } => {
+                app.mcp_overlay.mark_catalog_install_started(&request);
+                app.state.render_scheduler.mark_dirty_immediate();
                 match McpFacade::install_catalog_entry(runtime.as_ref(), request.clone()).await {
                     Ok(outcome) => {
+                        app.mcp_overlay
+                            .mark_catalog_install_outcome(&request, &outcome);
                         if !app.mcp_overlay.is_visible() {
                             push_status_message(
                                 app,
@@ -658,7 +662,10 @@ pub async fn dispatch_commands<F>(
                         refresh_mcp_overlay(runtime, app, Vec::new()).await;
                     }
                     Err(error) => {
+                        app.mcp_overlay
+                            .mark_catalog_install_failed(&request, error.to_string());
                         push_status_message(app, format!("[MCP install error: {error}]"));
+                        app.state.render_scheduler.mark_dirty_immediate();
                     }
                 }
             }

@@ -610,6 +610,26 @@ fn catalog_and_installed_tabs_emit_install_uninstall_commands() {
 }
 
 #[test]
+fn catalog_install_renders_in_flight_status_after_command_emission() {
+    let mut overlay = McpOverlay::new();
+    overlay.show(snapshot());
+    advance_tabs(&mut overlay, 3);
+
+    let (_, install_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('i')));
+    assert!(matches!(
+        &install_commands[..],
+        [Command::InstallMcpServer { request }]
+            if request.catalog_id == "filesystem" && request.source == "builtin"
+    ));
+
+    let rendered = rendered_overlay(&overlay);
+    assert!(
+        rendered.contains("install status: installing"),
+        "{rendered}"
+    );
+}
+
+#[test]
 fn catalog_install_config_editor_collects_required_overrides() {
     let mut entry = catalog_entry("github", "registry");
     entry.install_spec_json = r#"{"transport":"sse","url":"https://mcp.example.com/sse","headers":{"Authorization":"Bearer ${Authorization}"}}"#.to_string();

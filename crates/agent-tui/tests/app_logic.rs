@@ -26,9 +26,23 @@ async fn make_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
 struct TuiMcpFakeFacade {
     calls: std::sync::Mutex<Vec<String>>,
     last_install_request: std::sync::Mutex<Option<agent_core::facade::InstallRequest>>,
+    install_result: std::sync::Mutex<Option<FakeInstallResult>>,
+}
+
+#[derive(Clone)]
+enum FakeInstallResult {
+    Outcome(agent_core::facade::InstallOutcomeView),
+    Error(String),
 }
 
 impl TuiMcpFakeFacade {
+    fn with_install_result(install_result: FakeInstallResult) -> Self {
+        Self {
+            install_result: std::sync::Mutex::new(Some(install_result)),
+            ..Self::default()
+        }
+    }
+
     fn record(&self, call: impl Into<String>) {
         self.calls.lock().expect("calls lock").push(call.into());
     }
@@ -41,6 +55,13 @@ impl TuiMcpFakeFacade {
         self.last_install_request
             .lock()
             .expect("last install request lock")
+            .clone()
+    }
+
+    fn install_result(&self) -> Option<FakeInstallResult> {
+        self.install_result
+            .lock()
+            .expect("install result lock")
             .clone()
     }
 }
@@ -176,13 +197,19 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
             "install_catalog_entry:{}:{}:{}",
             request.catalog_id, request.source, request.auto_start
         ));
-        Ok(agent_core::facade::InstallOutcomeView {
-            kind: "installed".into(),
-            server_id: Some(request.catalog_id),
-            started: Some(request.auto_start),
-            missing_runtimes: Vec::new(),
-            missing_env_keys: Vec::new(),
-        })
+        match self.install_result() {
+            Some(FakeInstallResult::Outcome(outcome)) => Ok(outcome),
+            Some(FakeInstallResult::Error(error)) => {
+                Err(agent_core::CoreError::InvalidState(error))
+            }
+            None => Ok(agent_core::facade::InstallOutcomeView {
+                kind: "installed".into(),
+                server_id: Some(request.catalog_id),
+                started: Some(request.auto_start),
+                missing_runtimes: Vec::new(),
+                missing_env_keys: Vec::new(),
+            }),
+        }
     }
 
     async fn uninstall_catalog_entry(&self, server_id: String) -> agent_core::Result<()> {
@@ -2502,6 +2529,110 @@ async fn tui_mcp_install_command_forwards_env_overrides() {
     assert_eq!(request.catalog_id, "github");
     assert_eq!(request.source, "registry");
     assert_eq!(request.env_overrides, env_overrides);
+}
+
+#[tokio::test]
+async fn mcp_overlay_install_outcome_persists_after_command_refresh() {
+    use agent_core::WorkspaceId;
+    use agent_tui::app::App;
+    use agent_tui::components::{Command, Component};
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+    use std::collections::BTreeMap;
+
+    fn key(code: KeyCode) -> Event {
+        Event::Key(KeyEvent::new(code, KeyModifiers::NONE))
+    }
+
+    fn rendered_mcp_overlay(app: &App) -> String {
+        let backend = ratatui::backend::TestBackend::new(120, 30);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| app.mcp_overlay.render(f.area(), f))
+            .expect("render");
+        terminal.backend().to_string()
+    }
+
+    let cases = [
+        (
+            FakeInstallResult::Outcome(agent_core::facade::InstallOutcomeView {
+                kind: "installed".into(),
+                server_id: Some("filesystem".into()),
+                started: Some(true),
+                missing_runtimes: Vec::new(),
+                missing_env_keys: Vec::new(),
+            }),
+            "install status: installed as filesystem (started)",
+        ),
+        (
+            FakeInstallResult::Outcome(agent_core::facade::InstallOutcomeView {
+                kind: "already_installed".into(),
+                server_id: Some("filesystem".into()),
+                started: None,
+                missing_runtimes: Vec::new(),
+                missing_env_keys: Vec::new(),
+            }),
+            "install status: already installed as filesystem",
+        ),
+        (
+            FakeInstallResult::Outcome(agent_core::facade::InstallOutcomeView {
+                kind: "invalid_env".into(),
+                server_id: None,
+                started: None,
+                missing_runtimes: Vec::new(),
+                missing_env_keys: vec!["Authorization".into()],
+            }),
+            "install status: missing env Authorization",
+        ),
+        (
+            FakeInstallResult::Outcome(agent_core::facade::InstallOutcomeView {
+                kind: "runtime_missing".into(),
+                server_id: None,
+                started: None,
+                missing_runtimes: vec!["node >=18".into()],
+                missing_env_keys: Vec::new(),
+            }),
+            "install status: missing runtime node >=18",
+        ),
+        (
+            FakeInstallResult::Error("write failed".into()),
+            "install status: failed invalid state: write failed",
+        ),
+    ];
+
+    for (install_result, expected) in cases {
+        let runtime = Arc::new(TuiMcpFakeFacade::with_install_result(install_result));
+        let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+
+        agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenMcpOverlay]).await;
+        for _ in 0..3 {
+            let ctx = app
+                .state
+                .event_context(&app.workspace_id, &app.current_session_id);
+            let _ = app.mcp_overlay.handle_event(&ctx, &key(KeyCode::Tab));
+        }
+
+        agent_tui::app::dispatch_commands(
+            &runtime,
+            &mut app,
+            vec![Command::InstallMcpServer {
+                request: agent_core::facade::InstallRequest {
+                    catalog_id: "filesystem".into(),
+                    source: "builtin".into(),
+                    server_id_override: None,
+                    env_overrides: BTreeMap::new(),
+                    trust_grant: false,
+                    auto_start: true,
+                },
+            }],
+        )
+        .await;
+
+        let rendered = rendered_mcp_overlay(&app);
+        assert!(
+            rendered.contains(expected),
+            "expected {expected:?}, got {rendered}"
+        );
+    }
 }
 
 #[tokio::test]

@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use agent_core::facade::{CatalogSourceView, InstalledEntry, McpServerSettingsView, ServerEntry};
+use agent_core::facade::{
+    CatalogSourceView, InstallOutcomeView, InstallRequest, InstalledEntry, McpServerSettingsView,
+    ServerEntry,
+};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::widgets::ListState;
 
@@ -113,6 +116,16 @@ pub(super) enum McpOverlayMode {
     CatalogInstallConfig,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum CatalogInstallStatus {
+    Installing,
+    Installed { server_id: String, started: bool },
+    AlreadyInstalled { server_id: String },
+    RuntimeMissing { missing_runtimes: Vec<String> },
+    MissingEnv { missing_env_keys: Vec<String> },
+    Failed { message: String },
+}
+
 pub struct McpOverlay {
     pub(super) focused: bool,
     pub(super) visible: bool,
@@ -129,6 +142,7 @@ pub struct McpOverlay {
     pub(super) health: BTreeMap<String, McpHealthState>,
     pub(super) connectivity: BTreeMap<String, McpConnectivityEntry>,
     pub(super) resource_previews: BTreeMap<String, String>,
+    pub(super) catalog_install_statuses: BTreeMap<String, CatalogInstallStatus>,
     pub(super) catalog_keyword: String,
     pub(super) catalog_trust_filter: CatalogTrustFilter,
     pub(super) runtime_state: ListState,
@@ -171,6 +185,7 @@ impl McpOverlay {
             health: BTreeMap::new(),
             connectivity: BTreeMap::new(),
             resource_previews: BTreeMap::new(),
+            catalog_install_statuses: BTreeMap::new(),
             catalog_keyword: String::new(),
             catalog_trust_filter: CatalogTrustFilter::All,
             runtime_state: ListState::default(),
@@ -218,6 +233,7 @@ impl McpOverlay {
         self.health.clear();
         self.connectivity.clear();
         self.resource_previews.clear();
+        self.catalog_install_statuses.clear();
         self.mode = McpOverlayMode::List;
         self.runtime_state.select(None);
         self.settings_state.select(None);
@@ -354,6 +370,69 @@ impl McpOverlay {
         let visible_index = self.catalog_state.selected()?;
         let catalog_index = self.visible_catalog_indices().get(visible_index).copied()?;
         self.catalog.get(catalog_index)
+    }
+
+    pub(super) fn install_status_for_entry(
+        &self,
+        entry: &ServerEntry,
+    ) -> Option<&CatalogInstallStatus> {
+        self.catalog_install_statuses
+            .get(&catalog_install_key(&entry.source, &entry.id))
+    }
+
+    pub(crate) fn mark_catalog_install_started(&mut self, request: &InstallRequest) {
+        self.catalog_install_statuses.insert(
+            catalog_install_key(&request.source, &request.catalog_id),
+            CatalogInstallStatus::Installing,
+        );
+    }
+
+    pub(crate) fn mark_catalog_install_outcome(
+        &mut self,
+        request: &InstallRequest,
+        outcome: &InstallOutcomeView,
+    ) {
+        let status = match outcome.kind.as_str() {
+            "installed" => CatalogInstallStatus::Installed {
+                server_id: outcome
+                    .server_id
+                    .clone()
+                    .or_else(|| request.server_id_override.clone())
+                    .unwrap_or_else(|| request.catalog_id.clone()),
+                started: outcome.started.unwrap_or(false),
+            },
+            "already_installed" => CatalogInstallStatus::AlreadyInstalled {
+                server_id: outcome
+                    .server_id
+                    .clone()
+                    .or_else(|| request.server_id_override.clone())
+                    .unwrap_or_else(|| request.catalog_id.clone()),
+            },
+            "runtime_missing" => CatalogInstallStatus::RuntimeMissing {
+                missing_runtimes: outcome.missing_runtimes.clone(),
+            },
+            "invalid_env" => CatalogInstallStatus::MissingEnv {
+                missing_env_keys: outcome.missing_env_keys.clone(),
+            },
+            other => CatalogInstallStatus::Failed {
+                message: format!("unexpected outcome {other}"),
+            },
+        };
+        self.catalog_install_statuses.insert(
+            catalog_install_key(&request.source, &request.catalog_id),
+            status,
+        );
+    }
+
+    pub(crate) fn mark_catalog_install_failed(
+        &mut self,
+        request: &InstallRequest,
+        message: String,
+    ) {
+        self.catalog_install_statuses.insert(
+            catalog_install_key(&request.source, &request.catalog_id),
+            CatalogInstallStatus::Failed { message },
+        );
     }
 
     pub(super) fn visible_catalog_len(&self) -> usize {
@@ -660,4 +739,8 @@ pub(super) fn trust_rank(value: &str) -> u8 {
 
 pub(super) fn resource_preview_key(server_id: &str, uri: &str) -> String {
     format!("{server_id}\n{uri}")
+}
+
+pub(super) fn catalog_install_key(source: &str, catalog_id: &str) -> String {
+    format!("{source}\n{catalog_id}")
 }
