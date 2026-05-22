@@ -3,12 +3,20 @@ pub mod commands;
 mod event_forwarder;
 pub mod specta;
 
+#[cfg(test)]
 use agent_config::Config;
 #[cfg(not(test))]
 use agent_core::AppFacade;
 #[cfg(test)]
 use agent_models::ModelRouter;
+#[cfg(not(test))]
+use agent_runtime::ui_bootstrap::{
+    build_ui_runtime, default_data_dir, default_home_dir, load_catalog_sources, load_ui_config,
+    sqlite_database_url, UiRuntimeOptions,
+};
+#[cfg(test)]
 use agent_runtime::LocalRuntime;
+#[cfg(test)]
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
 
@@ -37,123 +45,51 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                // Use a file-backed SQLite database in the user's .kairox directory
-                // for persistent storage across app restarts.
-                let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-                let home_dir = std::path::PathBuf::from(home);
-                let db_dir = home_dir.join(".kairox");
-                tokio::fs::create_dir_all(&db_dir).await.ok();
-                let db_path = db_dir.join("kairox-gui.sqlite");
-                let db_url = format!(
-                    "sqlite:///{}?mode=rwc",
-                    db_path.display().to_string().trim_start_matches('/')
-                );
+                let home_dir = default_home_dir();
+                let db_dir = default_data_dir(&home_dir);
+                let db_url = sqlite_database_url(&db_dir, "kairox-gui.sqlite");
 
                 eprintln!("Database: {}", db_url);
 
-                let store = SqliteEventStore::connect(&db_url)
-                    .await
-                    .expect("Failed to create event store");
-
-                let mem_store = std::sync::Arc::new(
-                    agent_memory::SqliteMemoryStore::new(store.pool().clone())
-                        .await
-                        .expect("Failed to create memory store"),
-                ) as std::sync::Arc<dyn agent_memory::MemoryStore>;
-
-                let mut config = Config::load().unwrap_or_else(|e| {
-                    eprintln!("Config warning: {e}, using defaults");
-                    Config::defaults()
-                });
-
-                // Layer: merge profiles from profiles.toml into config
-                let profiles_toml_path = db_dir.join("profiles.toml");
-                if profiles_toml_path.exists() {
-                    if let Ok(raw) = std::fs::read_to_string(&profiles_toml_path) {
-                        if let Ok(overlay) = agent_config::load_from_str(
-                            &raw,
-                            &profiles_toml_path.display().to_string(),
-                        ) {
-                            let mut profile_map: std::collections::HashMap<
-                                String,
-                                agent_config::ProfileDef,
-                            > = config
-                                .profiles
-                                .iter()
-                                .map(|(a, d)| (a.clone(), d.clone()))
-                                .collect();
-                            for (alias, def) in overlay.profiles {
-                                profile_map.entry(alias).or_insert(def);
-                            }
-                            config.profiles = profile_map.into_iter().collect();
-                        }
-                    }
+                let config_load = load_ui_config(&db_dir);
+                for warning in &config_load.warnings {
+                    eprintln!("{warning}");
                 }
-                let router = config.build_router();
-
+                let catalog_load = load_catalog_sources(&db_dir);
+                for warning in &catalog_load.warnings {
+                    eprintln!("{warning}");
+                }
+                let config = config_load.config;
                 eprintln!("Available model profiles: {:?}", config.profile_names());
                 eprintln!("Default profile: {}", config.default_profile());
                 eprintln!("Permission mode: Interactive");
-
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
-                let mut skill_roots =
-                    agent_runtime::skills::build_default_skill_roots(&home_dir, &cwd);
-                let plugin_settings_roots =
-                    agent_runtime::plugin_settings::build_default_plugin_settings_roots(
-                        &home_dir, &cwd,
-                    );
-                let plugin_skill_roots =
-                    agent_runtime::skills::build_plugin_skill_roots(&plugin_settings_roots).await;
-                skill_roots.extend(plugin_skill_roots);
-                let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots)
-                    .await
-                    .expect("Failed to discover skills");
-
-                // Read catalog sources from config.toml so that remote
-                // providers (e.g. MCP Registry) are registered in the
-                // aggregate at startup — not only after the first explicit
-                // refresh.
-                let catalog_sources = {
-                    let toml_path = db_dir.join("config.toml");
-                    let user_sources = match std::fs::read_to_string(&toml_path) {
-                        Ok(raw) => agent_config::parse_catalog_sources(&raw).unwrap_or_else(|e| {
-                            eprintln!("Catalog sources warning: {e}, using defaults");
-                            Vec::new()
-                        }),
-                        Err(_) => Vec::new(),
-                    };
-                    agent_config::merge_with_defaults(user_sources)
-                };
                 eprintln!(
                     "Catalog sources: {} (enabled: {})",
-                    catalog_sources.len(),
-                    catalog_sources.iter().filter(|s| s.enabled).count()
+                    catalog_load.sources.len(),
+                    catalog_load.sources.iter().filter(|s| s.enabled).count()
                 );
-
-                // Load MCP server definitions exclusively from config.toml.
                 let mcp_server_defs = config.mcp_server_defs();
                 eprintln!("MCP server definitions: {}", mcp_server_defs.len());
+                let runtime_bootstrap = build_ui_runtime(UiRuntimeOptions::new(
+                    home_dir,
+                    db_dir.clone(),
+                    "kairox-gui.sqlite",
+                    cwd,
+                    PermissionMode::Interactive,
+                    config,
+                    catalog_load.sources,
+                ))
+                .await
+                .expect("Failed to initialize runtime");
 
-                let ollama_clients = agent_config::build_ollama_clients(&config);
-                let config_arc = std::sync::Arc::new(config.clone());
-                let runtime = LocalRuntime::new(store, router)
-                    .with_permission_mode(PermissionMode::Interactive)
-                    .with_context_limit(100_000)
-                    .with_memory_store(mem_store.clone())
-                    .with_config(config_arc)
-                    .with_ollama_clients(ollama_clients)
-                    .with_marketplace_loaded(db_dir.clone(), &catalog_sources)
-                    .expect("Failed to initialize marketplace")
-                    .with_skill_catalog(Some(db_dir.clone()))
-                    .with_skill_registry(std::sync::Arc::new(skill_registry))
-                    .with_builtin_tools(cwd)
-                    .await
-                    .with_mcp_servers(mcp_server_defs)
-                    .await;
-
-                let mut gui_state = GuiState::new(runtime, config, mem_store);
-                gui_state.profiles_config_path = Some(profiles_toml_path);
-                gui_state.home_dir = db_dir.clone();
+                let mut gui_state = GuiState::new(
+                    runtime_bootstrap.runtime,
+                    runtime_bootstrap.config,
+                    runtime_bootstrap.memory_store,
+                );
+                gui_state.profiles_config_path = Some(runtime_bootstrap.profiles_config_path);
+                gui_state.home_dir = runtime_bootstrap.data_dir.clone();
                 handle.manage(gui_state);
 
                 // Background task: cleanup expired soft-deleted sessions (hourly, 7-day threshold)

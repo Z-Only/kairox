@@ -1,7 +1,4 @@
-use agent_core::AppFacade;
-use agent_models::ModelRouter;
-use agent_store::SqliteEventStore;
-use futures::StreamExt;
+use agent_runtime::ui_bootstrap::{spawn_runtime_event_forwarder, UiRuntime};
 use tauri::AppHandle;
 use tauri::Emitter;
 
@@ -11,14 +8,13 @@ use tauri::Emitter;
 /// The frontend filters events by currentSessionId.
 /// Returns the JoinHandle so the caller can abort it if needed.
 pub fn spawn_event_forwarder(
-    runtime: &agent_runtime::LocalRuntime<SqliteEventStore, ModelRouter>,
+    runtime: &UiRuntime,
     app_handle: &AppHandle,
 ) -> tokio::task::JoinHandle<()> {
-    let mut stream = runtime.subscribe_all();
-
     let app_handle = app_handle.clone();
-    tokio::spawn(async move {
-        while let Some(event) = stream.next().await {
+    spawn_runtime_event_forwarder(runtime, move |event| {
+        let app_handle = app_handle.clone();
+        async move {
             match serde_json::to_value(&event) {
                 Ok(payload) => {
                     let _ = app_handle.emit("session-event", &payload);
@@ -27,6 +23,7 @@ pub fn spawn_event_forwarder(
                     eprintln!("Failed to serialize DomainEvent: {e}");
                 }
             }
+            true
         }
     })
 }
