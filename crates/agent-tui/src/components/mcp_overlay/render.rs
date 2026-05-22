@@ -13,7 +13,9 @@ use super::editor::{
     ServerTransportDraft, SourceDraft, SourceEditorField, SERVER_EDITOR_FIELDS,
     SOURCE_EDITOR_FIELDS,
 };
-use super::state::{resource_preview_key, McpOverlay, McpOverlayMode, McpOverlayTab};
+use super::state::{
+    resource_preview_key, CatalogInstallStatus, McpOverlay, McpOverlayMode, McpOverlayTab,
+};
 
 struct McpOverlayRenderState<'a> {
     runtime: &'a mut ListState,
@@ -370,14 +372,14 @@ fn render_catalog(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &m
             "No MCP catalog entries available"
         };
         render_empty(list_area, frame, label);
-        render_catalog_detail(detail_area, frame, None);
+        render_catalog_detail(detail_area, frame, overlay, None);
         return;
     }
 
     let items: Vec<ListItem> = catalog
         .iter()
         .map(|entry| {
-            ListItem::new(Line::from(vec![
+            let mut spans = vec![
                 Span::styled(
                     entry.display_name.as_str(),
                     Style::default().add_modifier(Modifier::BOLD),
@@ -392,14 +394,32 @@ fn render_catalog(area: Rect, frame: &mut Frame, overlay: &McpOverlay, state: &m
                 ),
                 Span::raw("  "),
                 Span::styled(entry.summary.as_str(), Style::default().fg(Color::Gray)),
-            ]))
+            ];
+            if let Some(status) = overlay.install_status_for_entry(entry) {
+                let (label, color) = install_status_list_label(status);
+                spans.push(Span::styled(
+                    format!("  {label}"),
+                    Style::default().fg(color),
+                ));
+            }
+            ListItem::new(Line::from(spans))
         })
         .collect();
     render_list(list_area, frame, items, state);
-    render_catalog_detail(detail_area, frame, overlay.selected_catalog_entry());
+    render_catalog_detail(
+        detail_area,
+        frame,
+        overlay,
+        overlay.selected_catalog_entry(),
+    );
 }
 
-fn render_catalog_detail(area: Rect, frame: &mut Frame, entry: Option<&ServerEntry>) {
+fn render_catalog_detail(
+    area: Rect,
+    frame: &mut Frame,
+    overlay: &McpOverlay,
+    entry: Option<&ServerEntry>,
+) {
     let block = Block::default()
         .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::DarkGray))
@@ -466,6 +486,9 @@ fn render_catalog_detail(area: Rect, frame: &mut Frame, entry: Option<&ServerEnt
 
     lines.push(Line::from(""));
     lines.extend(render_install_lines(entry));
+    if let Some(status) = overlay.install_status_for_entry(entry) {
+        lines.extend(render_install_status_lines(status));
+    }
     lines.push(Line::from(""));
     lines.extend(render_requirement_lines(entry));
     lines.push(Line::from(""));
@@ -518,6 +541,61 @@ fn render_install_lines(entry: &ServerEntry) -> Vec<Line<'static>> {
         ])),
     }
     lines
+}
+
+fn render_install_status_lines(status: &CatalogInstallStatus) -> Vec<Line<'static>> {
+    let (label, color) = install_status_detail(status);
+    vec![Line::from(vec![
+        Span::styled("install status: ", Style::default().fg(Color::DarkGray)),
+        Span::styled(label, Style::default().fg(color)),
+    ])]
+}
+
+fn install_status_list_label(status: &CatalogInstallStatus) -> (&'static str, Color) {
+    match status {
+        CatalogInstallStatus::Installing => ("installing", Color::Yellow),
+        CatalogInstallStatus::Installed { .. } => ("installed", Color::Green),
+        CatalogInstallStatus::AlreadyInstalled { .. } => ("already installed", Color::Green),
+        CatalogInstallStatus::RuntimeMissing { .. }
+        | CatalogInstallStatus::MissingEnv { .. }
+        | CatalogInstallStatus::Failed { .. } => ("install failed", Color::Red),
+    }
+}
+
+fn install_status_detail(status: &CatalogInstallStatus) -> (String, Color) {
+    match status {
+        CatalogInstallStatus::Installing => ("installing".to_string(), Color::Yellow),
+        CatalogInstallStatus::Installed { server_id, started } => {
+            let suffix = if *started { " (started)" } else { "" };
+            (
+                format!("installed as {}{suffix}", clip(server_id, 48)),
+                Color::Green,
+            )
+        }
+        CatalogInstallStatus::AlreadyInstalled { server_id } => (
+            format!("already installed as {}", clip(server_id, 48)),
+            Color::Green,
+        ),
+        CatalogInstallStatus::RuntimeMissing { missing_runtimes } => {
+            let missing = if missing_runtimes.is_empty() {
+                "unknown runtime".to_string()
+            } else {
+                clip(&missing_runtimes.join(", "), 56)
+            };
+            (format!("missing runtime {missing}"), Color::Red)
+        }
+        CatalogInstallStatus::MissingEnv { missing_env_keys } => {
+            let missing = if missing_env_keys.is_empty() {
+                "unknown key".to_string()
+            } else {
+                clip(&missing_env_keys.join(", "), 56)
+            };
+            (format!("missing env {missing}"), Color::Red)
+        }
+        CatalogInstallStatus::Failed { message } => {
+            (format!("failed {}", clip(message, 60)), Color::Red)
+        }
+    }
 }
 
 fn render_requirement_lines(entry: &ServerEntry) -> Vec<Line<'static>> {

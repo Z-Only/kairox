@@ -429,9 +429,9 @@ impl McpOverlay {
         };
         let config_items = catalog_config_items(&entry);
         if config_items.is_empty() {
-            return vec![Command::InstallMcpServer {
-                request: install_request_for_entry(&entry, BTreeMap::new()),
-            }];
+            let request = install_request_for_entry(&entry, BTreeMap::new());
+            self.mark_catalog_install_started(&request);
+            return vec![Command::InstallMcpServer { request }];
         }
 
         self.mode = McpOverlayMode::CatalogInstallConfig;
@@ -559,6 +559,7 @@ impl McpOverlay {
             KeyCode::Enter => {
                 if let Some(request) = self.catalog_install_draft.to_request() {
                     self.mode = McpOverlayMode::List;
+                    self.mark_catalog_install_started(&request);
                     return vec![Command::InstallMcpServer { request }];
                 }
             }
