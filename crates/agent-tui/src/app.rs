@@ -27,7 +27,10 @@ use crate::components::sessions::SessionsPanel;
 use crate::components::skills_overlay::SkillsOverlay;
 use crate::components::status_bar::{PermissionModeExt, StatusBar};
 use crate::components::trace::TracePanel;
-use crate::components::{Component, CrossPanelEffect, FocusTarget, SessionInfo, SessionState};
+use crate::components::{
+    Component, CrossPanelEffect, DestructiveConfirmationState, FocusTarget, SessionInfo,
+    SessionState,
+};
 
 pub struct App {
     pub state: AppState,
@@ -49,6 +52,7 @@ pub struct App {
     pub current_session_id: Option<SessionId>,
     pub domain_events: Vec<DomainEvent>,
     pub quit_confirmed: bool,
+    pub destructive_confirmation: DestructiveConfirmationState,
     pub quitting: bool,
     /// P3: latest `ContextAssembled.usage`, propagated into the status bar.
     pub last_context_usage: Option<agent_core::context_types::ContextUsage>,
@@ -82,6 +86,7 @@ impl App {
             current_session_id: None,
             domain_events: Vec::new(),
             quit_confirmed: false,
+            destructive_confirmation: DestructiveConfirmationState::default(),
             quitting: false,
             last_context_usage: None,
             compacting: false,
