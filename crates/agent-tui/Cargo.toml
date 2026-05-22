@@ -32,6 +32,7 @@ agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
 insta.workspace = true
+portable-pty.workspace = true
 tokio.workspace = true
 futures.workspace = true
 async-trait.workspace = true

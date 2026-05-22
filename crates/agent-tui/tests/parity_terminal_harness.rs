@@ -19,8 +19,10 @@ use agent_tui::components::{
     SessionState, SkillOverlaySnapshot,
 };
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::backend::TestBackend;
-use ratatui::Terminal;
+
+mod support;
+
+use support::render::render_app;
 
 struct TerminalHarness {
     app: App,
@@ -67,12 +69,7 @@ impl TerminalHarness {
     }
 
     fn render(&mut self) -> String {
-        let backend = TestBackend::new(160, 42);
-        let mut terminal = Terminal::new(backend).expect("test terminal should be created");
-        terminal
-            .draw(|frame| self.app.render(frame))
-            .expect("app should render");
-        terminal.backend().to_string()
+        render_app(&mut self.app, 160, 42)
     }
 }
 

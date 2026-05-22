@@ -69,7 +69,8 @@ Status meanings:
 - Component-level parity smoke tests: `crates/agent-tui/tests/parity_smoke.rs`.
 - Slash parser and command payload tests: `crates/agent-tui/tests/app_logic.rs`.
 - Keybinding resolver tests: `crates/agent-tui/src/keybindings/tests.rs`.
-- PTY smoke helper: `scripts/tui-pty-smoke.py`.
+- PTY smoke helper: `crates/agent-tui/tests/terminal_pty_smoke.rs` via `just test-tui-pty`.
+- Layered TUI test guide: `crates/agent-tui/tests/README.md`.
 
 When adding a GUI feature:
 

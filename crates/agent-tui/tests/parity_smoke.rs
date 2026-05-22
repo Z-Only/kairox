@@ -27,8 +27,10 @@ use agent_tui::components::{
 };
 use agent_tui::keybindings::KeyAction;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::backend::TestBackend;
-use ratatui::Terminal;
+
+mod support;
+
+use support::render::render_component as render_component_to_string;
 
 fn test_ctx(focus: FocusTarget, current_session_id: Option<SessionId>) -> EventContext<'static> {
     let projection: &'static SessionProjection = Box::leak(Box::new(SessionProjection::default()));
@@ -67,12 +69,7 @@ fn type_text(component: &mut impl Component, ctx: &EventContext<'_>, text: &str)
 }
 
 fn render_component(component: &impl Component) -> String {
-    let backend = TestBackend::new(140, 36);
-    let mut terminal = Terminal::new(backend).expect("test terminal should be created");
-    terminal
-        .draw(|frame| component.render(frame.area(), frame))
-        .expect("component should render");
-    terminal.backend().to_string()
+    render_component_to_string(component, 140, 36)
 }
 
 fn activate_palette_entry(

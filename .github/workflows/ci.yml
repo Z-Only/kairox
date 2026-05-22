@@ -101,7 +101,7 @@ jobs:
               esac
 
               case "$file" in
-                Cargo.toml|Cargo.lock|crates/**|scripts/tui-pty-smoke.py)
+                Cargo.toml|Cargo.lock|crates/**)
                   tui=true
                   ;;
               esac
@@ -389,7 +389,7 @@ jobs:
       - name: Run TUI PTY smoke
         env:
           KAIROX_TUI_BIN: target/debug/agent-tui
-        run: python3 scripts/tui-pty-smoke.py
+        run: cargo test -p agent-tui --test terminal_pty_smoke -- --ignored --nocapture
 
   build-gui:
     name: Build GUI web
