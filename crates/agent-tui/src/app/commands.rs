@@ -45,6 +45,10 @@ pub async fn dispatch_commands<F>(
                 refresh_instructions_overlay(app);
                 app.state.render_scheduler.mark_dirty_immediate();
             }
+            Command::OpenSystemPromptOverlay => {
+                refresh_system_prompt_overlay(app);
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
             Command::OpenHooksOverlay => {
                 refresh_hooks_overlay(app);
                 app.state.render_scheduler.mark_dirty_immediate();
@@ -157,38 +161,44 @@ pub async fn dispatch_commands<F>(
                 }
                 app.state.render_scheduler.mark_dirty_immediate();
             }
+            Command::OpenConfigDir => {
+                match AppFacade::open_config_dir(runtime.as_ref()).await {
+                    Ok(Some(path)) => {
+                        open_directory_path(app, &path, "config dir");
+                    }
+                    Ok(None) => {
+                        push_status_message(app, "config dir path unavailable".to_string());
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[config dir error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
             Command::OpenAgentsDir => {
                 match AppFacade::open_agents_dir(runtime.as_ref()).await {
                     Ok(Some(path)) => {
-                        let path_buf = std::path::PathBuf::from(&path);
-                        match std::fs::create_dir_all(&path_buf)
-                            .map_err(|error| {
-                                format!(
-                                    "failed to create agents dir {}: {error}",
-                                    path_buf.display()
-                                )
-                            })
-                            .and_then(|()| open_path_in_system_file_manager(&path_buf))
-                        {
-                            Ok(()) => {
-                                push_status_message(
-                                    app,
-                                    format!("opened agents dir {}", path_buf.display()),
-                                );
-                            }
-                            Err(error) => {
-                                push_status_message(
-                                    app,
-                                    format!("[agents dir open error: {error}]"),
-                                );
-                            }
-                        }
+                        open_directory_path(app, &path, "agents dir");
                     }
                     Ok(None) => {
                         push_status_message(app, "agents dir path unavailable".to_string());
                     }
                     Err(error) => {
                         push_status_message(app, format!("[agents dir error: {error}]"));
+                    }
+                }
+                app.state.render_scheduler.mark_dirty_immediate();
+            }
+            Command::OpenSkillsDir => {
+                match AppFacade::open_skills_dir(runtime.as_ref()).await {
+                    Ok(Some(path)) => {
+                        open_directory_path(app, &path, "skills dir");
+                    }
+                    Ok(None) => {
+                        push_status_message(app, "skills dir path unavailable".to_string());
+                    }
+                    Err(error) => {
+                        push_status_message(app, format!("[skills dir error: {error}]"));
                     }
                 }
                 app.state.render_scheduler.mark_dirty_immediate();
@@ -768,6 +778,22 @@ pub async fn dispatch_commands<F>(
                         push_status_message(app, format!("[model profile test error: {error}]"));
                     }
                 }
+            }
+            Command::TestModelProfileUrl { alias, base_url } => {
+                let result = test_model_base_url_connectivity(alias.clone(), base_url).await;
+                let message = if result.ok {
+                    format!("model profile {alias} connectivity ok")
+                } else {
+                    format!(
+                        "model profile {alias} connectivity failed: {}",
+                        result
+                            .message
+                            .as_deref()
+                            .unwrap_or("unknown connectivity error")
+                    )
+                };
+                app.dispatch_effects(vec![CrossPanelEffect::ModelProfileTested(result)]);
+                push_status_message(app, message);
             }
             Command::OpenProfilesConfig => {
                 match AppFacade::open_profiles_config_file(runtime.as_ref()).await {
@@ -1364,6 +1390,13 @@ fn refresh_instructions_overlay(app: &mut App) {
     }
 }
 
+fn refresh_system_prompt_overlay(app: &mut App) {
+    match load_instructions_view(app) {
+        Ok(view) => app.dispatch_effects(vec![CrossPanelEffect::ShowSystemPromptOverlay(view)]),
+        Err(error) => push_status_message(app, format!("[instructions error: {error}]")),
+    }
+}
+
 fn save_instructions(
     app: &App,
     scope: agent_core::ConfigScope,
@@ -1702,41 +1735,7 @@ where
         })?;
 
     if let Some(base_url) = profile.base_url.as_deref().filter(|url| !url.is_empty()) {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
-            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
-        let endpoints = [
-            base_url.to_string(),
-            format!("{}/models", base_url.trim_end_matches('/')),
-        ];
-
-        let mut last_error = None;
-        for endpoint in endpoints {
-            match client.get(&endpoint).send().await {
-                Ok(response)
-                    if response.status().is_success() || response.status().is_client_error() =>
-                {
-                    return Ok(ModelProfileTestResult {
-                        alias,
-                        ok: true,
-                        message: None,
-                    });
-                }
-                Ok(response) => {
-                    last_error = Some(format!("unexpected status: {}", response.status()));
-                }
-                Err(error) => {
-                    last_error = Some(format!("connection failed: {error}"));
-                }
-            }
-        }
-
-        return Ok(ModelProfileTestResult {
-            alias,
-            ok: false,
-            message: last_error,
-        });
+        return Ok(test_model_base_url_connectivity(alias, base_url.to_string()).await);
     }
 
     Ok(ModelProfileTestResult {
@@ -1744,6 +1743,71 @@ where
         ok: true,
         message: None,
     })
+}
+
+async fn test_model_base_url_connectivity(
+    alias: String,
+    base_url: String,
+) -> ModelProfileTestResult {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(client) => client,
+        Err(error) => {
+            return ModelProfileTestResult {
+                alias,
+                ok: false,
+                message: Some(error.to_string()),
+            };
+        }
+    };
+    let endpoints = [
+        base_url.to_string(),
+        format!("{}/models", base_url.trim_end_matches('/')),
+    ];
+
+    let mut last_error = None;
+    for endpoint in endpoints {
+        match client.get(&endpoint).send().await {
+            Ok(response)
+                if response.status().is_success() || response.status().is_client_error() =>
+            {
+                return ModelProfileTestResult {
+                    alias,
+                    ok: true,
+                    message: None,
+                };
+            }
+            Ok(response) => {
+                last_error = Some(format!("unexpected status: {}", response.status()));
+            }
+            Err(error) => {
+                last_error = Some(format!("connection failed: {error}"));
+            }
+        }
+    }
+
+    ModelProfileTestResult {
+        alias,
+        ok: false,
+        message: last_error,
+    }
+}
+
+fn open_directory_path(app: &mut App, path: &str, label: &str) {
+    let path_buf = std::path::PathBuf::from(path);
+    match std::fs::create_dir_all(&path_buf)
+        .map_err(|error| format!("failed to create {label} {}: {error}", path_buf.display()))
+        .and_then(|()| open_path_in_system_file_manager(&path_buf))
+    {
+        Ok(()) => {
+            push_status_message(app, format!("opened {label} {}", path_buf.display()));
+        }
+        Err(error) => {
+            push_status_message(app, format!("[{label} open error: {error}]"));
+        }
+    }
 }
 
 fn open_path_in_system_file_manager(path: &std::path::Path) -> Result<(), String> {
