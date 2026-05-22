@@ -3,6 +3,7 @@ use agent_core::SessionId;
 use agent_core::WorkspaceId;
 use agent_memory::MemoryStore;
 use agent_models::ModelRouter;
+use agent_runtime::ui_bootstrap::{load_config_with_profiles_overlay, load_ui_config};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use std::sync::Arc;
@@ -42,8 +43,11 @@ impl GuiState {
     /// Reload the project-level portion of the config from `project_root`.
     /// Merges defaults + user-level + project-level `.kairox/config.toml`.
     pub fn refresh_config_for_project(&self, project_root: &std::path::Path) -> Result<(), String> {
-        let new_config =
+        let base_config =
             Config::load_with_project_root(Some(project_root)).map_err(|e| e.to_string())?;
+        let new_config = load_config_with_profiles_overlay(base_config, &self.home_dir)
+            .map_err(|e| e.to_string())?
+            .config;
         let mut cfg = self.config.write().map_err(|e| e.to_string())?;
         *cfg = new_config;
         Ok(())
@@ -51,7 +55,7 @@ impl GuiState {
 
     /// Reload the full config, including profiles.toml overlay.
     pub fn refresh_config(&self) -> Result<(), String> {
-        let new_config = Config::load().map_err(|e| e.to_string())?;
+        let new_config = load_ui_config(&self.home_dir).config;
         let mut cfg = self.config.write().map_err(|e| e.to_string())?;
         *cfg = new_config;
         Ok(())

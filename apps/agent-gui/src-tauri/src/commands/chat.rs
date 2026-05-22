@@ -1,4 +1,5 @@
 use super::*;
+use agent_runtime::ui_bootstrap::ensure_workspace_session;
 
 #[tauri::command]
 #[specta::specta]
@@ -19,48 +20,13 @@ pub async fn initialize_workspace(
         .display()
         .to_string();
 
-    // Try to reuse an existing workspace for this path
-    let workspace = {
-        let workspaces = state
-            .runtime
-            .list_workspaces()
-            .await
-            .map_err(|e| format!("Failed to list workspaces: {e}"))?;
-        if let Some(existing) = workspaces.iter().find(|w| w.path == workspace_path) {
-            existing.clone()
-        } else {
-            state
-                .runtime
-                .open_workspace(workspace_path)
-                .await
-                .map_err(|e| format!("Failed to open workspace: {e}"))?
-        }
-    };
-
-    let workspace_id = workspace.workspace_id.clone();
     let profile = state.config.read().unwrap().default_profile();
+    let bootstrap = ensure_workspace_session(state.runtime.as_ref(), workspace_path, profile, None)
+        .await
+        .map_err(|e| format!("Failed to initialize workspace: {e}"))?;
 
-    // Try to restore an existing session, or create a new one
-    let session_id = {
-        let sessions = state
-            .runtime
-            .list_sessions(&workspace_id)
-            .await
-            .map_err(|e| format!("Failed to list sessions: {e}"))?;
-        if let Some(last) = sessions.last() {
-            last.session_id.clone()
-        } else {
-            state
-                .runtime
-                .start_session(agent_core::StartSessionRequest {
-                    workspace_id: workspace_id.clone(),
-                    model_profile: profile.clone(),
-                    permission_mode: None,
-                })
-                .await
-                .map_err(|e| format!("Failed to start session: {e}"))?
-        }
-    };
+    let workspace_id = bootstrap.workspace.workspace_id.clone();
+    let session_id = bootstrap.session_id.clone();
 
     // Spawn event forwarder for all sessions
     {
@@ -80,7 +46,7 @@ pub async fn initialize_workspace(
 
     Ok(WorkspaceInfoResponse {
         workspace_id: workspace_id.to_string(),
-        path: workspace.path,
+        path: bootstrap.workspace.path,
     })
 }
 

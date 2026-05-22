@@ -10,11 +10,12 @@ use std::io::stdout;
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_config::Config;
-use agent_core::{AppFacade, StartSessionRequest};
-use agent_memory::SqliteMemoryStore;
-use agent_runtime::LocalRuntime;
-use agent_store::SqliteEventStore;
+use agent_core::AppFacade;
+use agent_runtime::ui_bootstrap::{
+    build_ui_runtime_from_store, connect_ui_event_store, default_data_dir, default_home_dir,
+    ensure_workspace_session, load_catalog_sources, load_ui_config, spawn_runtime_event_forwarder,
+    UiRuntimeOptions,
+};
 use agent_tools::PermissionMode;
 use anyhow::Result;
 use crossterm::event::{Event, EventStream};
@@ -28,7 +29,7 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 
 use app::App;
-use components::{Command, ProjectInfo, SessionInfo, SessionState};
+use components::{Command, ProjectInfo, SessionInfo};
 use runtime_dispatch::{
     dispatch_commands, project_info_from_meta, restore_session_draft, session_info_from_meta,
 };
@@ -123,16 +124,9 @@ async fn main() -> Result<()> {
     }
 
     let mut startup_messages = Vec::new();
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let home_dir = std::path::PathBuf::from(home);
-    let data_dir = home_dir.join(".kairox");
-    tokio::fs::create_dir_all(&data_dir).await?;
-    let db_path = data_dir.join("kairox.sqlite");
-    let database_url = format!(
-        "sqlite:///{}",
-        db_path.display().to_string().trim_start_matches('/')
-    );
-    let store = SqliteEventStore::connect(&database_url).await?;
+    let home_dir = default_home_dir();
+    let data_dir = default_data_dir(&home_dir);
+    let store = connect_ui_event_store(&data_dir, "kairox.sqlite").await?;
     let known_workspaces: Vec<KnownWorkspace> = store
         .list_workspaces()
         .await?
@@ -191,134 +185,86 @@ async fn main() -> Result<()> {
     }
 
     // 3. Load config and build runtime
-    let config = match Config::load() {
-        Ok(config) => config,
-        Err(e) => {
-            startup_messages.push(format!("Config warning: {e}, using defaults"));
-            Config::defaults()
-        }
-    };
-    let router = config.build_router();
-    let profile = config.default_profile();
-
-    let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
-        as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
     let workspace_files = walk_workspace_files(&workspace_path, 500);
-    let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &workspace_path);
-    let skill_settings_roots =
-        agent_runtime::skills::build_default_skill_settings_roots(&home_dir, &workspace_path);
-    let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots).await?;
-
-    let ollama_clients = agent_config::build_ollama_clients(&config);
-    let config_arc = std::sync::Arc::new(config);
-    let runtime = Arc::new(
-        LocalRuntime::new(store, router)
-            .with_permission_mode(PermissionMode::Suggest)
-            .with_context_limit(100_000)
-            .with_memory_store(mem_store)
-            .with_config(config_arc)
-            .with_ollama_clients(ollama_clients)
-            .with_skill_registry(Arc::new(skill_registry))
-            .with_skill_settings_roots(skill_settings_roots)
-            .with_skill_catalog(Some(data_dir.clone()))
-            .with_builtin_tools(workspace_path.clone())
-            .await,
-    );
+    let config_load = load_ui_config(&data_dir);
+    startup_messages.extend(config_load.warnings);
+    let catalog_load = load_catalog_sources(&data_dir);
+    startup_messages.extend(catalog_load.warnings);
+    let profile = config_load.config.default_profile();
+    let runtime_bootstrap = build_ui_runtime_from_store(
+        store,
+        UiRuntimeOptions::new(
+            home_dir.clone(),
+            data_dir.clone(),
+            "kairox.sqlite",
+            workspace_path.clone(),
+            PermissionMode::Suggest,
+            config_load.config,
+            catalog_load.sources,
+        ),
+    )
+    .await?;
+    let runtime = Arc::new(runtime_bootstrap.runtime);
 
     // Try to restore previous workspace and sessions, or create fresh ones
     let workspace_path_str = workspace_path.display().to_string();
 
-    let (workspace_id, mut app_sessions, projects) = {
-        // Try to find an existing workspace for this path
-        let workspaces = runtime.list_workspaces().await.unwrap_or_default();
-        let existing = workspaces.iter().find(|w| w.path == workspace_path_str);
-
-        if let Some(ws) = existing {
-            let sessions = runtime
-                .list_sessions(&ws.workspace_id)
-                .await
-                .unwrap_or_default();
-            let archived_sessions = runtime
-                .list_archived_sessions(&ws.workspace_id)
-                .await
-                .unwrap_or_default();
-            let projects_meta = runtime
-                .list_projects(&ws.workspace_id)
-                .await
-                .unwrap_or_default();
-            let mut projects: Vec<ProjectInfo> = projects_meta
-                .into_iter()
-                .map(project_info_from_meta)
-                .collect();
-            for project in &mut projects {
-                project.git_status = runtime
-                    .get_project_git_status(project.id.clone())
-                    .await
-                    .ok();
-                project.instruction_summary = runtime
-                    .get_project_instruction_summary(project.id.clone())
-                    .await
-                    .ok();
-            }
-            let mut session_infos: Vec<SessionInfo> = sessions
-                .into_iter()
-                .map(|s| session_info_from_meta(s, false, &None))
-                .collect();
-            for project in &projects {
-                let project_sessions = runtime
-                    .list_project_sessions(project.id.clone())
-                    .await
-                    .unwrap_or_default();
-                session_infos.extend(
-                    project_sessions
-                        .into_iter()
-                        .map(|s| session_info_from_meta(s, false, &None)),
-                );
-            }
-            session_infos.extend(
-                archived_sessions
-                    .into_iter()
-                    .map(|s| session_info_from_meta(s, true, &None)),
-            );
-            (ws.workspace_id.clone(), session_infos, projects)
-        } else {
-            let ws = runtime.open_workspace(workspace_path_str).await?;
-            (ws.workspace_id, Vec::new(), Vec::new())
-        }
-    };
-
-    // If no sessions exist, create a new one
-    if app_sessions.iter().all(|session| session.archived) {
-        let session_id = runtime
-            .start_session(StartSessionRequest {
-                workspace_id: workspace_id.clone(),
-                model_profile: profile.clone(),
-                permission_mode: None,
-            })
+    let workspace_bootstrap =
+        ensure_workspace_session(runtime.as_ref(), workspace_path_str, profile.clone(), None)
             .await?;
-        app_sessions.push(SessionInfo {
-            id: session_id,
-            title: format!("Session using {profile}"),
-            model_profile: profile.clone(),
-            state: SessionState::Idle,
-            pinned: false,
-            archived: false,
-            project_id: None,
-            worktree_path: None,
-            branch: None,
-            visibility: None,
-        });
+    let workspace_id = workspace_bootstrap.workspace.workspace_id.clone();
+    let active_session_id = workspace_bootstrap.session_id.clone();
+
+    let sessions = runtime
+        .list_sessions(&workspace_id)
+        .await
+        .unwrap_or_default();
+    let archived_sessions = runtime
+        .list_archived_sessions(&workspace_id)
+        .await
+        .unwrap_or_default();
+    let projects_meta = runtime
+        .list_projects(&workspace_id)
+        .await
+        .unwrap_or_default();
+    let mut projects: Vec<ProjectInfo> = projects_meta
+        .into_iter()
+        .map(project_info_from_meta)
+        .collect();
+    for project in &mut projects {
+        project.git_status = runtime
+            .get_project_git_status(project.id.clone())
+            .await
+            .ok();
+        project.instruction_summary = runtime
+            .get_project_instruction_summary(project.id.clone())
+            .await
+            .ok();
     }
+    let current = Some(active_session_id.clone());
+    let mut app_sessions: Vec<SessionInfo> = sessions
+        .into_iter()
+        .map(|s| session_info_from_meta(s, false, &current))
+        .collect();
+    for project in &projects {
+        let project_sessions = runtime
+            .list_project_sessions(project.id.clone())
+            .await
+            .unwrap_or_default();
+        app_sessions.extend(
+            project_sessions
+                .into_iter()
+                .map(|s| session_info_from_meta(s, false, &current)),
+        );
+    }
+    app_sessions.extend(
+        archived_sessions
+            .into_iter()
+            .map(|s| session_info_from_meta(s, true, &current)),
+    );
 
     // 4. Create App with restored sessions
-    let active_session_id = app_sessions
-        .iter()
-        .rfind(|session| !session.archived)
-        .expect("at least one active session must exist")
-        .id
-        .clone();
-
     let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
     app.chat
         .set_workspace_files(workspace_path.clone(), workspace_files);
@@ -364,17 +310,13 @@ async fn main() -> Result<()> {
 
     // Domain event forwarder — subscribes to ALL runtime events
     let tx_events = tx.clone();
-    let rt_handle = runtime.clone();
-    let event_task = tokio::spawn(async move {
-        let mut stream = rt_handle.subscribe_all();
-        while let Some(event) = stream.next().await {
-            if tx_events
+    let event_task = spawn_runtime_event_forwarder(runtime.as_ref(), move |event| {
+        let tx_events = tx_events.clone();
+        async move {
+            tx_events
                 .send(AppEvent::DomainEvent(Box::new(event)))
                 .await
-                .is_err()
-            {
-                break;
-            }
+                .is_ok()
         }
     });
 
