@@ -814,6 +814,123 @@ pub enum Command {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DestructiveConfirmationTarget {
+    scope: &'static str,
+    id: String,
+    description: String,
+}
+
+impl DestructiveConfirmationTarget {
+    fn new(scope: &'static str, id: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            scope,
+            id: id.into(),
+            description: description.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DestructiveConfirmationState {
+    pending: Option<DestructiveConfirmationTarget>,
+}
+
+impl DestructiveConfirmationState {
+    pub fn clear(&mut self) {
+        self.pending = None;
+    }
+
+    pub fn arm_or_confirm(&mut self, target: DestructiveConfirmationTarget) -> bool {
+        if self.pending.as_ref() == Some(&target) {
+            self.pending = None;
+            true
+        } else {
+            self.pending = Some(target);
+            false
+        }
+    }
+
+    pub fn pending_hint(&self) -> Option<String> {
+        self.pending.as_ref().map(|target| {
+            format!(
+                "Press the destructive shortcut again to {}",
+                target.description
+            )
+        })
+    }
+}
+
+impl Command {
+    pub fn destructive_confirmation_target(&self) -> Option<DestructiveConfirmationTarget> {
+        match self {
+            Self::ArchiveSession { session_id } => Some(DestructiveConfirmationTarget::new(
+                "session.archive",
+                session_id.to_string(),
+                format!("archive session {session_id}"),
+            )),
+            Self::DeleteSession { session_id } => Some(DestructiveConfirmationTarget::new(
+                "session.delete",
+                session_id.to_string(),
+                format!("permanently delete archived session {session_id}"),
+            )),
+            Self::RemoveProject { project_id } => Some(DestructiveConfirmationTarget::new(
+                "project.remove",
+                project_id.to_string(),
+                format!("remove project {project_id}"),
+            )),
+            Self::DeleteMcpServerSettings { server_id } => {
+                Some(DestructiveConfirmationTarget::new(
+                    "mcp.settings.delete",
+                    server_id.clone(),
+                    format!("delete MCP server settings {server_id}"),
+                ))
+            }
+            Self::UninstallMcpServer { server_id } => Some(DestructiveConfirmationTarget::new(
+                "mcp.uninstall",
+                server_id.clone(),
+                format!("uninstall MCP server {server_id}"),
+            )),
+            Self::RemoveMcpCatalogSource { source_id } => Some(DestructiveConfirmationTarget::new(
+                "mcp.source.remove",
+                source_id.clone(),
+                format!("remove MCP catalog source {source_id}"),
+            )),
+            Self::DeleteProfileSettings { alias } => Some(DestructiveConfirmationTarget::new(
+                "model.profile.delete",
+                alias.clone(),
+                format!("delete model profile {alias}"),
+            )),
+            Self::DeleteHookSettings { event, id, .. } => Some(DestructiveConfirmationTarget::new(
+                "hook.delete",
+                format!("{event}:{id}"),
+                format!("delete hook {event}/{id}"),
+            )),
+            Self::DeleteAgentSettings { settings_id } => Some(DestructiveConfirmationTarget::new(
+                "agent.delete",
+                settings_id.clone(),
+                format!("delete agent profile {settings_id}"),
+            )),
+            Self::DeleteSkillSettings { skill_id } => Some(DestructiveConfirmationTarget::new(
+                "skill.delete",
+                skill_id.clone(),
+                format!("delete skill {skill_id}"),
+            )),
+            Self::RemoveSkillSource { source_id } => Some(DestructiveConfirmationTarget::new(
+                "skill.source.remove",
+                source_id.clone(),
+                format!("remove skill source {source_id}"),
+            )),
+            Self::DeletePluginSettings { settings_id } => Some(DestructiveConfirmationTarget::new(
+                "plugin.delete",
+                settings_id.clone(),
+                format!("delete plugin {settings_id}"),
+            )),
+            _ => None,
+        }
+    }
+}
+
 /// Read-only shared state passed to components on every event.
 #[allow(dead_code)]
 pub struct EventContext<'a> {

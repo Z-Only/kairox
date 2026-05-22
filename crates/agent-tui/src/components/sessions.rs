@@ -304,7 +304,6 @@ impl SessionsPanel {
                         session_id: session.id.clone(),
                     }
                 });
-                self.close_archive_manager();
                 command.into_iter().collect()
             }
             _ => Vec::new(),
@@ -395,7 +394,6 @@ impl SessionsPanel {
                 Vec::new()
             }
             (SessionAction::Archive, SelectedRow::Session(session)) => {
-                self.close_action_menu();
                 vec![Command::ArchiveSession {
                     session_id: session.id,
                 }]
@@ -407,13 +405,11 @@ impl SessionsPanel {
                 }]
             }
             (SessionAction::Delete, SelectedRow::Session(session)) => {
-                self.close_action_menu();
                 vec![Command::DeleteSession {
                     session_id: session.id,
                 }]
             }
             (SessionAction::RemoveProject, SelectedRow::Project(project)) => {
-                self.close_action_menu();
                 vec![Command::RemoveProject {
                     project_id: project.id,
                 }]
@@ -1599,7 +1595,7 @@ mod tests {
             commands.as_slice(),
             [Command::ArchiveSession { session_id }] if session_id == &sessions[1].id
         ));
-        assert!(!panel.context_menu_open);
+        assert!(panel.context_menu_open);
     }
 
     #[test]
@@ -1644,7 +1640,7 @@ mod tests {
             commands.as_slice(),
             [Command::DeleteSession { session_id }] if session_id == &sessions[0].id
         ));
-        assert!(!panel.archive_manager_open);
+        assert!(panel.archive_manager_open);
     }
 
     #[test]
@@ -1827,7 +1823,7 @@ mod tests {
             commands.as_slice(),
             [Command::DeleteSession { session_id }] if session_id == &sessions[0].id
         ));
-        assert!(!panel.archive_manager_open);
+        assert!(panel.archive_manager_open);
     }
 
     #[test]
