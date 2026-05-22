@@ -4,4 +4,5 @@ pub mod app;
 pub mod app_state;
 pub mod components;
 pub mod keybindings;
+pub mod runtime_dispatch;
 pub mod view;
