@@ -43,12 +43,20 @@ fn l2_alt_keys_resolve_globally() {
         KeyAction::OpenProfileSelector
     );
     assert_eq!(
+        resolve_key(alt_key(KeyCode::Char('c')), focus, no_pending, single),
+        KeyAction::ToggleContextDetails
+    );
+    assert_eq!(
         resolve_key(alt_key(KeyCode::Char('n')), focus, no_pending, single),
         KeyAction::NewSession
     );
     assert_eq!(
         resolve_key(alt_key(KeyCode::Char('q')), focus, no_pending, single),
         KeyAction::Quit
+    );
+    assert_eq!(
+        resolve_key(alt_key(KeyCode::Char('h')), focus, no_pending, single),
+        KeyAction::ToggleHooksOverlay
     );
     assert_eq!(
         resolve_key(alt_key(KeyCode::Char('1')), focus, no_pending, single),
@@ -86,7 +94,7 @@ fn l3_ctrl_c_interrupts() {
 }
 
 #[test]
-fn l3_ctrl_l_redraws() {
+fn l3_ctrl_l_toggles_model_overlay() {
     assert_eq!(
         resolve_key(
             ctrl_key(KeyCode::Char('l')),
@@ -94,7 +102,20 @@ fn l3_ctrl_l_redraws() {
             false,
             InputMode::SingleLine
         ),
-        KeyAction::Redraw
+        KeyAction::ToggleModelOverlay
+    );
+}
+
+#[test]
+fn l3_ctrl_g_toggles_plugin_overlay() {
+    assert_eq!(
+        resolve_key(
+            ctrl_key(KeyCode::Char('g')),
+            FocusTarget::Chat,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::TogglePluginsOverlay
     );
 }
 
@@ -235,6 +256,50 @@ fn l4_f2_rename_in_sessions_focus() {
             InputMode::SingleLine
         ),
         KeyAction::Unhandled
+    );
+}
+
+#[test]
+fn sessions_focus_a_opens_archive_manager() {
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('a')),
+            FocusTarget::Sessions,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::OpenArchiveManager
+    );
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('A')),
+            FocusTarget::Sessions,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::OpenArchiveManager
+    );
+}
+
+#[test]
+fn trace_focus_memory_browser_keys_resolve() {
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('/')),
+            FocusTarget::Trace,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::StartMemorySearch
+    );
+    assert_eq!(
+        resolve_key(
+            key(KeyCode::Char('s')),
+            FocusTarget::Trace,
+            false,
+            InputMode::SingleLine
+        ),
+        KeyAction::CycleMemoryScope
     );
 }
 

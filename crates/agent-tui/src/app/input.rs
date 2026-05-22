@@ -1,7 +1,7 @@
 use crossterm::event::Event;
 
 use crate::app_state::{CtrlCAction, InputMode, InputState};
-use crate::components::{Command, CrossPanelEffect, EventContext, FocusTarget};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext, FocusTarget};
 use crate::keybindings::{resolve_key, resolve_paste, KeyAction};
 
 use super::App;
@@ -9,16 +9,449 @@ use super::App;
 impl App {
     /// Handle a raw crossterm event, returning any commands to dispatch.
     pub fn handle_crossterm_event(&mut self, event: &Event) -> Vec<Command> {
+        let commands = self.handle_crossterm_event_unconfirmed(event);
+        self.confirm_destructive_commands(commands)
+    }
+
+    fn confirm_destructive_commands(&mut self, commands: Vec<Command>) -> Vec<Command> {
+        let mut saw_destructive_command = false;
+        let mut confirmed = Vec::with_capacity(commands.len());
+
+        for command in commands {
+            let Some(target) = command.destructive_confirmation_target() else {
+                confirmed.push(command);
+                continue;
+            };
+
+            saw_destructive_command = true;
+            if self.destructive_confirmation.arm_or_confirm(target) {
+                self.finalize_confirmed_destructive_command(&command);
+                confirmed.push(command);
+            } else if let Some(hint) = self.destructive_confirmation.pending_hint() {
+                self.state.push_status_message(hint.clone());
+                self.status_bar.push_notification(hint);
+                self.state.render_scheduler.mark_dirty();
+            }
+        }
+
+        if !saw_destructive_command {
+            self.destructive_confirmation.clear();
+        }
+
+        confirmed
+    }
+
+    fn finalize_confirmed_destructive_command(&mut self, command: &Command) {
+        match command {
+            Command::ArchiveSession { .. } | Command::RemoveProject { .. } => {
+                self.sessions.close_action_menu();
+            }
+            Command::DeleteSession { .. } => {
+                self.sessions.close_action_menu();
+                self.sessions.close_archive_manager();
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_crossterm_event_unconfirmed(&mut self, event: &Event) -> Vec<Command> {
         match event {
             Event::Key(key_event) => {
+                // Ctrl+M toggles the MCP overlay even when the overlay is
+                // already visible; route through the resolver in that case.
+                let is_ctrl_m = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('m'));
+                // Ctrl+P toggles the command palette even when already
+                // visible; let the resolver fire instead of consuming the
+                // event in the palette.
+                let is_ctrl_p = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('p'));
+                let is_ctrl_s = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('s'));
+                let is_ctrl_g = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('g'));
+                // Ctrl+L toggles the model overlay even when the overlay is
+                // already visible; route through the resolver in that case.
+                let is_ctrl_l = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('l'));
+                let is_alt_i = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::ALT)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('i'));
+                let is_alt_h = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::ALT)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('h'));
+                let is_alt_c = key_event
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::ALT)
+                    && matches!(key_event.code, crossterm::event::KeyCode::Char('c'));
+                let is_f1 = matches!(key_event.code, crossterm::event::KeyCode::F(1))
+                    && key_event.modifiers.is_empty();
+                if self.help_overlay.is_visible() && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.help_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.permission_modal.is_visible() && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.permission_modal.handle_event(&ctx, event);
+                    if !effects.is_empty() || !cmds.is_empty() {
+                        self.dispatch_effects(effects);
+                        if !self.permission_modal.is_visible()
+                            && self.state.focus_manager.current() == FocusTarget::PermissionModal
+                        {
+                            self.state.focus_manager.pop();
+                            self.sync_component_focus();
+                        }
+                        self.state.render_scheduler.mark_dirty();
+                        return cmds;
+                    }
+                }
+                if self.command_palette.is_visible() && !is_ctrl_p && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.command_palette.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.mcp_overlay.is_visible() && !is_ctrl_m && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.mcp_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.skills_overlay.is_visible() && !is_ctrl_s && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.skills_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.plugin_overlay.is_visible() && !is_ctrl_g && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.plugin_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.model_overlay.is_visible() && !is_ctrl_l && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.model_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.agent_overlay.is_visible() && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.agent_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.instructions_overlay.is_visible() && !is_alt_i && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.instructions_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.hooks_overlay.is_visible() && !is_alt_h && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.hooks_overlay.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.sessions.is_overlay_open() && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.sessions.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
+                if self.status_bar.context_details_visible() && !is_alt_c && !is_f1 {
+                    let projects = self.state.projects.clone();
+                    let sessions = self.state.sessions.clone();
+                    let model_profile = self.state.model_profile.clone();
+                    let permission_mode = self.state.permission_mode;
+                    let sidebar_left = self.state.sidebar_left_visible;
+                    let sidebar_right = self.state.sidebar_right_visible;
+                    let focus = self.state.focus_manager.current();
+                    let ctx = EventContext {
+                        focus,
+                        current_session: &self.state.current_session,
+                        projects: &projects,
+                        sessions: &sessions,
+                        model_profile: &model_profile,
+                        permission_mode,
+                        sidebar_left_visible: sidebar_left,
+                        sidebar_right_visible: sidebar_right,
+                        workspace_id: &self.workspace_id,
+                        current_session_id: &self.current_session_id,
+                    };
+                    let (effects, cmds) = self.status_bar.handle_event(&ctx, event);
+                    self.dispatch_effects(effects);
+                    self.state.render_scheduler.mark_dirty();
+                    return cmds;
+                }
                 let permission_pending =
-                    matches!(self.state.input_state, InputState::PermissionWait { .. })
+                    matches!(self.chat.input_state, InputState::PermissionWait { .. })
                         || self.permission_modal.is_visible();
+                if !permission_pending
+                    && self.state.focus_manager.current() == FocusTarget::Trace
+                    && self.trace.active_tab == crate::components::trace::RightPanelTab::Tasks
+                    && matches!(key_event.code, crossterm::event::KeyCode::Enter)
+                    && key_event.modifiers.is_empty()
+                    && self
+                        .trace
+                        .toggle_selected_task_expansion(&self.state.current_session.task_graph)
+                {
+                    self.state.render_scheduler.mark_dirty();
+                    return Vec::new();
+                }
+                if !permission_pending
+                    && self.state.focus_manager.current() == FocusTarget::Trace
+                    && self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active
+                {
+                    let search_action = match key_event.code {
+                        crossterm::event::KeyCode::Enter => Some(KeyAction::FocusCycleNext),
+                        crossterm::event::KeyCode::Esc => Some(KeyAction::Escape),
+                        crossterm::event::KeyCode::Backspace => Some(KeyAction::InputBackspace),
+                        crossterm::event::KeyCode::Delete => Some(KeyAction::InputDelete),
+                        crossterm::event::KeyCode::Char(ch)
+                            if !key_event
+                                .modifiers
+                                .intersects(crossterm::event::KeyModifiers::CONTROL)
+                                && !key_event
+                                    .modifiers
+                                    .intersects(crossterm::event::KeyModifiers::ALT) =>
+                        {
+                            Some(KeyAction::InputCharacter(ch))
+                        }
+                        _ => None,
+                    };
+                    if let Some(action) = search_action {
+                        return self.apply_action(action);
+                    }
+                }
                 let action = resolve_key(
                     *key_event,
                     self.state.focus_manager.current(),
                     permission_pending,
-                    self.state.input_mode,
+                    self.chat.input_mode,
                 );
                 self.apply_action(action)
             }
@@ -27,7 +460,7 @@ impl App {
                 Vec::new()
             }
             Event::Paste(text) => {
-                if text.contains('\n') && self.state.input_mode == InputMode::SingleLine {
+                if text.contains('\n') && self.chat.input_mode == InputMode::SingleLine {
                     self.state.input_mode = InputMode::MultiLine;
                     self.chat.input_mode = InputMode::MultiLine;
                 }
@@ -66,6 +499,14 @@ impl App {
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::Escape => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && (self.trace.memory_search_active
+                        || self.trace.pending_delete_memory_id().is_some())
+                {
+                    self.trace.clear_memory_transient_state();
+                    self.state.render_scheduler.mark_dirty();
+                    return commands;
+                }
                 if self.quit_confirmed {
                     self.quit_confirmed = false;
                     self.state.reset_ctrl_c();
@@ -74,6 +515,14 @@ impl App {
                 let (effects, cmds) = self.apply_chat_action(KeyAction::Escape);
                 commands.extend(cmds);
                 self.dispatch_effects(effects);
+            }
+            KeyAction::FocusCycleNext
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.apply_memory_search();
+                commands.push(self.trace.memory_load_command());
+                self.state.render_scheduler.mark_dirty();
             }
             KeyAction::ToggleSessionsSidebar => {
                 self.state.sidebar_left_visible = !self.state.sidebar_left_visible;
@@ -103,18 +552,199 @@ impl App {
                 self.sync_component_focus();
                 self.state.render_scheduler.mark_dirty();
             }
-            KeyAction::Redraw => {
+            KeyAction::ToggleMcpOverlay => {
+                if self.mcp_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissMcpOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenMcpOverlay);
+                }
+            }
+            KeyAction::ToggleCommandPalette => {
+                if self.command_palette.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissCommandPalette]);
+                } else {
+                    self.dispatch_effects(vec![CrossPanelEffect::ShowCommandPalette]);
+                }
                 self.state.render_scheduler.mark_dirty_immediate();
             }
+            KeyAction::ToggleSkillsOverlay => {
+                if self.skills_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissSkillsOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenSkillsOverlay);
+                }
+            }
+            KeyAction::ToggleModelOverlay => {
+                if self.model_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissModelOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenModelOverlay);
+                }
+            }
+            KeyAction::TogglePluginsOverlay => {
+                if self.plugin_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissPluginsOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenPluginsOverlay);
+                }
+            }
+            KeyAction::ToggleInstructionsOverlay => {
+                if self.instructions_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissInstructionsOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenInstructionsOverlay);
+                }
+            }
+            KeyAction::ToggleHooksOverlay => {
+                if self.hooks_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissHooksOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenHooksOverlay);
+                }
+            }
             KeyAction::ToggleTraceDensity => {
-                self.trace.density = self.trace.density.next();
+                self.trace.cycle_density();
                 self.state.render_scheduler.mark_dirty();
             }
+            KeyAction::CycleTraceTabNext => {
+                self.trace.cycle_tab_next();
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(self.trace.memory_load_command());
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CycleTraceTabPrevious => {
+                self.trace.cycle_tab_previous();
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(self.trace.memory_load_command());
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CycleMemoryScope => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    self.trace.cycle_memory_scope_filter();
+                    commands.push(self.trace.memory_load_command());
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::StartMemorySearch => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    self.trace.start_memory_search();
+                    self.state.render_scheduler.mark_dirty();
+                }
+            }
+            KeyAction::RetrySelectedTask => {
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory {
+                    commands.push(self.trace.memory_load_command());
+                } else if let Some(session_id) = &self.current_session_id {
+                    if let Some(task_id) = self
+                        .trace
+                        .selected_retry_task_id(&self.state.current_session.task_graph)
+                    {
+                        commands.push(Command::RetryTask {
+                            workspace_id: self.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            task_id,
+                        });
+                    }
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CancelSelectedTask => {
+                if let Some(session_id) = &self.current_session_id {
+                    if let Some(task_id) = self
+                        .trace
+                        .selected_cancel_task_id(&self.state.current_session.task_graph)
+                    {
+                        commands.push(Command::CancelTask {
+                            workspace_id: self.workspace_id.clone(),
+                            session_id: session_id.clone(),
+                            task_id,
+                        });
+                    }
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::DeleteSelectedMemory => {
+                if let Some(memory_id) = self.trace.begin_memory_delete_confirmation() {
+                    commands.push(Command::DeleteMemory { memory_id });
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::ConfirmMemoryDelete => {
+                if let Some(memory_id) = self.trace.confirm_memory_delete() {
+                    commands.push(Command::DeleteMemory { memory_id });
+                }
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CyclePermissionMode => {
+                let new_mode = self.state.cycle_permission_mode();
+                commands.push(Command::SetPermissionMode { mode: new_mode });
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::ToggleContextDetails => {
+                self.status_bar.toggle_context_details();
+                self.state.render_scheduler.mark_dirty_immediate();
+            }
+            KeyAction::Help => {
+                if self.help_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissHelpOverlay]);
+                } else {
+                    self.dispatch_effects(vec![CrossPanelEffect::ShowHelpOverlay(
+                        self.help_overlay_snapshot(),
+                    )]);
+                }
+                self.state.render_scheduler.mark_dirty_immediate();
+            }
             KeyAction::NewSession => {
+                if let Some(command) = self.current_draft_save_command() {
+                    commands.push(command);
+                }
                 commands.push(Command::StartSession {
                     workspace_id: self.workspace_id.clone(),
                     model_profile: self.state.model_profile.clone(),
                 });
+            }
+            KeyAction::ContextMenu
+                if self.state.focus_manager.current() == FocusTarget::Sessions =>
+            {
+                self.sessions
+                    .open_action_menu(&self.state.projects, &self.state.sessions);
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::OpenArchiveManager
+                if self.state.focus_manager.current() == FocusTarget::Sessions =>
+            {
+                self.sessions.open_archive_manager(&self.state.sessions);
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputCharacter(ch)
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.push_memory_search_char(ch);
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputBackspace
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.pop_memory_search_char();
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::InputDelete
+                if self.trace.active_tab == crate::components::trace::RightPanelTab::Memory
+                    && self.trace.memory_search_active =>
+            {
+                self.trace.memory_search_query.clear();
+                self.state.render_scheduler.mark_dirty();
             }
             KeyAction::SendInput
             | KeyAction::InputCharacter(_)
@@ -125,42 +755,96 @@ impl App {
             | KeyAction::InputHistoryUp
             | KeyAction::InputHistoryDown
             | KeyAction::InputPaste(_)
+            | KeyAction::ApplyQueueAction(_)
             | KeyAction::AllowPermission
             | KeyAction::DenyPermission
             | KeyAction::DenyAllPermission
+            | KeyAction::OpenArchiveManager
             | KeyAction::ContextMenu => {
                 let (effects, cmds) = self.apply_chat_action(action);
                 commands.extend(cmds);
                 self.dispatch_effects(effects);
             }
             KeyAction::SelectSession => {
-                if let Some(session_id) = self.sessions.selected_session_id(&self.state.sessions) {
-                    commands.push(Command::SwitchSession { session_id });
+                if let Some(session) = self
+                    .sessions
+                    .selected_session_in(&self.state.projects, &self.state.sessions)
+                {
+                    if !session.archived {
+                        if self.current_session_id.as_ref() == Some(&session.id) {
+                            return commands;
+                        }
+                        if let Some(command) = self.current_draft_save_command() {
+                            commands.push(command);
+                        }
+                        commands.push(Command::SwitchSession {
+                            session_id: session.id.clone(),
+                        });
+                    }
                 }
             }
             KeyAction::ScrollUp => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
-                    self.sessions.scroll_up(self.state.sessions.len());
+                    self.sessions.scroll_up(
+                        crate::components::sessions::session_list_rows(
+                            &self.state.projects,
+                            &self.state.sessions,
+                        )
+                        .len(),
+                    );
+                } else if self.state.focus_manager.current() == FocusTarget::Trace {
+                    self.trace.select_previous();
                 }
                 self.state.render_scheduler.mark_dirty();
             }
             KeyAction::ScrollDown => {
                 if self.state.focus_manager.current() == FocusTarget::Sessions {
-                    self.sessions.scroll_down(self.state.sessions.len());
+                    self.sessions.scroll_down(
+                        crate::components::sessions::session_list_rows(
+                            &self.state.projects,
+                            &self.state.sessions,
+                        )
+                        .len(),
+                    );
+                } else if self.state.focus_manager.current() == FocusTarget::Trace {
+                    let row_count = match self.trace.active_tab {
+                        crate::components::trace::RightPanelTab::Tasks => self
+                            .trace
+                            .visible_task_row_count(&self.state.current_session.task_graph),
+                        crate::components::trace::RightPanelTab::Memory => {
+                            self.trace.memory_rows.len()
+                        }
+                        _ => 0,
+                    };
+                    self.trace.select_next(row_count);
                 }
                 self.state.render_scheduler.mark_dirty();
             }
-            KeyAction::Help
-            | KeyAction::OpenProfileSelector
-            | KeyAction::RenameSession
-            | KeyAction::Unhandled => {}
+            KeyAction::OpenProfileSelector => {
+                if self.model_overlay.is_visible() {
+                    self.dispatch_effects(vec![CrossPanelEffect::DismissModelOverlay]);
+                    self.state.render_scheduler.mark_dirty_immediate();
+                } else {
+                    commands.push(Command::OpenModelOverlay);
+                }
+            }
+            KeyAction::RenameSession => {
+                if self.state.focus_manager.current() == FocusTarget::Sessions {
+                    self.sessions
+                        .start_rename_for_selected(&self.state.projects, &self.state.sessions);
+                    self.state.render_scheduler.mark_dirty();
+                }
+            }
+            KeyAction::Unhandled => {}
         }
 
         commands
     }
 
     fn apply_chat_action(&mut self, action: KeyAction) -> (Vec<CrossPanelEffect>, Vec<Command>) {
+        let draft_before = self.chat.input_content.clone();
         let focus = self.state.focus_manager.current();
+        let projects = self.state.projects.clone();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
         let permission_mode = self.state.permission_mode;
@@ -169,6 +853,7 @@ impl App {
         let ctx = EventContext {
             focus,
             current_session: &self.state.current_session,
+            projects: &projects,
             sessions: &sessions,
             model_profile: &model_profile,
             permission_mode,
@@ -177,6 +862,609 @@ impl App {
             workspace_id: &self.workspace_id,
             current_session_id: &self.current_session_id,
         };
-        self.chat.apply_key_action(action, &ctx)
+        let (effects, mut commands) = self.chat.apply_key_action(action, &ctx);
+        if self.chat.input_content != draft_before {
+            if let Some(command) = self.current_draft_save_command() {
+                commands.push(command);
+            }
+        }
+        (effects, commands)
+    }
+
+    pub fn apply_queue_action(&mut self, action: crate::components::QueueAction) -> Vec<Command> {
+        let draft_before = self.chat.input_content.clone();
+        let focus = self.state.focus_manager.current();
+        let projects = self.state.projects.clone();
+        let sessions = self.state.sessions.clone();
+        let model_profile = self.state.model_profile.clone();
+        let permission_mode = self.state.permission_mode;
+        let sidebar_left = self.state.sidebar_left_visible;
+        let sidebar_right = self.state.sidebar_right_visible;
+        let ctx = EventContext {
+            focus,
+            current_session: &self.state.current_session,
+            projects: &projects,
+            sessions: &sessions,
+            model_profile: &model_profile,
+            permission_mode,
+            sidebar_left_visible: sidebar_left,
+            sidebar_right_visible: sidebar_right,
+            workspace_id: &self.workspace_id,
+            current_session_id: &self.current_session_id,
+        };
+        let command = self.chat.apply_queue_action(action, &ctx);
+        self.state.render_scheduler.mark_dirty();
+        let mut commands: Vec<Command> = command.into_iter().collect();
+        if self.chat.input_content != draft_before {
+            if let Some(command) = self.current_draft_save_command() {
+                commands.push(command);
+            }
+        }
+        commands
+    }
+
+    fn current_draft_save_command(&self) -> Option<Command> {
+        Some(Command::SaveDraft {
+            session_id: self.current_session_id.clone()?,
+            draft_text: self.chat.input_content.clone(),
+        })
+    }
+
+    fn help_overlay_snapshot(&self) -> crate::components::HelpOverlaySnapshot {
+        crate::components::HelpOverlaySnapshot {
+            focus: self.state.focus_manager.current(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::trace::{MemoryRow, MemoryScopeFilter, RightPanelTab};
+    use crate::components::{PermissionRequest, RiskLevel, SessionInfo, SessionState};
+    use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
+    use agent_core::{
+        AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId,
+    };
+    use agent_memory::MemoryScope;
+    use agent_tools::PermissionMode;
+
+    fn task_snapshot(
+        id: TaskId,
+        title: &str,
+        role: AgentRole,
+        state: TaskState,
+        dependencies: Vec<TaskId>,
+        retry_count: usize,
+        max_retries: usize,
+    ) -> TaskSnapshot {
+        TaskSnapshot {
+            id,
+            title: title.into(),
+            role,
+            state,
+            dependencies,
+            error: None,
+            retry_count,
+            max_retries,
+            assigned_agent_id: None,
+            failure_reason: None,
+        }
+    }
+
+    fn session_info(id: SessionId, title: &str) -> SessionInfo {
+        SessionInfo {
+            id,
+            title: title.to_string(),
+            model_profile: "fast".to_string(),
+            state: SessionState::Idle,
+            pinned: false,
+            archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: Some(ProjectSessionVisibility::Visible),
+        }
+    }
+
+    #[test]
+    fn tasks_tab_emits_retry_command_for_selected_failed_task() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = agent_core::SessionId::from_string("ses_test".into());
+        let task_id = TaskId::from_string("task_failed".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![task_snapshot(
+                task_id.clone(),
+                "Fix failure",
+                AgentRole::Worker,
+                TaskState::Failed,
+                vec![],
+                1,
+                3,
+            )],
+        };
+
+        let commands = app.apply_action(KeyAction::RetrySelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::RetryTask {
+                workspace_id,
+                session_id,
+                task_id,
+            }]
+        );
+    }
+
+    #[test]
+    fn tasks_tab_emits_cancel_command_for_selected_blocked_task() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = agent_core::SessionId::from_string("ses_test".into());
+        let task_id = TaskId::from_string("task_blocked".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![task_snapshot(
+                task_id.clone(),
+                "Blocked task",
+                AgentRole::Reviewer,
+                TaskState::Blocked,
+                vec![],
+                0,
+                3,
+            )],
+        };
+
+        let commands = app.apply_action(KeyAction::CancelSelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::CancelTask {
+                workspace_id,
+                session_id,
+                task_id,
+            }]
+        );
+    }
+
+    #[test]
+    fn trace_tasks_tab_enter_toggles_selected_task_fold_without_cycling_focus() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let root_id = TaskId::from_string("task_root".into());
+        let child_id = TaskId::from_string("task_child".into());
+        let grandchild_id = TaskId::from_string("task_grandchild".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.focus_manager.set(FocusTarget::Trace);
+        app.sync_component_focus();
+        app.trace.active_tab = RightPanelTab::Tasks;
+        app.trace.selected_task_index = 0;
+        app.state.current_session.task_graph = TaskGraphSnapshot {
+            tasks: vec![
+                task_snapshot(
+                    root_id.clone(),
+                    "Plan",
+                    AgentRole::Planner,
+                    TaskState::Completed,
+                    vec![],
+                    0,
+                    3,
+                ),
+                task_snapshot(
+                    child_id.clone(),
+                    "Build",
+                    AgentRole::Worker,
+                    TaskState::Running,
+                    vec![root_id.clone()],
+                    0,
+                    3,
+                ),
+                task_snapshot(
+                    grandchild_id,
+                    "Review",
+                    AgentRole::Reviewer,
+                    TaskState::Pending,
+                    vec![child_id],
+                    0,
+                    3,
+                ),
+            ],
+        };
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Trace);
+        assert_eq!(
+            app.trace
+                .visible_task_row_count(&app.state.current_session.task_graph),
+            1
+        );
+    }
+
+    #[test]
+    fn cycling_to_memory_tab_requests_memory_load() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Tasks;
+
+        let commands = app.apply_action(KeyAction::CycleTraceTabNext);
+
+        assert_eq!(app.trace.active_tab, RightPanelTab::Memory);
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: None,
+                keywords: Vec::new(),
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_scope_cycle_updates_filter_and_loads_memories() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+
+        let commands = app.apply_action(KeyAction::CycleMemoryScope);
+
+        assert_eq!(app.trace.memory_scope_filter, MemoryScopeFilter::Session);
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: Some(MemoryScope::Session),
+                keywords: Vec::new(),
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_search_enter_loads_keyword_filter() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+
+        assert!(app.apply_action(KeyAction::StartMemorySearch).is_empty());
+        for ch in "cargo test".chars() {
+            assert!(app.apply_action(KeyAction::InputCharacter(ch)).is_empty());
+        }
+        let commands = app.apply_action(KeyAction::FocusCycleNext);
+
+        assert_eq!(app.trace.memory_search_query, "cargo test");
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: None,
+                keywords: vec!["cargo".into(), "test".into()],
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_search_mode_captures_filter_shortcut_characters() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.focus_manager.set(FocusTarget::Trace);
+        app.sync_component_focus();
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.start_memory_search();
+
+        for ch in ['s', 'r'] {
+            let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+                crossterm::event::KeyEvent::new(
+                    crossterm::event::KeyCode::Char(ch),
+                    crossterm::event::KeyModifiers::NONE,
+                ),
+            ));
+            assert!(commands.is_empty());
+        }
+
+        assert_eq!(app.trace.memory_search_query, "sr");
+        assert_eq!(app.trace.memory_scope_filter, MemoryScopeFilter::All);
+    }
+
+    #[test]
+    fn memory_refresh_uses_current_filters() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.memory_scope_filter = MemoryScopeFilter::Workspace;
+        app.trace.memory_search_query = "release notes".into();
+
+        let commands = app.apply_action(KeyAction::RetrySelectedTask);
+
+        assert_eq!(
+            commands,
+            vec![Command::LoadMemories {
+                scope: Some(MemoryScope::Workspace),
+                keywords: vec!["release".into(), "notes".into()],
+                limit: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn memory_tab_emits_delete_command_for_selected_memory() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.trace.active_tab = RightPanelTab::Memory;
+        app.trace.set_memory_rows(vec![MemoryRow::new(
+            "mem_user".into(),
+            "user".into(),
+            Some("preferred-command".into()),
+            "Use cargo test".into(),
+        )]);
+        app.trace.selected_memory_index = 0;
+
+        let commands = app.apply_action(KeyAction::DeleteSelectedMemory);
+
+        assert!(commands.is_empty());
+        assert_eq!(
+            app.trace.pending_delete_memory_id(),
+            Some("mem_user".to_string())
+        );
+        let commands = app.apply_action(KeyAction::ConfirmMemoryDelete);
+
+        assert_eq!(
+            commands,
+            vec![Command::DeleteMemory {
+                memory_id: "mem_user".into(),
+            }]
+        );
+        assert!(app.trace.pending_delete_memory_id().is_none());
+    }
+
+    #[test]
+    fn context_details_shortcut_routes_compact_command() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.last_context_usage = Some(agent_core::context_types::ContextUsage {
+            total_tokens: 110_000,
+            budget_tokens: 180_000,
+            context_window: 200_000,
+            output_reservation: 20_000,
+            by_source: vec![(agent_core::context_types::ContextSource::History, 90_000)],
+            estimator: "cl100k_base".to_string(),
+            corrected_by_real_usage: false,
+        });
+        app.sync_status_bar();
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('c'),
+                crossterm::event::KeyModifiers::ALT,
+            ),
+        ));
+        assert!(commands.is_empty());
+        assert!(app.status_bar.context_details_visible());
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('c'),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![Command::CompactSession {
+                workspace_id,
+                session_id,
+            }]
+        );
+        assert!(!app.status_bar.context_details_visible());
+    }
+
+    #[test]
+    fn f1_toggles_help_overlay_without_commands() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(app.help_overlay.is_visible());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Chat);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(!app.help_overlay.is_visible());
+        assert_eq!(app.state.focus_manager.current(), FocusTarget::Chat);
+    }
+
+    #[test]
+    fn f1_opens_help_overlay_above_existing_overlay() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.dispatch_effects(vec![CrossPanelEffect::ShowCommandPalette]);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::F(1),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert!(commands.is_empty());
+        assert!(app.command_palette.is_visible());
+        assert!(app.help_overlay.is_visible());
+        assert_eq!(
+            app.state.focus_manager.current(),
+            FocusTarget::CommandPalette
+        );
+    }
+
+    #[test]
+    fn selecting_session_saves_current_draft_before_switching() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let current = SessionId::from_string("ses_current".into());
+        let next = SessionId::from_string("ses_next".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.current_session_id = Some(current.clone());
+        app.state.sessions = vec![
+            session_info(current.clone(), "current"),
+            session_info(next.clone(), "next"),
+        ];
+        app.sessions.state.select(Some(1));
+        app.chat.input_content = "unfinished draft".to_string();
+        app.chat.input_cursor = app.chat.input_content.len();
+
+        let commands = app.apply_action(KeyAction::SelectSession);
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::SaveDraft {
+                    session_id: current,
+                    draft_text: "unfinished draft".to_string(),
+                },
+                Command::SwitchSession { session_id: next },
+            ]
+        );
+    }
+
+    #[test]
+    fn archive_manager_restores_selected_archived_session_from_app_event_route() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let archived_id = SessionId::from_string("ses_archived".into());
+        let mut archived = session_info(archived_id.clone(), "archived");
+        archived.archived = true;
+        archived.visibility = Some(ProjectSessionVisibility::Archived);
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.state.sessions = vec![archived];
+        app.state.focus_manager.set(FocusTarget::Sessions);
+
+        let commands = app.apply_action(KeyAction::OpenArchiveManager);
+        assert!(commands.is_empty());
+        assert!(app.sessions.archive_manager_open);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![Command::RestoreSession {
+                session_id: archived_id,
+            }]
+        );
+        assert!(!app.sessions.archive_manager_open);
+    }
+
+    #[test]
+    fn typing_updates_current_session_draft() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.current_session_id = Some(session_id.clone());
+
+        let commands = app.apply_action(KeyAction::InputCharacter('a'));
+
+        assert_eq!(
+            commands,
+            vec![Command::SaveDraft {
+                session_id,
+                draft_text: "a".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn sending_message_clears_current_session_draft_after_send_command() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_current".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.state.sessions = vec![session_info(session_id.clone(), "current")];
+        app.chat.input_content = "ready to send".to_string();
+        app.chat.input_cursor = app.chat.input_content.len();
+
+        let commands = app.apply_action(KeyAction::SendInput);
+
+        assert_eq!(commands.len(), 2);
+        assert!(matches!(
+            &commands[0],
+            Command::SendMessage {
+                workspace_id: command_workspace_id,
+                session_id: command_session_id,
+                content,
+                attachments,
+            } if command_workspace_id == &workspace_id
+                && command_session_id == &session_id
+                && content == "ready to send"
+                && attachments.is_empty()
+        ));
+        assert_eq!(
+            commands[1],
+            Command::SaveDraft {
+                session_id,
+                draft_text: String::new(),
+            }
+        );
+    }
+
+    #[test]
+    fn mcp_trust_key_routes_to_permission_modal() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        app.dispatch_effects(vec![CrossPanelEffect::ShowPermissionPrompt(
+            PermissionRequest {
+                request_id: "req_mcp".into(),
+                tool_id: "mcp.beta.echo".into(),
+                tool_preview: "MCP tool call".into(),
+                risk_level: RiskLevel::McpTool {
+                    server_id: "beta".into(),
+                },
+            },
+        )]);
+
+        let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char('t'),
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        ));
+
+        assert_eq!(
+            commands,
+            vec![
+                Command::TrustMcpServer {
+                    server_id: "beta".into(),
+                },
+                Command::DecidePermission {
+                    request_id: "req_mcp".into(),
+                    approved: true,
+                },
+            ]
+        );
     }
 }

@@ -56,7 +56,7 @@ pub async fn list_profile_settings(
                 CoreError::InvalidState(format!("failed to read profiles config: {error}"))
             })?;
             let document = super::parse_document(&raw)?;
-            if let Some(profiles) = document["profiles"].as_table() {
+            if let Some(profiles) = document.get("profiles").and_then(|item| item.as_table()) {
                 for (alias, item) in profiles.iter() {
                     let alias_str = alias.to_string();
                     let row = row::profile_row_from_toml_table(item, "profiles_toml", true);
@@ -104,6 +104,12 @@ pub async fn list_profile_settings(
                     .api_key_env
                     .as_ref()
                     .is_some_and(|v| std::env::var(v).is_ok());
+            let config_path = match row.source.as_str() {
+                "profiles_toml" => profiles_toml_path,
+                "user_config" => user_config_path,
+                "project_config" => project_config_path,
+                _ => None,
+            };
             ProfileSettingsView {
                 alias: alias.clone(),
                 provider: row.provider,
@@ -119,7 +125,7 @@ pub async fn list_profile_settings(
                 api_key_env: row.api_key_env,
                 has_api_key,
                 writable: row.writable,
-                config_path: profiles_toml_path.map(|p| p.display().to_string()),
+                config_path: config_path.map(|p| p.display().to_string()),
                 source: row.source,
             }
         })
@@ -127,7 +133,12 @@ pub async fn list_profile_settings(
         .collect();
 
     let mut display_order: Vec<String> = Vec::new();
-    if let Some(path) = profiles_toml_path {
+    let display_order_path = if source_filter == Some("project") {
+        project_config_path.or(profiles_toml_path)
+    } else {
+        profiles_toml_path
+    };
+    if let Some(path) = display_order_path {
         if path.exists() {
             if let Ok(raw) = tokio::fs::read_to_string(path).await {
                 if let Ok(doc) = raw.parse::<DocumentMut>() {
@@ -149,7 +160,7 @@ async fn rows_from_config_toml(
         .await
         .map_err(|error| CoreError::InvalidState(format!("failed to read config: {error}")))?;
     let document = super::parse_document(&raw)?;
-    let Some(profiles) = document["profiles"].as_table() else {
+    let Some(profiles) = document.get("profiles").and_then(|item| item.as_table()) else {
         return Ok(None);
     };
 

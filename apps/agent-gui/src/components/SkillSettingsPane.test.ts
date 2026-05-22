@@ -202,6 +202,12 @@ describe("SkillSettingsPane", () => {
     expect(wrapper.find('[data-test="skill-row-user-test-driven-development"]').text()).toContain(
       "shadowed by project"
     );
+    const shadowedAudit = wrapper.find('[data-test="skill-audit-user-test-driven-development"]');
+    expect(shadowedAudit.exists()).toBe(true);
+    expect(shadowedAudit.text()).toContain("Source");
+    expect(shadowedAudit.text()).toContain("User");
+    expect(shadowedAudit.text()).toContain("Effective");
+    expect(shadowedAudit.text()).toContain("Shadowed by project");
     expect(wrapper.find('[data-test="skill-row-project-broken-skill"]').text()).toContain(
       "Missing SKILL.md frontmatter"
     );

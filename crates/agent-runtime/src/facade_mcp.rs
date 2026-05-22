@@ -22,14 +22,28 @@ where
         &self,
         source_filter: Option<String>,
     ) -> agent_core::Result<Vec<McpServerSettingsView>> {
+        self.list_mcp_server_settings_for_project(source_filter, None)
+            .await
+    }
+
+    pub(crate) async fn list_mcp_server_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> agent_core::Result<Vec<McpServerSettingsView>> {
         let user_config_path = std::env::var("HOME").ok().map(|h| {
             std::path::PathBuf::from(h)
                 .join(".kairox")
                 .join("config.toml")
         });
-        let project_config_path = std::env::current_dir()
-            .ok()
-            .map(|d| d.join(".kairox").join("config.toml"));
+        let project_config_path = project_root
+            .map(std::path::PathBuf::from)
+            .map(|root| root.join(".kairox").join("config.toml"))
+            .or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .map(|d| d.join(".kairox").join("config.toml"))
+            });
         crate::mcp_settings::list_mcp_server_settings(
             &self.config,
             user_config_path.as_deref(),
@@ -124,6 +138,14 @@ where
         LocalRuntime::list_mcp_server_settings(self, source_filter).await
     }
 
+    async fn list_mcp_server_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> agent_core::Result<Vec<McpServerSettingsView>> {
+        LocalRuntime::list_mcp_server_settings_for_project(self, source_filter, project_root).await
+    }
+
     async fn upsert_mcp_server_settings(
         &self,
         input: McpServerSettingsInput,
@@ -154,6 +176,14 @@ where
         source_filter: Option<String>,
     ) -> agent_core::Result<Vec<ProfileSettingsView>> {
         LocalRuntime::list_profile_settings(self, source_filter).await
+    }
+
+    async fn list_profile_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> agent_core::Result<Vec<ProfileSettingsView>> {
+        LocalRuntime::list_profile_settings_for_project(self, source_filter, project_root).await
     }
 
     async fn upsert_profile_settings(

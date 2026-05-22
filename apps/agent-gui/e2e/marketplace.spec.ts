@@ -170,6 +170,8 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await expect(page.getByTestId("skill-row-project-project-review")).toContainText(
       "Project Review"
     );
+    await expect(page.getByTestId("skill-audit-project-project-review")).toContainText("Source");
+    await expect(page.getByTestId("skill-audit-project-project-review")).toContainText("Active");
     await expect(page.getByTestId("skill-invalid-project-invalid-workspace-skill")).toContainText(
       "Missing required description"
     );
@@ -205,6 +207,14 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
     await page.getByTestId("skill-delete-project-code-review-assistant").click();
     await expect(page.getByTestId("skill-row-project-code-review-assistant")).toHaveCount(0);
+  });
+
+  test("shows effective audit state on model profile settings", async ({ page }) => {
+    await page.getByTestId("settings-tab-models").click();
+
+    await expect(page.getByTestId("model-audit-fast")).toContainText("Source");
+    await expect(page.getByTestId("model-audit-fast")).toContainText("Enabled");
+    await expect(page.getByTestId("model-audit-fast")).toContainText("Active");
   });
 
   test("adds a remote skill catalog source from the discover drawer", async ({ page }) => {

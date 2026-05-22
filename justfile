@@ -141,9 +141,14 @@ test-e2e-headed: gen-types
 test-e2e-ui: gen-types
     bun --filter agent-gui test:e2e:ui
 
-# Run TUI app logic integration tests (no terminal required)
+# Run deterministic TUI test layers (no real terminal required)
 test-tui:
-    cargo test -p agent-tui --test app_logic
+    cargo test -p agent-tui
+
+# Run the real PTY TUI smoke test used by CI
+test-tui-pty:
+    cargo build -p agent-tui
+    KAIROX_TUI_BIN=target/debug/agent-tui cargo test -p agent-tui --test terminal_pty_smoke -- --ignored --nocapture
 
 # Run full-stack runtime integration tests
 test-fullstack:

@@ -1,8 +1,12 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
+
+use agent_core::AttachmentInfo;
+
+use crate::components::QueuedMessage;
 
 /// Render the message list from a [`SessionProjection`] into the given area.
 ///
@@ -54,4 +58,142 @@ pub fn render_messages(
 
     let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
     frame.render_widget(paragraph, area);
+}
+
+/// Render a compact queue strip showing the first queued messages and the
+/// selected row. Returns silently when the queue is empty.
+pub fn render_queue_strip(
+    area: Rect,
+    frame: &mut Frame,
+    queue: &[QueuedMessage],
+    selected_index: Option<usize>,
+) {
+    if queue.is_empty() {
+        return;
+    }
+
+    let selected = selected_index.unwrap_or(0).min(queue.len() - 1);
+    let max_rows = area.height.saturating_sub(1).max(1) as usize;
+    let start = selected.saturating_sub(max_rows.saturating_sub(1));
+    let visible = queue
+        .iter()
+        .enumerate()
+        .skip(start)
+        .take(max_rows)
+        .map(|(idx, message)| {
+            let marker = if idx == selected { ">" } else { " " };
+            let style = if idx == selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::DIM)
+            };
+            Line::from(vec![Span::styled(
+                format!("{marker} Q{} {}", idx + 1, queued_message_preview(message)),
+                style,
+            )])
+        });
+
+    let mut lines: Vec<Line> = visible.collect();
+    let hint = if queue.len() == 1 {
+        "1 queued | Alt+Enter send | :queue edit/delete".to_string()
+    } else {
+        format!(
+            "{} queued | Alt+Up/Down select | Alt+Left/Right reorder | :queue send/edit/delete",
+            queue.len()
+        )
+    };
+    lines.push(Line::from(Span::styled(
+        hint,
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM),
+    )));
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
+pub fn render_file_mention_palette(
+    area: Rect,
+    frame: &mut Frame,
+    matches: &[String],
+    selected_index: Option<usize>,
+) {
+    let mut lines = Vec::new();
+    if matches.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No file matches",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
+        )));
+    } else {
+        let selected = selected_index.unwrap_or(0).min(matches.len() - 1);
+        let max_rows = area.height.saturating_sub(1).max(1) as usize;
+        let start = selected.saturating_sub(max_rows.saturating_sub(1));
+        lines.extend(
+            matches
+                .iter()
+                .enumerate()
+                .skip(start)
+                .take(max_rows)
+                .map(|(idx, path)| {
+                    let marker = if idx == selected { ">" } else { " " };
+                    let style = if idx == selected {
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    };
+                    Line::from(Span::styled(format!("{marker} @{path}"), style))
+                }),
+        );
+    }
+    lines.push(Line::from(Span::styled(
+        "Enter attach | Up/Down select | Esc close",
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::DIM),
+    )));
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
+pub fn format_attachment_labels(attachments: &[AttachmentInfo]) -> String {
+    if attachments.is_empty() {
+        return String::new();
+    }
+
+    let mut labels: Vec<String> = attachments
+        .iter()
+        .take(2)
+        .map(|attachment| format!("[{}]", truncate_chars(&attachment.name, 18)))
+        .collect();
+    if attachments.len() > 2 {
+        labels.push(format!("[+{}]", attachments.len() - 2));
+    }
+    labels.join(" ")
+}
+
+fn queued_message_preview(message: &QueuedMessage) -> String {
+    let content = truncate_chars(message.content.as_str(), 40);
+    let labels = format_attachment_labels(&message.attachments);
+    match (content.is_empty(), labels.is_empty()) {
+        (true, true) => String::new(),
+        (true, false) => labels,
+        (false, true) => content,
+        (false, false) => format!("{content} {labels}"),
+    }
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}…")
+    } else {
+        truncated
+    }
 }

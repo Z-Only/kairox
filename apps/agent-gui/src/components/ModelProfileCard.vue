@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProfileSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
+import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
@@ -90,6 +91,13 @@ function sourceLabel(source: string): string {
           {{ t("models.temperature") }}: {{ profile.temperature }}
         </SettingsStatusTag>
       </template>
+      <SettingsEffectiveAudit
+        :source="sourceLabel(profile.source)"
+        :source-tone="sourceTone(profile.source)"
+        :enabled="profile.enabled"
+        :effective="profile.enabled"
+        :data-test="`model-audit-${profile.alias}`"
+      />
     </SettingsItemSummary>
 
     <template #actions>

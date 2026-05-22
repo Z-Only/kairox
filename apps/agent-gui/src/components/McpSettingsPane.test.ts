@@ -184,6 +184,34 @@ describe("McpSettingsPane", () => {
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
   });
 
+  it("renders source, disabled-by, and effective audit state for server rows", async () => {
+    mockedCommands.getEffectiveMcpServers.mockResolvedValueOnce(
+      ok([
+        {
+          ...toEffective(githubServer),
+          enabled: false,
+          disabledBy: "Project",
+          overrides: "User"
+        }
+      ])
+    );
+
+    const wrapper = mountPane("project", "project-1");
+    await flushPromises();
+
+    const audit = wrapper.find('[data-test="mcp-audit-github"]');
+    expect(audit.exists()).toBe(true);
+    expect(audit.text()).toContain("Source");
+    expect(audit.text()).toContain("User");
+    expect(audit.text()).toContain("State");
+    expect(audit.text()).toContain("Disabled");
+    expect(audit.text()).toContain("Effective");
+    expect(audit.text()).toContain("Inactive");
+    expect(audit.text()).toContain("Overrides");
+    expect(audit.text()).toContain("Disabled by");
+    expect(audit.text()).toContain("Project");
+  });
+
   it("uses shared card content hierarchy for server rows", () => {
     expectSourceMigration(mcpServerCardSource, {
       required: ["SettingsItemSummary", "SettingsStatusTag"],

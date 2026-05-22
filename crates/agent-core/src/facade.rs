@@ -183,6 +183,16 @@ pub trait AppFacade:
         McpFacade::list_profile_settings(self, source_filter).await
     }
 
+    /// List model profiles with an explicit project root for project-scoped
+    /// config lookups.
+    async fn list_profile_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> crate::Result<Vec<ProfileSettingsView>> {
+        McpFacade::list_profile_settings_for_project(self, source_filter, project_root).await
+    }
+
     /// Move a profile up or down in display order.
     async fn move_profile_in_order(&self, alias: String, direction: i32) -> crate::Result<()> {
         McpFacade::move_profile_in_order(self, alias, direction).await
@@ -296,6 +306,16 @@ pub trait AppFacade:
         source_filter: Option<String>,
     ) -> crate::Result<Vec<McpServerSettingsView>> {
         McpFacade::list_mcp_server_settings(self, source_filter).await
+    }
+
+    /// List MCP servers with an explicit project root for project-scoped
+    /// config lookups.
+    async fn list_mcp_server_settings_for_project(
+        &self,
+        source_filter: Option<String>,
+        project_root: Option<String>,
+    ) -> crate::Result<Vec<McpServerSettingsView>> {
+        McpFacade::list_mcp_server_settings_for_project(self, source_filter, project_root).await
     }
     async fn upsert_mcp_server_settings(
         &self,

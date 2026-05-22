@@ -18,7 +18,8 @@ Run `just check` and verify all jobs pass. Check applicable items:
 - [ ] `just lint` — clippy + eslint + stylelint
 - [ ] `just test` — cargo test (workspace, all targets)
 - [ ] `just test-gui` — Vue / Vitest
-- [ ] `just test-tui` — TUI app logic integration tests (if TUI changed)
+- [ ] `just test-tui` — deterministic TUI unit/integration layers (if TUI changed)
+- [ ] `just test-tui-pty` — real PTY smoke for terminal integration changes
 - [ ] `just test-fullstack` — full-stack runtime integration tests (if runtime changed)
 - [ ] `just test-mcp` — MCP integration tests (if MCP changed)
 - [ ] `just test-e2e` — Playwright E2E (if GUI/IPC changed)

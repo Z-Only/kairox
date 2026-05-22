@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app_state::InputMode;
-use crate::components::FocusTarget;
+use crate::components::{FocusTarget, QueueAction};
 
 use super::KeyAction;
 
@@ -21,12 +21,33 @@ pub fn resolve_key(
 
     if mods.contains(KeyModifiers::ALT) {
         return match code {
+            KeyCode::Up if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SelectPrevious)
+            }
+            KeyCode::Down if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SelectNext)
+            }
+            KeyCode::Left if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::MoveSelectedUp)
+            }
+            KeyCode::Right if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::MoveSelectedDown)
+            }
+            KeyCode::Enter if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::SendSelectedNow)
+            }
+            KeyCode::Delete | KeyCode::Backspace if focus == FocusTarget::Chat => {
+                KeyAction::ApplyQueueAction(QueueAction::DeleteSelected)
+            }
             KeyCode::Char('s') => KeyAction::ToggleSessionsSidebar,
             KeyCode::Char('t') => KeyAction::ToggleTraceSidebar,
             KeyCode::Char('e') => KeyAction::ToggleInputMode,
             KeyCode::Char('p') => KeyAction::OpenProfileSelector,
+            KeyCode::Char('c') => KeyAction::ToggleContextDetails,
             KeyCode::Char('n') => KeyAction::NewSession,
             KeyCode::Char('q') => KeyAction::Quit,
+            KeyCode::Char('h') => KeyAction::ToggleHooksOverlay,
+            KeyCode::Char('i') => KeyAction::ToggleInstructionsOverlay,
             KeyCode::Char('1') => KeyAction::FocusChat,
             KeyCode::Char('2') => KeyAction::FocusSessions,
             KeyCode::Char('3') => KeyAction::FocusTrace,
@@ -37,7 +58,11 @@ pub fn resolve_key(
     if mods.contains(KeyModifiers::CONTROL) {
         return match code {
             KeyCode::Char('c') => KeyAction::InterruptOrQuit,
-            KeyCode::Char('l') => KeyAction::Redraw,
+            KeyCode::Char('g') => KeyAction::TogglePluginsOverlay,
+            KeyCode::Char('l') => KeyAction::ToggleModelOverlay,
+            KeyCode::Char('m') => KeyAction::ToggleMcpOverlay,
+            KeyCode::Char('p') => KeyAction::ToggleCommandPalette,
+            KeyCode::Char('s') => KeyAction::ToggleSkillsOverlay,
             KeyCode::Enter => KeyAction::SendInput,
             _ => KeyAction::Unhandled,
         };
@@ -47,6 +72,8 @@ pub fn resolve_key(
         KeyCode::F(1) => return KeyAction::Help,
         KeyCode::F(2) if focus == FocusTarget::Sessions => return KeyAction::RenameSession,
         KeyCode::F(5) if focus == FocusTarget::Trace => return KeyAction::ToggleTraceDensity,
+        KeyCode::Right if focus == FocusTarget::Trace => return KeyAction::CycleTraceTabNext,
+        KeyCode::Left if focus == FocusTarget::Trace => return KeyAction::CycleTraceTabPrevious,
         _ => {}
     }
 
@@ -87,7 +114,29 @@ pub fn resolve_key(
         }
         KeyCode::Backspace => KeyAction::InputBackspace,
         KeyCode::Delete => KeyAction::InputDelete,
+        KeyCode::Char(']') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabNext,
+        KeyCode::Char('[') if focus == FocusTarget::Trace => KeyAction::CycleTraceTabPrevious,
+        KeyCode::Char('/') if focus == FocusTarget::Trace => KeyAction::StartMemorySearch,
+        KeyCode::Char('s') | KeyCode::Char('S') if focus == FocusTarget::Trace => {
+            KeyAction::CycleMemoryScope
+        }
+        KeyCode::Char('y') | KeyCode::Char('Y') if focus == FocusTarget::Trace => {
+            KeyAction::ConfirmMemoryDelete
+        }
+        KeyCode::Char('r') | KeyCode::Char('R') if focus == FocusTarget::Trace => {
+            KeyAction::RetrySelectedTask
+        }
+        KeyCode::Char('c') | KeyCode::Char('C') if focus == FocusTarget::Trace => {
+            KeyAction::CancelSelectedTask
+        }
+        KeyCode::Char('d') | KeyCode::Char('D') if focus == FocusTarget::Trace => {
+            KeyAction::DeleteSelectedMemory
+        }
+        KeyCode::Char('a') | KeyCode::Char('A') if focus == FocusTarget::Sessions => {
+            KeyAction::OpenArchiveManager
+        }
         KeyCode::Char('x') => KeyAction::ContextMenu,
+        KeyCode::Char('P') => KeyAction::CyclePermissionMode,
         KeyCode::Char(c) => KeyAction::InputCharacter(c),
         _ => KeyAction::Unhandled,
     }

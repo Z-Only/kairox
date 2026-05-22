@@ -20,15 +20,41 @@ pub enum KeyAction {
     FocusChat,
     FocusSessions,
     FocusTrace,
+    ToggleInstructionsOverlay,
+    ToggleHooksOverlay,
 
     // -- L3 Ctrl -----------------------------------------------------------
     InterruptOrQuit,
-    Redraw,
+    /// Ctrl+M — open/close the MCP server overlay.
+    ToggleMcpOverlay,
+    /// Ctrl+P — open/close the command palette.
+    ToggleCommandPalette,
+    /// Ctrl+S — open/close the native skills overlay.
+    ToggleSkillsOverlay,
+    /// Ctrl+L — open/close the model profile selector overlay.
+    ToggleModelOverlay,
+    /// Ctrl+G — open/close the plugin manager overlay.
+    TogglePluginsOverlay,
 
     // -- L4 Function -------------------------------------------------------
     Help,
     RenameSession,
     ToggleTraceDensity,
+    CycleTraceTabNext,
+    CycleTraceTabPrevious,
+    CycleMemoryScope,
+    StartMemorySearch,
+    RetrySelectedTask,
+    CancelSelectedTask,
+    DeleteSelectedMemory,
+    ConfirmMemoryDelete,
+    OpenArchiveManager,
+
+    // -- Status bar shortcuts ---------------------------------------------
+    /// Cycle through permission modes (Shift+P).
+    CyclePermissionMode,
+    /// Toggle the context usage details popover (Alt+C).
+    ToggleContextDetails,
 
     // -- Input -------------------------------------------------------------
     InputCharacter(char),
@@ -38,6 +64,7 @@ pub enum KeyAction {
     InputHistoryUp,
     InputHistoryDown,
     InputPaste(String),
+    ApplyQueueAction(crate::components::QueueAction),
 
     // -- Navigation --------------------------------------------------------
     ScrollUp,

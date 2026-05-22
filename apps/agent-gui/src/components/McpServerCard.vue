@@ -4,6 +4,7 @@ import { useProjectStore } from "@/stores/project";
 import type { EffectiveMcpServerView } from "@/generated/commands";
 import McpResourceAccordion from "@/components/McpResourceAccordion.vue";
 import McpPromptAccordion from "@/components/McpPromptAccordion.vue";
+import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
@@ -151,6 +152,15 @@ function serverToolCount(): number {
           {{ connectivityLabel() }}
         </SettingsStatusTag>
       </template>
+      <SettingsEffectiveAudit
+        :source="server.source"
+        :source-tone="sourceTone(server.source)"
+        :enabled="server.enabled"
+        :effective="server.enabled"
+        :overrides="server.overrides"
+        :disabled-by="server.disabledBy"
+        :data-test="`mcp-audit-${server.value.id}`"
+      />
       <KxInlineAlert
         v-if="server.value.last_error"
         tone="error"

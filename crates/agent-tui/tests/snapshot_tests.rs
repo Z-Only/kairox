@@ -2,9 +2,17 @@
 
 use agent_core::facade::TaskGraphSnapshot;
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
+use agent_core::WorkspaceId;
+use agent_tools::PermissionMode;
+use agent_tui::app::App;
 use agent_tui::components::chat::render_messages;
+use agent_tui::components::FocusTarget;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
+
+mod support;
+
+use support::render::render_app;
 
 #[test]
 fn chat_panel_renders_user_and_assistant_messages() {
@@ -72,6 +80,90 @@ fn chat_panel_renders_streaming_token_with_cursor() {
     );
 
     insta::assert_snapshot!(output);
+}
+
+#[test]
+fn help_overlay_renders_keybinding_snapshot() {
+    let mut app = App::new(
+        "test",
+        PermissionMode::Suggest,
+        WorkspaceId::from_string("wrk_test".into()),
+    );
+    app.handle_crossterm_event(&crossterm::event::Event::Key(
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::F(1),
+            crossterm::event::KeyModifiers::NONE,
+        ),
+    ));
+
+    let output = render_app(&mut app, 100, 28);
+
+    assert!(output.contains("Help / Keybindings"));
+    assert!(output.contains("Global shortcuts"));
+    assert!(output.contains("Common commands"));
+    insta::assert_snapshot!(output);
+}
+
+#[test]
+fn help_overlay_content_changes_with_current_focus() {
+    let mut app = App::new(
+        "test",
+        PermissionMode::Suggest,
+        WorkspaceId::from_string("wrk_test".into()),
+    );
+
+    app.handle_crossterm_event(&crossterm::event::Event::Key(
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::F(1),
+            crossterm::event::KeyModifiers::NONE,
+        ),
+    ));
+    let chat_help = render_app(&mut app, 100, 28);
+    assert!(chat_help.contains("Current focus: Chat composer"));
+    assert!(chat_help.contains("Ctrl+Enter"));
+
+    app.handle_crossterm_event(&crossterm::event::Event::Key(
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::F(1),
+            crossterm::event::KeyModifiers::NONE,
+        ),
+    ));
+    app.state.focus_manager.set(FocusTarget::Trace);
+    app.sync_component_focus();
+    app.handle_crossterm_event(&crossterm::event::Event::Key(
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::F(1),
+            crossterm::event::KeyModifiers::NONE,
+        ),
+    ));
+    let trace_help = render_app(&mut app, 100, 28);
+
+    assert!(trace_help.contains("Current focus: Trace panel"));
+    assert!(trace_help.contains("F5"));
+    assert_ne!(chat_help, trace_help);
+}
+
+#[test]
+fn help_overlay_content_changes_with_current_overlay() {
+    let mut app = App::new(
+        "test",
+        PermissionMode::Suggest,
+        WorkspaceId::from_string("wrk_test".into()),
+    );
+    app.dispatch_effects(vec![
+        agent_tui::components::CrossPanelEffect::ShowCommandPalette,
+    ]);
+
+    app.handle_crossterm_event(&crossterm::event::Event::Key(
+        crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::F(1),
+            crossterm::event::KeyModifiers::NONE,
+        ),
+    ));
+    let overlay_help = render_app(&mut app, 100, 28);
+
+    assert!(overlay_help.contains("Current overlay: Command palette"));
+    assert!(overlay_help.contains("Enter run selected"));
 }
 
 #[test]

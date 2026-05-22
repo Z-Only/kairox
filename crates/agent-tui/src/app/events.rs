@@ -11,6 +11,7 @@ impl App {
     /// Process a domain event from the runtime, updating projection and state.
     pub fn handle_domain_event(&mut self, event: &DomainEvent) {
         let mut effects = Vec::new();
+        let mut sync_permission_focus_after_dispatch = false;
 
         match &event.payload {
             EventPayload::UserMessageAdded { content, .. } => {
@@ -78,9 +79,7 @@ impl App {
                 };
                 effects.push(CrossPanelEffect::ShowPermissionPrompt(req));
 
-                if risk_level == RiskLevel::Destructive
-                    || matches!(risk_level, RiskLevel::McpTool { .. })
-                {
+                if self.state.focus_manager.current() != FocusTarget::PermissionModal {
                     self.state.focus_manager.push(FocusTarget::PermissionModal);
                     self.sync_component_focus();
                 }
@@ -90,15 +89,22 @@ impl App {
                 }
                 self.state.render_scheduler.mark_dirty();
             }
-            EventPayload::PermissionGranted { .. } | EventPayload::PermissionDenied { .. } => {
+            EventPayload::PermissionGranted { request_id } => {
+                effects.push(CrossPanelEffect::ResolvePermissionPrompt {
+                    request_id: request_id.clone(),
+                    approved: true,
+                });
                 effects.push(CrossPanelEffect::DismissPermissionPrompt);
-                if self.state.focus_manager.current() == FocusTarget::PermissionModal {
-                    self.state.focus_manager.pop();
-                    self.sync_component_focus();
-                }
-                if let Some(session) = self.current_session_mut() {
-                    session.state = SessionState::Active;
-                }
+                sync_permission_focus_after_dispatch = true;
+                self.state.render_scheduler.mark_dirty();
+            }
+            EventPayload::PermissionDenied { request_id, .. } => {
+                effects.push(CrossPanelEffect::ResolvePermissionPrompt {
+                    request_id: request_id.clone(),
+                    approved: false,
+                });
+                effects.push(CrossPanelEffect::DismissPermissionPrompt);
+                sync_permission_focus_after_dispatch = true;
                 self.state.render_scheduler.mark_dirty();
             }
             EventPayload::SessionInitialized { model_profile } => {
@@ -164,6 +170,19 @@ impl App {
                 self.compacting = false;
                 self.state.render_scheduler.mark_dirty();
             }
+            EventPayload::ModelProfileSwitched {
+                to_profile,
+                reasoning_effort,
+                ..
+            } => {
+                self.state.model_profile = to_profile.clone();
+                self.state.reasoning_effort = reasoning_effort.clone();
+                if let Some(session) = self.current_session_mut() {
+                    session.model_profile = to_profile.clone();
+                }
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
             _ => {
                 self.state.render_scheduler.mark_dirty();
             }
@@ -171,6 +190,112 @@ impl App {
 
         self.domain_events.push(event.clone());
         self.dispatch_effects(effects);
+        if sync_permission_focus_after_dispatch {
+            if self.permission_modal.is_visible() {
+                if let Some(session) = self.current_session_mut() {
+                    session.state = SessionState::AwaitingPermission;
+                }
+            } else {
+                if self.state.focus_manager.current() == FocusTarget::PermissionModal {
+                    self.state.focus_manager.pop();
+                    self.sync_component_focus();
+                }
+                if let Some(session) = self.current_session_mut() {
+                    session.state = SessionState::Active;
+                }
+            }
+        }
         self.sync_status_bar();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_core::{
+        AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, WorkspaceId,
+    };
+    use agent_tools::PermissionMode;
+
+    fn event(
+        workspace_id: &WorkspaceId,
+        session_id: &SessionId,
+        payload: EventPayload,
+    ) -> DomainEvent {
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            payload,
+        )
+    }
+
+    #[test]
+    fn resolving_permission_event_keeps_other_pending_prompts_visible() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_test".into());
+        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        app.state.sessions = vec![crate::components::SessionInfo {
+            id: session_id.clone(),
+            title: "test".into(),
+            model_profile: "test".into(),
+            state: crate::components::SessionState::Idle,
+            pinned: false,
+            archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
+        }];
+
+        app.handle_domain_event(&event(
+            &workspace_id,
+            &session_id,
+            EventPayload::PermissionRequested {
+                request_id: "req1".into(),
+                tool_id: "shell.exec".into(),
+                preview: "write file".into(),
+            },
+        ));
+        app.handle_domain_event(&event(
+            &workspace_id,
+            &session_id,
+            EventPayload::PermissionRequested {
+                request_id: "req2".into(),
+                tool_id: "mcp.beta.echo".into(),
+                preview: "MCP tool call".into(),
+            },
+        ));
+
+        assert_eq!(
+            app.permission_modal
+                .request
+                .as_ref()
+                .map(|request| request.request_id.as_str()),
+            Some("req1")
+        );
+
+        app.handle_domain_event(&event(
+            &workspace_id,
+            &session_id,
+            EventPayload::PermissionGranted {
+                request_id: "req1".into(),
+            },
+        ));
+
+        assert!(app.permission_modal.is_visible());
+        assert_eq!(
+            app.state.sessions[0].state,
+            crate::components::SessionState::AwaitingPermission
+        );
+        assert_eq!(
+            app.permission_modal
+                .request
+                .as_ref()
+                .map(|request| request.request_id.as_str()),
+            Some("req2")
+        );
     }
 }

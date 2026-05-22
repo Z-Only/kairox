@@ -1,9 +1,10 @@
 use std::time::{Duration, Instant};
 
 use agent_core::projection::SessionProjection;
+use agent_core::{ConfigScope, ProjectId};
 use agent_tools::PermissionMode;
 
-use crate::components::{FocusTarget, SessionInfo};
+use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
 
 // ---------------------------------------------------------------------------
 // FocusManager
@@ -55,15 +56,34 @@ impl FocusManager {
             return;
         }
 
-        if self.current() == FocusTarget::PermissionModal {
-            return; // don't cycle while modal is focused
+        if matches!(
+            self.current(),
+            FocusTarget::PermissionModal
+                | FocusTarget::McpOverlay
+                | FocusTarget::CommandPalette
+                | FocusTarget::SkillsOverlay
+                | FocusTarget::ModelOverlay
+                | FocusTarget::AgentOverlay
+                | FocusTarget::PluginOverlay
+                | FocusTarget::HooksOverlay
+                | FocusTarget::InstructionsOverlay
+        ) {
+            return; // don't cycle while a modal is focused
         }
 
         let next = match self.current() {
             FocusTarget::Chat => FocusTarget::Sessions,
             FocusTarget::Sessions => FocusTarget::Trace,
             FocusTarget::Trace => FocusTarget::Chat,
-            FocusTarget::PermissionModal => unreachable!(),
+            FocusTarget::PermissionModal
+            | FocusTarget::McpOverlay
+            | FocusTarget::CommandPalette
+            | FocusTarget::SkillsOverlay
+            | FocusTarget::ModelOverlay
+            | FocusTarget::AgentOverlay
+            | FocusTarget::PluginOverlay
+            | FocusTarget::HooksOverlay
+            | FocusTarget::InstructionsOverlay => unreachable!(),
         };
 
         let last = self
@@ -245,6 +265,42 @@ pub enum CtrlCAction {
 }
 
 // ---------------------------------------------------------------------------
+// StatusLog
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusLogEntry {
+    pub message: String,
+}
+
+// ---------------------------------------------------------------------------
+// SettingsConfigSource
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SettingsConfigSource {
+    #[default]
+    User,
+    Project,
+}
+
+impl SettingsConfigSource {
+    pub fn as_filter(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Project => "project",
+        }
+    }
+
+    pub fn as_scope(self) -> ConfigScope {
+        match self {
+            Self::User => ConfigScope::User,
+            Self::Project => ConfigScope::Project,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // AppState
 // ---------------------------------------------------------------------------
 
@@ -261,9 +317,18 @@ pub struct AppState {
     // Session data
     pub current_session: SessionProjection,
     pub sessions: Vec<SessionInfo>,
+    pub projects: Vec<ProjectInfo>,
+
+    // Settings source selection
+    settings_config_source: SettingsConfigSource,
+    settings_project_id: Option<ProjectId>,
 
     // Model / permissions
     pub model_profile: String,
+    /// Latest reasoning effort for the active session, mirrored from
+    /// `EventPayload::ModelProfileSwitched.reasoning_effort`. `None` until the
+    /// first switch event lands, or for non-reasoning profiles.
+    pub reasoning_effort: Option<String>,
     pub permission_mode: PermissionMode,
 
     // Input
@@ -274,12 +339,16 @@ pub struct AppState {
     pub input_history: Vec<String>,
     pub input_history_index: usize,
 
+    // Local operation feedback
+    pub status_log: Vec<StatusLogEntry>,
+
     // Ctrl-C progressive exit
     ctrl_c_count: u8,
     last_ctrl_c: Option<Instant>,
 }
 
 impl AppState {
+    const STATUS_LOG_LIMIT: usize = 100;
     const CTRL_C_CONFIRM_WINDOW: Duration = Duration::from_secs(5);
     const CTRL_C_FORCE_WINDOW: Duration = Duration::from_secs(2);
 
@@ -291,7 +360,11 @@ impl AppState {
             sidebar_right_visible: false,
             current_session: SessionProjection::default(),
             sessions: Vec::new(),
+            projects: Vec::new(),
+            settings_config_source: SettingsConfigSource::User,
+            settings_project_id: None,
             model_profile: model_profile.into(),
+            reasoning_effort: None,
             permission_mode,
             input_mode: InputMode::SingleLine,
             input_state: InputState::Normal,
@@ -299,9 +372,58 @@ impl AppState {
             input_cursor: 0,
             input_history: Vec::new(),
             input_history_index: 0,
+            status_log: Vec::new(),
             ctrl_c_count: 0,
             last_ctrl_c: None,
         }
+    }
+
+    pub fn settings_config_source(&self) -> SettingsConfigSource {
+        self.settings_config_source
+    }
+
+    pub fn set_settings_config_source(&mut self, source: SettingsConfigSource) {
+        self.settings_config_source = source;
+    }
+
+    pub fn settings_scope(&self) -> ConfigScope {
+        self.settings_config_source.as_scope()
+    }
+
+    pub fn settings_source_filter(&self) -> Option<String> {
+        Some(self.settings_config_source.as_filter().to_string())
+    }
+
+    pub fn select_settings_project(&mut self, project_id: ProjectId) {
+        self.settings_project_id = Some(project_id);
+    }
+
+    pub fn selected_settings_project_id(&self) -> Option<&ProjectId> {
+        self.settings_project_id.as_ref()
+    }
+
+    pub fn selected_settings_project(&self) -> Option<&ProjectInfo> {
+        if self.settings_config_source != SettingsConfigSource::Project {
+            return None;
+        }
+        self.settings_project_id
+            .as_ref()
+            .and_then(|project_id| {
+                self.projects
+                    .iter()
+                    .find(|project| &project.id == project_id)
+            })
+            .or_else(|| self.projects.first())
+    }
+
+    pub fn selected_settings_project_root(&self) -> Option<std::path::PathBuf> {
+        self.selected_settings_project()
+            .map(|project| std::path::PathBuf::from(&project.root_path))
+    }
+
+    pub fn selected_settings_project_config_path(&self) -> Option<std::path::PathBuf> {
+        self.selected_settings_project_root()
+            .map(|root| root.join(".kairox").join("config.toml"))
     }
 
     /// Build a borrow of `EventContext` from the current state.
@@ -314,6 +436,7 @@ impl AppState {
         crate::components::EventContext {
             focus: self.focus_manager.current(),
             current_session: &self.current_session,
+            projects: &self.projects,
             sessions: &self.sessions,
             model_profile: &self.model_profile,
             permission_mode: self.permission_mode,
@@ -372,6 +495,30 @@ impl AppState {
     pub fn reset_ctrl_c(&mut self) {
         self.ctrl_c_count = 0;
         self.last_ctrl_c = None;
+    }
+
+    /// Advance the active permission mode to the next value in the cycle.
+    /// Returns the new mode so the caller can dispatch it to the runtime.
+    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
+        use crate::components::status_bar::PermissionModeExt;
+        self.permission_mode = self.permission_mode.next();
+        self.permission_mode
+    }
+
+    pub fn push_status_message(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        if message.trim().is_empty() {
+            return;
+        }
+        self.status_log.push(StatusLogEntry { message });
+        if self.status_log.len() > Self::STATUS_LOG_LIMIT {
+            let overflow = self.status_log.len() - Self::STATUS_LOG_LIMIT;
+            self.status_log.drain(0..overflow);
+        }
+    }
+
+    pub fn latest_status_message(&self) -> Option<&StatusLogEntry> {
+        self.status_log.last()
     }
 }
 
@@ -500,5 +647,26 @@ mod tests {
 
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
         assert_eq!(state.ctrl_c_count, 1);
+    }
+
+    #[test]
+    fn status_log_keeps_latest_entries_only() {
+        let mut state = AppState::new("fake", PermissionMode::Suggest);
+
+        for index in 0..105 {
+            state.push_status_message(format!("status {index}"));
+        }
+
+        assert_eq!(state.status_log.len(), AppState::STATUS_LOG_LIMIT);
+        assert_eq!(
+            state
+                .latest_status_message()
+                .map(|entry| entry.message.as_str()),
+            Some("status 104")
+        );
+        assert_eq!(
+            state.status_log.first().map(|entry| entry.message.as_str()),
+            Some("status 5")
+        );
     }
 }

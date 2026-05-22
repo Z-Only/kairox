@@ -2,16 +2,17 @@ mod app;
 mod app_state;
 mod components;
 mod keybindings;
+mod runtime_dispatch;
 mod view;
+mod workspace_recovery;
 
 use std::io::stdout;
 use std::sync::Arc;
 use std::time::Duration;
 
 use agent_config::Config;
-use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
+use agent_core::{AppFacade, StartSessionRequest};
 use agent_memory::SqliteMemoryStore;
-use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use agent_tools::PermissionMode;
@@ -27,7 +28,14 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 
 use app::App;
-use components::{Command, SessionInfo, SessionState};
+use components::{Command, ProjectInfo, SessionInfo, SessionState};
+use runtime_dispatch::{
+    dispatch_commands, project_info_from_meta, restore_session_draft, session_info_from_meta,
+};
+use workspace_recovery::{
+    format_known_workspaces, parse_workspace_args, prompt_workspace_selector,
+    resolve_workspace_selector, workspace_usage, KnownWorkspace, WorkspaceCliMode,
+};
 
 // ---------------------------------------------------------------------------
 // AppEvent — unified event type for the main loop
@@ -39,215 +47,67 @@ enum AppEvent {
     Tick,
 }
 
-// ---------------------------------------------------------------------------
-// Command dispatch — executes runtime commands and updates app state
-// ---------------------------------------------------------------------------
+fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut dirs = vec![root.to_path_buf()];
+    let skip_dirs: &[&str] = &[
+        ".git",
+        "node_modules",
+        "target",
+        ".claude",
+        ".kairox",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".eggs",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".next",
+        ".nuxt",
+        ".output",
+    ];
 
-async fn dispatch_commands(
-    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
-    app: &mut App,
-    commands: Vec<Command>,
-) {
-    for command in commands {
-        match command {
-            Command::SendMessage {
-                workspace_id,
-                session_id,
-                content,
-            } => {
-                if let Err(e) = runtime
-                    .send_message(SendMessageRequest {
-                        workspace_id,
-                        session_id,
-                        content,
-                        attachments: vec![],
-                    })
-                    .await
+    while let Some(dir) = dirs.pop() {
+        if paths.len() >= max {
+            break;
+        }
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if paths.len() >= max {
+                break;
+            }
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            let is_hidden = name.starts_with('.');
+            if file_type.is_dir() {
+                if skip_dirs.contains(&name.as_ref())
+                    || (is_hidden && name.as_ref() != "." && name.as_ref() != "..")
                 {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                    continue;
                 }
-            }
-
-            Command::DecidePermission {
-                request_id,
-                approved,
-            } => {
-                if let Err(e) = runtime
-                    .resolve_permission(
-                        &request_id,
-                        agent_core::PermissionDecision {
-                            request_id: request_id.clone(),
-                            approve: approved,
-                            reason: None,
-                        },
-                    )
-                    .await
-                {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[permission error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
+                dirs.push(entry.path());
+            } else if file_type.is_file() || file_type.is_symlink() {
+                if is_hidden && !name.starts_with(".env") {
+                    continue;
                 }
-            }
-
-            Command::TrustMcpServer { server_id } => {
-                // Trust the MCP server via the runtime's MCP manager
-                if let Some(mcp_manager) = runtime.mcp_manager() {
-                    let manager = mcp_manager.lock().await;
-                    if let Err(e) = manager.trust_server(&server_id).await {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("[MCP trust error: {e}]"),
-                            },
-                        );
-                    } else {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("MCP server '{}' is now trusted", server_id),
-                            },
-                        );
-                    }
-                    app.state.render_scheduler.mark_dirty();
+                if let Ok(relative) = entry.path().strip_prefix(root) {
+                    paths.push(relative.to_string_lossy().to_string());
                 }
-            }
-
-            Command::CancelSession {
-                workspace_id,
-                session_id,
-            } => {
-                if let Err(e) = runtime.cancel_session(workspace_id, session_id).await {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[cancel error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
-                }
-            }
-
-            Command::CompactSession {
-                workspace_id: _,
-                session_id,
-            } => {
-                if let Err(e) = runtime
-                    .compact_session(session_id, agent_core::CompactionReason::UserRequested)
-                    .await
-                {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[compact error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
-                }
-            }
-
-            Command::SwitchModel {
-                workspace_id: _,
-                session_id,
-                alias,
-            } => {
-                if let Err(e) = runtime.switch_model(session_id, alias, None).await {
-                    app.state.current_session.messages.push(
-                        agent_core::projection::ProjectedMessage {
-                            role: agent_core::projection::ProjectedRole::Assistant,
-                            content: format!("[switch_model error: {e}]"),
-                        },
-                    );
-                    app.state.render_scheduler.mark_dirty();
-                }
-            }
-
-            Command::ListSkills
-            | Command::ShowSkill { .. }
-            | Command::ActivateSkill { .. }
-            | Command::DeactivateSkill { .. } => {
-                app::dispatch_commands(runtime, app, vec![command]).await;
-            }
-
-            Command::StartSession {
-                workspace_id: ws_id,
-                model_profile: mp,
-            } => {
-                match runtime
-                    .start_session(StartSessionRequest {
-                        workspace_id: ws_id,
-                        model_profile: mp.clone(),
-                        permission_mode: None,
-                    })
-                    .await
-                {
-                    Ok(session_id) => {
-                        app.current_session_id = Some(session_id.clone());
-                        app.state.sessions.push(SessionInfo {
-                            id: session_id,
-                            title: format!("Session using {mp}"),
-                            model_profile: mp,
-                            state: SessionState::Idle,
-                            pinned: false,
-                        });
-                        app.state.current_session =
-                            agent_core::projection::SessionProjection::default();
-                        app.domain_events.clear();
-                        app.state.render_scheduler.reset();
-                        // Select the new session in the sessions panel
-                        app.sessions
-                            .state
-                            .select(Some(app.state.sessions.len() - 1));
-                    }
-                    Err(e) => {
-                        app.state.current_session.messages.push(
-                            agent_core::projection::ProjectedMessage {
-                                role: agent_core::projection::ProjectedRole::Assistant,
-                                content: format!("[start session error: {e}]"),
-                            },
-                        );
-                        app.state.render_scheduler.mark_dirty();
-                    }
-                }
-            }
-
-            Command::SwitchSession { session_id } => {
-                let sid = session_id.clone();
-                app.current_session_id = Some(sid.clone());
-
-                // Update session states
-                for session in &mut app.state.sessions {
-                    if session.id == sid {
-                        session.state = SessionState::Active;
-                    } else if session.state == SessionState::Active {
-                        session.state = SessionState::Idle;
-                    }
-                }
-
-                // Load historical data for the switched-to session
-                let projection = runtime.get_session_projection(sid.clone()).await;
-                let trace = runtime.get_trace(sid.clone()).await;
-
-                if let Ok(proj) = projection {
-                    app.state.current_session = proj;
-                }
-                if let Ok(trc) = trace {
-                    app.domain_events = trc.into_iter().map(|t| t.event).collect();
-                }
-
-                app.state.render_scheduler.mark_dirty_immediate();
             }
         }
     }
+
+    paths.sort();
+    paths
 }
 
 // ---------------------------------------------------------------------------
@@ -256,16 +116,67 @@ async fn dispatch_commands(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let cli = parse_workspace_args(std::env::args().skip(1)).map_err(anyhow::Error::msg)?;
+    if matches!(&cli.mode, WorkspaceCliMode::Help) {
+        println!("{}", workspace_usage());
+        return Ok(());
+    }
+
+    let mut startup_messages = Vec::new();
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let home_dir = std::path::PathBuf::from(home);
+    let data_dir = home_dir.join(".kairox");
+    tokio::fs::create_dir_all(&data_dir).await?;
+    let db_path = data_dir.join("kairox.sqlite");
+    let database_url = format!(
+        "sqlite:///{}",
+        db_path.display().to_string().trim_start_matches('/')
+    );
+    let store = SqliteEventStore::connect(&database_url).await?;
+    let known_workspaces: Vec<KnownWorkspace> = store
+        .list_workspaces()
+        .await?
+        .into_iter()
+        .map(|workspace| KnownWorkspace {
+            workspace_id: workspace.workspace_id,
+            path: workspace.path,
+        })
+        .collect();
+
+    match cli.mode {
+        WorkspaceCliMode::CurrentDir | WorkspaceCliMode::Help => {}
+        WorkspaceCliMode::List => {
+            print!("{}", format_known_workspaces(&known_workspaces));
+            return Ok(());
+        }
+        WorkspaceCliMode::Select => {
+            if known_workspaces.is_empty() {
+                print!("{}", format_known_workspaces(&known_workspaces));
+                return Ok(());
+            }
+            let Some(selector) =
+                prompt_workspace_selector(&known_workspaces).map_err(anyhow::Error::msg)?
+            else {
+                return Ok(());
+            };
+            let path = resolve_workspace_selector(&known_workspaces, &selector)
+                .map_err(anyhow::Error::msg)?;
+            std::env::set_current_dir(&path)?;
+            startup_messages.push(format!("Recovered workspace {}", path.display()));
+        }
+        WorkspaceCliMode::Use(selector) => {
+            let path = resolve_workspace_selector(&known_workspaces, &selector)
+                .map_err(anyhow::Error::msg)?;
+            std::env::set_current_dir(&path)?;
+            startup_messages.push(format!("Recovered workspace {}", path.display()));
+        }
+    }
+
     // 1. Setup terminal
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
-
-    eprintln!(
-        "Kairox TUI {}",
-        agent_core::build_info::BuildInfo::from_env()
-    );
 
     // 2. Check size
     let size = terminal.size()?;
@@ -280,31 +191,23 @@ async fn main() -> Result<()> {
     }
 
     // 3. Load config and build runtime
-    let config = Config::load().unwrap_or_else(|e| {
-        eprintln!("Config warning: {e}, using defaults");
-        Config::defaults()
-    });
+    let config = match Config::load() {
+        Ok(config) => config,
+        Err(e) => {
+            startup_messages.push(format!("Config warning: {e}, using defaults"));
+            Config::defaults()
+        }
+    };
     let router = config.build_router();
-    let profiles = config.profile_names();
     let profile = config.default_profile();
 
-    eprintln!("Available model profiles: {:?}", profiles);
-    eprintln!("Using profile: {profile}");
-
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let home_dir = std::path::PathBuf::from(home);
-    let data_dir = home_dir.join(".kairox");
-    tokio::fs::create_dir_all(&data_dir).await?;
-    let db_path = data_dir.join("kairox.sqlite");
-    let database_url = format!(
-        "sqlite:///{}",
-        db_path.display().to_string().trim_start_matches('/')
-    );
-    let store = SqliteEventStore::connect(&database_url).await?;
     let mem_store = std::sync::Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
         as std::sync::Arc<dyn agent_memory::MemoryStore>;
     let workspace_path = std::env::current_dir()?;
+    let workspace_files = walk_workspace_files(&workspace_path, 500);
     let skill_roots = agent_runtime::skills::build_default_skill_roots(&home_dir, &workspace_path);
+    let skill_settings_roots =
+        agent_runtime::skills::build_default_skill_settings_roots(&home_dir, &workspace_path);
     let skill_registry = agent_skills::FileSkillRegistry::discover(skill_roots).await?;
 
     let ollama_clients = agent_config::build_ollama_clients(&config);
@@ -317,6 +220,8 @@ async fn main() -> Result<()> {
             .with_config(config_arc)
             .with_ollama_clients(ollama_clients)
             .with_skill_registry(Arc::new(skill_registry))
+            .with_skill_settings_roots(skill_settings_roots)
+            .with_skill_catalog(Some(data_dir.clone()))
             .with_builtin_tools(workspace_path.clone())
             .await,
     );
@@ -324,7 +229,7 @@ async fn main() -> Result<()> {
     // Try to restore previous workspace and sessions, or create fresh ones
     let workspace_path_str = workspace_path.display().to_string();
 
-    let (workspace_id, mut app_sessions) = {
+    let (workspace_id, mut app_sessions, projects) = {
         // Try to find an existing workspace for this path
         let workspaces = runtime.list_workspaces().await.unwrap_or_default();
         let existing = workspaces.iter().find(|w| w.path == workspace_path_str);
@@ -334,25 +239,57 @@ async fn main() -> Result<()> {
                 .list_sessions(&ws.workspace_id)
                 .await
                 .unwrap_or_default();
-            let session_infos: Vec<SessionInfo> = sessions
-                .iter()
-                .map(|s| SessionInfo {
-                    id: s.session_id.clone(),
-                    title: s.title.clone(),
-                    model_profile: s.model_profile.clone(),
-                    state: SessionState::Idle,
-                    pinned: false,
-                })
+            let archived_sessions = runtime
+                .list_archived_sessions(&ws.workspace_id)
+                .await
+                .unwrap_or_default();
+            let projects_meta = runtime
+                .list_projects(&ws.workspace_id)
+                .await
+                .unwrap_or_default();
+            let mut projects: Vec<ProjectInfo> = projects_meta
+                .into_iter()
+                .map(project_info_from_meta)
                 .collect();
-            (ws.workspace_id.clone(), session_infos)
+            for project in &mut projects {
+                project.git_status = runtime
+                    .get_project_git_status(project.id.clone())
+                    .await
+                    .ok();
+                project.instruction_summary = runtime
+                    .get_project_instruction_summary(project.id.clone())
+                    .await
+                    .ok();
+            }
+            let mut session_infos: Vec<SessionInfo> = sessions
+                .into_iter()
+                .map(|s| session_info_from_meta(s, false, &None))
+                .collect();
+            for project in &projects {
+                let project_sessions = runtime
+                    .list_project_sessions(project.id.clone())
+                    .await
+                    .unwrap_or_default();
+                session_infos.extend(
+                    project_sessions
+                        .into_iter()
+                        .map(|s| session_info_from_meta(s, false, &None)),
+                );
+            }
+            session_infos.extend(
+                archived_sessions
+                    .into_iter()
+                    .map(|s| session_info_from_meta(s, true, &None)),
+            );
+            (ws.workspace_id.clone(), session_infos, projects)
         } else {
             let ws = runtime.open_workspace(workspace_path_str).await?;
-            (ws.workspace_id, Vec::new())
+            (ws.workspace_id, Vec::new(), Vec::new())
         }
     };
 
     // If no sessions exist, create a new one
-    if app_sessions.is_empty() {
+    if app_sessions.iter().all(|session| session.archived) {
         let session_id = runtime
             .start_session(StartSessionRequest {
                 workspace_id: workspace_id.clone(),
@@ -366,15 +303,28 @@ async fn main() -> Result<()> {
             model_profile: profile.clone(),
             state: SessionState::Idle,
             pinned: false,
+            archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
         });
     }
 
     // 4. Create App with restored sessions
-    let active_session_id = app_sessions.last().unwrap().id.clone();
+    let active_session_id = app_sessions
+        .iter()
+        .rfind(|session| !session.archived)
+        .expect("at least one active session must exist")
+        .id
+        .clone();
 
     let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
+    app.chat
+        .set_workspace_files(workspace_path.clone(), workspace_files);
     app.current_session_id = Some(active_session_id.clone());
     app.state.sessions = app_sessions;
+    app.state.projects = projects;
 
     // Load the initial session projection and trace
     if let Ok(projection) = runtime
@@ -386,16 +336,28 @@ async fn main() -> Result<()> {
     if let Ok(trace) = runtime.get_trace(active_session_id.clone()).await {
         app.domain_events = trace.into_iter().map(|t| t.event).collect();
     }
+    restore_session_draft(runtime.store(), &mut app, &active_session_id).await;
 
     // Select the current session in the sessions panel
     if !app.state.sessions.is_empty() {
-        app.sessions
-            .state
-            .select(Some(app.state.sessions.len() - 1));
+        let rows =
+            components::sessions::session_list_rows(&app.state.projects, &app.state.sessions);
+        let selected = rows
+            .iter()
+            .position(|row| {
+                matches!(row, components::sessions::SessionListRow::Session(session_id) if session_id == &active_session_id)
+            })
+            .unwrap_or_else(|| rows.len().saturating_sub(1));
+        app.sessions.state.select(Some(selected));
     }
 
     app.sync_status_bar();
+    for message in startup_messages {
+        app.state.push_status_message(message.clone());
+        app.status_bar.push_notification(message);
+    }
     app.sync_component_focus();
+    terminal.clear()?;
 
     // 5. Create channels + spawn tasks
     let (tx, mut rx) = mpsc::channel::<AppEvent>(256);
@@ -447,7 +409,11 @@ async fn main() -> Result<()> {
             match event {
                 AppEvent::Key(key) => {
                     let crossterm_event = Event::Key(key);
+                    let command_palette_was_visible = app.command_palette.is_visible();
                     let commands = app.handle_crossterm_event(&crossterm_event);
+                    if !command_palette_was_visible && app.command_palette.is_visible() {
+                        app::refresh_command_palette(&runtime, &mut app).await;
+                    }
                     dispatch_commands(&runtime, &mut app, commands).await;
                 }
                 AppEvent::DomainEvent(domain_event) => {
@@ -455,6 +421,33 @@ async fn main() -> Result<()> {
                     if let Some(ref sid) = app.current_session_id {
                         if domain_event.session_id == *sid {
                             app.handle_domain_event(&domain_event);
+
+                            // Drain any messages the user queued while the
+                            // session was busy. We drain on
+                            // `AssistantMessageCompleted` to mirror the GUI
+                            // "end-of-turn" signal — the runtime is ready to
+                            // accept the next user turn at that point.
+                            if matches!(
+                                domain_event.payload,
+                                agent_core::EventPayload::AssistantMessageCompleted { .. }
+                            ) {
+                                let queued = app.chat.drain_queue();
+                                if !queued.is_empty() {
+                                    if let Some(session_id) = app.current_session_id.clone() {
+                                        let workspace_id = app.workspace_id.clone();
+                                        let drain_cmds: Vec<Command> = queued
+                                            .into_iter()
+                                            .map(|q| Command::SendMessage {
+                                                workspace_id: workspace_id.clone(),
+                                                session_id: session_id.clone(),
+                                                content: q.content,
+                                                attachments: q.attachments,
+                                            })
+                                            .collect();
+                                        dispatch_commands(&runtime, &mut app, drain_cmds).await;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

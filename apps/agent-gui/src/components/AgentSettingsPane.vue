@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAgentSettingsStore } from "@/stores/agentSettings";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
+import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
@@ -9,6 +10,8 @@ import type {
   AgentSettingsScope,
   AgentSettingsView
 } from "@/generated/commands";
+
+type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 
 const store = useAgentSettingsStore();
 const { t } = useI18n();
@@ -58,6 +61,19 @@ function scopeLabel(scope: AgentSettingsScope | "Builtin" | "Local"): string {
   if (scope === "Project") return t("agents.scopeProject");
   if (scope === "Local") return t("agents.scopeLocal");
   return t("agents.scopeUser");
+}
+
+function sourceTone(scope: AgentSettingsScope | "Builtin" | "Local"): SourceTone {
+  switch (scope) {
+    case "Builtin":
+      return "source-builtin";
+    case "Project":
+      return "source-project";
+    case "Local":
+      return "source-local";
+    default:
+      return "source-user";
+  }
 }
 
 function startCreate(): void {
@@ -197,6 +213,16 @@ watch(
               {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
             </SettingsStatusTag>
           </template>
+
+          <SettingsEffectiveAudit
+            :source="scopeLabel(agent.scope)"
+            :source-tone="sourceTone(agent.scope)"
+            :enabled="agent.enabled"
+            :effective="agent.effective"
+            :shadowed-by="agent.shadowedBy"
+            :valid="agent.valid"
+            :data-test="`agent-audit-${slugify(agent.name)}-${agent.scope.toLowerCase()}`"
+          />
 
           <SettingsItemMeta wrap-values>
             <div>
