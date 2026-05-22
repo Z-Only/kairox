@@ -65,9 +65,15 @@ impl App {
             );
         }
 
+        let session_metadata = self.current_session_metadata();
+        let has_session_metadata = !session_metadata.is_empty();
         let has_queue = !self.chat.message_queue.is_empty();
         let has_file_mentions = self.chat.file_mentions_visible();
-        let mut chat_constraints = vec![Constraint::Min(1)];
+        let mut chat_constraints = Vec::new();
+        if has_session_metadata {
+            chat_constraints.push(Constraint::Length(1));
+        }
+        chat_constraints.push(Constraint::Min(1));
         if has_queue {
             chat_constraints.push(Constraint::Length(queue_strip_height(
                 self.chat.message_queue.len(),
@@ -83,12 +89,17 @@ impl App {
             .direction(Direction::Vertical)
             .constraints(chat_constraints)
             .split(chat_area);
+        let mut chat_chunk_idx = 0;
+        if has_session_metadata {
+            render_current_session_header(chat_chunks[chat_chunk_idx], frame, &session_metadata);
+            chat_chunk_idx += 1;
+        }
         crate::components::chat::render_messages(
-            chat_chunks[0],
+            chat_chunks[chat_chunk_idx],
             frame,
             &self.state.current_session,
         );
-        let mut chat_chunk_idx = 1;
+        chat_chunk_idx += 1;
         if has_queue {
             crate::components::chat::render_queue_strip(
                 chat_chunks[chat_chunk_idx],
@@ -269,4 +280,99 @@ fn queue_strip_height(queue_len: usize) -> u16 {
 fn file_mention_palette_height(match_count: usize) -> u16 {
     let visible_rows = match_count.clamp(1, 4) as u16;
     visible_rows.saturating_add(1).max(2)
+}
+
+fn render_current_session_header(area: Rect, frame: &mut Frame, metadata: &[String]) {
+    let mut spans = vec![Span::styled(
+        "Chat",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )];
+    for part in metadata {
+        spans.push(Span::styled(" · ", Style::default().fg(Color::DarkGray)));
+        spans.push(Span::styled(
+            part.clone(),
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::{ProjectInfo, SessionInfo, SessionState};
+    use agent_core::{
+        ProjectId, ProjectInstructionSummary, ProjectSessionVisibility, SessionId, WorkspaceId,
+    };
+
+    fn render_text(app: &mut App, width: u16, height: u16) -> String {
+        let backend = ratatui::backend::TestBackend::new(width, height);
+        let mut terminal = ratatui::Terminal::new(backend).expect("terminal");
+        terminal.draw(|frame| app.render(frame)).expect("draw");
+        terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
+    fn project_session_app() -> App {
+        let workspace_id = WorkspaceId::from_string("wrk_test".to_string());
+        let project_id = ProjectId::from_string("prj_alpha".to_string());
+        let session_id = SessionId::from_string("ses_active".to_string());
+        let mut app = App::new("fast", agent_tools::PermissionMode::Suggest, workspace_id);
+        app.current_session_id = Some(session_id.clone());
+        app.state.sidebar_left_visible = false;
+        app.state.projects = vec![ProjectInfo {
+            id: project_id.clone(),
+            display_name: "alpha".to_string(),
+            root_path: "/tmp/alpha".to_string(),
+            expanded: true,
+            git_status: None,
+            instruction_summary: Some(ProjectInstructionSummary {
+                source_paths: vec!["/tmp/alpha/AGENTS.md".to_string()],
+                contents: None,
+                warning: None,
+            }),
+        }];
+        app.state.sessions = vec![SessionInfo {
+            id: session_id,
+            title: "Worktree session".to_string(),
+            model_profile: "fast".to_string(),
+            state: SessionState::Active,
+            pinned: false,
+            archived: false,
+            project_id: Some(project_id),
+            worktree_path: Some("/tmp/alpha/.kairox/worktrees/feat-tui".to_string()),
+            branch: Some("feat/tui".to_string()),
+            visibility: Some(ProjectSessionVisibility::Visible),
+        }];
+        app.sync_status_bar();
+        app
+    }
+
+    #[test]
+    fn session_git_meta_renders_in_current_chat_header_and_status() {
+        let mut app = project_session_app();
+
+        let rendered = render_text(&mut app, 120, 12);
+
+        assert!(rendered.contains("worktree"), "{rendered}");
+        assert!(rendered.contains("feat/tui"), "{rendered}");
+        assert!(rendered.contains("worktrees/feat-tui"), "{rendered}");
+    }
+
+    #[test]
+    fn session_git_meta_renders_project_instruction_summary() {
+        let mut app = project_session_app();
+
+        let rendered = render_text(&mut app, 120, 12);
+
+        assert!(rendered.contains("Loaded AGENTS.md"), "{rendered}");
+    }
 }

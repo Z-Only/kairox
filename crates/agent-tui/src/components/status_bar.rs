@@ -90,6 +90,7 @@ impl StatusBar {
                 permission_mode: String::new(),
                 session_count: 0,
                 mcp_server_count: 0,
+                session_metadata: Vec::new(),
                 hint: String::new(),
                 error: None,
                 context_usage: None,
@@ -303,6 +304,14 @@ fn render_status_bar_with_notification(
         Style::default(),
     ));
 
+    if !info.session_metadata.is_empty() {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            info.session_metadata.join(" · "),
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+
     spans.push(Span::raw("  "));
 
     // MCP server count (only shown if > 0)
@@ -479,6 +488,9 @@ pub fn render_context_line_string(info: &StatusInfo, width: u16) -> String {
     let mut parts: Vec<String> = Vec::new();
     parts.push(format!("profile: {}", info.profile));
     parts.push(format!("perm: {}", info.permission_mode));
+    if !info.session_metadata.is_empty() {
+        parts.push(info.session_metadata.join(" · "));
+    }
 
     match &info.context_usage {
         Some(u) => {
@@ -554,6 +566,7 @@ mod tests {
             permission_mode: "suggest".to_string(),
             session_count: 3,
             mcp_server_count: 2,
+            session_metadata: Vec::new(),
             hint: "Alt+Q quit".to_string(),
             error: None,
             context_usage: None,
@@ -575,6 +588,7 @@ mod tests {
             permission_mode: "suggest".to_string(),
             session_count: 3,
             mcp_server_count: 0,
+            session_metadata: Vec::new(),
             hint: "Alt+Q quit".to_string(),
             error: None,
             context_usage: None,
@@ -596,6 +610,7 @@ mod tests {
             permission_mode: "agent".to_string(),
             session_count: 1,
             mcp_server_count: 0,
+            session_metadata: Vec::new(),
             hint: "F1 help".to_string(),
             error: Some("connection lost".to_string()),
             context_usage: None,
@@ -644,6 +659,7 @@ mod tests {
             permission_mode: "agent".to_string(),
             session_count: 0,
             mcp_server_count: 0,
+            session_metadata: Vec::new(),
             hint: String::new(),
             error: None,
             context_usage: None,
@@ -688,6 +704,7 @@ mod tests {
             permission_mode: "readonly".to_string(),
             session_count: 5,
             mcp_server_count: 3,
+            session_metadata: Vec::new(),
             hint: "Ctrl+C quit".to_string(),
             error: Some("oops".to_string()),
             context_usage: None,
@@ -754,6 +771,7 @@ mod context_line_tests {
             permission_mode: "suggest".into(),
             session_count: 1,
             mcp_server_count: 0,
+            session_metadata: Vec::new(),
             hint: String::new(),
             error: None,
             context_usage: usage_opt,

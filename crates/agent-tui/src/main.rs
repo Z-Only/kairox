@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use agent_config::Config;
 use agent_core::{
-    AppFacade, ProjectMeta, ProjectSessionVisibility, SendMessageRequest, SessionMeta,
-    StartSessionRequest,
+    AppFacade, ProjectGitStatus, ProjectMeta, ProjectSessionVisibility, SendMessageRequest,
+    SessionMeta, StartSessionRequest,
 };
 use agent_memory::{MemoryQuery, SqliteMemoryStore};
 use agent_models::ModelRouter;
@@ -799,6 +799,7 @@ async fn dispatch_commands(
                         if let Some(project_id) = project_session {
                             let _ = refresh_project_sessions_for_project(runtime, app, &project_id)
                                 .await;
+                            refresh_session_git_metadata(runtime, app, &session_id).await;
                         }
                         select_session_row(app, &session_id);
                         app.state.render_scheduler.mark_dirty();
@@ -863,6 +864,7 @@ async fn dispatch_commands(
                         match refresh_project_sessions_for_project(runtime, app, &project_id).await
                         {
                             Ok(_) => {
+                                refresh_session_git_metadata(runtime, app, &session_id).await;
                                 switch_app_to_session(runtime, app, session_id).await;
                             }
                             Err(e) => {
@@ -936,6 +938,34 @@ async fn refresh_project_sessions_for_project(
     normalize_session_states(app);
     app.state.render_scheduler.mark_dirty();
     Ok(())
+}
+
+async fn refresh_session_git_metadata(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    app: &mut App,
+    session_id: &agent_core::SessionId,
+) {
+    if let Ok(status) = runtime.get_session_git_status(session_id.clone()).await {
+        apply_session_git_status(app, session_id, &status);
+    }
+}
+
+fn apply_session_git_status(
+    app: &mut App,
+    session_id: &agent_core::SessionId,
+    status: &ProjectGitStatus,
+) {
+    if let Some(session) = app
+        .state
+        .sessions
+        .iter_mut()
+        .find(|session| &session.id == session_id)
+    {
+        session.branch = status.branch.clone();
+        session.worktree_path = Some(status.worktree_path.clone());
+    }
+    app.sync_status_bar();
+    app.state.render_scheduler.mark_dirty();
 }
 
 fn normalize_session_states(app: &mut App) {
@@ -1681,5 +1711,53 @@ mod tests {
 
         assert_eq!(app.chat.input_content, "saved draft");
         assert_eq!(app.chat.input_cursor, "saved draft".len());
+    }
+
+    #[test]
+    fn session_git_meta_applies_refreshed_status_to_session() {
+        let session_id = agent_core::SessionId::from_string("ses_git".to_string());
+        let mut app = App::new(
+            "test",
+            PermissionMode::Suggest,
+            agent_core::WorkspaceId::from_string("wrk_test".to_string()),
+        );
+        app.current_session_id = Some(session_id.clone());
+        app.state.sessions.push(SessionInfo {
+            id: session_id.clone(),
+            title: "Worktree".to_string(),
+            model_profile: "test".to_string(),
+            state: SessionState::Active,
+            pinned: false,
+            archived: false,
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: Some(ProjectSessionVisibility::Visible),
+        });
+
+        apply_session_git_status(
+            &mut app,
+            &session_id,
+            &ProjectGitStatus {
+                kind: agent_core::ProjectGitStatusKind::Clean,
+                branch: Some("feat/tui".to_string()),
+                worktree_path: "/tmp/project/.kairox/worktrees/feat-tui".to_string(),
+                message: None,
+            },
+        );
+
+        let session = app
+            .state
+            .sessions
+            .iter()
+            .find(|session| session.id == session_id)
+            .expect("session");
+        assert_eq!(session.branch.as_deref(), Some("feat/tui"));
+        assert_eq!(
+            session.worktree_path.as_deref(),
+            Some("/tmp/project/.kairox/worktrees/feat-tui")
+        );
+        let metadata = app.current_session_git_metadata();
+        assert!(metadata.iter().any(|part| part == "worktrees/feat-tui"));
     }
 }
