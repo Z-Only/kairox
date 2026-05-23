@@ -1,0 +1,123 @@
+import { describe, it, expect, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(vi.fn()))
+}));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn()
+}));
+vi.mock("../composables/useTraceStore", () => ({
+  applyTraceEvent: vi.fn(),
+  clearTrace: vi.fn()
+}));
+
+import sidebarActionsSource from "@/composables/sidebar/useSidebarActions.ts?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
+import { useSessionStore } from "@/stores/session";
+import { installSidebarTestEnv, mockedInvoke, mountSidebar } from "./SessionsSidebar.test-utils";
+
+installSidebarTestEnv();
+
+describe("SessionsSidebar", () => {
+  it("creates a default session directly without opening the profile dialog", async () => {
+    const { wrapper, router } = await mountSidebar();
+    const session = useSessionStore();
+    const createSessionSpy = vi.spyOn(session, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
+    });
+
+    await wrapper.find('[data-test="new-session-btn"]').trigger("click");
+    await flushPromises();
+    await router.isReady();
+
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
+    expect(createSessionSpy).toHaveBeenCalledWith(undefined);
+    expect(router.currentRoute.value.params.sessionId).toBe("ses_default");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("get_profile_info");
+  });
+
+  it("uses Kairox icon buttons and title-backed truncation for regular session rows", async () => {
+    const longTitle = "A very long regular session title that should remain discoverable";
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [{ id: "s1", title: longTitle, profile: "fast" } as never];
+    await flushPromises();
+
+    const sessionTitle = wrapper.find('[data-test="session-item"] .session-title');
+    expect(sessionTitle.attributes("title")).toBe(longTitle);
+    expect(sessionTitle.classes()).toContain("truncate");
+    expect(wrapper.find('[data-test="session-rename-btn"]').classes()).toContain("kx-icon-button");
+    expect(wrapper.find('[data-test="session-archive-btn"]').classes()).toContain("kx-icon-button");
+
+    await wrapper.find('[data-test="session-rename-btn"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-test="session-rename-confirm"]').classes()).toContain(
+      "kx-icon-button"
+    );
+
+    await wrapper.find('[data-test="session-rename-input"]').trigger("keydown.escape");
+    await flushPromises();
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+  });
+
+  it("requires a second click on the same session archive button before deleting", async () => {
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
+    await flushPromises();
+
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+
+    await wrapper.find('[data-test="session-archive-btn"]').trigger("click");
+    await flushPromises();
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_session", { sessionId: "s1" });
+  });
+
+  it("waits for session deletion before continuing after confirmation", () => {
+    expectSourceMigration(sidebarActionsSource, {
+      required: ["await session.deleteSession(sessionId)"],
+      forbidden: ["void session.deleteSession"]
+    });
+  });
+
+  it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
+    const { wrapper } = await mountSidebar();
+    const sessionStore = useSessionStore();
+    vi.spyOn(sessionStore, "createSession").mockResolvedValue({
+      id: "ses_default",
+      title: "Session using default",
+      profile: "default"
+    });
+
+    await wrapper.find('[data-test="new-session-btn"]').trigger("click");
+    await flushPromises();
+    expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
+
+    const session = useSessionStore();
+    session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];
+    await flushPromises();
+
+    const renameButton = wrapper.find('[data-test="session-rename-btn"]');
+    expect(renameButton.exists()).toBe(true);
+    await renameButton.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".kx-editable-label").exists()).toBe(true);
+    const renameInput = wrapper.find('[data-test="session-rename-input"]');
+    const renameConfirm = wrapper.find('[data-test="session-rename-confirm"]');
+    expect(renameInput.exists()).toBe(true);
+    expect(renameConfirm.exists()).toBe(true);
+    expect(renameInput.attributes("data-test")).toBe("session-rename-input");
+    expect(renameConfirm.attributes("data-test")).toBe("session-rename-confirm");
+  });
+});
