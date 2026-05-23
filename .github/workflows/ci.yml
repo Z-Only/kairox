@@ -227,50 +227,6 @@ jobs:
       - name: Run Stylelint
         run: bun run lint:style
 
-  test:
-    name: Test
-    needs: changes
-    if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: rust-ci
-
-      - name: Install Linux system deps for Tauri crates
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Install MCP fixture deps
-        run: bun install --cwd crates/agent-mcp/tests/fixtures --no-save
-
-      - name: Run tests
-        run: cargo test --workspace --all-targets
-
   test-e2e:
     name: E2E Tests
     needs: changes
@@ -729,7 +685,6 @@ jobs:
         format,
         lint-rust,
         lint-web,
-        test,
         test-e2e,
         coverage-rust,
         coverage-web,

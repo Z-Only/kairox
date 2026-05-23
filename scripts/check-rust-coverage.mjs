@@ -12,16 +12,16 @@ const metrics = ["branches", "functions", "lines"];
 
 const groups = [
   // Rust branch coverage currently depends on nightly LLVM coverage support.
-  // Keep thresholds on the reportable LCOV subset and file-count floors to catch
-  // obvious report truncation while upstream branch crashes are still open.
+  // Keep thresholds on stable, reportable LCOV metrics and file-count floors to
+  // catch obvious report truncation while upstream branch crashes are still open.
   {
     name: "Rust workspace",
     include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
     minFiles: 45,
     thresholds: {
-      branches: 70,
-      functions: 30,
-      lines: 70
+      branches: 72,
+      functions: 35,
+      lines: 71
     }
   },
   {
@@ -29,9 +29,9 @@ const groups = [
     include: [/^crates\/agent-(core|runtime|memory|store|config)\//],
     minFiles: 24,
     thresholds: {
-      branches: 60,
-      functions: 26,
-      lines: 72
+      branches: 62,
+      functions: 32,
+      lines: 73
     }
   },
   {
@@ -39,9 +39,9 @@ const groups = [
     include: [/^crates\/agent-(tools|mcp|models|skills|plugins)\//],
     minFiles: 7,
     thresholds: {
-      branches: 86,
-      functions: 52,
-      lines: 88
+      branches: 88,
+      functions: 60,
+      lines: 89
     }
   },
   {
@@ -53,9 +53,7 @@ const groups = [
     ],
     minFiles: 16,
     thresholds: {
-      branches: 62,
-      functions: 0,
-      lines: 0
+      branches: 65
     }
   }
 ];
@@ -204,7 +202,9 @@ function formatPercent(value) {
 }
 
 function formatThresholds(thresholds) {
-  return metrics.map((metric) => `${metric}>=${thresholds[metric]}%`).join(", ");
+  return Object.entries(thresholds)
+    .map(([metric, threshold]) => `${metric}>=${threshold}%`)
+    .join(", ");
 }
 
 const files = mergeDuplicateFiles(
@@ -248,7 +248,7 @@ for (const group of groups) {
     failures.push(`${group.name} files: ${matchingFiles.length} < ${group.minFiles}`);
   }
 
-  for (const metric of metrics) {
+  for (const metric of Object.keys(group.thresholds)) {
     const actual = totals[metric].percent;
     const threshold = group.thresholds[metric];
     if (actual + Number.EPSILON < threshold) {

@@ -7,11 +7,11 @@ grcov_version="${KAIROX_GRCOV_VERSION:-v0.10.7}"
 toolchain="${KAIROX_COVERAGE_TOOLCHAIN:-nightly}"
 grcov_threads="${KAIROX_GRCOV_THREADS:-1}"
 
-if [ -z "${CC:-}" ] && command -v clang >/dev/null 2>&1; then
+if [ "$(uname -s)" = "Linux" ] && [ -z "${CC:-}" ] && command -v clang >/dev/null 2>&1; then
   export CC=clang
 fi
 
-if [ -z "${CXX:-}" ] && command -v clang++ >/dev/null 2>&1; then
+if [ "$(uname -s)" = "Linux" ] && [ -z "${CXX:-}" ] && command -v clang++ >/dev/null 2>&1; then
   export CXX=clang++
 fi
 
@@ -83,6 +83,10 @@ run_coverage_group() {
 
   local output_path="${coverage_dir}/rust-${name}.lcov"
 
+  # cargo-llvm-cov remains the Rust test/instrumentation driver recommended by
+  # Rust projects. We intentionally let grcov generate LCOV from profraw files
+  # because `cargo llvm-cov --branch --lcov` calls llvm-cov export, which is
+  # currently crash-prone for this workspace's async Rust coverage maps.
   cargo "+${toolchain}" llvm-cov clean --workspace
   cargo "+${toolchain}" llvm-cov \
     "$@" \
