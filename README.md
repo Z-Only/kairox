@@ -71,12 +71,12 @@ graph TD
 - **Skills, plugins, and instructions** — native skills for reusable prompt/tool/workflow capabilities, plugin-namespaced skill discovery, plugin settings, hook settings, and user/project instruction settings with effective-preview support
 - **Config discovery** — TOML config with profile management, env-variable API keys, and per-project `.kairox/` directory discovery
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
-- **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, and permission prompts
+- **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, permission prompts, command palette, queue controls, and settings/marketplace overlays
 - **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, per-session permission mode selection, model/agent/plugin/hook/instructions/skills settings, resizable workbench sidebars, and MCP marketplace UI
 - **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
-- **Quality gates** — parallel CI with aggregation `ci-success` job, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests
-- **E2E testing** — Playwright frontend E2E specs, tauri-pilot real desktop scenarios, 7 TUI app-logic integration tests, 13 full-stack runtime tests, dedicated MCP integration tests, live GitHub Models smoke coverage, and DAG executor / AgentStrategy / GUI component coverage
+- **Quality gates** — parallel CI with aggregation `ci-success` job, branch-focused Rust/Vue coverage gates, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests
+- **E2E testing** — Playwright frontend E2E specs, tauri-pilot real desktop scenarios, expanded TUI app-logic coverage, 13 full-stack runtime tests, dedicated MCP integration tests, live GitHub Models smoke coverage, and DAG executor / AgentStrategy / GUI component coverage
 
 ## Repository layout
 
@@ -95,7 +95,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development (current release `v0.25.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
+Kairox is in active development (current release `v0.26.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
 
 Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The runtime tracks per-model context windows, assembles prompts against token budgets, supports manual and automatic context compaction, allows mid-session model switching with reasoning effort selection when profiles support it, and can create isolated git worktrees for project worktree sessions.
 
