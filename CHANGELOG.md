@@ -4,6 +4,82 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] - 2026-05-23
+
+### 🚀 Features
+
+- **eval**: add headless harness (#336)
+- **tui**: cycle permission mode from status bar (#300)
+- **tui**: queue messages typed while session is busy (#301)
+- **tui**: add MCP server overlay panel (#310)
+- **tui**: add Ctrl+P command palette overlay (#326)
+- **tui**: add interactive skills management overlay (#327)
+- **tui**: add model profile selector overlay (#328)
+- **tui**: add session lifecycle actions (#330)
+- **tui**: add task and memory right panel (#331)
+- **tui**: add chat attachment payloads (#332)
+- **tui**: add plugin manager overlay (#333)
+- **tui**: add MCP marketplace overlay (#334)
+- **tui**: add skills catalog manager (#335)
+- **tui**: add MCP runtime diagnostics (#337)
+- **tui**: add queue controls palette (#338)
+- **tui**: add instructions settings overlay (#339)
+- **tui**: manage model profiles in overlay (#340)
+- **tui**: add project worktree session entries (#341)
+- **tui**: persist composer drafts and file mentions (#342)
+- **tui**: add agent settings overlay (#343)
+- **tui**: add project manager sidebar (#344)
+- **tui**: add hooks settings overlay (#345)
+- **tui**: add MCP settings editor (#346)
+- **tui**: expand command palette coverage (#347)
+- **tui**: add skill source editor (#348)
+- **tui**: add archive manager (#349)
+- **tui**: add MCP catalog detail filters (#350)
+- **tui**: add model profile editor (#351)
+- **tui**: add plugin marketplace search/filter (#352)
+- **tui**: add memory browser filters (#354)
+- **tui**: add skills catalog search/source filters (#355)
+- **tui**: add skill catalog detail view (#356)
+- **tui**: add context details overlay (#358)
+- **tui**: align task graph details (#357)
+- **tui**: collect MCP install config (#359)
+- **tui**: add permission center queue (#360)
+- **tui**: add help keybindings overlay (#364)
+- **tui**: add config source selector (#365)
+- **tui**: add settings utility actions (#363)
+- **tui**: show project session meta (#368)
+- **tui**: add dynamic command palette parity (#369)
+- **tui**: show MCP install outcomes (#370)
+- **tui**: confirm destructive actions (#371)
+- **tui**: add workspace recovery switcher (#376)
+- **gui**: add settings audit state (#378)
+
+### 🐛 Bug Fixes
+
+- **tui**: clean startup and composer render (#373)
+
+### 🧪 Testing
+
+- **tui**: add parity smoke matrix for overlays (#353)
+- **tui**: add parity smoke harness (#362)
+- **tui**: add terminal parity harness (#367)
+- **tui**: extend real pty parity smoke (#375)
+- **tui**: add GUI parity matrix (#374)
+- **tui**: add layered ratatui tests (#379)
+
+### 🧹 Refactor
+
+- **tui**: route command feedback to status log (#361)
+- **tui**: split mcp overlay (#366)
+- **tui**: split command dispatch modules (#372)
+- **tui**: split skills overlay (#377)
+- **runtime**: share UI backend bootstrap (#381)
+
+### 👷 CI
+
+- add coverage gates (#382)
+- tune coverage gates (#383)
+
 ## [0.25.0] - 2026-05-21
 
 ### 🚀 Features
