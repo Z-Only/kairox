@@ -49,3 +49,7 @@ zip = { workspace = true }
 agent-runtime = { path = ".", features = ["test-helpers"] }
 sqlx = { workspace = true }
 wiremock = { workspace = true }
+
+[[test]]
+name = "full_stack"
+path = "tests/full_stack/main.rs"
