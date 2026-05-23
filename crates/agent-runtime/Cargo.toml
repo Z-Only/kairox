@@ -53,3 +53,7 @@ wiremock = { workspace = true }
 [[test]]
 name = "full_stack"
 path = "tests/full_stack/main.rs"
+
+[[test]]
+name = "session_lifecycle"
+path = "tests/session_lifecycle/main.rs"
