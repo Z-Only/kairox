@@ -676,6 +676,7 @@
       "input": "Input",
       "output": "Output",
       "duration": "Duration",
+      "diffPreview": "Diff preview",
       "status": {
         "running": "Running",
         "completed": "Completed",
