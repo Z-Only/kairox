@@ -176,6 +176,24 @@ test.describe("Settings panes backed by tauri-mock", () => {
       "Missing required description"
     );
 
+    await expect(page.getByTestId("skill-installed-search-input")).toBeVisible();
+    await page.getByTestId("skill-installed-search-input").fill("registry");
+    await expect(page.getByTestId("skill-row-project-registry-review")).toBeVisible();
+    await expect(page.getByTestId("skill-row-project-project-review")).toHaveCount(0);
+
+    await page.getByTestId("skill-installed-search-input").fill("invalid");
+    await expect(page.getByTestId("skill-row-project-invalid-workspace-skill")).toBeVisible();
+    await expect(page.getByTestId("skill-row-project-registry-review")).toHaveCount(0);
+
+    await page.getByTestId("skill-installed-search-input").fill("does-not-exist");
+    await expect(page.getByTestId("skill-installed-filter-empty")).toContainText(
+      "No installed skills match your search."
+    );
+    await expect(page.getByTestId("skill-installed-list")).toHaveCount(0);
+
+    await page.getByTestId("skill-installed-search-input").fill("");
+    await expect(page.getByTestId("skill-row-project-project-review")).toBeVisible();
+
     await page.getByTestId("skill-enabled-project-project-review").click();
     await expect(page.getByTestId("skill-row-project-project-review")).toContainText("Disabled");
 
