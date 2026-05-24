@@ -19,6 +19,7 @@ const configSource = inject<Ref<"user" | "project">>("configSource");
 
 const selectedAgentId = ref<string | null>(null);
 const editorDialogOpen = ref(false);
+const searchQuery = ref("");
 const form = reactive<AgentSettingsInput>({
   scope: "User",
   name: "",
@@ -40,6 +41,7 @@ const selectedScope = computed<AgentSettingsScope>(() =>
 );
 
 const canSave = computed(() => form.name.trim().length > 0 && form.description.trim().length > 0);
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
 
 function splitCsv(value: string): string[] {
   return value
@@ -75,6 +77,30 @@ function sourceTone(scope: AgentSettingsScope | "Builtin" | "Local"): SourceTone
       return "source-user";
   }
 }
+
+function searchableAgentText(agent: AgentSettingsView): string {
+  return [
+    agent.name,
+    agent.description,
+    scopeLabel(agent.scope),
+    agent.scope,
+    agent.modelProfile,
+    agent.permissionMode,
+    agent.tools.join(" "),
+    agent.skills.join(" "),
+    agent.nicknameCandidates.join(" "),
+    agent.path
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const visibleAgents = computed(() => {
+  const query = normalizedSearchQuery.value;
+  if (!query) return store.agents;
+  return store.agents.filter((agent) => searchableAgentText(agent).includes(query));
+});
 
 function startCreate(): void {
   selectedAgentId.value = null;
@@ -186,94 +212,117 @@ watch(
       {{ t("agents.empty") }}
     </SettingsState>
 
-    <SettingsCardList v-else :aria-label="t('agents.title')" data-test="agent-list">
-      <SettingsCardItem
-        v-for="agent in store.agents"
-        :key="agent.settingsId"
-        class="agent-row"
-        :data-test="`agent-row-${slugify(agent.name)}`"
-        :data-agent-settings-id="agent.settingsId"
-        :data-agent-scope="agent.scope"
-        :actions-label="t('agents.title')"
-      >
-        <SettingsItemSummary :title="agent.name" :description="agent.description">
-          <template #tags>
-            <SettingsStatusTag>{{ scopeLabel(agent.scope) }}</SettingsStatusTag>
-            <SettingsStatusTag :tone="agent.enabled ? 'success' : 'warning'">
-              {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
-            </SettingsStatusTag>
-            <SettingsStatusTag :tone="agent.effective ? 'success' : 'warning'">
-              {{
-                agent.effective
-                  ? t("agents.effective")
-                  : t("agents.shadowedBy", { source: agent.shadowedBy })
-              }}
-            </SettingsStatusTag>
-            <SettingsStatusTag :tone="agent.valid ? 'success' : 'error'">
-              {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
-            </SettingsStatusTag>
-          </template>
-
-          <SettingsEffectiveAudit
-            :source="scopeLabel(agent.scope)"
-            :source-tone="sourceTone(agent.scope)"
-            :enabled="agent.enabled"
-            :effective="agent.effective"
-            :shadowed-by="agent.shadowedBy"
-            :valid="agent.valid"
-            :data-test="`agent-audit-${slugify(agent.name)}-${agent.scope.toLowerCase()}`"
+    <template v-else>
+      <SettingsFilterBar aria-label="Search agents" data-test="agent-filters">
+        <div class="settings-filter-bar__row">
+          <KxInput
+            v-model="searchQuery"
+            type="search"
+            size="compact"
+            aria-label="Search agents"
+            placeholder="Search agents"
+            data-test="agent-search-input"
           />
+        </div>
+      </SettingsFilterBar>
 
-          <SettingsItemMeta wrap-values>
-            <div>
-              <dt>{{ t("agents.model") }}</dt>
-              <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
-            </div>
-            <div>
-              <dt>{{ t("agents.permission") }}</dt>
-              <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
-            </div>
-            <div>
-              <dt>{{ t("agents.tools") }}</dt>
-              <dd>
-                {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
-              </dd>
-            </div>
-            <div>
-              <dt>{{ t("agents.path") }}</dt>
-              <dd>{{ agent.path }}</dd>
-            </div>
-          </SettingsItemMeta>
-          <KxInlineAlert v-if="agent.validationError" tone="error" compact>
-            {{ agent.validationError }}
-          </KxInlineAlert>
-        </SettingsItemSummary>
+      <SettingsState
+        v-if="visibleAgents.length === 0"
+        tone="empty"
+        data-test="agent-filter-empty-state"
+      >
+        No agents match your search.
+      </SettingsState>
 
-        <template #actions>
-          <KxInlineAction
-            :data-test="`agent-edit-${slugify(agent.name)}`"
-            @click="editAgent(agent)"
-          >
-            {{ agent.editable ? t("common.edit") : t("agents.view") }}
-          </KxInlineAction>
-          <KxInlineAction
-            v-if="!agent.editable"
-            :data-test="`agent-copy-${slugify(agent.name)}`"
-            @click="copyToUser(agent)"
-          >
-            {{ t("agents.copyToUser") }}
-          </KxInlineAction>
-          <KxInlineAction
-            v-if="agent.deletable"
-            variant="danger"
-            :data-test="`agent-delete-${slugify(agent.name)}`"
-            @click="deleteAgent(agent)"
-          >
-            {{ t("common.delete") }}
-          </KxInlineAction>
-        </template>
-      </SettingsCardItem>
-    </SettingsCardList>
+      <SettingsCardList v-else :aria-label="t('agents.title')" data-test="agent-list">
+        <SettingsCardItem
+          v-for="agent in visibleAgents"
+          :key="agent.settingsId"
+          class="agent-row"
+          :data-test="`agent-row-${slugify(agent.name)}`"
+          :data-agent-settings-id="agent.settingsId"
+          :data-agent-scope="agent.scope"
+          :actions-label="t('agents.title')"
+        >
+          <SettingsItemSummary :title="agent.name" :description="agent.description">
+            <template #tags>
+              <SettingsStatusTag>{{ scopeLabel(agent.scope) }}</SettingsStatusTag>
+              <SettingsStatusTag :tone="agent.enabled ? 'success' : 'warning'">
+                {{ agent.enabled ? t("agents.enabled") : t("agents.disabled") }}
+              </SettingsStatusTag>
+              <SettingsStatusTag :tone="agent.effective ? 'success' : 'warning'">
+                {{
+                  agent.effective
+                    ? t("agents.effective")
+                    : t("agents.shadowedBy", { source: agent.shadowedBy })
+                }}
+              </SettingsStatusTag>
+              <SettingsStatusTag :tone="agent.valid ? 'success' : 'error'">
+                {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
+              </SettingsStatusTag>
+            </template>
+
+            <SettingsEffectiveAudit
+              :source="scopeLabel(agent.scope)"
+              :source-tone="sourceTone(agent.scope)"
+              :enabled="agent.enabled"
+              :effective="agent.effective"
+              :shadowed-by="agent.shadowedBy"
+              :valid="agent.valid"
+              :data-test="`agent-audit-${slugify(agent.name)}-${agent.scope.toLowerCase()}`"
+            />
+
+            <SettingsItemMeta wrap-values>
+              <div>
+                <dt>{{ t("agents.model") }}</dt>
+                <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("agents.permission") }}</dt>
+                <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
+              </div>
+              <div>
+                <dt>{{ t("agents.tools") }}</dt>
+                <dd>
+                  {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
+                </dd>
+              </div>
+              <div>
+                <dt>{{ t("agents.path") }}</dt>
+                <dd>{{ agent.path }}</dd>
+              </div>
+            </SettingsItemMeta>
+            <KxInlineAlert v-if="agent.validationError" tone="error" compact>
+              {{ agent.validationError }}
+            </KxInlineAlert>
+          </SettingsItemSummary>
+
+          <template #actions>
+            <KxInlineAction
+              :data-test="`agent-edit-${slugify(agent.name)}`"
+              @click="editAgent(agent)"
+            >
+              {{ agent.editable ? t("common.edit") : t("agents.view") }}
+            </KxInlineAction>
+            <KxInlineAction
+              v-if="!agent.editable"
+              :data-test="`agent-copy-${slugify(agent.name)}`"
+              @click="copyToUser(agent)"
+            >
+              {{ t("agents.copyToUser") }}
+            </KxInlineAction>
+            <KxInlineAction
+              v-if="agent.deletable"
+              variant="danger"
+              :data-test="`agent-delete-${slugify(agent.name)}`"
+              @click="deleteAgent(agent)"
+            >
+              {{ t("common.delete") }}
+            </KxInlineAction>
+          </template>
+        </SettingsCardItem>
+      </SettingsCardList>
+    </template>
 
     <ModalDialog
       :open="editorDialogOpen"
