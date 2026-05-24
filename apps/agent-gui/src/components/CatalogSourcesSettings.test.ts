@@ -45,6 +45,12 @@ const internalSource = {
   enabled: false
 };
 
+function visibleSourceRowIds(wrapper: ReturnType<typeof mount>): string[] {
+  return wrapper
+    .findAll('[data-test^="catalog-source-row-"]')
+    .map((row) => row.attributes("data-test")?.replace("catalog-source-row-", "") ?? "");
+}
+
 describe("CatalogSourcesSettings.vue", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -110,6 +116,47 @@ describe("CatalogSourcesSettings.vue", () => {
     const empty = wrapper.find('[data-test="catalog-sources-filter-empty"]');
     expect(empty.exists()).toBe(true);
     expect(empty.text()).toContain("No remote catalog sources match your search.");
+  });
+
+  it("sorts filtered catalog sources without mutating the catalog source order", async () => {
+    const zetaSource = {
+      ...sampleSource,
+      id: "zeta-source",
+      display_name: "Zeta Team Source",
+      priority: 30
+    };
+    const alphaSource = {
+      ...sampleSource,
+      id: "alpha-source",
+      display_name: "Alpha Team Source",
+      priority: 10
+    };
+    const hiddenSource = {
+      ...sampleSource,
+      id: "hidden-source",
+      display_name: "Hidden Source",
+      priority: 20
+    };
+    mockedInvoke.mockResolvedValueOnce([zetaSource, alphaSource, hiddenSource] as never);
+    const wrapper = mount(CatalogSourcesSettings);
+    await flushPromises();
+
+    const sortSelect = wrapper.find('[data-test="catalog-source-sort-select"]');
+    expect(sortSelect.exists()).toBe(true);
+    expect(sortSelect.attributes("aria-label")).toBe("Catalog source sort");
+
+    await wrapper.find('[data-test="catalog-source-search-input"]').setValue("team");
+    expect(visibleSourceRowIds(wrapper)).toEqual(["zeta-source", "alpha-source"]);
+
+    await sortSelect.setValue("name");
+    expect(visibleSourceRowIds(wrapper)).toEqual(["alpha-source", "zeta-source"]);
+
+    const catalog = useCatalogStore();
+    expect(catalog.sources.map((source) => source.id)).toEqual([
+      "zeta-source",
+      "alpha-source",
+      "hidden-source"
+    ]);
   });
 
   it("validates url before calling addSource", async () => {
