@@ -47,6 +47,10 @@ function makeEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEn
   };
 }
 
+function renderedRequestTitles(wrapper: ReturnType<typeof mount>) {
+  return wrapper.findAll(".permission-description").map((node) => node.text());
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
@@ -312,6 +316,65 @@ describe("PermissionCenter", () => {
     expect(wrapper.text()).toContain("Shared release note");
     expect(wrapper.text()).not.toContain("Shared release action");
     expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+  });
+
+  it("sorts filtered and searched pending requests by tool or scope", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Shared release shell",
+        toolId: "shell_exec"
+      }),
+      makeEntry({
+        id: "mem_1",
+        kind: "memory",
+        status: "pending",
+        title: "Shared release workspace memory",
+        scope: "workspace",
+        content: "Remember release preference"
+      }),
+      makeEntry({
+        id: "mem_2",
+        kind: "memory",
+        status: "pending",
+        title: "Shared release user memory",
+        scope: "user",
+        content: "Remember release tone"
+      }),
+      makeEntry({
+        id: "mem_3",
+        kind: "memory",
+        status: "pending",
+        title: "Unmatched memory",
+        scope: "project",
+        content: "No matching term"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.get('[data-test="permission-search-input"]').setValue("shared");
+    await wrapper.get('[data-test="permission-filter-memory"]').trigger("click");
+
+    expect(renderedRequestTitles(wrapper)).toEqual([
+      "Shared release workspace memory",
+      "Shared release user memory"
+    ]);
+
+    const sortSelect = wrapper.get('[data-test="permission-sort-select"]');
+    expect(sortSelect.classes()).toContain("kx-select");
+    expect(sortSelect.attributes("aria-label")).toBe("Pending request sort");
+
+    await sortSelect.setValue("toolOrScope");
+
+    expect(renderedRequestTitles(wrapper)).toEqual([
+      "Shared release user memory",
+      "Shared release workspace memory"
+    ]);
+    expect(wrapper.text()).not.toContain("Shared release shell");
+    expect(wrapper.text()).not.toContain("Unmatched memory");
   });
 
   it("shows a filter-specific empty state when no pending requests match", async () => {
