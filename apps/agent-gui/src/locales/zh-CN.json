@@ -670,6 +670,10 @@
     "modeLabel": "模式"
   },
   "chatStream": {
+    "permission": {
+      "jumpCta": "跳转到待授权",
+      "jumpCtaCount": "{count} 个待授权"
+    },
     "toolCall": {
       "expand": "展开",
       "collapse": "收起",

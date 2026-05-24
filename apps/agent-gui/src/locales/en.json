@@ -670,6 +670,10 @@
     "modeLabel": "Mode"
   },
   "chatStream": {
+    "permission": {
+      "jumpCta": "Jump to pending permission",
+      "jumpCtaCount": "{count} pending"
+    },
     "toolCall": {
       "expand": "Expand",
       "collapse": "Collapse",
