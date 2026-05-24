@@ -18,8 +18,12 @@ const activeSubTab = ref<"installed" | "discover">("installed");
 const githubSource = ref("");
 const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
+const installedSearchQuery = ref("");
 const skillCatalogInstallTarget = computed<SkillInstallTarget>(
   () => installTarget.value.toLowerCase() as SkillInstallTarget
+);
+const normalizedInstalledSearchQuery = computed(() =>
+  installedSearchQuery.value.trim().toLowerCase()
 );
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
@@ -70,6 +74,42 @@ function sourceTone(source: string): SourceTone {
       return "source-user";
   }
 }
+
+function searchableSkillText(skill: EffectiveSkillView): string {
+  const value = skill.value;
+  return [
+    value.settings_id,
+    value.id,
+    value.name,
+    value.description,
+    value.version,
+    value.scope,
+    value.path,
+    value.activation_mode,
+    value.install_source,
+    value.update_state,
+    formatUpdateState(value.update_state),
+    value.effective ? t("skills.effective") : t("skills.shadowedBy", { name: value.shadowed_by }),
+    value.shadowed_by,
+    value.valid ? t("skills.valid") : t("skills.invalid"),
+    value.validation_error,
+    skill.source,
+    skill.overrides,
+    skill.disabledBy,
+    skill.enabled ? t("skills.enabled") : t("skills.disabled"),
+    skill.writable ? "writable" : "read only",
+    skill.deletable ? "deletable" : "protected"
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const filteredInstalledSkills = computed(() => {
+  const query = normalizedInstalledSearchQuery.value;
+  if (!query) return skillsStore.effectiveSkills;
+  return skillsStore.effectiveSkills.filter((skill) => searchableSkillText(skill).includes(query));
+});
 
 watch(
   [() => configSource?.value, () => configProjectId?.value],
@@ -172,133 +212,159 @@ async function installFromGithub(): Promise<void> {
           {{ t("skills.noSkills") }}
         </SettingsState>
 
-        <SettingsCardList
-          v-else
-          :aria-label="t('skills.tabInstalled')"
-          data-test="skill-installed-list"
-          dense
-        >
-          <SettingsCardItem
-            v-for="skill in skillsStore.effectiveSkills"
-            :key="skill.value.settings_id"
-            layout="stack"
-            density="compact"
-            :data-test="`skill-row-${skillSettingsTestId(skill)}`"
+        <template v-else>
+          <SettingsFilterBar
+            aria-label="Search installed skills"
+            data-test="skill-installed-filters"
           >
-            <SettingsItemSummary
-              :title="skill.value.name"
-              :description="skill.value.description"
-              :description-lines="2"
-              :heading-level="4"
-              :tags-label="t('skills.tabInstalled')"
-            >
-              <template #tags>
-                <SettingsStatusTag :tone="sourceTone(skill.source)">
-                  {{ skill.source }}
-                </SettingsStatusTag>
-                <SettingsStatusTag v-if="skill.overrides" tone="override">
-                  {{ t("skills.overrides", { source: skill.overrides }) }}
-                </SettingsStatusTag>
-                <SettingsStatusTag v-if="skill.disabledBy" tone="disabled-by">
-                  {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
-                </SettingsStatusTag>
-                <SettingsStatusTag>{{ skill.value.scope }}</SettingsStatusTag>
-                <SettingsStatusTag :tone="skill.enabled ? 'success' : 'warning'">
-                  {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
-                </SettingsStatusTag>
-                <SettingsStatusTag :tone="skill.value.effective ? 'success' : 'warning'">
-                  {{
-                    skill.value.effective
-                      ? t("skills.effective")
-                      : t("skills.shadowedBy", { name: skill.value.shadowed_by })
-                  }}
-                </SettingsStatusTag>
-                <SettingsStatusTag :tone="skill.value.valid ? 'success' : 'error'">
-                  {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
-                </SettingsStatusTag>
-              </template>
-
-              <SettingsEffectiveAudit
-                :source="skill.source"
-                :source-tone="sourceTone(skill.source)"
-                :enabled="skill.enabled"
-                :effective="skill.value.effective"
-                :shadowed-by="skill.value.shadowed_by"
-                :overrides="skill.overrides"
-                :disabled-by="skill.disabledBy"
-                :valid="skill.value.valid"
-                :data-test="`skill-audit-${skillSettingsTestId(skill)}`"
+            <div class="settings-filter-bar__row">
+              <KxInput
+                v-model="installedSearchQuery"
+                type="search"
+                size="compact"
+                aria-label="Search installed skills"
+                placeholder="Search installed skills"
+                data-test="skill-installed-search-input"
               />
+            </div>
+          </SettingsFilterBar>
 
-              <SettingsItemMeta columns="four">
-                <div>
-                  <dt>{{ t("skills.activation") }}</dt>
-                  <dd>{{ skill.value.activation_mode }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t("skills.source") }}</dt>
-                  <dd>{{ skill.value.install_source }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t("skills.update") }}</dt>
-                  <dd>{{ formatUpdateState(skill.value.update_state) }}</dd>
-                </div>
-                <div>
-                  <dt>{{ t("skills.path") }}</dt>
-                  <dd>{{ skill.value.path }}</dd>
-                </div>
-              </SettingsItemMeta>
-              <KxInlineAlert
-                v-if="skill.value.validation_error"
-                tone="error"
-                compact
-                :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
-              >
-                {{ skill.value.validation_error }}
-              </KxInlineAlert>
-            </SettingsItemSummary>
+          <SettingsState
+            v-if="filteredInstalledSkills.length === 0"
+            tone="empty"
+            data-test="skill-installed-filter-empty"
+          >
+            No installed skills match your search.
+          </SettingsState>
 
-            <template #actions>
-              <KxInlineAction
-                type="button"
-                :disabled="!skill.writable || busySkillId === skill.value.settings_id"
-                :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
-                @click="
-                  runSkillAction(skill.value.settings_id, () =>
-                    skillsStore.setSkillEnabled(skill.value.settings_id, !skill.enabled)
-                  )
-                "
+          <SettingsCardList
+            v-else
+            :aria-label="t('skills.tabInstalled')"
+            data-test="skill-installed-list"
+            dense
+          >
+            <SettingsCardItem
+              v-for="skill in filteredInstalledSkills"
+              :key="skill.value.settings_id"
+              layout="stack"
+              density="compact"
+              :data-test="`skill-row-${skillSettingsTestId(skill)}`"
+            >
+              <SettingsItemSummary
+                :title="skill.value.name"
+                :description="skill.value.description"
+                :description-lines="2"
+                :heading-level="4"
+                :tags-label="t('skills.tabInstalled')"
               >
-                {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
-              </KxInlineAction>
-              <KxInlineAction
-                type="button"
-                :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
-                :data-test="`skill-update-${skillSettingsTestId(skill)}`"
-                @click="
-                  runSkillAction(skill.value.settings_id, () =>
-                    skillsStore.updateSkill(skill.value.settings_id)
-                  )
-                "
-              >
-                {{ t("skills.updateSkill") }}
-              </KxInlineAction>
-              <KxInlineAction
-                variant="danger"
-                type="button"
-                :disabled="!skill.writable || busySkillId === skill.value.settings_id"
-                :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
-                @click="
-                  runSkillAction(skill.value.settings_id, () =>
-                    skillsStore.deleteSkill(skill.value.settings_id)
-                  )
-                "
-              >
-                {{ t("skills.delete") }}
-              </KxInlineAction>
-            </template>
-          </SettingsCardItem>
-        </SettingsCardList>
+                <template #tags>
+                  <SettingsStatusTag :tone="sourceTone(skill.source)">
+                    {{ skill.source }}
+                  </SettingsStatusTag>
+                  <SettingsStatusTag v-if="skill.overrides" tone="override">
+                    {{ t("skills.overrides", { source: skill.overrides }) }}
+                  </SettingsStatusTag>
+                  <SettingsStatusTag v-if="skill.disabledBy" tone="disabled-by">
+                    {{ t("skills.disabledBy", { source: skill.disabledBy }) }}
+                  </SettingsStatusTag>
+                  <SettingsStatusTag>{{ skill.value.scope }}</SettingsStatusTag>
+                  <SettingsStatusTag :tone="skill.enabled ? 'success' : 'warning'">
+                    {{ skill.enabled ? t("skills.enabled") : t("skills.disabled") }}
+                  </SettingsStatusTag>
+                  <SettingsStatusTag :tone="skill.value.effective ? 'success' : 'warning'">
+                    {{
+                      skill.value.effective
+                        ? t("skills.effective")
+                        : t("skills.shadowedBy", { name: skill.value.shadowed_by })
+                    }}
+                  </SettingsStatusTag>
+                  <SettingsStatusTag :tone="skill.value.valid ? 'success' : 'error'">
+                    {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
+                  </SettingsStatusTag>
+                </template>
+
+                <SettingsEffectiveAudit
+                  :source="skill.source"
+                  :source-tone="sourceTone(skill.source)"
+                  :enabled="skill.enabled"
+                  :effective="skill.value.effective"
+                  :shadowed-by="skill.value.shadowed_by"
+                  :overrides="skill.overrides"
+                  :disabled-by="skill.disabledBy"
+                  :valid="skill.value.valid"
+                  :data-test="`skill-audit-${skillSettingsTestId(skill)}`"
+                />
+
+                <SettingsItemMeta columns="four">
+                  <div>
+                    <dt>{{ t("skills.activation") }}</dt>
+                    <dd>{{ skill.value.activation_mode }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t("skills.source") }}</dt>
+                    <dd>{{ skill.value.install_source }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t("skills.update") }}</dt>
+                    <dd>{{ formatUpdateState(skill.value.update_state) }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t("skills.path") }}</dt>
+                    <dd>{{ skill.value.path }}</dd>
+                  </div>
+                </SettingsItemMeta>
+                <KxInlineAlert
+                  v-if="skill.value.validation_error"
+                  tone="error"
+                  compact
+                  :data-test="`skill-invalid-${skillSettingsTestId(skill)}`"
+                >
+                  {{ skill.value.validation_error }}
+                </KxInlineAlert>
+              </SettingsItemSummary>
+
+              <template #actions>
+                <KxInlineAction
+                  type="button"
+                  :disabled="!skill.writable || busySkillId === skill.value.settings_id"
+                  :data-test="`skill-enabled-${skillSettingsTestId(skill)}`"
+                  @click="
+                    runSkillAction(skill.value.settings_id, () =>
+                      skillsStore.setSkillEnabled(skill.value.settings_id, !skill.enabled)
+                    )
+                  "
+                >
+                  {{ skill.enabled ? t("skills.disable") : t("skills.enable") }}
+                </KxInlineAction>
+                <KxInlineAction
+                  type="button"
+                  :disabled="!canUpdateSkill(skill) || busySkillId === skill.value.settings_id"
+                  :data-test="`skill-update-${skillSettingsTestId(skill)}`"
+                  @click="
+                    runSkillAction(skill.value.settings_id, () =>
+                      skillsStore.updateSkill(skill.value.settings_id)
+                    )
+                  "
+                >
+                  {{ t("skills.updateSkill") }}
+                </KxInlineAction>
+                <KxInlineAction
+                  variant="danger"
+                  type="button"
+                  :disabled="!skill.writable || busySkillId === skill.value.settings_id"
+                  :data-test="`skill-delete-${skillSettingsTestId(skill)}`"
+                  @click="
+                    runSkillAction(skill.value.settings_id, () =>
+                      skillsStore.deleteSkill(skill.value.settings_id)
+                    )
+                  "
+                >
+                  {{ t("skills.delete") }}
+                </KxInlineAction>
+              </template>
+            </SettingsCardItem>
+          </SettingsCardList>
+        </template>
       </div>
     </div>
 

@@ -188,6 +188,7 @@ describe("SkillSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.listSkillSettings).toHaveBeenCalledTimes(1);
+    expect(wrapper.find('[data-test="skill-installed-search-input"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="skill-installed-list"]').classes()).toContain(
       "settings-card-list"
     );
@@ -254,6 +255,41 @@ describe("SkillSettingsPane", () => {
     await flushPromises();
 
     expect(mockedCommands.setSkillEnabled).toHaveBeenCalledWith("user:code-review", false);
+  });
+
+  it("filters installed skills by search text", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-installed-search-input"]').setValue("review");
+
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="skill-row-user-test-driven-development"]').exists()).toBe(
+      false
+    );
+    expect(wrapper.find('[data-test="skill-row-builtin-builtin-planning"]').exists()).toBe(false);
+  });
+
+  it("matches installed skill search against metadata", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-installed-search-input"]').setValue("check failed");
+
+    expect(wrapper.find('[data-test="skill-row-project-broken-skill"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="skill-row-project-code-review"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no installed skills match search", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-installed-search-input"]').setValue("does-not-exist");
+
+    expect(wrapper.find('[data-test="skill-installed-list"]').exists()).toBe(false);
+    const empty = wrapper.find('[data-test="skill-installed-filter-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No installed skills match your search.");
   });
 
   it("discovers remote skills and installs a selected result", async () => {
@@ -380,7 +416,7 @@ describe("SkillSettingsPane", () => {
 
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
     expectSourceMigration(skillSettingsPaneSource, {
-      required: ["SettingsSubtabs", "SettingsToolbar"],
+      required: ["SettingsSubtabs", "SettingsToolbar", "SettingsFilterBar"],
       forbidden: [
         'class="skill-sub-tabs"',
         'class="skill-toolbar"',
