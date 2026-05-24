@@ -15,6 +15,12 @@ use crate::components::QueuedMessage;
 /// - If the session was cancelled, a yellow `[cancelled]` line is shown.
 /// - If `token_stream` is non-empty, the streaming text is shown with a `▌`
 ///   block cursor appended.
+///
+/// As of v0.30.0 the binary path uses [`render_chat_stream`](super::render_chat_stream)
+/// instead; this messages-only helper is retained for snapshot tests under
+/// `crates/agent-tui/tests/` that pin pre-stream rendering behaviour. New
+/// rendering wiring should target `render_chat_stream`.
+#[allow(dead_code)]
 pub fn render_messages(
     area: Rect,
     frame: &mut Frame,
