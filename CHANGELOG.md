@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] - 2026-05-24
+
+### 🚀 Features
+
+- **gui**: search task graph (#445)
+- **gui**: filter trace timeline by type (#446)
+- **gui**: sort memory browser (#447)
+- **gui**: clear queued messages (#448)
+- **gui**: clear sidebar search (#451)
+- **gui**: sort marketplace catalog (#449)
+- **gui**: sort skill catalog (#456)
+- **gui**: sort catalog sources (#459)
+- **gui**: sort skill sources (#458)
+- **gui**: sort installed skills (#461)
+- **gui**: sort installed plugins (#455)
+- **gui**: filter MCP servers by status (#457)
+- **gui**: sort archived sessions (#460)
+- **gui**: sort hook settings (#454)
+- **gui**: sort agent settings (#452)
+- **gui**: sort pending requests (#450)
+- **gui**: sort model profiles (#453)
+
+### 🧪 Testing
+
+- **gui**: cover file mention keyboard selection (#467)
+- **gui**: cover scope selector options (#466)
+- **gui**: cover config source project warnings (#465)
+- **gui**: cover model profile form state (#462)
+- **gui**: cover chat model reasoning selector (#469)
+- **gui**: cover context meter compaction (#464)
+- **gui**: cover MCP server form save (#468)
+- **gui**: cover command palette dynamic selection (#463)
+
 ## [0.28.0] - 2026-05-24
 
 ### 🚀 Features
