@@ -8,10 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 test.describe("Agents Settings", () => {
   async function navigateToAgents(page: Page) {
-    await page.goto("/");
-    await page.waitForSelector('[data-test="nav-settings"]', { timeout: 10000 });
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-agents").click();
+    await page.goto("/#/settings/agents");
     await expect(page.getByTestId("agent-settings-pane")).toBeVisible();
   }
 
@@ -56,6 +53,34 @@ test.describe("Agents Settings", () => {
       "Lead with concrete findings.\nCall out missing tests."
     );
     await page.getByTestId("agent-cancel").click();
+  });
+
+  test("filters agents by search", async ({ page }) => {
+    await navigateToAgents(page);
+
+    await expect(agentRow(page, "worker", "Builtin")).toBeVisible();
+    await expect(agentRow(page, "code-reviewer", "User")).toBeVisible();
+
+    const search = page.getByTestId("agent-search-input");
+    await expect(search).toBeVisible();
+
+    await search.fill("kairox-dev-workflow");
+    await expect(agentRow(page, "code-reviewer", "User")).toBeVisible();
+    await expect(agentRow(page, "worker", "Builtin")).toHaveCount(0);
+
+    await search.fill("workspace_write");
+    await expect(agentRow(page, "worker", "Builtin")).toBeVisible();
+    await expect(agentRow(page, "code-reviewer", "User")).toHaveCount(0);
+
+    await search.fill("does-not-exist");
+    await expect(page.getByTestId("agent-filter-empty-state")).toContainText(
+      "No agents match your search."
+    );
+    await expect(page.getByTestId("agent-list")).toHaveCount(0);
+
+    await search.clear();
+    await expect(agentRow(page, "worker", "Builtin")).toBeVisible();
+    await expect(agentRow(page, "code-reviewer", "User")).toBeVisible();
   });
 
   test("copies a built-in agent into user scope", async ({ page }) => {
