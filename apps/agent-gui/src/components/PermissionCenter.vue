@@ -5,9 +5,11 @@ import PermissionPrompt from "./PermissionPrompt.vue";
 import type { TraceEntryData } from "../types/trace";
 
 type PendingRequestFilter = "all" | "tool" | "memory";
+type PendingRequestSort = "original" | "type" | "title" | "toolOrScope";
 
 const { t } = useI18n();
 const selectedFilter = ref<PendingRequestFilter>("all");
+const selectedSort = ref<PendingRequestSort>("original");
 const searchQuery = ref("");
 const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
 
@@ -44,6 +46,35 @@ function requestMatchesSearch(entry: TraceEntryData, query: string) {
   ].some((value) => value?.toLowerCase().includes(query));
 }
 
+function sortKeyForEntry(entry: TraceEntryData, sort: PendingRequestSort) {
+  switch (sort) {
+    case "type":
+      return entry.kind;
+    case "title":
+      return entry.title ?? "";
+    case "toolOrScope":
+      return entry.kind === "memory" ? (entry.scope ?? "") : (entry.toolId ?? "");
+    default:
+      return "";
+  }
+}
+
+function compareEntries(
+  a: TraceEntryData,
+  b: TraceEntryData,
+  sort: PendingRequestSort,
+  originalIndexById: Map<string, number>
+) {
+  if (sort !== "original") {
+    const aKey = sortKeyForEntry(a, sort).toLowerCase();
+    const bKey = sortKeyForEntry(b, sort).toLowerCase();
+    const keyCompare = aKey.localeCompare(bKey);
+    if (keyCompare !== 0) return keyCompare;
+  }
+
+  return (originalIndexById.get(a.id) ?? 0) - (originalIndexById.get(b.id) ?? 0);
+}
+
 const filterOptions = computed<{ id: PendingRequestFilter; label: string; count: number }[]>(() => [
   { id: "all", label: t("permission.filterAll"), count: pendingEntries.value.length },
   {
@@ -58,13 +89,25 @@ const filterOptions = computed<{ id: PendingRequestFilter; label: string; count:
   }
 ]);
 
-const visibleEntries = computed(() =>
-  pendingEntries.value.filter(
+const sortOptions: { id: PendingRequestSort; label: string }[] = [
+  { id: "original", label: "Original order" },
+  { id: "type", label: "Type" },
+  { id: "title", label: "Title" },
+  { id: "toolOrScope", label: "Tool or scope" }
+];
+
+const visibleEntries = computed(() => {
+  const originalIndexById = new Map(pendingEntries.value.map((entry, index) => [entry.id, index]));
+  const filteredEntries = pendingEntries.value.filter(
     (entry) =>
       requestMatchesFilter(entry, selectedFilter.value) &&
       requestMatchesSearch(entry, normalizedSearchQuery.value)
-  )
-);
+  );
+
+  return filteredEntries
+    .slice()
+    .sort((a, b) => compareEntries(a, b, selectedSort.value, originalIndexById));
+});
 </script>
 
 <template>
@@ -119,6 +162,17 @@ const visibleEntries = computed(() =>
               class="permission-search-input"
               size="compact"
             />
+            <KxSelect
+              v-model="selectedSort"
+              aria-label="Pending request sort"
+              data-test="permission-sort-select"
+              class="permission-sort-select"
+              size="compact"
+            >
+              <option v-for="option in sortOptions" :key="option.id" :value="option.id">
+                {{ option.label }}
+              </option>
+            </KxSelect>
           </div>
         </SettingsFilterBar>
         <KxEmptyState
@@ -175,6 +229,9 @@ const visibleEntries = computed(() =>
 }
 .permission-search-input {
   flex: 1 1 180px;
+}
+.permission-sort-select {
+  flex: 0 1 150px;
 }
 .permission-list {
   list-style: none;
