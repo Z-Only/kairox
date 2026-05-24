@@ -13,6 +13,7 @@ const projectStore = useProjectStore();
 const loading = ref(false);
 const error = ref<string | null>(null);
 const busySessionId = ref<string | null>(null);
+const archiveSearchQuery = ref("");
 
 const projectMap = computed(() => {
   const map = new Map<string, string>();
@@ -38,6 +39,8 @@ const stats = computed(() => {
   };
 });
 
+const normalizedArchiveSearchQuery = computed(() => archiveSearchQuery.value.trim().toLowerCase());
+
 function formatError(caughtError: unknown): string {
   return caughtError instanceof Error ? caughtError.message : String(caughtError);
 }
@@ -52,6 +55,32 @@ function formatArchivedAt(value: string): string {
     timeStyle: "short"
   }).format(new Date(value));
 }
+
+function searchableArchiveText(session: ProjectSessionInfo): string {
+  return [
+    session.sessionId,
+    session.title,
+    session.profile,
+    getProjectDisplayName(session),
+    session.projectId,
+    session.worktreePath,
+    session.branch,
+    session.visibility,
+    session.deletedAt,
+    session.deletedAt ? formatArchivedAt(session.deletedAt) : null
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const filteredArchivedSessions = computed(() => {
+  const query = normalizedArchiveSearchQuery.value;
+  if (!query) return projectStore.archivedSessions;
+  return projectStore.archivedSessions.filter((session) =>
+    searchableArchiveText(session).includes(query)
+  );
+});
 
 async function restoreSession(sessionId: string): Promise<void> {
   busySessionId.value = sessionId;
@@ -122,59 +151,82 @@ onMounted(() => {
       {{ t("settings.archiveEmpty") }}
     </SettingsState>
 
-    <SettingsCardList
-      v-else
-      :aria-label="t('settings.archiveSessions')"
-      data-test="archive-list"
-      :scroll="false"
-      columns="auto"
-      dense
-    >
-      <SettingsCardItem
-        v-for="session in projectStore.archivedSessions"
-        :key="session.sessionId"
-        class="archive-row"
-        :data-test="`archive-row-${session.sessionId}`"
-      >
-        <SettingsItemSummary :title="session.title" :heading-level="4">
-          <SettingsItemMeta as="div" compact wrap-values>
-            <span>{{ getProjectDisplayName(session) }}</span>
-            <span v-if="session.profile">{{ session.profile }}</span>
-            <span v-if="session.branch">{{ session.branch }}</span>
-            <time
-              v-if="session.deletedAt"
-              :datetime="session.deletedAt"
-              :data-test="`archive-time-${session.sessionId}`"
-            >
-              {{ t("settings.archiveArchivedAt", { time: formatArchivedAt(session.deletedAt) }) }}
-            </time>
-          </SettingsItemMeta>
-        </SettingsItemSummary>
+    <template v-else>
+      <SettingsFilterBar aria-label="Search archived sessions" data-test="archive-filters">
+        <div class="settings-filter-bar__row">
+          <KxInput
+            v-model="archiveSearchQuery"
+            type="search"
+            size="compact"
+            aria-label="Search archived sessions"
+            placeholder="Search archived sessions"
+            data-test="archive-search-input"
+          />
+        </div>
+      </SettingsFilterBar>
 
-        <template #actions>
-          <KxInlineAction
-            variant="primary"
-            :disabled="busySessionId === session.sessionId"
-            :data-test="`archive-restore-${session.sessionId}`"
-            @click="restoreSession(session.sessionId)"
-          >
-            {{
-              busySessionId === session.sessionId
-                ? t("common.loading")
-                : t("settings.archiveRestore")
-            }}
-          </KxInlineAction>
-          <KxInlineAction
-            variant="danger"
-            :disabled="busySessionId === session.sessionId"
-            :data-test="`archive-delete-${session.sessionId}`"
-            @click="permanentlyDelete(session.sessionId)"
-          >
-            {{ t("settings.archivePermanentDelete") }}
-          </KxInlineAction>
-        </template>
-      </SettingsCardItem>
-    </SettingsCardList>
+      <SettingsState
+        v-if="filteredArchivedSessions.length === 0"
+        tone="empty"
+        data-test="archive-filter-empty"
+      >
+        No archived sessions match your search.
+      </SettingsState>
+
+      <SettingsCardList
+        v-else
+        :aria-label="t('settings.archiveSessions')"
+        data-test="archive-list"
+        :scroll="false"
+        columns="auto"
+        dense
+      >
+        <SettingsCardItem
+          v-for="session in filteredArchivedSessions"
+          :key="session.sessionId"
+          class="archive-row"
+          :data-test="`archive-row-${session.sessionId}`"
+        >
+          <SettingsItemSummary :title="session.title" :heading-level="4">
+            <SettingsItemMeta as="div" compact wrap-values>
+              <span>{{ getProjectDisplayName(session) }}</span>
+              <span v-if="session.profile">{{ session.profile }}</span>
+              <span v-if="session.branch">{{ session.branch }}</span>
+              <time
+                v-if="session.deletedAt"
+                :datetime="session.deletedAt"
+                :data-test="`archive-time-${session.sessionId}`"
+              >
+                {{ t("settings.archiveArchivedAt", { time: formatArchivedAt(session.deletedAt) }) }}
+              </time>
+            </SettingsItemMeta>
+          </SettingsItemSummary>
+
+          <template #actions>
+            <KxInlineAction
+              variant="primary"
+              :disabled="busySessionId === session.sessionId"
+              :data-test="`archive-restore-${session.sessionId}`"
+              @click="restoreSession(session.sessionId)"
+            >
+              {{
+                busySessionId === session.sessionId
+                  ? t("common.loading")
+                  : t("settings.archiveRestore")
+              }}
+            </KxInlineAction>
+            <KxInlineAction
+              variant="danger"
+              :disabled="busySessionId === session.sessionId"
+              :data-test="`archive-delete-${session.sessionId}`"
+              @click="permanentlyDelete(session.sessionId)"
+            >
+              {{ t("settings.archivePermanentDelete") }}
+            </KxInlineAction>
+          </template>
+        </SettingsCardItem>
+      </SettingsCardList>
+    </template>
   </section>
 </template>
 
