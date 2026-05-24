@@ -7,6 +7,8 @@ import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
+type ArchiveSortMode = "original" | "recent" | "title" | "project" | "branch";
+
 const { t } = useI18n();
 const { confirm: confirmAction } = useConfirm();
 const projectStore = useProjectStore();
@@ -14,6 +16,14 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const busySessionId = ref<string | null>(null);
 const archiveSearchQuery = ref("");
+const archiveSortMode = ref<ArchiveSortMode>("original");
+const archiveSortOptions: { value: ArchiveSortMode; label: string }[] = [
+  { value: "original", label: "Original order" },
+  { value: "recent", label: "Recently archived" },
+  { value: "title", label: "Title" },
+  { value: "project", label: "Project" },
+  { value: "branch", label: "Branch" }
+];
 
 const projectMap = computed(() => {
   const map = new Map<string, string>();
@@ -81,6 +91,62 @@ const filteredArchivedSessions = computed(() => {
     searchableArchiveText(session).includes(query)
   );
 });
+
+function compareArchiveText(first: string | null | undefined, second: string | null | undefined) {
+  const firstValue = first?.trim() ?? "";
+  const secondValue = second?.trim() ?? "";
+  if (!firstValue && !secondValue) return 0;
+  if (!firstValue) return 1;
+  if (!secondValue) return -1;
+  return firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function archiveSortTimestamp(value: string | null): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+function compareArchivedSessions(
+  first: ProjectSessionInfo,
+  second: ProjectSessionInfo,
+  mode: ArchiveSortMode
+): number {
+  switch (mode) {
+    case "recent":
+      return archiveSortTimestamp(second.deletedAt) - archiveSortTimestamp(first.deletedAt);
+    case "title":
+      return compareArchiveText(first.title, second.title);
+    case "project":
+      return compareArchiveText(getProjectDisplayName(first), getProjectDisplayName(second));
+    case "branch":
+      return compareArchiveText(first.branch, second.branch);
+    case "original":
+      return 0;
+  }
+}
+
+const displayedArchivedSessions = computed(() => {
+  const sessions = filteredArchivedSessions.value;
+  if (archiveSortMode.value === "original") return sessions;
+  return sessions
+    .map((session, index) => ({ session, index }))
+    .sort((first, second) => {
+      const sortResult = compareArchivedSessions(
+        first.session,
+        second.session,
+        archiveSortMode.value
+      );
+      return sortResult || first.index - second.index;
+    })
+    .map(({ session }) => session);
+});
+
+function setArchiveSortMode(value: string): void {
+  if (archiveSortOptions.some((option) => option.value === value)) {
+    archiveSortMode.value = value as ArchiveSortMode;
+  }
+}
 
 async function restoreSession(sessionId: string): Promise<void> {
   busySessionId.value = sessionId;
@@ -162,11 +228,22 @@ onMounted(() => {
             placeholder="Search archived sessions"
             data-test="archive-search-input"
           />
+          <KxSelect
+            :model-value="archiveSortMode"
+            aria-label="Archived session sort"
+            data-test="archive-sort-select"
+            size="compact"
+            @update:model-value="setArchiveSortMode"
+          >
+            <option v-for="option in archiveSortOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </KxSelect>
         </div>
       </SettingsFilterBar>
 
       <SettingsState
-        v-if="filteredArchivedSessions.length === 0"
+        v-if="displayedArchivedSessions.length === 0"
         tone="empty"
         data-test="archive-filter-empty"
       >
@@ -182,7 +259,7 @@ onMounted(() => {
         dense
       >
         <SettingsCardItem
-          v-for="session in filteredArchivedSessions"
+          v-for="session in displayedArchivedSessions"
           :key="session.sessionId"
           class="archive-row"
           :data-test="`archive-row-${session.sessionId}`"

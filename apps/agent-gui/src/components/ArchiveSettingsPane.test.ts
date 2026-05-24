@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { flushPromises } from "@vue/test-utils";
+import { flushPromises, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import ArchiveSettingsPane from "./ArchiveSettingsPane.vue";
 import archiveSettingsPaneSource from "./ArchiveSettingsPane.vue?raw";
@@ -57,6 +57,13 @@ function mountArchive(confirmMock = vi.fn().mockResolvedValue(true)) {
       }
     }
   });
+}
+
+function archiveRowIds(wrapper: VueWrapper): string[] {
+  return wrapper
+    .findAll('[data-test^="archive-row-"]')
+    .map((row) => row.attributes("data-test")?.replace("archive-row-", ""))
+    .filter((sessionId): sessionId is string => Boolean(sessionId));
 }
 
 beforeEach(() => {
@@ -136,6 +143,77 @@ describe("ArchiveSettingsPane", () => {
     await wrapper.find('[data-test="archive-search-input"]').setValue("docs/readme");
     expect(wrapper.find('[data-test="archive-row-ses_docs"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="archive-row-ses_archived"]').exists()).toBe(false);
+  });
+
+  it("sorts archived sessions after search filtering without mutating store order", async () => {
+    const betaSession = {
+      ...archivedSession,
+      id: "ses_beta",
+      title: "Beta notes",
+      project_id: "project_sort",
+      branch: "feature/beta",
+      deleted_at: "2026-01-04T03:04:05Z"
+    };
+    const unrelatedSession = {
+      ...archivedSession,
+      id: "ses_unrelated",
+      title: "Unrelated task",
+      project_id: "project_other",
+      branch: "chore/other",
+      deleted_at: "2026-01-05T03:04:05Z"
+    };
+    const alphaSession = {
+      ...archivedSession,
+      id: "ses_alpha",
+      title: "Alpha notes",
+      project_id: "project_sort",
+      branch: "feature/alpha",
+      deleted_at: "2026-01-03T03:04:05Z"
+    };
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      ...projectStore.projects,
+      {
+        projectId: "project_sort",
+        displayName: "Sortable Project",
+        rootPath: "/tmp/kairox-sort-worktree",
+        removedAt: null,
+        sortOrder: 2,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "project_other",
+        displayName: "Other Project",
+        rootPath: "/tmp/kairox-other-worktree",
+        removedAt: null,
+        sortOrder: 3,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_archived_sessions") {
+        return Promise.resolve([betaSession, unrelatedSession, alphaSession]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    await wrapper.find('[data-test="archive-search-input"]').setValue("sortable project");
+    const sortSelect = wrapper.find('[data-test="archive-sort-select"]');
+    expect(sortSelect.exists()).toBe(true);
+
+    await sortSelect.setValue("title");
+
+    expect(archiveRowIds(wrapper)).toEqual(["ses_alpha", "ses_beta"]);
+    expect(projectStore.archivedSessions.map((session) => session.sessionId)).toEqual([
+      "ses_beta",
+      "ses_unrelated",
+      "ses_alpha"
+    ]);
   });
 
   it("shows the archived timestamp for each archived session", async () => {
