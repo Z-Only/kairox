@@ -672,7 +672,12 @@
   "chatStream": {
     "permission": {
       "jumpCta": "Jump to pending permission",
-      "jumpCtaCount": "{count} pending"
+      "jumpCtaCount": "{count} pending",
+      "shortcut": {
+        "allow": "Allow (Y)",
+        "deny": "Deny (N)",
+        "denyOnce": "Deny once (D)"
+      }
     },
     "toolCall": {
       "expand": "Expand",
