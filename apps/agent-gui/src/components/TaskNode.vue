@@ -55,6 +55,17 @@ const badgeColor = computed(() => {
   return roleColor[props.node.task.role] || "#666";
 });
 
+const dependencyLabel = computed(() => {
+  const count = props.node.task.dependencies.length;
+  if (count === 0) return "";
+  return `${count} ${count === 1 ? "dep" : "deps"}`;
+});
+
+const dependencyTitle = computed(() => {
+  if (props.node.task.dependencies.length === 0) return "";
+  return `Depends on ${props.node.task.dependencies.join(", ")}`;
+});
+
 function retryLabel(): string {
   if (props.node.task.retry_count === 0) return "";
   return `↻${props.node.task.retry_count}/${props.node.task.max_retries}`;
@@ -119,6 +130,15 @@ function handleToggle() {
         <span class="task-title">{{ node.task.title }}</span>
         <KxBadge v-if="retryLabel()" class="task-retry" tone="warning">
           {{ retryLabel() }}
+        </KxBadge>
+        <KxBadge
+          v-if="dependencyLabel"
+          class="task-dependencies"
+          tone="info"
+          :title="dependencyTitle"
+          data-test="task-dependencies"
+        >
+          {{ dependencyLabel }}
         </KxBadge>
         <span v-if="hasChildren && !isExpanded" class="task-summary">
           {{ childSummary() }}
@@ -241,6 +261,10 @@ function handleToggle() {
   font-weight: 500;
 }
 .task-retry {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.task-dependencies {
   font-size: 10px;
   flex-shrink: 0;
 }
