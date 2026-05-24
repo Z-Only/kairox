@@ -10,9 +10,18 @@ interface TrustOption {
   value: string | null;
 }
 
+type CatalogSort = "name" | "trust" | "source";
+
+const TRUST_ORDER: Record<string, number> = {
+  unverified: 0,
+  community: 1,
+  verified: 2
+};
+
 const { t } = useI18n();
 const catalog = useCatalogStore();
 const selected = ref<ServerEntryResponse | null>(null);
+const catalogSort = ref<CatalogSort>("name");
 const searchInput = computed({
   get: () => catalog.filters.keyword,
   set: (value: string) => {
@@ -25,6 +34,24 @@ const trustOptions = computed<TrustOption[]>(() => [
   { label: t("marketplace.trustVerified"), value: "verified" },
   { label: t("marketplace.trustCommunity"), value: "community" }
 ]);
+
+const sortedVisibleEntries = computed(() => {
+  const byName = (a: ServerEntryResponse, b: ServerEntryResponse) =>
+    a.display_name.localeCompare(b.display_name);
+  return [...catalog.visibleEntries].sort((a, b) => {
+    if (catalogSort.value === "trust") {
+      const trustDelta = (TRUST_ORDER[b.trust] ?? 0) - (TRUST_ORDER[a.trust] ?? 0);
+      if (trustDelta !== 0) return trustDelta;
+      return byName(a, b);
+    }
+    if (catalogSort.value === "source") {
+      const sourceDelta = a.source.localeCompare(b.source);
+      if (sourceDelta !== 0) return sourceDelta;
+      return byName(a, b);
+    }
+    return byName(a, b);
+  });
+});
 
 async function handleRefresh() {
   catalog.filters.keyword = searchInput.value;
@@ -68,6 +95,17 @@ onMounted(async () => {
             {{ opt.label }}
           </option>
         </KxSelect>
+        <KxSelect
+          v-model="catalogSort"
+          data-test="catalog-sort"
+          aria-label="Catalog sort"
+          class="filter-sort"
+          size="compact"
+        >
+          <option value="name">Name</option>
+          <option value="trust">Trust</option>
+          <option value="source">Source</option>
+        </KxSelect>
         <KxToolbarAction data-test="catalog-refresh" @click="handleRefresh">
           {{ t("common.refresh") }}
         </KxToolbarAction>
@@ -90,7 +128,7 @@ onMounted(async () => {
     <div v-else class="scrollable-area">
       <div class="grid">
         <CatalogCard
-          v-for="entry in catalog.visibleEntries"
+          v-for="entry in sortedVisibleEntries"
           :key="entry.id"
           :entry="entry"
           @click="selected = entry"
@@ -118,6 +156,10 @@ onMounted(async () => {
 
 .filter-trust {
   width: 180px;
+}
+
+.filter-sort {
+  width: 120px;
 }
 
 .grid {
