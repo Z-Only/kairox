@@ -10,6 +10,8 @@ import SkillCatalogDetail from "./SkillCatalogDetail.vue";
 import SkillSourcesSettings from "./SkillSourcesSettings.vue";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
 
+type CatalogSort = "relevance" | "name" | "downloads" | "stars" | "security" | "rating";
+
 const { t } = useI18n();
 const store = useSkillsStore();
 const props = defineProps<{ installTarget: SkillInstallTarget }>();
@@ -20,6 +22,7 @@ const installSuccessMessage = ref<string | null>(null);
 const selectedEntry = ref<SkillCatalogEntry | null>(null);
 const searchKeyword = ref("");
 const selectedSourceId = ref<string | null>(null);
+const catalogSort = ref<CatalogSort>("relevance");
 const sourceSettingsOpen = ref(false);
 
 const sourceFilters = computed(() => [
@@ -33,6 +36,51 @@ const sourceFilters = computed(() => [
 const selectedSourceIds = computed<string[] | null>(() =>
   selectedSourceId.value ? [selectedSourceId.value] : null
 );
+
+const catalogSortOptions = computed<{ value: CatalogSort; label: string }[]>(() => [
+  { value: "relevance", label: "Relevance" },
+  { value: "name", label: t("skills.name") },
+  { value: "downloads", label: t("skills.downloads") },
+  { value: "stars", label: t("skills.stars") },
+  { value: "security", label: t("skills.security") },
+  { value: "rating", label: t("skills.rating") }
+]);
+
+const sortedCatalogEntries = computed<SkillCatalogEntry[]>(() => {
+  if (catalogSort.value === "relevance") return store.catalogEntries;
+  return store.catalogEntries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => compareCatalogEntries(a.entry, b.entry, catalogSort.value) || a.index - b.index)
+    .map(({ entry }) => entry);
+});
+
+function compareCatalogEntries(
+  a: SkillCatalogEntry,
+  b: SkillCatalogEntry,
+  sort: CatalogSort
+): number {
+  switch (sort) {
+    case "name":
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    case "downloads":
+      return compareNumberDesc(a.install_count, b.install_count);
+    case "stars":
+      return compareNumberDesc(a.github_stars, b.github_stars);
+    case "security":
+      return compareNumberDesc(a.security_score, b.security_score);
+    case "rating":
+      return compareNumberDesc(a.rating, b.rating);
+    case "relevance":
+      return 0;
+  }
+}
+
+function compareNumberDesc(a: number | null | undefined, b: number | null | undefined): number {
+  const left = a ?? Number.NEGATIVE_INFINITY;
+  const right = b ?? Number.NEGATIVE_INFINITY;
+  if (left === right) return 0;
+  return right - left;
+}
 
 function buildCatalogQuery(): SkillCatalogQuery {
   return {
@@ -118,6 +166,17 @@ async function selectSource(sourceId: string | null): Promise<void> {
           data-test="skill-catalog-search"
           size="compact"
         />
+        <KxSelect
+          v-model="catalogSort"
+          aria-label="Skill catalog sort"
+          data-test="skill-catalog-sort-select"
+          class="catalog-sort-select"
+          size="compact"
+        >
+          <option v-for="option in catalogSortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </KxSelect>
         <KxToolbarAction
           variant="primary"
           data-test="skill-catalog-search-btn"
@@ -172,7 +231,7 @@ async function selectSource(sourceId: string | null): Promise<void> {
     </SettingsState>
     <div v-else class="grid">
       <SkillDiscoverCard
-        v-for="entry in store.catalogEntries"
+        v-for="entry in sortedCatalogEntries"
         :key="entry.catalog_id"
         :entry="entry"
         :installing="installingId === entry.package"
@@ -212,5 +271,9 @@ async function selectSource(sourceId: string | null): Promise<void> {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+}
+
+.catalog-sort-select {
+  flex: 0 0 150px;
 }
 </style>
