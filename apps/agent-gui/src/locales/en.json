@@ -536,7 +536,12 @@
     "tabTrace": "Trace",
     "tabTasks": "Tasks",
     "tabMemory": "Memory",
-    "emptyTrace": "No trace events yet"
+    "emptyTrace": "No trace events yet",
+    "emptyFilteredTrace": "No matching trace events",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterFailed": "Failed",
+    "filterDone": "Done"
   },
   "permission": {
     "allow": "Allow",

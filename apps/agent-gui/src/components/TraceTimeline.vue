@@ -4,9 +4,52 @@ import TraceEntry from "./TraceEntry.vue";
 import TaskSteps from "./TaskSteps.vue";
 import MemoryBrowser from "./MemoryBrowser.vue";
 import { traceState } from "../composables/useTraceStore";
+import type { TraceEntryData } from "../types/trace";
+
+type TraceStatusFilter = "all" | "active" | "failed" | "done";
 
 const { t } = useI18n();
 const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
+const selectedTraceFilter = ref<TraceStatusFilter>("all");
+const activeTraceStatuses = new Set(["pending", "running"]);
+
+function traceMatchesFilter(entry: TraceEntryData, filter: TraceStatusFilter) {
+  switch (filter) {
+    case "active":
+      return activeTraceStatuses.has(entry.status);
+    case "failed":
+      return entry.status === "failed";
+    case "done":
+      return entry.status === "completed";
+    default:
+      return true;
+  }
+}
+
+const traceFilterOptions = computed<{ id: TraceStatusFilter; label: string; count: number }[]>(
+  () => [
+    { id: "all", label: t("trace.filterAll"), count: traceState.entries.length },
+    {
+      id: "active",
+      label: t("trace.filterActive"),
+      count: traceState.entries.filter((entry) => traceMatchesFilter(entry, "active")).length
+    },
+    {
+      id: "failed",
+      label: t("trace.filterFailed"),
+      count: traceState.entries.filter((entry) => traceMatchesFilter(entry, "failed")).length
+    },
+    {
+      id: "done",
+      label: t("trace.filterDone"),
+      count: traceState.entries.filter((entry) => traceMatchesFilter(entry, "done")).length
+    }
+  ]
+);
+
+const visibleTraceEntries = computed(() =>
+  traceState.entries.filter((entry) => traceMatchesFilter(entry, selectedTraceFilter.value))
+);
 </script>
 
 <template>
@@ -50,6 +93,23 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
       </div>
     </header>
     <div v-if="rightPanelTab === 'trace'" class="trace-entries" :style="{ overflowY: 'auto' }">
+      <KxChipGroup
+        v-if="traceState.entries.length > 0"
+        class="trace-status-filters"
+        aria-label="Trace status filters"
+        data-test="trace-status-filters"
+      >
+        <KxChipButton
+          v-for="option in traceFilterOptions"
+          :key="option.id"
+          size="compact"
+          :selected="selectedTraceFilter === option.id"
+          :data-test="`trace-filter-${option.id}`"
+          @click="selectedTraceFilter = option.id"
+        >
+          {{ option.label }} {{ option.count }}
+        </KxChipButton>
+      </KxChipGroup>
       <div class="density-toolbar">
         <span class="density-label">Detail:</span>
         <KxButton
@@ -68,13 +128,16 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
         </KxButton>
       </div>
       <TraceEntry
-        v-for="entry in traceState.entries"
+        v-for="entry in visibleTraceEntries"
         :key="entry.id"
         :entry="entry"
         :density="traceState.density"
       />
       <KxEmptyState v-if="traceState.entries.length === 0" class="trace-empty" compact>
         {{ t("trace.emptyTrace") }}
+      </KxEmptyState>
+      <KxEmptyState v-else-if="visibleTraceEntries.length === 0" class="trace-empty" compact>
+        {{ t("trace.emptyFilteredTrace") }}
       </KxEmptyState>
     </div>
     <TaskSteps v-if="rightPanelTab === 'tasks'" />
@@ -109,6 +172,11 @@ const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
   max-width: 100%;
   min-height: 0;
   overflow-x: hidden;
+}
+.trace-status-filters {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-card-color);
 }
 .density-toolbar {
   display: flex;
