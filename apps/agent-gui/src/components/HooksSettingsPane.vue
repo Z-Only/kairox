@@ -11,6 +11,8 @@ import { useProjectStore } from "@/stores/project";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
+type HookSortKey = "original" | "event" | "id" | "status" | "timeout";
+
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -22,6 +24,7 @@ const saving = ref(false);
 const errorMsg = ref("");
 const formOpen = ref(false);
 const searchQuery = ref("");
+const hookSort = ref<HookSortKey>("original");
 
 const form = ref({
   id: "",
@@ -41,6 +44,17 @@ const events = [
   "PostToolUse",
   "Stop"
 ];
+const hookSortOptions: Array<{ value: HookSortKey; label: string }> = [
+  { value: "original", label: "Original order" },
+  { value: "event", label: "Event" },
+  { value: "id", label: "ID" },
+  { value: "status", label: "Status" },
+  { value: "timeout", label: "Timeout" }
+];
+const hookSortCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base"
+});
 
 const scope = computed<ConfigScope>(() => (configSource?.value === "project" ? "Project" : "User"));
 const scopeLabel = computed(() =>
@@ -85,6 +99,35 @@ const filteredHooks = computed(() => {
   const query = normalizedSearchQuery.value;
   if (!query) return currentHooks.value;
   return currentHooks.value.filter((hook) => searchableHookText(hook).includes(query));
+});
+
+function compareHooks(
+  left: HookSettingsView,
+  right: HookSettingsView,
+  sortKey: HookSortKey
+): number {
+  if (sortKey === "timeout") {
+    const leftTimeout = left.timeoutSecs ?? Number.POSITIVE_INFINITY;
+    const rightTimeout = right.timeoutSecs ?? Number.POSITIVE_INFINITY;
+    return leftTimeout - rightTimeout;
+  }
+
+  const leftValue =
+    sortKey === "event" ? left.event : sortKey === "id" ? left.id : (left.statusMessage ?? "");
+  const rightValue =
+    sortKey === "event" ? right.event : sortKey === "id" ? right.id : (right.statusMessage ?? "");
+  return hookSortCollator.compare(leftValue, rightValue);
+}
+
+const visibleHooks = computed(() => {
+  if (hookSort.value === "original") return filteredHooks.value;
+  return filteredHooks.value
+    .map((hook, index) => ({ hook, index }))
+    .sort((left, right) => {
+      const sortResult = compareHooks(left.hook, right.hook, hookSort.value);
+      return sortResult === 0 ? left.index - right.index : sortResult;
+    })
+    .map(({ hook }) => hook);
 });
 
 function unwrapCommand<T>(result: T | { status: string; data?: T; error?: unknown }): T {
@@ -291,12 +334,28 @@ watch(
                   aria-label="Search hooks"
                   placeholder="Search hooks"
                   data-test="hook-search-input"
+                  class="hooks-pane__search-input"
                 />
+                <KxSelect
+                  v-model="hookSort"
+                  size="compact"
+                  aria-label="Hook sort"
+                  data-test="hook-sort-select"
+                  class="hooks-pane__sort-select"
+                >
+                  <option
+                    v-for="option in hookSortOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </KxSelect>
               </div>
             </SettingsFilterBar>
 
             <SettingsState
-              v-if="filteredHooks.length === 0"
+              v-if="visibleHooks.length === 0"
               tone="empty"
               data-test="hooks-filter-empty"
             >
@@ -312,7 +371,7 @@ watch(
               dense
             >
               <SettingsCardItem
-                v-for="hook in filteredHooks"
+                v-for="hook in visibleHooks"
                 :key="`${hook.event}:${hook.id}`"
                 class="hook-row"
                 layout="stack"
@@ -478,6 +537,14 @@ watch(
 
 .hooks-pane__filter {
   margin-bottom: 8px;
+}
+
+.hooks-pane__search-input {
+  flex: 1 1 180px;
+}
+
+.hooks-pane__sort-select {
+  width: 150px;
 }
 
 .hook-row code {
