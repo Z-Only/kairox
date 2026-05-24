@@ -308,7 +308,13 @@ describe("ChatPanel", () => {
     });
   });
 
-  it("renders context meter as a ring inside the composer input row", async () => {
+  it("no longer renders the primary ContextMeter ring inside the composer input row (R4-B demotion)", async () => {
+    // R4-B moved the primary context-usage signal out of the chat
+    // composer: compaction is now rendered inline in the chat stream
+    // (`ChatCompactionItem`, PRs #471-#477) and the diagnostic meter is
+    // surfaced via the demoted `ContextMeterPill` mounted in
+    // `WorkbenchView`. The composer's input row should be free of any
+    // `<ContextMeter>` mount in either ring or bar variant.
     const wrapper = mountChatPanel((session) => {
       session.lastContextUsage = makeUsage();
       session.projection.messages = [{ role: "user", content: "hi" }] as never;
@@ -316,11 +322,13 @@ describe("ChatPanel", () => {
     await flushPromises();
 
     const inputRow = wrapper.find(".input-row");
-    expect(inputRow.find('[data-test="context-meter-ring"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="context-meter-bar"]').exists()).toBe(false);
+    expect(inputRow.exists()).toBe(true);
+    expect(inputRow.find('[data-test="context-meter-ring"]').exists()).toBe(false);
+    expect(inputRow.find('[data-test="context-meter-bar"]').exists()).toBe(false);
+    expect(inputRow.find('[data-test="context-meter"]').exists()).toBe(false);
   });
 
-  it("hides context meter ring when conversation has no messages", async () => {
+  it("does not surface any ContextMeter ring/bar in the chat panel even with no messages (R4-B demotion)", async () => {
     const wrapper = mountChatPanel();
     await flushPromises();
 

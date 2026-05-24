@@ -62,7 +62,9 @@ function mountChatComposer() {
       },
       global: {
         stubs: {
-          ContextMeter: true,
+          // ContextMeter is no longer mounted from ChatComposer — the
+          // demoted ContextMeterPill lives in WorkbenchView. We only stub
+          // out heavy children that still mount inside the composer.
           AttachmentTray: true
         }
       }
