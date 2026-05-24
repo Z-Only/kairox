@@ -86,12 +86,45 @@ describe("AgentSettingsPane", () => {
 
     expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-search-input"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-list"]').classes()).toContain("settings-card-list");
     expect(wrapper.find('[data-test="agent-row-worker"]').classes()).toContain(
       "settings-card-item"
     );
     expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain("Built-in");
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("fast");
+  });
+
+  it("filters agents by search text", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="agent-search-input"]').setValue("review");
+
+    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(false);
+  });
+
+  it("matches search against agent metadata", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="agent-search-input"]').setValue("workspace_write");
+
+    expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no agents match search", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="agent-search-input"]').setValue("does-not-exist");
+
+    const empty = wrapper.find('[data-test="agent-filter-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No agents match your search.");
+    expect(wrapper.find('[data-test="agent-list"]').exists()).toBe(false);
   });
 
   it("renders a consistent effective-state audit for shadowed agents", async () => {
@@ -199,7 +232,7 @@ describe("AgentSettingsPane", () => {
 
   it("uses shared settings toolbar instead of local agent toolbar chrome", () => {
     expectSourceMigration(agentSettingsPaneSource, {
-      required: ["SettingsToolbar"],
+      required: ["SettingsToolbar", "SettingsFilterBar"],
       forbidden: ['class="agent-settings__toolbar"', ".agent-settings__toolbar,"]
     });
   });
