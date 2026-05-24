@@ -27,6 +27,11 @@ const PROFILE_ALIAS: &str = "github-gpt4o-mini";
 const TOKEN_ENV: &str = "GITHUB_TOKEN";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
+fn is_rate_limit_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("http 429") || lower.contains("too many requests")
+}
+
 #[tokio::test]
 async fn github_models_responds_to_simple_prompt() {
     if std::env::var(TOKEN_ENV).is_err() {
@@ -58,12 +63,25 @@ async fn github_models_responds_to_simple_prompt() {
     let request = ModelRequest::user_text(PROFILE_ALIAS, "Say hello in one word")
         .with_system_prompt("You are a terse assistant. Reply with a single word.");
 
-    let stream_result = timeout(REQUEST_TIMEOUT, router.stream(request))
+    let open_result = timeout(REQUEST_TIMEOUT, router.stream(request))
         .await
-        .expect("opening the model stream timed out")
-        .expect("model stream should open successfully");
+        .expect("opening the model stream timed out");
 
-    // Collect token deltas until completion (or failure / timeout).
+    let stream_result = match open_result {
+        Ok(stream) => stream,
+        Err(err) => {
+            let message = err.to_string();
+            if is_rate_limit_error(&message) {
+                eprintln!(
+                    "[live-model-tests] skipping: GitHub Models rate limit hit while opening stream: {}",
+                    message
+                );
+                return;
+            }
+            panic!("model stream should open successfully: {}", message);
+        }
+    };
+
     let mut stream = stream_result;
     let mut response = String::new();
     let mut completed = false;
@@ -90,7 +108,16 @@ async fn github_models_responds_to_simple_prompt() {
     .await
     .expect("draining the model stream timed out");
 
-    collected.expect("model stream should complete without error");
+    if let Err(message) = collected {
+        if is_rate_limit_error(&message) {
+            eprintln!(
+                "[live-model-tests] skipping: GitHub Models rate limit hit mid-stream: {}",
+                message
+            );
+            return;
+        }
+        panic!("model stream should complete without error: {}", message);
+    }
 
     eprintln!(
         "[live-model-tests] received response ({} chars, completed={}): {:?}",
