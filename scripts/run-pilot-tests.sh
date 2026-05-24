@@ -464,6 +464,12 @@ _wait_for_app_shell "browser state applied" "app shell did not return after brow
 
 # ─── Run every scenario ────────────────────────────────────────────────────────
 
+_scenario_hit_rate_limit() {
+    local junit_file="$1"
+    [[ -f "$junit_file" ]] || return 1
+    grep -qiE "HTTP 429|Too Many Requests" "$junit_file"
+}
+
 failed=0
 for scenario in "${scenarios[@]}"; do
     name="$(basename "$scenario" .toml)"
@@ -474,8 +480,12 @@ for scenario in "${scenarios[@]}"; do
         _wait_for_app_shell "scenario browser state reset" "app shell did not return after scenario browser state reset"
     fi
     if ! tauri-pilot run "$scenario" --junit "$junit"; then
-        failed=1
-        echo "FAIL: $name (junit: $junit)"
+        if _scenario_hit_rate_limit "$junit"; then
+            echo "SKIP: $name (GitHub Models rate limit / HTTP 429; junit: $junit)" >&2
+        else
+            failed=1
+            echo "FAIL: $name (junit: $junit)"
+        fi
     fi
 done
 
