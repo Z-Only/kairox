@@ -2,6 +2,13 @@
 
 mod input;
 mod render;
+// The reducer in `stream` is the foundation for the v0.30.0 unified
+// ChatPanel feed; the renderer wiring lands in a follow-up PR, so until
+// then nothing inside the `agent-tui` binary references these symbols.
+// Tests under `crates/agent-tui/tests/chat_stream.rs` exercise the
+// module directly.
+#[allow(dead_code)]
+pub mod stream;
 
 pub use render::{
     format_attachment_labels, render_file_mention_palette, render_messages, render_queue_strip,

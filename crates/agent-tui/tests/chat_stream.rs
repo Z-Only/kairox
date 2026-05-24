@@ -1,0 +1,414 @@
+//! Integration tests for the TUI `ChatStreamItem` reducer.
+//!
+//! Mirrors the GUI `useChatStream` composable (see
+//! `apps/agent-gui/src/composables/useChatStream.ts`): a pure fold that
+//! walks the session's domain events and emits a single chronologically
+//! ordered list of items to render inline in `ChatPanel`. This file is
+//! the foundational test contract for the reducer — the renderer port
+//! lands in a follow-up PR.
+
+use agent_core::events::{CompactionReason, EventPayload};
+use agent_core::projection::SessionProjection;
+use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
+use chrono::{Duration as ChronoDuration, TimeZone, Utc};
+
+use agent_tui::components::chat::stream::{
+    fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, PermissionKind,
+    PermissionStatus, ToolCallStatus,
+};
+
+fn make_event(payload: EventPayload) -> DomainEvent {
+    DomainEvent::new(
+        WorkspaceId::new(),
+        SessionId::new(),
+        AgentId::system(),
+        PrivacyClassification::FullTrace,
+        payload,
+    )
+}
+
+/// Build an event whose timestamp is `epoch + offset_ms` so tests can
+/// pin chronological ordering without sleeping.
+fn make_event_at(offset_ms: i64, payload: EventPayload) -> DomainEvent {
+    let timestamp = Utc.timestamp_opt(0, 0).unwrap() + ChronoDuration::milliseconds(offset_ms);
+    make_event(payload).with_timestamp(timestamp)
+}
+
+#[test]
+fn folds_message_events_in_chronological_order() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::UserMessageAdded {
+                message_id: "u1".into(),
+                content: "hello".into(),
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::AssistantMessageCompleted {
+                message_id: "a1".into(),
+                content: "hi back".into(),
+            },
+        ),
+        make_event_at(
+            30,
+            EventPayload::UserMessageAdded {
+                message_id: "u2".into(),
+                content: "follow-up".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 3, "expected one stream item per message event");
+    match &items[0] {
+        ChatStreamItem::Message {
+            id,
+            role,
+            content,
+            timestamp_ms,
+        } => {
+            assert_eq!(id, "u1");
+            assert_eq!(*role, MessageRole::User);
+            assert_eq!(content, "hello");
+            assert_eq!(*timestamp_ms, 10);
+        }
+        other => panic!("expected Message for events[0], got {other:?}"),
+    }
+    match &items[1] {
+        ChatStreamItem::Message {
+            id,
+            role,
+            content,
+            timestamp_ms,
+        } => {
+            assert_eq!(id, "a1");
+            assert_eq!(*role, MessageRole::Assistant);
+            assert_eq!(content, "hi back");
+            assert_eq!(*timestamp_ms, 20);
+        }
+        other => panic!("expected Message for events[1], got {other:?}"),
+    }
+    match &items[2] {
+        ChatStreamItem::Message {
+            id,
+            role,
+            timestamp_ms,
+            ..
+        } => {
+            assert_eq!(id, "u2");
+            assert_eq!(*role, MessageRole::User);
+            assert_eq!(*timestamp_ms, 30);
+        }
+        other => panic!("expected Message for events[2], got {other:?}"),
+    }
+}
+
+#[test]
+fn folds_tool_call_lifecycle_into_single_completed_item() {
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::ModelToolCallRequested {
+                tool_call_id: "call_1".into(),
+                tool_id: "shell.exec".into(),
+            },
+        ),
+        make_event_at(
+            110,
+            EventPayload::ToolInvocationStarted {
+                invocation_id: "inv_1".into(),
+                tool_id: "shell.exec".into(),
+            },
+        ),
+        make_event_at(
+            220,
+            EventPayload::ToolInvocationCompleted {
+                invocation_id: "inv_1".into(),
+                tool_id: "shell.exec".into(),
+                output_preview: "ok\nline 2".into(),
+                exit_code: Some(0),
+                duration_ms: 120,
+                truncated: false,
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    let tool_items: Vec<&ChatStreamItem> = items
+        .iter()
+        .filter(|item| matches!(item, ChatStreamItem::ToolCall { .. }))
+        .collect();
+    assert_eq!(
+        tool_items.len(),
+        1,
+        "tool call lifecycle should collapse into one item, got {items:?}"
+    );
+    match tool_items[0] {
+        ChatStreamItem::ToolCall {
+            tool_id,
+            status,
+            output_preview,
+            duration_ms,
+            timestamp_ms,
+            ..
+        } => {
+            assert_eq!(tool_id, "shell.exec");
+            assert_eq!(*status, ToolCallStatus::Completed);
+            assert_eq!(output_preview.as_deref(), Some("ok\nline 2"));
+            assert_eq!(*duration_ms, Some(120));
+            assert_eq!(
+                *timestamp_ms, 100,
+                "tool call item should carry the timestamp of the first \
+                 lifecycle event (ModelToolCallRequested)"
+            );
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn permission_with_no_resolution_stays_pending() {
+    let events = vec![make_event_at(
+        50,
+        EventPayload::PermissionRequested {
+            request_id: "req_1".into(),
+            tool_id: "shell.exec".into(),
+            preview: "rm -rf /tmp/foo".into(),
+        },
+    )];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 1);
+    match &items[0] {
+        ChatStreamItem::Permission {
+            id,
+            kind,
+            prompt,
+            status,
+            timestamp_ms,
+        } => {
+            assert_eq!(id, "req_1");
+            assert_eq!(*kind, PermissionKind::Tool);
+            assert_eq!(prompt, "rm -rf /tmp/foo");
+            assert_eq!(*status, PermissionStatus::Pending);
+            assert_eq!(*timestamp_ms, 50);
+        }
+        other => panic!("expected Permission, got {other:?}"),
+    }
+}
+
+#[test]
+fn permission_resolved_into_accepted_status() {
+    let events = vec![
+        make_event_at(
+            50,
+            EventPayload::PermissionRequested {
+                request_id: "req_1".into(),
+                tool_id: "shell.exec".into(),
+                preview: "rm -rf /tmp/foo".into(),
+            },
+        ),
+        make_event_at(
+            60,
+            EventPayload::PermissionGranted {
+                request_id: "req_1".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    let perms: Vec<&ChatStreamItem> = items
+        .iter()
+        .filter(|item| matches!(item, ChatStreamItem::Permission { .. }))
+        .collect();
+    assert_eq!(
+        perms.len(),
+        1,
+        "permission lifecycle should collapse into one item — reducer \
+         keeps resolved items so the renderer can filter, got {items:?}"
+    );
+    match perms[0] {
+        ChatStreamItem::Permission {
+            id,
+            status,
+            timestamp_ms,
+            ..
+        } => {
+            assert_eq!(id, "req_1");
+            assert_eq!(*status, PermissionStatus::Accepted);
+            assert_eq!(
+                *timestamp_ms, 50,
+                "permission item should keep the timestamp of the request \
+                 event so chronological ordering is stable across resolution"
+            );
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn compaction_started_then_completed_with_summary() {
+    let events = vec![
+        make_event_at(
+            1_000,
+            EventPayload::ContextCompactionStarted {
+                reason: CompactionReason::UserRequested,
+                before_tokens: 180_000,
+                candidate_event_count: 42,
+            },
+        ),
+        make_event_at(
+            2_500,
+            EventPayload::ContextCompactionCompleted {
+                summary_id: "sum_1".into(),
+                after_tokens: 30_000,
+                fallback_used: false,
+            },
+        ),
+        make_event_at(
+            2_600,
+            EventPayload::CompactionSummary {
+                summary_id: "sum_1".into(),
+                content: "Earlier turns summarised to free up budget.".into(),
+                replaces_event_range: (
+                    Utc.timestamp_opt(0, 0).unwrap(),
+                    Utc.timestamp_opt(1, 0).unwrap(),
+                ),
+                reason: CompactionReason::UserRequested,
+                before_tokens: 180_000,
+                after_tokens: 30_000,
+                summarised_by_profile: "gpt-5".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    let compactions: Vec<&ChatStreamItem> = items
+        .iter()
+        .filter(|item| matches!(item, ChatStreamItem::Compaction { .. }))
+        .collect();
+    assert_eq!(
+        compactions.len(),
+        1,
+        "compaction lifecycle should collapse into one item, got {items:?}"
+    );
+    match compactions[0] {
+        ChatStreamItem::Compaction {
+            status,
+            summary,
+            timestamp_ms,
+            ..
+        } => {
+            assert_eq!(*status, CompactionItemStatus::Completed);
+            assert_eq!(
+                summary.as_deref(),
+                Some("Earlier turns summarised to free up budget."),
+                "CompactionSummary content should be folded into the \
+                 compaction item once it arrives"
+            );
+            assert_eq!(
+                *timestamp_ms, 1_000,
+                "compaction item should keep the timestamp of the start event"
+            );
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn chronological_interleaving_across_item_kinds() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::UserMessageAdded {
+                message_id: "u1".into(),
+                content: "run a shell command".into(),
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::PermissionRequested {
+                request_id: "req_1".into(),
+                tool_id: "shell.exec".into(),
+                preview: "ls".into(),
+            },
+        ),
+        make_event_at(
+            30,
+            EventPayload::PermissionGranted {
+                request_id: "req_1".into(),
+            },
+        ),
+        make_event_at(
+            40,
+            EventPayload::ModelToolCallRequested {
+                tool_call_id: "call_1".into(),
+                tool_id: "shell.exec".into(),
+            },
+        ),
+        make_event_at(
+            45,
+            EventPayload::ToolInvocationStarted {
+                invocation_id: "inv_1".into(),
+                tool_id: "shell.exec".into(),
+            },
+        ),
+        make_event_at(
+            55,
+            EventPayload::ToolInvocationCompleted {
+                invocation_id: "inv_1".into(),
+                tool_id: "shell.exec".into(),
+                output_preview: "ok".into(),
+                exit_code: Some(0),
+                duration_ms: 10,
+                truncated: false,
+            },
+        ),
+        make_event_at(
+            70,
+            EventPayload::AssistantMessageCompleted {
+                message_id: "a1".into(),
+                content: "done".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    let timestamps: Vec<i64> = items.iter().map(ChatStreamItem::timestamp_ms).collect();
+    let mut sorted = timestamps.clone();
+    sorted.sort();
+    assert_eq!(
+        timestamps, sorted,
+        "items must be emitted in chronological order, got {items:?}"
+    );
+
+    // Also assert the expected kind sequence: message, permission, tool call, message.
+    let kinds: Vec<&'static str> = items
+        .iter()
+        .map(|item| match item {
+            ChatStreamItem::Message { .. } => "message",
+            ChatStreamItem::ToolCall { .. } => "tool_call",
+            ChatStreamItem::Permission { .. } => "permission",
+            ChatStreamItem::Compaction { .. } => "compaction",
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        vec!["message", "permission", "tool_call", "message"],
+        "expected chronological kind sequence; got {kinds:?} from items {items:?}"
+    );
+}
