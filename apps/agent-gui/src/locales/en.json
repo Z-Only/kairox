@@ -682,6 +682,19 @@
         "failed": "Failed",
         "pending": "Pending"
       }
+    },
+    "compaction": {
+      "running": "Compacting context…",
+      "completed": "Context compacted",
+      "failed": "Context compaction failed",
+      "summary": "Context compaction",
+      "reason": {
+        "user": "User-requested",
+        "threshold": "Auto (threshold)"
+      },
+      "ratio": "Compressed to {value}",
+      "duration": "in {value}",
+      "fallbackUsed": "Sliding-window fallback"
     }
   }
 }
