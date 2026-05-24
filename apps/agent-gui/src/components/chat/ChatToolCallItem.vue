@@ -8,6 +8,8 @@
 // importing from `@/types/chatStream` — that file is owned by a sibling
 // lane and does not yet exist on this branch.
 import { useToolIcon } from "@/composables/useToolIcon";
+import { isDiffShaped } from "@/composables/useDiffDetect";
+import DiffPreview from "@/components/chat/DiffPreview.vue";
 
 interface ChatToolCallItemProps {
   toolId: string;
@@ -78,6 +80,10 @@ const durationLabel = computed(() => {
 const toggleLabel = computed(() =>
   isExpanded.value ? t("chatStream.toolCall.collapse") : t("chatStream.toolCall.expand")
 );
+
+const outputIsDiff = computed(() =>
+  props.outputPreview ? isDiffShaped(props.outputPreview) : false
+);
 </script>
 
 <template>
@@ -139,7 +145,8 @@ const toggleLabel = computed(() =>
       </div>
       <div v-if="props.outputPreview" class="chat-tool-call__section">
         <span class="chat-tool-call__label">{{ t("chatStream.toolCall.output") }}:</span>
-        <pre class="chat-tool-code">{{ props.outputPreview }}</pre>
+        <DiffPreview v-if="outputIsDiff" :text="props.outputPreview" />
+        <pre v-else class="chat-tool-code">{{ props.outputPreview }}</pre>
       </div>
     </div>
   </div>
