@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from "pinia";
 import TraceTimeline from "./TraceTimeline.vue";
 import { traceState, clearTrace } from "../composables/useTraceStore";
 import { useTaskGraphStore } from "@/stores/taskGraph";
+import type { TraceEntryData } from "../types/trace";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { confirmDialogKey } from "@/composables/useConfirm";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
@@ -83,6 +84,18 @@ function mountTimeline() {
   }).wrapper;
 }
 
+function makeTraceEntry(id: string, overrides?: Partial<TraceEntryData>): TraceEntryData {
+  return {
+    id,
+    kind: "tool",
+    status: "completed",
+    title: `Trace ${id}`,
+    startedAt: Date.now(),
+    expanded: true,
+    ...overrides
+  };
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   clearTrace();
@@ -131,6 +144,55 @@ describe("TraceTimeline", () => {
     expect(traceState.density).toBe("L3");
     await densityButtons[0].trigger("click");
     expect(traceState.density).toBe("L1");
+  });
+
+  it("renders trace status filter chips with live counts", () => {
+    traceState.entries = [
+      makeTraceEntry("running", { title: "Running trace", status: "running" }),
+      makeTraceEntry("pending", { title: "Pending trace", status: "pending" }),
+      makeTraceEntry("failed", { title: "Failed trace", status: "failed" }),
+      makeTraceEntry("done", { title: "Done trace", status: "completed" })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    expect(wrapper.find('[data-test="trace-status-filters"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="trace-filter-all"]').text()).toBe("All 4");
+    expect(wrapper.find('[data-test="trace-filter-active"]').text()).toBe("Active 2");
+    expect(wrapper.find('[data-test="trace-filter-failed"]').text()).toBe("Failed 1");
+    expect(wrapper.find('[data-test="trace-filter-done"]').text()).toBe("Done 1");
+  });
+
+  it("filters visible trace entries by failed status", async () => {
+    traceState.entries = [
+      makeTraceEntry("pending", { title: "Pending trace", status: "pending" }),
+      makeTraceEntry("failed", { title: "Failed trace", status: "failed" }),
+      makeTraceEntry("done", { title: "Done trace", status: "completed" })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
+
+    expect(wrapper.find('[data-test="trace-filter-failed"]').attributes("aria-pressed")).toBe(
+      "true"
+    );
+    expect(wrapper.text()).toContain("Failed trace");
+    expect(wrapper.text()).not.toContain("Pending trace");
+    expect(wrapper.text()).not.toContain("Done trace");
+  });
+
+  it("shows a status-filter empty state when no trace entries match", async () => {
+    traceState.entries = [makeTraceEntry("done", { title: "Done trace", status: "completed" })];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
+
+    expect(wrapper.text()).toContain("No matching trace events");
   });
 
   it("audit anchors: exposes stable trace pilot selectors", async () => {
