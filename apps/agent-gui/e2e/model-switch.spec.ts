@@ -8,10 +8,11 @@ test.describe("Mid-session model switch (P4)", () => {
     await page.waitForSelector('[data-test="chat-panel"]');
     // The mock only emits ContextAssembled inside send_message, so send
     // one real message to make the meter render (mirrors the P3 pattern
-    // in context-meter.spec.ts).
+    // in context-meter.spec.ts). R4-B demoted the primary ring to the
+    // ContextMeterPill in WorkbenchView, so wait for that selector.
     await page.fill('[data-test="message-input"]', "hello from e2e");
     await page.click('[data-test="send-button"]');
-    await page.waitForSelector('[data-test="context-meter-ring"]', { timeout: 5_000 });
+    await page.waitForSelector('[data-test="context-meter-pill-trigger"]', { timeout: 5_000 });
   });
 
   test("new session button creates a default session without opening a profile dialog", async ({

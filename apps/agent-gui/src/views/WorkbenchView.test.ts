@@ -13,6 +13,9 @@ import en from "@/locales/en.json";
 import { useUiStore } from "@/stores/ui";
 import { useSessionStore } from "@/stores/session";
 import WorkbenchView from "./WorkbenchView.vue";
+import workbenchSource from "./WorkbenchView.vue?raw";
+import chatComposerSource from "@/components/ChatComposer.vue?raw";
+import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 // Stub Tauri plumbing pulled in transitively by ChatPanel / SessionsSidebar
 // children. The Pre-work A regression test only cares about WorkbenchView's
@@ -199,6 +202,37 @@ describe("WorkbenchView (Pre-work A regression)", () => {
     expect(window.localStorage.getItem("kairox.left-sidebar-width")).toBe("260");
 
     wrapper.unmount();
+  });
+
+  it("mounts the demoted ContextMeter pill in the workbench shell", async () => {
+    const router = makeRouter();
+    const pinia = createTestingPinia({ createSpy: vi.fn });
+
+    await router.push("/workbench");
+    await router.isReady();
+
+    const wrapper = mount(WorkbenchView, {
+      global: {
+        plugins: [router, pinia, makeI18n()],
+        stubs: {
+          SessionsSidebar: true,
+          ChatPanel: true,
+          TraceTimeline: true,
+          ContextMeterPill: true
+        }
+      }
+    });
+
+    expect(wrapper.find('[data-test="workbench-context-meter-pill"]').exists()).toBe(true);
+  });
+
+  it("source: workbench owns the ContextMeterPill mount and ChatComposer no longer owns the primary ring", () => {
+    expectSourceMigration(workbenchSource, {
+      required: ["ContextMeterPill", "workbench-context-meter-pill"]
+    });
+    expectSourceMigration(chatComposerSource, {
+      forbidden: ["<ContextMeter"]
+    });
   });
 
   it("resizes the right sidebar using inverse drag direction", async () => {
