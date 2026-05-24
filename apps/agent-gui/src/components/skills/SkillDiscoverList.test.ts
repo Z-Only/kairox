@@ -33,6 +33,13 @@ const docsHelper: SkillCatalogEntry = {
   package_url: "https://registry.example/download/docs-helper"
 };
 
+function createCatalogEntry(overrides: Partial<SkillCatalogEntry>): SkillCatalogEntry {
+  return {
+    ...docsHelper,
+    ...overrides
+  };
+}
+
 function createSource(overrides: Partial<SkillSourceView> = {}): SkillSourceView {
   return {
     id: "skillhub",
@@ -68,6 +75,12 @@ function mountList() {
       }
     }
   }).wrapper;
+}
+
+function catalogCardNames(wrapper: ReturnType<typeof mountList>): string[] {
+  return wrapper.findAll('[data-test="skill-catalog-card"]').map((card) => {
+    return card.get(".display-name").text();
+  });
 }
 
 beforeEach(() => {
@@ -147,6 +160,58 @@ describe("SkillDiscoverList", () => {
       sources: null,
       limit: 100
     });
+  });
+
+  it("sorts the displayed catalog locally without running another backend search", async () => {
+    mockedCommands.listSkillCatalog.mockResolvedValueOnce([
+      createCatalogEntry({
+        catalog_id: "skillhub/beta",
+        name: "Beta",
+        install_count: 12,
+        github_stars: 40,
+        security_score: 72,
+        rating: 4.2,
+        package: "skillhub/beta"
+      }),
+      createCatalogEntry({
+        catalog_id: "skillhub/gamma",
+        name: "Gamma",
+        install_count: 30,
+        github_stars: 5,
+        security_score: 91,
+        rating: 4.7,
+        package: "skillhub/gamma"
+      }),
+      createCatalogEntry({
+        catalog_id: "skillhub/alpha",
+        name: "Alpha",
+        install_count: 30,
+        github_stars: 80,
+        security_score: 88,
+        rating: 4.7,
+        package: "skillhub/alpha"
+      })
+    ]);
+    const wrapper = mountList();
+    await flushPromises();
+
+    expect(catalogCardNames(wrapper)).toEqual(["Beta", "Gamma", "Alpha"]);
+    expect(mockedCommands.listSkillCatalog).toHaveBeenCalledTimes(1);
+
+    const sortSelect = wrapper.get('[data-test="skill-catalog-sort-select"]');
+    expect(sortSelect.attributes("aria-label")).toBe("Skill catalog sort");
+
+    await sortSelect.setValue("name");
+    await flushPromises();
+
+    expect(catalogCardNames(wrapper)).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(mockedCommands.listSkillCatalog).toHaveBeenCalledTimes(1);
+
+    await sortSelect.setValue("downloads");
+    await flushPromises();
+
+    expect(catalogCardNames(wrapper)).toEqual(["Gamma", "Alpha", "Beta"]);
+    expect(mockedCommands.listSkillCatalog).toHaveBeenCalledTimes(1);
   });
 
   it("renders empty and error states with recovery actions", async () => {
