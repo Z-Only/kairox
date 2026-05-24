@@ -88,6 +88,75 @@ describe("MemoryBrowser", () => {
     expect(wrapper.text()).toContain("user");
   });
 
+  it("renders memory status filter chips with live counts", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "user", key: "lang", content: "Rust", accepted: true },
+      {
+        id: "m2",
+        scope: "workspace",
+        key: "style",
+        content: "Prefer concise UI copy",
+        accepted: true
+      },
+      {
+        id: "m3",
+        scope: "session",
+        key: null,
+        content: "Draft preference",
+        accepted: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-status-filters"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-status-filter-all"]').text()).toBe("All 3");
+    expect(wrapper.find('[data-test="memory-status-filter-accepted"]').text()).toBe("Accepted 2");
+    expect(wrapper.find('[data-test="memory-status-filter-pending"]').text()).toBe("Pending 1");
+  });
+
+  it("filters visible memories by pending status", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "user", key: "lang", content: "Accepted memory", accepted: true },
+      {
+        id: "m2",
+        scope: "session",
+        key: null,
+        content: "Pending memory",
+        accepted: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="memory-status-filter-pending"]').trigger("click");
+
+    expect(
+      wrapper.find('[data-test="memory-status-filter-pending"]').attributes("aria-pressed")
+    ).toBe("true");
+    expect(wrapper.text()).toContain("Pending memory");
+    expect(wrapper.text()).not.toContain("Accepted memory");
+  });
+
+  it("shows a status-filter empty state when no memories match", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "user", key: "lang", content: "Accepted memory", accepted: true }
+    ];
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="memory-status-filter-pending"]').trigger("click");
+
+    expect(wrapper.find('[data-test="memory-empty-state"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("No memories match this status filter");
+  });
+
   it("changes active scope filter via select element", async () => {
     const { wrapper } = mountBrowser();
     await flushPromises();
@@ -166,7 +235,7 @@ describe("MemoryBrowser", () => {
     expect(wrapper.find('[data-test="memory-scope-select"]').classes()).toContain("kx-select");
     expect(wrapper.find('[data-test="memory-search-input"]').classes()).toContain("kx-input");
     expectSourceMigration(memoryBrowserSource, {
-      required: ["KxInput", "KxSelect"],
+      required: ["KxInput", "KxSelect", "KxChipGroup", "KxChipButton"],
       forbidden: [".scope-select {", ".search-input {"]
     });
   });
