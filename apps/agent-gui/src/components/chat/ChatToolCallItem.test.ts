@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
+import { useSessionStore } from "@/stores/session";
 
 // ChatToolCallItem calls `useI18n()` and uses auto-registered UI-kit
 // components (KxTag, KxBadge, KxIconButton), so we mount via
@@ -16,6 +17,7 @@ function mountItem(props: Record<string, unknown>) {
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  localStorage.clear();
 });
 
 describe("ChatToolCallItem", () => {
@@ -150,5 +152,35 @@ describe("ChatToolCallItem", () => {
     expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
     await wrapper.find('[data-test="chat-tool-call-toggle"]').trigger("click");
     expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(true);
+  });
+
+  it("persists uncontrolled expand state per session in localStorage", async () => {
+    const session = useSessionStore();
+    session.currentSessionId = "ses_persist";
+
+    const wrapper = mountItem({
+      toolId: "shell_exec",
+      toolCallId: "tc_persist_1",
+      status: "completed",
+      input: "ls"
+    });
+
+    // Initial render: collapsed (no stored value yet)
+    expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+
+    // Expand → writes `true` to the session-scoped key
+    await wrapper.find(".chat-tool-call__row").trigger("click");
+    expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(true);
+    expect(localStorage.getItem("kairox.chatToolExpand.ses_persist.tc_persist_1")).toBe("true");
+
+    // A freshly mounted instance with the same key restores the
+    // expanded state — i.e., the user's choice survives reloads.
+    const wrapper2 = mountItem({
+      toolId: "shell_exec",
+      toolCallId: "tc_persist_1",
+      status: "completed",
+      input: "ls"
+    });
+    expect(wrapper2.find(".chat-tool-call__detail").exists()).toBe(true);
   });
 });

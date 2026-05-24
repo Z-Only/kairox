@@ -9,10 +9,21 @@
 // lane and does not yet exist on this branch.
 import { useToolIcon } from "@/composables/useToolIcon";
 import { isDiffShaped } from "@/composables/useDiffDetect";
+import { useChatToolExpand } from "@/composables/useChatToolExpand";
+import { useSessionStore } from "@/stores/session";
+import { storeToRefs } from "pinia";
 import DiffPreview from "@/components/chat/DiffPreview.vue";
 
 interface ChatToolCallItemProps {
   toolId: string;
+  /**
+   * Unique-per-invocation identifier used to scope the persisted
+   * expand/collapse state in localStorage. Falls back to `toolId` when
+   * not provided; callers rendering multiple invocations of the same
+   * tool should pass a stable per-invocation id (e.g., the trace entry
+   * id) to avoid sharing state across rows.
+   */
+  toolCallId?: string;
   title?: string;
   status: "running" | "completed" | "failed" | "pending";
   durationMs?: number;
@@ -26,6 +37,7 @@ interface ChatToolCallItemProps {
 }
 
 const props = withDefaults(defineProps<ChatToolCallItemProps>(), {
+  toolCallId: undefined,
   title: undefined,
   durationMs: undefined,
   input: undefined,
@@ -42,21 +54,47 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const isControlled = computed(() => props.expanded !== undefined);
-const internalExpanded = ref<boolean>(props.defaultExpanded);
+
+// Uncontrolled-mode backing state is persisted per-session in
+// localStorage via `useChatToolExpand`. The persistence key is
+// `kairox.chatToolExpand.${currentSessionId}.${toolCallId || toolId}`,
+// so a row remembers its expand state across reloads and session
+// switches. Controlled-mode rendering bypasses this — the parent owns
+// the visible state in that case.
+const session = useSessionStore();
+const { currentSessionId } = storeToRefs(session);
+const persistenceKey = computed(() => props.toolCallId ?? props.toolId);
+// `useChatToolExpand` expects a stable string key. We read it once at
+// setup; if a caller changes `toolCallId` mid-flight (not expected for
+// the chat stream — trace entry ids are stable) the persistence key
+// would not update, which matches our scoping intent.
+const { isExpanded: persistedExpanded, toggle: togglePersisted } = useChatToolExpand(
+  currentSessionId,
+  persistenceKey.value
+);
+
+// Seed persisted state from `defaultExpanded` only when we have no
+// previously saved value AND no live override. This preserves the
+// "expand by default" affordance for callers that opt in without
+// clobbering a user's prior persisted choice.
+if (!isControlled.value && props.defaultExpanded && !persistedExpanded.value) {
+  persistedExpanded.value = true;
+}
 
 const isExpanded = computed<boolean>(() =>
-  isControlled.value ? Boolean(props.expanded) : internalExpanded.value
+  isControlled.value ? Boolean(props.expanded) : persistedExpanded.value
 );
 
 function toggle() {
   const next = !isExpanded.value;
   // Always notify parent so controlled callers can react.
   emit("update:expanded", next);
-  // In uncontrolled mode we own the state locally; in controlled mode
-  // the rendered state is driven entirely by the prop and we must not
-  // flip locally (the parent will update the prop, or not).
+  // In uncontrolled mode we own the state locally and persist the
+  // change; in controlled mode the rendered state is driven entirely
+  // by the prop and we must not flip locally (the parent will update
+  // the prop, or not).
   if (!isControlled.value) {
-    internalExpanded.value = next;
+    togglePersisted();
   }
 }
 
