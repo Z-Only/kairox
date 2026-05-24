@@ -69,6 +69,12 @@ function mountPane() {
   return mountWithPlugins(AgentSettingsPane, { reusePinia: true }).wrapper;
 }
 
+function renderedAgentIds(wrapper: ReturnType<typeof mountPane>): string[] {
+  return wrapper
+    .findAll("[data-agent-settings-id]")
+    .map((row) => row.attributes("data-agent-settings-id"));
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
@@ -113,6 +119,46 @@ describe("AgentSettingsPane", () => {
 
     expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(false);
+  });
+
+  it("sorts the filtered agent list by selected order", async () => {
+    mockedCommands.listAgentSettings.mockResolvedValueOnce(
+      ok([
+        {
+          ...workerAgent,
+          settingsId: "User:zeta-builder",
+          name: "zeta-builder",
+          scope: "User",
+          description: "Build focused agent."
+        },
+        {
+          ...workerAgent,
+          settingsId: "Builtin:worker",
+          name: "worker",
+          scope: "Builtin",
+          description: "Execution focused agent."
+        },
+        {
+          ...reviewerAgent,
+          settingsId: "Project:alpha-builder",
+          name: "alpha-builder",
+          scope: "Project",
+          description: "Build focused agent."
+        }
+      ])
+    );
+    const wrapper = mountPane();
+    await flushPromises();
+
+    const sortSelect = wrapper.find<HTMLSelectElement>('[data-test="agent-sort-select"]');
+    expect(sortSelect.exists()).toBe(true);
+    expect(sortSelect.attributes("aria-label")).toBe("Agent sort");
+
+    await wrapper.find('[data-test="agent-search-input"]').setValue("build");
+    expect(renderedAgentIds(wrapper)).toEqual(["User:zeta-builder", "Project:alpha-builder"]);
+
+    await sortSelect.setValue("name");
+    expect(renderedAgentIds(wrapper)).toEqual(["Project:alpha-builder", "User:zeta-builder"]);
   });
 
   it("shows a filtered empty state when no agents match search", async () => {
