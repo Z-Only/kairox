@@ -31,4 +31,32 @@ test.describe("Skills Settings", () => {
     await expect(page.getByTestId("skill-row-project-project-review")).toBeVisible();
     await expect(page.getByTestId("skill-row-user-user-planning")).toBeVisible();
   });
+
+  test("filters skill catalog sources by search", async ({ page }) => {
+    await page.getByTestId("skill-subtab-discover").click();
+    await page.getByTestId("skill-source-settings-btn").click();
+
+    await expect(page.getByTestId("skill-source-settings-drawer")).toBeVisible();
+    await expect(page.getByTestId("skill-source-search-input")).toBeVisible();
+
+    await page.getByTestId("skill-add-source-toggle").click();
+    await page.getByTestId("skill-src-id").fill("custom-skillhub");
+    await page.getByTestId("skill-src-name").fill("Custom SkillHub");
+    await page.getByTestId("skill-src-url").fill("https://api.skillhub.example");
+    await page.getByTestId("skill-src-save").click();
+
+    await page.getByTestId("skill-source-search-input").fill("palebluedot");
+    await expect(page.getByTestId("skill-source-row-skillhub")).toBeVisible();
+    await expect(page.getByTestId("skill-source-row-custom-skillhub")).toHaveCount(0);
+
+    await page.getByTestId("skill-source-search-input").fill("custom");
+    await expect(page.getByTestId("skill-source-row-custom-skillhub")).toBeVisible();
+    await expect(page.getByTestId("skill-source-row-skillhub")).toHaveCount(0);
+
+    await page.getByTestId("skill-source-search-input").fill("does-not-exist");
+    await expect(page.getByTestId("skill-sources-filter-empty")).toContainText(
+      "No skill catalog sources match your search."
+    );
+    await expect(page.getByTestId("skill-sources-list")).toHaveCount(0);
+  });
 });

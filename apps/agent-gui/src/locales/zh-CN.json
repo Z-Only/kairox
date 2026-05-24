@@ -448,6 +448,8 @@
     "catalogSourcesTitle": "Skill 目录源",
     "catalogSourcesAria": "Skill 目录源",
     "sourcesEmpty": "尚未配置 skill 目录源。",
+    "sourceSearchPlaceholder": "搜索来源",
+    "sourcesFilterEmpty": "没有匹配搜索条件的 skill 目录源。",
     "sourceEnabled": "已启用",
     "sourceError": "错误：{error}",
     "sourceErrorTitle": "最近错误：{error}",
