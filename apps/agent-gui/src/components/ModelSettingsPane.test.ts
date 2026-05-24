@@ -177,6 +177,39 @@ describe("ModelSettingsPane", () => {
     expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(false);
   });
 
+  it("sorts filtered profiles without losing the search filter", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-search-input"]').setValue("gpt-4.1");
+
+    expect(
+      wrapper.findAll('[data-test^="model-row-"]').map((row) => row.attributes("data-test"))
+    ).toEqual(["model-row-my-model", "model-row-fast"]);
+
+    const sortSelect = wrapper.find('[data-test="model-sort-select"]');
+    expect(sortSelect.exists()).toBe(true);
+    expect(sortSelect.attributes("aria-label")).toBe("Model profile sort");
+    expect(sortSelect.findAll("option").map((option) => option.attributes("value"))).toEqual([
+      "original",
+      "alias",
+      "provider",
+      "source",
+      "status"
+    ]);
+
+    await sortSelect.setValue("provider");
+    expect(
+      wrapper.findAll('[data-test^="model-row-"]').map((row) => row.attributes("data-test"))
+    ).toEqual(["model-row-my-model", "model-row-fast"]);
+
+    await sortSelect.setValue("alias");
+
+    expect(
+      wrapper.findAll('[data-test^="model-row-"]').map((row) => row.attributes("data-test"))
+    ).toEqual(["model-row-fast", "model-row-my-model"]);
+  });
+
   it("shows a filtered empty state when no profiles match search", async () => {
     const wrapper = mountPane("user");
     await flushPromises();

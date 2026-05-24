@@ -7,6 +7,13 @@ import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import { storeToRefs } from "pinia";
 import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
 
+type ModelProfileSort = "original" | "alias" | "provider" | "source" | "status";
+
+interface SortOption {
+  value: ModelProfileSort;
+  label: string;
+}
+
 const { t } = useI18n();
 const { notify } = useNotifications();
 const store = useModelProfilesStore();
@@ -29,6 +36,16 @@ const formMaxTokens = ref("");
 const formBaseUrl = ref("");
 const formApiKeyEnv = ref("");
 const searchQuery = ref("");
+const profileSort = ref<ModelProfileSort>("original");
+const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+const sortOptions: SortOption[] = [
+  { value: "original", label: "Original order" },
+  { value: "alias", label: "Alias" },
+  { value: "provider", label: "Provider" },
+  { value: "source", label: "Source" },
+  { value: "status", label: "Status" }
+];
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -82,10 +99,40 @@ function searchableProfileText(profile: ProfileSettingsView): string {
     .toLowerCase();
 }
 
-const visibleProfiles = computed(() => {
+const filteredProfiles = computed(() => {
   const query = normalizedSearchQuery.value;
   if (!query) return profiles.value;
   return profiles.value.filter((profile) => searchableProfileText(profile).includes(query));
+});
+
+function profileSortValue(profile: ProfileSettingsView, sort: ModelProfileSort): string {
+  switch (sort) {
+    case "alias":
+      return profile.alias;
+    case "provider":
+      return profile.provider;
+    case "source":
+      return sourceLabel(profile.source);
+    case "status":
+      return profile.enabled ? t("models.enabled") : t("models.disabled");
+    case "original":
+      return "";
+  }
+}
+
+const visibleProfiles = computed(() => {
+  if (profileSort.value === "original") return filteredProfiles.value;
+
+  return filteredProfiles.value
+    .map((profile, index) => ({ profile, index }))
+    .sort((first, second) => {
+      const comparison = sortCollator.compare(
+        profileSortValue(first.profile, profileSort.value),
+        profileSortValue(second.profile, profileSort.value)
+      );
+      return comparison || first.index - second.index;
+    })
+    .map(({ profile }) => profile);
 });
 
 function profileIndex(profile: ProfileSettingsView): number {
@@ -265,6 +312,17 @@ function toggleProfile(profile: ProfileSettingsView): void {
             placeholder="Search model profiles"
             data-test="model-search-input"
           />
+          <KxSelect
+            v-model="profileSort"
+            size="compact"
+            class="model-settings__sort-select"
+            aria-label="Model profile sort"
+            data-test="model-sort-select"
+          >
+            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </KxSelect>
         </div>
       </SettingsFilterBar>
 
@@ -349,5 +407,9 @@ function toggleProfile(profile: ProfileSettingsView): void {
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
+}
+
+.model-settings__sort-select {
+  flex: 0 0 160px;
 }
 </style>
