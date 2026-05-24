@@ -48,6 +48,12 @@ function mountSources() {
   return mountWithPlugins(SkillSourcesSettings, { reusePinia: true }).wrapper;
 }
 
+function renderedSourceIds(wrapper: ReturnType<typeof mountSources>): string[] {
+  return wrapper
+    .findAll('[data-test^="skill-source-row-"]')
+    .map((row) => row.attributes("data-test").replace("skill-source-row-", ""));
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
@@ -110,6 +116,9 @@ describe("SkillSourcesSettings", () => {
 
     expect(mockedCommands.listSkillSources).toHaveBeenCalledOnce();
     expect(wrapper.find('[data-test="skill-source-search-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="skill-source-sort-select"]').attributes("aria-label")).toBe(
+      "Skill source sort"
+    );
 
     await wrapper.find('[data-test="skill-source-search-input"]').setValue("internal");
 
@@ -125,6 +134,52 @@ describe("SkillSourcesSettings", () => {
 
     expect(wrapper.find('[data-test="skill-source-row-team-skillhub"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="skill-source-row-skillhub"]').exists()).toBe(false);
+  });
+
+  it("sorts the searched skill sources without changing the source order", async () => {
+    const sources = [
+      createSource({
+        id: "zeta-mirror",
+        display_name: "Zeta Mirror",
+        url: "https://mirror.example/zeta",
+        priority: 30
+      }),
+      createSource({
+        id: "alpha-mirror",
+        display_name: "Alpha Mirror",
+        url: "https://mirror.example/alpha",
+        priority: 10
+      }),
+      createSource({
+        id: "beta-public",
+        display_name: "Beta Public",
+        url: "https://public.example/beta",
+        priority: 5
+      }),
+      createSource({
+        id: "gamma-mirror",
+        display_name: "Gamma Mirror",
+        url: "https://mirror.example/gamma",
+        priority: 10
+      })
+    ];
+    mockedCommands.listSkillSources.mockResolvedValueOnce(sources);
+    const wrapper = mountSources();
+    await flushPromises();
+
+    await wrapper.find('[data-test="skill-source-search-input"]').setValue("mirror");
+
+    expect(renderedSourceIds(wrapper)).toEqual(["zeta-mirror", "alpha-mirror", "gamma-mirror"]);
+
+    await wrapper.find('[data-test="skill-source-sort-select"]').setValue("priority");
+
+    expect(renderedSourceIds(wrapper)).toEqual(["alpha-mirror", "gamma-mirror", "zeta-mirror"]);
+    expect(sources.map((source) => source.id)).toEqual([
+      "zeta-mirror",
+      "alpha-mirror",
+      "beta-public",
+      "gamma-mirror"
+    ]);
   });
 
   it("shows a filtered empty state when no skill sources match search", async () => {

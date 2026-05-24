@@ -4,11 +4,14 @@ import type { SkillSourceView } from "@/generated/commands";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
+type SkillSourceSortMode = "original" | "name" | "priority" | "status" | "cache-ttl";
+
 const { t } = useI18n();
 const store = useSkillsStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
 const sourceSearchQuery = ref("");
+const sourceSortMode = ref<SkillSourceSortMode>("original");
 const templateTokens = {
   query: "{{query}}",
   limit: "{{limit}}",
@@ -31,12 +34,22 @@ const draft = ref({
 });
 
 const kindOptions = computed(() => [{ label: t("skills.sourceKindSkillHub"), value: "skillhub" }]);
+const sourceSortOptions = [
+  { label: "Original order", value: "original" },
+  { label: "Name", value: "name" },
+  { label: "Priority", value: "priority" },
+  { label: "Status", value: "status" },
+  { label: "Cache TTL", value: "cache-ttl" }
+] satisfies Array<{ label: string; value: SkillSourceSortMode }>;
 const normalizedSourceSearchQuery = computed(() => sourceSearchQuery.value.trim().toLowerCase());
 const filteredCatalogSources = computed(() => {
   const query = normalizedSourceSearchQuery.value;
   if (!query) return store.catalogSources;
   return store.catalogSources.filter((source) => searchableSourceText(source).includes(query));
 });
+const sortedCatalogSources = computed(() =>
+  sortSkillSources(filteredCatalogSources.value, sourceSortMode.value)
+);
 
 onMounted(() => {
   void store.loadCatalogSources();
@@ -62,6 +75,42 @@ function searchableSourceText(source: SkillSourceView): string {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function sortSkillSources(
+  sources: SkillSourceView[],
+  sortMode: SkillSourceSortMode
+): SkillSourceView[] {
+  if (sortMode === "original") return sources;
+
+  return sources
+    .map((source, index) => ({ source, index }))
+    .sort((left, right) => {
+      const result = compareSkillSources(left.source, right.source, sortMode);
+      return result === 0 ? left.index - right.index : result;
+    })
+    .map(({ source }) => source);
+}
+
+function compareSkillSources(
+  left: SkillSourceView,
+  right: SkillSourceView,
+  sortMode: SkillSourceSortMode
+): number {
+  switch (sortMode) {
+    case "name":
+      return left.display_name.localeCompare(right.display_name, undefined, {
+        sensitivity: "base"
+      });
+    case "priority":
+      return left.priority - right.priority;
+    case "status":
+      return Number(right.enabled) - Number(left.enabled);
+    case "cache-ttl":
+      return left.cache_ttl_seconds - right.cache_ttl_seconds;
+    case "original":
+      return 0;
+  }
 }
 
 function resetDraft(): void {
@@ -150,15 +199,28 @@ function formatError(caughtError: unknown): string {
       :aria-label="t('skills.catalogSourcesAria')"
       data-test="skill-source-filter-bar"
     >
-      <form role="search" @submit.prevent>
-        <KxInput
-          v-model="sourceSearchQuery"
-          type="search"
-          :placeholder="t('skills.sourceSearchPlaceholder')"
-          data-test="skill-source-search-input"
+      <div class="settings-filter-bar__row">
+        <form role="search" @submit.prevent>
+          <KxInput
+            v-model="sourceSearchQuery"
+            type="search"
+            :placeholder="t('skills.sourceSearchPlaceholder')"
+            data-test="skill-source-search-input"
+            size="compact"
+          />
+        </form>
+        <KxSelect
+          v-model="sourceSortMode"
+          aria-label="Skill source sort"
+          data-test="skill-source-sort-select"
           size="compact"
-        />
-      </form>
+          class="skill-source-sort"
+        >
+          <option v-for="option in sourceSortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </KxSelect>
+      </div>
     </SettingsFilterBar>
 
     <SettingsState
@@ -184,7 +246,7 @@ function formatError(caughtError: unknown): string {
       dense
     >
       <SettingsCardItem
-        v-for="src in filteredCatalogSources"
+        v-for="src in sortedCatalogSources"
         :key="src.id"
         :data-test="`skill-source-row-${src.id}`"
       >
@@ -342,6 +404,10 @@ function formatError(caughtError: unknown): string {
 
 .src-kind {
   text-transform: uppercase;
+}
+
+.skill-source-sort {
+  flex: 0 1 160px;
 }
 
 .src-url {
