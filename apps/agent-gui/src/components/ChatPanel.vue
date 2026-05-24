@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { ComponentPublicInstance } from "vue";
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
 import { useChatStream } from "@/composables/useChatStream";
+import type { ChatPermissionStreamItem } from "@/types/chatStream";
 import ChatComposer from "@/components/ChatComposer.vue";
 import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
@@ -17,6 +19,117 @@ const worktreeBranchInput = ref("");
 const worktreeBranchFormOpen = ref(false);
 
 const chatStream = useChatStream();
+
+// === Jump-to-pending-permission CTA =====================================
+// Slack/Discord-style floating pill that surfaces when an unresolved
+// permission request is queued in the chat stream but has scrolled below
+// (or above) the visible message-list viewport. Clicking it scrolls the
+// first pending permission row back into view so the user doesn't miss
+// the prompt.
+//
+// `useChatStream` already filters resolved permissions out of the chat
+// feed, so every `kind === "permission"` item is by construction still
+// pending. We attach an IntersectionObserver to each rendered
+// `ChatPermissionItem` and treat any permission whose entry has not been
+// observed as `isIntersecting=true` as "below the fold".
+const pendingPermissionItems = computed<ChatPermissionStreamItem[]>(() =>
+  chatStream.value.filter((item): item is ChatPermissionStreamItem => item.kind === "permission")
+);
+const firstPendingPermission = computed<ChatPermissionStreamItem | null>(
+  () => pendingPermissionItems.value[0] ?? null
+);
+
+const permissionElementById = new Map<string, HTMLElement>();
+const visiblePermissionIds = ref<Set<string>>(new Set());
+let permissionIntersectionObserver: IntersectionObserver | null = null;
+
+const showJumpPendingPermissionCta = computed(() => {
+  const first = firstPendingPermission.value;
+  if (!first) return false;
+  // If the first pending permission's DOM node has never reported as
+  // visible to the IntersectionObserver, assume it is offscreen and
+  // surface the CTA. This is a safe default — once the observer fires
+  // with `isIntersecting=true` the set gains the id and the CTA hides.
+  return !visiblePermissionIds.value.has(first.id);
+});
+
+function bindPermissionRef(id: string, el: Element | ComponentPublicInstance | null): void {
+  let domEl: HTMLElement | null = null;
+  if (el instanceof HTMLElement) {
+    domEl = el;
+  } else if (el && typeof el === "object" && "$el" in el) {
+    const candidate = (el as ComponentPublicInstance).$el;
+    if (candidate instanceof HTMLElement) domEl = candidate;
+  }
+
+  const previous = permissionElementById.get(id);
+  if (domEl) {
+    if (previous !== domEl) {
+      if (previous) permissionIntersectionObserver?.unobserve(previous);
+      permissionElementById.set(id, domEl);
+      permissionIntersectionObserver?.observe(domEl);
+    }
+  } else if (previous) {
+    permissionIntersectionObserver?.unobserve(previous);
+    permissionElementById.delete(id);
+    if (visiblePermissionIds.value.has(id)) {
+      const next = new Set(visiblePermissionIds.value);
+      next.delete(id);
+      visiblePermissionIds.value = next;
+    }
+  }
+}
+
+function jumpToPendingPermission(): void {
+  const first = firstPendingPermission.value;
+  if (!first) return;
+  const target = permissionElementById.get(first.id);
+  if (target) {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+onMounted(() => {
+  if (typeof IntersectionObserver === "undefined") return;
+  permissionIntersectionObserver = new IntersectionObserver(
+    (entries) => {
+      const next = new Set(visiblePermissionIds.value);
+      for (const entry of entries) {
+        const target = entry.target;
+        if (!(target instanceof HTMLElement)) continue;
+        // Match the observed element back to the permission id by
+        // scanning the map. The map is bounded by the number of pending
+        // permissions, typically zero or one.
+        let matchedId: string | null = null;
+        for (const [id, el] of permissionElementById) {
+          if (el === target) {
+            matchedId = id;
+            break;
+          }
+        }
+        if (!matchedId) continue;
+        if (entry.isIntersecting) next.add(matchedId);
+        else next.delete(matchedId);
+      }
+      visiblePermissionIds.value = next;
+    },
+    {
+      root: scrollbar.value,
+      // Treat "partially visible" as visible — once any sliver of the
+      // permission card enters the scroll viewport the CTA disappears.
+      threshold: 0.01
+    }
+  );
+  for (const el of permissionElementById.values()) {
+    permissionIntersectionObserver.observe(el);
+  }
+});
+
+onBeforeUnmount(() => {
+  permissionIntersectionObserver?.disconnect();
+  permissionIntersectionObserver = null;
+  permissionElementById.clear();
+});
 
 const currentSession = computed(() => session.currentSessionInfo);
 const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
@@ -94,7 +207,10 @@ async function confirmProjectWorktreeSession() {
   try {
     const projectSession = await projectStore.createProjectWorktreeSession(projectId, branchName);
     await session.switchProjectSession(projectSession);
-    await router.push({ name: "workbench", params: { sessionId: projectSession.sessionId } });
+    await router.push({
+      name: "workbench",
+      params: { sessionId: projectSession.sessionId }
+    });
   } catch (error) {
     console.error("Failed to start project worktree session:", error);
   } finally {
@@ -116,7 +232,10 @@ watch(
   async () => {
     await nextTick();
     if (scrollbar.value) {
-      scrollbar.value.scrollTo({ top: scrollbar.value.scrollHeight, behavior: "smooth" });
+      scrollbar.value.scrollTo({
+        top: scrollbar.value.scrollHeight,
+        behavior: "smooth"
+      });
     }
   }
 );
@@ -154,9 +273,19 @@ watch(
             </KxIconButton>
           </KxTooltip>
         </form>
-        <KxTooltip :text="t('sessions.newWorktreeSessionInProject', { name: currentProjectName })">
+        <KxTooltip
+          :text="
+            t('sessions.newWorktreeSessionInProject', {
+              name: currentProjectName
+            })
+          "
+        >
           <KxIconButton
-            :label="t('sessions.newWorktreeSessionInProject', { name: currentProjectName })"
+            :label="
+              t('sessions.newWorktreeSessionInProject', {
+                name: currentProjectName
+              })
+            "
             data-test="project-worktree-session-trigger"
             size="sm"
             @click="startProjectWorktreeSession"
@@ -212,6 +341,7 @@ watch(
           <ChatPermissionItem
             v-else-if="item.kind === 'permission'"
             :id="item.id"
+            :ref="(el) => bindPermissionRef(item.id, el)"
             :variant="item.variant"
             :tool-id="item.toolId"
             :title="item.title"
@@ -248,6 +378,24 @@ watch(
           {{ t("chat.cancelled") }}
         </KxBadge>
       </div>
+      <button
+        v-if="showJumpPendingPermissionCta"
+        type="button"
+        class="jump-pending-permission-cta"
+        data-test="jump-pending-permission-cta"
+        :aria-label="t('chatStream.permission.jumpCta')"
+        :title="t('chatStream.permission.jumpCta')"
+        @click="jumpToPendingPermission"
+      >
+        <span class="jump-pending-permission-cta-count">
+          {{
+            t("chatStream.permission.jumpCtaCount", {
+              count: pendingPermissionItems.length
+            })
+          }}
+        </span>
+        <span aria-hidden="true" class="jump-pending-permission-cta-arrow">↓</span>
+      </button>
     </div>
 
     <div
@@ -306,6 +454,55 @@ watch(
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  position: relative;
+}
+.jump-pending-permission-cta {
+  /* Float just above the chat composer, anchored to the bottom of the
+     scroll viewport. `position: sticky` keeps the pill pinned to the
+     bottom edge of the scrollable region as the user scrolls. */
+  position: sticky;
+  bottom: 12px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  background: color-mix(in srgb, var(--app-card-color, #ffffff) 88%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--app-text-color);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transform: translateX(-50%);
+  /* `position: sticky` keeps the pill in flow; translateX centres it
+     against the message-list width. */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jump-pending-permission-cta {
+    transition:
+      opacity 120ms ease,
+      color 120ms ease,
+      background 120ms ease,
+      border-color 120ms ease;
+  }
+}
+.jump-pending-permission-cta:hover,
+.jump-pending-permission-cta:focus-visible {
+  outline: none;
+  border-color: var(--app-primary-color);
+  color: var(--app-primary-color);
+}
+.jump-pending-permission-cta-count {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.jump-pending-permission-cta-arrow {
+  font-size: 11px;
+  opacity: 0.7;
 }
 .message-list-inner {
   padding: 12px 16px;
