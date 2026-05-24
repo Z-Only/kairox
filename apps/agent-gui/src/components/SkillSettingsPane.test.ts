@@ -270,6 +270,59 @@ describe("SkillSettingsPane", () => {
     expect(wrapper.find('[data-test="skill-row-builtin-builtin-planning"]').exists()).toBe(false);
   });
 
+  it("sorts installed skills after applying search", async () => {
+    const zetaTeamSkill = {
+      ...projectSkill,
+      settings_id: "project:zeta-team",
+      id: "zeta-team",
+      name: "Zeta Team",
+      description: "Team workflow.",
+      path: "/repo/.kairox/skills/zeta-team",
+      update_state: "unknown"
+    };
+    const betaDocsSkill = {
+      ...projectSkill,
+      settings_id: "project:beta-docs",
+      id: "beta-docs",
+      name: "Beta Docs",
+      description: "Documentation workflow.",
+      path: "/repo/.kairox/skills/beta-docs"
+    };
+    const alphaTeamSkill = {
+      ...projectSkill,
+      settings_id: "user:alpha-team",
+      id: "alpha-team",
+      name: "Alpha Team",
+      description: "Team workflow.",
+      scope: "user",
+      path: "/home/user/.kairox/skills/alpha-team",
+      update_state: "up_to_date"
+    };
+    const settingsFixtures = [zetaTeamSkill, betaDocsSkill, alphaTeamSkill];
+    const effectiveFixtures = settingsFixtures.map(toEffective);
+    mockedCommands.listSkillSettings.mockResolvedValue(settingsFixtures);
+    mockedCommands.getEffectiveSkills.mockResolvedValue(effectiveFixtures);
+
+    const wrapper = mountPane();
+    await flushPromises();
+    const rowIds = () =>
+      wrapper.findAll('[data-test^="skill-row-"]').map((row) => row.attributes("data-test"));
+
+    const sortSelect = wrapper.get('[data-test="skill-installed-sort-select"]');
+    expect(sortSelect.attributes("aria-label")).toBe("Installed skill sort");
+
+    await wrapper.find('[data-test="skill-installed-search-input"]').setValue("team");
+    expect(rowIds()).toEqual(["skill-row-project-zeta-team", "skill-row-user-alpha-team"]);
+
+    await sortSelect.setValue("name");
+    expect(rowIds()).toEqual(["skill-row-user-alpha-team", "skill-row-project-zeta-team"]);
+    expect(effectiveFixtures.map((skill) => skill.value.settings_id)).toEqual([
+      "project:zeta-team",
+      "project:beta-docs",
+      "user:alpha-team"
+    ]);
+  });
+
   it("matches installed skill search against metadata", async () => {
     const wrapper = mountPane();
     await flushPromises();
