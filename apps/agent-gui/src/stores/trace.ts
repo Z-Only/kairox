@@ -57,17 +57,11 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "UserMessageAdded": {
-        pushEntry({
-          id: p.message_id,
-          kind: "tool",
-          status: "completed",
-          toolId: "user",
-          title: `User: ${p.content.slice(0, 80)}${p.content.length > 80 ? "…" : ""}`,
-          startedAt: Date.now(),
-          expanded: false,
-          input: p.content,
-          rawEvent: rawJson(event)
-        });
+        // ChatPanel renders user messages directly from the session
+        // projection via `useChatStream`. The trace store used to push a
+        // pseudo-tool entry here so the legacy trace view could double as
+        // a chat log; that entry now shows up as a duplicate row in the
+        // unified chat stream, so we drop it.
         break;
       }
 
@@ -106,6 +100,12 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "AssistantMessageCompleted": {
+        // Close out the in-flight `ModelRequestStarted` entry, if any,
+        // with the assistant content as an outputPreview. The previous
+        // fallback that pushed a pseudo "assistant" tool entry when no
+        // running model existed has been removed: assistant turns are
+        // rendered directly in ChatPanel via `useChatStream`, and the
+        // pseudo entry was duplicating those rows in the unified feed.
         const runningModel = entries.value.find(
           (e) => e.kind === "tool" && e.toolId === "model" && e.status === "running"
         );
@@ -114,18 +114,6 @@ export const useTraceStore = defineStore("trace", () => {
           runningModel.durationMs = Date.now() - runningModel.startedAt;
           runningModel.outputPreview = p.content.slice(0, 200);
           runningModel.rawEvent = rawJson(event);
-        } else if (!entryIds.has(p.message_id)) {
-          pushEntry({
-            id: p.message_id,
-            kind: "tool",
-            status: "completed",
-            toolId: "assistant",
-            title: "Assistant response",
-            startedAt: Date.now(),
-            expanded: false,
-            outputPreview: p.content.slice(0, 200),
-            rawEvent: rawJson(event)
-          });
         }
         break;
       }

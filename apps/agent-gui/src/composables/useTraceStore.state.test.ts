@@ -122,6 +122,9 @@ describe("useTraceStore", () => {
         })
       );
 
+      // UserMessageAdded is intentionally a no-op for the trace store
+      // — ChatPanel renders user turns directly. The next visible entry
+      // should come from ContextAssembled.
       applyTraceEvent(
         makeEvent({
           type: "UserMessageAdded",
@@ -145,11 +148,10 @@ describe("useTraceStore", () => {
         })
       );
 
-      expect(traceState.entries).toHaveLength(3);
+      expect(traceState.entries).toHaveLength(2);
       expect(traceState.entries[0].id).toBe("t-1");
-      expect(traceState.entries[1].id).toBe("msg-1");
       // ContextAssembled has generated ID, just check it exists
-      expect(traceState.entries[2].toolId).toBe("context");
+      expect(traceState.entries[1].toolId).toBe("context");
     });
   });
 });
