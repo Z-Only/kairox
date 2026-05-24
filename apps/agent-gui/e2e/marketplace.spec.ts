@@ -9,12 +9,8 @@ import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
   await installTauriMock(page);
-  await page.goto("/");
-  await page.getByTestId("nav-settings").click();
-  await Promise.all([
-    page.waitForURL(/#\/settings\/mcp$/),
-    page.getByTestId("settings-tab-mcp").click()
-  ]);
+  await page.goto("/#/settings/mcp");
+  await expect(page.getByTestId("mcp-settings-pane")).toBeVisible();
   await page.getByTestId("mcp-subtab-marketplace").click();
 });
 

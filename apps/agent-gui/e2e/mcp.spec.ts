@@ -13,12 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function openMcpSettings(page: Page) {
-  await page.goto("/");
-  await page.getByTestId("nav-settings").click();
-  await Promise.all([
-    page.waitForURL(/#\/settings\/mcp$/),
-    page.getByTestId("settings-tab-mcp").click()
-  ]);
+  await page.goto("/#/settings/mcp");
   await expect(page.getByTestId("mcp-settings-pane")).toBeVisible();
 }
 
