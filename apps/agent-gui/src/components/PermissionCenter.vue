@@ -8,6 +8,8 @@ type PendingRequestFilter = "all" | "tool" | "memory";
 
 const { t } = useI18n();
 const selectedFilter = ref<PendingRequestFilter>("all");
+const searchQuery = ref("");
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
 
 // Memoise the pending-entries filter so the template doesn't recompute it
 // on every render and so the `v-if`/`v-for` agree on the same source.
@@ -28,6 +30,20 @@ function requestMatchesFilter(entry: TraceEntryData, filter: PendingRequestFilte
   }
 }
 
+function requestMatchesSearch(entry: TraceEntryData, query: string) {
+  if (!query) return true;
+  return [
+    entry.id,
+    entry.kind,
+    entry.title,
+    entry.toolId,
+    entry.input,
+    entry.reason,
+    entry.scope,
+    entry.content
+  ].some((value) => value?.toLowerCase().includes(query));
+}
+
 const filterOptions = computed<{ id: PendingRequestFilter; label: string; count: number }[]>(() => [
   { id: "all", label: t("permission.filterAll"), count: pendingEntries.value.length },
   {
@@ -43,7 +59,11 @@ const filterOptions = computed<{ id: PendingRequestFilter; label: string; count:
 ]);
 
 const visibleEntries = computed(() =>
-  pendingEntries.value.filter((entry) => requestMatchesFilter(entry, selectedFilter.value))
+  pendingEntries.value.filter(
+    (entry) =>
+      requestMatchesFilter(entry, selectedFilter.value) &&
+      requestMatchesSearch(entry, normalizedSearchQuery.value)
+  )
 );
 </script>
 
@@ -68,22 +88,39 @@ const visibleEntries = computed(() =>
         {{ t("permission.emptyState") }}
       </KxEmptyState>
       <template v-else>
-        <KxChipGroup
-          class="permission-type-filters"
-          aria-label="Pending request filters"
-          data-test="permission-type-filters"
+        <SettingsFilterBar
+          class="permission-filters"
+          aria-label="Search pending requests"
+          data-test="permission-filters"
         >
-          <KxChipButton
-            v-for="option in filterOptions"
-            :key="option.id"
-            size="compact"
-            :selected="selectedFilter === option.id"
-            :data-test="`permission-filter-${option.id}`"
-            @click="selectedFilter = option.id"
-          >
-            {{ option.label }} {{ option.count }}
-          </KxChipButton>
-        </KxChipGroup>
+          <div class="settings-filter-bar__row">
+            <KxChipGroup
+              class="permission-type-filters"
+              aria-label="Pending request filters"
+              data-test="permission-type-filters"
+            >
+              <KxChipButton
+                v-for="option in filterOptions"
+                :key="option.id"
+                size="compact"
+                :selected="selectedFilter === option.id"
+                :data-test="`permission-filter-${option.id}`"
+                @click="selectedFilter = option.id"
+              >
+                {{ option.label }} {{ option.count }}
+              </KxChipButton>
+            </KxChipGroup>
+            <KxInput
+              v-model="searchQuery"
+              type="search"
+              aria-label="Search pending requests"
+              placeholder="Search pending requests"
+              data-test="permission-search-input"
+              class="permission-search-input"
+              size="compact"
+            />
+          </div>
+        </SettingsFilterBar>
         <KxEmptyState
           v-if="visibleEntries.length === 0"
           class="permission-empty permission-filter-empty"
@@ -130,8 +167,14 @@ const visibleEntries = computed(() =>
 .permission-empty {
   font-size: 13px;
 }
-.permission-type-filters {
+.permission-filters {
   margin-bottom: 8px;
+}
+.permission-type-filters {
+  flex: 1 1 auto;
+}
+.permission-search-input {
+  flex: 1 1 180px;
 }
 .permission-list {
   list-style: none;
