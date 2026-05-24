@@ -8,10 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 test.describe("Hooks Settings", () => {
   async function navigateToHooks(page: Page) {
-    await page.goto("/");
-    await page.waitForSelector('[data-test="nav-settings"]', { timeout: 10000 });
-    await page.getByTestId("nav-settings").click();
-    await page.getByTestId("settings-tab-hooks").click();
+    await page.goto("/#/settings/hooks");
     await expect(page.getByTestId("hooks-settings-pane")).toBeVisible();
   }
 
@@ -42,6 +39,42 @@ test.describe("Hooks Settings", () => {
     await page.getByTestId("hook-delete-stop-validation").click();
     await expect(page.getByTestId("hook-row-stop-validation")).toHaveCount(0);
     await expect(page.getByTestId("hooks-empty")).toBeVisible();
+  });
+
+  test("filters hooks by search", async ({ page }) => {
+    await navigateToHooks(page);
+
+    await page.getByTestId("hook-template-stop-validation").click();
+    await expect(page.getByTestId("hook-editor-dialog")).toBeVisible();
+    await page.getByTestId("hook-save").click();
+
+    await page.getByTestId("hook-template-prompt-secret-scan").click();
+    await expect(page.getByTestId("hook-id")).toHaveValue("prompt-secret-scan");
+    await page.getByTestId("hook-save").click();
+
+    await expect(page.getByTestId("hook-row-stop-validation")).toBeVisible();
+    await expect(page.getByTestId("hook-row-prompt-secret-scan")).toBeVisible();
+
+    const search = page.getByTestId("hook-search-input");
+    await expect(search).toBeVisible();
+
+    await search.fill("secret");
+    await expect(page.getByTestId("hook-row-prompt-secret-scan")).toBeVisible();
+    await expect(page.getByTestId("hook-row-stop-validation")).toHaveCount(0);
+
+    await search.fill("cargo test");
+    await expect(page.getByTestId("hook-row-stop-validation")).toBeVisible();
+    await expect(page.getByTestId("hook-row-prompt-secret-scan")).toHaveCount(0);
+
+    await search.fill("does-not-exist");
+    await expect(page.getByTestId("hooks-filter-empty")).toContainText(
+      "No hooks match your search."
+    );
+    await expect(page.getByTestId("hooks-list")).toHaveCount(0);
+
+    await search.clear();
+    await expect(page.getByTestId("hook-row-stop-validation")).toBeVisible();
+    await expect(page.getByTestId("hook-row-prompt-secret-scan")).toBeVisible();
   });
 
   test("saves project hooks independently from user hooks", async ({ page }) => {
