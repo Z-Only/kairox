@@ -101,6 +101,47 @@ test("memory proposal appears in permission center", async ({ page }) => {
   await expect(page.locator(".memory-prompt").first()).toContainText("concise explanations");
 });
 
+test("filters pending permission and memory requests by search", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
+    timeout: 10_000
+  });
+
+  await page.evaluate(() => {
+    (window as any).__KAIROX_MOCK__.simulatePermissionRequest(
+      "shell.exec",
+      "Run: cargo test --workspace"
+    );
+    (window as any).__KAIROX_MOCK__.simulateMemoryProposal(
+      "workspace",
+      null,
+      "Remember release checklist"
+    );
+  });
+
+  await expect(page.locator(".permission-prompt")).toHaveCount(2, {
+    timeout: 3_000
+  });
+
+  await page.getByTestId("permission-search-input").fill("cargo");
+  await expect(page.locator(".permission-prompt")).toHaveCount(1);
+  await expect(page.locator(".permission-prompt")).toContainText("shell.exec");
+  await expect(page.locator(".memory-prompt")).toHaveCount(0);
+
+  await page.getByTestId("permission-search-input").fill("release checklist");
+  await expect(page.locator(".permission-prompt")).toHaveCount(1);
+  await expect(page.locator(".memory-prompt")).toContainText("Remember release checklist");
+
+  await page.getByTestId("permission-filter-tool").click();
+  await expect(page.getByTestId("permission-empty-state")).toContainText(
+    "No pending requests match this filter"
+  );
+
+  await page.getByTestId("permission-search-input").fill("cargo");
+  await expect(page.locator(".permission-prompt")).toHaveCount(1);
+  await expect(page.locator(".permission-prompt")).toContainText("shell.exec");
+});
+
 test("accepting memory removes the prompt", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
