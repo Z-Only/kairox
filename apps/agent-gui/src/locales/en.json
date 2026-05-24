@@ -248,6 +248,8 @@
     "catalogEmpty": "No catalog entries match the current filters",
     "installedEmpty": "No installed servers yet",
     "sourcesEmpty": "No remote catalog sources configured.",
+    "sourceSearchPlaceholder": "Search sources",
+    "sourcesFilterEmpty": "No remote catalog sources match your search.",
     "sourceEnabled": "Enabled",
     "sourceError": "Error: {error}",
     "sourceErrorTitle": "Last error: {error}",

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import { useCatalogStore } from "@/stores/catalog";
-import type { AddCatalogSourceRequestPayload } from "../generated/commands";
+import type {
+  AddCatalogSourceRequestPayload,
+  CatalogSourceViewResponse
+} from "../generated/commands";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
@@ -9,6 +12,7 @@ const { t } = useI18n();
 const catalog = useCatalogStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
+const sourceSearchQuery = ref("");
 
 const draft = ref<AddCatalogSourceRequestPayload>({
   id: "",
@@ -24,6 +28,12 @@ const draft = ref<AddCatalogSourceRequestPayload>({
 
 const sources = computed(() => catalog.sources);
 const failures = computed(() => catalog.sourceFailures);
+const normalizedSourceSearchQuery = computed(() => sourceSearchQuery.value.trim().toLowerCase());
+const filteredSources = computed(() => {
+  const query = normalizedSourceSearchQuery.value;
+  if (!query) return sources.value;
+  return sources.value.filter((source) => searchableSourceText(source).includes(query));
+});
 
 const kindOptions = computed(() => [
   { label: t("marketplace.sourceKindMcpRegistry"), value: "mcp_registry" }
@@ -35,6 +45,23 @@ onMounted(() => {
 
 function isValidUrl(u: string): boolean {
   return u.startsWith("http://") || u.startsWith("https://");
+}
+
+function searchableSourceText(source: CatalogSourceViewResponse): string {
+  return [
+    source.id,
+    source.display_name,
+    source.kind,
+    source.url,
+    source.api_key_env,
+    source.default_trust,
+    source.enabled ? "enabled" : "disabled",
+    source.last_error,
+    failures.value[source.id]
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 function resetDraft(): void {
@@ -91,8 +118,31 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       <strong>{{ t("marketplace.catalogSourcesTitle") }}</strong>
     </h3>
 
+    <SettingsFilterBar
+      v-if="sources.length > 0"
+      :aria-label="t('marketplace.catalogSourcesAria')"
+      data-test="catalog-source-filter-bar"
+    >
+      <form role="search" @submit.prevent>
+        <KxInput
+          v-model="sourceSearchQuery"
+          type="search"
+          :placeholder="t('marketplace.sourceSearchPlaceholder')"
+          data-test="catalog-source-search-input"
+          size="compact"
+        />
+      </form>
+    </SettingsFilterBar>
+
     <SettingsState v-if="sources.length === 0" tone="empty" data-test="catalog-sources-empty-state">
       {{ t("marketplace.sourcesEmpty") }}
+    </SettingsState>
+    <SettingsState
+      v-else-if="filteredSources.length === 0"
+      tone="empty"
+      data-test="catalog-sources-filter-empty"
+    >
+      {{ t("marketplace.sourcesFilterEmpty") }}
     </SettingsState>
 
     <SettingsCardList
@@ -103,7 +153,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       dense
     >
       <SettingsCardItem
-        v-for="src in sources"
+        v-for="src in filteredSources"
         :key="src.id"
         :data-test="`catalog-source-row-${src.id}`"
       >
