@@ -12,6 +12,7 @@ import type {
 } from "@/generated/commands";
 
 type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
+type AgentSortOrder = "original" | "name" | "scope" | "status";
 
 const store = useAgentSettingsStore();
 const { t } = useI18n();
@@ -20,6 +21,7 @@ const configSource = inject<Ref<"user" | "project">>("configSource");
 const selectedAgentId = ref<string | null>(null);
 const editorDialogOpen = ref(false);
 const searchQuery = ref("");
+const sortOrder = ref<AgentSortOrder>("original");
 const form = reactive<AgentSettingsInput>({
   scope: "User",
   name: "",
@@ -96,10 +98,43 @@ function searchableAgentText(agent: AgentSettingsView): string {
     .toLowerCase();
 }
 
-const visibleAgents = computed(() => {
+const filteredAgents = computed(() => {
   const query = normalizedSearchQuery.value;
   if (!query) return store.agents;
   return store.agents.filter((agent) => searchableAgentText(agent).includes(query));
+});
+
+function compareText(left: string | null, right: string | null): number {
+  return (left ?? "").localeCompare(right ?? "", undefined, { sensitivity: "base" });
+}
+
+function compareStatus(left: AgentSettingsView, right: AgentSettingsView): number {
+  return (
+    Number(right.enabled) - Number(left.enabled) ||
+    Number(right.effective) - Number(left.effective) ||
+    Number(right.valid) - Number(left.valid)
+  );
+}
+
+function compareAgents(left: AgentSettingsView, right: AgentSettingsView): number {
+  switch (sortOrder.value) {
+    case "name":
+      return compareText(left.name, right.name);
+    case "scope":
+      return compareText(scopeLabel(left.scope), scopeLabel(right.scope));
+    case "status":
+      return compareStatus(left, right);
+    default:
+      return 0;
+  }
+}
+
+const visibleAgents = computed(() => {
+  if (sortOrder.value === "original") return filteredAgents.value;
+  return filteredAgents.value
+    .map((agent, index) => ({ agent, index }))
+    .sort((left, right) => compareAgents(left.agent, right.agent) || left.index - right.index)
+    .map(({ agent }) => agent);
 });
 
 function startCreate(): void {
@@ -223,6 +258,18 @@ watch(
             placeholder="Search agents"
             data-test="agent-search-input"
           />
+          <KxSelect
+            v-model="sortOrder"
+            size="compact"
+            aria-label="Agent sort"
+            data-test="agent-sort-select"
+            class="agent-settings__sort-select"
+          >
+            <option value="original">Original order</option>
+            <option value="name">Name</option>
+            <option value="scope">Scope</option>
+            <option value="status">Status</option>
+          </KxSelect>
         </div>
       </SettingsFilterBar>
 
@@ -431,5 +478,9 @@ watch(
 
 .agent-editor__checkbox input {
   width: auto;
+}
+
+.agent-settings__sort-select {
+  flex: 0 1 160px;
 }
 </style>
