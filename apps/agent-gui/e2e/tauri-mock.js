@@ -156,6 +156,121 @@ function installMock() {
       getTrace(sessionId).push(event);
       emitEvent("session-event", event);
     },
+    simulateUserMessage: function (content) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return null;
+      var messageId = nextId("msg");
+      var event = makeEvent(sessionId, {
+        type: "UserMessageAdded",
+        message_id: messageId,
+        content: content
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+      return messageId;
+    },
+    simulateAssistantMessage: function (content) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return null;
+      var messageId = nextId("msg");
+      var event = makeEvent(sessionId, {
+        type: "AssistantMessageCompleted",
+        message_id: messageId,
+        content: content
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+      return messageId;
+    },
+    simulateModelToolCallRequested: function (toolId, toolCallId) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return null;
+      var id = toolCallId || nextId("call");
+      var event = makeEvent(sessionId, {
+        type: "ModelToolCallRequested",
+        tool_call_id: id,
+        tool_id: toolId
+      });
+      getTrace(sessionId).push(event);
+      emitEvent("session-event", event);
+      return id;
+    },
+    /**
+     * Emit ToolInvocationStarted + ToolInvocationCompleted for a single
+     * invocation. The trace reducer keys these by `invocation_id`, so
+     * Completed updates the same entry with `output_preview` and
+     * `duration_ms` — the fields the chat-stream's tool-call row reveals
+     * after expand. Returns the invocation id used.
+     */
+    simulateToolInvocation: function (toolId, outputPreview, durationMs) {
+      var sessionId = state.currentSessionId;
+      if (!sessionId) return null;
+      var invId = nextId("inv");
+      var startEvent = makeEvent(sessionId, {
+        type: "ToolInvocationStarted",
+        invocation_id: invId,
+        tool_id: toolId
+      });
+      getTrace(sessionId).push(startEvent);
+      emitEvent("session-event", startEvent);
+      var compEvent = makeEvent(sessionId, {
+        type: "ToolInvocationCompleted",
+        invocation_id: invId,
+        tool_id: toolId,
+        output_preview: outputPreview || "",
+        exit_code: 0,
+        duration_ms: durationMs == null ? 150 : durationMs,
+        truncated: false
+      });
+      getTrace(sessionId).push(compEvent);
+      emitEvent("session-event", compEvent);
+      return invId;
+    },
+    /**
+     * Drive `session.projection.compaction` directly so the chat-stream's
+     * ChatCompactionItem renders. The live session-event reducer only
+     * toggles a `compacting` boolean for ContextCompactionStarted/Completed/
+     * Failed — it never writes `projection.compaction`, which is only
+     * updated through snapshot loads (`setProjection`). The Rust enum has
+     * no `Completed` variant, but ChatCompactionItem accepts a local
+     * extended `{ type: "Completed" }` for the completed visual state.
+     */
+    simulateCompactionStatus: function (statusPatch) {
+      var mountedAppElement = document.querySelector("#app");
+      if (!mountedAppElement || !mountedAppElement.__vue_app__) return;
+      var pinia = mountedAppElement.__vue_app__.config.globalProperties.$pinia;
+      if (!pinia || !pinia._s) return;
+      var sessionStore = pinia._s.get("session");
+      if (!sessionStore) return;
+      var nextProjection = Object.assign({}, sessionStore.projection, {
+        compaction: statusPatch
+      });
+      sessionStore.setProjection(nextProjection);
+      var sessionId = state.currentSessionId;
+      if (sessionId) {
+        var eventType =
+          statusPatch && statusPatch.type === "Running"
+            ? "ContextCompactionStarted"
+            : statusPatch && statusPatch.type === "Failed"
+              ? "ContextCompactionFailed"
+              : "ContextCompactionCompleted";
+        var payload = { type: eventType };
+        if (eventType === "ContextCompactionStarted") {
+          payload.reason = { type: "UserRequested" };
+          payload.before_tokens = 12000;
+          payload.candidate_event_count = 4;
+        } else if (eventType === "ContextCompactionCompleted") {
+          payload.summary_id = "sum_mock_e2e";
+          payload.after_tokens = 3000;
+          payload.fallback_used = false;
+        } else {
+          payload.error = (statusPatch && statusPatch.error) || "Compaction failed";
+        }
+        var event = makeEvent(sessionId, payload);
+        getTrace(sessionId).push(event);
+        emitEvent("session-event", event);
+      }
+    },
     setNextOpenDialogResult: function (selected) {
       state.nextOpenDialogResult = selected;
     },
