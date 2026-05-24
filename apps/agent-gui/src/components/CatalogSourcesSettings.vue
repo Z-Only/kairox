@@ -13,6 +13,9 @@ const catalog = useCatalogStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
 const sourceSearchQuery = ref("");
+const sourceSortMode = ref<CatalogSourceSortMode>("original");
+
+type CatalogSourceSortMode = "original" | "name" | "priority" | "status" | "trust";
 
 const draft = ref<AddCatalogSourceRequestPayload>({
   id: "",
@@ -34,10 +37,24 @@ const filteredSources = computed(() => {
   if (!query) return sources.value;
   return sources.value.filter((source) => searchableSourceText(source).includes(query));
 });
+const displayedSources = computed(() => sortedSources(filteredSources.value, sourceSortMode.value));
 
 const kindOptions = computed(() => [
   { label: t("marketplace.sourceKindMcpRegistry"), value: "mcp_registry" }
 ]);
+const sourceSortOptions: { label: string; value: CatalogSourceSortMode }[] = [
+  { label: "Original order", value: "original" },
+  { label: "Name", value: "name" },
+  { label: "Priority", value: "priority" },
+  { label: "Status", value: "status" },
+  { label: "Trust", value: "trust" }
+];
+const sourceNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const sourceTrustOrder: Record<string, number> = {
+  verified: 0,
+  community: 1,
+  unverified: 2
+};
 
 onMounted(() => {
   void catalog.fetchSources();
@@ -62,6 +79,44 @@ function searchableSourceText(source: CatalogSourceViewResponse): string {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function sortedSources(
+  sourceList: CatalogSourceViewResponse[],
+  sortMode: CatalogSourceSortMode
+): CatalogSourceViewResponse[] {
+  if (sortMode === "original") return sourceList;
+  return sourceList
+    .map((source, index) => ({ source, index }))
+    .sort((left, right) => {
+      const result = compareSources(left.source, right.source, sortMode);
+      return result === 0 ? left.index - right.index : result;
+    })
+    .map(({ source }) => source);
+}
+
+function compareSources(
+  left: CatalogSourceViewResponse,
+  right: CatalogSourceViewResponse,
+  sortMode: Exclude<CatalogSourceSortMode, "original">
+): number {
+  switch (sortMode) {
+    case "name":
+      return sourceNameCollator.compare(
+        left.display_name || left.id,
+        right.display_name || right.id
+      );
+    case "priority":
+      return left.priority - right.priority;
+    case "status":
+      return Number(right.enabled) - Number(left.enabled);
+    case "trust":
+      return sourceTrustRank(left.default_trust) - sourceTrustRank(right.default_trust);
+  }
+}
+
+function sourceTrustRank(trust: string): number {
+  return sourceTrustOrder[trust] ?? Number.MAX_SAFE_INTEGER;
 }
 
 function resetDraft(): void {
@@ -123,15 +178,28 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       :aria-label="t('marketplace.catalogSourcesAria')"
       data-test="catalog-source-filter-bar"
     >
-      <form role="search" @submit.prevent>
-        <KxInput
-          v-model="sourceSearchQuery"
-          type="search"
-          :placeholder="t('marketplace.sourceSearchPlaceholder')"
-          data-test="catalog-source-search-input"
+      <div class="settings-filter-bar__row">
+        <form class="source-search-form" role="search" @submit.prevent>
+          <KxInput
+            v-model="sourceSearchQuery"
+            type="search"
+            :placeholder="t('marketplace.sourceSearchPlaceholder')"
+            data-test="catalog-source-search-input"
+            size="compact"
+          />
+        </form>
+        <KxSelect
+          v-model="sourceSortMode"
+          aria-label="Catalog source sort"
+          data-test="catalog-source-sort-select"
+          class="source-sort-select"
           size="compact"
-        />
-      </form>
+        >
+          <option v-for="opt in sourceSortOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </KxSelect>
+      </div>
     </SettingsFilterBar>
 
     <SettingsState v-if="sources.length === 0" tone="empty" data-test="catalog-sources-empty-state">
@@ -153,7 +221,7 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
       dense
     >
       <SettingsCardItem
-        v-for="src in filteredSources"
+        v-for="src in displayedSources"
         :key="src.id"
         :data-test="`catalog-source-row-${src.id}`"
       >
@@ -291,6 +359,12 @@ async function onToggle(id: string, enabled: boolean): Promise<void> {
 }
 .src-error {
   font-size: 0.85em;
+}
+.source-search-form {
+  flex: 1 1 220px;
+}
+.source-sort-select {
+  flex: 0 1 160px;
 }
 .text-error {
   color: var(--app-error-color);
