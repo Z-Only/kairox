@@ -57,3 +57,7 @@ path = "tests/full_stack/main.rs"
 [[test]]
 name = "session_lifecycle"
 path = "tests/session_lifecycle/main.rs"
+
+[[test]]
+name = "agent_loop"
+path = "tests/agent_loop/main.rs"
