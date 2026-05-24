@@ -94,10 +94,12 @@ impl App {
             render_current_session_header(chat_chunks[chat_chunk_idx], frame, &session_metadata);
             chat_chunk_idx += 1;
         }
-        crate::components::chat::render_messages(
+        crate::components::chat::render_chat_stream(
             chat_chunks[chat_chunk_idx],
             frame,
             &self.state.current_session,
+            &self.domain_events,
+            self.chat.expanded_tool_calls(),
         );
         chat_chunk_idx += 1;
         if has_queue {

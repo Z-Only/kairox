@@ -2,21 +2,18 @@
 
 mod input;
 mod render;
-// The reducer in `stream` is the foundation for the v0.30.0 unified
-// ChatPanel feed; the renderer wiring lands in a follow-up PR, so until
-// then nothing inside the `agent-tui` binary references these symbols.
-// Tests under `crates/agent-tui/tests/chat_stream.rs` exercise the
-// module directly.
-#[allow(dead_code)]
 pub mod stream;
+mod stream_render;
 
-pub use render::{
-    format_attachment_labels, render_file_mention_palette, render_messages, render_queue_strip,
-};
+#[allow(unused_imports)]
+pub use render::render_messages;
+pub use render::{format_attachment_labels, render_file_mention_palette, render_queue_strip};
+pub use stream_render::render_chat_stream;
 
 use agent_core::AttachmentInfo;
 use ratatui::layout::Rect;
 use ratatui::Frame;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::app_state::{InputMode, InputState};
@@ -31,7 +28,6 @@ use crate::components::{
 
 /// The main chat panel: displays messages from a [`SessionProjection`] and
 /// handles text input, history navigation, and permission decisions.
-#[allow(dead_code)]
 pub struct ChatPanel {
     focused: bool,
     pub input_content: String,
@@ -41,6 +37,11 @@ pub struct ChatPanel {
     pub input_history: Vec<String>,
     /// `None` means we're at the "live" position (not browsing history).
     pub input_history_index: Option<usize>,
+    // Reserved for chat scrollback navigation; not yet wired through to
+    // the render path. The previous module-level `#[allow(dead_code)]`
+    // covered it, but is now scoped to this field so newly-introduced
+    // dead code in `ChatPanel` is still surfaced.
+    #[allow(dead_code)]
     pub scroll_offset: usize,
     /// Files attached to the next user message.
     pub pending_attachments: Vec<AttachmentInfo>,
@@ -52,6 +53,10 @@ pub struct ChatPanel {
     workspace_root: Option<PathBuf>,
     workspace_files: Vec<String>,
     file_mentions: FileMentionState,
+    /// Set of tool-call invocation ids whose detail block is expanded
+    /// in the inline chat-stream feed. Cleared per process — does not
+    /// persist across sessions or restarts.
+    expanded_tool_calls: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -80,6 +85,34 @@ impl ChatPanel {
             workspace_root: None,
             workspace_files: Vec::new(),
             file_mentions: FileMentionState::default(),
+            expanded_tool_calls: HashSet::new(),
+        }
+    }
+
+    /// Read-only access to the set of tool-call invocation ids whose
+    /// detail is expanded in the inline chat-stream feed. Used by the
+    /// renderer to draw expanded vs collapsed rows.
+    pub fn expanded_tool_calls(&self) -> &HashSet<String> {
+        &self.expanded_tool_calls
+    }
+
+    /// Toggle the expand state for the given tool-call invocation id.
+    /// Returns `true` if the id is now expanded, `false` if collapsed.
+    ///
+    /// Currently public-API-only: no key binding wires through to this
+    /// method in the v0.30.0 cut because the chat scrollback has no
+    /// focus/selection model for stream items yet. Adding a
+    /// focus-on-stream-item layer is tracked in the follow-up campaign;
+    /// this method is exposed so the dispatcher work can land without
+    /// another round trip through this module.
+    #[allow(dead_code)]
+    pub fn toggle_tool_call_expanded(&mut self, invocation_id: &str) -> bool {
+        if self.expanded_tool_calls.contains(invocation_id) {
+            self.expanded_tool_calls.remove(invocation_id);
+            false
+        } else {
+            self.expanded_tool_calls.insert(invocation_id.to_string());
+            true
         }
     }
 
