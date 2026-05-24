@@ -14,6 +14,36 @@ import { expectSourceMigration } from "@/test-utils/sourceGuards";
 if (typeof Element !== "undefined" && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = (() => {}) as Element["scrollTo"];
 }
+// jsdom likewise has no `Element.prototype.scrollIntoView`; ChatPanel's
+// jump-to-pending-permission CTA invokes it on click. Provide a default
+// stub so component renders don't crash; individual specs replace it with
+// a spy when they need to assert the call.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = (() => {}) as Element["scrollIntoView"];
+}
+// jsdom does not implement `IntersectionObserver`. The jump-to-pending-
+// permission CTA uses it to decide whether the first pending permission's
+// DOM node is in the visible scroll region; with no native impl the
+// component falls back to "not yet observed", which is the same state the
+// specs assert against.
+if (typeof globalThis.IntersectionObserver === "undefined") {
+  class StubIntersectionObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+    root: Element | null = null;
+    rootMargin = "";
+    thresholds: ReadonlyArray<number> = [];
+  }
+  (
+    globalThis as unknown as {
+      IntersectionObserver: typeof IntersectionObserver;
+    }
+  ).IntersectionObserver = StubIntersectionObserver as unknown as typeof IntersectionObserver;
+}
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -34,10 +64,18 @@ vi.mock("@/composables/useCommandRegistry", () => ({
   })
 }));
 vi.mock("@/components/CommandPalette.vue", () => ({
-  default: { name: "CommandPalette", template: "<div/>", props: ["visible", "filterText"] }
+  default: {
+    name: "CommandPalette",
+    template: "<div/>",
+    props: ["visible", "filterText"]
+  }
 }));
 vi.mock("@/components/FileMentionPalette.vue", () => ({
-  default: { name: "FileMentionPalette", template: "<div/>", props: ["visible", "filterText"] }
+  default: {
+    name: "FileMentionPalette",
+    template: "<div/>",
+    props: ["visible", "filterText"]
+  }
 }));
 
 import { invoke } from "@tauri-apps/api/core";
@@ -45,7 +83,9 @@ const mockedInvoke = vi.mocked(invoke);
 
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
+import { useTraceStore } from "@/stores/trace";
 import type { ContextUsage } from "@/types";
+import type { TraceEntryData } from "@/types/trace";
 
 /**
  * `mountWithPlugins` activates a fresh Pinia internally, so the per-test
@@ -533,5 +573,72 @@ describe("ChatPanel", () => {
     const errorBanner = wrapper.find('[data-test="error-banner"]');
     expect(errorBanner.exists()).toBe(true);
     expect(errorBanner.text()).toContain("model unavailable");
+  });
+
+  describe("jump-to-pending-permission CTA", () => {
+    function pendingPermissionEntry(
+      overrides: Partial<TraceEntryData> & { id: string }
+    ): TraceEntryData {
+      return {
+        kind: "permission",
+        status: "pending",
+        title: "Allow shell?",
+        toolId: "shell",
+        startedAt: 0,
+        expanded: false,
+        ...overrides
+      };
+    }
+
+    it("renders the floating CTA when an unresolved permission is in the chat stream", async () => {
+      const wrapper = mountChatPanel();
+      const trace = useTraceStore();
+      trace.entries.push(
+        pendingPermissionEntry({
+          id: "perm_jump_1",
+          title: "Allow rm /tmp/x?"
+        })
+      );
+      await flushPromises();
+
+      const cta = wrapper.find('[data-test="jump-pending-permission-cta"]');
+      expect(cta.exists()).toBe(true);
+      // Localised label embeds the unresolved permission count.
+      expect(cta.text()).toContain("1");
+    });
+
+    it("hides the floating CTA when there are no pending permissions", async () => {
+      const wrapper = mountChatPanel();
+      await flushPromises();
+
+      expect(wrapper.find('[data-test="jump-pending-permission-cta"]').exists()).toBe(false);
+    });
+
+    it("scrolls the first pending permission into view when clicked", async () => {
+      const scrollIntoViewSpy = vi.fn();
+      const originalScrollIntoView = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scrollIntoViewSpy as Element["scrollIntoView"];
+      try {
+        const wrapper = mountChatPanel();
+        const trace = useTraceStore();
+        trace.entries.push(
+          pendingPermissionEntry({
+            id: "perm_jump_click",
+            title: "Allow rm /tmp/y?"
+          })
+        );
+        await flushPromises();
+
+        const cta = wrapper.find('[data-test="jump-pending-permission-cta"]');
+        expect(cta.exists()).toBe(true);
+        await cta.trigger("click");
+
+        expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+        const callArg = scrollIntoViewSpy.mock.calls[0]?.[0];
+        expect(callArg).toEqual({ behavior: "smooth", block: "center" });
+      } finally {
+        Element.prototype.scrollIntoView = originalScrollIntoView;
+      }
+    });
   });
 });
