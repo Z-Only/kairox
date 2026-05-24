@@ -27,6 +27,17 @@ const hooksSettings = {
       enabled: true,
       source: "User",
       configPath: "/home/.kairox/config.toml"
+    },
+    {
+      id: "notify",
+      event: "PreToolUse",
+      matcher: "shell",
+      command: "echo tool",
+      statusMessage: "Preparing tool notification",
+      timeoutSecs: 30,
+      enabled: false,
+      source: "User",
+      configPath: "/home/.kairox/config.toml"
     }
   ],
   project: [],
@@ -129,10 +140,50 @@ describe("HooksSettingsPane", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="hooks-list"]').classes()).toContain("settings-card-list");
+    expect(wrapper.find('[data-test="hook-search-input"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="hook-row-verify"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="hook-row-notify"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="hook-row-verify"]').classes()).toContain("settings-card-item");
     expect(wrapper.find('[data-test="hook-row-verify"]').text()).toContain("Stop");
     expect(wrapper.find('[data-test="hook-row-verify"]').text()).toContain("cargo test");
+  });
+
+  it("filters hooks by search text", async () => {
+    mockedInvoke.mockResolvedValueOnce(hooksSettings);
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="hook-search-input"]').setValue("notify");
+
+    expect(wrapper.find('[data-test="hook-row-notify"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="hook-row-verify"]').exists()).toBe(false);
+  });
+
+  it("matches hook search against metadata", async () => {
+    mockedInvoke.mockResolvedValueOnce(hooksSettings);
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="hook-search-input"]').setValue("pretooluse");
+
+    expect(wrapper.find('[data-test="hook-row-notify"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="hook-row-verify"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no hooks match search", async () => {
+    mockedInvoke.mockResolvedValueOnce(hooksSettings);
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="hook-search-input"]').setValue("does-not-exist");
+
+    const empty = wrapper.find('[data-test="hooks-filter-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No hooks match your search.");
+    expect(wrapper.find('[data-test="hooks-list"]').exists()).toBe(false);
   });
 
   it("keeps the hook add action in the list header and lets the list use the full card width", async () => {
@@ -224,6 +275,7 @@ describe("HooksSettingsPane", () => {
   it("does not keep local hook row chrome after moving to SettingsCardItem", () => {
     expectSourceMigration(hooksSettingsPaneSource, {
       required: [
+        "SettingsFilterBar",
         "SettingsCardList",
         "SettingsCardItem",
         "SettingsItemSummary",

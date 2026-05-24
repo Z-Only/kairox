@@ -21,6 +21,7 @@ const loading = ref(true);
 const saving = ref(false);
 const errorMsg = ref("");
 const formOpen = ref(false);
+const searchQuery = ref("");
 
 const form = ref({
   id: "",
@@ -59,6 +60,31 @@ const projectRoot = computed(() => {
 const currentHooks = computed<HookSettingsView[]>(() => {
   if (!view.value) return [];
   return scope.value === "Project" ? view.value.project : view.value.user;
+});
+
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
+
+function searchableHookText(hook: HookSettingsView): string {
+  return [
+    hook.id,
+    hook.event,
+    hook.matcher,
+    hook.command,
+    hook.statusMessage,
+    hook.timeoutSecs?.toString(),
+    hook.enabled ? t("hooks.enabled") : t("hooks.disabled"),
+    hook.source,
+    hook.configPath
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const filteredHooks = computed(() => {
+  const query = normalizedSearchQuery.value;
+  if (!query) return currentHooks.value;
+  return currentHooks.value.filter((hook) => searchableHookText(hook).includes(query));
 });
 
 function unwrapCommand<T>(result: T | { status: string; data?: T; error?: unknown }): T {
@@ -251,55 +277,82 @@ watch(
             {{ t("hooks.empty") }}
           </SettingsState>
 
-          <SettingsCardList
-            v-else
-            :aria-label="t('hooks.scopeHooks', { scope: scopeLabel })"
-            data-test="hooks-list"
-            :scroll="false"
-            columns="auto"
-            dense
-          >
-            <SettingsCardItem
-              v-for="hook in currentHooks"
-              :key="`${hook.event}:${hook.id}`"
-              class="hook-row"
-              layout="stack"
-              :data-test="`hook-row-${hook.id}`"
+          <template v-else>
+            <SettingsFilterBar
+              class="hooks-pane__filter"
+              aria-label="Search hooks"
+              data-test="hook-filters"
             >
-              <SettingsItemSummary
-                :title="hook.id"
-                :heading-level="4"
-                :tags-label="t('hooks.scopeHooks', { scope: scopeLabel })"
-              >
-                <template #tags>
-                  <SettingsStatusTag>{{ hook.event }}</SettingsStatusTag>
-                  <SettingsStatusTag v-if="!hook.enabled" tone="muted">
-                    {{ t("hooks.disabled") }}
-                  </SettingsStatusTag>
-                </template>
-                <code>{{ hook.command }}</code>
-              </SettingsItemSummary>
+              <div class="settings-filter-bar__row">
+                <KxInput
+                  v-model="searchQuery"
+                  type="search"
+                  size="compact"
+                  aria-label="Search hooks"
+                  placeholder="Search hooks"
+                  data-test="hook-search-input"
+                />
+              </div>
+            </SettingsFilterBar>
 
-              <template #actions>
-                <KxInlineAction
-                  :data-test="`hook-edit-${hook.id}`"
-                  type="button"
-                  @click="editHook(hook)"
+            <SettingsState
+              v-if="filteredHooks.length === 0"
+              tone="empty"
+              data-test="hooks-filter-empty"
+            >
+              No hooks match your search.
+            </SettingsState>
+
+            <SettingsCardList
+              v-else
+              :aria-label="t('hooks.scopeHooks', { scope: scopeLabel })"
+              data-test="hooks-list"
+              :scroll="false"
+              columns="auto"
+              dense
+            >
+              <SettingsCardItem
+                v-for="hook in filteredHooks"
+                :key="`${hook.event}:${hook.id}`"
+                class="hook-row"
+                layout="stack"
+                :data-test="`hook-row-${hook.id}`"
+              >
+                <SettingsItemSummary
+                  :title="hook.id"
+                  :heading-level="4"
+                  :tags-label="t('hooks.scopeHooks', { scope: scopeLabel })"
                 >
-                  {{ t("common.edit") }}
-                </KxInlineAction>
-                <KxInlineAction
-                  variant="danger"
-                  :data-test="`hook-delete-${hook.id}`"
-                  :disabled="saving"
-                  type="button"
-                  @click="deleteHook(hook)"
-                >
-                  {{ t("common.delete") }}
-                </KxInlineAction>
-              </template>
-            </SettingsCardItem>
-          </SettingsCardList>
+                  <template #tags>
+                    <SettingsStatusTag>{{ hook.event }}</SettingsStatusTag>
+                    <SettingsStatusTag v-if="!hook.enabled" tone="muted">
+                      {{ t("hooks.disabled") }}
+                    </SettingsStatusTag>
+                  </template>
+                  <code>{{ hook.command }}</code>
+                </SettingsItemSummary>
+
+                <template #actions>
+                  <KxInlineAction
+                    :data-test="`hook-edit-${hook.id}`"
+                    type="button"
+                    @click="editHook(hook)"
+                  >
+                    {{ t("common.edit") }}
+                  </KxInlineAction>
+                  <KxInlineAction
+                    variant="danger"
+                    :data-test="`hook-delete-${hook.id}`"
+                    :disabled="saving"
+                    type="button"
+                    @click="deleteHook(hook)"
+                  >
+                    {{ t("common.delete") }}
+                  </KxInlineAction>
+                </template>
+              </SettingsCardItem>
+            </SettingsCardList>
+          </template>
         </section>
       </div>
 
@@ -421,6 +474,10 @@ watch(
 .hooks-pane__list-header h3 {
   margin: 0;
   font-size: 0.95rem;
+}
+
+.hooks-pane__filter {
+  margin-bottom: 8px;
 }
 
 .hook-row code {
