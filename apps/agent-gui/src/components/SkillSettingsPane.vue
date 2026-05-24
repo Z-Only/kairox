@@ -11,6 +11,7 @@ import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
+type InstalledSkillSortMode = "original" | "name" | "scope" | "status" | "update_state";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -19,6 +20,15 @@ const githubSource = ref("");
 const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
 const installedSearchQuery = ref("");
+const installedSortMode = ref<InstalledSkillSortMode>("original");
+const installedSortOptions: Array<{ value: InstalledSkillSortMode; label: string }> = [
+  { value: "original", label: "Original order" },
+  { value: "name", label: "Name" },
+  { value: "scope", label: "Scope" },
+  { value: "status", label: "Status" },
+  { value: "update_state", label: "Update state" }
+];
+const skillSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 const skillCatalogInstallTarget = computed<SkillInstallTarget>(
   () => installTarget.value.toLowerCase() as SkillInstallTarget
 );
@@ -75,6 +85,22 @@ function sourceTone(source: string): SourceTone {
   }
 }
 
+function installedSkillSortValue(
+  skill: EffectiveSkillView,
+  sortMode: Exclude<InstalledSkillSortMode, "original">
+): string {
+  switch (sortMode) {
+    case "name":
+      return skill.value.name;
+    case "scope":
+      return skill.value.scope;
+    case "status":
+      return skill.enabled ? "enabled" : "disabled";
+    case "update_state":
+      return skill.value.update_state;
+  }
+}
+
 function searchableSkillText(skill: EffectiveSkillView): string {
   const value = skill.value;
   return [
@@ -109,6 +135,23 @@ const filteredInstalledSkills = computed(() => {
   const query = normalizedInstalledSearchQuery.value;
   if (!query) return skillsStore.effectiveSkills;
   return skillsStore.effectiveSkills.filter((skill) => searchableSkillText(skill).includes(query));
+});
+
+const displayedInstalledSkills = computed(() => {
+  const sortMode = installedSortMode.value;
+  const skills = filteredInstalledSkills.value;
+  if (sortMode === "original") return skills;
+
+  return skills
+    .map((skill, index) => ({ skill, index }))
+    .sort((left, right) => {
+      const result = skillSortCollator.compare(
+        installedSkillSortValue(left.skill, sortMode),
+        installedSkillSortValue(right.skill, sortMode)
+      );
+      return result === 0 ? left.index - right.index : result;
+    })
+    .map(({ skill }) => skill);
 });
 
 watch(
@@ -226,6 +269,21 @@ async function installFromGithub(): Promise<void> {
                 placeholder="Search installed skills"
                 data-test="skill-installed-search-input"
               />
+              <KxSelect
+                v-model="installedSortMode"
+                aria-label="Installed skill sort"
+                data-test="skill-installed-sort-select"
+                size="compact"
+                class="skill-settings__sort-select"
+              >
+                <option
+                  v-for="option in installedSortOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </KxSelect>
             </div>
           </SettingsFilterBar>
 
@@ -244,7 +302,7 @@ async function installFromGithub(): Promise<void> {
             dense
           >
             <SettingsCardItem
-              v-for="skill in filteredInstalledSkills"
+              v-for="skill in displayedInstalledSkills"
               :key="skill.value.settings_id"
               layout="stack"
               density="compact"
@@ -480,6 +538,10 @@ async function installFromGithub(): Promise<void> {
 .skill-settings__inline-form {
   flex-wrap: wrap;
   align-items: end;
+}
+
+.skill-settings__sort-select {
+  flex: 0 1 180px;
 }
 
 .skill-settings__remote-list {
