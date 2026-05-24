@@ -124,4 +124,74 @@ describe("SessionsSidebar", () => {
       Node.DOCUMENT_POSITION_FOLLOWING
     );
   });
+
+  it("filters regular sessions by title", async () => {
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [
+      { id: "s1", title: "Release planning", profile: "fast" } as never,
+      { id: "s2", title: "Bug triage", profile: "slow" } as never
+    ];
+    await flushPromises();
+
+    await wrapper.get('[data-test="session-search-input"]').setValue("release");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="sessions-section"]').text()).toContain("Release planning");
+    expect(wrapper.find('[data-test="sessions-section"]').text()).not.toContain("Bug triage");
+  });
+
+  it("keeps a project visible when one of its sessions matches the search", async () => {
+    mockInvokeCommandResponses({
+      list_projects: [
+        {
+          project_id: "project-1",
+          display_name: "Compiler",
+          root_path: "/tmp/compiler",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true
+        },
+        {
+          project_id: "project-2",
+          display_name: "Docs",
+          root_path: "/tmp/docs",
+          removed_at: null,
+          sort_order: 1,
+          expanded: false
+        }
+      ],
+      list_project_sessions: [
+        {
+          id: "project-session-1",
+          title: "Parser benchmark",
+          profile: "fast",
+          project_id: "project-1",
+          worktree_path: "/tmp/compiler",
+          branch: "main",
+          visibility: null
+        },
+        {
+          id: "project-session-2",
+          title: "Copy review",
+          profile: "fast",
+          project_id: "project-2",
+          worktree_path: "/tmp/docs",
+          branch: "main",
+          visibility: null
+        }
+      ]
+    });
+    const { wrapper } = await mountSidebar();
+    await flushPromises();
+
+    await wrapper.get('[data-test="session-search-input"]').setValue("parser");
+    await flushPromises();
+
+    const projectSectionText = wrapper.find('[data-test="projects-section"]').text();
+    expect(projectSectionText).toContain("Compiler");
+    expect(projectSectionText).toContain("Parser benchmark");
+    expect(projectSectionText).not.toContain("Docs");
+    expect(projectSectionText).not.toContain("Copy review");
+  });
 });

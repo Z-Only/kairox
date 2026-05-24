@@ -127,6 +127,7 @@
     "profileLabel": "Profile：",
     "header": "会话",
     "projectHeader": "项目",
+    "searchPlaceholder": "搜索会话和项目...",
     "newProject": "新建项目",
     "createBlankProject": "创建空白项目",
     "importFolder": "导入文件夹",

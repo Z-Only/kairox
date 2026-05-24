@@ -54,6 +54,62 @@ const projectSessionRename = useSidebarRename({
   onConfirm: projects.renameProjectSession
 });
 
+const sessionSearch = ref("");
+const normalizedSessionSearch = computed(() => sessionSearch.value.trim().toLocaleLowerCase());
+
+function searchableText(parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(" ").toLocaleLowerCase();
+}
+
+function matchesSessionSearch(parts: Array<string | null | undefined>): boolean {
+  const query = normalizedSessionSearch.value;
+  if (!query) return true;
+  return searchableText(parts).includes(query);
+}
+
+function projectMatchesSearch(project: (typeof projects.activeProjects)[number]): boolean {
+  return matchesSessionSearch([project.displayName, project.rootPath]);
+}
+
+function projectSessionMatchesSearch(
+  projectSession: ReturnType<typeof getProjectSessions>[number]
+): boolean {
+  return matchesSessionSearch([
+    projectSession.title,
+    projectSession.profile,
+    projectSession.branch,
+    projectSession.worktreePath
+  ]);
+}
+
+const filteredSessions = computed(() =>
+  session.sessions.filter((item) => matchesSessionSearch([item.title, item.profile]))
+);
+
+const filteredActiveProjects = computed(() => {
+  if (!normalizedSessionSearch.value) return projects.activeProjects;
+
+  return projects.activeProjects.filter(
+    (project) =>
+      projectMatchesSearch(project) ||
+      getProjectSessions(project.projectId).some(projectSessionMatchesSearch)
+  );
+});
+
+const filteredArchivedSessions = computed(() =>
+  projects.archivedSessions.filter(projectSessionMatchesSearch)
+);
+
+function getFilteredProjectSessions(projectId: string) {
+  const projectSessions = getProjectSessions(projectId);
+  if (!normalizedSessionSearch.value) return projectSessions;
+
+  const project = projects.activeProjects.find((entry) => entry.projectId === projectId);
+  if (project && projectMatchesSearch(project)) return projectSessions;
+
+  return projectSessions.filter(projectSessionMatchesSearch);
+}
+
 const orderedSidebarSections = computed<SidebarSection[]>(() => {
   const configuredSections = workspaceUi.sectionOrder.filter(
     (section, index, sections) => sections.indexOf(section) === index
@@ -72,6 +128,16 @@ onMounted(() => {
 
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
+    <div class="session-search">
+      <KxInput
+        v-model="sessionSearch"
+        type="search"
+        size="compact"
+        data-test="session-search-input"
+        :placeholder="t('sessions.searchPlaceholder')"
+        :aria-label="t('sessions.searchPlaceholder')"
+      />
+    </div>
     <div class="session-scroll">
       <KxEmptyState
         v-if="projects.activeProjects.length === 0 && session.sessions.length === 0"
@@ -85,15 +151,15 @@ onMounted(() => {
         <ProjectSection
           v-if="sectionName === 'projects'"
           v-model:project-create-menu-open="projectCreateMenuOpen"
-          :active-projects="projects.activeProjects"
-          :archived-sessions="projects.archivedSessions"
+          :active-projects="filteredActiveProjects"
+          :archived-sessions="filteredArchivedSessions"
           :active-session-id="activeSessionId"
           :pending-delete-project-id="pendingDeleteProjectId"
           :pending-archive-project-session-id="pendingArchiveProjectSessionId"
           :importing-project="importingProject"
           :project-rename="projectRename"
           :project-session-rename="projectSessionRename"
-          :get-project-sessions="getProjectSessions"
+          :get-project-sessions="getFilteredProjectSessions"
           :create-blank-project="createBlankProject"
           :import-existing-project="importExistingProject"
           :toggle-project-expanded="toggleProjectExpanded"
@@ -111,7 +177,7 @@ onMounted(() => {
 
         <SessionSection
           v-else
-          :sessions="session.sessions"
+          :sessions="filteredSessions"
           :active-session-id="activeSessionId"
           :pending-delete-session-id="pendingDeleteSessionId"
           :rename="sessionRename"
@@ -130,6 +196,11 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+.sessions-sidebar .session-search {
+  flex: none;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color);
 }
 .sessions-sidebar .session-scroll {
   display: flex;

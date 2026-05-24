@@ -127,6 +127,7 @@
     "profileLabel": "Profile:",
     "header": "Sessions",
     "projectHeader": "Projects",
+    "searchPlaceholder": "Search sessions and projects...",
     "newProject": "New project",
     "createBlankProject": "Create Blank Project",
     "importFolder": "Import Folder",
