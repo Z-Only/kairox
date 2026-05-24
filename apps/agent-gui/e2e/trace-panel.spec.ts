@@ -1,51 +1,68 @@
 /**
  * E2E: Trace timeline — events appear in trace panel as the session progresses.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { installTauriMock } from "./helpers/tauriMock";
 
 test.beforeEach(async ({ page }) => {
   await installTauriMock(page);
 });
 
-test("trace panel shows events after sending a message", async ({ page }) => {
+async function sendMessageAndWaitForTrace(page: Page, message = "Hello") {
   await page.goto("/");
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
 
-  // Send a message to trigger events.
   const input = page.locator('textarea[data-test="message-input"]');
-  await input.fill("Hello");
+  await input.fill(message);
   await input.press("Enter");
 
-  // Trace panel should show entries after events are processed
-  // The mock emits: UserMessageAdded, ContextAssembled, ModelRequestStarted, tokens, AssistantMessageCompleted
-  await expect(page.locator(".trace-entry").first()).toBeVisible({
+  await expect(page.getByTestId("trace-entry").first()).toBeVisible({
     timeout: 8_000
   });
+}
+
+test("trace panel shows events after sending a message", async ({ page }) => {
+  await sendMessageAndWaitForTrace(page);
 });
 
 test("trace entries contain event details", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
-    timeout: 10_000
-  });
-
-  // Send a message.
-  const input = page.locator('textarea[data-test="message-input"]');
-  await input.fill("What is Rust?");
-  await input.press("Enter");
-
-  // Wait for trace entries to appear
-  await expect(page.locator(".trace-entry").first()).toBeVisible({
-    timeout: 8_000
-  });
+  await sendMessageAndWaitForTrace(page, "What is Rust?");
 
   // Should contain at least user message trace entry
-  const entries = page.locator(".trace-entry");
+  const entries = page.getByTestId("trace-entry");
   const count = await entries.count();
   expect(count).toBeGreaterThanOrEqual(1);
+});
+
+test("filters trace events by search", async ({ page }) => {
+  await sendMessageAndWaitForTrace(page, "Searchable trace request");
+
+  const entries = page.getByTestId("trace-entry");
+  await expect(entries.filter({ hasText: "user" })).toBeVisible();
+  await expect(entries.filter({ hasText: "context" })).toBeVisible();
+  await expect(entries.filter({ hasText: "model" })).toBeVisible();
+
+  const search = page.getByTestId("trace-search-input");
+  await expect(search).toBeVisible();
+
+  await search.fill("gpt-4o-mini");
+  await expect(entries).toHaveCount(1);
+  await expect(entries.filter({ hasText: "model" })).toBeVisible();
+
+  await search.fill("history:25000");
+  await expect(entries).toHaveCount(1);
+  await expect(entries.filter({ hasText: "context" })).toBeVisible();
+
+  await search.fill("does-not-exist");
+  await expect(entries).toHaveCount(0);
+  await expect(page.getByText("No matching trace events")).toBeVisible();
+
+  await search.clear();
+  await expect(entries.filter({ hasText: "user" })).toBeVisible();
+  await expect(entries.filter({ hasText: "context" })).toBeVisible();
+  await expect(entries.filter({ hasText: "model" })).toBeVisible();
 });
 
 test("trace panel is visible in the right sidebar", async ({ page }) => {
