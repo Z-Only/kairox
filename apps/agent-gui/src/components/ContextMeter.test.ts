@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ContextMeter from "@/components/ContextMeter.vue";
+import ContextMeterDetails from "@/components/ContextMeterDetails.vue";
 import contextMeterDetailsSource from "@/components/ContextMeterDetails.vue?raw";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { useSessionStore } from "@/stores/session";
@@ -53,6 +54,17 @@ function mountRingMeter() {
   }).wrapper;
 }
 
+function seedCompactableContext() {
+  const session = useSessionStore();
+  session.lastContextUsage = makeUsage({
+    total_tokens: 50,
+    budget_tokens: 100,
+    by_source: [["history", 50]]
+  });
+  session.projection.messages.push({ role: "user", content: "hi" } as never);
+  return session;
+}
+
 describe("ContextMeter ring mode", () => {
   beforeEach(() => {
     invokeMock.mockReset();
@@ -97,6 +109,53 @@ describe("ContextMeter ring mode", () => {
     expect(popover.text()).toContain("Max tokens");
     expect(popover.text()).toContain("Percentage");
     expect(popover.text()).toContain("Context window");
+  });
+
+  it("invokes compact_session when the details compact action is available", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    seedCompactableContext();
+
+    const wrapper = mountRingMeter();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const compactButton = wrapper.find('[data-test="context-meter-compact"]');
+    expect(compactButton.exists()).toBe(true);
+    expect(compactButton.attributes("disabled")).toBeUndefined();
+
+    await compactButton.trigger("click");
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenCalledWith("compact_session");
+  });
+
+  it("does not invoke compact_session again while the session is compacting", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const session = seedCompactableContext();
+
+    const wrapper = mountRingMeter();
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="context-meter-compact"]').trigger("click");
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    session.compacting = true;
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const compactButton = wrapper.find('[data-test="context-meter-compact"]');
+    expect(compactButton.attributes("disabled")).toBeDefined();
+
+    const details = wrapper.findComponent(ContextMeterDetails);
+    expect(details.exists()).toBe(true);
+    details.vm.$emit("compact");
+    await wrapper.vm.$nextTick();
+
+    expect(invokeMock).toHaveBeenCalledTimes(1);
   });
 
   it("distinguishes warning and danger ring states at existing thresholds", async () => {
