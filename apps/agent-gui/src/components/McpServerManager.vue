@@ -6,6 +6,17 @@ const { t } = useI18n();
 const mcp = useMcpStore();
 const emit = defineEmits<{ close: [] }>();
 
+type McpServerStatusFilter = "all" | "running" | "stopped" | "starting" | "failed";
+
+const statusFilterOptions: McpServerStatusFilter[] = [
+  "all",
+  "running",
+  "stopped",
+  "starting",
+  "failed"
+];
+const statusFilter = ref<McpServerStatusFilter>("all");
+
 // Emoji + i18n text are split so the user-visible label is translatable
 // while the status indicator emoji stays consistent across locales.
 function statusEmoji(status: string): string {
@@ -48,6 +59,13 @@ function statusTone(status: string): "success" | "warning" | "error" | "neutral"
 }
 
 const trustedSet = computed(() => new Set(mcp.trustedServerIds));
+const filteredServers = computed(() => {
+  if (statusFilter.value === "all") {
+    return mcp.servers;
+  }
+
+  return mcp.servers.filter((server) => server.status === statusFilter.value);
+});
 </script>
 
 <template>
@@ -71,12 +89,33 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
         </KxIconButton>
       </div>
 
+      <div v-if="mcp.servers.length > 0" class="mcp-manager-toolbar">
+        <select
+          v-model="statusFilter"
+          class="mcp-server-status-filter"
+          aria-label="MCP server status filter"
+          data-test="mcp-server-status-filter"
+        >
+          <option v-for="status in statusFilterOptions" :key="status" :value="status">
+            {{ status === "all" ? "All" : statusText(status) }}
+          </option>
+        </select>
+      </div>
+
       <SettingsState v-if="mcp.servers.length === 0" tone="empty" data-test="mcp-empty-state">
         No MCP servers configured
       </SettingsState>
 
+      <SettingsState
+        v-else-if="filteredServers.length === 0"
+        tone="empty"
+        data-test="mcp-filter-empty-state"
+      >
+        No MCP servers match the selected status
+      </SettingsState>
+
       <ul v-else class="list mcp-manager-list">
-        <li v-for="server in mcp.servers" :key="server.id" class="list-item">
+        <li v-for="server in filteredServers" :key="server.id" class="list-item">
           <div class="mcp-server-item" data-test="mcp-server-item">
             <div class="mcp-server-info">
               <span class="mcp-server-name" data-test="mcp-server-name"
@@ -204,6 +243,21 @@ const trustedSet = computed(() => new Set(mcp.trustedServerIds));
 .card-title {
   font-size: 13px;
   color: var(--app-text-color, #333);
+}
+.mcp-manager-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 0;
+}
+.mcp-server-status-filter {
+  max-width: 120px;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--app-border-color, #d7d7d7);
+  border-radius: 6px;
+  background: var(--app-card-color, #fff);
+  color: var(--app-text-color, #333);
+  font-size: 12px;
 }
 
 /* List */

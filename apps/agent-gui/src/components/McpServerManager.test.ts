@@ -130,6 +130,60 @@ describe("McpServerManager", () => {
     expect(wrapper.text()).toContain("connection refused");
   });
 
+  it("filters displayed servers by status without mutating store and preserves visible actions", async () => {
+    const mcp = useMcpStore();
+    mcp.servers = [
+      { id: "github", status: "running", tool_count: 5 },
+      { id: "slack", status: "stopped", tool_count: null },
+      {
+        id: "broken",
+        status: "failed",
+        tool_count: null,
+        error: "connection refused"
+      }
+    ];
+    const wrapper = mount(McpServerManager);
+    const filter = wrapper.find('[data-test="mcp-server-status-filter"]');
+
+    expect(filter.exists()).toBe(true);
+    expect(filter.attributes("aria-label")).toBe("MCP server status filter");
+    expect(wrapper.findAll('[data-test="mcp-server-name"]').map((node) => node.text())).toEqual([
+      "github",
+      "slack",
+      "broken"
+    ]);
+
+    await filter.setValue("running");
+
+    expect(wrapper.findAll('[data-test="mcp-server-name"]').map((node) => node.text())).toEqual([
+      "github"
+    ]);
+    expect(wrapper.text()).not.toContain("slack");
+    expect(wrapper.text()).not.toContain("broken");
+    expect(mcp.servers.map((server) => server.id)).toEqual(["github", "slack", "broken"]);
+    expect(wrapper.findAll(".mcp-server-actions button").map((button) => button.text())).toEqual([
+      "Stop",
+      "Trust",
+      "Refresh"
+    ]);
+  });
+
+  it("shows filtered empty state when no server matches selected status", async () => {
+    const mcp = useMcpStore();
+    mcp.servers = [
+      { id: "github", status: "running", tool_count: 5 },
+      { id: "slack", status: "stopped", tool_count: null }
+    ];
+    const wrapper = mount(McpServerManager);
+
+    await wrapper.find('[data-test="mcp-server-status-filter"]').setValue("failed");
+
+    expect(wrapper.find('[data-test="mcp-filter-empty-state"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-empty-state"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-test="mcp-server-item"]')).toHaveLength(0);
+    expect(mcp.servers.map((server) => server.id)).toEqual(["github", "slack"]);
+  });
+
   it("emits close on close button click", async () => {
     const wrapper = mount(McpServerManager);
     await wrapper.find(".mcp-close-btn").trigger("click");
