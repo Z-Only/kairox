@@ -7,6 +7,7 @@
 // NOTE: We intentionally define the props interface inline rather than
 // importing from `@/types/chatStream` — that file is owned by a sibling
 // lane and does not yet exist on this branch.
+import { useToolIcon } from "@/composables/useToolIcon";
 
 interface ChatToolCallItemProps {
   toolId: string;
@@ -64,6 +65,9 @@ const statusIcon: Record<ChatToolCallItemProps["status"], string> = {
   pending: "🔑"
 };
 
+const { iconFor } = useToolIcon();
+const toolIcon = computed(() => iconFor(props.toolId));
+
 const statusLabel = computed(() => t(`chatStream.toolCall.status.${props.status}`));
 
 const durationLabel = computed(() => {
@@ -89,6 +93,15 @@ const toggleLabel = computed(() =>
         :title="statusLabel"
       >
         {{ statusIcon[props.status] }}
+      </span>
+      <span
+        class="chat-tool-call__tool-icon"
+        data-test="chat-tool-call-tool-icon"
+        role="img"
+        aria-hidden="true"
+        :title="props.toolId"
+      >
+        {{ toolIcon }}
       </span>
       <span class="chat-tool-call__tool">
         <span class="chat-tool-call__tool-text" :title="props.toolId">
@@ -163,6 +176,10 @@ const toggleLabel = computed(() =>
   background: var(--app-hover-color);
 }
 .chat-tool-call__status {
+  font-size: 12px;
+  line-height: 1;
+}
+.chat-tool-call__tool-icon {
   font-size: 12px;
   line-height: 1;
 }
