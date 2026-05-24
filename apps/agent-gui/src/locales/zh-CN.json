@@ -668,5 +668,20 @@
     "streamingLabel": "传输中",
     "connectedLabel": "已连接",
     "modeLabel": "模式"
+  },
+  "chatStream": {
+    "toolCall": {
+      "expand": "展开",
+      "collapse": "收起",
+      "input": "输入",
+      "output": "输出",
+      "duration": "耗时",
+      "status": {
+        "running": "运行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "pending": "等待中"
+      }
+    }
   }
 }

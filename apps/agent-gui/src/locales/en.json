@@ -668,5 +668,20 @@
     "streamingLabel": "Streaming",
     "connectedLabel": "Connected",
     "modeLabel": "Mode"
+  },
+  "chatStream": {
+    "toolCall": {
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "input": "Input",
+      "output": "Output",
+      "duration": "Duration",
+      "status": {
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "pending": "Pending"
+      }
+    }
   }
 }
