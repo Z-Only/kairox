@@ -12,13 +12,38 @@ vi.mock("@/generated/commands", () => ({
 import { commands } from "@/generated/commands";
 
 const mockedCommands = vi.mocked(commands);
+const defaultFiles = [
+  "apps/agent-gui/src/components/ChatComposer.vue",
+  "apps/agent-gui/src/components/FileMentionPalette.vue"
+];
+
+function setWorkspaceFiles(paths: string[]) {
+  mockedCommands.listWorkspaceFiles.mockResolvedValue({
+    status: "ok",
+    data: { paths }
+  });
+}
+
+async function mountOpenPalette() {
+  const { wrapper } = mountWithPlugins(FileMentionPalette, {
+    mount: {
+      props: {
+        visible: false,
+        filterText: "",
+        workspacePath: "/workspace"
+      }
+    }
+  });
+
+  await wrapper.setProps({ visible: true });
+  await flushPromises();
+
+  return wrapper;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedCommands.listWorkspaceFiles.mockResolvedValue({
-    status: "ok",
-    data: { paths: ["apps/agent-gui/src/components/ChatComposer.vue"] }
-  });
+  setWorkspaceFiles(defaultFiles);
 });
 
 describe("FileMentionPalette", () => {
@@ -92,5 +117,44 @@ describe("FileMentionPalette", () => {
     expect(item.exists()).toBe(true);
     expect(item.classes()).toContain("kx-popover-option");
     expect(item.classes()).toContain("kx-popover-option--selected");
+  });
+
+  it("moves the selected file with ArrowDown", async () => {
+    const wrapper = await mountOpenPalette();
+
+    await wrapper.trigger("keydown", { key: "ArrowDown" });
+    await wrapper.vm.$nextTick();
+
+    const items = wrapper.findAll('[data-test="mention-file-item"]');
+    expect(items[0].classes()).not.toContain("file-mention-palette__item--selected");
+    expect(items[1].classes()).toContain("file-mention-palette__item--selected");
+    expect(items[1].classes()).toContain("kx-popover-option--selected");
+  });
+
+  it("emits the selected file path on Enter", async () => {
+    const wrapper = await mountOpenPalette();
+
+    await wrapper.trigger("keydown", { key: "ArrowDown" });
+    await wrapper.trigger("keydown", { key: "Enter" });
+
+    expect(wrapper.emitted("select-file")).toEqual([[defaultFiles[1]]]);
+  });
+
+  it("emits close on Escape", async () => {
+    const wrapper = await mountOpenPalette();
+
+    await wrapper.trigger("keydown", { key: "Escape" });
+
+    expect(wrapper.emitted("close")).toEqual([[]]);
+  });
+
+  it("does not emit a selection event on Enter when the file list is empty", async () => {
+    setWorkspaceFiles([]);
+    const wrapper = await mountOpenPalette();
+
+    await wrapper.trigger("keydown", { key: "Enter" });
+
+    expect(wrapper.findAll('[data-test="mention-file-item"]')).toHaveLength(0);
+    expect(wrapper.emitted("select-file")).toBeUndefined();
   });
 });
