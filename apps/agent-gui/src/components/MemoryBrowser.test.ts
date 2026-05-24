@@ -142,6 +142,41 @@ describe("MemoryBrowser", () => {
     expect(wrapper.text()).not.toContain("Accepted memory");
   });
 
+  it("sorts loaded memories after applying the status filter without reloading", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "workspace", key: "zeta", content: "Zoo memory", accepted: true },
+      {
+        id: "m2",
+        scope: "user",
+        key: "alpha",
+        content: "Alpha accepted memory",
+        accepted: true
+      },
+      {
+        id: "m3",
+        scope: "session",
+        key: "beta",
+        content: "Beta pending memory",
+        accepted: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+    mockedInvoke.mockClear();
+
+    await wrapper.find('[data-test="memory-status-filter-accepted"]').trigger("click");
+    await wrapper.find('[data-test="memory-sort-select"]').setValue("key");
+
+    expect(wrapper.findAll('[data-test="memory-item"]').map((item) => item.text())).toEqual([
+      expect.stringContaining("Alpha accepted memory"),
+      expect.stringContaining("Zoo memory")
+    ]);
+    expect(wrapper.text()).not.toContain("Beta pending memory");
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
   it("shows a status-filter empty state when no memories match", async () => {
     const { wrapper } = mountBrowser();
     await flushPromises();

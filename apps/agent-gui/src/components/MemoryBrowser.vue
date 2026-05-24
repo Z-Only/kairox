@@ -4,6 +4,7 @@ import { useMemoryStore, type MemoryItem } from "@/stores/memory";
 import { useSessionStore } from "@/stores/session";
 
 type MemoryStatusFilter = "all" | "accepted" | "pending";
+type MemorySortMode = "original" | "scope" | "key" | "content" | "status";
 
 const { t } = useI18n();
 const { confirm } = useConfirm();
@@ -12,6 +13,7 @@ const memory = useMemoryStore();
 const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 const session = useSessionStore();
 const statusFilter = ref<MemoryStatusFilter>("all");
+const sortMode = ref<MemorySortMode>("original");
 
 onMounted(() => {
   memory.loadMemories();
@@ -31,6 +33,14 @@ const scopeOptions = computed<{ label: string; value: string }[]>(() => [
   { label: t("memory.scopeUser"), value: "user" },
   { label: t("memory.scopeWorkspace"), value: "workspace" }
 ]);
+
+const sortOptions: { label: string; value: MemorySortMode }[] = [
+  { label: "Original order", value: "original" },
+  { label: "Scope", value: "scope" },
+  { label: "Key", value: "key" },
+  { label: "Content", value: "content" },
+  { label: "Status", value: "status" }
+];
 
 function memoryMatchesStatus(mem: MemoryItem, status: MemoryStatusFilter) {
   switch (status) {
@@ -60,8 +70,30 @@ const statusFilterOptions = computed<{ id: MemoryStatusFilter; label: string; co
 );
 
 const visibleMemories = computed(() =>
-  memories.value.filter((mem) => memoryMatchesStatus(mem, statusFilter.value))
+  memories.value
+    .filter((mem) => memoryMatchesStatus(mem, statusFilter.value))
+    .map((mem, index) => ({ mem, index }))
+    .sort(
+      (left, right) =>
+        compareMemories(left.mem, right.mem, sortMode.value) || left.index - right.index
+    )
+    .map(({ mem }) => mem)
 );
+
+function compareMemories(left: MemoryItem, right: MemoryItem, mode: MemorySortMode) {
+  switch (mode) {
+    case "scope":
+      return left.scope.localeCompare(right.scope);
+    case "key":
+      return (left.key ?? "").localeCompare(right.key ?? "");
+    case "content":
+      return left.content.localeCompare(right.content);
+    case "status":
+      return Number(right.accepted) - Number(left.accepted);
+    default:
+      return 0;
+  }
+}
 
 const scopeIcon: Record<string, string> = {
   session: "📋",
@@ -125,6 +157,16 @@ async function promptDelete(id: string, content: string) {
           @update:model-value="handleFilterChange($event as typeof filter)"
         >
           <option v-for="opt in scopeOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </KxSelect>
+        <KxSelect
+          v-model="sortMode"
+          aria-label="Memory sort"
+          data-test="memory-sort-select"
+          size="compact"
+        >
+          <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
         </KxSelect>
