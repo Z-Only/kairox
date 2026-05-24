@@ -168,6 +168,29 @@ describe("TaskNode", () => {
     });
   });
 
+  describe("dependency badge", () => {
+    it("shows dependency count and ids when a task has dependencies", () => {
+      const node = makeNode({ id: "t1", dependencies: ["setup", "review"] });
+      const wrapper = mount(TaskNode, {
+        props: { node, expanded: new Set(), depth: 0 }
+      });
+
+      const dependencyBadge = wrapper.find('[data-test="task-dependencies"]');
+      expect(dependencyBadge.exists()).toBe(true);
+      expect(dependencyBadge.text()).toBe("2 deps");
+      expect(dependencyBadge.attributes("title")).toBe("Depends on setup, review");
+    });
+
+    it("does not show dependency badge when a task has no dependencies", () => {
+      const node = makeNode({ id: "t1", dependencies: [] });
+      const wrapper = mount(TaskNode, {
+        props: { node, expanded: new Set(), depth: 0 }
+      });
+
+      expect(wrapper.find('[data-test="task-dependencies"]').exists()).toBe(false);
+    });
+  });
+
   describe("running text", () => {
     it("shows running... text when task state is Running", () => {
       const node = makeNode({ id: "t1", state: "Running" });
