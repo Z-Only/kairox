@@ -182,6 +182,60 @@ describe("PluginSettingsPane", () => {
       expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(false);
     });
 
+    it("sorts the searched installed plugin results by name", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(
+        ok([
+          pluginSettings({
+            settings_id: "User:beta-quality",
+            id: "beta-quality",
+            name: "Beta Quality",
+            description: "Quality workflow plugin.",
+            path: "/Users/mock/.config/kairox/plugins/beta-quality"
+          }),
+          pluginSettings({
+            settings_id: "User:alpha-quality",
+            id: "alpha-quality",
+            name: "Alpha Quality",
+            description: "Quality workflow plugin.",
+            path: "/Users/mock/.config/kairox/plugins/alpha-quality"
+          }),
+          pluginSettings({
+            settings_id: "User:trace-tools",
+            id: "trace-tools",
+            name: "Trace Tools",
+            description: "Trace inspection plugin.",
+            path: "/Users/mock/.config/kairox/plugins/trace-tools"
+          })
+        ])
+      );
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane();
+      await flushPromises();
+
+      await wrapper.find('[data-test="plugin-installed-search-input"]').setValue("quality");
+      const rowIds = () =>
+        wrapper.findAll('[data-test^="plugin-row-"]').map((row) => row.attributes("data-test"));
+
+      expect(rowIds()).toEqual(["plugin-row-user-beta-quality", "plugin-row-user-alpha-quality"]);
+
+      const sortSelect = wrapper.find('[data-test="plugin-installed-sort-select"]');
+      expect(sortSelect.exists()).toBe(true);
+      expect(sortSelect.attributes("aria-label")).toBe("Installed plugin sort");
+      expect(sortSelect.findAll("option").map((option) => option.attributes("value"))).toEqual([
+        "original",
+        "name",
+        "scope",
+        "status",
+        "validity"
+      ]);
+
+      await sortSelect.setValue("name");
+
+      expect(rowIds()).toEqual(["plugin-row-user-alpha-quality", "plugin-row-user-beta-quality"]);
+      expect(wrapper.find('[data-test="plugin-row-user-trace-tools"]').exists()).toBe(false);
+    });
+
     it("matches installed plugin search against metadata", async () => {
       mockedCommands.listPluginSettings.mockResolvedValue(
         ok([
