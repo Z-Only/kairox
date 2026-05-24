@@ -2,8 +2,50 @@
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import TaskNode from "./TaskNode.vue";
 
+type TaskStateFilter = "all" | "active" | "failed" | "done";
+
 const taskGraph = useTaskGraphStore();
-const tree = computed(() => taskGraph.buildTaskTree(taskGraph.tasks));
+const selectedFilter = ref<TaskStateFilter>("all");
+
+const activeStates = new Set(["Pending", "Ready", "Running", "Blocked"]);
+const doneStates = new Set(["Completed", "Skipped", "Cancelled"]);
+
+function taskMatchesFilter(task: (typeof taskGraph.tasks)[number], filter: TaskStateFilter) {
+  switch (filter) {
+    case "active":
+      return activeStates.has(task.state);
+    case "failed":
+      return task.state === "Failed";
+    case "done":
+      return doneStates.has(task.state);
+    default:
+      return true;
+  }
+}
+
+const filterOptions = computed<{ id: TaskStateFilter; label: string; count: number }[]>(() => [
+  { id: "all", label: "All", count: taskGraph.tasks.length },
+  {
+    id: "active",
+    label: "Active",
+    count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "active")).length
+  },
+  {
+    id: "failed",
+    label: "Failed",
+    count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "failed")).length
+  },
+  {
+    id: "done",
+    label: "Done",
+    count: taskGraph.tasks.filter((task) => taskMatchesFilter(task, "done")).length
+  }
+]);
+
+const filteredTasks = computed(() =>
+  taskGraph.tasks.filter((task) => taskMatchesFilter(task, selectedFilter.value))
+);
+const tree = computed(() => taskGraph.buildTaskTree(filteredTasks.value));
 
 /** Track expanded state per task ID. */
 const expanded = ref<Set<string>>(new Set());
@@ -36,7 +78,29 @@ function toggleExpand(taskId: string) {
 
 <template>
   <div class="task-steps" data-test="task-steps">
-    <KxEmptyState v-if="tree.length === 0" class="task-empty" compact>No tasks yet</KxEmptyState>
+    <KxChipGroup
+      v-if="taskGraph.tasks.length > 0"
+      class="task-state-filters"
+      aria-label="Task state filters"
+      data-test="task-state-filters"
+    >
+      <KxChipButton
+        v-for="option in filterOptions"
+        :key="option.id"
+        size="compact"
+        :selected="selectedFilter === option.id"
+        :data-test="`task-filter-${option.id}`"
+        @click="selectedFilter = option.id"
+      >
+        {{ option.label }} {{ option.count }}
+      </KxChipButton>
+    </KxChipGroup>
+    <KxEmptyState v-if="taskGraph.tasks.length === 0" class="task-empty" compact>
+      No tasks yet
+    </KxEmptyState>
+    <KxEmptyState v-else-if="tree.length === 0" class="task-empty" compact>
+      No matching tasks
+    </KxEmptyState>
     <div v-else class="task-tree-scroll" :style="{ overflowY: 'auto' }">
       <TaskNode
         v-for="root in tree"
@@ -58,6 +122,11 @@ function toggleExpand(taskId: string) {
   min-width: 0;
   max-width: 100%;
   min-height: 0;
+}
+.task-state-filters {
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--app-border-color, #eee);
 }
 .task-tree-scroll {
   box-sizing: border-box;

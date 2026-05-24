@@ -38,6 +38,50 @@ describe("TaskSteps", () => {
     expect(wrapper.text()).toContain("running...");
   });
 
+  it("renders task state filter chips with live counts", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
+      [
+        makeTask("active-1", { title: "Queued Task", state: "Pending" }),
+        makeTask("active-2", { title: "Running Task", state: "Running" }),
+        makeTask("failed-1", { title: "Failed Task", state: "Failed" }),
+        makeTask("done-1", { title: "Done Task", state: "Completed" })
+      ],
+      "ses_1"
+    );
+
+    const wrapper = mount(TaskSteps);
+
+    expect(wrapper.find('[data-test="task-state-filters"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="task-filter-all"]').text()).toBe("All 4");
+    expect(wrapper.find('[data-test="task-filter-active"]').text()).toBe("Active 2");
+    expect(wrapper.find('[data-test="task-filter-failed"]').text()).toBe("Failed 1");
+    expect(wrapper.find('[data-test="task-filter-done"]').text()).toBe("Done 1");
+  });
+
+  it("filters visible tasks by selected state group", async () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
+      [
+        makeTask("active-1", { title: "Queued Task", state: "Pending" }),
+        makeTask("failed-1", { title: "Failed Task", state: "Failed" }),
+        makeTask("done-1", { title: "Done Task", state: "Completed" })
+      ],
+      "ses_1"
+    );
+
+    const wrapper = mount(TaskSteps);
+
+    await wrapper.find('[data-test="task-filter-failed"]').trigger("click");
+
+    expect(wrapper.find('[data-test="task-filter-failed"]').attributes("aria-pressed")).toBe(
+      "true"
+    );
+    expect(wrapper.text()).toContain("Failed Task");
+    expect(wrapper.text()).not.toContain("Queued Task");
+    expect(wrapper.text()).not.toContain("Done Task");
+  });
+
   it("shows error message for failed child task when expanded", async () => {
     const taskGraph = useTaskGraphStore();
     taskGraph.setTaskGraph(
