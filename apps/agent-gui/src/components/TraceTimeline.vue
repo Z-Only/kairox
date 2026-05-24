@@ -7,10 +7,12 @@ import { traceState } from "../composables/useTraceStore";
 import type { TraceEntryData } from "../types/trace";
 
 type TraceStatusFilter = "all" | "active" | "failed" | "done";
+type TraceKindFilter = "all" | "tool" | "permission" | "memory";
 
 const { t } = useI18n();
 const rightPanelTab = ref<"trace" | "tasks" | "memory">("trace");
 const selectedTraceFilter = ref<TraceStatusFilter>("all");
+const selectedTraceKindFilter = ref<TraceKindFilter>("all");
 const traceSearchQuery = ref("");
 const normalizedTraceSearchQuery = computed(() => traceSearchQuery.value.trim().toLowerCase());
 const activeTraceStatuses = new Set(["pending", "running"]);
@@ -26,6 +28,10 @@ function traceMatchesFilter(entry: TraceEntryData, filter: TraceStatusFilter) {
     default:
       return true;
   }
+}
+
+function traceMatchesKind(entry: TraceEntryData, filter: TraceKindFilter) {
+  return filter === "all" || entry.kind === filter;
 }
 
 function traceMatchesSearch(entry: TraceEntryData, query: string) {
@@ -66,10 +72,18 @@ const traceFilterOptions = computed<{ id: TraceStatusFilter; label: string; coun
   ]
 );
 
+const traceKindOptions: { id: TraceKindFilter; label: string }[] = [
+  { id: "all", label: "All types" },
+  { id: "tool", label: "Tools" },
+  { id: "permission", label: "Permissions" },
+  { id: "memory", label: "Memories" }
+];
+
 const visibleTraceEntries = computed(() =>
   traceState.entries.filter(
     (entry) =>
       traceMatchesFilter(entry, selectedTraceFilter.value) &&
+      traceMatchesKind(entry, selectedTraceKindFilter.value) &&
       traceMatchesSearch(entry, normalizedTraceSearchQuery.value)
   )
 );
@@ -133,6 +147,17 @@ const visibleTraceEntries = computed(() =>
             {{ option.label }} {{ option.count }}
           </KxChipButton>
         </KxChipGroup>
+        <KxSelect
+          v-model="selectedTraceKindFilter"
+          class="trace-kind-select"
+          size="compact"
+          aria-label="Trace type"
+          data-test="trace-kind-select"
+        >
+          <option v-for="option in traceKindOptions" :key="option.id" :value="option.id">
+            {{ option.label }}
+          </option>
+        </KxSelect>
         <KxInput
           v-model="traceSearchQuery"
           type="search"
@@ -217,6 +242,9 @@ const visibleTraceEntries = computed(() =>
 }
 .trace-status-filters {
   flex: 1 1 auto;
+}
+.trace-kind-select {
+  flex: 0 1 140px;
 }
 .trace-search-input {
   flex: 1 1 180px;

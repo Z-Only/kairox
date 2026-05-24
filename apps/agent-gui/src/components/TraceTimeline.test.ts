@@ -271,6 +271,67 @@ describe("TraceTimeline", () => {
     expect(wrapper.text()).not.toContain("Network request completed");
   });
 
+  it("filters visible trace entries by type while combining status and search filters", async () => {
+    traceState.entries = [
+      makeTraceEntry("tool-failed-build", {
+        kind: "tool",
+        title: "Build command failed",
+        input: "cargo test --workspace",
+        status: "failed"
+      }),
+      makeTraceEntry("tool-completed-build", {
+        kind: "tool",
+        title: "Build command completed",
+        input: "cargo build --workspace",
+        status: "completed"
+      }),
+      makeTraceEntry("permission-failed-build", {
+        kind: "permission",
+        title: "Approve build command",
+        reason: "Needs cargo test permission",
+        status: "failed"
+      }),
+      makeTraceEntry("memory-pending-build", {
+        kind: "memory",
+        title: "Remember build preference",
+        scope: "workspace",
+        content: "Prefer cargo test before release",
+        status: "pending"
+      })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    const typeSelect = wrapper.get('[data-test="trace-kind-select"]');
+    expect(typeSelect.attributes("aria-label")).toBe("Trace type");
+
+    await typeSelect.setValue("tool");
+    expect(wrapper.text()).toContain("Build command failed");
+    expect(wrapper.text()).toContain("Build command completed");
+    expect(wrapper.text()).not.toContain("Approve build command");
+    expect(wrapper.text()).not.toContain("Remember build preference");
+
+    await typeSelect.setValue("permission");
+    expect(wrapper.text()).toContain("Approve build command");
+    expect(wrapper.text()).not.toContain("Build command failed");
+    expect(wrapper.text()).not.toContain("Remember build preference");
+
+    await typeSelect.setValue("memory");
+    expect(wrapper.text()).toContain("Remember build preference");
+    expect(wrapper.text()).not.toContain("Build command failed");
+    expect(wrapper.text()).not.toContain("Approve build command");
+
+    await typeSelect.setValue("tool");
+    await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
+    await wrapper.get('[data-test="trace-search-input"]').setValue("cargo test");
+
+    expect(wrapper.text()).toContain("Build command failed");
+    expect(wrapper.text()).not.toContain("Build command completed");
+    expect(wrapper.text()).not.toContain("Approve build command");
+    expect(wrapper.text()).not.toContain("Remember build preference");
+  });
+
   it("shows a status-filter empty state when no trace entries match", async () => {
     traceState.entries = [makeTraceEntry("done", { title: "Done trace", status: "completed" })];
 
