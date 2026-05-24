@@ -14,6 +14,7 @@ import { useMcpStore } from "@/stores/mcp";
 import Marketplace from "../../views/MarketplaceView.vue";
 import CatalogCard from "./CatalogCard.vue";
 import CatalogDetail from "./CatalogDetail.vue";
+import CatalogList from "./CatalogList.vue";
 import catalogDetailSource from "./CatalogDetail.vue?raw";
 import RuntimeMissingHint from "./RuntimeMissingHint.vue";
 import InstalledList from "./InstalledList.vue";
@@ -207,6 +208,74 @@ describe("CatalogCard.vue", () => {
     }).wrapper;
     await wrapper.find('[data-test="catalog-card"]').trigger("click");
     expect(wrapper.emitted("click")).toBeTruthy();
+  });
+});
+
+describe("CatalogList.vue", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  const mountCatalogList = () => mountWithPlugins(CatalogList, { reusePinia: true }).wrapper;
+
+  it("filters catalog cards as the search box changes", async () => {
+    const catalog = useCatalogStore();
+    catalog.entries = [
+      fixtureEntry({
+        id: "filesystem",
+        display_name: "Filesystem",
+        summary: "Read and write files",
+        tags: ["files"]
+      }),
+      fixtureEntry({
+        id: "web-fetch",
+        display_name: "Web Fetch",
+        summary: "Fetch HTTP content",
+        tags: ["http"]
+      })
+    ];
+
+    const wrapper = mountCatalogList();
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-test="catalog-card"]')).toHaveLength(2);
+
+    await wrapper.find('[data-test="catalog-search"]').setValue("filesystem");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findAll('[data-test="catalog-card"]')).toHaveLength(1);
+    expect(wrapper.text()).toContain("Filesystem");
+    expect(wrapper.text()).not.toContain("Web Fetch");
+  });
+
+  it("hydrates the search box from the existing catalog keyword filter", async () => {
+    const catalog = useCatalogStore();
+    catalog.entries = [
+      fixtureEntry({
+        id: "filesystem",
+        display_name: "Filesystem",
+        summary: "Read and write files",
+        tags: ["files"]
+      }),
+      fixtureEntry({
+        id: "web-fetch",
+        display_name: "Web Fetch",
+        summary: "Fetch HTTP content",
+        tags: ["http"]
+      })
+    ];
+    catalog.filters.keyword = "web";
+
+    const wrapper = mountCatalogList();
+    await flushPromises();
+
+    expect((wrapper.find('[data-test="catalog-search"]').element as HTMLInputElement).value).toBe(
+      "web"
+    );
+    expect(wrapper.findAll('[data-test="catalog-card"]')).toHaveLength(1);
+    expect(wrapper.text()).toContain("Web Fetch");
+    expect(wrapper.text()).not.toContain("Filesystem");
   });
 });
 

@@ -43,6 +43,29 @@ state.catalog = [
         default: "/tmp"
       }
     ])
+  },
+  {
+    id: "fetch",
+    source: "builtin",
+    display_name: "Fetch",
+    summary: "Fetch web content over HTTP.",
+    description: "Retrieves web resources for agent context.",
+    categories: ["network", "dev-tools"],
+    tags: ["http", "web"],
+    author: "MCP",
+    homepage: "https://github.com/modelcontextprotocol/servers",
+    version: "0.6.0",
+    trust: "community",
+    icon: "🌐",
+    install_spec_json: JSON.stringify({
+      transport: "stdio",
+      command: "uvx",
+      args: ["mcp-server-fetch"],
+      env: {},
+      cwd: null
+    }),
+    requirements_json: JSON.stringify([]),
+    default_env_json: JSON.stringify([])
   }
 ];
 state.installedCatalog = [];

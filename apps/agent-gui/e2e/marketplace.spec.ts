@@ -24,9 +24,16 @@ test.describe("Marketplace", () => {
     await expect(card).toBeVisible();
   });
 
-  test("filters by keyword", async ({ page }) => {
+  test("filters by keyword as text changes", async ({ page }) => {
+    await expect(page.getByTestId("catalog-card")).toHaveCount(2);
+
     await page.getByTestId("catalog-search").fill("filesystem");
     await expect(page.getByTestId("catalog-card")).toHaveCount(1);
+    await expect(page.getByTestId("catalog-card").filter({ hasText: "Filesystem" })).toBeVisible();
+
+    await page.getByTestId("catalog-search").fill("fetch");
+    await expect(page.getByTestId("catalog-card")).toHaveCount(1);
+    await expect(page.getByTestId("catalog-card").filter({ hasText: "Fetch" })).toBeVisible();
   });
 
   test("installs the filesystem entry happy path", async ({ page }) => {
