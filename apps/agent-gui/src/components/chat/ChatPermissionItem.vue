@@ -62,9 +62,9 @@ const adaptedEntry = computed<TraceEntryData>(() => ({
  * found and clicked, so callers can decide whether to swallow the key.
  */
 function clickAnchor(selector: string): boolean {
-  const btn = rootEl.value?.querySelector<HTMLButtonElement>(selector);
-  if (!btn) return false;
-  btn.click();
+  const anchor = rootEl.value?.querySelector<HTMLButtonElement>(selector);
+  if (!anchor) return false;
+  anchor.click();
   return true;
 }
 
