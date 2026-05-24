@@ -82,6 +82,68 @@ describe("TaskSteps", () => {
     expect(wrapper.text()).not.toContain("Done Task");
   });
 
+  it("searches tasks by task text and combines with selected state filter", async () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
+      [
+        makeTask("worker-task-42", {
+          title: "Implement Dashboard",
+          role: "Worker",
+          state: "Running"
+        }),
+        makeTask("review-task", {
+          title: "Review Flow",
+          role: "Reviewer",
+          state: "Failed",
+          error: "Network timeout"
+        }),
+        makeTask("dependency-match", {
+          title: "Blocked Worker",
+          state: "Blocked",
+          dependencies: ["external-api"]
+        }),
+        makeTask("done-task", { title: "Archive Docs", state: "Completed" })
+      ],
+      "ses_1"
+    );
+
+    const wrapper = mount(TaskSteps);
+    const search = wrapper.get('[data-test="task-search-input"]');
+
+    expect(search.attributes("type")).toBe("search");
+    expect(search.attributes("aria-label")).toBe("Search tasks");
+    expect(search.attributes("placeholder")).toBe("Search tasks");
+
+    await search.setValue("dashboard");
+    expect(wrapper.text()).toContain("Implement Dashboard");
+    expect(wrapper.text()).not.toContain("Review Flow");
+
+    await search.setValue("worker-task-42");
+    expect(wrapper.text()).toContain("Implement Dashboard");
+    expect(wrapper.text()).not.toContain("Review Flow");
+
+    await search.setValue("Reviewer");
+    expect(wrapper.text()).toContain("Review Flow");
+    expect(wrapper.text()).not.toContain("Implement Dashboard");
+
+    await search.setValue("Network timeout");
+    expect(wrapper.text()).toContain("Review Flow");
+    expect(wrapper.text()).not.toContain("Implement Dashboard");
+
+    await search.setValue("external-api");
+    expect(wrapper.text()).toContain("Blocked Worker");
+    expect(wrapper.text()).not.toContain("Implement Dashboard");
+
+    await wrapper.find('[data-test="task-filter-failed"]').trigger("click");
+    await search.setValue("dashboard");
+    expect(wrapper.text()).toContain("No matching tasks");
+    expect(wrapper.text()).not.toContain("Implement Dashboard");
+
+    await search.setValue("network");
+    expect(wrapper.text()).toContain("Review Flow");
+    expect(wrapper.text()).not.toContain("Implement Dashboard");
+  });
+
   it("shows error message for failed child task when expanded", async () => {
     const taskGraph = useTaskGraphStore();
     taskGraph.setTaskGraph(

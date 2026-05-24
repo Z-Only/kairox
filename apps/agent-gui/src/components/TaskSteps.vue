@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { useAgentsStore } from "@/stores/agents";
 import { useTaskGraphStore } from "@/stores/taskGraph";
 import TaskNode from "./TaskNode.vue";
 
 type TaskStateFilter = "all" | "active" | "failed" | "done";
 
+const agents = useAgentsStore();
 const taskGraph = useTaskGraphStore();
 const selectedFilter = ref<TaskStateFilter>("all");
+const searchQuery = ref("");
 
 const activeStates = new Set(["Pending", "Ready", "Running", "Blocked"]);
 const doneStates = new Set(["Completed", "Skipped", "Cancelled"]);
@@ -21,6 +24,33 @@ function taskMatchesFilter(task: (typeof taskGraph.tasks)[number], filter: TaskS
     default:
       return true;
   }
+}
+
+function normalizeSearchText(value: string | null | undefined): string {
+  return (value ?? "").toLocaleLowerCase();
+}
+
+function taskMatchesSearch(task: (typeof taskGraph.tasks)[number], query: string) {
+  const normalizedQuery = normalizeSearchText(query).trim();
+  if (!normalizedQuery) return true;
+
+  const assignedAgentLabel = task.assigned_agent_id
+    ? agents.agentLabel(task.assigned_agent_id)
+    : "";
+  const searchableText = [
+    task.id,
+    task.title,
+    task.state,
+    task.role,
+    task.assigned_agent_id,
+    assignedAgentLabel,
+    ...task.dependencies,
+    task.error
+  ]
+    .map((value) => normalizeSearchText(value))
+    .join(" ");
+
+  return searchableText.includes(normalizedQuery);
 }
 
 const filterOptions = computed<{ id: TaskStateFilter; label: string; count: number }[]>(() => [
@@ -43,7 +73,9 @@ const filterOptions = computed<{ id: TaskStateFilter; label: string; count: numb
 ]);
 
 const filteredTasks = computed(() =>
-  taskGraph.tasks.filter((task) => taskMatchesFilter(task, selectedFilter.value))
+  taskGraph.tasks
+    .filter((task) => taskMatchesSearch(task, searchQuery.value))
+    .filter((task) => taskMatchesFilter(task, selectedFilter.value))
 );
 const tree = computed(() => taskGraph.buildTaskTree(filteredTasks.value));
 
@@ -94,6 +126,17 @@ function toggleExpand(taskId: string) {
       >
         {{ option.label }} {{ option.count }}
       </KxChipButton>
+      <template #actions>
+        <KxInput
+          v-model="searchQuery"
+          type="search"
+          size="compact"
+          aria-label="Search tasks"
+          placeholder="Search tasks"
+          class="task-search-input"
+          data-test="task-search-input"
+        />
+      </template>
     </KxChipGroup>
     <KxEmptyState v-if="taskGraph.tasks.length === 0" class="task-empty" compact>
       No tasks yet
@@ -127,6 +170,9 @@ function toggleExpand(taskId: string) {
   box-sizing: border-box;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color, #eee);
+}
+.task-search-input {
+  flex: 0 1 220px;
 }
 .task-tree-scroll {
   box-sizing: border-box;
