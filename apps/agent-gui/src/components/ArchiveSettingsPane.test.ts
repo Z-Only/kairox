@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import ArchiveSettingsPane from "./ArchiveSettingsPane.vue";
 import archiveSettingsPaneSource from "./ArchiveSettingsPane.vue?raw";
 import { confirmDialogKey } from "@/composables/useConfirm";
+import { useProjectStore } from "@/stores/project";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
@@ -33,6 +34,18 @@ const archivedSession = {
   visibility: "archived"
 };
 
+const docsArchivedSession = {
+  id: "ses_docs",
+  title: "Docs cleanup",
+  profile: "review",
+  permission_mode: null,
+  project_id: "project_docs",
+  worktree_path: "/tmp/kairox-docs-worktree",
+  branch: "docs/readme",
+  deleted_at: "2026-01-03T04:05:06Z",
+  visibility: "archived"
+};
+
 function mountArchive(confirmMock = vi.fn().mockResolvedValue(true)) {
   return mountWithPlugins(ArchiveSettingsPane, {
     reusePinia: true,
@@ -49,9 +62,29 @@ function mountArchive(confirmMock = vi.fn().mockResolvedValue(true)) {
 beforeEach(() => {
   vi.clearAllMocks();
   setActivePinia(createPinia());
+  useProjectStore().projects = [
+    {
+      projectId: "project_1",
+      displayName: "Core Project",
+      rootPath: "/tmp/kairox-worktree",
+      removedAt: null,
+      sortOrder: 0,
+      expanded: true,
+      pathExists: true
+    },
+    {
+      projectId: "project_docs",
+      displayName: "Docs Project",
+      rootPath: "/tmp/kairox-docs-worktree",
+      removedAt: null,
+      sortOrder: 1,
+      expanded: true,
+      pathExists: true
+    }
+  ];
   mockedInvoke.mockImplementation((command) => {
     if (command === "list_archived_sessions") {
-      return Promise.resolve([archivedSession]);
+      return Promise.resolve([archivedSession, docsArchivedSession]);
     }
     return Promise.resolve([]);
   });
@@ -60,6 +93,14 @@ beforeEach(() => {
 });
 
 describe("ArchiveSettingsPane", () => {
+  it("renders archived session search controls", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="archive-filters"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="archive-search-input"]').exists()).toBe(true);
+  });
+
   it("renders archived sessions with shared settings card list chrome", async () => {
     const { wrapper } = mountArchive();
     await flushPromises();
@@ -73,6 +114,30 @@ describe("ArchiveSettingsPane", () => {
     );
   });
 
+  it("filters archived sessions by search text", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    await wrapper.find('[data-test="archive-search-input"]').setValue("docs");
+
+    expect(wrapper.find('[data-test="archive-row-ses_docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="archive-row-ses_archived"]').exists()).toBe(false);
+  });
+
+  it("matches archived session search against metadata", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    await wrapper.find('[data-test="archive-search-input"]').setValue("core project");
+
+    expect(wrapper.find('[data-test="archive-row-ses_archived"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="archive-row-ses_docs"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="archive-search-input"]').setValue("docs/readme");
+    expect(wrapper.find('[data-test="archive-row-ses_docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="archive-row-ses_archived"]').exists()).toBe(false);
+  });
+
   it("shows the archived timestamp for each archived session", async () => {
     const { wrapper } = mountArchive();
     await flushPromises();
@@ -82,6 +147,22 @@ describe("ArchiveSettingsPane", () => {
     expect(archivedAt.attributes("datetime")).toBe("2026-01-02T03:04:05Z");
     expect(archivedAt.text()).toContain("Archived");
     expect(archivedAt.text()).toContain("2026");
+  });
+
+  it("shows a filtered empty state without replacing the genuine empty archive state", async () => {
+    const { wrapper } = mountArchive();
+    await flushPromises();
+
+    await wrapper.find('[data-test="archive-search-input"]').setValue("does-not-exist");
+    await flushPromises();
+
+    const empty = wrapper.find('[data-test="archive-filter-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.classes()).toContain("settings-state");
+    expect(empty.classes()).toContain("kx-state-block--empty");
+    expect(empty.text()).toContain("No archived sessions match your search.");
+    expect(wrapper.find('[data-test="archive-empty-state"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="archive-list"]').exists()).toBe(false);
   });
 
   it("uses the app confirm dialog before permanently deleting an archived session", async () => {
@@ -131,7 +212,13 @@ describe("ArchiveSettingsPane", () => {
 
   it("does not keep local archive row card chrome after moving to SettingsCardItem", () => {
     expectSourceMigration(archiveSettingsPaneSource, {
-      required: ["SettingsCardList", "SettingsCardItem", "SettingsItemSummary", "SettingsItemMeta"],
+      required: [
+        "SettingsCardList",
+        "SettingsCardItem",
+        "SettingsFilterBar",
+        "SettingsItemSummary",
+        "SettingsItemMeta"
+      ],
       forbidden: [
         'class="card archive-row"',
         'class="card-body archive-row__body"',
