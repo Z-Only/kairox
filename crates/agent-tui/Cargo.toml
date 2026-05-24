@@ -31,6 +31,7 @@ agent-memory = { path = "../agent-memory" }
 agent-runtime = { path = "../agent-runtime" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
+chrono.workspace = true
 insta.workspace = true
 portable-pty.workspace = true
 tokio.workspace = true
