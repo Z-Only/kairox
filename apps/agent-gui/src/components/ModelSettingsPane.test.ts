@@ -142,6 +142,7 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="model-search-input"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="model-list"]').classes()).toContain("settings-card-list");
     expect(wrapper.find('[data-test="model-row-my-model"]').classes()).toContain(
       "settings-card-item"
@@ -154,6 +155,38 @@ describe("ModelSettingsPane", () => {
 
     const fastRow = wrapper.find('[data-test="model-row-fast"]');
     expect(fastRow.text()).toContain("User config");
+  });
+
+  it("filters profiles by search text", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-search-input"]').setValue("fast");
+
+    expect(wrapper.find('[data-test="model-row-fast"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(false);
+  });
+
+  it("matches search against model metadata", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-search-input"]').setValue("gpt-4.1-mini");
+
+    expect(wrapper.find('[data-test="model-row-fast"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no profiles match search", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-search-input"]').setValue("does-not-exist");
+
+    const empty = wrapper.find('[data-test="model-filter-empty-state"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No model profiles match your search.");
+    expect(wrapper.find('[data-test="model-list"]').exists()).toBe(false);
   });
 
   it("renders source and effective audit state for model profiles", async () => {
@@ -341,7 +374,7 @@ describe("ModelSettingsPane", () => {
 
   it("uses shared settings toolbar instead of local model toolbar chrome", () => {
     expectSourceMigration(modelSettingsPaneSource, {
-      required: ["SettingsToolbar"],
+      required: ["SettingsToolbar", "SettingsFilterBar"],
       forbidden: [
         'class="model-toolbar"',
         'class="model-toolbar__actions"',
