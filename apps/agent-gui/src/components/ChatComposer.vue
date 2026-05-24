@@ -45,6 +45,7 @@ const {
   sendMessage,
   sendQueuedMessageNow,
   deleteQueuedMessage,
+  clearQueuedMessages,
   moveQueuedMessage,
   restoreQueuedMessage,
   cancelSession
@@ -166,49 +167,61 @@ onMounted(() => {
       @pick-files="pickFiles"
       @remove-attachment="removeAttachment"
     />
-    <div v-if="queuedMessages.length" class="queued-message-list" data-test="queued-message-list">
-      <div
-        v-for="(message, index) in queuedMessages"
-        :key="message.id"
-        class="queued-message-item"
-        :class="{ dragging: draggedQueuedMessageId === message.id }"
-        data-test="queued-message-item"
-        draggable="true"
-        @dragstart="startQueuedMessageDrag(message.id)"
-        @dragend="draggedQueuedMessageId = null"
-        @dragover.prevent
-        @drop.prevent="dropQueuedMessage(index)"
-      >
-        <span class="queued-message-index">{{ index + 1 }}</span>
-        <span class="queued-message-content" :title="message.content">
-          {{ message.content || queuedAttachmentLabel(message.attachments.length) }}
-        </span>
-        <span v-if="message.attachments.length" class="queued-message-attachments">
-          {{ queuedAttachmentLabel(message.attachments.length) }}
-        </span>
-        <KxActionButton
-          data-test="queued-message-guide"
-          :aria-label="t('chat.queuedGuideAria')"
-          :disabled="sendingQueuedId === message.id"
-          @click="sendQueuedMessageNow(message.id)"
-        >
-          {{ t("chat.queuedGuide") }}
-        </KxActionButton>
-        <KxActionButton
-          data-test="queued-message-edit"
-          :aria-label="t('chat.queuedEditAria')"
-          @click="restoreQueuedMessage(message.id)"
-        >
-          {{ t("common.edit") }}
-        </KxActionButton>
+    <div v-if="queuedMessages.length" class="queued-message-queue">
+      <div class="queued-message-toolbar">
         <KxActionButton
           variant="danger"
-          data-test="queued-message-delete"
-          :aria-label="t('chat.queuedDeleteAria')"
-          @click="deleteQueuedMessage(message.id)"
+          data-test="queued-message-clear"
+          :aria-label="t('chat.queuedClearAria')"
+          @click="clearQueuedMessages"
         >
-          {{ t("common.delete") }}
+          {{ t("chat.queuedClear") }}
         </KxActionButton>
+      </div>
+      <div class="queued-message-list" data-test="queued-message-list">
+        <div
+          v-for="(message, index) in queuedMessages"
+          :key="message.id"
+          class="queued-message-item"
+          :class="{ dragging: draggedQueuedMessageId === message.id }"
+          data-test="queued-message-item"
+          draggable="true"
+          @dragstart="startQueuedMessageDrag(message.id)"
+          @dragend="draggedQueuedMessageId = null"
+          @dragover.prevent
+          @drop.prevent="dropQueuedMessage(index)"
+        >
+          <span class="queued-message-index">{{ index + 1 }}</span>
+          <span class="queued-message-content" :title="message.content">
+            {{ message.content || queuedAttachmentLabel(message.attachments.length) }}
+          </span>
+          <span v-if="message.attachments.length" class="queued-message-attachments">
+            {{ queuedAttachmentLabel(message.attachments.length) }}
+          </span>
+          <KxActionButton
+            data-test="queued-message-guide"
+            :aria-label="t('chat.queuedGuideAria')"
+            :disabled="sendingQueuedId === message.id"
+            @click="sendQueuedMessageNow(message.id)"
+          >
+            {{ t("chat.queuedGuide") }}
+          </KxActionButton>
+          <KxActionButton
+            data-test="queued-message-edit"
+            :aria-label="t('chat.queuedEditAria')"
+            @click="restoreQueuedMessage(message.id)"
+          >
+            {{ t("common.edit") }}
+          </KxActionButton>
+          <KxActionButton
+            variant="danger"
+            data-test="queued-message-delete"
+            :aria-label="t('chat.queuedDeleteAria')"
+            @click="deleteQueuedMessage(message.id)"
+          >
+            {{ t("common.delete") }}
+          </KxActionButton>
+        </div>
       </div>
     </div>
     <div class="input-row">
@@ -285,6 +298,14 @@ onMounted(() => {
   gap: 8px;
   align-items: flex-end;
 }
+.queued-message-queue {
+  margin-bottom: 6px;
+}
+.queued-message-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
 .queued-message-list {
   --queued-message-row-height: 34px;
   --queued-message-list-max-height: 148px;
@@ -293,7 +314,6 @@ onMounted(() => {
   max-height: var(--queued-message-list-max-height);
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 6px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

@@ -343,6 +343,31 @@ describe("conversation queue", () => {
     );
   });
 
+  it("clears all queued messages with one action without sending them", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.isStreaming = true;
+    await wrapper.vm.$nextTick();
+
+    const textarea = wrapper.find('textarea[data-test="message-input"]');
+    await textarea.setValue("first queued");
+    await textarea.trigger("keydown", { key: "Enter" });
+    await wrapper.vm.$nextTick();
+    await textarea.setValue("second queued");
+    await textarea.trigger("keydown", { key: "Enter" });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findAll('[data-test="queued-message-item"]')).toHaveLength(2);
+
+    const clearButton = wrapper.find('[data-test="queued-message-clear"]');
+    expect(clearButton.attributes("aria-label")).toBe("Clear queued messages");
+    expect(clearButton.text()).toBe("Clear all");
+    await clearButton.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="queued-message-list"]').exists()).toBe(false);
+    expect(mockedInvoke).not.toHaveBeenCalledWith("send_message", expect.anything());
+  });
+
   it("renders queued messages in a capped-height fixed-row scroller", () => {
     expectSourceMigration(chatComposerSource, {
       required: [

@@ -195,6 +195,8 @@
     },
     "queueSend": "排队",
     "queuedGuide": "引导",
+    "queuedClear": "全部清空",
+    "queuedClearAria": "清空队列消息",
     "queuedGuideAria": "立即发送这条队列消息",
     "queuedEditAria": "编辑这条队列消息",
     "queuedDeleteAria": "删除这条队列消息",

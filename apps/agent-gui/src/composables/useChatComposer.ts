@@ -348,6 +348,10 @@ export function useChatComposer(options: UseChatComposerOptions) {
     queuedMessages.value = queuedMessages.value.filter((message) => message.id !== id);
   }
 
+  function clearQueuedMessages() {
+    queuedMessages.value = [];
+  }
+
   function moveQueuedMessage(id: string, targetIndex: number): boolean {
     const currentIndex = queuedMessages.value.findIndex((message) => message.id === id);
     if (currentIndex === -1 || targetIndex < 0 || targetIndex >= queuedMessages.value.length) {
@@ -457,6 +461,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     sendQueuedMessageNow,
     sendNextQueuedMessage,
     deleteQueuedMessage,
+    clearQueuedMessages,
     moveQueuedMessage,
     restoreQueuedMessage,
     restoreLastQueuedMessage,
