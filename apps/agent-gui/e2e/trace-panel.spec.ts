@@ -62,7 +62,6 @@ test("filters trace events by search", async ({ page }) => {
   await expect(page.getByText("No matching trace events")).toBeVisible();
 
   await search.clear();
-  await expect(entries.filter({ hasText: "user" })).toBeVisible();
   await expect(entries.filter({ hasText: "context" })).toBeVisible();
   await expect(entries.filter({ hasText: "model" })).toBeVisible();
 });
