@@ -682,6 +682,19 @@
         "failed": "失败",
         "pending": "等待中"
       }
+    },
+    "compaction": {
+      "running": "正在压缩上下文…",
+      "completed": "上下文已压缩",
+      "failed": "上下文压缩失败",
+      "summary": "上下文压缩",
+      "reason": {
+        "user": "用户触发",
+        "threshold": "自动(阈值)"
+      },
+      "ratio": "压缩至 {value}",
+      "duration": "耗时 {value}",
+      "fallbackUsed": "已使用滑动窗口回退"
     }
   }
 }
