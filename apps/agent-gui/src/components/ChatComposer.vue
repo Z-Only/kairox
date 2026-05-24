@@ -244,7 +244,6 @@ onMounted(() => {
         @keydown="handleKeydown"
         @input="handleInput"
       />
-      <ContextMeter variant="ring" />
       <KxButton
         v-if="session.isStreaming"
         variant="danger"
