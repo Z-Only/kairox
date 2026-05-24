@@ -13,7 +13,12 @@ interface TrustOption {
 const { t } = useI18n();
 const catalog = useCatalogStore();
 const selected = ref<ServerEntryResponse | null>(null);
-const searchInput = ref("");
+const searchInput = computed({
+  get: () => catalog.filters.keyword,
+  set: (value: string) => {
+    catalog.filters.keyword = value;
+  }
+});
 
 const trustOptions = computed<TrustOption[]>(() => [
   { label: t("marketplace.trustAll"), value: null },
