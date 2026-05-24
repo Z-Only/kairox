@@ -672,7 +672,12 @@
   "chatStream": {
     "permission": {
       "jumpCta": "跳转到待授权",
-      "jumpCtaCount": "{count} 个待授权"
+      "jumpCtaCount": "{count} 个待授权",
+      "shortcut": {
+        "allow": "允许 (Y)",
+        "deny": "拒绝 (N)",
+        "denyOnce": "仅本次拒绝 (D)"
+      }
     },
     "toolCall": {
       "expand": "展开",
