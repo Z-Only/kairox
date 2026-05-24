@@ -164,6 +164,19 @@ describe("TraceTimeline", () => {
     expect(wrapper.find('[data-test="trace-filter-done"]').text()).toBe("Done 1");
   });
 
+  it("renders a trace search input with shared input styling", () => {
+    traceState.entries = [makeTraceEntry("build", { title: "Build trace", status: "completed" })];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    const search = wrapper.get('[data-test="trace-search-input"]');
+    expect(search.classes()).toContain("kx-input");
+    expect(search.attributes("type")).toBe("search");
+    expect(search.attributes("aria-label")).toBe("Search trace events");
+    expect(traceTimelineSource).toContain("trace-search-input");
+  });
+
   it("filters visible trace entries by failed status", async () => {
     traceState.entries = [
       makeTraceEntry("pending", { title: "Pending trace", status: "pending" }),
@@ -184,6 +197,80 @@ describe("TraceTimeline", () => {
     expect(wrapper.text()).not.toContain("Done trace");
   });
 
+  it("filters visible trace entries by title, tool id, reason, and input", async () => {
+    traceState.entries = [
+      makeTraceEntry("build", {
+        title: "Build project",
+        input: "cargo test --workspace",
+        reason: "Verify release build"
+      }),
+      makeTraceEntry("read", {
+        title: "Read project guide",
+        toolId: "fs_read",
+        input: "AGENTS.md",
+        reason: "Inspect local instructions"
+      })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+    const search = wrapper.get('[data-test="trace-search-input"]');
+
+    await search.setValue("cargo test");
+
+    expect(wrapper.text()).toContain("Build project");
+    expect(wrapper.text()).not.toContain("Read project guide");
+
+    await search.setValue("fs_read");
+
+    expect(wrapper.text()).toContain("fs_read");
+    expect(wrapper.text()).not.toContain("Build project");
+  });
+
+  it("filters visible memory trace entries by scope and content", async () => {
+    traceState.entries = [
+      makeTraceEntry("tool", { title: "Run ls", status: "completed" }),
+      makeTraceEntry("memory", {
+        kind: "memory",
+        title: "Save release memory",
+        scope: "workspace",
+        content: "Prefer compact release summaries",
+        status: "pending"
+      })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    await wrapper.get('[data-test="trace-search-input"]').setValue("compact");
+
+    expect(wrapper.text()).toContain("Save release memory");
+    expect(wrapper.text()).toContain("Prefer compact release summaries");
+    expect(wrapper.text()).not.toContain("Run ls");
+  });
+
+  it("combines trace search with the selected status filter", async () => {
+    traceState.entries = [
+      makeTraceEntry("failed", {
+        title: "Network request failed",
+        status: "failed"
+      }),
+      makeTraceEntry("done", {
+        title: "Network request completed",
+        status: "completed"
+      })
+    ];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    await wrapper.get('[data-test="trace-search-input"]').setValue("network");
+    await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Network request failed");
+    expect(wrapper.text()).not.toContain("Network request completed");
+  });
+
   it("shows a status-filter empty state when no trace entries match", async () => {
     traceState.entries = [makeTraceEntry("done", { title: "Done trace", status: "completed" })];
 
@@ -193,6 +280,18 @@ describe("TraceTimeline", () => {
     await wrapper.find('[data-test="trace-filter-failed"]').trigger("click");
 
     expect(wrapper.text()).toContain("No matching trace events");
+  });
+
+  it("shows a filtered empty state when search has no matches", async () => {
+    traceState.entries = [makeTraceEntry("done", { title: "Done trace", status: "completed" })];
+
+    const wrapper = mountTimeline();
+    useTaskGraphStore().clearTaskGraph();
+
+    await wrapper.get('[data-test="trace-search-input"]').setValue("does-not-exist");
+
+    expect(wrapper.text()).toContain("No matching trace events");
+    expect(wrapper.findAll('[data-test="trace-entry"]')).toHaveLength(0);
   });
 
   it("audit anchors: exposes stable trace pilot selectors", async () => {
