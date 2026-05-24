@@ -5,7 +5,6 @@ import accordionStateSource from "@/components/ui/KxAccordionState.vue?raw";
 import memoryBrowserSource from "@/components/MemoryBrowser.vue?raw";
 import traceTimelineSource from "@/components/TraceTimeline.vue?raw";
 import taskStepsSource from "@/components/TaskSteps.vue?raw";
-import permissionCenterSource from "@/components/PermissionCenter.vue?raw";
 import installedListSource from "@/components/marketplace/InstalledList.vue?raw";
 import skillDiscoverListSource from "@/components/skills/SkillDiscoverList.vue?raw";
 import mcpResourceAccordionSource from "@/components/McpResourceAccordion.vue?raw";
@@ -23,7 +22,6 @@ const migratedSources = [
   ["MemoryBrowser.vue", memoryBrowserSource],
   ["TraceTimeline.vue", traceTimelineSource],
   ["TaskSteps.vue", taskStepsSource],
-  ["PermissionCenter.vue", permissionCenterSource],
   ["InstalledList.vue", installedListSource],
   ["SkillDiscoverList.vue", skillDiscoverListSource],
   ["McpResourceAccordion.vue", mcpResourceAccordionSource],
@@ -51,7 +49,6 @@ describe("Kx async state migration", () => {
     });
     expectSourceMigration(traceTimelineSource, { forbidden: [".empty-hint {"] });
     expectSourceMigration(taskStepsSource, { forbidden: [".empty-hint {"] });
-    expectSourceMigration(permissionCenterSource, { forbidden: [".empty-state {"] });
     expectSourceMigration(skillDiscoverListSource, {
       forbidden: [".catalog-state {", ".spinner {"]
     });

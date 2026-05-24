@@ -4,7 +4,6 @@ import { useUiStore } from "@/stores/ui";
 import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
-import PermissionCenter from "@/components/PermissionCenter.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -185,7 +184,6 @@ function startResize(side: "left" | "right", event: PointerEvent) {
     </div>
     <aside class="right-sidebar" :aria-hidden="rightSidebarCollapsed ? 'true' : undefined">
       <TraceTimeline />
-      <PermissionCenter />
     </aside>
   </main>
 </template>

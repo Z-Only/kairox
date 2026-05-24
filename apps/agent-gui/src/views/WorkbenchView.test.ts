@@ -61,8 +61,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
@@ -105,8 +104,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
@@ -127,8 +125,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
@@ -151,8 +148,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
@@ -185,8 +181,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
@@ -220,8 +215,7 @@ describe("WorkbenchView (Pre-work A regression)", () => {
         stubs: {
           SessionsSidebar: true,
           ChatPanel: true,
-          TraceTimeline: true,
-          PermissionCenter: true
+          TraceTimeline: true
         }
       }
     });
