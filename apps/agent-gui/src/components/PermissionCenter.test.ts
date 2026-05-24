@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import PermissionCenter from "./PermissionCenter.vue";
+import permissionCenterSource from "./PermissionCenter.vue?raw";
 import type { TraceEntryData } from "../types/trace";
 import { mountWithPlugins } from "@/test-utils/mount";
 
@@ -169,6 +170,25 @@ describe("PermissionCenter", () => {
     expect(wrapper.find('[data-test="permission-filter-memory"]').text()).toBe("Memories 1");
   });
 
+  it("renders a pending request search input with shared UI primitives", () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    const search = wrapper.get('[data-test="permission-search-input"]');
+    expect(search.classes()).toContain("kx-input");
+    expect(search.attributes("type")).toBe("search");
+    expect(search.attributes("aria-label")).toBe("Search pending requests");
+    expect(permissionCenterSource).toContain("SettingsFilterBar");
+  });
+
   it("filters pending requests to memory proposals", async () => {
     mockEntries.push(
       makeEntry({
@@ -199,6 +219,101 @@ describe("PermissionCenter", () => {
     expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
   });
 
+  it("filters pending tool requests by title, tool id, reason, and input", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run dependency check",
+        toolId: "shell_exec",
+        input: "cargo clippy --workspace",
+        reason: "Verify release build"
+      }),
+      makeEntry({
+        id: "perm_2",
+        kind: "permission",
+        status: "pending",
+        title: "Open config",
+        toolId: "fs_read",
+        input: "AGENTS.md",
+        reason: "Inspect project instructions"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+    const search = wrapper.get('[data-test="permission-search-input"]');
+
+    await search.setValue("clippy");
+
+    expect(wrapper.text()).toContain("Run dependency check");
+    expect(wrapper.text()).not.toContain("Open config");
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+
+    await search.setValue("fs_read");
+
+    expect(wrapper.text()).toContain("Open config");
+    expect(wrapper.text()).not.toContain("Run dependency check");
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+  });
+
+  it("filters pending memory proposals by scope and content", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      }),
+      makeEntry({
+        id: "mem_1",
+        kind: "memory",
+        status: "pending",
+        title: "Save memory",
+        scope: "workspace",
+        content: "Prefer compact release summaries"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.get('[data-test="permission-search-input"]').setValue("compact");
+
+    expect(wrapper.text()).toContain("Save memory");
+    expect(wrapper.text()).toContain("Prefer compact release summaries");
+    expect(wrapper.text()).not.toContain("Run ls");
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+  });
+
+  it("combines pending request search with the type filter", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Shared release action",
+        toolId: "shell_exec"
+      }),
+      makeEntry({
+        id: "mem_1",
+        kind: "memory",
+        status: "pending",
+        title: "Shared release note",
+        scope: "user",
+        content: "Remember release action preference"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.get('[data-test="permission-search-input"]').setValue("shared");
+    await wrapper.get('[data-test="permission-filter-memory"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Shared release note");
+    expect(wrapper.text()).not.toContain("Shared release action");
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+  });
+
   it("shows a filter-specific empty state when no pending requests match", async () => {
     mockEntries.push(
       makeEntry({
@@ -216,6 +331,26 @@ describe("PermissionCenter", () => {
     expect(wrapper.get('[data-test="permission-empty-state"]').text()).toBe(
       "No pending requests match this filter"
     );
+  });
+
+  it("shows a filter-specific empty state when search has no matches", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.get('[data-test="permission-search-input"]').setValue("does-not-exist");
+
+    expect(wrapper.get('[data-test="permission-empty-state"]').text()).toBe(
+      "No pending requests match this filter"
+    );
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(0);
   });
 
   it("does not render entries with non-pending status", () => {
