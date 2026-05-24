@@ -25,8 +25,12 @@
     "scopeSession": "会话",
     "scopeUser": "用户",
     "scopeWorkspace": "工作区",
+    "statusAll": "全部",
+    "statusAccepted": "已接受",
+    "statusPending": "待处理",
     "searchPlaceholder": "搜索记忆…",
     "emptyHint": "暂无记忆",
+    "noMatchingStatusHint": "没有符合当前状态筛选的记忆",
     "deleteConfirm": "删除这条记忆？"
   },
   "nav": {

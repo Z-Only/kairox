@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
-import { useMemoryStore } from "@/stores/memory";
+import { useMemoryStore, type MemoryItem } from "@/stores/memory";
 import { useSessionStore } from "@/stores/session";
+
+type MemoryStatusFilter = "all" | "accepted" | "pending";
 
 const { t } = useI18n();
 const { confirm } = useConfirm();
@@ -9,6 +11,7 @@ const { confirm } = useConfirm();
 const memory = useMemoryStore();
 const { memories, loading, filter, searchQuery } = storeToRefs(memory);
 const session = useSessionStore();
+const statusFilter = ref<MemoryStatusFilter>("all");
 
 onMounted(() => {
   memory.loadMemories();
@@ -28,6 +31,37 @@ const scopeOptions = computed<{ label: string; value: string }[]>(() => [
   { label: t("memory.scopeUser"), value: "user" },
   { label: t("memory.scopeWorkspace"), value: "workspace" }
 ]);
+
+function memoryMatchesStatus(mem: MemoryItem, status: MemoryStatusFilter) {
+  switch (status) {
+    case "accepted":
+      return mem.accepted;
+    case "pending":
+      return !mem.accepted;
+    default:
+      return true;
+  }
+}
+
+const statusFilterOptions = computed<{ id: MemoryStatusFilter; label: string; count: number }[]>(
+  () => [
+    { id: "all", label: t("memory.statusAll"), count: memories.value.length },
+    {
+      id: "accepted",
+      label: t("memory.statusAccepted"),
+      count: memories.value.filter((mem) => memoryMatchesStatus(mem, "accepted")).length
+    },
+    {
+      id: "pending",
+      label: t("memory.statusPending"),
+      count: memories.value.filter((mem) => memoryMatchesStatus(mem, "pending")).length
+    }
+  ]
+);
+
+const visibleMemories = computed(() =>
+  memories.value.filter((mem) => memoryMatchesStatus(mem, statusFilter.value))
+);
 
 const scopeIcon: Record<string, string> = {
   session: "📋",
@@ -95,6 +129,23 @@ async function promptDelete(id: string, content: string) {
           </option>
         </KxSelect>
       </div>
+      <KxChipGroup
+        v-if="memories.length > 0"
+        class="memory-status-filters"
+        aria-label="Memory status filters"
+        data-test="memory-status-filters"
+      >
+        <KxChipButton
+          v-for="option in statusFilterOptions"
+          :key="option.id"
+          size="compact"
+          :selected="statusFilter === option.id"
+          :data-test="`memory-status-filter-${option.id}`"
+          @click="statusFilter = option.id"
+        >
+          {{ option.label }} {{ option.count }}
+        </KxChipButton>
+      </KxChipGroup>
       <KxInput
         v-model="searchQuery"
         type="text"
@@ -122,8 +173,16 @@ async function promptDelete(id: string, content: string) {
     >
       {{ t("memory.emptyHint") }}
     </KxEmptyState>
+    <KxEmptyState
+      v-else-if="visibleMemories.length === 0"
+      class="memory-panel-state memory-empty memory-empty-state"
+      data-test="memory-empty-state"
+      compact
+    >
+      {{ t("memory.noMatchingStatusHint") }}
+    </KxEmptyState>
     <ul v-else class="memory-list" data-test="memory-list">
-      <li v-for="mem in memories" :key="mem.id" class="memory-item" data-test="memory-item">
+      <li v-for="mem in visibleMemories" :key="mem.id" class="memory-item" data-test="memory-item">
         <div class="memory-meta">
           <KxTag class="memory-scope" :tone="scopeTone[mem.scope] ?? 'neutral'">
             {{ scopeIcon[mem.scope] || "•" }} {{ mem.scope }}
@@ -191,6 +250,9 @@ async function promptDelete(id: string, content: string) {
   display: flex;
   gap: 6px;
   align-items: center;
+  width: 100%;
+}
+.memory-status-filters {
   width: 100%;
 }
 .memory-panel-state {

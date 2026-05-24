@@ -25,8 +25,12 @@
     "scopeSession": "Session",
     "scopeUser": "User",
     "scopeWorkspace": "Workspace",
+    "statusAll": "All",
+    "statusAccepted": "Accepted",
+    "statusPending": "Pending",
     "searchPlaceholder": "Search memories...",
     "emptyHint": "No memories",
+    "noMatchingStatusHint": "No memories match this status filter",
     "deleteConfirm": "Delete this memory?"
   },
   "nav": {
