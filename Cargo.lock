@@ -283,6 +283,7 @@ dependencies = [
  "agent-tools",
  "anyhow",
  "async-trait",
+ "chrono",
  "crossterm",
  "futures",
  "insta",
