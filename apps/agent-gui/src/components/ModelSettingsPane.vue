@@ -28,6 +28,7 @@ const formTopK = ref("");
 const formMaxTokens = ref("");
 const formBaseUrl = ref("");
 const formApiKeyEnv = ref("");
+const searchQuery = ref("");
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -39,6 +40,57 @@ watch(
   },
   { immediate: true }
 );
+
+const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
+
+function sourceLabel(source: string): string {
+  switch (source) {
+    case "defaults":
+      return t("models.sourceDefaults");
+    case "profiles_toml":
+      return t("models.sourceProfilesToml");
+    case "user_config":
+      return t("models.sourceUserConfig");
+    case "project_config":
+      return t("models.sourceProjectConfig");
+    default:
+      return source;
+  }
+}
+
+function searchableProfileText(profile: ProfileSettingsView): string {
+  return [
+    profile.alias,
+    profile.provider,
+    profile.model_id,
+    profile.source,
+    sourceLabel(profile.source),
+    profile.enabled ? t("models.enabled") : t("models.disabled"),
+    profile.has_api_key ? t("models.hasApiKey") : t("models.noApiKey"),
+    profile.base_url,
+    profile.api_key_env,
+    profile.config_path,
+    profile.context_window?.toString(),
+    profile.output_limit?.toString(),
+    profile.temperature?.toString(),
+    profile.top_p?.toString(),
+    profile.top_k?.toString(),
+    profile.max_tokens?.toString()
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const visibleProfiles = computed(() => {
+  const query = normalizedSearchQuery.value;
+  if (!query) return profiles.value;
+  return profiles.value.filter((profile) => searchableProfileText(profile).includes(query));
+});
+
+function profileIndex(profile: ProfileSettingsView): number {
+  return profiles.value.findIndex((item) => item.alias === profile.alias);
+}
 
 function resetForm(): void {
   formAlias.value = "";
@@ -202,26 +254,49 @@ function toggleProfile(profile: ProfileSettingsView): void {
       {{ t("models.noProfiles") }}
     </SettingsState>
 
-    <SettingsCardList
-      v-else
-      :aria-label="t('models.title')"
-      data-test="model-list"
-      class="model-settings__list"
-    >
-      <ModelProfileCard
-        v-for="(profile, index) in profiles"
-        :key="profile.alias"
-        :profile="profile"
-        :index="index"
-        :total="profiles.length"
-        :busy-alias="busyAlias"
-        @move="store.moveProfile"
-        @edit="openEditDialog"
-        @toggle="toggleProfile"
-        @test="testProfileConnectivity"
-        @remove="store.removeProfile"
-      />
-    </SettingsCardList>
+    <template v-else>
+      <SettingsFilterBar aria-label="Search model profiles" data-test="model-filters">
+        <div class="settings-filter-bar__row">
+          <KxInput
+            v-model="searchQuery"
+            type="search"
+            size="compact"
+            aria-label="Search model profiles"
+            placeholder="Search model profiles"
+            data-test="model-search-input"
+          />
+        </div>
+      </SettingsFilterBar>
+
+      <SettingsState
+        v-if="visibleProfiles.length === 0"
+        tone="empty"
+        data-test="model-filter-empty-state"
+      >
+        No model profiles match your search.
+      </SettingsState>
+
+      <SettingsCardList
+        v-else
+        :aria-label="t('models.title')"
+        data-test="model-list"
+        class="model-settings__list"
+      >
+        <ModelProfileCard
+          v-for="profile in visibleProfiles"
+          :key="profile.alias"
+          :profile="profile"
+          :index="profileIndex(profile)"
+          :total="profiles.length"
+          :busy-alias="busyAlias"
+          @move="store.moveProfile"
+          @edit="openEditDialog"
+          @toggle="toggleProfile"
+          @test="testProfileConnectivity"
+          @remove="store.removeProfile"
+        />
+      </SettingsCardList>
+    </template>
 
     <ModelProfileFormDialog
       :open="addDialogOpen"
