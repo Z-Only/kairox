@@ -172,6 +172,46 @@ describe("HooksSettingsPane", () => {
     expect(wrapper.find('[data-test="hook-row-verify"]').exists()).toBe(false);
   });
 
+  it("sorts hooks after filtering by search text", async () => {
+    mockedInvoke.mockResolvedValueOnce({
+      ...hooksSettings,
+      user: [
+        {
+          ...hooksSettings.user[0],
+          id: "zeta",
+          event: "Stop",
+          command: "shared matching command"
+        },
+        {
+          ...hooksSettings.user[1],
+          id: "alpha",
+          event: "PreToolUse",
+          command: "shared matching command"
+        },
+        {
+          ...hooksSettings.user[0],
+          id: "ignored",
+          command: "unrelated command"
+        }
+      ]
+    });
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    const sortSelect = wrapper.find<HTMLSelectElement>('[data-test="hook-sort-select"]');
+    expect(sortSelect.exists()).toBe(true);
+    expect(sortSelect.attributes("aria-label")).toBe("Hook sort");
+
+    await wrapper.find('[data-test="hook-search-input"]').setValue("matching");
+    await sortSelect.setValue("id");
+
+    const rowIds = wrapper
+      .findAll('[data-test^="hook-row-"]')
+      .map((row) => row.attributes("data-test"));
+    expect(rowIds).toEqual(["hook-row-alpha", "hook-row-zeta"]);
+  });
+
   it("shows a filtered empty state when no hooks match search", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 
