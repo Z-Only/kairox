@@ -111,8 +111,12 @@ function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
       return item;
     }
     case "permission":
+      // Resolved permissions stay visible in TraceTimeline but disappear
+      // from the inline chat stream — accept/deny is a one-shot action.
+      if (entry.status !== "pending") return null;
       return buildPermissionItem(entry, "tool");
     case "memory":
+      if (entry.status !== "pending") return null;
       return buildPermissionItem(entry, "memory");
     default:
       // Defensive: ignore any future / unknown trace kinds rather than

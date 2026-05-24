@@ -1,5 +1,11 @@
 import type { Ref } from "vue";
-import type { SessionProjection, DomainEvent, ContextUsage, ProjectedModelLimits } from "@/types";
+import type {
+  SessionProjection,
+  DomainEvent,
+  ContextUsage,
+  ProjectedModelLimits,
+  CompactionStatus
+} from "@/types";
 import { agentRoleToProjectedRole } from "@/types";
 import type { useAgentsStore } from "@/stores/agents";
 import type { useTaskGraphStore } from "@/stores/taskGraph";
@@ -169,14 +175,14 @@ export function setProjectionFromSnapshot(
   taskGraphStore: ReturnType<typeof useTaskGraphStore>,
   currentSessionId: string | null
 ): void {
-  ctx.projection.value = next;
+  const status: CompactionStatus = next.compaction ?? { type: "Idle" };
+  ctx.projection.value = { ...next, compaction: status };
   ctx.isStreaming.value = false;
   if (next.task_graph?.tasks) {
     taskGraphStore.setTaskGraph(next.task_graph.tasks, currentSessionId);
   }
   ctx.lastContextUsage.value = next.last_context_usage ?? null;
   ctx.modelLimits.value = next.model_limits ?? null;
-  const status = next.compaction ?? { type: "Idle" };
   ctx.compacting.value = status.type === "Running";
   ctx.lastCompactionError.value = status.type === "Failed" ? status.error : null;
 }
