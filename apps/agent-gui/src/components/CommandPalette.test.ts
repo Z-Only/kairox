@@ -11,20 +11,33 @@ import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
 // ---- Mocks ----
 
+const paletteStoreMocks = vi.hoisted(() => ({
+  resetProjection: vi.fn(),
+  activeSkills: [] as Array<{ skill_id: string; name: string }>,
+  profileInfos: [] as Array<{
+    alias: string;
+    provider: string;
+    model_id: string;
+    provider_display?: string;
+    model_display?: string;
+  }>
+}));
+
 // Session store: a valid session so session-active commands appear
 vi.mock("@/stores/session", () => ({
   useSessionStore: () => ({
     currentSessionId: "ses_1",
-    resetProjection: vi.fn(),
-    profileInfos: []
+    resetProjection: paletteStoreMocks.resetProjection,
+    profileInfos: paletteStoreMocks.profileInfos
   }),
-  formatProfileDisplay: (p: { alias: string }) => p.alias
+  formatProfileDisplay: (p: { alias: string; provider_display?: string; model_display?: string }) =>
+    [p.alias, p.provider_display, p.model_display].filter(Boolean).join(" · ")
 }));
 
 // Skills store: empty so only built-in commands show in initial render
 vi.mock("@/stores/skills", () => ({
   useSkillsStore: () => ({
-    activeSkills: []
+    activeSkills: paletteStoreMocks.activeSkills
   })
 }));
 
@@ -36,6 +49,9 @@ vi.mock("@tauri-apps/api/core", () => ({
 describe("CommandPalette", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    paletteStoreMocks.resetProjection.mockClear();
+    paletteStoreMocks.activeSkills.splice(0);
+    paletteStoreMocks.profileInfos.splice(0);
   });
 
   // ---- Rendering ----
@@ -236,6 +252,71 @@ describe("CommandPalette", () => {
     expect(item.exists()).toBe(true);
     await item.trigger("click");
     expect(wrapper.emitted("close")).toBeTruthy();
+  });
+
+  it("emits select-skill and closes when clicking a skill item", async () => {
+    paletteStoreMocks.activeSkills.push({
+      skill_id: "workspace-review",
+      name: "Workspace Review"
+    });
+    const { wrapper } = mountWithPlugins(CommandPalette, {
+      mount: { props: { visible: true, filterText: "workspace" } },
+      reusePinia: true
+    });
+
+    const item = wrapper.find('[data-test="palette-item-workspace-review"]');
+    expect(item.exists()).toBe(true);
+    expect(item.find(".command-palette__label").text()).toBe("/skills Workspace Review");
+
+    await item.trigger("click");
+
+    expect(wrapper.emitted("select-skill")).toEqual([["workspace-review"]]);
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("emits select-model-profile and closes when clicking a model profile item", async () => {
+    paletteStoreMocks.profileInfos.push({
+      alias: "daily-driver",
+      provider: "openai",
+      model_id: "gpt-4.1",
+      provider_display: "OpenAI",
+      model_display: "GPT-4.1"
+    });
+    const { wrapper } = mountWithPlugins(CommandPalette, {
+      mount: { props: { visible: true, filterText: "daily" } },
+      reusePinia: true
+    });
+
+    const item = wrapper.find('[data-test="palette-item-daily-driver"]');
+    expect(item.exists()).toBe(true);
+    expect(item.find(".command-palette__label").text()).toBe("daily-driver · OpenAI · GPT-4.1");
+
+    await item.trigger("click");
+
+    expect(wrapper.emitted("select-model-profile")).toEqual([["daily-driver"]]);
+    expect(wrapper.emitted("close")).toHaveLength(1);
+  });
+
+  it("emits select-model-profile and closes when pressing Enter on a model profile item", async () => {
+    paletteStoreMocks.profileInfos.push({
+      alias: "fast-local",
+      provider: "ollama",
+      model_id: "qwen3",
+      provider_display: "Ollama",
+      model_display: "Qwen3"
+    });
+    const { wrapper } = mountWithPlugins(CommandPalette, {
+      mount: { props: { visible: true, filterText: "fast-local" } },
+      reusePinia: true
+    });
+
+    const items = wrapper.findAll(".command-palette__item");
+    expect(items).toHaveLength(1);
+
+    await wrapper.trigger("keydown", { key: "Enter" });
+
+    expect(wrapper.emitted("select-model-profile")).toEqual([["fast-local"]]);
+    expect(wrapper.emitted("close")).toHaveLength(1);
   });
 
   // ---- data-test anchors ----
