@@ -610,6 +610,8 @@
     "catalogSourcesTitle": "Skill Catalog Sources",
     "catalogSourcesAria": "Skill catalog sources",
     "sourcesEmpty": "No skill catalog sources configured.",
+    "sourceSearchPlaceholder": "Search sources",
+    "sourcesFilterEmpty": "No skill catalog sources match your search.",
     "sourceEnabled": "Enabled",
     "sourceError": "Error: {error}",
     "sourceErrorTitle": "Last error: {error}",

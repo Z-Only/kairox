@@ -8,6 +8,7 @@ const { t } = useI18n();
 const store = useSkillsStore();
 const showAddForm = ref(false);
 const formError = ref<string | null>(null);
+const sourceSearchQuery = ref("");
 const templateTokens = {
   query: "{{query}}",
   limit: "{{limit}}",
@@ -30,6 +31,12 @@ const draft = ref({
 });
 
 const kindOptions = computed(() => [{ label: t("skills.sourceKindSkillHub"), value: "skillhub" }]);
+const normalizedSourceSearchQuery = computed(() => sourceSearchQuery.value.trim().toLowerCase());
+const filteredCatalogSources = computed(() => {
+  const query = normalizedSourceSearchQuery.value;
+  if (!query) return store.catalogSources;
+  return store.catalogSources.filter((source) => searchableSourceText(source).includes(query));
+});
 
 onMounted(() => {
   void store.loadCatalogSources();
@@ -37,6 +44,24 @@ onMounted(() => {
 
 function isValidUrl(u: string): boolean {
   return u.startsWith("http://") || u.startsWith("https://");
+}
+
+function searchableSourceText(source: SkillSourceView): string {
+  return [
+    source.id,
+    source.display_name,
+    source.kind,
+    source.url,
+    source.search_template,
+    source.download_template,
+    source.list_template,
+    source.detail_template,
+    source.enabled ? "enabled" : "disabled",
+    source.last_error
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 function resetDraft(): void {
@@ -120,12 +145,35 @@ function formatError(caughtError: unknown): string {
       <strong>{{ t("skills.catalogSourcesTitle") }}</strong>
     </h3>
 
+    <SettingsFilterBar
+      v-if="store.catalogSources.length > 0"
+      :aria-label="t('skills.catalogSourcesAria')"
+      data-test="skill-source-filter-bar"
+    >
+      <form role="search" @submit.prevent>
+        <KxInput
+          v-model="sourceSearchQuery"
+          type="search"
+          :placeholder="t('skills.sourceSearchPlaceholder')"
+          data-test="skill-source-search-input"
+          size="compact"
+        />
+      </form>
+    </SettingsFilterBar>
+
     <SettingsState
       v-if="store.catalogSources.length === 0"
       tone="empty"
       data-test="skill-sources-empty-state"
     >
       {{ t("skills.sourcesEmpty") }}
+    </SettingsState>
+    <SettingsState
+      v-else-if="filteredCatalogSources.length === 0"
+      tone="empty"
+      data-test="skill-sources-filter-empty"
+    >
+      {{ t("skills.sourcesFilterEmpty") }}
     </SettingsState>
 
     <SettingsCardList
@@ -136,7 +184,7 @@ function formatError(caughtError: unknown): string {
       dense
     >
       <SettingsCardItem
-        v-for="src in store.catalogSources"
+        v-for="src in filteredCatalogSources"
         :key="src.id"
         :data-test="`skill-source-row-${src.id}`"
       >
