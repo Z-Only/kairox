@@ -94,7 +94,7 @@ const hasConfig = computed(() => configItems.value.length > 0);
 const overrides = ref<Record<string, string>>({});
 // Trust grant must be opt-in: catalog "verified" means the *distribution
 // channel* is trusted, not that runtime tool calls should bypass the
-// PermissionCenter. Default to false and let the user opt in explicitly.
+// inline permission prompt. Default to false and let the user opt in explicitly.
 const trustGrant = ref(false);
 const autoStart = ref(true);
 const installTarget = ref<ConfigScope>("User");

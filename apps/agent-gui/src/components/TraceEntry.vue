@@ -34,7 +34,8 @@ const kindIcon: Record<string, string> = {
     data-test="trace-entry"
   >
     <!-- All entries show as a trace row; pending permission/memory
-         interactions are handled exclusively by PermissionCenter. The
+         interactions are handled exclusively by inline chat-stream
+         items (ChatPermissionItem) rendered inside ChatPanel. The
          row's bespoke class names are preserved because the unit tests
          (TraceEntry.test.ts) assert against `.entry-row`, `.entry-status`,
          `.entry-detail`, and `.entry-duration` — using CSS-class-based

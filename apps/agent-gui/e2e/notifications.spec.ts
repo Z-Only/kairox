@@ -51,11 +51,3 @@ test("notification toast appears when error is triggered", async ({ page }) => {
   // If 0, the message provider has nothing to render. That's expected initially.
   expect(toastEl).toBe(0);
 });
-
-test("permission center shows no pending requests initially", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".permission-center")).toBeVisible({
-    timeout: 10_000
-  });
-  await expect(page.locator(".permission-center")).toContainText("No pending requests");
-});
