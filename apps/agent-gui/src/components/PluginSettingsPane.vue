@@ -9,15 +9,25 @@ import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
 type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
+type InstalledPluginSort = "original" | "name" | "scope" | "status" | "validity";
 
 const store = usePluginsStore();
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const activeSubTab = ref<"installed" | "marketplace">("installed");
 const installedSearch = ref("");
+const installedSort = ref<InstalledPluginSort>("original");
 const search = ref("");
 const selectedMarketplaceId = ref<string | null>(null);
 const sourceSettingsOpen = ref(false);
+
+const installedSortOptions: Array<{ value: InstalledPluginSort; label: string }> = [
+  { value: "original", label: "Original order" },
+  { value: "name", label: "Name" },
+  { value: "scope", label: "Scope" },
+  { value: "status", label: "Status" },
+  { value: "validity", label: "Validity" }
+];
 
 const installTarget = computed<PluginInstallTarget>(() =>
   configSource?.value === "project" ? "project" : "user"
@@ -74,6 +84,49 @@ const filteredInstalledPlugins = computed(() => {
   const query = normalizedInstalledSearch.value;
   if (!query) return store.plugins;
   return store.plugins.filter((plugin) => searchablePluginText(plugin).includes(query));
+});
+
+function compareText(left: string | null | undefined, right: string | null | undefined): number {
+  return (left ?? "").localeCompare(right ?? "", undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
+}
+
+function compareInstalledPlugins(
+  left: PluginSettingsView,
+  right: PluginSettingsView,
+  sort: InstalledPluginSort
+): number {
+  switch (sort) {
+    case "name":
+      return compareText(left.name, right.name);
+    case "scope":
+      return compareText(left.scope, right.scope);
+    case "status":
+      return compareText(
+        left.enabled ? "enabled" : "disabled",
+        right.enabled ? "enabled" : "disabled"
+      );
+    case "validity":
+      return compareText(left.valid ? "valid" : "invalid", right.valid ? "valid" : "invalid");
+    case "original":
+      return 0;
+  }
+}
+
+const displayedInstalledPlugins = computed(() => {
+  const plugins = filteredInstalledPlugins.value;
+  const sort = installedSort.value;
+  if (sort === "original") return plugins;
+
+  return plugins
+    .map((plugin, index) => ({ index, plugin }))
+    .sort((left, right) => {
+      const result = compareInstalledPlugins(left.plugin, right.plugin, sort);
+      return result === 0 ? left.index - right.index : result;
+    })
+    .map(({ plugin }) => plugin);
 });
 
 function sourceTone(source: string): SourceTone {
@@ -180,11 +233,27 @@ watch(activeSubTab, (tab) => {
               data-test="plugin-installed-search-input"
               size="compact"
             />
+            <KxSelect
+              :model-value="installedSort"
+              aria-label="Installed plugin sort"
+              data-test="plugin-installed-sort-select"
+              class="plugin-installed-sort-select"
+              size="compact"
+              @update:model-value="installedSort = $event as InstalledPluginSort"
+            >
+              <option
+                v-for="option in installedSortOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </KxSelect>
           </div>
         </SettingsFilterBar>
 
         <SettingsState
-          v-if="filteredInstalledPlugins.length === 0"
+          v-if="displayedInstalledPlugins.length === 0"
           tone="empty"
           data-test="plugin-installed-filter-empty"
         >
@@ -197,7 +266,7 @@ watch(activeSubTab, (tab) => {
           data-test="plugin-installed-list"
         >
           <SettingsCardItem
-            v-for="plugin in filteredInstalledPlugins"
+            v-for="plugin in displayedInstalledPlugins"
             :key="plugin.settings_id"
             :data-test="`plugin-row-${settingsTestId(plugin)}`"
           >
@@ -441,6 +510,10 @@ watch(activeSubTab, (tab) => {
 .plugin-source-panel {
   display: grid;
   gap: 10px;
+}
+.plugin-installed-sort-select {
+  flex: 0 1 180px;
+  max-width: 100%;
 }
 code {
   overflow-wrap: anywhere;
