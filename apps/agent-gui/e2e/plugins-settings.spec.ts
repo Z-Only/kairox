@@ -32,6 +32,28 @@ test.describe("Plugin Settings", () => {
     await expect(page.getByTestId("plugin-row-user-github")).not.toBeVisible();
   });
 
+  test("filters installed plugins by search", async ({ page }) => {
+    await expect(page.getByTestId("plugin-installed-search-input")).toBeVisible();
+
+    await page.getByTestId("plugin-installed-search-input").fill("commit commands");
+    await expect(page.getByTestId("plugin-row-project-commit-commands")).toBeVisible();
+    await expect(page.getByTestId("plugin-row-user-github")).toHaveCount(0);
+
+    await page.getByTestId("plugin-installed-search-input").fill("builtin");
+    await expect(page.getByTestId("plugin-row-builtin-browser")).toBeVisible();
+    await expect(page.getByTestId("plugin-row-project-commit-commands")).toHaveCount(0);
+
+    await page.getByTestId("plugin-installed-search-input").fill("does-not-exist");
+    await expect(page.getByTestId("plugin-installed-filter-empty")).toContainText(
+      "No installed plugins match your search."
+    );
+    await expect(page.getByTestId("plugin-installed-list")).toHaveCount(0);
+
+    await page.getByTestId("plugin-installed-search-input").fill("");
+    await expect(page.getByTestId("plugin-row-user-github")).toBeVisible();
+    await expect(page.getByTestId("plugin-row-project-commit-commands")).toBeVisible();
+  });
+
   test("discovers and installs a marketplace plugin into the selected project scope", async ({
     page
   }) => {
