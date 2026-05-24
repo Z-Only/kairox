@@ -45,6 +45,35 @@ function mountPane(configSource: "user" | "project" = "user") {
   });
 }
 
+function pluginSettings(overrides: Record<string, unknown> = {}) {
+  return {
+    settings_id: "User:github",
+    id: "github",
+    name: "GitHub",
+    description: "Browse and manage GitHub repositories.",
+    version: "1.0.0",
+    scope: "User",
+    path: "/Users/mock/.config/kairox/plugins/github",
+    enabled: true,
+    install_source: "marketplace",
+    marketplace: "anthropics-claude-code",
+    effective: true,
+    shadowed_by: null,
+    valid: true,
+    validation_error: null,
+    inventory: {
+      skill_count: 0,
+      skill_names: [],
+      mcp_server_count: 1,
+      app_count: 0,
+      agent_count: 0,
+      hook_count: 0
+    },
+    manifest_kind: "claude",
+    ...overrides
+  };
+}
+
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
@@ -76,56 +105,18 @@ describe("PluginSettingsPane", () => {
     it("renders installed plugins with name, scope, and status", async () => {
       mockedCommands.listPluginSettings.mockResolvedValue(
         ok([
-          {
-            settings_id: "User:github",
-            id: "github",
-            name: "GitHub",
-            description: "Browse and manage GitHub repositories.",
-            version: "1.0.0",
-            scope: "User",
-            path: "/Users/mock/.config/kairox/plugins/github",
-            enabled: true,
-            install_source: "marketplace",
-            marketplace: "anthropics-claude-code",
-            effective: true,
-            shadowed_by: null,
-            valid: true,
-            validation_error: null,
-            inventory: {
-              skill_count: 0,
-              skill_names: [],
-              mcp_server_count: 1,
-              app_count: 0,
-              agent_count: 0,
-              hook_count: 0
-            },
-            manifest_kind: "claude"
-          },
-          {
+          pluginSettings(),
+          pluginSettings({
             settings_id: "Builtin:github",
-            id: "github",
-            name: "GitHub",
-            description: "Bundled GitHub plugin.",
-            version: "1.0.0",
             scope: "Builtin",
+            description: "Bundled GitHub plugin.",
             path: "builtin://plugins/github",
-            enabled: true,
             install_source: "builtin",
             marketplace: null,
             effective: false,
             shadowed_by: "User:github",
-            valid: true,
-            validation_error: null,
-            inventory: {
-              skill_count: 0,
-              skill_names: [],
-              mcp_server_count: 1,
-              app_count: 0,
-              agent_count: 0,
-              hook_count: 0
-            },
             manifest_kind: "builtin"
-          }
+          })
         ])
       );
       mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
@@ -136,6 +127,7 @@ describe("PluginSettingsPane", () => {
       const row = wrapper.find('[data-test="plugin-row-user-github"]');
       expect(row.exists()).toBe(true);
       expect(row.classes()).toContain("settings-card-item");
+      expect(wrapper.find('[data-test="plugin-installed-search-input"]').exists()).toBe(true);
       expect(wrapper.find('[data-test="plugin-installed-list"]').classes()).toContain(
         "settings-card-list"
       );
@@ -156,6 +148,80 @@ describe("PluginSettingsPane", () => {
         required: ["SettingsItemSummary", "SettingsItemMeta", "SettingsStatusTag"],
         forbidden: [".plugin-row__title", ".plugin-meta", "tag-success", "tag-warning", "tag-error"]
       });
+    });
+
+    it("filters installed plugins by search text", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(
+        ok([
+          pluginSettings(),
+          pluginSettings({
+            settings_id: "User:quality-review",
+            id: "quality-review",
+            name: "Quality Review",
+            description: "Review code quality.",
+            path: "/Users/mock/.config/kairox/plugins/quality-review",
+            inventory: {
+              skill_count: 1,
+              skill_names: ["quality-review"],
+              mcp_server_count: 0,
+              app_count: 0,
+              agent_count: 0,
+              hook_count: 0
+            }
+          })
+        ])
+      );
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane();
+      await flushPromises();
+
+      await wrapper.find('[data-test="plugin-installed-search-input"]').setValue("quality");
+
+      expect(wrapper.find('[data-test="plugin-row-user-quality-review"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(false);
+    });
+
+    it("matches installed plugin search against metadata", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(
+        ok([
+          pluginSettings(),
+          pluginSettings({
+            settings_id: "User:broken-plugin",
+            id: "broken-plugin",
+            name: "Broken Plugin",
+            enabled: false,
+            valid: false,
+            validation_error: "Manifest missing required skill entry",
+            manifest_kind: "invalid",
+            path: "/Users/mock/.config/kairox/plugins/broken-plugin"
+          })
+        ])
+      );
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane();
+      await flushPromises();
+
+      await wrapper.find('[data-test="plugin-installed-search-input"]').setValue("invalid");
+
+      expect(wrapper.find('[data-test="plugin-row-user-broken-plugin"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(false);
+    });
+
+    it("shows a filtered empty state when no installed plugins match search", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(ok([pluginSettings()]));
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane();
+      await flushPromises();
+
+      await wrapper.find('[data-test="plugin-installed-search-input"]').setValue("does-not-exist");
+
+      const empty = wrapper.find('[data-test="plugin-installed-filter-empty"]');
+      expect(empty.exists()).toBe(true);
+      expect(empty.text()).toContain("No installed plugins match your search.");
+      expect(wrapper.find('[data-test="plugin-installed-list"]').exists()).toBe(false);
     });
 
     it("shows empty state when no plugins installed", async () => {
@@ -465,7 +531,13 @@ describe("PluginSettingsPane", () => {
 
     it("uses shared settings toolbar, subtabs, and filter bar instead of local plugin chrome", () => {
       expectSourceMigration(pluginSettingsPaneSource, {
-        required: ["SettingsSubtabs", "SettingsToolbar", "SettingsFilterBar"],
+        required: [
+          "SettingsSubtabs",
+          "SettingsToolbar",
+          "SettingsFilterBar",
+          "plugin-installed-search-input",
+          "plugin-installed-filter-empty"
+        ],
         forbidden: [
           'class="plugin-sub-tabs"',
           'class="plugin-toolbar"',

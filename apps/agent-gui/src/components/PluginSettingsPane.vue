@@ -14,6 +14,7 @@ const store = usePluginsStore();
 const { t } = useI18n();
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const activeSubTab = ref<"installed" | "marketplace">("installed");
+const installedSearch = ref("");
 const search = ref("");
 const selectedMarketplaceId = ref<string | null>(null);
 const sourceSettingsOpen = ref(false);
@@ -33,6 +34,47 @@ function slugify(value: string): string {
 function settingsTestId(plugin: PluginSettingsView): string {
   return slugify(plugin.settings_id);
 }
+
+const normalizedInstalledSearch = computed(() => installedSearch.value.trim().toLowerCase());
+
+function searchablePluginText(plugin: PluginSettingsView): string {
+  return [
+    plugin.settings_id,
+    plugin.id,
+    plugin.name,
+    plugin.description,
+    plugin.version,
+    plugin.scope,
+    plugin.path,
+    plugin.install_source,
+    plugin.marketplace,
+    plugin.manifest_kind,
+    plugin.enabled ? t("plugins.enabled") : t("plugins.disabled"),
+    plugin.effective ? "effective" : t("plugins.shadowedBy", { source: plugin.shadowed_by }),
+    plugin.valid ? t("plugins.valid") : t("plugins.invalid"),
+    plugin.validation_error,
+    t("plugins.skills"),
+    plugin.inventory.skill_count.toString(),
+    plugin.inventory.skill_names.join(" "),
+    t("plugins.mcp"),
+    plugin.inventory.mcp_server_count.toString(),
+    "apps",
+    plugin.inventory.app_count.toString(),
+    "agents",
+    plugin.inventory.agent_count.toString(),
+    "hooks",
+    plugin.inventory.hook_count.toString()
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const filteredInstalledPlugins = computed(() => {
+  const query = normalizedInstalledSearch.value;
+  if (!query) return store.plugins;
+  return store.plugins.filter((plugin) => searchablePluginText(plugin).includes(query));
+});
 
 function sourceTone(source: string): SourceTone {
   switch (source.toLowerCase()) {
@@ -124,87 +166,113 @@ watch(activeSubTab, (tab) => {
         {{ t("plugins.emptyInstalled") }}
       </SettingsState>
 
-      <SettingsCardList
-        v-else
-        :aria-label="t('plugins.tabInstalled')"
-        data-test="plugin-installed-list"
-      >
-        <SettingsCardItem
-          v-for="plugin in store.plugins"
-          :key="plugin.settings_id"
-          :data-test="`plugin-row-${settingsTestId(plugin)}`"
+      <template v-else>
+        <SettingsFilterBar
+          aria-label="Search installed plugins"
+          data-test="plugin-installed-filters"
         >
-          <SettingsItemSummary
-            :title="plugin.name"
-            :description="plugin.description"
-            :heading-level="4"
-            :tags-label="t('plugins.tabInstalled')"
-          >
-            <template #tags>
-              <SettingsStatusTag>{{ plugin.scope }}</SettingsStatusTag>
-              <SettingsStatusTag :tone="plugin.enabled ? 'success' : 'warning'">
-                {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
-              </SettingsStatusTag>
-              <SettingsStatusTag :tone="plugin.valid ? 'success' : 'error'">
-                {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
-              </SettingsStatusTag>
-              <SettingsStatusTag v-if="!plugin.effective" tone="warning">
-                {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
-              </SettingsStatusTag>
-            </template>
-
-            <SettingsEffectiveAudit
-              :source="plugin.scope"
-              :source-tone="sourceTone(plugin.scope)"
-              :enabled="plugin.enabled"
-              :effective="plugin.effective"
-              :shadowed-by="plugin.shadowed_by"
-              :valid="plugin.valid"
-              :data-test="`plugin-audit-${settingsTestId(plugin)}`"
+          <div class="settings-filter-bar__row">
+            <KxInput
+              v-model="installedSearch"
+              type="search"
+              aria-label="Search installed plugins"
+              placeholder="Search installed plugins"
+              data-test="plugin-installed-search-input"
+              size="compact"
             />
+          </div>
+        </SettingsFilterBar>
 
-            <SettingsItemMeta wrap-values>
-              <div>
-                <dt>{{ t("plugins.manifest") }}</dt>
-                <dd>{{ plugin.manifest_kind }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("plugins.skills") }}</dt>
-                <dd>{{ plugin.inventory.skill_count }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("plugins.mcp") }}</dt>
-                <dd>{{ plugin.inventory.mcp_server_count }}</dd>
-              </div>
-              <div>
-                <dt>{{ t("plugins.path") }}</dt>
-                <dd>{{ plugin.path }}</dd>
-              </div>
-            </SettingsItemMeta>
-            <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
-              {{ plugin.validation_error }}
-            </KxInlineAlert>
-          </SettingsItemSummary>
+        <SettingsState
+          v-if="filteredInstalledPlugins.length === 0"
+          tone="empty"
+          data-test="plugin-installed-filter-empty"
+        >
+          No installed plugins match your search.
+        </SettingsState>
 
-          <template #actions>
-            <KxInlineAction
-              :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
-              :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
-              @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
+        <SettingsCardList
+          v-else
+          :aria-label="t('plugins.tabInstalled')"
+          data-test="plugin-installed-list"
+        >
+          <SettingsCardItem
+            v-for="plugin in filteredInstalledPlugins"
+            :key="plugin.settings_id"
+            :data-test="`plugin-row-${settingsTestId(plugin)}`"
+          >
+            <SettingsItemSummary
+              :title="plugin.name"
+              :description="plugin.description"
+              :heading-level="4"
+              :tags-label="t('plugins.tabInstalled')"
             >
-              {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
-            </KxInlineAction>
-            <KxInlineAction
-              variant="danger"
-              :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
-              :data-test="`plugin-delete-${settingsTestId(plugin)}`"
-              @click="store.deletePlugin(plugin.settings_id)"
-            >
-              {{ t("common.delete") }}
-            </KxInlineAction>
-          </template>
-        </SettingsCardItem>
-      </SettingsCardList>
+              <template #tags>
+                <SettingsStatusTag>{{ plugin.scope }}</SettingsStatusTag>
+                <SettingsStatusTag :tone="plugin.enabled ? 'success' : 'warning'">
+                  {{ plugin.enabled ? t("plugins.enabled") : t("plugins.disabled") }}
+                </SettingsStatusTag>
+                <SettingsStatusTag :tone="plugin.valid ? 'success' : 'error'">
+                  {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
+                </SettingsStatusTag>
+                <SettingsStatusTag v-if="!plugin.effective" tone="warning">
+                  {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
+                </SettingsStatusTag>
+              </template>
+
+              <SettingsEffectiveAudit
+                :source="plugin.scope"
+                :source-tone="sourceTone(plugin.scope)"
+                :enabled="plugin.enabled"
+                :effective="plugin.effective"
+                :shadowed-by="plugin.shadowed_by"
+                :valid="plugin.valid"
+                :data-test="`plugin-audit-${settingsTestId(plugin)}`"
+              />
+
+              <SettingsItemMeta wrap-values>
+                <div>
+                  <dt>{{ t("plugins.manifest") }}</dt>
+                  <dd>{{ plugin.manifest_kind }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("plugins.skills") }}</dt>
+                  <dd>{{ plugin.inventory.skill_count }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("plugins.mcp") }}</dt>
+                  <dd>{{ plugin.inventory.mcp_server_count }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("plugins.path") }}</dt>
+                  <dd>{{ plugin.path }}</dd>
+                </div>
+              </SettingsItemMeta>
+              <KxInlineAlert v-if="plugin.validation_error" tone="error" compact>
+                {{ plugin.validation_error }}
+              </KxInlineAlert>
+            </SettingsItemSummary>
+
+            <template #actions>
+              <KxInlineAction
+                :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
+                :data-test="`plugin-enabled-${settingsTestId(plugin)}`"
+                @click="store.setPluginEnabled(plugin.settings_id, !plugin.enabled)"
+              >
+                {{ plugin.enabled ? t("plugins.disable") : t("plugins.enable") }}
+              </KxInlineAction>
+              <KxInlineAction
+                variant="danger"
+                :disabled="plugin.scope === 'Builtin' || store.busyPluginId === plugin.settings_id"
+                :data-test="`plugin-delete-${settingsTestId(plugin)}`"
+                @click="store.deletePlugin(plugin.settings_id)"
+              >
+                {{ t("common.delete") }}
+              </KxInlineAction>
+            </template>
+          </SettingsCardItem>
+        </SettingsCardList>
+      </template>
     </div>
 
     <div v-if="activeSubTab === 'marketplace'" class="plugin-panel">
