@@ -39,6 +39,26 @@ test.describe("MCP Settings", () => {
     await expect(page.getByTestId("mcp-connectivity-github")).toContainText("Connected (6 tools)");
   });
 
+  test("filters installed servers by search", async ({ page }) => {
+    await openMcpSettings(page);
+
+    const search = page.getByTestId("mcp-server-search-input");
+    await expect(search).toBeVisible();
+
+    await search.fill("built-in");
+    await expect(page.getByTestId("mcp-server-row-builtin-docs")).toBeVisible();
+    await expect(page.getByTestId("mcp-server-row-github")).toHaveCount(0);
+
+    await search.fill("does-not-exist");
+    await expect(page.getByTestId("mcp-server-filter-empty")).toContainText(
+      "No MCP servers match your search."
+    );
+    await expect(page.getByTestId("mcp-server-list")).toHaveCount(0);
+
+    await search.clear();
+    await expect(page.getByTestId("mcp-server-row-github")).toBeVisible();
+  });
+
   test("disables and re-enables a user server at project scope", async ({ page }) => {
     await openMcpSettings(page);
     await page.getByTestId("source-btn-project").click();

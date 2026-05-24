@@ -171,6 +171,7 @@ describe("McpSettingsPane", () => {
       )
     ).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').text()).toContain("GitHub");
+    expect(wrapper.find('[data-test="mcp-server-search-input"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-list"]').classes()).toContain("settings-card-list");
     expect(wrapper.find('[data-test="mcp-server-row-github"]').classes()).toContain(
       "settings-card-item"
@@ -182,6 +183,38 @@ describe("McpSettingsPane", () => {
       "connection refused"
     );
     expect(wrapper.find('[data-test="mcp-delete-github"]').exists()).toBe(true);
+  });
+
+  it("filters installed servers by search text", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-server-search-input"]').setValue("docs");
+
+    expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);
+  });
+
+  it("matches installed server search against metadata", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-server-search-input"]').setValue("failed");
+
+    expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no installed servers match search", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-server-search-input"]').setValue("does-not-exist");
+
+    const empty = wrapper.find('[data-test="mcp-server-filter-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No MCP servers match your search.");
+    expect(wrapper.find('[data-test="mcp-server-list"]').exists()).toBe(false);
   });
 
   it("renders source, disabled-by, and effective audit state for server rows", async () => {
@@ -540,7 +573,7 @@ describe("McpSettingsPane", () => {
 
   it("uses shared settings toolbar and subtabs instead of local MCP chrome", () => {
     expectSourceMigration(mcpSettingsPaneSource, {
-      required: ["SettingsSubtabs", "SettingsToolbar"],
+      required: ["SettingsFilterBar", "SettingsSubtabs", "SettingsToolbar"],
       forbidden: [
         'class="mcp-sub-tabs"',
         'class="mcp-toolbar"',

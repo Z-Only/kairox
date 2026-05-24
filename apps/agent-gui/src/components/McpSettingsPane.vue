@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMcpStore } from "@/stores/mcp";
 import { useProjectStore } from "@/stores/project";
+import type { EffectiveMcpServerView } from "@/generated/commands";
 import MarketplacePane from "@/components/MarketplacePane.vue";
 import McpServerCard from "@/components/McpServerCard.vue";
 import McpServerFormDialog from "@/components/McpServerFormDialog.vue";
@@ -13,6 +14,7 @@ const activeSubTab = ref<"installed" | "marketplace">("installed");
 const addServerDialogOpen = ref(false);
 const addServerMode = ref<"git" | "manual">("manual");
 const addServerDropdownOpen = ref(false);
+const serverSearchQuery = ref("");
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -24,6 +26,39 @@ watch(
   },
   { immediate: true }
 );
+
+const normalizedServerSearchQuery = computed(() => serverSearchQuery.value.trim().toLowerCase());
+
+function searchableServerText(server: EffectiveMcpServerView): string {
+  const value = server.value;
+  return [
+    value.id,
+    value.name,
+    value.description,
+    value.transport,
+    value.runtime_status,
+    value.trusted ? t("mcp.trusted") : t("mcp.untrusted"),
+    server.enabled ? t("mcp.enabled") : t("mcp.disabled"),
+    server.source,
+    server.overrides,
+    server.disabledBy,
+    server.writable ? "writable" : "read-only",
+    server.deletable ? "deletable" : "not deletable",
+    value.config_path,
+    value.last_error,
+    value.tool_count?.toString(),
+    value.verified ? "verified" : t("mcp.unverified")
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+const filteredEffectiveServers = computed(() => {
+  const query = normalizedServerSearchQuery.value;
+  if (!query) return mcp.effectiveServers;
+  return mcp.effectiveServers.filter((server) => searchableServerText(server).includes(query));
+});
 
 async function refreshInstalledServers(): Promise<void> {
   await mcp.refreshInstalledServers(configSource?.value === "project" ? "project" : null, {
@@ -145,19 +180,46 @@ function closeAddServerDialog(): void {
           {{ t("mcp.noServers") }}
         </SettingsState>
 
-        <SettingsCardList
-          v-else
-          :aria-label="t('mcp.tabInstalled')"
-          data-test="mcp-server-list"
-          class="mcp-settings__list"
-          :scroll="false"
-        >
-          <McpServerCard
-            v-for="server in mcp.effectiveServers"
-            :key="server.value.id"
-            :server="server"
-          />
-        </SettingsCardList>
+        <template v-else>
+          <SettingsFilterBar
+            class="mcp-settings__filter"
+            aria-label="Search MCP servers"
+            data-test="mcp-server-filters"
+          >
+            <div class="settings-filter-bar__row">
+              <KxInput
+                v-model="serverSearchQuery"
+                type="search"
+                size="compact"
+                aria-label="Search MCP servers"
+                placeholder="Search MCP servers"
+                data-test="mcp-server-search-input"
+              />
+            </div>
+          </SettingsFilterBar>
+
+          <SettingsState
+            v-if="filteredEffectiveServers.length === 0"
+            tone="empty"
+            data-test="mcp-server-filter-empty"
+          >
+            No MCP servers match your search.
+          </SettingsState>
+
+          <SettingsCardList
+            v-else
+            :aria-label="t('mcp.tabInstalled')"
+            data-test="mcp-server-list"
+            class="mcp-settings__list"
+            :scroll="false"
+          >
+            <McpServerCard
+              v-for="server in filteredEffectiveServers"
+              :key="server.value.id"
+              :server="server"
+            />
+          </SettingsCardList>
+        </template>
       </div>
     </section>
 
@@ -203,6 +265,10 @@ function closeAddServerDialog(): void {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+.mcp-settings__filter {
+  margin-bottom: 8px;
 }
 
 .mcp-settings button:focus-visible {
