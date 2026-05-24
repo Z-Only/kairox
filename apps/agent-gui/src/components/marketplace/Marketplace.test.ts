@@ -218,6 +218,8 @@ describe("CatalogList.vue", () => {
   });
 
   const mountCatalogList = () => mountWithPlugins(CatalogList, { reusePinia: true }).wrapper;
+  const catalogCardNames = (wrapper: ReturnType<typeof mountCatalogList>) =>
+    wrapper.findAll('[data-test="catalog-card"] .display-name').map((card) => card.text());
 
   it("filters catalog cards as the search box changes", async () => {
     const catalog = useCatalogStore();
@@ -276,6 +278,97 @@ describe("CatalogList.vue", () => {
     expect(wrapper.findAll('[data-test="catalog-card"]')).toHaveLength(1);
     expect(wrapper.text()).toContain("Web Fetch");
     expect(wrapper.text()).not.toContain("Filesystem");
+  });
+
+  it("sorts the currently visible catalog cards without fetching catalog data", async () => {
+    const catalog = useCatalogStore();
+    catalog.entries = [
+      fixtureEntry({
+        id: "alpha",
+        source: "builtin",
+        display_name: "Alpha Tool",
+        summary: "Visible sort tool",
+        tags: ["sort"],
+        trust: "community"
+      }),
+      fixtureEntry({
+        id: "zeta",
+        source: "mcp-registry",
+        display_name: "Zeta Tool",
+        summary: "Visible sort tool",
+        tags: ["sort"],
+        trust: "verified"
+      }),
+      fixtureEntry({
+        id: "beta",
+        source: "builtin",
+        display_name: "Beta Tool",
+        summary: "Filtered by trust",
+        tags: ["sort"],
+        trust: "unverified"
+      }),
+      fixtureEntry({
+        id: "aardvark",
+        source: "disabled-source",
+        display_name: "Aardvark Tool",
+        summary: "Filtered by source",
+        tags: ["sort"],
+        trust: "verified"
+      })
+    ];
+    catalog.sources = [
+      {
+        id: "mcp-registry",
+        display_name: "MCP Registry",
+        kind: "mcp_registry",
+        url: "https://registry.example.test",
+        api_key_env: null,
+        priority: 10,
+        default_trust: "community",
+        enabled: true,
+        cache_ttl_seconds: null,
+        last_error: null
+      },
+      {
+        id: "disabled-source",
+        display_name: "Disabled Source",
+        kind: "mcp_registry",
+        url: "https://disabled.example.test",
+        api_key_env: null,
+        priority: 20,
+        default_trust: "community",
+        enabled: false,
+        cache_ttl_seconds: null,
+        last_error: null
+      }
+    ];
+    catalog.filters.keyword = "sort tool";
+    catalog.filters.trustMin = "community";
+
+    const wrapper = mountCatalogList();
+    await flushPromises();
+
+    const sortSelect = wrapper.find('[data-test="catalog-sort"]');
+    expect(sortSelect.attributes("aria-label")).toBe("Catalog sort");
+    expect(sortSelect.findAll("option").map((option) => option.text())).toEqual([
+      "Name",
+      "Trust",
+      "Source"
+    ]);
+    expect(catalogCardNames(wrapper)).toEqual(["Alpha Tool", "Zeta Tool"]);
+    expect(vi.mocked(invoke)).not.toHaveBeenCalled();
+
+    await sortSelect.setValue("trust");
+    await wrapper.vm.$nextTick();
+
+    expect(catalogCardNames(wrapper)).toEqual(["Zeta Tool", "Alpha Tool"]);
+    expect(vi.mocked(invoke)).not.toHaveBeenCalled();
+
+    await wrapper.find('[data-test="catalog-sort"]').setValue("source");
+    await wrapper.vm.$nextTick();
+
+    expect(catalogCardNames(wrapper)).toEqual(["Alpha Tool", "Zeta Tool"]);
+    expect(vi.mocked(invoke)).not.toHaveBeenCalled();
   });
 });
 
