@@ -95,7 +95,7 @@ graph TD
 
 ## Status
 
-Kairox is in active development (current release `v0.27.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, trace timeline, memory browser, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
+Kairox is in active development (current release `v0.28.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, searchable trace timeline, searchable settings surfaces, memory browser, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, and per-session permission control. Sessions persist across restarts via SQLite storage.
 
 Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The runtime tracks per-model context windows, assembles prompts against token budgets, supports manual and automatic context compaction, allows mid-session model switching with reasoning effort selection when profiles support it, and can create isolated git worktrees for project worktree sessions.
 

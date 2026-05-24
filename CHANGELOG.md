@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] - 2026-05-24
+
+### 🚀 Features
+
+- **gui**: add sidebar session search (#418)
+- **gui**: show task dependency badges (#419)
+- **gui**: filter task graph by state (#420)
+- **gui**: filter memory browser by status (#421)
+- **gui**: filter pending requests by type (#422)
+- **gui**: filter trace timeline by status (#423)
+- **gui**: search agent settings (#424)
+- **gui**: search model settings (#425)
+- **gui**: search hooks settings (#426)
+- **gui**: search mcp settings (#427)
+- **gui**: search archive settings (#428)
+- **gui**: search plugin settings (#429)
+- **gui**: search skill settings (#430)
+- **gui**: search skill catalog sources (#432)
+- **gui**: search catalog sources (#434)
+- **gui**: search pending permissions (#436)
+- **gui**: search trace timeline (#439)
+
+### 🐛 Bug Fixes
+
+- **gui**: filter catalog search live (#435)
+
+### 🧪 Testing
+
+- **gui**: register skills settings e2e (#431)
+- **gui**: cover skill search e2e (#433)
+- **gui**: harden mcp e2e navigation (#437)
+- **gui**: cover permission search e2e (#438)
+- **gui**: cover agent search e2e (#440)
+- **gui**: cover model search e2e (#441)
+- **gui**: cover trace search e2e (#442)
+- **gui**: cover hooks search e2e (#443)
+
 ## [0.27.0] - 2026-05-24
 
 ### 🧪 Testing
