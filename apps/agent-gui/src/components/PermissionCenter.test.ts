@@ -137,6 +137,87 @@ describe("PermissionCenter", () => {
     expect(prompts).toHaveLength(2);
   });
 
+  it("renders pending request type filter chips with live counts", () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      }),
+      makeEntry({
+        id: "perm_2",
+        kind: "permission",
+        status: "pending",
+        title: "Run cat"
+      }),
+      makeEntry({
+        id: "mem_1",
+        kind: "memory",
+        status: "pending",
+        title: "Save memory",
+        scope: "user",
+        content: "pref"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    expect(wrapper.find('[data-test="permission-type-filters"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="permission-filter-all"]').text()).toBe("All 3");
+    expect(wrapper.find('[data-test="permission-filter-tool"]').text()).toBe("Tools 2");
+    expect(wrapper.find('[data-test="permission-filter-memory"]').text()).toBe("Memories 1");
+  });
+
+  it("filters pending requests to memory proposals", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      }),
+      makeEntry({
+        id: "mem_1",
+        kind: "memory",
+        status: "pending",
+        title: "Save memory",
+        scope: "user",
+        content: "pref"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.find('[data-test="permission-filter-memory"]').trigger("click");
+
+    expect(wrapper.find('[data-test="permission-filter-memory"]').attributes("aria-pressed")).toBe(
+      "true"
+    );
+    expect(wrapper.text()).toContain("Save memory");
+    expect(wrapper.text()).not.toContain("Run ls");
+    expect(wrapper.findAllComponents({ name: "PermissionPrompt" })).toHaveLength(1);
+  });
+
+  it("shows a filter-specific empty state when no pending requests match", async () => {
+    mockEntries.push(
+      makeEntry({
+        id: "perm_1",
+        kind: "permission",
+        status: "pending",
+        title: "Run ls"
+      })
+    );
+
+    const wrapper = mount(PermissionCenter);
+
+    await wrapper.find('[data-test="permission-filter-memory"]').trigger("click");
+
+    expect(wrapper.get('[data-test="permission-empty-state"]').text()).toBe(
+      "No pending requests match this filter"
+    );
+  });
+
   it("does not render entries with non-pending status", () => {
     mockEntries.push(
       makeEntry({
