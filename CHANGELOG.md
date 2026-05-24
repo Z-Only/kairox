@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] - 2026-05-24
+
+### 🧪 Testing
+
+- **tui**: split chat tests by theme (#395)
+- **gui**: split useTraceStore tests by theme (#400)
+- **store**: split event_store tests by theme (#396)
+- **runtime**: split full_stack integration test by theme (#409)
+- **gui**: split SessionsSidebar test by theme (#407)
+- **runtime**: split session_lifecycle integration test by theme (#413)
+- **runtime**: split agent_loop integration test by theme (#410)
+- **runtime**: split skills.rs integration tests by theme (#399)
+
+### 🧹 Refactor
+
+- **tui**: split command_palette into directory module (#385)
+- **tui**: split trace component into a directory module (#389)
+- **tui**: split model_overlay into submodules (#387)
+- **tui**: split hooks_overlay into directory module (#386)
+- **tui**: split app/input dispatcher into submodules (#391)
+- **tui**: split agent_overlay into directory module (#392)
+- **mcp**: split sse transport into submodules (#394)
+- **tui**: split runtime_dispatch session into submodules (#402)
+- **memory**: split context into submodules (#403)
+- **models**: split openai_compatible into submodules (#401)
+- **mcp**: split client into directory module (#408)
+- **tui**: split plugin_overlay into module (#390)
+- **mcp**: split mcp_mapping into directory module (#411)
+- **models**: split anthropic into submodules (#412)
+- **tui**: split sessions component into state, render, tests modules (#388)
+- **tui**: split status_bar into directory module (#405)
+- **gui**: split mcp store into directory module (#406)
+- **tui**: split mcp_overlay/render.rs into submodules (#397)
+- **tools**: split patch apply into submodules (#393)
+- **tools**: split shell into directory module (#414)
+- **runtime**: split mcp_manager into submodules (#404)
+- **runtime**: split task_graph into submodules (#398)
+
+### 👷 CI
+
+- **runtime**: treat GitHub Models 429 as skip in live tests (#415)
+- serialize live model jobs and narrow live trigger paths (#416)
+
 ## [0.26.0] - 2026-05-23
 
 ### 🚀 Features
