@@ -120,6 +120,12 @@ describe("useTraceStore", () => {
 
   // -----------------------------------------------------------------------
   // 6. AssistantMessageCompleted
+  //
+  // When a ModelRequestStarted entry is running, AssistantMessageCompleted
+  // closes it out with the assistant content as an outputPreview. When no
+  // running model entry exists, the event is a no-op — the legacy
+  // "assistant" pseudo-tool entry was removed because ChatPanel renders
+  // assistant messages directly from the session projection.
   // -----------------------------------------------------------------------
   describe("AssistantMessageCompleted", () => {
     it("updates running model entry to completed", () => {
@@ -147,7 +153,7 @@ describe("useTraceStore", () => {
       expect(entry.durationMs).toBeGreaterThanOrEqual(0);
     });
 
-    it("creates assistant entry when no running model exists", () => {
+    it("does not push an entry when no running model exists", () => {
       applyTraceEvent(
         makeEvent({
           type: "AssistantMessageCompleted",
@@ -156,17 +162,10 @@ describe("useTraceStore", () => {
         })
       );
 
-      expect(traceState.entries).toHaveLength(1);
-      const entry = traceState.entries[0];
-      expect(entry.id).toBe("asst-2");
-      expect(entry.toolId).toBe("assistant");
-      expect(entry.status).toBe("completed");
-      expect(entry.title).toBe("Assistant response");
-      expect(entry.outputPreview).toBe("Standalone response");
+      expect(traceState.entries).toHaveLength(0);
     });
 
-    it("deduplicates assistant entry by message_id", () => {
-      // No running model, so assistant entry is created
+    it("is a no-op even when called repeatedly without a running model", () => {
       const event = makeEvent({
         type: "AssistantMessageCompleted",
         message_id: "asst-dup",
@@ -176,10 +175,18 @@ describe("useTraceStore", () => {
       applyTraceEvent(event);
       applyTraceEvent(event);
 
-      expect(traceState.entries).toHaveLength(1);
+      expect(traceState.entries).toHaveLength(0);
     });
 
-    it("truncates outputPreview at 200 chars", () => {
+    it("truncates outputPreview at 200 chars on the running model entry", () => {
+      applyTraceEvent(
+        makeEvent({
+          type: "ModelRequestStarted",
+          model_profile: "gpt-4",
+          model_id: "gpt-4-0613"
+        })
+      );
+
       const longContent = "x".repeat(201);
       applyTraceEvent(
         makeEvent({
@@ -189,7 +196,9 @@ describe("useTraceStore", () => {
         })
       );
 
+      expect(traceState.entries).toHaveLength(1);
       const entry = traceState.entries[0];
+      expect(entry.status).toBe("completed");
       expect(entry.outputPreview).toBe("x".repeat(200));
     });
   });

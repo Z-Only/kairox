@@ -39,8 +39,10 @@ test("trace entries contain event details", async ({ page }) => {
 test("filters trace events by search", async ({ page }) => {
   await sendMessageAndWaitForTrace(page, "Searchable trace request");
 
+  // User/assistant turns are rendered directly in ChatPanel via
+  // `useChatStream`; the trace store only records protocol events
+  // (context, model, tool calls, permissions). See R4-A.
   const entries = page.getByTestId("trace-entry");
-  await expect(entries.filter({ hasText: "user" })).toBeVisible();
   await expect(entries.filter({ hasText: "context" })).toBeVisible();
   await expect(entries.filter({ hasText: "model" })).toBeVisible();
 
@@ -60,7 +62,6 @@ test("filters trace events by search", async ({ page }) => {
   await expect(page.getByText("No matching trace events")).toBeVisible();
 
   await search.clear();
-  await expect(entries.filter({ hasText: "user" })).toBeVisible();
   await expect(entries.filter({ hasText: "context" })).toBeVisible();
   await expect(entries.filter({ hasText: "model" })).toBeVisible();
 });

@@ -54,15 +54,11 @@ test("A. messages and tool-call row render together in chat stream", async ({ pa
   await expect(chatMessages.nth(1)).toHaveAttribute("data-role", "assistant");
   await expect(chatMessages.nth(1)).toContainText("Listed /tmp for you.");
 
-  // The trace store also surfaces user/assistant pseudo-tool entries; assert
-  // the real `shell` tool-call row is present alongside them. Counting all
-  // tool-call rows would lock in current pseudo-tool behaviour, which is
-  // tracked separately for cleanup.
-  const shellToolRow = messageList.locator('[data-test="chat-tool-call-item"]:has-text("shell")');
-  await expect(shellToolRow).toHaveCount(1);
+  // Messages render first, tool calls after — and only real tool calls.
+  const toolRows = messageList.getByTestId("chat-tool-call-item");
+  await expect(toolRows).toHaveCount(1);
+  await expect(toolRows.nth(0)).toContainText("shell");
 
-  // The chat-stream builder emits messages first, then trace items in
-  // `startedAt` order. Assert messages precede the shell tool-call row.
   const orderedKinds = await messageList.evaluate((root) => {
     const items = Array.from(
       root.querySelectorAll(
@@ -72,7 +68,7 @@ test("A. messages and tool-call row render together in chat stream", async ({ pa
     return items.map((node) => node.getAttribute("data-test"));
   });
   expect(orderedKinds.slice(0, 2)).toEqual(["chat-message", "chat-message"]);
-  expect(orderedKinds.filter((k) => k === "chat-tool-call-item").length).toBeGreaterThanOrEqual(1);
+  expect(orderedKinds.filter((k) => k === "chat-tool-call-item")).toHaveLength(1);
 });
 
 test("B. inline permission prompt resolves when accepted", async ({ page }) => {
