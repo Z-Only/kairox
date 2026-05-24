@@ -248,6 +248,8 @@
     "catalogEmpty": "没有符合当前筛选条件的目录条目",
     "installedEmpty": "暂无已安装的服务",
     "sourcesEmpty": "尚未配置远程目录源。",
+    "sourceSearchPlaceholder": "搜索来源",
+    "sourcesFilterEmpty": "没有匹配搜索条件的远程目录源。",
     "sourceEnabled": "已启用",
     "sourceError": "错误：{error}",
     "sourceErrorTitle": "最近错误：{error}",

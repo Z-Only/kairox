@@ -5,6 +5,7 @@ import CatalogSourcesSettings from "./CatalogSourcesSettings.vue";
 import catalogSourcesSettingsSource from "./CatalogSourcesSettings.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
+import { useCatalogStore } from "@/stores/catalog";
 
 // `CatalogSourcesSettings.vue` calls `useI18n()`, which requires a Vue plugin
 // install — bare `mount()` throws "Need to install with `app.use` function".
@@ -36,6 +37,14 @@ const sampleSource = {
   last_error: null
 };
 
+const internalSource = {
+  ...sampleSource,
+  id: "team-registry",
+  display_name: "Team Registry",
+  url: "https://registry.internal.example",
+  enabled: false
+};
+
 describe("CatalogSourcesSettings.vue", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -62,6 +71,45 @@ describe("CatalogSourcesSettings.vue", () => {
       "settings-card-item"
     );
     expect(wrapper.find(".settings-card-item__actions.kx-action-group").exists()).toBe(true);
+  });
+
+  it("filters configured sources by searchable source fields", async () => {
+    mockedInvoke.mockResolvedValueOnce([sampleSource, internalSource] as never);
+    const wrapper = mount(CatalogSourcesSettings);
+    await flushPromises();
+    const catalog = useCatalogStore();
+    catalog.handleSourceFailed("team-registry", "Timeout contacting registry");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="catalog-source-search-input"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="catalog-source-search-input"]').setValue("internal");
+
+    expect(wrapper.find('[data-test="catalog-source-row-team-registry"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="catalog-source-row-mcp-registry"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="catalog-source-search-input"]').setValue("disabled");
+
+    expect(wrapper.find('[data-test="catalog-source-row-team-registry"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="catalog-source-row-mcp-registry"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="catalog-source-search-input"]').setValue("timeout");
+
+    expect(wrapper.find('[data-test="catalog-source-row-team-registry"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="catalog-source-row-mcp-registry"]').exists()).toBe(false);
+  });
+
+  it("shows a filtered empty state when no catalog sources match search", async () => {
+    mockedInvoke.mockResolvedValueOnce([sampleSource, internalSource] as never);
+    const wrapper = mount(CatalogSourcesSettings);
+    await flushPromises();
+
+    await wrapper.find('[data-test="catalog-source-search-input"]').setValue("does-not-exist");
+
+    expect(wrapper.find('[data-test="catalog-sources-list"]').exists()).toBe(false);
+    const empty = wrapper.find('[data-test="catalog-sources-filter-empty"]');
+    expect(empty.exists()).toBe(true);
+    expect(empty.text()).toContain("No remote catalog sources match your search.");
   });
 
   it("validates url before calling addSource", async () => {
@@ -117,6 +165,7 @@ describe("CatalogSourcesSettings.vue", () => {
   it("uses shared form controls and action rows in the add-source form", () => {
     expectSourceMigration(catalogSourcesSettingsSource, {
       required: [
+        "SettingsFilterBar",
         "SettingsCardList",
         "SettingsCardItem",
         "SettingsStatusTag",

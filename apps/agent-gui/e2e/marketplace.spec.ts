@@ -101,6 +101,38 @@ test.describe("Marketplace — Phase 2 remote catalog sources", () => {
     await expect(page.getByTestId("source-chip-smithery")).toHaveCount(0);
   });
 
+  test("filters remote catalog sources by search", async ({ page }) => {
+    await page.getByTestId("catalog-source-settings").click();
+    await expect(page.getByTestId("catalog-source-settings-drawer")).toBeVisible();
+    await expect(page.getByTestId("catalog-source-search-input")).toHaveCount(0);
+
+    await page.getByTestId("add-source-toggle").click();
+    await page.getByTestId("src-id").fill("smithery");
+    await page.getByTestId("src-name").fill("Smithery");
+    await page.getByTestId("src-url").fill("https://registry.smithery.ai");
+    await page.getByTestId("src-save").click();
+
+    await page.getByTestId("add-source-toggle").click();
+    await page.getByTestId("src-id").fill("team-registry");
+    await page.getByTestId("src-name").fill("Team Registry");
+    await page.getByTestId("src-url").fill("https://registry.internal.example");
+    await page.getByTestId("src-save").click();
+
+    await page.getByTestId("catalog-source-search-input").fill("smithery");
+    await expect(page.getByTestId("catalog-source-row-smithery")).toBeVisible();
+    await expect(page.getByTestId("catalog-source-row-team-registry")).toHaveCount(0);
+
+    await page.getByTestId("catalog-source-search-input").fill("internal");
+    await expect(page.getByTestId("catalog-source-row-team-registry")).toBeVisible();
+    await expect(page.getByTestId("catalog-source-row-smithery")).toHaveCount(0);
+
+    await page.getByTestId("catalog-source-search-input").fill("does-not-exist");
+    await expect(page.getByTestId("catalog-sources-filter-empty")).toContainText(
+      "No remote catalog sources match your search."
+    );
+    await expect(page.getByTestId("catalog-sources-list")).toHaveCount(0);
+  });
+
   test("toggling source chip filters card grid", async ({ page }) => {
     // Add a remote source so we have a non-builtin chip to toggle.
     await page.getByTestId("catalog-source-settings").click();
