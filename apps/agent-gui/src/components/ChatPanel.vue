@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { useSessionStore } from "@/stores/session";
 import { useProjectStore } from "@/stores/project";
-import { renderMarkdown } from "../utils/markdown";
-import type { ProjectedRole } from "../types";
+import { useChatStream } from "@/composables/useChatStream";
 import ChatComposer from "@/components/ChatComposer.vue";
+import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
+import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
+import ChatPermissionItem from "@/components/chat/ChatPermissionItem.vue";
+import ChatCompactionItem from "@/components/chat/ChatCompactionItem.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -13,15 +16,7 @@ const scrollbar = ref<HTMLElement | null>(null);
 const worktreeBranchInput = ref("");
 const worktreeBranchFormOpen = ref(false);
 
-/** Map role to CSS class suffix. */
-const roleClass: Record<ProjectedRole, string> = {
-  user: "user",
-  assistant: "assistant",
-  planner: "planner",
-  worker: "worker",
-  reviewer: "reviewer",
-  system: "system"
-};
+const chatStream = useChatStream();
 
 const currentSession = computed(() => session.currentSessionInfo);
 const currentProjectId = computed(() => currentSession.value?.project_id ?? null);
@@ -198,29 +193,36 @@ watch(
           </template>
           {{ t("chat.emptyState") }}
         </KxEmptyState>
-        <div
-          v-for="(msg, i) in session.projection.messages"
-          :key="i"
-          :class="['message', `message-${roleClass[msg.role] || 'assistant'}`]"
-          data-test="chat-message"
-          :data-role="roleClass[msg.role] || 'assistant'"
-          :data-error="msg.content.startsWith('[error]') ? 'true' : undefined"
-        >
-          <!-- eslint-disable vue/no-v-html -->
-          <span
-            v-if="
-              msg.role === 'assistant' ||
-              msg.role === 'planner' ||
-              msg.role === 'worker' ||
-              msg.role === 'reviewer'
-            "
-            class="message-content markdown-body"
-            :data-test="msg.content.startsWith('[error]') ? 'error-banner' : undefined"
-            v-html="renderMarkdown(msg.content)"
-          ></span>
-          <!-- eslint-enable vue/no-v-html -->
-          <span v-else class="message-content">{{ msg.content }}</span>
-        </div>
+        <template v-for="item in chatStream" :key="item.id">
+          <ChatMessageItem
+            v-if="item.kind === 'message'"
+            :role="item.role"
+            :content="item.content"
+          />
+          <ChatToolCallItem
+            v-else-if="item.kind === 'tool_call'"
+            :tool-id="item.toolId"
+            :title="item.title"
+            :status="item.status"
+            :duration-ms="item.durationMs"
+            :input="item.input"
+            :output-preview="item.outputPreview"
+            :scope="item.scope"
+          />
+          <ChatPermissionItem
+            v-else-if="item.kind === 'permission'"
+            :id="item.id"
+            :variant="item.variant"
+            :tool-id="item.toolId"
+            :title="item.title"
+            :input="item.input"
+            :reason="item.reason"
+            :scope="item.scope"
+            :content="item.content"
+            :raw-event="item.rawEvent"
+          />
+          <ChatCompactionItem v-else-if="item.kind === 'compaction'" :status="item.status" />
+        </template>
         <div
           v-if="projectInstructionSummaryText"
           class="project-instruction-summary"
