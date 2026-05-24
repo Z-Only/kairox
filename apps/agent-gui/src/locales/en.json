@@ -195,6 +195,8 @@
     },
     "queueSend": "Queue",
     "queuedGuide": "Guide",
+    "queuedClear": "Clear all",
+    "queuedClearAria": "Clear queued messages",
     "queuedGuideAria": "Send this queued message now",
     "queuedEditAria": "Edit this queued message",
     "queuedDeleteAria": "Delete this queued message",

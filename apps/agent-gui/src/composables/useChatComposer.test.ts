@@ -349,6 +349,21 @@ describe("useChatComposer", () => {
     expect(composer.inputText.value).toBe("current draft");
   });
 
+  it("clears all queued messages without sending them", async () => {
+    const session = createSession({ isStreaming: true });
+    const { composer, invokeFn } = createComposer({ session });
+
+    for (const content of ["first", "second"]) {
+      composer.inputText.value = content;
+      await composer.sendMessage();
+    }
+
+    composer.clearQueuedMessages();
+
+    expect(composer.queuedMessages.value).toEqual([]);
+    expect(invokeFn).not.toHaveBeenCalledWith("send_message", expect.anything());
+  });
+
   it("saves the outgoing session draft before loading the next session draft", async () => {
     const session = createSession();
     const { composer, draftStore } = createComposer({ session });
