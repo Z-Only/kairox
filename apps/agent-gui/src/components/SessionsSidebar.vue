@@ -67,6 +67,10 @@ function matchesSessionSearch(parts: Array<string | null | undefined>): boolean 
   return searchableText(parts).includes(query);
 }
 
+function clearSessionSearch() {
+  sessionSearch.value = "";
+}
+
 function projectMatchesSearch(project: (typeof projects.activeProjects)[number]): boolean {
   return matchesSessionSearch([project.displayName, project.rootPath]);
 }
@@ -129,14 +133,31 @@ onMounted(() => {
 <template>
   <aside class="sessions-sidebar" data-test="sessions-sidebar" :aria-label="t('sessions.header')">
     <div class="session-search">
-      <KxInput
-        v-model="sessionSearch"
-        type="search"
-        size="compact"
-        data-test="session-search-input"
-        :placeholder="t('sessions.searchPlaceholder')"
-        :aria-label="t('sessions.searchPlaceholder')"
-      />
+      <div class="session-search-row">
+        <KxInput
+          v-model="sessionSearch"
+          type="search"
+          size="compact"
+          data-test="session-search-input"
+          :placeholder="t('sessions.searchPlaceholder')"
+          :aria-label="t('sessions.searchPlaceholder')"
+        />
+        <KxIconButton
+          v-if="sessionSearch"
+          class="session-search-clear"
+          label="Clear session search"
+          title="Clear session search"
+          data-test="session-search-clear"
+          size="sm"
+          @click="clearSessionSearch"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path
+              d="M5.22 4.16 10 8.94l4.78-4.78 1.06 1.06L11.06 10l4.78 4.78-1.06 1.06L10 11.06l-4.78 4.78-1.06-1.06L8.94 10 4.16 5.22l1.06-1.06Z"
+            />
+          </svg>
+        </KxIconButton>
+      </div>
     </div>
     <div class="session-scroll">
       <KxEmptyState
@@ -201,6 +222,23 @@ onMounted(() => {
   flex: none;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color);
+}
+.sessions-sidebar .session-search-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+.sessions-sidebar .session-search-row .kx-input {
+  flex: 1 1 auto;
+}
+.sessions-sidebar .session-search-clear {
+  flex: none;
+}
+.sessions-sidebar .session-search-clear svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 .sessions-sidebar .session-scroll {
   display: flex;

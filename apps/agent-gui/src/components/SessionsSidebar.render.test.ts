@@ -141,6 +141,32 @@ describe("SessionsSidebar", () => {
     expect(wrapper.find('[data-test="sessions-section"]').text()).not.toContain("Bug triage");
   });
 
+  it("clears the session search and restores filtered sessions", async () => {
+    const { wrapper } = await mountSidebar();
+    const session = useSessionStore();
+    session.sessions = [
+      { id: "s1", title: "Release planning", profile: "fast" } as never,
+      { id: "s2", title: "Bug triage", profile: "slow" } as never
+    ];
+    await flushPromises();
+
+    const search = wrapper.get('[data-test="session-search-input"]');
+    await search.setValue("release");
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="sessions-section"]').text()).toContain("Release planning");
+    expect(wrapper.find('[data-test="sessions-section"]').text()).not.toContain("Bug triage");
+
+    const clearButton = wrapper.get('[data-test="session-search-clear"]');
+    expect(clearButton.attributes("aria-label")).toBe("Clear session search");
+    await clearButton.trigger("click");
+    await flushPromises();
+
+    expect((search.element as HTMLInputElement).value).toBe("");
+    expect(wrapper.find('[data-test="sessions-section"]').text()).toContain("Release planning");
+    expect(wrapper.find('[data-test="sessions-section"]').text()).toContain("Bug triage");
+  });
+
   it("keeps a project visible when one of its sessions matches the search", async () => {
     mockInvokeCommandResponses({
       list_projects: [
