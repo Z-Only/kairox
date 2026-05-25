@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
@@ -108,10 +108,21 @@ function makeUsage(overrides: Partial<ContextUsage> = {}): ContextUsage {
   };
 }
 
+// Attaching the wrapper to `document.body` is required for the keyboard-
+// navigation specs: jsdom only routes `.focus()` and `document.activeElement`
+// for elements that live in the document tree. Detached wrappers focus into
+// the void, which surfaced as "expected items[0], received <body>" failures
+// before the attachment was added. The other specs are unaffected because
+// they query through `wrapper.find(...)`, which is scoped to the mounted
+// root regardless of attachment.
+const mountedWrappers: Array<{ unmount: () => void }> = [];
+
 function mountChatPanel(prepareSession?: (session: ReturnType<typeof useSessionStore>) => void) {
   const { wrapper } = mountWithPlugins(ChatPanel, {
-    initialRoute: "/workbench"
+    initialRoute: "/workbench",
+    mount: { attachTo: document.body }
   });
+  mountedWrappers.push(wrapper);
   const session = useSessionStore();
   session.resetProjection();
   session.currentSessionId = "ses_1";
@@ -130,6 +141,20 @@ beforeEach(() => {
     }
     return undefined;
   });
+});
+
+afterEach(() => {
+  // Unmount every wrapper attached this turn so document.body is clean for
+  // the next spec — important for `document.activeElement` assertions.
+  while (mountedWrappers.length > 0) {
+    const wrapper = mountedWrappers.pop();
+    try {
+      wrapper?.unmount();
+    } catch {
+      // Best-effort cleanup; a failed unmount must not mask the real failure.
+    }
+  }
+  document.body.innerHTML = "";
 });
 
 describe("ChatPanel", () => {
@@ -603,6 +628,250 @@ describe("ChatPanel", () => {
     const errorBanner = wrapper.find('[data-test="error-banner"]');
     expect(errorBanner.exists()).toBe(true);
     expect(errorBanner.text()).toContain("model unavailable");
+  });
+
+  describe("keyboard navigation between chat-stream items", () => {
+    /**
+     * Test helper: queue three chat-stream items (a user message, an
+     * assistant message, and a pending permission) so the panel renders
+     * three focusable `[data-chat-stream-item]` rows. Returns the rendered
+     * elements in document order for direct focus assertions.
+     */
+    async function mountThreeItems(): Promise<{
+      wrapper: ReturnType<typeof mountChatPanel>;
+      items: HTMLElement[];
+      panel: HTMLElement;
+    }> {
+      const wrapper = mountChatPanel((session) => {
+        session.projection.messages = [
+          { role: "user", content: "first" },
+          { role: "assistant", content: "second" }
+        ];
+        // Bind the active session to a project so the worktree-form trigger
+        // (used by the "<input> ignores j" spec) is rendered. Other specs
+        // tolerate the extra header button — it doesn't add a stream item.
+        session.sessions = [
+          {
+            id: "ses_1",
+            title: "Project session",
+            profile: "fast",
+            project_id: "project_kbd",
+            worktree_path: "/repo",
+            branch: "main",
+            visibility: "draft_hidden"
+          }
+        ];
+      });
+      const projectStore = useProjectStore();
+      projectStore.projects = [
+        {
+          projectId: "project_kbd",
+          displayName: "Kbd Project",
+          rootPath: "/repo",
+          removedAt: null,
+          sortOrder: 0,
+          expanded: true,
+          pathExists: true
+        }
+      ];
+      const trace = useTraceStore();
+      trace.entries.push({
+        id: "perm_kbd_1",
+        kind: "permission",
+        status: "pending",
+        title: "Allow rm /tmp/k?",
+        toolId: "shell",
+        startedAt: 1,
+        expanded: false
+      } as TraceEntryData);
+      await flushPromises();
+
+      const panelEl = wrapper.find('[data-test="chat-panel"]').element as HTMLElement;
+      const items = Array.from(panelEl.querySelectorAll<HTMLElement>("[data-chat-stream-item]"));
+      return { wrapper, items, panel: panelEl };
+    }
+
+    function dispatchKey(
+      target: HTMLElement,
+      key: string,
+      init: Partial<KeyboardEventInit> = {}
+    ): KeyboardEvent {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ...init
+      });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    it("renders a [data-chat-stream-item] focusable wrapper per stream item", async () => {
+      const { items } = await mountThreeItems();
+      expect(items).toHaveLength(3);
+      for (const el of items) {
+        expect(el.tabIndex).toBe(0);
+      }
+    });
+
+    it("j moves focus from item 0 to item 1; k moves back", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[0].focus();
+      expect(document.activeElement).toBe(items[0]);
+
+      dispatchKey(panel, "j");
+      expect(document.activeElement).toBe(items[1]);
+
+      dispatchKey(panel, "k");
+      expect(document.activeElement).toBe(items[0]);
+    });
+
+    it("ArrowDown behaves like j and ArrowUp like k", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[0].focus();
+
+      dispatchKey(panel, "ArrowDown");
+      expect(document.activeElement).toBe(items[1]);
+
+      dispatchKey(panel, "ArrowUp");
+      expect(document.activeElement).toBe(items[0]);
+    });
+
+    it("clamps at the last item when pressing j past the end", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[items.length - 1].focus();
+      dispatchKey(panel, "j");
+      expect(document.activeElement).toBe(items[items.length - 1]);
+    });
+
+    it("clamps at the first item when pressing k past the start", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[0].focus();
+      dispatchKey(panel, "k");
+      expect(document.activeElement).toBe(items[0]);
+    });
+
+    it("Enter on a focused permission item triggers the allow click", async () => {
+      const { items } = await mountThreeItems();
+      const permissionItem = items[items.length - 1];
+      permissionItem.focus();
+
+      const allowButton = permissionItem.querySelector<HTMLElement>(
+        '[data-test="permission-allow"]'
+      );
+      expect(allowButton).not.toBeNull();
+      const clickSpy = vi.fn();
+      allowButton!.addEventListener("click", clickSpy);
+
+      dispatchKey(permissionItem, "Enter");
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("Enter on a focused tool-call item toggles its detail row", async () => {
+      const wrapper = mountChatPanel();
+      const trace = useTraceStore();
+      trace.entries.push({
+        id: "tool_kbd_1",
+        kind: "tool",
+        status: "completed",
+        title: "shell exec",
+        toolId: "keyboard_nav_tool",
+        startedAt: 1,
+        durationMs: 1200,
+        input: "echo hi",
+        expanded: false
+      } as TraceEntryData);
+      await flushPromises();
+
+      const panel = wrapper.find('[data-test="chat-panel"]').element as HTMLElement;
+      const item = panel.querySelector<HTMLElement>("[data-chat-stream-item]");
+      expect(item).not.toBeNull();
+      const wasExpanded = wrapper.find(".chat-tool-call__detail").exists();
+
+      item!.focus();
+      dispatchKey(panel, "Enter");
+      await flushPromises();
+
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(!wasExpanded);
+    });
+
+    it("gg jumps focus to the first item, G to the last", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[1].focus();
+
+      // Two `g` presses in quick succession should land on the first item.
+      dispatchKey(panel, "g");
+      dispatchKey(panel, "g");
+      expect(document.activeElement).toBe(items[0]);
+
+      dispatchKey(panel, "G", { shiftKey: true });
+      expect(document.activeElement).toBe(items[items.length - 1]);
+    });
+
+    it("a single g press without a follow-up does not move focus", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[1].focus();
+      dispatchKey(panel, "g");
+      expect(document.activeElement).toBe(items[1]);
+    });
+
+    it("ignores j/k when focus is inside the composer textarea", async () => {
+      const { wrapper, items } = await mountThreeItems();
+      items[0].focus();
+      expect(document.activeElement).toBe(items[0]);
+
+      const textarea = wrapper.find('textarea[data-test="message-input"]')
+        .element as HTMLTextAreaElement;
+      textarea.focus();
+      expect(document.activeElement).toBe(textarea);
+
+      dispatchKey(textarea, "j");
+      // Focus must remain on the textarea — the panel handler must NOT
+      // hijack `j` while the composer is editing.
+      expect(document.activeElement).toBe(textarea);
+    });
+
+    it("ignores keys when focus is inside a generic <input>", async () => {
+      const { wrapper, items, panel } = await mountThreeItems();
+      // Open the worktree branch form to expose a free-floating <input>.
+      await wrapper.find('[data-test="project-worktree-session-trigger"]').trigger("click");
+      await flushPromises();
+      const input = wrapper.find('input[data-test="project-worktree-branch-input"]')
+        .element as HTMLInputElement;
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      dispatchKey(panel, "j");
+      // Focus must remain on the input — composer / form inputs own j/k.
+      expect(document.activeElement).toBe(input);
+      // Sanity: nav still works once focus returns to an item.
+      items[0].focus();
+      dispatchKey(panel, "j");
+      expect(document.activeElement).toBe(items[1]);
+    });
+
+    it("does NOT intercept Ctrl+j or Cmd+k so host shortcuts pass through", async () => {
+      const { items, panel } = await mountThreeItems();
+      items[0].focus();
+
+      const ctrlJ = dispatchKey(panel, "j", { ctrlKey: true });
+      expect(ctrlJ.defaultPrevented).toBe(false);
+      // Focus must remain on item 0 — Ctrl+j is reserved for the host.
+      expect(document.activeElement).toBe(items[0]);
+
+      const cmdK = dispatchKey(panel, "k", { metaKey: true });
+      expect(cmdK.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(items[0]);
+
+      const altG = dispatchKey(panel, "G", { altKey: true, shiftKey: true });
+      expect(altG.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(items[0]);
+    });
+
+    it("does not render visible keyboard shortcut hints inside the chat panel", async () => {
+      const { wrapper } = await mountThreeItems();
+      expect(wrapper.find('[data-test="chat-keyboard-hint"]').exists()).toBe(false);
+    });
   });
 
   describe("jump-to-pending-permission CTA", () => {

@@ -20,6 +20,150 @@ const worktreeBranchFormOpen = ref(false);
 
 const chatStream = useChatStream();
 
+// === Keyboard navigation across chat-stream items ========================
+// j / ArrowDown — focus next item; k / ArrowUp — focus previous item.
+// Enter / Space — activate the focused item's primary action (delegates to
+// a native `.click()` on the item, which works for the embedded
+// PermissionPrompt allow button or the ToolCall toggle row).
+// gg — jump to the first item; G — jump to the last item.
+// Modifier combos (Ctrl/Cmd/Alt) are reserved for host shortcuts and pass
+// through untouched, as do keys originating from input-like targets so the
+// composer textarea and form inputs keep their native typing behaviour.
+const chatPanelRoot = ref<HTMLElement | null>(null);
+const gPrefixTimer = ref<number | null>(null);
+
+/** Detect targets where typing or text editing must be preserved. */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
+
+function streamItemEls(): HTMLElement[] {
+  const root = chatPanelRoot.value;
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-chat-stream-item]"));
+}
+
+function focusedStreamIndex(items: HTMLElement[]): number {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return -1;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] === active) return i;
+    if (items[i].contains(active)) return i;
+  }
+  return -1;
+}
+
+function clearGPrefix(): void {
+  if (gPrefixTimer.value !== null) {
+    clearTimeout(gPrefixTimer.value);
+    gPrefixTimer.value = null;
+  }
+}
+
+function armGPrefix(): void {
+  clearGPrefix();
+  // `setTimeout` returns a number in browsers (and the typed value the
+  // jsdom shim returns) — Node returns a `Timeout` object. We only need a
+  // handle good enough for `clearTimeout`; cast to `number` for storage.
+  gPrefixTimer.value = setTimeout(() => {
+    gPrefixTimer.value = null;
+  }, 600) as unknown as number;
+}
+
+function handleChatKeydown(event: KeyboardEvent): void {
+  // Reserve modifier combos for host shortcuts (Cmd+K palette, Ctrl+J
+  // line-break, Alt+G workspace nav, etc.).
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  // Never hijack keystrokes while the user is typing into the composer
+  // or any text input rendered inside the chat panel. We check both the
+  // event target (real browser bubbling path) and `document.activeElement`
+  // (covers programmatic dispatches in tests where the event is emitted
+  // directly on the panel root rather than the focused input).
+  if (isEditableTarget(event.target)) return;
+  if (isEditableTarget(document.activeElement)) return;
+
+  const key = event.key;
+  const items = streamItemEls();
+  if (items.length === 0) return;
+
+  const currentIndex = focusedStreamIndex(items);
+
+  switch (key) {
+    case "j":
+    case "ArrowDown": {
+      const nextIndex = currentIndex < 0 ? 0 : Math.min(items.length - 1, currentIndex + 1);
+      items[nextIndex]?.focus();
+      clearGPrefix();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    case "k":
+    case "ArrowUp": {
+      const prevIndex = currentIndex < 0 ? 0 : Math.max(0, currentIndex - 1);
+      items[prevIndex]?.focus();
+      clearGPrefix();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    case "Enter":
+    case " ": {
+      if (currentIndex < 0) return;
+      // Delegate to the focused item's primary click handler. For
+      // Use the row's primary command when it has one: allow pending
+      // permissions or toggle tool-call details. Plain messages fall back
+      // to the wrapper click, which is currently inert.
+      const focused = items[currentIndex];
+      const primary = focused.querySelector<HTMLElement>(
+        '[data-test="permission-allow"], [data-test="chat-tool-call-toggle"]'
+      );
+      if (primary) {
+        primary.click();
+      } else {
+        focused.click();
+      }
+      clearGPrefix();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    case "g": {
+      if (event.shiftKey) return; // `Shift+g` is the capital-G branch below.
+      if (gPrefixTimer.value !== null) {
+        // Second `g` within the window — jump to first item.
+        items[0]?.focus();
+        clearGPrefix();
+      } else {
+        // First `g` — arm the prefix and wait for a follow-up.
+        armGPrefix();
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    case "G": {
+      items[items.length - 1]?.focus();
+      clearGPrefix();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    default:
+      // Any other key cancels a pending `g` prefix so an unrelated press
+      // doesn't leave the navigator in a half-armed state.
+      if (gPrefixTimer.value !== null) clearGPrefix();
+  }
+}
+
+onBeforeUnmount(() => {
+  clearGPrefix();
+});
+
 // === Jump-to-pending-permission CTA =====================================
 // Slack/Discord-style floating pill that surfaces when an unresolved
 // permission request is queued in the chat stream but has scrolled below
@@ -242,7 +386,12 @@ watch(
 </script>
 
 <template>
-  <section class="chat-panel" data-test="chat-panel">
+  <section
+    ref="chatPanelRoot"
+    class="chat-panel"
+    data-test="chat-panel"
+    @keydown="handleChatKeydown"
+  >
     <header class="chat-header">
       <h2>{{ t("chat.header") }}</h2>
       <div v-if="currentProjectId" class="chat-header-actions">
@@ -323,36 +472,44 @@ watch(
           {{ t("chat.emptyState") }}
         </KxEmptyState>
         <template v-for="item in chatStream" :key="item.id">
-          <ChatMessageItem
-            v-if="item.kind === 'message'"
-            :role="item.role"
-            :content="item.content"
-          />
-          <ChatToolCallItem
-            v-else-if="item.kind === 'tool_call'"
-            :tool-id="item.toolId"
-            :title="item.title"
-            :status="item.status"
-            :duration-ms="item.durationMs"
-            :started-at="item.startedAt"
-            :input="item.input"
-            :output-preview="item.outputPreview"
-            :scope="item.scope"
-          />
-          <ChatPermissionItem
-            v-else-if="item.kind === 'permission'"
-            :id="item.id"
-            :ref="(el) => bindPermissionRef(item.id, el)"
-            :variant="item.variant"
-            :tool-id="item.toolId"
-            :title="item.title"
-            :input="item.input"
-            :reason="item.reason"
-            :scope="item.scope"
-            :content="item.content"
-            :raw-event="item.rawEvent"
-          />
-          <ChatCompactionItem v-else-if="item.kind === 'compaction'" :status="item.status" />
+          <div
+            class="chat-stream-item"
+            data-chat-stream-item
+            :data-chat-stream-item-kind="item.kind"
+            tabindex="0"
+          >
+            <ChatMessageItem
+              v-if="item.kind === 'message'"
+              :role="item.role"
+              :content="item.content"
+            />
+            <ChatToolCallItem
+              v-else-if="item.kind === 'tool_call'"
+              :tool-call-id="item.id"
+              :tool-id="item.toolId"
+              :title="item.title"
+              :status="item.status"
+              :duration-ms="item.durationMs"
+              :started-at="item.startedAt"
+              :input="item.input"
+              :output-preview="item.outputPreview"
+              :scope="item.scope"
+            />
+            <ChatPermissionItem
+              v-else-if="item.kind === 'permission'"
+              :id="item.id"
+              :ref="(el) => bindPermissionRef(item.id, el)"
+              :variant="item.variant"
+              :tool-id="item.toolId"
+              :title="item.title"
+              :input="item.input"
+              :reason="item.reason"
+              :scope="item.scope"
+              :content="item.content"
+              :raw-event="item.rawEvent"
+            />
+            <ChatCompactionItem v-else-if="item.kind === 'compaction'" :status="item.status" />
+          </div>
         </template>
         <div
           v-if="projectInstructionSummaryText"
