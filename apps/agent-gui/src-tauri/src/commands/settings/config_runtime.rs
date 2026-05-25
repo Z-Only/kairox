@@ -142,6 +142,17 @@ fn system_file_manager_command(path: &std::path::Path) -> std::process::Command 
 
 #[tauri::command]
 #[specta::specta]
+pub async fn refresh_config(state: State<'_, GuiState>) -> Result<(), String> {
+    state.refresh_user_config()?;
+    eprintln!(
+        "User config refreshed: profiles={:?}",
+        state.config.read().unwrap().profile_names()
+    );
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn refresh_config_for_project(
     project_root: String,
     state: State<'_, GuiState>,

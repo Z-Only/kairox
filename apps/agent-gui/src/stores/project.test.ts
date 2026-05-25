@@ -2,6 +2,7 @@ import { setActivePinia, createPinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { useProjectStore } from "./project";
+import { useSessionStore } from "./session";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn()
@@ -291,6 +292,64 @@ describe("project store", () => {
 
     expect(store.sessionsByProject.get("p1")?.[0].sessionId).toBe("s1");
     expect(store.archivedSessions[0].sessionId).toBe("s2");
+  });
+
+  it("reloads profile info after project config refresh instead of reusing an in-flight cache", async () => {
+    const calls: string[] = [];
+    let releaseStaleProfiles: (() => void) | null = null;
+    const staleProfiles = new Promise((resolve) => {
+      releaseStaleProfiles = () =>
+        resolve([
+          {
+            alias: "cached",
+            provider: "fake",
+            model_id: "fake",
+            local: true,
+            has_api_key: true
+          }
+        ]);
+    });
+    mockedInvoke.mockImplementation(async (command: string) => {
+      calls.push(command);
+      if (command === "get_profile_info") {
+        const count = calls.filter((entry) => entry === "get_profile_info").length;
+        if (count === 1) return staleProfiles;
+        return [
+          {
+            alias: "tokensflow",
+            provider: "openai_compatible",
+            model_id: "tokensflow-chat",
+            local: false,
+            has_api_key: true
+          }
+        ];
+      }
+      if (command === "refresh_config_for_project") return null;
+      if (command === "list_project_sessions") return [];
+      return null;
+    });
+    const session = useSessionStore();
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "Demo",
+        rootPath: "/tmp/demo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    const staleLoad = session.loadProfileInfo();
+    const projectLoad = store.loadProjectSessions("p1");
+    releaseStaleProfiles?.();
+    await staleLoad;
+    await projectLoad;
+
+    expect(calls.filter((entry) => entry === "get_profile_info")).toHaveLength(2);
+    expect(session.profileInfos.map((profile) => profile.alias)).toEqual(["tokensflow"]);
   });
 
   it("updates nested project sessions through the regular session IPC paths", async () => {

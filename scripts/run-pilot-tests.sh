@@ -156,6 +156,24 @@ _restore_project_config() {
     fi
 }
 
+_append_live_profile_to_user_config() {
+    if grep -q "\\[profiles\\.$LIVE_MODEL_PROFILE\\]" "$CONFIG_TOML" 2>/dev/null; then
+        return
+    fi
+    cat >>"$CONFIG_TOML" <<EOF
+
+[profiles.$LIVE_MODEL_PROFILE]
+provider = "openai_compatible"
+model_id = "$LIVE_MODEL_ID"
+base_url = "$LIVE_MODEL_BASE_URL"
+api_key_env = "GITHUB_TOKEN"
+temperature = 0
+
+[profiles.$LIVE_MODEL_PROFILE.extra_params]
+max_tokens = $LIVE_MODEL_MAX_TOKENS
+EOF
+}
+
 _write_pilot_project_config() {
     mkdir -p "$PROJECT_CONFIG_DIR"
     if [[ "$LIVE_MODEL_ENABLED" = "1" ]]; then
@@ -163,6 +181,10 @@ _write_pilot_project_config() {
             echo "ERROR: KAIROX_PILOT_LIVE_MODELS=1 requires GITHUB_TOKEN for GitHub Models." >&2
             exit 1
         fi
+        # Live scenarios start ordinary chats, whose model list intentionally
+        # refreshes from user-level config. Keep the same live profile in the
+        # project fixture for project-scope coverage, but seed user config too.
+        _append_live_profile_to_user_config
         cat >"$PROJECT_CONFIG_TOML" <<EOF
 [profiles.$LIVE_MODEL_PROFILE]
 provider = "openai_compatible"

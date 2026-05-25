@@ -52,6 +52,9 @@ registerCommandHandlers({
   get_profile_info: function (args) {
     return Promise.resolve(state.profiles);
   },
+  refresh_config: function (args) {
+    return null;
+  },
   get_profile_detail: function (args) {
     var profile = args.profile || "fast";
     var found = state.profiles.find(function (p) {

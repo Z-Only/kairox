@@ -31,6 +31,42 @@ describe("session profile display", () => {
     expect(session.activeProfileDisplay).toBe("Anthropic · Claude 3.5 Sonnet");
   });
 
+  it("refreshes global config before starting an ordinary draft session", async () => {
+    const calls: string[] = [];
+    mockedInvoke.mockImplementation(async (command) => {
+      calls.push(command);
+      if (command === "refresh_config") return null;
+      if (command === "get_profile_info") {
+        return [
+          {
+            alias: "tokensflow",
+            provider: "openai_compatible",
+            model_id: "tokensflow-chat",
+            local: false,
+            has_api_key: true
+          }
+        ];
+      }
+      return null;
+    });
+    const session = useSessionStore();
+    session.profileInfos = [
+      {
+        alias: "deepseek",
+        provider: "deepseek",
+        model_id: "deepseek-chat",
+        local: false,
+        has_api_key: true
+      }
+    ];
+
+    await session.startOrdinaryDraftSession();
+
+    expect(session.pendingSessionDraft).toEqual({ kind: "ordinary" });
+    expect(calls.slice(0, 2)).toEqual(["refresh_config", "get_profile_info"]);
+    expect(session.profileInfos.map((profile) => profile.alias)).toEqual(["tokensflow"]);
+  });
+
   it("falls back to the alias when profile details are unavailable", () => {
     const session = useSessionStore();
     session.currentProfile = "deep";

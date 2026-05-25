@@ -45,6 +45,7 @@ fn main() {
             agent_gui_tauri::commands::list_profiles,
             agent_gui_tauri::commands::list_profiles_with_limits,
             agent_gui_tauri::commands::get_profile_info,
+            agent_gui_tauri::commands::refresh_config,
             agent_gui_tauri::commands::refresh_config_for_project,
             agent_gui_tauri::commands::initialize_workspace,
             agent_gui_tauri::commands::start_session,

@@ -1,8 +1,13 @@
 use agent_core::{AppFacade, StartSessionRequest};
 use agent_models::FakeModelClient;
-use agent_runtime::ui_bootstrap::{ensure_workspace_session, load_config_with_profiles_overlay};
+use agent_runtime::ui_bootstrap::{
+    ensure_workspace_session, load_config_with_profiles_overlay, load_user_ui_config,
+};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
+use std::sync::Mutex;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn test_config() -> agent_config::Config {
     agent_config::load_from_str(
@@ -51,6 +56,56 @@ model_id = "overlay-model"
         Some("overlay-model")
     );
     assert!(loaded.warnings.is_empty());
+}
+
+#[test]
+fn user_ui_config_skips_project_config_discovered_from_cwd() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
+    let previous_home = std::env::var_os("HOME");
+    let previous_cwd = std::env::current_dir().expect("cwd should be readable");
+    let home = tempfile::tempdir().expect("home tempdir");
+    let project = tempfile::tempdir().expect("project tempdir");
+
+    std::fs::create_dir_all(home.path().join(".kairox")).expect("create user config dir");
+    std::fs::write(
+        home.path().join(".kairox/config.toml"),
+        r#"
+[profiles.user]
+provider = "fake"
+model_id = "user-model"
+"#,
+    )
+    .expect("write user config");
+    std::fs::create_dir_all(project.path().join(".kairox")).expect("create project config dir");
+    std::fs::write(
+        project.path().join(".kairox/config.toml"),
+        r#"
+[profiles.project]
+provider = "fake"
+model_id = "project-model"
+"#,
+    )
+    .expect("write project config");
+
+    std::env::set_var("HOME", home.path());
+    std::env::set_current_dir(project.path()).expect("set cwd");
+
+    let loaded = load_user_ui_config(&home.path().join(".kairox"));
+
+    std::env::set_current_dir(previous_cwd).expect("restore cwd");
+    match previous_home {
+        Some(value) => std::env::set_var("HOME", value),
+        None => std::env::remove_var("HOME"),
+    }
+
+    assert_eq!(
+        loaded
+            .config
+            .get_profile("user")
+            .map(|profile| profile.model_id.as_str()),
+        Some("user-model")
+    );
+    assert!(loaded.config.get_profile("project").is_none());
 }
 
 #[tokio::test]

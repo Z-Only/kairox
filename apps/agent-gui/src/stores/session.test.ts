@@ -40,6 +40,14 @@ beforeEach(() => {
       return Promise.resolve([]);
     }
 
+    if (command === "refresh_config") {
+      return Promise.resolve(null);
+    }
+
+    if (command === "get_profile_info") {
+      return Promise.resolve([]);
+    }
+
     return Promise.resolve(null);
   });
 });
@@ -283,12 +291,12 @@ describe("filterOrdinarySessions", () => {
 });
 
 describe("project session metadata", () => {
-  it("starts an ordinary placeholder session without creating backend state", () => {
+  it("starts an ordinary placeholder session without creating backend state", async () => {
     const session = useSessionStore();
     session.currentSessionId = "regular-1";
     session.projection.messages = [{ role: "user", content: "stale" }];
 
-    session.startOrdinaryDraftSession();
+    await session.startOrdinaryDraftSession();
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("start_session", expect.anything());
     expect(session.currentSessionId).toBeNull();
@@ -312,6 +320,12 @@ describe("project session metadata", () => {
       }
     ];
     mockedInvoke.mockImplementation((command) => {
+      if (command === "refresh_config_for_project") {
+        return Promise.resolve(null);
+      }
+      if (command === "get_profile_info") {
+        return Promise.resolve([]);
+      }
       if (command === "get_project_git_status") {
         return Promise.resolve({
           kind: "clean",
@@ -336,6 +350,155 @@ describe("project session metadata", () => {
 
     session.setPendingProjectBranch("feat/chat");
     expect(session.currentSessionInfo?.branch).toBe("feat/chat");
+  });
+
+  it("refreshes project config before showing a project draft model list", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    const calls: string[] = [];
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      calls.push(command);
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "tokensflow",
+            provider: "openai_compatible",
+            model_id: "tokensflow-chat",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_config_for_project", {
+      projectRoot: "/repo"
+    });
+    expect(calls).toContain("get_profile_info");
+    expect(session.profileInfos.map((profile) => profile.alias)).toEqual(["tokensflow"]);
+  });
+
+  it("refreshes global config for an ordinary historical session model list", async () => {
+    const session = useSessionStore();
+    const calls: string[] = [];
+    session.sessions = [
+      {
+        id: "regular-1",
+        title: "Regular",
+        profile: "local",
+        project_id: null,
+        worktree_path: null,
+        branch: null,
+        deleted_at: null,
+        visibility: null
+      }
+    ];
+    session.currentSessionId = "regular-1";
+    mockedInvoke.mockImplementation((command) => {
+      calls.push(command);
+      if (command === "refresh_config") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "tokensflow",
+            provider: "openai_compatible",
+            model_id: "tokensflow-chat",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.refreshProfileInfoForCurrentContext();
+
+    expect(calls.slice(0, 2)).toEqual(["refresh_config", "get_profile_info"]);
+    expect(session.profileInfos.map((profile) => profile.alias)).toEqual(["tokensflow"]);
+  });
+
+  it("refreshes project worktree config for a project historical session model list", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    const calls: Array<{ command: string; args?: unknown }> = [];
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    projectStore.sessionsByProject = new Map([
+      [
+        "project-1",
+        [
+          {
+            sessionId: "project-session-1",
+            title: "Project task",
+            profile: "local",
+            projectId: "project-1",
+            worktreePath: "/repo/.worktrees/project-task",
+            branch: "feat/project-task",
+            deletedAt: null,
+            visibility: "visible"
+          }
+        ]
+      ]
+    ]);
+    session.currentSessionId = "project-session-1";
+    mockedInvoke.mockImplementation((command, args) => {
+      calls.push({ command, args });
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") {
+        return Promise.resolve([
+          {
+            alias: "tokensflow",
+            provider: "openai_compatible",
+            model_id: "tokensflow-chat",
+            local: false,
+            has_api_key: true
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.refreshProfileInfoForCurrentContext();
+
+    expect(calls[0]).toEqual({
+      command: "refresh_config_for_project",
+      args: { projectRoot: "/repo/.worktrees/project-task" }
+    });
+    expect(calls.map((entry) => entry.command)).toContain("get_profile_info");
+    expect(calls.map((entry) => entry.command)).not.toContain("refresh_config");
+    expect(session.profileInfos.map((profile) => profile.alias)).toEqual(["tokensflow"]);
   });
 
   it("materializes a project placeholder as a draft or worktree session on first send", async () => {

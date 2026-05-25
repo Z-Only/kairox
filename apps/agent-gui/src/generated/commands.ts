@@ -8,6 +8,7 @@ export const commands = {
   listProfilesWithLimits: () =>
     typedError<ProfileWithLimits[], string>(__TAURI_INVOKE("list_profiles_with_limits")),
   getProfileInfo: () => typedError<ProfileInfo[], string>(__TAURI_INVOKE("get_profile_info")),
+  refreshConfig: () => typedError<null, string>(__TAURI_INVOKE("refresh_config")),
   refreshConfigForProject: (projectRoot: string) =>
     typedError<null, string>(__TAURI_INVOKE("refresh_config_for_project", { projectRoot })),
   initializeWorkspace: () =>

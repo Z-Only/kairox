@@ -37,7 +37,8 @@ describe("SessionsSidebar", () => {
     expect(session.composerDraftKey).toBe("new-session:ordinary");
     expect(router.currentRoute.value.name).toBe("workbench");
     expect(router.currentRoute.value.params.sessionId).toBeUndefined();
-    expect(mockedInvoke).not.toHaveBeenCalledWith("get_profile_info");
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_config");
+    expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
   });
 
   it("uses Kairox icon buttons and title-backed truncation for regular session rows", async () => {

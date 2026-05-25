@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
+import { flushPromises } from "@vue/test-utils";
 import ChatComposer from "./ChatComposer.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
 import chatPermissionSelectorSource from "./ChatPermissionSelector.vue?raw";
@@ -77,6 +78,11 @@ function mountChatComposer() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedInvoke.mockImplementation(async (command) => {
+    if (command === "refresh_config") return null;
+    if (command === "get_profile_info") return useSessionStore().profileInfos;
+    return null;
+  });
 });
 
 describe("composer textarea chrome", () => {
@@ -185,6 +191,26 @@ describe("permission mode selector", () => {
 });
 
 describe("model reasoning selector", () => {
+  it("refreshes the current config context when opening the model selector", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.profileInfos = [
+      {
+        alias: "fast",
+        provider: "openai",
+        model_id: "gpt-4o-mini",
+        local: false,
+        has_api_key: true,
+        supports_reasoning: false
+      }
+    ];
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_config");
+    expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
+  });
+
   it("shows reasoning levels when hovering a reasoning-capable model", async () => {
     const { wrapper, session } = mountChatComposer();
     session.currentProfile = "smart";
@@ -219,7 +245,14 @@ describe("model reasoning selector", () => {
     expect(wrapper.find('[data-test="chat-model-option-smart"]').classes()).toContain(
       "kx-popover-option"
     );
-    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+    const popover = wrapper.find('[data-test="chat-model-popover"]');
+    const reasoningPanel = wrapper.find('[data-test="chat-reasoning-panel"]');
+    expect(reasoningPanel.exists()).toBe(true);
+    expect(reasoningPanel.element.parentElement).toBe(popover.element);
+    expect(Array.from(popover.element.children).map((child) => child.className)).toEqual([
+      "chat-model-column",
+      "chat-reasoning-panel"
+    ]);
     expect(wrapper.find('[data-test="chat-reasoning-option-middle"]').classes()).toContain(
       "selected"
     );
