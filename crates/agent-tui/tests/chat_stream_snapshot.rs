@@ -506,6 +506,74 @@ fn completed_compaction_renders_check_glyph_only() {
 }
 
 // ---------------------------------------------------------------------------
+// 7b. CompactionItem Completed with both before/after token counts →
+//     prepends a "{before} → {after} tokens (-{pct}%)" segment to the
+//     standard `✓ Compacted` row. Failed and missing-token cases keep
+//     their previous behaviour.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn compaction_completed_with_token_savings() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            500,
+            EventPayload::ContextCompactionStarted {
+                reason: CompactionReason::UserRequested,
+                before_tokens: 25_000,
+                candidate_event_count: 12,
+            },
+        ),
+        make_event_at(
+            900,
+            EventPayload::ContextCompactionCompleted {
+                summary_id: "sum_savings".into(),
+                after_tokens: 12_000,
+                fallback_used: false,
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    // Wider buffer so the prepended token segment + the standard
+    // `✓ Compacted` label fit on a single visible row.
+    let output = render_to_string(120, 8, &projection, &events, &expanded);
+
+    assert!(
+        output.contains(COMPACTION_COMPLETED_GLYPH),
+        "completed compaction with token savings should still render the \
+         `{COMPACTION_COMPLETED_GLYPH}` glyph; got:\n{output}"
+    );
+    assert!(
+        output.contains("Compacted"),
+        "completed compaction with token savings should still render `Compacted`; \
+         got:\n{output}"
+    );
+    assert!(
+        output.contains("25000 → 12000"),
+        "completed compaction should prepend the raw before→after token counts; \
+         got:\n{output}"
+    );
+    assert!(
+        output.contains("tokens"),
+        "completed compaction should label the delta as `tokens`; got:\n{output}"
+    );
+    assert!(
+        output.contains("-52"),
+        "completed compaction should surface the percentage savings (-52%); \
+         got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_RUNNING_GLYPH),
+        "completed compaction must not still render the running glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_FAILED_GLYPH),
+        "completed compaction must not also render the failed glyph; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 8. CompactionItem Failed → error styling + error string.
 // ---------------------------------------------------------------------------
 

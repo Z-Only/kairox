@@ -339,10 +339,14 @@ fn append_tool_call(
 }
 
 fn append_compaction(lines: &mut Vec<Line>, item: &ChatStreamItem) {
-    let (status, summary) = match item {
+    let (status, summary, before_tokens, after_tokens) = match item {
         ChatStreamItem::Compaction {
-            status, summary, ..
-        } => (*status, summary.as_deref()),
+            status,
+            summary,
+            before_tokens,
+            after_tokens,
+            ..
+        } => (*status, summary.as_deref(), *before_tokens, *after_tokens),
         _ => return,
     };
     let style = Style::default().add_modifier(Modifier::BOLD);
@@ -358,6 +362,14 @@ fn append_compaction(lines: &mut Vec<Line>, item: &ChatStreamItem) {
                 "✓ Compacted".to_string(),
                 style.fg(Color::Green),
             )];
+            if let (Some(before), Some(after)) = (before_tokens, after_tokens) {
+                let pct = compaction_savings_pct(before, after);
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(
+                    format!("{before} → {after} tokens (-{pct}%)"),
+                    Style::default().fg(Color::Green),
+                ));
+            }
             if let Some(summary) = summary {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
@@ -382,6 +394,19 @@ fn append_compaction(lines: &mut Vec<Line>, item: &ChatStreamItem) {
             lines.push(Line::from(spans));
         }
     }
+}
+
+/// Percent reduction from `before` to `after`, clamped to `0..=100`.
+/// Returns `0` when `before == 0` (guarding the division) and uses
+/// saturating subtraction so post-compaction inflation also yields
+/// `0%` rather than a negative or wrapped value.
+fn compaction_savings_pct(before: u64, after: u64) -> i32 {
+    if before == 0 {
+        return 0;
+    }
+    let saved = before.saturating_sub(after);
+    let pct = (saved as f64 / before as f64 * 100.0).round() as i32;
+    pct.clamp(0, 100)
 }
 
 // ---------------------------------------------------------------------------
@@ -478,5 +503,20 @@ mod tests {
     fn truncate_chars_appends_ellipsis_when_long() {
         assert_eq!(truncate_chars("hello", 10), "hello");
         assert_eq!(truncate_chars("hello world", 5), "hello…");
+    }
+
+    #[test]
+    fn compaction_savings_pct_rounds_and_handles_edges() {
+        // Canonical case from the snapshot test: 25k → 12k = -52%.
+        assert_eq!(compaction_savings_pct(25_000, 12_000), 52);
+        // No reduction → 0%, not negative.
+        assert_eq!(compaction_savings_pct(10_000, 10_000), 0);
+        // Post-compaction inflation should not wrap; clamps to 0%.
+        assert_eq!(compaction_savings_pct(10_000, 12_000), 0);
+        // Div-by-zero guard.
+        assert_eq!(compaction_savings_pct(0, 0), 0);
+        assert_eq!(compaction_savings_pct(0, 5_000), 0);
+        // Full reduction → 100%.
+        assert_eq!(compaction_savings_pct(10_000, 0), 100);
     }
 }
