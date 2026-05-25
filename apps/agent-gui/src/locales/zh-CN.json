@@ -677,7 +677,8 @@
         "allow": "允许 (Y)",
         "deny": "拒绝 (N)",
         "denyOnce": "仅本次拒绝 (D)"
-      }
+      },
+      "grouped": "{count} 项待授权操作"
     },
     "toolCall": {
       "expand": "展开",

@@ -16,6 +16,7 @@ export type ChatStreamItem =
   | ChatMessageStreamItem
   | ChatToolCallStreamItem
   | ChatPermissionStreamItem
+  | ChatPermissionGroupStreamItem
   | ChatCompactionStreamItem;
 
 export interface ChatMessageStreamItem {
@@ -60,6 +61,31 @@ export interface ChatPermissionStreamItem {
    *   - `"memory"` → derived from a trace entry with `kind === "memory"`
    */
   variant: "tool" | "memory";
+}
+
+/**
+ * Cluster of ≥2 consecutive pending permission prompts emitted by the
+ * chat-stream fold. The builder replaces a run of consecutive pending
+ * {@link ChatPermissionStreamItem} entries with one of these so the
+ * chat panel can render a single "N pending permissions" badge instead
+ * of N stacked prompts.
+ *
+ * Runs are broken by any non-permission item, any resolved permission
+ * (accepted / denied), or a single lone pending permission (which stays
+ * as the original {@link ChatPermissionStreamItem} variant).
+ */
+export interface ChatPermissionGroupStreamItem {
+  kind: "permission_group";
+  /** Synthetic id derived from the first underlying permission id. */
+  id: string;
+  /** `startedAt` of the FIRST pending permission in the run. */
+  startedAt: number;
+  /** Distinct tool ids present in the cluster, in first-seen order. */
+  toolIds: string[];
+  /** Underlying permission request ids in cluster order. */
+  permissionIds: string[];
+  /** Number of permission prompts in the cluster (equals `permissionIds.length`). */
+  count: number;
 }
 
 export interface ChatCompactionStreamItem {
