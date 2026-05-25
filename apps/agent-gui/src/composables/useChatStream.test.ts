@@ -129,6 +129,7 @@ describe("buildChatStream", () => {
       title: "shell exec",
       status: "running",
       durationMs: 42,
+      startedAt: 1,
       input: "echo hi",
       outputPreview: "hi",
       scope: "session"
@@ -150,7 +151,8 @@ describe("buildChatStream", () => {
       id: "tool-2",
       toolId: "shell",
       title: "shell exec 2",
-      status: "completed"
+      status: "completed",
+      startedAt: 3
     });
 
     expect(result[3]).toEqual<ChatPermissionStreamItem>({

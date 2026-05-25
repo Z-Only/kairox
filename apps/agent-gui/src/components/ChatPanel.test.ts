@@ -368,6 +368,36 @@ describe("ChatPanel", () => {
     expect(inputRow.find('[data-test="context-meter"]').exists()).toBe(false);
   });
 
+  it("passes tool start timestamps through to the inline tool-call item", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-05-25T12:00:00Z").getTime();
+      vi.setSystemTime(now);
+
+      const wrapper = mountChatPanel();
+      const trace = useTraceStore();
+      trace.entries.push({
+        id: "tool_timing_1",
+        kind: "tool",
+        status: "completed",
+        title: "shell exec",
+        toolId: "shell",
+        startedAt: now - 3000,
+        durationMs: 1200,
+        expanded: false
+      } as TraceEntryData);
+      await flushPromises();
+
+      await wrapper.find('[data-test="chat-tool-call-toggle"]').trigger("click");
+
+      const startedAgo = wrapper.find('[data-test="chat-tool-call-started-ago"]');
+      expect(startedAgo.exists()).toBe(true);
+      expect(startedAgo.text()).toBe("started 3s ago");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not surface any ContextMeter ring/bar in the chat panel even with no messages (R4-B demotion)", async () => {
     const wrapper = mountChatPanel();
     await flushPromises();

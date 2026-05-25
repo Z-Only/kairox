@@ -36,6 +36,8 @@ export interface ChatToolCallStreamItem {
   title?: string;
   status: "running" | "completed" | "failed" | "pending";
   durationMs?: number;
+  /** Epoch milliseconds when the source trace entry started. */
+  startedAt?: number;
   input?: string;
   outputPreview?: string;
   scope?: string;

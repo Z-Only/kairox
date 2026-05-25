@@ -27,6 +27,12 @@ interface ChatToolCallItemProps {
   title?: string;
   status: "running" | "completed" | "failed" | "pending";
   durationMs?: number;
+  /**
+   * Epoch milliseconds when the tool call started. When provided and the
+   * row is expanded, we render a "started X ago" line below the duration
+   * so users can see how long ago the call kicked off without hovering.
+   */
+  startedAt?: number;
   input?: string;
   outputPreview?: string;
   scope?: string;
@@ -40,6 +46,7 @@ const props = withDefaults(defineProps<ChatToolCallItemProps>(), {
   toolCallId: undefined,
   title: undefined,
   durationMs: undefined,
+  startedAt: undefined,
   input: undefined,
   outputPreview: undefined,
   scope: undefined,
@@ -112,7 +119,47 @@ const statusLabel = computed(() => t(`chatStream.toolCall.status.${props.status}
 
 const durationLabel = computed(() => {
   if (props.durationMs == null) return null;
-  return `${(props.durationMs / 1000).toFixed(1)}s`;
+  const formatted = `${(props.durationMs / 1000).toFixed(1)}s`;
+  if (props.status === "failed") {
+    return t("chatStream.toolCall.timing.failedAfter", { duration: formatted });
+  }
+  return formatted;
+});
+
+/**
+ * Build a compact human-friendly relative-time string ("3s", "1m",
+ * "3m 20s", "2h 15m") from an elapsed millisecond count. We deliberately
+ * stringify in JS rather than adding ICU pluralization to the locale
+ * files — the chunking is identical across locales and the "just now"
+ * threshold is handled by `startedAgoLabel` below using a separate key.
+ */
+function formatRelativeChunked(elapsedMs: number): string {
+  const seconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+const startedAgoLabel = computed<string | null>(() => {
+  if (props.startedAt == null) return null;
+  // `Date.now()` is mockable via `vi.setSystemTime`. We intentionally do
+  // NOT poll on a timer — the chat stream re-renders frequently enough
+  // (props change as `durationMs` lands) that the relative label stays
+  // fresh, and a ticking clock would force unnecessary repaints across
+  // many rows.
+  const elapsedMs = Date.now() - props.startedAt;
+  // Under ~3s the "Xs ago" granularity is noise — collapse to "just
+  // now". Tests rely on the boundary: 2s → "just now", 3s → "3s ago".
+  if (elapsedMs < 3000) return t("chatStream.toolCall.timing.startedJustNow");
+  return t("chatStream.toolCall.timing.startedAgo", {
+    relative: formatRelativeChunked(elapsedMs)
+  });
 });
 
 const toggleLabel = computed(() =>
@@ -177,6 +224,13 @@ const outputIsDiff = computed(() =>
       </KxIconButton>
     </div>
     <div v-if="isExpanded" class="chat-tool-call__detail">
+      <div
+        v-if="startedAgoLabel"
+        class="chat-tool-call__started-ago"
+        data-test="chat-tool-call-started-ago"
+      >
+        {{ startedAgoLabel }}
+      </div>
       <div v-if="props.input" class="chat-tool-call__section">
         <span class="chat-tool-call__label">{{ t("chatStream.toolCall.input") }}:</span>
         <pre class="chat-tool-code">{{ props.input }}</pre>
@@ -257,6 +311,12 @@ const outputIsDiff = computed(() =>
   padding: 6px 8px 8px;
   border-top: 1px solid var(--app-border-color);
   background: var(--app-card-color);
+}
+.chat-tool-call__started-ago {
+  color: var(--app-text-color-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
 }
 .chat-tool-call__section + .chat-tool-call__section {
   margin-top: 6px;

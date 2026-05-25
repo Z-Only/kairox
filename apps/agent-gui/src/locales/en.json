@@ -692,6 +692,11 @@
         "completed": "Completed",
         "failed": "Failed",
         "pending": "Pending"
+      },
+      "timing": {
+        "startedAgo": "started {relative} ago",
+        "startedJustNow": "started just now",
+        "failedAfter": "failed after {duration}"
       }
     },
     "compaction": {
