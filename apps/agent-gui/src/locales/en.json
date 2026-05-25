@@ -677,7 +677,8 @@
         "allow": "Allow (Y)",
         "deny": "Deny (N)",
         "denyOnce": "Deny once (D)"
-      }
+      },
+      "grouped": "{count} pending permissions"
     },
     "toolCall": {
       "expand": "Expand",

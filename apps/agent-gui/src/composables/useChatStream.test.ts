@@ -5,6 +5,7 @@ import { buildChatStream, type ChatStreamMessageInput } from "./useChatStream";
 import type {
   ChatCompactionStreamItem,
   ChatMessageStreamItem,
+  ChatPermissionGroupStreamItem,
   ChatPermissionStreamItem,
   ChatToolCallStreamItem
 } from "@/types/chatStream";
@@ -75,6 +76,10 @@ describe("buildChatStream", () => {
   });
 
   it("maps tool / permission / memory trace entries to their typed stream items", () => {
+    // Interleave a second tool call between the permission and memory
+    // entries so they are NOT consecutive — this test asserts the
+    // per-variant mapping, not the grouping behavior (see the
+    // "consecutive pending permission grouping" describe block).
     const entries: TraceEntryData[] = [
       toolEntry({
         id: "tool-1",
@@ -96,19 +101,26 @@ describe("buildChatStream", () => {
         rawEvent: '{"type":"PermissionRequested"}',
         startedAt: 2
       }),
+      toolEntry({
+        id: "tool-2",
+        toolId: "shell",
+        title: "shell exec 2",
+        status: "completed",
+        startedAt: 3
+      }),
       memoryEntry({
         id: "mem-1",
         scope: "workspace",
         content: "remember this",
         reason: "user request",
         title: "Save workspace memory",
-        startedAt: 3
+        startedAt: 4
       })
     ];
 
     const result = buildChatStream([], entries, idle);
 
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
 
     expect(result[0]).toEqual<ChatToolCallStreamItem>({
       kind: "tool_call",
@@ -133,7 +145,15 @@ describe("buildChatStream", () => {
       rawEvent: '{"type":"PermissionRequested"}'
     });
 
-    expect(result[2]).toEqual<ChatPermissionStreamItem>({
+    expect(result[2]).toEqual<ChatToolCallStreamItem>({
+      kind: "tool_call",
+      id: "tool-2",
+      toolId: "shell",
+      title: "shell exec 2",
+      status: "completed"
+    });
+
+    expect(result[3]).toEqual<ChatPermissionStreamItem>({
       kind: "permission",
       id: "mem-1",
       variant: "memory",
@@ -203,6 +223,117 @@ describe("buildChatStream", () => {
     const result = buildChatStream([], entries, idle);
 
     expect(result.map((item) => item.id)).toEqual(["a", "b", "c"]);
+  });
+
+  describe("consecutive pending permission grouping", () => {
+    it("collapses 3 consecutive pending permissions with different tool ids into a single permission_group", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-1", toolId: "shell", startedAt: 10 }),
+        permissionEntry({ id: "perm-2", toolId: "fs.write", startedAt: 11 }),
+        permissionEntry({ id: "perm-3", toolId: "patch", startedAt: 12 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual<ChatPermissionGroupStreamItem>({
+        kind: "permission_group",
+        id: "permission-group-perm-1",
+        startedAt: 10,
+        toolIds: ["shell", "fs.write", "patch"],
+        permissionIds: ["perm-1", "perm-2", "perm-3"],
+        count: 3
+      });
+    });
+
+    it("deduplicates tool ids when consecutive pending permissions share the same tool id", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-1", toolId: "shell", startedAt: 5 }),
+        permissionEntry({ id: "perm-2", toolId: "shell", startedAt: 6 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      const group = result[0] as ChatPermissionGroupStreamItem;
+      expect(group.kind).toBe("permission_group");
+      expect(group.count).toBe(2);
+      expect(group.toolIds).toEqual(["shell"]);
+      expect(group.permissionIds).toEqual(["perm-1", "perm-2"]);
+      expect(group.startedAt).toBe(5);
+      expect(group.id).toBe("permission-group-perm-1");
+    });
+
+    it("keeps a lone pending permission as a standalone Permission item (no grouping)", () => {
+      const entries: TraceEntryData[] = [permissionEntry({ id: "perm-1", toolId: "shell" })];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].kind).toBe("permission");
+      expect((result[0] as ChatPermissionStreamItem).id).toBe("perm-1");
+    });
+
+    it("never groups resolved permissions and treats them as a run-breaker", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-1", toolId: "shell", status: "pending", startedAt: 1 }),
+        permissionEntry({ id: "perm-2", toolId: "shell", status: "completed", startedAt: 2 }),
+        permissionEntry({ id: "perm-3", toolId: "shell", status: "pending", startedAt: 3 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      // Resolved permissions are filtered out by traceEntryToStreamItem (returns
+      // null for non-pending) — but they still must break the consecutive run.
+      // Each surviving pending permission is on its own, so neither should be
+      // wrapped in a permission_group.
+      expect(result).toHaveLength(2);
+      expect(result[0].kind).toBe("permission");
+      expect(result[1].kind).toBe("permission");
+      expect((result[0] as ChatPermissionStreamItem).id).toBe("perm-1");
+      expect((result[1] as ChatPermissionStreamItem).id).toBe("perm-3");
+    });
+
+    it("treats a tool call between two pending permissions as a run-breaker", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-1", toolId: "shell", startedAt: 1 }),
+        toolEntry({ id: "tool-1", toolId: "shell", status: "running", startedAt: 2 }),
+        permissionEntry({ id: "perm-2", toolId: "fs.write", startedAt: 3 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(3);
+      expect(result.map((item) => item.kind)).toEqual(["permission", "tool_call", "permission"]);
+    });
+
+    it("sets startedAt of the group to the FIRST pending permission's startedAt", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-a", toolId: "shell", startedAt: 100 }),
+        permissionEntry({ id: "perm-b", toolId: "fs.write", startedAt: 200 }),
+        permissionEntry({ id: "perm-c", toolId: "patch", startedAt: 300 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      expect((result[0] as ChatPermissionGroupStreamItem).startedAt).toBe(100);
+    });
+
+    it("groups across permission / memory variants when both are pending and consecutive", () => {
+      const entries: TraceEntryData[] = [
+        permissionEntry({ id: "perm-1", toolId: "shell", startedAt: 1 }),
+        memoryEntry({ id: "mem-1", startedAt: 2 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      const group = result[0] as ChatPermissionGroupStreamItem;
+      expect(group.kind).toBe("permission_group");
+      expect(group.count).toBe(2);
+      expect(group.permissionIds).toEqual(["perm-1", "mem-1"]);
+    });
   });
 
   it("never mutates the input arrays", () => {
