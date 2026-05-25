@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useDraftStore } from "./useDraftStore";
 
 const mockInvoke = vi.fn();
@@ -9,6 +9,17 @@ vi.mock("@tauri-apps/api/core", () => ({
 describe("useDraftStore", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
+    const storage = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: vi.fn((key: string) => storage.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
+      removeItem: vi.fn((key: string) => storage.delete(key)),
+      clear: vi.fn(() => storage.clear())
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("loadDraft returns saved text", async () => {
@@ -49,5 +60,18 @@ describe("useDraftStore", () => {
     const { saveDraft } = useDraftStore();
     // Should not throw
     await expect(saveDraft("ses_1", "data")).resolves.toBeUndefined();
+  });
+
+  it("persists placeholder new-session drafts in localStorage", async () => {
+    const { loadDraft, saveDraft, clearDraft } = useDraftStore();
+
+    await saveDraft("new-session:ordinary", "local placeholder draft");
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(await loadDraft("new-session:ordinary")).toBe("local placeholder draft");
+
+    await clearDraft("new-session:ordinary");
+
+    expect(await loadDraft("new-session:ordinary")).toBe("");
   });
 });

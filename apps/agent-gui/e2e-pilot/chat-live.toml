@@ -29,60 +29,44 @@ action = "click"
 target = "[data-test='new-session-btn']"
 
 [[step]]
-name = "wait for live chat session activation"
-action = "eval"
-timeout_ms = 10000
-script = """
-(async () => {
-  const previousSessionId = window.__kairoxPilotPreviousSessionId ?? null;
-  const deadline = Date.now() + 10000;
-
-  while (Date.now() < deadline) {
-    const hashParts = window.location.hash.split("/");
-    const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
-    const activeSessionId = localStorage.getItem("kairox.last-active-session-id");
-    if (
-      routeSessionId &&
-      routeSessionId !== previousSessionId &&
-      activeSessionId === routeSessionId
-    ) {
-      return routeSessionId;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  throw new Error("new live chat session did not become active");
-})()
-"""
-
-[[step]]
 name = "wait for chat input"
 action = "wait"
 selector = "textarea[data-test='message-input']"
 timeout_ms = 15000
 
 [[step]]
-name = "switch session to live model"
+name = "open live model selector"
+action = "click"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "select live model for pending chat"
+action = "click"
+target = "[data-test='chat-model-option-github-gpt4o-mini']"
+
+[[step]]
+name = "assert pending composer uses live model"
 action = "eval"
 script = """
 (async () => {
-  const hashParts = window.location.hash.split("/");
-  const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
-  const sessionId =
-    routeSessionId
-      ? decodeURIComponent(routeSessionId)
-      : localStorage.getItem("kairox.last-active-session-id");
-  if (!sessionId) {
-    throw new Error("missing active session id for live model switch");
+  const trigger = document.querySelector("[data-test='chat-model-trigger']");
+  const label = trigger?.textContent ?? "";
+  if (!label.includes("4o Mini") || label.includes("Fake")) {
+    throw new Error(`pending composer is not using live model: ${label}`);
   }
+  return label;
+})()
+"""
 
-  await window.__TAURI_INTERNALS__.invoke("switch_session", { sessionId });
-  await window.__TAURI_INTERNALS__.invoke("switch_model", {
-    sessionId,
-    profileAlias: "github-gpt4o-mini",
-    reasoningEffort: null,
-  });
-  return sessionId;
+[[step]]
+name = "remember pre-live assistant count"
+action = "eval"
+script = """
+(() => {
+  window.__kairoxPilotPreLiveAssistantCount = document.querySelectorAll(
+    "[data-test='chat-message'][data-role='assistant'] .message-content"
+  ).length;
+  return window.__kairoxPilotPreLiveAssistantCount;
 })()
 """
 
@@ -98,10 +82,54 @@ action = "click"
 target = "[data-test='send-button']"
 
 [[step]]
+name = "wait for live chat session activation"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const previousSessionId = window.__kairoxPilotPreviousSessionId ?? null;
+  const deadline = Date.now() + 15000;
+
+  while (Date.now() < deadline) {
+    const hashParts = window.location.hash.split("/");
+    const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
+    const activeSessionId = localStorage.getItem("kairox.last-active-session-id");
+    if (
+      routeSessionId &&
+      routeSessionId !== previousSessionId &&
+      activeSessionId === routeSessionId
+    ) {
+      return routeSessionId;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error("new live chat session did not become active after send");
+})()
+"""
+
+[[step]]
 name = "wait for live assistant response"
-action = "wait"
-selector = "[data-test='chat-message'][data-role='assistant'] .message-content"
+action = "eval"
 timeout_ms = 70000
+script = """
+(async () => {
+  const previous = window.__kairoxPilotPreLiveAssistantCount ?? 0;
+  const deadline = Date.now() + 70000;
+
+  while (Date.now() < deadline) {
+    const messages = Array.from(
+      document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
+    );
+    if (messages.length > previous) {
+      return messages.at(-1)?.textContent ?? "";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error("new live assistant response did not appear");
+})()
+"""
 
 [[step]]
 name = "wait for live chat stream to finish"
@@ -123,7 +151,8 @@ script = """
   const messages = Array.from(
     document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
   );
-  const text = messages.map((message) => message.textContent ?? "").join("\\n");
+  const previous = window.__kairoxPilotPreLiveAssistantCount ?? 0;
+  const text = messages.slice(previous).map((message) => message.textContent ?? "").join("\\n");
   if (!text.includes("PILOT-LIVE-CHAT")) {
     throw new Error(`live assistant response did not include PILOT-LIVE-CHAT: ${text}`);
   }

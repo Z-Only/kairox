@@ -5,7 +5,6 @@ import type { ProjectInfo, ProjectSessionInfo } from "@/stores/project";
 const { t } = useI18n();
 
 const projectCreateMenuOpen = defineModel<boolean>("projectCreateMenuOpen", { required: true });
-const worktreeBranchInput = defineModel<string>("worktreeBranchInput", { default: "" });
 
 defineProps<{
   activeProjects: ProjectInfo[];
@@ -25,10 +24,6 @@ defineProps<{
   switchToProjectSession: (projectSession: ProjectSessionInfo) => Promise<void> | void;
   requestArchiveProjectSession: (sessionId: string) => Promise<void> | void;
   archiveOpen: boolean;
-  worktreeBranchProjectId: string | null;
-  startWorktreeSession: (projectId: string) => void;
-  cancelWorktreeSession: () => void;
-  confirmWorktreeSession: () => Promise<void> | void;
 }>();
 </script>
 
@@ -136,23 +131,6 @@ defineProps<{
                     </svg>
                   </KxIconButton>
                 </KxTooltip>
-                <KxTooltip
-                  :text="t('sessions.newWorktreeSessionInProject', { name: project.displayName })"
-                >
-                  <KxIconButton
-                    :label="
-                      t('sessions.newWorktreeSessionInProject', { name: project.displayName })
-                    "
-                    :data-test="`project-new-worktree-session-btn-${project.projectId}`"
-                    @click.stop="startWorktreeSession(project.projectId)"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path
-                        d="M3 4.5A1.5 1.5 0 0 1 4.5 3h5.75v1.5H4.5v11h11v-5.75H17v7.25H3V4.5Zm6.25 9.75h1.5V11H14V9.5h-3.25V6.25h-1.5V9.5H6V11h3.25v3.25Z"
-                      />
-                    </svg>
-                  </KxIconButton>
-                </KxTooltip>
                 <KxTooltip :text="t('sessions.renameTitle')">
                   <KxIconButton
                     :label="t('sessions.renameTitle')"
@@ -210,32 +188,6 @@ defineProps<{
                 </KxTooltip>
               </span>
             </template>
-          </div>
-
-          <div
-            v-if="worktreeBranchProjectId === project.projectId"
-            class="worktree-branch-input-row"
-          >
-            <input
-              v-model="worktreeBranchInput"
-              class="rename-input worktree-branch-input"
-              :placeholder="t('sessions.worktreeBranchPlaceholder')"
-              data-test="worktree-branch-input"
-              @keydown.enter="confirmWorktreeSession"
-              @keydown.escape="cancelWorktreeSession"
-            />
-            <KxTooltip :text="t('common.confirm')">
-              <KxIconButton
-                :label="t('common.confirm')"
-                :title="t('common.confirm')"
-                data-test="worktree-branch-confirm"
-                @click.stop="confirmWorktreeSession"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="m8.25 13.25-3-3L6.3 9.2l1.95 1.94 5.45-5.44 1.05 1.05-6.5 6.5Z" />
-                </svg>
-              </KxIconButton>
-            </KxTooltip>
           </div>
 
           <ul v-if="project.expanded" class="project-session-list">

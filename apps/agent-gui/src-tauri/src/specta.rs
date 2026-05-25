@@ -50,6 +50,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             list_project_sessions,
             list_archived_sessions,
             create_project_worktree_session,
+            list_project_branches,
             get_project_git_status,
             get_session_git_status,
             init_project_git,

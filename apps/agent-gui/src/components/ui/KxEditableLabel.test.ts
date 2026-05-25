@@ -19,6 +19,10 @@ describe("KxEditableLabel", () => {
     const input = wrapper.get<HTMLInputElement>('[data-test="rename-input"]');
     expect(input.classes()).toContain("kx-editable-label__input");
     expect(input.element.value).toBe("Draft title");
+    expect(input.attributes("autocapitalize")).toBe("off");
+    expect(input.attributes("autocomplete")).toBe("off");
+    expect(input.attributes("autocorrect")).toBe("off");
+    expect(input.attributes("spellcheck")).toBe("false");
 
     await input.setValue("Next title");
     expect(wrapper.emitted("update:modelValue")?.[0]).toEqual(["Next title"]);

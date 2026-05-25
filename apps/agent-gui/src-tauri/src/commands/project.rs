@@ -179,6 +179,19 @@ pub async fn create_project_worktree_session(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn list_project_branches(
+    state: State<'_, GuiState>,
+    project_id: String,
+) -> Result<Vec<String>, String> {
+    state
+        .runtime
+        .list_project_branches(ProjectId::from_string(project_id))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn get_project_git_status(
     state: State<'_, GuiState>,
     project_id: String,

@@ -164,6 +164,11 @@ pub trait ProjectFacade: Send + Sync {
         ))
     }
 
+    async fn list_project_branches(&self, project_id: ProjectId) -> crate::Result<Vec<String>> {
+        let _ = project_id;
+        Ok(Vec::new())
+    }
+
     async fn list_project_sessions(
         &self,
         project_id: ProjectId,

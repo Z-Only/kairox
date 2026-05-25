@@ -113,12 +113,18 @@ function normalizeProjectSessionInfo(projectSession: ProjectSessionInfo): Sessio
     id: projectSession.sessionId,
     title: projectSession.title,
     profile: projectSession.profile,
+    permission_mode: null,
     project_id: projectSession.projectId,
     worktree_path: projectSession.worktreePath,
     branch: projectSession.branch,
-    visibility: projectSession.visibility
+    visibility: projectSession.visibility,
+    deleted_at: projectSession.deletedAt
   };
 }
+
+type PendingSessionDraft =
+  | { kind: "ordinary" }
+  | { kind: "project"; projectId: string; branch: string | null };
 
 export const useSessionStore = defineStore("session", () => {
   // ── state ────────────────────────────────────────────────────────
@@ -140,6 +146,7 @@ export const useSessionStore = defineStore("session", () => {
   const loadingProfileInfo = ref(false);
   const lastSendError = ref<string | null>(null);
   const permissionMode = ref<string>("suggest");
+  const pendingSessionDraft = ref<PendingSessionDraft | null>(null);
 
   const eventCtx: EventReducerContext = {
     projection,
@@ -195,8 +202,32 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   const currentSessionInfo = computed<SessionInfoResponse | null>(() => {
-    if (!currentSessionId.value) return null;
+    if (!currentSessionId.value) {
+      const pending = pendingSessionDraft.value;
+      if (pending?.kind !== "project") return null;
+      const projectStore = useProjectStore();
+      const project = projectStore.projects.find((entry) => entry.projectId === pending.projectId);
+      return {
+        id: `new-project-session:${pending.projectId}`,
+        title: "New Session",
+        profile: currentProfile.value,
+        permission_mode: permissionMode.value,
+        project_id: pending.projectId,
+        worktree_path: project?.rootPath ?? null,
+        branch: pending.branch,
+        visibility: "draft_hidden",
+        deleted_at: null
+      };
+    }
     return findSessionInfo(currentSessionId.value) ?? null;
+  });
+
+  const composerDraftKey = computed<string | null>(() => {
+    if (currentSessionId.value) return currentSessionId.value;
+    const pending = pendingSessionDraft.value;
+    if (!pending) return null;
+    if (pending.kind === "ordinary") return "new-session:ordinary";
+    return `new-session:project:${pending.projectId}`;
   });
 
   const activeProfileInfo = computed(() =>
@@ -242,6 +273,7 @@ export const useSessionStore = defineStore("session", () => {
     sessionId: string,
     target: SessionInfoResponse
   ): Promise<void> {
+    pendingSessionDraft.value = null;
     await switchToKnownSessionImpl(sessionId, target, sessionActionDeps);
   }
 
@@ -274,7 +306,64 @@ export const useSessionStore = defineStore("session", () => {
     profile?: string,
     permissionModeParam?: string
   ): Promise<{ id: string; title: string; profile: string }> {
-    return createSessionImpl(profile, permissionModeParam, sessionActionDeps);
+    const result = await createSessionImpl(profile, permissionModeParam, sessionActionDeps);
+    pendingSessionDraft.value = null;
+    return result;
+  }
+
+  function resetForPendingDraft(nextDraft: PendingSessionDraft): void {
+    pendingSessionDraft.value = nextDraft;
+    currentSessionId.value = null;
+    resetProjection();
+    useTaskGraphStore().clearTaskGraph();
+  }
+
+  function startOrdinaryDraftSession(): void {
+    resetForPendingDraft({ kind: "ordinary" });
+  }
+
+  async function startProjectDraftSession(projectId: string): Promise<void> {
+    resetForPendingDraft({ kind: "project", projectId, branch: null });
+    const projectStore = useProjectStore();
+    try {
+      const status = await projectStore.getProjectGitStatus(projectId);
+      setPendingProjectBranch(status.branch);
+    } catch {
+      // Non-git projects can still open a placeholder chat.
+    }
+  }
+
+  function setPendingProjectBranch(branch: string | null): void {
+    const pending = pendingSessionDraft.value;
+    if (pending?.kind !== "project") return;
+    pendingSessionDraft.value = {
+      ...pending,
+      branch: branch?.trim() || null
+    };
+  }
+
+  async function ensureSessionForSend(): Promise<void> {
+    if (currentSessionId.value) return;
+    const pending = pendingSessionDraft.value;
+    if (pending?.kind !== "project") {
+      await createSession();
+      return;
+    }
+
+    const projectStore = useProjectStore();
+    const selectedBranch = pending.branch?.trim() || null;
+    let currentBranch: string | null = null;
+    try {
+      currentBranch = (await projectStore.getProjectGitStatus(pending.projectId)).branch;
+    } catch {
+      currentBranch = null;
+    }
+
+    const projectSession =
+      selectedBranch && selectedBranch !== currentBranch
+        ? await projectStore.createProjectWorktreeSession(pending.projectId, selectedBranch)
+        : await projectStore.createProjectDraftSession(pending.projectId);
+    await switchProjectSession(projectSession);
   }
 
   async function deleteSession(sessionId: string) {
@@ -304,7 +393,7 @@ export const useSessionStore = defineStore("session", () => {
       initialized.value = true;
       if (sessions.value.length > 0) {
         try {
-          const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
+          const lastActiveId = globalThis.localStorage?.getItem("kairox.last-active-session-id");
           const targetId =
             lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
               ? lastActiveId
@@ -364,7 +453,7 @@ export const useSessionStore = defineStore("session", () => {
       await invoke("restore_workspace", { workspaceId: ws.workspace_id });
       sessions.value = await listOrdinarySessions();
       if (sessions.value.length > 0) {
-        const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
+        const lastActiveId = globalThis.localStorage?.getItem("kairox.last-active-session-id");
         const targetId =
           lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
             ? lastActiveId
@@ -400,7 +489,9 @@ export const useSessionStore = defineStore("session", () => {
     loadingProfileInfo,
     lastSendError,
     permissionMode,
+    pendingSessionDraft,
     currentSessionInfo,
+    composerDraftKey,
     activeProfileInfo,
     activeProfileDisplay,
     findSessionInfo,
@@ -412,6 +503,10 @@ export const useSessionStore = defineStore("session", () => {
     switchSession,
     switchProjectSession,
     createSession,
+    startOrdinaryDraftSession,
+    startProjectDraftSession,
+    setPendingProjectBranch,
+    ensureSessionForSend,
     deleteSession,
     renameSession,
     initializeWorkspace,

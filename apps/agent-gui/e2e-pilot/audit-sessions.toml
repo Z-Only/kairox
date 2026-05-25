@@ -43,6 +43,23 @@ action = "click"
 target = "[data-test='new-session-btn']"
 
 [[step]]
+name = "wait for pending session input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "fill pending session prompt"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Materialize audit session"
+
+[[step]]
+name = "materialize session"
+action = "click"
+target = "[data-test='send-button']"
+
+[[step]]
 name = "wait for session item"
 action = "wait"
 selector = "[data-test='session-item']"

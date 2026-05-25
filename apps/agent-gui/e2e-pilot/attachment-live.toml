@@ -29,13 +29,54 @@ action = "click"
 target = "[data-test='new-session-btn']"
 
 [[step]]
+name = "wait for chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "open live model selector"
+action = "click"
+target = "[data-test='chat-model-trigger']"
+
+[[step]]
+name = "select live model for pending attachment chat"
+action = "click"
+target = "[data-test='chat-model-option-github-gpt4o-mini']"
+
+[[step]]
+name = "assert pending attachment composer uses live model"
+action = "eval"
+script = """
+(() => {
+  const trigger = document.querySelector("[data-test='chat-model-trigger']");
+  const label = trigger?.textContent ?? "";
+  if (!label.includes("4o Mini") || label.includes("Fake")) {
+    throw new Error(`pending attachment composer is not using live model: ${label}`);
+  }
+  return label;
+})()
+"""
+
+[[step]]
+name = "fill attachment session materialization prompt"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Initialize live attachment pilot session"
+
+[[step]]
+name = "materialize live attachment session"
+action = "click"
+target = "[data-test='send-button']"
+
+[[step]]
 name = "wait for live attachment session activation"
 action = "eval"
-timeout_ms = 10000
+timeout_ms = 15000
 script = """
 (async () => {
   const previousSessionId = window.__kairoxPilotPreviousSessionId ?? null;
-  const deadline = Date.now() + 10000;
+  const deadline = Date.now() + 15000;
 
   while (Date.now() < deadline) {
     const hashParts = window.location.hash.split("/");
@@ -51,38 +92,26 @@ script = """
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error("new live attachment session did not become active");
+  throw new Error("new live attachment session did not become active after materialization");
 })()
 """
 
 [[step]]
-name = "wait for chat input"
+name = "wait for materialization stream to finish"
 action = "wait"
-selector = "textarea[data-test='message-input']"
+selector = "[data-test='stream-indicator']"
+gone = true
 timeout_ms = 15000
 
 [[step]]
-name = "switch session to live model"
+name = "remember pre-live attachment assistant count"
 action = "eval"
 script = """
-(async () => {
-  const hashParts = window.location.hash.split("/");
-  const routeSessionId = hashParts[1] === "workbench" ? hashParts[2] : null;
-  const sessionId =
-    routeSessionId
-      ? decodeURIComponent(routeSessionId)
-      : localStorage.getItem("kairox.last-active-session-id");
-  if (!sessionId) {
-    throw new Error("missing active session id for live model switch");
-  }
-
-  await window.__TAURI_INTERNALS__.invoke("switch_session", { sessionId });
-  await window.__TAURI_INTERNALS__.invoke("switch_model", {
-    sessionId,
-    profileAlias: "github-gpt4o-mini",
-    reasoningEffort: null,
-  });
-  return sessionId;
+(() => {
+  window.__kairoxPilotPreLiveAttachmentAssistantCount = document.querySelectorAll(
+    "[data-test='chat-message'][data-role='assistant'] .message-content"
+  ).length;
+  return window.__kairoxPilotPreLiveAttachmentAssistantCount;
 })()
 """
 
@@ -129,9 +158,26 @@ script = """
 
 [[step]]
 name = "wait for live attachment assistant response"
-action = "wait"
-selector = "[data-test='chat-message'][data-role='assistant'] .message-content"
+action = "eval"
 timeout_ms = 70000
+script = """
+(async () => {
+  const previous = window.__kairoxPilotPreLiveAttachmentAssistantCount ?? 0;
+  const deadline = Date.now() + 70000;
+
+  while (Date.now() < deadline) {
+    const messages = Array.from(
+      document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
+    );
+    if (messages.length > previous) {
+      return messages.at(-1)?.textContent ?? "";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error("new live attachment assistant response did not appear");
+})()
+"""
 
 [[step]]
 name = "wait for live attachment stream to finish"
@@ -153,7 +199,8 @@ script = """
   const messages = Array.from(
     document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
   );
-  const text = messages.map((message) => message.textContent ?? "").join("\\n");
+  const previous = window.__kairoxPilotPreLiveAttachmentAssistantCount ?? 0;
+  const text = messages.slice(previous).map((message) => message.textContent ?? "").join("\\n");
   if (!text.includes("KAIROX_PILOT_ATTACHMENT_7F3C9A")) {
     throw new Error(`live attachment response did not include the attached sentinel: ${text}`);
   }

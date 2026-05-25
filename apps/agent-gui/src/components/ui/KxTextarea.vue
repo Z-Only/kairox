@@ -67,6 +67,10 @@ function onInput(event: Event): void {
     :readonly="readonly"
     :disabled="disabled"
     :aria-label="effectiveAriaLabel"
+    autocapitalize="off"
+    autocomplete="off"
+    autocorrect="off"
+    spellcheck="false"
     @input="onInput"
   />
 </template>

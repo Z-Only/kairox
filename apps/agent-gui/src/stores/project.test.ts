@@ -338,4 +338,15 @@ describe("project store", () => {
     });
     expect(instructionSummary.sourcePaths).toEqual(["/tmp/demo/AGENTS.md"]);
   });
+
+  it("lists project branches for the new-session branch picker", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_project_branches") return ["main", "feat/chat"];
+      return null;
+    });
+    const store = useProjectStore();
+
+    await expect(store.listProjectBranches("p1")).resolves.toEqual(["main", "feat/chat"]);
+    expect(mockedInvoke).toHaveBeenCalledWith("list_project_branches", { projectId: "p1" });
+  });
 });

@@ -25,11 +25,13 @@ export interface DraftStore {
 
 export interface ChatComposerSession {
   currentSessionId: string | null;
+  composerDraftKey?: string | null;
   currentProfile: string;
   currentReasoningEffort?: string | null;
   isStreaming: boolean;
   compacting?: boolean;
   reportSendError?: (message: string) => void;
+  ensureSessionForSend?: () => Promise<void>;
 }
 
 interface UseChatComposerOptions {
@@ -94,6 +96,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
   const sendingQueuedId = ref<string | null>(null);
   const switchingModel = ref(false);
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
+  let skipNextDraftLoad = false;
 
   function clearDraftTimer() {
     if (draftTimer) {
@@ -102,27 +105,45 @@ export function useChatComposer(options: UseChatComposerOptions) {
     }
   }
 
+  function currentDraftKey(): string | null {
+    return session.composerDraftKey ?? session.currentSessionId;
+  }
+
   watch(
-    () => session.currentSessionId,
+    currentDraftKey,
     async (newId, oldId) => {
+      const inputBeforeLoad = inputText.value;
       if (oldId && inputText.value.trim()) {
         await draftStore.saveDraft(oldId, inputText.value);
       }
       if (newId) {
-        inputText.value = await draftStore.loadDraft(newId);
-      } else {
+        const skipLoadedDraft = skipNextDraftLoad;
+        skipNextDraftLoad = false;
+        const loadedDraft = await draftStore.loadDraft(newId);
+        if (
+          !skipLoadedDraft &&
+          currentDraftKey() === newId &&
+          inputText.value === inputBeforeLoad
+        ) {
+          inputText.value = loadedDraft;
+        }
+      } else if (inputText.value === inputBeforeLoad) {
         inputText.value = "";
       }
-      queuedMessages.value = [];
-      sendingQueuedId.value = null;
-    }
+      if (oldId !== undefined && currentDraftKey() === newId) {
+        queuedMessages.value = [];
+        sendingQueuedId.value = null;
+      }
+    },
+    { immediate: true }
   );
 
   watch(inputText, (val) => {
     clearDraftTimer();
     draftTimer = setTimeout(async () => {
-      if (session.currentSessionId) {
-        await draftStore.saveDraft(session.currentSessionId, val);
+      const draftKey = currentDraftKey();
+      if (draftKey) {
+        await draftStore.saveDraft(draftKey, val);
       }
     }, 500);
   });
@@ -265,19 +286,38 @@ export function useChatComposer(options: UseChatComposerOptions) {
     }));
   }
 
-  async function clearCurrentDraft() {
-    if (session.currentSessionId) {
-      await draftStore.clearDraft(session.currentSessionId);
+  async function clearCurrentDraft(extraDraftKey?: string | null) {
+    const draftKey = currentDraftKey();
+    if (draftKey) {
+      await draftStore.clearDraft(draftKey);
+    }
+    if (extraDraftKey && extraDraftKey !== draftKey) {
+      await draftStore.clearDraft(extraDraftKey);
     }
   }
 
-  async function clearComposer() {
+  async function clearComposer(extraDraftKey?: string | null) {
     inputText.value = "";
     attachments.value = [];
-    await clearCurrentDraft();
+    await clearCurrentDraft(extraDraftKey);
   }
 
   async function invokeSend(content: string, attachmentsToSend: Attachment[]) {
+    if (!session.currentSessionId) {
+      skipNextDraftLoad = true;
+      try {
+        await session.ensureSessionForSend?.();
+      } catch (error) {
+        skipNextDraftLoad = false;
+        throw error;
+      }
+      if (!session.currentSessionId) {
+        skipNextDraftLoad = false;
+      }
+    }
+    if (!session.currentSessionId) {
+      throw new Error("No active session");
+    }
     await invokeFn("send_message", {
       content,
       attachments: attachmentPayload(attachmentsToSend)
@@ -298,6 +338,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
 
   async function sendMessage() {
     const draftAtSend = inputText.value;
+    const draftKeyAtSend = currentDraftKey();
     const attachmentsAtSend = attachments.value;
     const content = draftAtSend.trim();
     if (!content && attachmentsAtSend.length === 0) return;
@@ -312,7 +353,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
       const composerUnchanged =
         inputText.value === draftAtSend && attachments.value === attachmentsAtSend;
       if (composerUnchanged) {
-        await clearComposer();
+        await clearComposer(draftKeyAtSend);
       }
     } catch (e) {
       console.error("Failed to send message:", e);
@@ -405,7 +446,12 @@ export function useChatComposer(options: UseChatComposerOptions) {
       modelPopoverOpen.value = false;
       return;
     }
-    if (!session.currentSessionId) return;
+    if (!session.currentSessionId) {
+      session.currentProfile = alias;
+      session.currentReasoningEffort = reasoningEffort ?? null;
+      modelPopoverOpen.value = false;
+      return;
+    }
 
     switchingModel.value = true;
     try {

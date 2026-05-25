@@ -358,6 +358,7 @@ describe("ChatPanel", () => {
       requiredPatterns: [
         /\.composer-meta\s*\{[\s\S]*min-width:\s*0/,
         /\.composer-meta\s*\{[\s\S]*overflow:\s*hidden/,
+        /\.composer-meta--branch-picker\s*\{[\s\S]*overflow:\s*visible/,
         /\.git-meta\s*\{[\s\S]*min-width:\s*0/,
         /\.git-meta\s*\{[\s\S]*max-width:\s*min\(100%,\s*420px\)/
       ]
@@ -558,7 +559,7 @@ describe("ChatPanel", () => {
     expect(summary.text()).not.toContain("/repo/");
   });
 
-  it("creates a worktree session from the active project chat", async () => {
+  it("does not render the removed header worktree-session action", async () => {
     const { wrapper, router } = mountWithPlugins(ChatPanel, {
       initialRoute: "/workbench/ses_1"
     });
@@ -589,34 +590,53 @@ describe("ChatPanel", () => {
         pathExists: true
       }
     ];
-    const createProjectWorktreeSession = vi
-      .spyOn(projectStore, "createProjectWorktreeSession")
-      .mockResolvedValue({
-        sessionId: "wt_1",
-        title: "New Session (feat-chat)",
-        profile: "fast",
+    await router.isReady();
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="project-worktree-session-trigger"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="project-worktree-branch-input"]').exists()).toBe(false);
+  });
+
+  it("shows a searchable branch selector for a pending project placeholder", async () => {
+    const { wrapper } = mountWithPlugins(ChatPanel, {
+      initialRoute: "/workbench"
+    });
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
         projectId: "project_1",
-        worktreePath: "/repo/.kairox/worktrees/feat-chat",
-        branch: "feat-chat",
-        visibility: "visible",
-        deletedAt: null
-      });
-    vi.spyOn(session, "switchProjectSession").mockResolvedValue();
-    await router.isReady();
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    vi.spyOn(projectStore, "listProjectBranches").mockResolvedValue(["main", "feat/chat"]);
+    await session.startProjectDraftSession("project_1");
     await flushPromises();
 
-    await wrapper.find('[data-test="project-worktree-session-trigger"]').trigger("click");
-    await flushPromises();
-    await wrapper.find('[data-test="project-worktree-branch-input"]').setValue("feat-chat");
-    await wrapper.find('[data-test="project-worktree-branch-confirm"]').trigger("click");
-    await flushPromises();
-    await router.isReady();
+    expect(wrapper.find('[data-test="project-branch-selector"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="session-git-meta"]').text()).toContain("main");
 
-    expect(createProjectWorktreeSession).toHaveBeenCalledWith("project_1", "feat-chat");
-    expect(session.switchProjectSession).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionId: "wt_1", branch: "feat-chat" })
-    );
-    expect(router.currentRoute.value.params.sessionId).toBe("wt_1");
+    await wrapper.find('[data-test="session-git-meta"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="project-branch-search"]').setValue("feat");
+    await flushPromises();
+    expect(wrapper.find('[data-test="project-branch-option-feat-chat"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="project-branch-option-feat-chat"]').trigger("click");
+    await flushPromises();
+    expect(session.currentSessionInfo?.branch).toBe("feat/chat");
+
+    await wrapper.find('[data-test="session-git-meta"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="project-branch-search"]').setValue("feat/new-chat");
+    await flushPromises();
+    await wrapper.find('[data-test="project-branch-create"]').trigger("click");
+    expect(session.currentSessionInfo?.branch).toBe("feat/new-chat");
   });
 
   it("P1-S3-send-error: shows a visible send error banner", async () => {
@@ -832,12 +852,10 @@ describe("ChatPanel", () => {
     });
 
     it("ignores keys when focus is inside a generic <input>", async () => {
-      const { wrapper, items, panel } = await mountThreeItems();
-      // Open the worktree branch form to expose a free-floating <input>.
-      await wrapper.find('[data-test="project-worktree-session-trigger"]').trigger("click");
-      await flushPromises();
-      const input = wrapper.find('input[data-test="project-worktree-branch-input"]')
-        .element as HTMLInputElement;
+      const { items, panel } = await mountThreeItems();
+      const input = document.createElement("input");
+      input.setAttribute("data-test", "generic-keyboard-input");
+      panel.appendChild(input);
       input.focus();
       expect(document.activeElement).toBe(input);
 

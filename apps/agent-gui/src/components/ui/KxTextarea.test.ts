@@ -23,6 +23,10 @@ describe("KxTextarea", () => {
     expect(textarea.attributes("aria-label")).toBe("Shared textarea");
     expect(textarea.element.value).toBe("draft");
     expect(textarea.element.readOnly).toBe(true);
+    expect(textarea.attributes("autocapitalize")).toBe("off");
+    expect(textarea.attributes("autocomplete")).toBe("off");
+    expect(textarea.attributes("autocorrect")).toBe("off");
+    expect(textarea.attributes("spellcheck")).toBe("false");
   });
 
   it("emits v-model updates and preserves native input events", async () => {

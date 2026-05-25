@@ -10,6 +10,7 @@ import FileMentionPalette from "@/components/FileMentionPalette.vue";
 import AttachmentTray from "@/components/AttachmentTray.vue";
 import ChatModelSelector from "@/components/ChatModelSelector.vue";
 import ChatPermissionSelector from "@/components/ChatPermissionSelector.vue";
+import ProjectBranchSelector from "@/components/ProjectBranchSelector.vue";
 
 const props = defineProps<{
   workspacePath: string;
@@ -55,6 +56,17 @@ const draggedQueuedMessageId = ref<string | null>(null);
 const modelOptions = computed<ProfileInfo[]>(() =>
   [...session.profileInfos].sort((a, b) => a.alias.localeCompare(b.alias))
 );
+
+const pendingProjectId = computed(() => {
+  const sessionInfo = session.currentSessionInfo;
+  if (session.currentSessionId || !sessionInfo?.project_id) return null;
+  return sessionInfo.project_id;
+});
+
+const pendingProjectBranch = computed(() => {
+  if (!pendingProjectId.value) return null;
+  return session.currentSessionInfo?.branch ?? null;
+});
 
 function onSelectCommand(cmd: CommandDef) {
   composer.onSelectCommand(cmd);
@@ -142,7 +154,7 @@ onMounted(() => {
         @close="closePalettes"
       />
     </div>
-    <div class="composer-meta">
+    <div class="composer-meta" :class="{ 'composer-meta--branch-picker': pendingProjectId }">
       <ChatModelSelector
         v-model:open="modelPopoverOpen"
         :model-options="modelOptions"
@@ -157,7 +169,12 @@ onMounted(() => {
         :permission-mode="session.permissionMode"
         @select-permission="handlePermissionSelect"
       />
-      <span v-if="props.sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
+      <ProjectBranchSelector
+        v-if="pendingProjectId"
+        :project-id="pendingProjectId"
+        :branch="pendingProjectBranch"
+      />
+      <span v-else-if="props.sessionGitMeta.length" class="git-meta" data-test="session-git-meta">
         {{ props.sessionGitMeta.join(" · ") }}
       </span>
     </div>
@@ -283,6 +300,9 @@ onMounted(() => {
   margin-bottom: 6px;
   color: var(--app-muted-text-color, var(--app-text-color));
   font-size: 12px;
+}
+.composer-meta--branch-picker {
+  overflow: visible;
 }
 .git-meta {
   min-width: 0;

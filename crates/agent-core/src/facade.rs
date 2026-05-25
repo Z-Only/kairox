@@ -437,6 +437,9 @@ pub trait AppFacade:
     ) -> crate::Result<SessionId> {
         ProjectFacade::create_project_worktree_session(self, project_id, branch_name).await
     }
+    async fn list_project_branches(&self, project_id: ProjectId) -> crate::Result<Vec<String>> {
+        ProjectFacade::list_project_branches(self, project_id).await
+    }
     async fn list_project_sessions(
         &self,
         project_id: ProjectId,

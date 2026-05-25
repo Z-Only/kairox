@@ -15,12 +15,14 @@ test.describe("Mid-session model switch (P4)", () => {
     await page.waitForSelector('[data-test="context-meter-pill-trigger"]', { timeout: 5_000 });
   });
 
-  test("new session button creates a default session without opening a profile dialog", async ({
-    page
-  }) => {
+  test("new session button opens an empty composer without a profile dialog", async ({ page }) => {
+    const sessionRows = page.locator(".session-item");
+    const initialSessionCount = await sessionRows.count();
+
     await page.click('[data-test="new-session-btn"]');
 
     await expect(page.locator('[data-test="new-session-dialog"]')).toHaveCount(0);
+    await expect(sessionRows).toHaveCount(initialSessionCount);
     await expect(page.locator('[data-test="chat-model-trigger"]')).toContainText(
       "OpenAI · GPT-4o Mini"
     );

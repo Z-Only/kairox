@@ -63,6 +63,7 @@ fn main() {
             agent_gui_tauri::commands::list_project_sessions,
             agent_gui_tauri::commands::list_archived_sessions,
             agent_gui_tauri::commands::create_project_worktree_session,
+            agent_gui_tauri::commands::list_project_branches,
             agent_gui_tauri::commands::get_project_git_status,
             agent_gui_tauri::commands::get_session_git_status,
             agent_gui_tauri::commands::init_project_git,

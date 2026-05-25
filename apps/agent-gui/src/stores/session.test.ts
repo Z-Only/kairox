@@ -283,6 +283,116 @@ describe("filterOrdinarySessions", () => {
 });
 
 describe("project session metadata", () => {
+  it("starts an ordinary placeholder session without creating backend state", () => {
+    const session = useSessionStore();
+    session.currentSessionId = "regular-1";
+    session.projection.messages = [{ role: "user", content: "stale" }];
+
+    session.startOrdinaryDraftSession();
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("start_session", expect.anything());
+    expect(session.currentSessionId).toBeNull();
+    expect(session.currentSessionInfo).toBeNull();
+    expect(session.composerDraftKey).toBe("new-session:ordinary");
+    expect(session.projection.messages).toEqual([]);
+  });
+
+  it("starts a project placeholder session with project metadata and an isolated draft key", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("create_project_draft_session", {
+      projectId: "project-1"
+    });
+    expect(session.currentSessionId).toBeNull();
+    expect(session.currentSessionInfo?.project_id).toBe("project-1");
+    expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
+    expect(session.currentSessionInfo?.branch).toBe("main");
+    expect(session.composerDraftKey).toBe("new-session:project:project-1");
+
+    session.setPendingProjectBranch("feat/chat");
+    expect(session.currentSessionInfo?.branch).toBe("feat/chat");
+  });
+
+  it("materializes a project placeholder as a draft or worktree session on first send", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    vi.spyOn(projectStore, "getProjectGitStatus").mockResolvedValue({
+      kind: "clean",
+      branch: "main",
+      worktreePath: "/repo",
+      message: null
+    });
+    const createDraft = vi.spyOn(projectStore, "createProjectDraftSession").mockResolvedValue({
+      sessionId: "draft-1",
+      title: "New Session",
+      profile: "fast",
+      projectId: "project-1",
+      worktreePath: "/repo",
+      branch: "main",
+      visibility: "draft_hidden",
+      deletedAt: null
+    });
+    const createWorktree = vi
+      .spyOn(projectStore, "createProjectWorktreeSession")
+      .mockResolvedValue({
+        sessionId: "wt-1",
+        title: "New Session (feat/chat)",
+        profile: "fast",
+        projectId: "project-1",
+        worktreePath: "/repo/.kairox/worktrees/feat-chat",
+        branch: "feat/chat",
+        visibility: "visible",
+        deletedAt: null
+      });
+
+    await session.startProjectDraftSession("project-1");
+    await session.ensureSessionForSend();
+    expect(createDraft).toHaveBeenCalledWith("project-1");
+    expect(session.currentSessionId).toBe("draft-1");
+
+    await session.startProjectDraftSession("project-1");
+    session.setPendingProjectBranch("feat/chat");
+    await session.ensureSessionForSend();
+    expect(createWorktree).toHaveBeenCalledWith("project-1", "feat/chat");
+    expect(session.currentSessionId).toBe("wt-1");
+  });
+
   it("switches to a project session through standard store side effects and exposes current session metadata", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();

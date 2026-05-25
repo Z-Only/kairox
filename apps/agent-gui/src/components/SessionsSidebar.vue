@@ -28,11 +28,6 @@ const {
   getProjectSessions,
   switchToProjectSession,
   createProjectSession,
-  worktreeBranchInput,
-  worktreeBranchProjectId,
-  startWorktreeSession,
-  cancelWorktreeSession,
-  confirmWorktreeSession,
   createBlankProject,
   importExistingProject,
   requestArchiveProjectSession,
@@ -189,11 +184,6 @@ onMounted(() => {
           :switch-to-project-session="switchToProjectSession"
           :request-archive-project-session="requestArchiveProjectSession"
           :archive-open="workspaceUi.archiveOpen"
-          v-model:worktree-branch-input="worktreeBranchInput"
-          :worktree-branch-project-id="worktreeBranchProjectId"
-          :start-worktree-session="startWorktreeSession"
-          :cancel-worktree-session="cancelWorktreeSession"
-          :confirm-worktree-session="confirmWorktreeSession"
         />
 
         <SessionSection
