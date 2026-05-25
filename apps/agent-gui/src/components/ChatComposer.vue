@@ -131,6 +131,12 @@ function dropQueuedMessage(targetIndex: number): void {
 onMounted(() => {
   void session.loadProfileInfo();
 });
+
+watch(modelPopoverOpen, (isOpen) => {
+  if (isOpen) {
+    void session.refreshProfileInfoForCurrentContext();
+  }
+});
 </script>
 
 <template>

@@ -122,6 +122,27 @@ pub fn load_ui_config(data_dir: &Path) -> UiConfigLoad {
     }
 }
 
+pub fn load_user_ui_config(data_dir: &Path) -> UiConfigLoad {
+    let mut warnings = Vec::new();
+    let config = match Config::load_with_project_root(None) {
+        Ok(config) => config,
+        Err(error) => {
+            warnings.push(format!("Config warning: {error}, using defaults"));
+            Config::defaults()
+        }
+    };
+    let mut loaded =
+        load_config_with_profiles_overlay(config, data_dir).unwrap_or_else(|error| UiConfigLoad {
+            config: Config::defaults(),
+            warnings: vec![format!("Config warning: {error}, using defaults")],
+        });
+    warnings.append(&mut loaded.warnings);
+    UiConfigLoad {
+        config: loaded.config,
+        warnings,
+    }
+}
+
 pub fn load_config_with_profiles_overlay(
     mut config: Config,
     data_dir: &Path,

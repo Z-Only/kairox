@@ -41,7 +41,7 @@ export function useSidebarActions() {
   async function createSession() {
     resetDeleteConfirmation();
     try {
-      session.startOrdinaryDraftSession();
+      await session.startOrdinaryDraftSession();
       await router.push({ name: "workbench" });
     } catch (e) {
       console.error("Failed to start session:", e);

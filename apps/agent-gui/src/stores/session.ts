@@ -126,6 +126,11 @@ type PendingSessionDraft =
   | { kind: "ordinary" }
   | { kind: "project"; projectId: string; branch: string | null };
 
+type LoadProfileInfoOptions = {
+  force?: boolean;
+  refreshConfig?: boolean;
+};
+
 export const useSessionStore = defineStore("session", () => {
   // ── state ────────────────────────────────────────────────────────
   const sessions = ref<SessionInfoResponse[]>([]);
@@ -144,6 +149,7 @@ export const useSessionStore = defineStore("session", () => {
   const streamsByTask = ref(new Map<string, string>());
   const profileInfos = ref<ProfileInfo[]>([]);
   const loadingProfileInfo = ref(false);
+  let profileInfoLoad: Promise<void> | null = null;
   const lastSendError = ref<string | null>(null);
   const permissionMode = ref<string>("suggest");
   const pendingSessionDraft = ref<PendingSessionDraft | null>(null);
@@ -318,13 +324,22 @@ export const useSessionStore = defineStore("session", () => {
     useTaskGraphStore().clearTaskGraph();
   }
 
-  function startOrdinaryDraftSession(): void {
+  async function startOrdinaryDraftSession(): Promise<void> {
     resetForPendingDraft({ kind: "ordinary" });
+    await loadProfileInfo({ refreshConfig: true });
+    if (
+      profileInfos.value.length > 0 &&
+      !profileInfos.value.some((profile) => profile.alias === currentProfile.value)
+    ) {
+      currentProfile.value = profileInfos.value[0].alias;
+      currentReasoningEffort.value = null;
+    }
   }
 
   async function startProjectDraftSession(projectId: string): Promise<void> {
     resetForPendingDraft({ kind: "project", projectId, branch: null });
     const projectStore = useProjectStore();
+    await projectStore.refreshProjectConfig(projectId);
     try {
       const status = await projectStore.getProjectGitStatus(projectId);
       setPendingProjectBranch(status.branch);
@@ -418,16 +433,53 @@ export const useSessionStore = defineStore("session", () => {
     connected.value = value;
   }
 
-  async function loadProfileInfo(): Promise<void> {
-    if (loadingProfileInfo.value) return;
-    loadingProfileInfo.value = true;
-    try {
-      profileInfos.value = await invoke<ProfileInfo[]>("get_profile_info");
-    } catch (error) {
-      console.error("Failed to load profile info:", error);
-    } finally {
-      loadingProfileInfo.value = false;
+  async function loadProfileInfo(options: LoadProfileInfoOptions = {}): Promise<void> {
+    if (loadingProfileInfo.value && !profileInfoLoad && !options.force && !options.refreshConfig) {
+      return;
     }
+    if (profileInfoLoad) {
+      await profileInfoLoad;
+      if (!options.force && !options.refreshConfig) return;
+    }
+
+    const nextLoad = (async () => {
+      loadingProfileInfo.value = true;
+      try {
+        if (options.refreshConfig) {
+          await invoke("refresh_config");
+        }
+        profileInfos.value = await invoke<ProfileInfo[]>("get_profile_info");
+      } catch (error) {
+        console.error("Failed to load profile info:", error);
+      } finally {
+        loadingProfileInfo.value = false;
+      }
+    })();
+
+    profileInfoLoad = nextLoad;
+    try {
+      await nextLoad;
+    } finally {
+      if (profileInfoLoad === nextLoad) {
+        profileInfoLoad = null;
+      }
+    }
+  }
+
+  async function refreshProfileInfoForCurrentContext(): Promise<void> {
+    const sessionInfo = currentSessionInfo.value;
+    if (sessionInfo?.project_id) {
+      const projectStore = useProjectStore();
+      const rootPath =
+        sessionInfo.worktree_path ??
+        projectStore.projects.find((entry) => entry.projectId === sessionInfo.project_id)?.rootPath;
+      if (rootPath) {
+        await projectStore.refreshProjectConfigRoot(rootPath);
+        return;
+      }
+    }
+
+    await loadProfileInfo({ refreshConfig: true });
   }
 
   async function setPermissionMode(mode: string): Promise<void> {
@@ -511,6 +563,7 @@ export const useSessionStore = defineStore("session", () => {
     renameSession,
     initializeWorkspace,
     loadProfileInfo,
+    refreshProfileInfoForCurrentContext,
     recoverSessions,
     setConnected,
     setPermissionMode

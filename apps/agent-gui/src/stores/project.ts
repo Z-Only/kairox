@@ -135,7 +135,7 @@ async function refreshConfigForProject(rootPath: string): Promise<void> {
   try {
     await commands.refreshConfigForProject(rootPath);
     const sessionStore = useSessionStore();
-    await sessionStore.loadProfileInfo();
+    await sessionStore.loadProfileInfo({ force: true });
   } catch (error) {
     console.error("Failed to refresh config for project:", error);
   }
@@ -208,6 +208,17 @@ export const useProjectStore = defineStore("project", () => {
     projects.value = projects.value.map((project) =>
       project.projectId === projectId ? { ...project, expanded } : project
     );
+  }
+
+  async function refreshProjectConfig(projectId: string): Promise<void> {
+    const project = projects.value.find((entry) => entry.projectId === projectId);
+    if (project?.rootPath) {
+      await refreshConfigForProject(project.rootPath);
+    }
+  }
+
+  async function refreshProjectConfigRoot(rootPath: string): Promise<void> {
+    await refreshConfigForProject(rootPath);
   }
 
   async function createProjectWorktreeSession(
@@ -411,6 +422,8 @@ export const useProjectStore = defineStore("project", () => {
     restoreProjectSession,
     updateProjectOrder,
     updateProjectExpanded,
+    refreshProjectConfig,
+    refreshProjectConfigRoot,
     createProjectWorktreeSession,
     listProjectBranches,
     createProjectDraftSession,
