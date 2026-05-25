@@ -1,4 +1,4 @@
-//! `create_project_worktree_session` happy path and branch-validation failure.
+//! `create_project_worktree_session` happy path and new branch creation.
 
 use agent_core::AppFacade;
 use agent_store::SqliteEventStore;
@@ -105,7 +105,7 @@ async fn create_project_worktree_session_creates_isolated_worktree() {
 }
 
 #[tokio::test]
-async fn create_project_worktree_session_fails_on_nonexistent_branch() {
+async fn create_project_worktree_session_creates_and_checks_out_new_branch() {
     let _environment_guard = ENV_LOCK.lock().await;
     let store = SqliteEventStore::in_memory().await.unwrap();
     let runtime = make_runtime(store);
@@ -145,16 +145,109 @@ async fn create_project_worktree_session_fails_on_nonexistent_branch() {
         .expect("git commit");
 
     let project = runtime
+        .add_existing_project(workspace.workspace_id.clone(), project_root.clone())
+        .await
+        .unwrap();
+
+    let session_id = runtime
+        .create_project_worktree_session(project.project_id.clone(), "new-feature".into())
+        .await;
+
+    assert!(
+        session_id.is_ok(),
+        "worktree session should create a missing branch"
+    );
+    let expected_worktree =
+        std::path::Path::new(&project_root).join(".kairox/worktrees/new-feature");
+    let branch_output = std::process::Command::new("git")
+        .args([
+            "-C",
+            &expected_worktree.display().to_string(),
+            "branch",
+            "--show-current",
+        ])
+        .output()
+        .expect("git branch --show-current");
+    assert!(branch_output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&branch_output.stdout).trim(),
+        "new-feature"
+    );
+
+    let _ = std::process::Command::new("git")
+        .args([
+            "-C",
+            &project_root,
+            "worktree",
+            "remove",
+            &expected_worktree.display().to_string(),
+            "--force",
+        ])
+        .output();
+}
+
+#[tokio::test]
+async fn list_project_branches_returns_local_branches() {
+    let _environment_guard = ENV_LOCK.lock().await;
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let runtime = make_runtime(store);
+    let workspace = runtime
+        .open_workspace("/tmp/kairox-branch-list".into())
+        .await
+        .unwrap();
+
+    let temp = tempfile::tempdir().expect("temp project root");
+    let project_root = temp.path().display().to_string();
+    assert!(std::process::Command::new("git")
+        .args(["-C", &project_root, "init"])
+        .output()
+        .expect("git init")
+        .status
+        .success());
+    std::fs::write(temp.path().join("README.md"), "hello").unwrap();
+    assert!(std::process::Command::new("git")
+        .args(["-C", &project_root, "add", "README.md"])
+        .output()
+        .expect("git add")
+        .status
+        .success());
+    assert!(std::process::Command::new("git")
+        .args([
+            "-C",
+            &project_root,
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=test@test",
+            "commit",
+            "-m",
+            "initial",
+        ])
+        .output()
+        .expect("git commit")
+        .status
+        .success());
+    assert!(std::process::Command::new("git")
+        .args(["-C", &project_root, "branch", "feat/chat"])
+        .output()
+        .expect("git branch")
+        .status
+        .success());
+    let project = runtime
         .add_existing_project(workspace.workspace_id.clone(), project_root)
         .await
         .unwrap();
 
-    let result = runtime
-        .create_project_worktree_session(project.project_id, "nonexistent-branch".into())
-        .await;
+    let branches = runtime
+        .list_project_branches(project.project_id)
+        .await
+        .expect("branches should load");
 
+    assert!(branches.iter().any(|branch| branch == "feat/chat"));
     assert!(
-        result.is_err(),
-        "worktree session should fail for nonexistent branch"
+        branches
+            .iter()
+            .any(|branch| branch == "main" || branch == "master"),
+        "default git branch should be included: {branches:?}"
     );
 }

@@ -35,6 +35,7 @@ vi.mock("@/composables/useNotifications", () => ({
 }));
 
 import { useSessionStore } from "@/stores/session";
+import { useProjectStore } from "@/stores/project";
 import { invoke } from "@tauri-apps/api/core";
 
 const mockedInvoke = vi.mocked(invoke);
@@ -156,6 +157,30 @@ describe("permission mode selector", () => {
 
     const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
     expect(trigger.attributes("aria-label")).toBe("Select permission level. Current: Agent");
+  });
+
+  it("renders pending project branch control in the git-meta slot after permissions", async () => {
+    const { wrapper, session } = mountChatComposer();
+    const projectStore = useProjectStore();
+    vi.spyOn(projectStore, "listProjectBranches").mockResolvedValue(["main", "feat/chat"]);
+    session.currentSessionId = null;
+    session.pendingSessionDraft = {
+      kind: "project",
+      projectId: "project_1",
+      branch: "main"
+    };
+    await wrapper.vm.$nextTick();
+
+    const meta = wrapper.find(".composer-meta");
+    const branchSelector = wrapper.find('[data-test="project-branch-selector"]');
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+
+    expect(branchSelector.exists()).toBe(true);
+    expect(meta.classes()).toContain("composer-meta--branch-picker");
+    expect(gitMeta.text()).toContain("main");
+    expect(meta.html().indexOf('data-test="chat-permission-trigger"')).toBeLessThan(
+      meta.html().indexOf('data-test="session-git-meta"')
+    );
   });
 });
 

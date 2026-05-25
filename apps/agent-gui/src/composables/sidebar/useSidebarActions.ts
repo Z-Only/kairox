@@ -41,8 +41,8 @@ export function useSidebarActions() {
   async function createSession() {
     resetDeleteConfirmation();
     try {
-      const result = await session.createSession(undefined);
-      await router.push({ name: "workbench", params: { sessionId: result.id } });
+      session.startOrdinaryDraftSession();
+      await router.push({ name: "workbench" });
     } catch (e) {
       console.error("Failed to start session:", e);
     }
@@ -78,38 +78,11 @@ export function useSidebarActions() {
 
   async function createProjectSession(projectId: string) {
     try {
-      const projectSession = await projects.createProjectDraftSession(projectId);
-      await activateProjectSession(projectSession);
+      resetDeleteConfirmation();
+      await session.startProjectDraftSession(projectId);
+      await router.push({ name: "workbench" });
     } catch (e) {
       console.error("Failed to start project session:", e);
-    }
-  }
-
-  const worktreeBranchInput = ref("");
-  const worktreeBranchProjectId = ref<string | null>(null);
-
-  function startWorktreeSession(projectId: string) {
-    worktreeBranchProjectId.value = projectId;
-    worktreeBranchInput.value = "";
-  }
-
-  function cancelWorktreeSession() {
-    worktreeBranchProjectId.value = null;
-    worktreeBranchInput.value = "";
-  }
-
-  async function confirmWorktreeSession() {
-    const projectId = worktreeBranchProjectId.value;
-    const branchName = worktreeBranchInput.value.trim();
-    if (!projectId || !branchName) return;
-    try {
-      const projectSession = await projects.createProjectWorktreeSession(projectId, branchName);
-      await activateProjectSession(projectSession);
-    } catch (e) {
-      console.error("Failed to start worktree session:", e);
-    } finally {
-      worktreeBranchProjectId.value = null;
-      worktreeBranchInput.value = "";
     }
   }
 
@@ -202,11 +175,6 @@ export function useSidebarActions() {
     getProjectSessions,
     switchToProjectSession,
     createProjectSession,
-    worktreeBranchInput,
-    worktreeBranchProjectId,
-    startWorktreeSession,
-    cancelWorktreeSession,
-    confirmWorktreeSession,
     createBlankProject,
     importExistingProject,
     requestArchiveProjectSession,

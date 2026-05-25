@@ -81,6 +81,7 @@ function persistMockState() {
         projectSessions: snapshotMap(state.projectSessions),
         archivedSessions: state.archivedSessions,
         gitStatuses: snapshotMap(state.gitStatuses),
+        projectBranches: snapshotMap(state.projectBranches),
         currentSessionId: state.currentSessionId,
         currentProfile: state.currentProfile,
         currentPermissionMode: state.currentPermissionMode,
@@ -107,6 +108,7 @@ function restorePersistedMockState() {
     state.projectSessions = new Map(snapshot.projectSessions || []);
     state.archivedSessions = snapshot.archivedSessions || [];
     state.gitStatuses = new Map(snapshot.gitStatuses || []);
+    state.projectBranches = new Map(snapshot.projectBranches || []);
     state.currentSessionId = snapshot.currentSessionId || null;
     state.currentProfile = snapshot.currentProfile || "fast";
     state.currentPermissionMode = snapshot.currentPermissionMode || "suggest";

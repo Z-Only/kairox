@@ -12,8 +12,8 @@ test.beforeEach(async ({ page }) => {
 // Selector notes:
 //   - SessionsSidebar renders `.session-item` (per-row) and `.session-title`
 //     class hooks.
-//   - The + New Session button (data-test="new-session-btn") directly creates
-//     a session without a dialog (no more new-session-dialog or create-session-btn).
+//   - The + New Session button (data-test="new-session-btn") opens an empty
+//     draft composer. The session is materialized when the first message sends.
 //   - The destructive delete confirmation is a row-level two-click flow:
 //     `session-delete-btn` changes to `session-delete-confirm` for the same row.
 //   - Rename / delete row buttons expose stable data-test attributes.
@@ -26,16 +26,20 @@ test("initializes workspace on first load", async ({ page }) => {
   await expect(page.locator(".session-item")).toHaveCount(1);
 });
 
-test("creates a new session", async ({ page }) => {
+test("creates a new session after the first message", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".session-item")).toHaveCount(1, {
     timeout: 10_000
   });
 
-  // Click + New button — now directly creates a session (no dialog).
+  // Click + New button — now opens a pending composer without adding a row.
   await page.getByTestId("new-session-btn").click();
+  await expect(page.locator(".session-item")).toHaveCount(1);
 
-  // Should now have 2 sessions
+  await page.getByTestId("message-input").fill("materialize a new session");
+  await page.getByTestId("send-button").click();
+
+  // First send should materialize the session and add it to the list.
   await expect(page.locator(".session-item")).toHaveCount(2);
 });
 
@@ -45,8 +49,11 @@ test("switches between sessions", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Create a second session (direct create, no dialog).
+  // Create a second session by opening a pending composer and sending.
   await page.getByTestId("new-session-btn").click();
+  await expect(page.locator(".session-item")).toHaveCount(1);
+  await page.getByTestId("message-input").fill("second session");
+  await page.getByTestId("send-button").click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
   // Second session should be active (last created)
@@ -89,8 +96,10 @@ test("deletes a session with confirmation", async ({ page }) => {
     timeout: 10_000
   });
 
-  // Create a second session (direct create, no dialog).
+  // Create a second session by opening a pending composer and sending.
   await page.getByTestId("new-session-btn").click();
+  await page.getByTestId("message-input").fill("second session");
+  await page.getByTestId("send-button").click();
   await expect(page.locator(".session-item")).toHaveCount(2);
 
   // Delete the first session via two-click archive flow:

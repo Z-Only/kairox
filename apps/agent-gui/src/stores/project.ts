@@ -264,6 +264,10 @@ export const useProjectStore = defineStore("project", () => {
     return draftSession;
   }
 
+  async function listProjectBranches(projectId: string): Promise<string[]> {
+    return await invoke<string[]>("list_project_branches", { projectId });
+  }
+
   async function createProjectDraftSession(projectId: string): Promise<ProjectSessionInfo> {
     const project = projects.value.find((entry) => entry.projectId === projectId);
     if (project?.rootPath) {
@@ -408,6 +412,7 @@ export const useProjectStore = defineStore("project", () => {
     updateProjectOrder,
     updateProjectExpanded,
     createProjectWorktreeSession,
+    listProjectBranches,
     createProjectDraftSession,
     loadProjectSessions,
     loadArchivedSessions,

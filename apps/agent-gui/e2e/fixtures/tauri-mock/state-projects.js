@@ -18,3 +18,4 @@ state.projects = [
 state.projectSessions = new Map();
 state.archivedSessions = [];
 state.gitStatuses = new Map();
+state.projectBranches = new Map([["prj_mock", ["main", "develop"]]]);

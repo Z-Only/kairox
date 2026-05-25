@@ -376,6 +376,71 @@ describe("useChatComposer", () => {
     expect(draftStore.loadDraft).toHaveBeenCalledWith("ses_2");
   });
 
+  it("loads and saves placeholder drafts by composer draft key", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: null
+    });
+    const { composer, draftStore } = createComposer({ session });
+    draftStore.loadDraft.mockResolvedValueOnce("ordinary cached draft");
+
+    session.composerDraftKey = "new-session:ordinary";
+    await vi.runAllTimersAsync();
+
+    expect(draftStore.loadDraft).toHaveBeenCalledWith("new-session:ordinary");
+    expect(composer.inputText.value).toBe("ordinary cached draft");
+
+    composer.inputText.value = "ordinary cached draft edited";
+    session.composerDraftKey = "new-session:project:p1";
+    await vi.runAllTimersAsync();
+
+    expect(draftStore.saveDraft).toHaveBeenCalledWith(
+      "new-session:ordinary",
+      "ordinary cached draft edited"
+    );
+    expect(draftStore.loadDraft).toHaveBeenCalledWith("new-session:project:p1");
+  });
+
+  it("materializes placeholder sessions before sending the first message", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:ordinary",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    const { composer, invokeFn } = createComposer({ session });
+    composer.inputText.value = "hello from placeholder";
+
+    await composer.sendMessage();
+
+    expect(session.ensureSessionForSend).toHaveBeenCalled();
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "hello from placeholder",
+      attachments: []
+    });
+  });
+
+  it("keeps placeholder text when first send fails after materialization", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:ordinary",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    const { composer, invokeFn } = createComposer({ session });
+    invokeFn.mockRejectedValueOnce(new Error("model offline"));
+    composer.inputText.value = "keep this draft";
+
+    await composer.sendMessage();
+    await vi.runAllTimersAsync();
+
+    expect(composer.inputText.value).toBe("keep this draft");
+  });
+
   it("switches models with a selected reasoning effort", async () => {
     const session = createSession();
     const modelPopoverOpen = { value: true };
@@ -388,6 +453,19 @@ describe("useChatComposer", () => {
       profileAlias: "smart",
       reasoningEffort: "xhigh"
     });
+    expect(session.currentProfile).toBe("smart");
+    expect(session.currentReasoningEffort).toBe("xhigh");
+    expect(modelPopoverOpen.value).toBe(false);
+  });
+
+  it("updates the pending session model without IPC before first send", async () => {
+    const session = createSession({ currentSessionId: null });
+    const modelPopoverOpen = { value: true };
+    const { composer, invokeFn } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen, "xhigh");
+
+    expect(invokeFn).not.toHaveBeenCalledWith("switch_model", expect.anything());
     expect(session.currentProfile).toBe("smart");
     expect(session.currentReasoningEffort).toBe("xhigh");
     expect(modelPopoverOpen.value).toBe(false);

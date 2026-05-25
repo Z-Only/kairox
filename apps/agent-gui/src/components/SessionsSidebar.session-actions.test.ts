@@ -21,22 +21,22 @@ import { installSidebarTestEnv, mockedInvoke, mountSidebar } from "./SessionsSid
 installSidebarTestEnv();
 
 describe("SessionsSidebar", () => {
-  it("creates a default session directly without opening the profile dialog", async () => {
+  it("opens an ordinary placeholder chat without creating a backend session", async () => {
     const { wrapper, router } = await mountSidebar();
     const session = useSessionStore();
-    const createSessionSpy = vi.spyOn(session, "createSession").mockResolvedValue({
-      id: "ses_default",
-      title: "Session using default",
-      profile: "default"
-    });
+    session.currentSessionId = "ses_existing";
+    const createSessionSpy = vi.spyOn(session, "createSession");
 
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
     await router.isReady();
 
     expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
-    expect(createSessionSpy).toHaveBeenCalledWith(undefined);
-    expect(router.currentRoute.value.params.sessionId).toBe("ses_default");
+    expect(createSessionSpy).not.toHaveBeenCalled();
+    expect(session.currentSessionId).toBeNull();
+    expect(session.composerDraftKey).toBe("new-session:ordinary");
+    expect(router.currentRoute.value.name).toBe("workbench");
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
     expect(mockedInvoke).not.toHaveBeenCalledWith("get_profile_info");
   });
 
@@ -93,15 +93,12 @@ describe("SessionsSidebar", () => {
   it("audit anchors: exposes stable session lifecycle pilot selectors", async () => {
     const { wrapper } = await mountSidebar();
     const sessionStore = useSessionStore();
-    vi.spyOn(sessionStore, "createSession").mockResolvedValue({
-      id: "ses_default",
-      title: "Session using default",
-      profile: "default"
-    });
+    vi.spyOn(sessionStore, "createSession");
 
     await wrapper.find('[data-test="new-session-btn"]').trigger("click");
     await flushPromises();
     expect(wrapper.find('[data-test="new-session-dialog"]').exists()).toBe(false);
+    expect(sessionStore.createSession).not.toHaveBeenCalled();
 
     const session = useSessionStore();
     session.sessions = [{ id: "s1", title: "Session 1", profile: "fast" } as never];

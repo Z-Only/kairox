@@ -15,27 +15,12 @@ async function openWorkbench(page: Page) {
   });
 }
 
-async function getMockSessionIds(page: Page): Promise<string[]> {
-  return page.evaluate(() =>
-    (window as any).__KAIROX_MOCK__.state.sessions.map((session: { id: string }) => session.id)
-  );
-}
-
-async function waitForActiveSession(page: Page, sessionId: string) {
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__KAIROX_MOCK__.state.currentSessionId))
-    .toBe(sessionId);
-  await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("kairox.last-active-session-id")))
-    .toBe(sessionId);
-}
-
-async function waitForDraft(page: Page, sessionId: string, draftText: string) {
+async function waitForPlaceholderDraft(page: Page, draftKey: string, draftText: string) {
   await expect
     .poll(() =>
       page.evaluate(
-        ({ sessionId }) => (window as any).__KAIROX_MOCK__.state.drafts.get(sessionId) || "",
-        { sessionId }
+        ({ draftKey }) => localStorage.getItem(`kairox.composer-draft:${draftKey}`) || "",
+        { draftKey }
       )
     )
     .toBe(draftText);
@@ -302,46 +287,41 @@ test("shows an empty state for file mention queries without matches", async ({ p
   await expect(input).toHaveValue("@definitely-no-match");
 });
 
-test("restores each session draft when switching sessions", async ({ page }) => {
+test("restores the unsent ordinary session draft when switching away", async ({ page }) => {
   await openWorkbench(page);
 
   const input = page.getByTestId("message-input");
   const sessions = page.locator(".session-item");
 
   await page.getByTestId("new-session-btn").click();
-  await expect(sessions).toHaveCount(2);
-  const [, secondSessionId] = await getMockSessionIds(page);
-  await expect(sessions.nth(1)).toHaveClass(/active/);
-  await waitForActiveSession(page, secondSessionId);
+  await expect(sessions).toHaveCount(1);
 
-  await input.fill("draft for the second session");
-  await waitForDraft(page, secondSessionId, "draft for the second session");
+  await input.fill("draft for the pending ordinary session");
+  await waitForPlaceholderDraft(
+    page,
+    "new-session:ordinary",
+    "draft for the pending ordinary session"
+  );
   await sessions.nth(0).click();
-  const [firstSessionId] = await getMockSessionIds(page);
-  await waitForActiveSession(page, firstSessionId);
   await expect(sessions.nth(0)).toHaveClass(/active/);
   await expect(input).toHaveValue("");
 
-  await sessions.nth(1).click();
-  await waitForActiveSession(page, secondSessionId);
-  await expect(sessions.nth(1)).toHaveClass(/active/);
-  await expect(input).toHaveValue("draft for the second session");
+  await page.getByTestId("new-session-btn").click();
+  await expect(sessions).toHaveCount(1);
+  await expect(input).toHaveValue("draft for the pending ordinary session");
 });
 
-test("recovers the active session and its draft after reload", async ({ page }) => {
+test("recovers the unsent ordinary session draft after reload", async ({ page }) => {
   await openWorkbench(page);
 
   const input = page.getByTestId("message-input");
   const sessions = page.locator(".session-item");
 
   await page.getByTestId("new-session-btn").click();
-  await expect(sessions).toHaveCount(2);
-  const [, secondSessionId] = await getMockSessionIds(page);
-  await expect(sessions.nth(1)).toHaveClass(/active/);
-  await waitForActiveSession(page, secondSessionId);
+  await expect(sessions).toHaveCount(1);
 
   await input.fill("draft that survives reload");
-  await waitForDraft(page, secondSessionId, "draft that survives reload");
+  await waitForPlaceholderDraft(page, "new-session:ordinary", "draft that survives reload");
 
   await page.evaluate(() => {
     (window as any).__KAIROX_MOCK__.persistForReload();
@@ -351,16 +331,10 @@ test("recovers the active session and its draft after reload", async ({ page }) 
   await expect(page.getByTestId("sessions-sidebar")).toBeVisible({
     timeout: 10_000
   });
-  await expect(page.locator(".session-item")).toHaveCount(2);
-  await expect(page.locator(".session-item").nth(1)).toHaveClass(/active/);
-
-  const [firstSessionId] = await getMockSessionIds(page);
-  await page.locator(".session-item").nth(0).click();
-  await waitForActiveSession(page, firstSessionId);
+  await expect(page.locator(".session-item")).toHaveCount(1);
   await expect(page.getByTestId("message-input")).toHaveValue("");
 
-  await page.locator(".session-item").nth(1).click();
-  await waitForActiveSession(page, secondSessionId);
+  await page.getByTestId("new-session-btn").click();
   await expect(page.getByTestId("message-input")).toHaveValue("draft that survives reload");
 });
 

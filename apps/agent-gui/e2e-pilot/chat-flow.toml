@@ -80,6 +80,23 @@ action = "click"
 target = "[data-test='new-session-btn']"
 
 [[step]]
+name = "wait for attachment chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "fill attachment chat textarea"
+action = "fill"
+target = "textarea[data-test='message-input']"
+value = "Create attachment session shell"
+
+[[step]]
+name = "materialize attachment session"
+action = "click"
+target = "[data-test='send-button']"
+
+[[step]]
 name = "wait for attachment session to activate"
 action = "eval"
 timeout_ms = 15000
@@ -90,28 +107,15 @@ script = """
 
   while (Date.now() < deadline) {
     const current = localStorage.getItem("kairox.last-active-session-id") || window.location.hash;
-    const emptyStateVisible = Boolean(document.querySelector("[data-test='chat-empty-state']"));
-    if (current && current !== previous && emptyStateVisible) {
+    if (current && current !== previous) {
       return current;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error("attachment session did not become active");
+  throw new Error("attachment session did not become active after send");
 })()
 """
-
-[[step]]
-name = "wait for attachment chat input"
-action = "wait"
-selector = "textarea[data-test='message-input']"
-timeout_ms = 15000
-
-[[step]]
-name = "fill attachment chat textarea"
-action = "fill"
-target = "textarea[data-test='message-input']"
-value = "Pilot attachment coverage from chat-flow"
 
 [[step]]
 name = "send chat attachment over IPC"
@@ -119,7 +123,7 @@ action = "eval"
 script = """
 (async () => {
   await window.__TAURI_INTERNALS__.invoke("send_message", {
-    content: "Pilot attachment coverage from chat-flow",
+    content: "Pilot attachment IPC coverage from chat-flow",
     attachments: [{
       path: "apps/agent-gui/e2e-pilot/chat-flow.toml",
       name: "chat-flow.toml",
@@ -140,7 +144,8 @@ script = """
   while (Date.now() < deadline) {
     const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
     const text = messages.find((message) =>
-      message.textContent?.includes("Pilot attachment coverage from chat-flow")
+      message.textContent?.includes("Pilot attachment IPC coverage from chat-flow") &&
+      message.textContent?.includes("chat-flow.toml")
     )?.textContent ?? "";
     if (text) {
       return text;
@@ -159,9 +164,10 @@ script = """
 (() => {
   const messages = Array.from(document.querySelectorAll(".message-user .message-content"));
   const text = messages.find((message) =>
-    message.textContent?.includes("Pilot attachment coverage from chat-flow")
+    message.textContent?.includes("Pilot attachment IPC coverage from chat-flow") &&
+    message.textContent?.includes("chat-flow.toml")
   )?.textContent ?? "";
-  if (!text.includes("Pilot attachment coverage from chat-flow")) {
+  if (!text.includes("Pilot attachment IPC coverage from chat-flow")) {
     throw new Error(`attachment message missing prompt text: ${text}`);
   }
   if (!text.includes("chat-flow.toml")) {

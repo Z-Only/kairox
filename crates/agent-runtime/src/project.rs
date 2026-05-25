@@ -228,8 +228,27 @@ pub fn create_git_worktree(
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("failed to create worktree parent directory: {error}"))?;
     }
-    let output = Command::new("git")
-        .args(["-C", project_root, "worktree", "add", &worktree_str, branch])
+    let branch_ref = format!("refs/heads/{branch}");
+    let branch_exists = Command::new("git")
+        .args([
+            "-C",
+            project_root,
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &branch_ref,
+        ])
+        .status()
+        .map_err(|error| format!("failed to check branch existence: {error}"))?
+        .success();
+    let mut command = Command::new("git");
+    command.args(["-C", project_root, "worktree", "add"]);
+    if branch_exists {
+        command.args([&worktree_str, branch]);
+    } else {
+        command.args(["-b", branch, &worktree_str, "HEAD"]);
+    }
+    let output = command
         .output()
         .map_err(|error| format!("failed to run git worktree add: {error}"))?;
     if !output.status.success() {
@@ -239,6 +258,25 @@ pub fn create_git_worktree(
         return Err(format!("git worktree add failed: {message}"));
     }
     Ok(())
+}
+
+pub fn list_git_branches(project_root: &str) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .args(["-C", project_root, "branch", "--format=%(refname:short)"])
+        .output()
+        .map_err(|error| format!("failed to run git branch: {error}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let message = if stderr.is_empty() { stdout } else { stderr };
+        return Err(format!("git branch failed: {message}"));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|branch| !branch.is_empty())
+        .map(ToOwned::to_owned)
+        .collect())
 }
 
 pub fn unique_blank_project_path(display_name: &str) -> PathBuf {

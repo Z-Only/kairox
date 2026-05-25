@@ -27,6 +27,7 @@ registerCommandHandlers({
     };
     state.projects.push(project);
     state.projectSessions.set(projectId, []);
+    state.projectBranches.set(projectId, ["main"]);
     return Promise.resolve(project);
   },
   add_existing_project: function (args) {
@@ -44,6 +45,7 @@ registerCommandHandlers({
     };
     state.projects.push(existingProject);
     state.projectSessions.set(existingProjectId, []);
+    state.projectBranches.set(existingProjectId, ["main"]);
     return Promise.resolve(existingProject);
   },
   remove_project: function (args) {
@@ -108,6 +110,11 @@ registerCommandHandlers({
     var worktreeProject = getProject(worktreeProjectId);
     if (!worktreeProject) return Promise.reject(new Error("Project not found"));
     if (!branchName) return Promise.reject(new Error("Branch name is required"));
+    var worktreeBranches = state.projectBranches.get(worktreeProjectId) || ["main"];
+    if (worktreeBranches.indexOf(branchName) === -1) {
+      worktreeBranches = worktreeBranches.concat([branchName]);
+      state.projectBranches.set(worktreeProjectId, worktreeBranches);
+    }
     var worktreeSessionId = nextId("ses");
     var worktreeSession = makeSessionInfo(
       worktreeSessionId,
@@ -141,6 +148,12 @@ registerCommandHandlers({
         return session.visibility !== "archived";
       })
     );
+  },
+  list_project_branches: function (args) {
+    var branchesProjectId = args.projectId || args.project_id;
+    var branchesProject = getProject(branchesProjectId);
+    if (!branchesProject) return Promise.reject(new Error("Project not found"));
+    return Promise.resolve(state.projectBranches.get(branchesProjectId) || ["main"]);
   },
   list_archived_sessions: function (args) {
     return Promise.resolve(state.archivedSessions);

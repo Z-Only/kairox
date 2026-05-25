@@ -21,6 +21,10 @@ describe("KxInput", () => {
     expect(input.attributes("type")).toBe("search");
     expect(input.attributes("aria-label")).toBe("Shared input");
     expect(input.element.value).toBe("draft");
+    expect(input.attributes("autocapitalize")).toBe("off");
+    expect(input.attributes("autocomplete")).toBe("off");
+    expect(input.attributes("autocorrect")).toBe("off");
+    expect(input.attributes("spellcheck")).toBe("false");
   });
 
   it("emits v-model updates and native input events", async () => {

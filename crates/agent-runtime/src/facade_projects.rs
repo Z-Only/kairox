@@ -214,6 +214,19 @@ where
         Ok(session_id)
     }
 
+    pub(crate) async fn list_project_branches(
+        &self,
+        project_id: ProjectId,
+    ) -> agent_core::Result<Vec<String>> {
+        let project = self
+            .project_repository()?
+            .get_project(project_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        crate::project::list_git_branches(&project.root_path)
+            .map_err(agent_core::CoreError::InvalidState)
+    }
+
     pub(crate) async fn list_project_sessions(
         &self,
         project_id: ProjectId,
@@ -388,6 +401,13 @@ where
         branch_name: String,
     ) -> agent_core::Result<SessionId> {
         LocalRuntime::create_project_worktree_session(self, project_id, branch_name).await
+    }
+
+    async fn list_project_branches(
+        &self,
+        project_id: ProjectId,
+    ) -> agent_core::Result<Vec<String>> {
+        LocalRuntime::list_project_branches(self, project_id).await
     }
 
     async fn list_project_sessions(

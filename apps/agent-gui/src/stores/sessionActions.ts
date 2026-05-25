@@ -36,7 +36,7 @@ export async function switchToKnownSession(
   deps.getTaskGraphStore().clearTaskGraph();
   const next = await invoke<SessionProjection>("switch_session", { sessionId });
   deps.currentSessionId.value = sessionId;
-  localStorage.setItem("kairox.last-active-session-id", sessionId);
+  globalThis.localStorage?.setItem("kairox.last-active-session-id", sessionId);
   deps.currentProfile.value = target.profile;
   deps.currentReasoningEffort.value = null;
   if (target.permission_mode) {
@@ -84,6 +84,8 @@ export async function createSession(
 
   deps.currentProfile.value = result.profile;
   deps.currentReasoningEffort.value = null;
+  deps.currentSessionId.value = result.id;
+  globalThis.localStorage?.setItem("kairox.last-active-session-id", result.id);
   deps.resetProjection();
   clearTrace();
   deps.getTaskGraphStore().clearTaskGraph();

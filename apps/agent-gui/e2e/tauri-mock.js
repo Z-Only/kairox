@@ -295,6 +295,7 @@ function installMock() {
       state.projectSessions.clear();
       state.archivedSessions = [];
       state.gitStatuses.clear();
+      state.projectBranches = new Map([["prj_mock", ["main", "develop"]]]);
       state.currentSessionId = null;
       state.currentProfile = "fast";
       state.currentPermissionMode = "suggest";

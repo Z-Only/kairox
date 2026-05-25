@@ -60,7 +60,7 @@ describe("SessionsSidebar", () => {
     expect(wrapper.find('[data-test="sessions-section"]').text()).not.toContain("Project task");
   });
 
-  it("creates a project draft session and navigates to it", async () => {
+  it("opens a project placeholder session without creating backend state", async () => {
     mockInvokeCommandResponses({
       list_projects: [
         {
@@ -75,29 +75,23 @@ describe("SessionsSidebar", () => {
     });
     const { wrapper, router } = await mountSidebar();
     const projectStore = useProjectStore();
-    const createProjectDraftSession = vi
-      .spyOn(projectStore, "createProjectDraftSession")
-      .mockResolvedValue({
-        sessionId: "draft-1",
-        title: "New conversation",
-        profile: "fast",
-        projectId: "project-1",
-        worktreePath: "/tmp/demo",
-        branch: null,
-        visibility: "draft_hidden"
-      });
+    const sessionStore = useSessionStore();
+    const createProjectDraftSession = vi.spyOn(projectStore, "createProjectDraftSession");
     await flushPromises();
 
     await wrapper.find('[data-test="project-new-session-btn"]').trigger("click");
     await flushPromises();
     await router.isReady();
 
-    expect(createProjectDraftSession).toHaveBeenCalledWith("project-1");
+    expect(createProjectDraftSession).not.toHaveBeenCalled();
+    expect(sessionStore.currentSessionId).toBeNull();
+    expect(sessionStore.currentSessionInfo?.project_id).toBe("project-1");
+    expect(sessionStore.composerDraftKey).toBe("new-session:project:project-1");
     expect(router.currentRoute.value.name).toBe("workbench");
-    expect(router.currentRoute.value.params.sessionId).toBe("draft-1");
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
   });
 
-  it("shows branch input when worktree session button is clicked", async () => {
+  it("does not expose the old inline branch-name worktree form", async () => {
     mockInvokeCommandResponses({
       list_projects: [
         {
@@ -114,14 +108,10 @@ describe("SessionsSidebar", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-test="worktree-branch-input"]').exists()).toBe(false);
-
-    await wrapper.find('[data-test="project-new-worktree-session-btn-project-1"]').trigger("click");
-    await flushPromises();
-
-    expect(wrapper.find('[data-test="worktree-branch-input"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test^="project-new-worktree-session-btn"]').exists()).toBe(false);
   });
 
-  it("creates worktree session on confirm with branch name", async () => {
+  it("opens the project placeholder from the project row only once", async () => {
     mockInvokeCommandResponses({
       list_projects: [
         {
@@ -135,31 +125,16 @@ describe("SessionsSidebar", () => {
       ]
     });
     const { wrapper, router } = await mountSidebar();
-    const projectStore = useProjectStore();
-    const createProjectWorktreeSession = vi
-      .spyOn(projectStore, "createProjectWorktreeSession")
-      .mockResolvedValue({
-        sessionId: "wt-1",
-        title: "New Session (feat-x)",
-        profile: "default",
-        projectId: "project-1",
-        worktreePath: null,
-        branch: "feat-x",
-        visibility: "visible"
-      });
+    const sessionStore = useSessionStore();
     await flushPromises();
 
-    await wrapper.find('[data-test="project-new-worktree-session-btn-project-1"]').trigger("click");
-    await flushPromises();
-
-    await wrapper.find('[data-test="worktree-branch-input"]').setValue("feat-x");
-    await wrapper.find('[data-test="worktree-branch-confirm"]').trigger("click");
+    await wrapper.find('[data-test="project-new-session-btn"]').trigger("click");
     await flushPromises();
     await router.isReady();
 
-    expect(createProjectWorktreeSession).toHaveBeenCalledWith("project-1", "feat-x");
+    expect(sessionStore.currentSessionInfo?.project_id).toBe("project-1");
     expect(router.currentRoute.value.name).toBe("workbench");
-    expect(router.currentRoute.value.params.sessionId).toBe("wt-1");
+    expect(router.currentRoute.value.params.sessionId).toBeUndefined();
   });
 
   it("toggles project expansion through the project store", async () => {

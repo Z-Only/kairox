@@ -50,6 +50,8 @@ export const commands = {
     typedError<string, string>(
       __TAURI_INVOKE("create_project_worktree_session", { projectId, branchName })
     ),
+  listProjectBranches: (projectId: string) =>
+    typedError<string[], string>(__TAURI_INVOKE("list_project_branches", { projectId })),
   getProjectGitStatus: (projectId: string) =>
     typedError<ProjectGitStatusResponse, string>(
       __TAURI_INVOKE("get_project_git_status", { projectId })

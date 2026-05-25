@@ -140,6 +140,7 @@ pub fn run() {
             crate::commands::list_project_sessions,
             crate::commands::list_archived_sessions,
             crate::commands::create_project_worktree_session,
+            crate::commands::list_project_branches,
             crate::commands::get_project_git_status,
             crate::commands::get_session_git_status,
             crate::commands::init_project_git,
