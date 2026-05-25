@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] - 2026-05-25
+
+### 🚀 Features
+
+- **gui**: add ChatStreamItem discriminated union and useChatStream builder (#471)
+- **gui**: add ChatToolCallItem collapsible chat-stream renderer (#472)
+- **gui**: add ChatPermissionItem inline chat-stream renderer (#474)
+- **gui**: add ChatCompactionItem inline progress renderer (#473)
+- **gui**: extract ChatMessageItem from ChatPanel for dispatcher reuse (#475)
+- **gui**: wire ChatPanel dispatcher over useChatStream (#476)
+- **gui**: drop PermissionCenter panel — permissions render inline in ChatPanel (#477)
+- **gui**: per-tool icon registry for ChatToolCallItem (#478)
+- **tui**: add ChatStreamItem types and stream reducer (#479)
+- **gui**: render diff-shaped tool output with colored monospace lines (#481)
+- **tui**: inline chat-stream rendering with permission, tool-call, and compaction items (#484)
+- **gui**: jump-to-pending-permission CTA in chat stream (#487)
+- **gui**: expand tool icon registry for MCP servers and pseudo-tools (#488)
+- **gui**: persist chat tool-call expand state per session (#490)
+- **gui**: keyboard shortcuts for chat permission prompts (#489)
+- **gui**: cluster consecutive pending permission prompts in chat stream (#491)
+- **tui**: show before/after token counts on compaction stream items (#492)
+- **gui**: show tool-call timing details (#493)
+- **gui**: add chat stream keyboard navigation (#494)
+
+### 📚 Documentation
+
+- **gui**: describe inline authorization flow (#495)
+
+### 🧪 Testing
+
+- **gui**: add Playwright spec for inline chat-stream behaviour (#480)
+- **gui**: assert locale key coverage between en and zh-CN (#482)
+- **tui**: snapshot tests for chat-stream renderer states (#486)
+
+### 🧹 Refactor
+
+- **gui**: demote ContextMeter from workbench primary surface (#485)
+- **gui**: drop user/assistant pseudo-tool entries from trace store (#483)
+
 ## [0.29.0] - 2026-05-24
 
 ### 🚀 Features
