@@ -139,6 +139,14 @@ pub enum ChatStreamItem {
         status: CompactionItemStatus,
         progress_pct: Option<u8>,
         summary: Option<String>,
+        /// Token count before the compaction ran, lifted from
+        /// [`EventPayload::ContextCompactionStarted::before_tokens`].
+        /// `None` if the started event was not observed.
+        before_tokens: Option<u64>,
+        /// Token count after the compaction completed, lifted from
+        /// [`EventPayload::ContextCompactionCompleted::after_tokens`].
+        /// `None` for in-flight (`Running`) or `Failed` compactions.
+        after_tokens: Option<u64>,
         timestamp_ms: i64,
     },
 }
@@ -396,7 +404,7 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
                     }
                 }
             }
-            EventPayload::ContextCompactionStarted { .. } => {
+            EventPayload::ContextCompactionStarted { before_tokens, .. } => {
                 compaction_counter += 1;
                 let idx = items.len();
                 items.push(ChatStreamItem::Compaction {
@@ -404,14 +412,26 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
                     status: CompactionItemStatus::Running,
                     progress_pct: None,
                     summary: None,
+                    before_tokens: Some(*before_tokens),
+                    after_tokens: None,
                     timestamp_ms,
                 });
                 pending_compaction.push(idx);
             }
-            EventPayload::ContextCompactionCompleted { summary_id, .. } => {
+            EventPayload::ContextCompactionCompleted {
+                summary_id,
+                after_tokens,
+                ..
+            } => {
                 if let Some(idx) = pending_compaction.pop() {
-                    if let ChatStreamItem::Compaction { status, .. } = &mut items[idx] {
+                    if let ChatStreamItem::Compaction {
+                        status,
+                        after_tokens: after,
+                        ..
+                    } = &mut items[idx]
+                    {
                         *status = CompactionItemStatus::Completed;
+                        *after = Some(*after_tokens);
                     }
                     compaction_index.insert(summary_id.clone(), idx);
                 }
@@ -469,4 +489,136 @@ fn find_latest_unresolved_tool_call(items: &[ChatStreamItem], tool_id: &str) -> 
             }
             _ => None,
         })
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agent_core::events::CompactionReason;
+    use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
+    use chrono::{Duration as ChronoDuration, TimeZone, Utc};
+
+    fn make_event_at(offset_ms: i64, payload: EventPayload) -> DomainEvent {
+        let timestamp = Utc.timestamp_opt(0, 0).unwrap() + ChronoDuration::milliseconds(offset_ms);
+        DomainEvent::new(
+            WorkspaceId::new(),
+            SessionId::new(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+        .with_timestamp(timestamp)
+    }
+
+    /// The reducer must lift `before_tokens` (from
+    /// `ContextCompactionStarted`) and `after_tokens` (from
+    /// `ContextCompactionCompleted`) onto the resulting
+    /// `Compaction` stream item so the renderer can show the
+    /// before→after savings without re-walking the event log.
+    #[test]
+    fn compaction_item_carries_before_and_after_tokens() {
+        let events = vec![
+            make_event_at(
+                100,
+                EventPayload::ContextCompactionStarted {
+                    reason: CompactionReason::UserRequested,
+                    before_tokens: 25_000,
+                    candidate_event_count: 12,
+                },
+            ),
+            make_event_at(
+                900,
+                EventPayload::ContextCompactionCompleted {
+                    summary_id: "sum_x".into(),
+                    after_tokens: 12_000,
+                    fallback_used: false,
+                },
+            ),
+        ];
+        let projection = SessionProjection::from_events(&events);
+
+        let items = fold_stream(&projection, &events);
+
+        let compactions: Vec<&ChatStreamItem> = items
+            .iter()
+            .filter(|item| matches!(item, ChatStreamItem::Compaction { .. }))
+            .collect();
+        assert_eq!(
+            compactions.len(),
+            1,
+            "expected exactly one Compaction stream item, got {items:?}"
+        );
+        match compactions[0] {
+            ChatStreamItem::Compaction {
+                status,
+                before_tokens,
+                after_tokens,
+                ..
+            } => {
+                assert_eq!(*status, CompactionItemStatus::Completed);
+                assert_eq!(
+                    *before_tokens,
+                    Some(25_000),
+                    "before_tokens should be lifted from ContextCompactionStarted"
+                );
+                assert_eq!(
+                    *after_tokens,
+                    Some(12_000),
+                    "after_tokens should be lifted from ContextCompactionCompleted"
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// A Failed compaction never produces an `after_tokens` value, so
+    /// the reducer should leave `after_tokens = None` while still
+    /// recording the `before_tokens` from the matching Started event.
+    #[test]
+    fn failed_compaction_leaves_after_tokens_none() {
+        let events = vec![
+            make_event_at(
+                100,
+                EventPayload::ContextCompactionStarted {
+                    reason: CompactionReason::UserRequested,
+                    before_tokens: 25_000,
+                    candidate_event_count: 12,
+                },
+            ),
+            make_event_at(
+                900,
+                EventPayload::ContextCompactionFailed {
+                    error: "model timeout".into(),
+                    fallback_used: false,
+                },
+            ),
+        ];
+        let projection = SessionProjection::from_events(&events);
+
+        let items = fold_stream(&projection, &events);
+        let compaction = items
+            .iter()
+            .find(|item| matches!(item, ChatStreamItem::Compaction { .. }))
+            .expect("expected one Compaction item");
+        match compaction {
+            ChatStreamItem::Compaction {
+                status,
+                before_tokens,
+                after_tokens,
+                ..
+            } => {
+                assert_eq!(*status, CompactionItemStatus::Failed);
+                assert_eq!(*before_tokens, Some(25_000));
+                assert_eq!(
+                    *after_tokens, None,
+                    "failed compactions do not carry an after_tokens value"
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
 }
