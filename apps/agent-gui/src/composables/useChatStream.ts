@@ -140,6 +140,7 @@ function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
       };
       if (entry.title !== undefined) item.title = entry.title;
       if (entry.durationMs !== undefined) item.durationMs = entry.durationMs;
+      item.startedAt = entry.startedAt;
       if (entry.input !== undefined) item.input = entry.input;
       if (entry.outputPreview !== undefined) item.outputPreview = entry.outputPreview;
       if (entry.scope !== undefined) item.scope = entry.scope;

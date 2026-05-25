@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
@@ -152,6 +152,94 @@ describe("ChatToolCallItem", () => {
     expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
     await wrapper.find('[data-test="chat-tool-call-toggle"]').trigger("click");
     expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(true);
+  });
+
+  describe("timing breakdown", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("renders 'started 3s ago' below duration when expanded with startedAt", () => {
+      const now = new Date("2026-05-25T12:00:00Z").getTime();
+      vi.setSystemTime(now);
+
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        durationMs: 1200,
+        startedAt: now - 3000,
+        defaultExpanded: true
+      });
+
+      expect(wrapper.find(".chat-tool-call__duration").text()).toBe("1.2s");
+      const startedAgo = wrapper.find('[data-test="chat-tool-call-started-ago"]');
+      expect(startedAgo.exists()).toBe(true);
+      expect(startedAgo.text()).toBe("started 3s ago");
+    });
+
+    it("hides the 'started X ago' line when collapsed but keeps duration", () => {
+      const now = new Date("2026-05-25T12:00:00Z").getTime();
+      vi.setSystemTime(now);
+
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        durationMs: 1200,
+        startedAt: now - 3000
+      });
+
+      expect(wrapper.find(".chat-tool-call__duration").text()).toBe("1.2s");
+      expect(wrapper.find('[data-test="chat-tool-call-started-ago"]').exists()).toBe(false);
+    });
+
+    it("renders 'failed after 5.0s' instead of plain duration when status is failed", () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "failed",
+        durationMs: 5000
+      });
+
+      expect(wrapper.find(".chat-tool-call__duration").text()).toBe("failed after 5.0s");
+    });
+
+    it("renders 'started just now' for elapsed under 5 seconds", () => {
+      const now = new Date("2026-05-25T12:00:00Z").getTime();
+      vi.setSystemTime(now);
+
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        durationMs: 500,
+        startedAt: now - 2000,
+        defaultExpanded: true
+      });
+
+      expect(wrapper.find('[data-test="chat-tool-call-started-ago"]').text()).toBe(
+        "started just now"
+      );
+    });
+
+    it("renders minute-grain relative time for older starts", () => {
+      const now = new Date("2026-05-25T12:00:00Z").getTime();
+      vi.setSystemTime(now);
+
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        durationMs: 800,
+        // 3m 20s = 200s
+        startedAt: now - 200_000,
+        defaultExpanded: true
+      });
+
+      expect(wrapper.find('[data-test="chat-tool-call-started-ago"]').text()).toBe(
+        "started 3m 20s ago"
+      );
+    });
   });
 
   it("persists uncontrolled expand state per session in localStorage", async () => {

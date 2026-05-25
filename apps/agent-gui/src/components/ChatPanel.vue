@@ -334,6 +334,7 @@ watch(
             :title="item.title"
             :status="item.status"
             :duration-ms="item.durationMs"
+            :started-at="item.startedAt"
             :input="item.input"
             :output-preview="item.outputPreview"
             :scope="item.scope"
