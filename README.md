@@ -72,7 +72,7 @@ graph TD
 - **Config discovery** — TOML config with profile management, env-variable API keys, and per-project `.kairox/` directory discovery
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, permission prompts, command palette, queue controls, and settings/marketplace overlays
-- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, permission center, per-session permission mode selection, model/agent/plugin/hook/instructions/skills settings, resizable workbench sidebars, and MCP marketplace UI
+- **GUI desktop app** — Tauri 2 + Vue 3 with persistent sessions, session switching, trace visualization, memory browser, inline chat-stream permission/tool/compaction flow, per-session permission mode selection, model/agent/plugin/hook/instructions/skills settings, resizable workbench sidebars, and MCP marketplace UI
 - **Auto-update** — Tauri 2 auto-update wired to GitHub Releases for the desktop app
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI with aggregation `ci-success` job, branch-focused Rust/Vue coverage gates, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests

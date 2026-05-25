@@ -8,7 +8,7 @@ This directory is intended for public-facing repository assets used in the READM
 - `banner.svg` — repository social/banner image
 - `gui-main.png` — main desktop GUI screenshot
 - `gui-trace.png` — trace / timeline screenshot
-- `gui-permissions.png` — permission center screenshot
+- `gui-permissions.png` — inline chat authorization flow screenshot
 - `demo.gif` — short product demo animation
 
 ## Suggested capture guidelines
