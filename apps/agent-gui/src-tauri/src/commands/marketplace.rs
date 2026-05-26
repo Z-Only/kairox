@@ -240,6 +240,54 @@ mod marketplace_command_tests {
         let q = CatalogQueryRequest::default();
         assert!(q.keyword.is_none() && q.category.is_none() && q.trust_min.is_none());
     }
+
+    #[test]
+    fn into_core_query_passes_through_all_fields() {
+        let req = CatalogQueryRequest {
+            keyword: Some("filesystem".into()),
+            category: Some("dev".into()),
+            trust_min: Some("verified".into()),
+            source: Some("smithery".into()),
+            limit: Some(20),
+        };
+        let core = into_core_query(req);
+        assert_eq!(core.keyword.as_deref(), Some("filesystem"));
+        assert_eq!(core.category.as_deref(), Some("dev"));
+        assert_eq!(core.trust_min.as_deref(), Some("verified"));
+        assert_eq!(core.source.as_deref(), Some("smithery"));
+        assert_eq!(core.limit, Some(20));
+    }
+
+    #[test]
+    fn into_core_query_handles_default_payload_as_unconstrained_query() {
+        let core = into_core_query(CatalogQueryRequest::default());
+        assert!(core.keyword.is_none());
+        assert!(core.category.is_none());
+        assert!(core.trust_min.is_none());
+        assert!(core.source.is_none());
+        assert!(core.limit.is_none());
+    }
+
+    #[test]
+    fn into_core_install_request_passes_through_all_overrides() {
+        let mut env = std::collections::BTreeMap::new();
+        env.insert("API_KEY".to_string(), "secret".to_string());
+        let payload = InstallRequestPayload {
+            catalog_id: "filesystem".into(),
+            source: "smithery".into(),
+            server_id_override: Some("custom-fs".into()),
+            env_overrides: env.clone(),
+            trust_grant: true,
+            auto_start: false,
+        };
+        let core = into_core_install_request(payload);
+        assert_eq!(core.catalog_id, "filesystem");
+        assert_eq!(core.source, "smithery");
+        assert_eq!(core.server_id_override.as_deref(), Some("custom-fs"));
+        assert_eq!(core.env_overrides, env);
+        assert!(core.trust_grant);
+        assert!(!core.auto_start);
+    }
 }
 
 // ---------------------------------------------------------------------------

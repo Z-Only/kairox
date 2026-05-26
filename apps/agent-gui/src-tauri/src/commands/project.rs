@@ -329,3 +329,77 @@ pub async fn list_workspace_files(
         .map_err(|e| format!("Failed to walk files: {e}"))?;
     Ok(WorkspaceFilesResponse { paths })
 }
+
+#[cfg(test)]
+mod walk_workspace_tests {
+    use super::*;
+
+    fn unique_workspace_root(label: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let pid = std::process::id();
+        std::env::temp_dir().join(format!("kairox-walk-workspace-{label}-{pid}-{nanos}"))
+    }
+
+    fn write_file(path: &std::path::Path, contents: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("create parent dir");
+        }
+        std::fs::write(path, contents).expect("write fixture");
+    }
+
+    #[test]
+    fn skips_node_modules_target_and_other_hidden_dirs() {
+        let root = unique_workspace_root("skips");
+        std::fs::create_dir_all(&root).expect("root");
+        write_file(&root.join("README.md"), "hello");
+        write_file(&root.join("src/main.rs"), "// kept");
+        write_file(&root.join("node_modules/pkg/index.js"), "// dropped");
+        write_file(&root.join("target/debug/build.log"), "// dropped");
+        write_file(&root.join(".git/HEAD"), "// dropped");
+
+        let mut files = walk_workspace_files(&root, 100);
+        files.sort();
+        std::fs::remove_dir_all(&root).ok();
+
+        assert_eq!(files, vec!["README.md", "src/main.rs"]);
+    }
+
+    #[test]
+    fn keeps_env_files_despite_dot_prefix_and_drops_other_dotfiles() {
+        let root = unique_workspace_root("env");
+        std::fs::create_dir_all(&root).expect("root");
+        write_file(&root.join(".env"), "KEY=value");
+        write_file(&root.join(".env.local"), "KEY=local");
+        write_file(&root.join(".secret"), "skip");
+        write_file(&root.join("app.ts"), "// kept");
+
+        let mut files = walk_workspace_files(&root, 100);
+        files.sort();
+        std::fs::remove_dir_all(&root).ok();
+
+        assert_eq!(files, vec![".env", ".env.local", "app.ts"]);
+    }
+
+    #[test]
+    fn respects_max_limit_and_returns_paths_relative_to_root() {
+        let root = unique_workspace_root("limit");
+        std::fs::create_dir_all(&root).expect("root");
+        for i in 0..10 {
+            write_file(&root.join(format!("file{i}.txt")), "x");
+        }
+
+        let files = walk_workspace_files(&root, 3);
+        std::fs::remove_dir_all(&root).ok();
+
+        assert_eq!(files.len(), 3);
+        for entry in &files {
+            assert!(
+                !entry.starts_with('/'),
+                "expected relative path, got {entry}"
+            );
+        }
+    }
+}

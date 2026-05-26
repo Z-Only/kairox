@@ -90,3 +90,45 @@ fn user_config_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join(".kairox")
 }
+
+#[cfg(test)]
+mod hooks_path_tests {
+    use super::*;
+
+    #[test]
+    fn config_path_for_scope_uses_user_config_dir_for_user_scope() {
+        let path = config_path_for_scope(agent_core::ConfigScope::User, None)
+            .expect("user scope should not require a project root");
+        let path_str = path.to_string_lossy();
+        // user_config_dir always ends with ".kairox" and we append config.toml.
+        assert!(path_str.ends_with(".kairox/config.toml"), "got {path_str}");
+    }
+
+    #[test]
+    fn config_path_for_scope_appends_kairox_config_for_project_scope() {
+        let path =
+            config_path_for_scope(agent_core::ConfigScope::Project, Some("/tmp/some/project"))
+                .expect("project scope with root should resolve");
+        assert_eq!(
+            path,
+            std::path::PathBuf::from("/tmp/some/project/.kairox/config.toml")
+        );
+    }
+
+    #[test]
+    fn config_path_for_scope_requires_project_root_when_project_scope() {
+        let error = config_path_for_scope(agent_core::ConfigScope::Project, None)
+            .expect_err("project scope without root should be rejected");
+        assert!(error.contains("project root"), "got: {error}");
+    }
+
+    #[test]
+    fn config_path_for_scope_rejects_builtin_scope() {
+        let error = config_path_for_scope(agent_core::ConfigScope::Builtin, None)
+            .expect_err("builtin scope cannot host hooks");
+        assert!(
+            error.contains("User or Project") && error.to_lowercase().contains("builtin"),
+            "got: {error}"
+        );
+    }
+}
