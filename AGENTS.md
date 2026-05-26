@@ -358,7 +358,7 @@ Each group also enforces a `minFiles` floor to catch report truncation. Groups c
 | ------------------ | ------------------------------ | ---------- | -------- | --------- | ----- |
 | Global             | aggregate                      | 80         | 72       | 76        | 80    |
 | **T1 Utils**       | `src/utils/**/*.ts`            | 92         | 90       | 95        | 92    |
-| **T2 Stores**      | `src/stores/**/*.ts`           | 80         | 67       | 80        | 82    |
+| **T2 Stores**      | `src/stores/**/*.ts`           | 80         | 68       | 80        | 82    |
 | **T2 Composables** | `src/composables/**/*.ts`      | 74         | 60       | 78        | 74    |
 | **T3 Components**  | `src/components/**/*.{ts,vue}` | 78         | 72       | 74        | 78    |
 | **T3 Views**       | `src/views/**/*.vue`           | 90         | 82       | 78        | 90    |

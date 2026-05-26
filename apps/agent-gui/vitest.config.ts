@@ -57,11 +57,13 @@ export default defineConfig({
           functions: 78,
           lines: 90
         },
-        // T2 — branches 67.08% in baseline; held at 67 (local exemption per
-        // §校准流程 §6, target 70 in follow-up PR).
+        // T2 — stores branches lifted from the 67.08% pre-test baseline to
+        // ~70% with new workspaceUi/agentSettings/modelProfiles/catalog tests.
+        // Gate at 68 (~1.7pp buffer) because vitest V8 wobbles by ~0.3pp
+        // between runs; plan target 70 stays the next follow-up.
         "src/stores/**/*.ts": {
           statements: 80,
-          branches: 67,
+          branches: 68,
           functions: 80,
           lines: 82
         },

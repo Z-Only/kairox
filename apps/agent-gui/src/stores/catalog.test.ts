@@ -244,4 +244,103 @@ describe("catalog store — Phase 2 sources", () => {
     catalog.handleSourceFailed("mcp-registry", "timeout");
     expect(catalog.sourceFailures["mcp-registry"]).toBe("timeout");
   });
+
+  it("setSourceEnabled surfaces a UI error notification when invoke rejects", async () => {
+    const catalog = useCatalogStore();
+    mockedInvoke.mockRejectedValueOnce(new Error("backend offline"));
+    await catalog.setSourceEnabled("mcp-registry", false);
+    expect(pushNotificationSpy).toHaveBeenCalledWith(
+      "error",
+      expect.stringContaining("Failed to toggle source mcp-registry")
+    );
+  });
+
+  it("mergeSourceResults clears prior failure for the source it merges", () => {
+    const catalog = useCatalogStore();
+    catalog.handleSourceFailed("registry-a", "earlier failure");
+    catalog.mergeSourceResults("registry-a", []);
+    expect(catalog.sourceFailures["registry-a"]).toBeUndefined();
+  });
+
+  it("mergeSourceResults sorts by trust desc, source asc, then display_name asc", () => {
+    const catalog = useCatalogStore();
+    catalog.entries = [
+      fixtureEntry({
+        id: "alpha",
+        source: "registry-b",
+        display_name: "Alpha",
+        trust: "community"
+      })
+    ] as never;
+    catalog.mergeSourceResults("registry-a", [
+      fixtureEntry({
+        id: "beta",
+        source: "registry-a",
+        display_name: "Beta",
+        trust: "verified"
+      }),
+      fixtureEntry({
+        id: "gamma",
+        source: "registry-a",
+        display_name: "Gamma",
+        trust: "community"
+      }),
+      fixtureEntry({
+        id: "delta",
+        source: "registry-a",
+        display_name: "Delta",
+        trust: "community"
+      })
+    ] as never);
+
+    const order = catalog.entries.map((entry) => entry.display_name);
+    // verified first; within community: registry-a sorts before registry-b;
+    // within registry-a community: Delta sorts before Gamma alphabetically.
+    expect(order).toEqual(["Beta", "Delta", "Gamma", "Alpha"]);
+  });
+
+  it("mergeSourceResults treats unknown trust labels as the lowest tier", () => {
+    const catalog = useCatalogStore();
+    catalog.mergeSourceResults("registry-a", [
+      fixtureEntry({
+        id: "weird",
+        source: "registry-a",
+        display_name: "Weird",
+        trust: "experimental"
+      }),
+      fixtureEntry({
+        id: "trusted",
+        source: "registry-a",
+        display_name: "Trusted",
+        trust: "verified"
+      })
+    ] as never);
+
+    const order = catalog.entries.map((entry) => entry.display_name);
+    expect(order).toEqual(["Trusted", "Weird"]);
+  });
+
+  it("mergeSourceResults overwrites entries with the same (source, id) key", () => {
+    const catalog = useCatalogStore();
+    catalog.entries = [
+      fixtureEntry({
+        id: "filesystem",
+        source: "registry-a",
+        display_name: "Old",
+        trust: "community"
+      })
+    ] as never;
+    catalog.mergeSourceResults("registry-a", [
+      fixtureEntry({
+        id: "filesystem",
+        source: "registry-a",
+        display_name: "New",
+        trust: "verified"
+      })
+    ] as never);
+
+    expect(catalog.entries).toHaveLength(1);
+    expect(catalog.entries[0].display_name).toBe("New");
+    expect(catalog.entries[0].trust).toBe("verified");
+  });
 });
