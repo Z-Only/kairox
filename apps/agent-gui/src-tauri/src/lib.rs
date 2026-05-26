@@ -164,6 +164,10 @@ pub fn run() {
             crate::commands::switch_model,
             crate::commands::get_permission_mode,
             crate::commands::set_permission_mode,
+            crate::commands::get_session_approval_policy,
+            crate::commands::set_session_approval_policy,
+            crate::commands::get_session_sandbox_policy,
+            crate::commands::set_session_sandbox_policy,
             crate::commands::get_build_info,
             // Skill commands
             crate::commands::list_skills,

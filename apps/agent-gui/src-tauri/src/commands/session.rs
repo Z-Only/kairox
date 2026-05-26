@@ -254,6 +254,97 @@ pub async fn set_permission_mode(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn set_session_approval_policy(
+    approval: String,
+    state: State<'_, GuiState>,
+) -> Result<String, String> {
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current
+            .clone()
+            .ok_or_else(|| "No active session".to_string())?
+    };
+    let approval_policy: agent_tools::ApprovalPolicy = approval.parse().map_err(|e: String| e)?;
+    state
+        .runtime
+        .set_session_approval_policy(&session_id, approval_policy)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(approval_policy.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_session_sandbox_policy(
+    sandbox_json: String,
+    state: State<'_, GuiState>,
+) -> Result<String, String> {
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current
+            .clone()
+            .ok_or_else(|| "No active session".to_string())?
+    };
+    let sandbox: agent_tools::SandboxPolicy = serde_json::from_str(&sandbox_json)
+        .map_err(|e| format!("invalid sandbox policy JSON: {e}"))?;
+    state
+        .runtime
+        .set_session_sandbox_policy(&session_id, &sandbox)
+        .await
+        .map_err(|e| e.to_string())?;
+    serde_json::to_string(&sandbox).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_session_approval_policy(state: State<'_, GuiState>) -> Result<String, String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current.clone().ok_or("No active session")?
+    };
+    let sessions = state
+        .runtime
+        .list_sessions(&workspace_id)
+        .await
+        .map_err(|e| format!("Failed to list sessions: {e}"))?;
+    if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
+        if let Some(ref approval) = session.approval_policy {
+            return Ok(approval.clone());
+        }
+    }
+    Ok(agent_tools::ApprovalPolicy::default().to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_session_sandbox_policy(state: State<'_, GuiState>) -> Result<String, String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current.clone().ok_or("No active session")?
+    };
+    let sessions = state
+        .runtime
+        .list_sessions(&workspace_id)
+        .await
+        .map_err(|e| format!("Failed to list sessions: {e}"))?;
+    if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
+        if let Some(ref sandbox) = session.sandbox_policy {
+            return Ok(sandbox.clone());
+        }
+    }
+    serde_json::to_string(&agent_tools::SandboxPolicy::default()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn get_permission_mode(state: State<'_, GuiState>) -> Result<String, String> {
     // Try to read from current session's metadata first
     let workspace_id = {

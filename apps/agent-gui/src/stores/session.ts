@@ -152,6 +152,10 @@ export const useSessionStore = defineStore("session", () => {
   let profileInfoLoad: Promise<void> | null = null;
   const lastSendError = ref<string | null>(null);
   const permissionMode = ref<string>("suggest");
+  const approvalPolicy = ref<string>("on_request");
+  const sandboxPolicy = ref<string>(
+    '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+  );
   const pendingSessionDraft = ref<PendingSessionDraft | null>(null);
 
   const eventCtx: EventReducerContext = {
@@ -172,6 +176,8 @@ export const useSessionStore = defineStore("session", () => {
     currentProfile,
     currentReasoningEffort,
     permissionMode,
+    approvalPolicy,
+    sandboxPolicy,
     profileInfos,
     resetProjection() {
       resetProjectionState(eventCtx, useAgentsStore(), streamsByTask);
@@ -218,6 +224,8 @@ export const useSessionStore = defineStore("session", () => {
         title: "New Session",
         profile: currentProfile.value,
         permission_mode: permissionMode.value,
+        approval_policy: approvalPolicy.value,
+        sandbox_policy: sandboxPolicy.value,
         project_id: pending.projectId,
         worktree_path: project?.rootPath ?? null,
         branch: pending.branch,
@@ -493,6 +501,32 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  async function setApprovalPolicy(approval: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      const result: string = await invoke("set_session_approval_policy", { approval });
+      approvalPolicy.value = result;
+      const session = sessions.value.find((s) => s.id === currentSessionId.value);
+      if (session) session.approval_policy = result;
+    } catch (e) {
+      console.error("Failed to set approval policy:", e);
+      ui.pushNotification("error", `Failed to set approval policy: ${e}`);
+    }
+  }
+
+  async function setSandboxPolicy(sandboxJson: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      const result: string = await invoke("set_session_sandbox_policy", { sandboxJson });
+      sandboxPolicy.value = result;
+      const session = sessions.value.find((s) => s.id === currentSessionId.value);
+      if (session) session.sandbox_policy = result;
+    } catch (e) {
+      console.error("Failed to set sandbox policy:", e);
+      ui.pushNotification("error", `Failed to set sandbox policy: ${e}`);
+    }
+  }
+
   async function recoverSessions(): Promise<boolean> {
     const ui = useUiStore();
     try {
@@ -541,6 +575,8 @@ export const useSessionStore = defineStore("session", () => {
     loadingProfileInfo,
     lastSendError,
     permissionMode,
+    approvalPolicy,
+    sandboxPolicy,
     pendingSessionDraft,
     currentSessionInfo,
     composerDraftKey,
@@ -566,6 +602,8 @@ export const useSessionStore = defineStore("session", () => {
     refreshProfileInfoForCurrentContext,
     recoverSessions,
     setConnected,
-    setPermissionMode
+    setPermissionMode,
+    setApprovalPolicy,
+    setSandboxPolicy
   };
 });

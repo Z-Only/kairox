@@ -11,6 +11,29 @@ const connectedDotType = computed<"success" | "error">(() =>
   session.connected ? "success" : "error"
 );
 
+const approvalDisplay = computed(() => {
+  const map: Record<string, string> = {
+    never: t("chat.approval.never"),
+    on_request: t("chat.approval.onRequest"),
+    always: t("chat.approval.always")
+  };
+  return map[session.approvalPolicy] ?? session.approvalPolicy;
+});
+
+const sandboxDisplay = computed(() => {
+  try {
+    const parsed = JSON.parse(session.sandboxPolicy);
+    const map: Record<string, string> = {
+      read_only: t("chat.sandbox.readOnly"),
+      workspace_write: t("chat.sandbox.workspaceWrite"),
+      danger_full_access: t("chat.sandbox.dangerFullAccess")
+    };
+    return map[parsed?.kind] ?? String(parsed?.kind ?? "");
+  } catch {
+    return session.sandboxPolicy;
+  }
+});
+
 onMounted(() => {
   void session.loadProfileInfo();
 });
@@ -45,6 +68,18 @@ onMounted(() => {
       <div class="status-item">
         <span class="status-label">{{ t("statusBar.modeLabel") }}:</span>
         <span class="status-value">{{ session.permissionMode }}</span>
+      </div>
+
+      <!-- Approval -->
+      <div class="status-item" data-test="status-bar-approval">
+        <span class="status-label">{{ t("statusBar.approvalLabel") }}:</span>
+        <span class="status-value">{{ approvalDisplay }}</span>
+      </div>
+
+      <!-- Sandbox -->
+      <div class="status-item" data-test="status-bar-sandbox">
+        <span class="status-label">{{ t("statusBar.sandboxLabel") }}:</span>
+        <span class="status-value">{{ sandboxDisplay }}</span>
       </div>
     </div>
   </footer>

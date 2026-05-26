@@ -170,6 +170,20 @@
       "autonomous": "Autonomous",
       "interactive": "Interactive"
     },
+    "selectApprovalAria": "Select approval policy. Current: {approval}",
+    "approval": {
+      "label": "Approval",
+      "never": "Never",
+      "onRequest": "On Request",
+      "always": "Always"
+    },
+    "selectSandboxAria": "Select sandbox policy. Current: {sandbox}",
+    "sandbox": {
+      "label": "Sandbox",
+      "readOnly": "Read Only",
+      "workspaceWrite": "Workspace Write",
+      "dangerFullAccess": "Danger Full Access"
+    },
     "attachFileAria": "Attach file",
     "removeFileAria": "Remove {name}",
     "fileMentionHeader": "Files",
@@ -667,7 +681,9 @@
     "sessionsLabel": "Sessions",
     "streamingLabel": "Streaming",
     "connectedLabel": "Connected",
-    "modeLabel": "Mode"
+    "modeLabel": "Mode",
+    "approvalLabel": "Approval",
+    "sandboxLabel": "Sandbox"
   },
   "chatStream": {
     "permission": {

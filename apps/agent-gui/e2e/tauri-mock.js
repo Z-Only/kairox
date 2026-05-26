@@ -299,6 +299,8 @@ function installMock() {
       state.currentSessionId = null;
       state.currentProfile = "fast";
       state.currentPermissionMode = "suggest";
+      state.currentApprovalPolicy = "on_request";
+      state.currentSandboxPolicy = '{"kind":"workspace_write"}';
       state.projections.clear();
       state.traces.clear();
       state.sentMessages = [];
