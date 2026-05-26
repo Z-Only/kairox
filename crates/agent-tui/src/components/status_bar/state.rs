@@ -30,6 +30,8 @@ impl StatusBar {
             info: StatusInfo {
                 profile: String::new(),
                 permission_mode: String::new(),
+                approval_policy: String::new(),
+                sandbox_policy: String::new(),
                 session_count: 0,
                 mcp_server_count: 0,
                 session_metadata: Vec::new(),

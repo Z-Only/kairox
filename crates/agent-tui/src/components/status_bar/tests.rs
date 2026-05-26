@@ -20,6 +20,8 @@ fn status_bar_renders_without_panic() {
     let info = StatusInfo {
         profile: "fast".to_string(),
         permission_mode: "suggest".to_string(),
+        approval_policy: String::new(),
+        sandbox_policy: String::new(),
         session_count: 3,
         mcp_server_count: 2,
         session_metadata: Vec::new(),
@@ -42,6 +44,8 @@ fn status_bar_renders_with_mcp_count_zero() {
     let info = StatusInfo {
         profile: "fast".to_string(),
         permission_mode: "suggest".to_string(),
+        approval_policy: String::new(),
+        sandbox_policy: String::new(),
         session_count: 3,
         mcp_server_count: 0,
         session_metadata: Vec::new(),
@@ -64,6 +68,8 @@ fn status_bar_renders_with_error_without_panic() {
     let info = StatusInfo {
         profile: "local-code".to_string(),
         permission_mode: "agent".to_string(),
+        approval_policy: String::new(),
+        sandbox_policy: String::new(),
         session_count: 1,
         mcp_server_count: 0,
         session_metadata: Vec::new(),
@@ -110,6 +116,8 @@ fn status_info_permission_mode_label() {
     let info = StatusInfo {
         profile: "fast".to_string(),
         permission_mode: "agent".to_string(),
+        approval_policy: String::new(),
+        sandbox_policy: String::new(),
         session_count: 0,
         mcp_server_count: 0,
         session_metadata: Vec::new(),
@@ -159,6 +167,8 @@ fn status_bar_component_handle_effect_stores_info() {
     let info = StatusInfo {
         profile: "fast".to_string(),
         permission_mode: "readonly".to_string(),
+        approval_policy: String::new(),
+        sandbox_policy: String::new(),
         session_count: 5,
         mcp_server_count: 3,
         session_metadata: Vec::new(),
@@ -226,6 +236,8 @@ mod context_line_tests {
         StatusInfo {
             profile: "fast".into(),
             permission_mode: "suggest".into(),
+            approval_policy: String::new(),
+            sandbox_policy: String::new(),
             session_count: 1,
             mcp_server_count: 0,
             session_metadata: Vec::new(),

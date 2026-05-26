@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use agent_core::projection::SessionProjection;
 use agent_core::{ConfigScope, ProjectId};
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, PermissionMode, SandboxPolicy};
 
 use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
 
@@ -329,7 +329,15 @@ pub struct AppState {
     /// `EventPayload::ModelProfileSwitched.reasoning_effort`. `None` until the
     /// first switch event lands, or for non-reasoning profiles.
     pub reasoning_effort: Option<String>,
+    /// Legacy single-axis permission mode (PR-2e will remove this in favor of
+    /// the orthogonal approval × sandbox model below).
     pub permission_mode: PermissionMode,
+    /// Approval axis of the double-axis policy. Mirrored to the active session
+    /// via [`agent_runtime::AppFacade::set_session_approval_policy`].
+    pub approval_policy: ApprovalPolicy,
+    /// Sandbox axis of the double-axis policy. Mirrored to the active session
+    /// via [`agent_runtime::AppFacade::set_session_sandbox_policy`].
+    pub sandbox_policy: SandboxPolicy,
 
     // Input
     pub input_mode: InputMode,
@@ -366,6 +374,8 @@ impl AppState {
             model_profile: model_profile.into(),
             reasoning_effort: None,
             permission_mode,
+            approval_policy: ApprovalPolicy::default(),
+            sandbox_policy: SandboxPolicy::default(),
             input_mode: InputMode::SingleLine,
             input_state: InputState::Normal,
             input_content: String::new(),
@@ -503,6 +513,30 @@ impl AppState {
         use crate::components::status_bar::PermissionModeExt;
         self.permission_mode = self.permission_mode.next();
         self.permission_mode
+    }
+
+    /// Advance the active approval policy to the next value in the cycle.
+    /// Order: OnRequest → Always → Never → OnRequest.
+    pub fn cycle_approval_policy(&mut self) -> ApprovalPolicy {
+        self.approval_policy = match self.approval_policy {
+            ApprovalPolicy::OnRequest => ApprovalPolicy::Always,
+            ApprovalPolicy::Always => ApprovalPolicy::Never,
+            ApprovalPolicy::Never => ApprovalPolicy::OnRequest,
+        };
+        self.approval_policy
+    }
+
+    /// Advance the active sandbox policy to the next value in the cycle.
+    /// Order: WorkspaceWrite → DangerFullAccess → ReadOnly → WorkspaceWrite.
+    /// Cycling uses the default `WorkspaceWrite` (no network, no extra
+    /// writable roots); fine-grained tuning lives in config files.
+    pub fn cycle_sandbox_policy(&mut self) -> SandboxPolicy {
+        self.sandbox_policy = match &self.sandbox_policy {
+            SandboxPolicy::WorkspaceWrite { .. } => SandboxPolicy::DangerFullAccess,
+            SandboxPolicy::DangerFullAccess => SandboxPolicy::ReadOnly,
+            SandboxPolicy::ReadOnly => SandboxPolicy::default(),
+        };
+        self.sandbox_policy.clone()
     }
 
     pub fn push_status_message(&mut self, message: impl Into<String>) {

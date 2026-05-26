@@ -53,6 +53,10 @@ pub enum KeyAction {
     // -- Status bar shortcuts ---------------------------------------------
     /// Cycle through permission modes (Shift+P).
     CyclePermissionMode,
+    /// Cycle through approval-axis policies (Shift+A — outside Sessions focus).
+    CycleApprovalPolicy,
+    /// Cycle through sandbox-axis policies (Shift+B).
+    CycleSandboxPolicy,
     /// Toggle the context usage details popover (Alt+C).
     ToggleContextDetails,
 

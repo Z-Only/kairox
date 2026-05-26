@@ -135,6 +135,14 @@ pub fn render_context_line_string(info: &StatusInfo, width: u16) -> String {
     let mut parts: Vec<String> = Vec::new();
     parts.push(format!("profile: {}", info.profile));
     parts.push(format!("perm: {}", info.permission_mode));
+    let approval = info.approval_policy_label();
+    if !approval.is_empty() {
+        parts.push(format!("appr: {approval}"));
+    }
+    let sandbox = info.sandbox_policy_label();
+    if !sandbox.is_empty() {
+        parts.push(format!("sbox: {sandbox}"));
+    }
     if !info.session_metadata.is_empty() {
         parts.push(info.session_metadata.join(" · "));
     }
