@@ -200,22 +200,10 @@ where
         session_id: SessionId,
         task_id: TaskId,
     ) -> agent_core::Result<()> {
-        if let Some(executor) = &self.dag_executor {
-            let mut graphs = self.task_graphs.lock().await;
-            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!(
-                    "No task graph found for session {}",
-                    session_id
-                ))
-            })?;
-            executor
-                .retry_task(&workspace_id, &session_id, graph, &task_id)
-                .await
-        } else {
-            Err(agent_core::CoreError::InvalidState(
-                "DAG executor not available".into(),
-            ))
-        }
+        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
+        self.session_execution
+            .retry_task(workspace_id, session_id, task_id, executor)
+            .await
     }
 
     async fn cancel_task(
@@ -224,22 +212,10 @@ where
         session_id: SessionId,
         task_id: TaskId,
     ) -> agent_core::Result<()> {
-        if let Some(executor) = &self.dag_executor {
-            let mut graphs = self.task_graphs.lock().await;
-            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
-                agent_core::CoreError::InvalidState(format!(
-                    "No task graph found for session {}",
-                    session_id
-                ))
-            })?;
-            executor
-                .cancel_task(&workspace_id, &session_id, graph, &task_id)
-                .await
-        } else {
-            Err(agent_core::CoreError::InvalidState(
-                "DAG executor not available".into(),
-            ))
-        }
+        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
+        self.session_execution
+            .cancel_task(workspace_id, session_id, task_id, executor)
+            .await
     }
 
     async fn get_agent_status(

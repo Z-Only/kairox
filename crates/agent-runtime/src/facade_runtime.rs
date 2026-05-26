@@ -256,7 +256,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest, WorkspaceId};
+    use agent_core::{
+        AgentRole, AppFacade, SendMessageRequest, StartSessionRequest, TaskState, WorkspaceId,
+    };
     use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
     use agent_store::SqliteEventStore;
     use async_trait::async_trait;
@@ -525,6 +527,172 @@ mod tests {
 
         release_tx.send(()).unwrap();
         first.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn retry_task_queues_behind_active_actor_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime = Arc::new(LocalRuntime::new(store, model).with_dag_execution().await);
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let failed_task_id = {
+            let mut graph = TaskGraph::default();
+            let task_id = graph.add_task("failed task", AgentRole::Worker, vec![]);
+            graph.mark_running(&task_id).unwrap();
+            graph.mark_failed(&task_id, "boom".into()).unwrap();
+            runtime
+                .task_graphs
+                .lock()
+                .await
+                .insert(session_id.to_string(), graph);
+            task_id
+        };
+
+        let first_runtime = runtime.clone();
+        let first_workspace_id = workspace.workspace_id.clone();
+        let first_session_id = session_id.clone();
+        let first = tokio::spawn(async move {
+            first_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: first_workspace_id,
+                    session_id: first_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let retry_runtime = runtime.clone();
+        let retry_workspace_id = workspace.workspace_id;
+        let retry_session_id = session_id.clone();
+        let retry_task_id = failed_task_id.clone();
+        let retry = tokio::spawn(async move {
+            retry_runtime
+                .retry_task(retry_workspace_id, retry_session_id, retry_task_id)
+                .await
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        assert!(
+            !retry.is_finished(),
+            "retry_task should wait for the actor turn"
+        );
+        {
+            let graphs = runtime.task_graphs.lock().await;
+            let graph = graphs.get(&session_id.to_string()).unwrap();
+            let task = graph.get_task(&failed_task_id).unwrap();
+            assert_eq!(task.state, TaskState::Failed);
+            assert_eq!(task.retry_count, 0);
+        }
+
+        release_tx.send(()).unwrap();
+        first.await.unwrap().unwrap();
+        retry.await.unwrap().unwrap();
+
+        let graphs = runtime.task_graphs.lock().await;
+        let graph = graphs.get(&session_id.to_string()).unwrap();
+        let task = graph.get_task(&failed_task_id).unwrap();
+        assert_eq!(task.state, TaskState::Pending);
+        assert_eq!(task.retry_count, 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_task_queues_behind_active_actor_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime = Arc::new(LocalRuntime::new(store, model).with_dag_execution().await);
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let pending_task_id = {
+            let mut graph = TaskGraph::default();
+            let task_id = graph.add_task("pending task", AgentRole::Worker, vec![]);
+            runtime
+                .task_graphs
+                .lock()
+                .await
+                .insert(session_id.to_string(), graph);
+            task_id
+        };
+
+        let first_runtime = runtime.clone();
+        let first_workspace_id = workspace.workspace_id.clone();
+        let first_session_id = session_id.clone();
+        let first = tokio::spawn(async move {
+            first_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: first_workspace_id,
+                    session_id: first_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let cancel_runtime = runtime.clone();
+        let cancel_workspace_id = workspace.workspace_id;
+        let cancel_session_id = session_id.clone();
+        let cancel_task_id = pending_task_id.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_runtime
+                .cancel_task(cancel_workspace_id, cancel_session_id, cancel_task_id)
+                .await
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        assert!(
+            !cancel.is_finished(),
+            "cancel_task should wait for the actor turn"
+        );
+        {
+            let graphs = runtime.task_graphs.lock().await;
+            let graph = graphs.get(&session_id.to_string()).unwrap();
+            let task = graph.get_task(&pending_task_id).unwrap();
+            assert_eq!(task.state, TaskState::Pending);
+        }
+
+        release_tx.send(()).unwrap();
+        first.await.unwrap().unwrap();
+        cancel.await.unwrap().unwrap();
+
+        let graphs = runtime.task_graphs.lock().await;
+        let graph = graphs.get(&session_id.to_string()).unwrap();
+        let task = graph.get_task(&pending_task_id).unwrap();
+        assert_eq!(task.state, TaskState::Cancelled);
     }
 
     // ------------------------------------------------------------------

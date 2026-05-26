@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use agent_core::{CoreError, SendMessageRequest};
+use agent_core::{CoreError, SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
-use super::types::{ExecutionState, TurnExecutor};
+use super::types::{ExecutionState, TaskControlExecutor, TurnExecutor};
 
 const ACTOR_CHANNEL_CAPACITY: usize = 32;
 
@@ -17,6 +17,20 @@ pub(crate) enum ActorMessage {
     },
     Cancel {
         reason: String,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    },
+    RetryTask {
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    },
+    CancelTask {
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
     State {
@@ -40,6 +54,33 @@ struct PendingTurn {
     reply: oneshot::Sender<agent_core::Result<()>>,
 }
 
+struct PendingTaskControl {
+    workspace_id: WorkspaceId,
+    session_id: SessionId,
+    task_id: TaskId,
+    executor: Arc<dyn TaskControlExecutor>,
+    reply: oneshot::Sender<agent_core::Result<()>>,
+}
+
+enum PendingCommand {
+    RunTurn(PendingTurn),
+    RetryTask(PendingTaskControl),
+    CancelTask(PendingTaskControl),
+}
+
+impl PendingCommand {
+    fn reject_stopped(self) {
+        match self {
+            Self::RunTurn(pending) => {
+                let _ = pending.reply.send(Err(actor_stopped()));
+            }
+            Self::RetryTask(pending) | Self::CancelTask(pending) => {
+                let _ = pending.reply.send(Err(actor_stopped()));
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct SessionActorHandle {
     sender: mpsc::Sender<ActorMessage>,
@@ -61,6 +102,48 @@ impl SessionActorHandle {
         self.sender
             .send(ActorMessage::RunTurn {
                 request,
+                executor,
+                reply,
+            })
+            .await
+            .map_err(|_| actor_stopped())?;
+        result.await.map_err(|_| actor_stopped())?
+    }
+
+    pub(crate) async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
+    ) -> agent_core::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender
+            .send(ActorMessage::RetryTask {
+                workspace_id,
+                session_id,
+                task_id,
+                executor,
+                reply,
+            })
+            .await
+            .map_err(|_| actor_stopped())?;
+        result.await.map_err(|_| actor_stopped())?
+    }
+
+    pub(crate) async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
+    ) -> agent_core::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender
+            .send(ActorMessage::CancelTask {
+                workspace_id,
+                session_id,
+                task_id,
                 executor,
                 reply,
             })
@@ -98,7 +181,7 @@ struct SessionExecutionActor {
     receiver: mpsc::Receiver<ActorMessage>,
     state: ExecutionState,
     running: Option<RunningTurn>,
-    pending: VecDeque<PendingTurn>,
+    pending: VecDeque<PendingCommand>,
 }
 
 impl SessionExecutionActor {
@@ -117,7 +200,7 @@ impl SessionExecutionActor {
                 let active = self.running.as_mut().expect("running turn exists");
                 tokio::select! {
                     join_result = &mut active.join => {
-                        self.finish_running_turn(join_result);
+                        self.finish_running_turn(join_result).await;
                     }
                     message = self.receiver.recv() => {
                         if !self.handle_message(message).await {
@@ -145,11 +228,50 @@ impl SessionExecutionActor {
                 executor,
                 reply,
             } => {
-                self.handle_run_turn(request, executor, reply);
+                self.handle_command(PendingCommand::RunTurn(PendingTurn {
+                    request,
+                    executor,
+                    reply,
+                }))
+                .await;
                 true
             }
             ActorMessage::Cancel { reason, reply } => {
                 self.handle_cancel(reason, reply);
+                true
+            }
+            ActorMessage::RetryTask {
+                workspace_id,
+                session_id,
+                task_id,
+                executor,
+                reply,
+            } => {
+                self.handle_command(PendingCommand::RetryTask(PendingTaskControl {
+                    workspace_id,
+                    session_id,
+                    task_id,
+                    executor,
+                    reply,
+                }))
+                .await;
+                true
+            }
+            ActorMessage::CancelTask {
+                workspace_id,
+                session_id,
+                task_id,
+                executor,
+                reply,
+            } => {
+                self.handle_command(PendingCommand::CancelTask(PendingTaskControl {
+                    workspace_id,
+                    session_id,
+                    task_id,
+                    executor,
+                    reply,
+                }))
+                .await;
                 true
             }
             ActorMessage::State { reply } => {
@@ -163,28 +285,49 @@ impl SessionExecutionActor {
         }
     }
 
-    fn handle_run_turn(
-        &mut self,
-        request: SendMessageRequest,
-        executor: Arc<dyn TurnExecutor>,
-        reply: oneshot::Sender<agent_core::Result<()>>,
-    ) {
+    async fn handle_command(&mut self, command: PendingCommand) {
         if self.state == ExecutionState::Stopped {
-            let _ = reply.send(Err(actor_stopped()));
+            command.reject_stopped();
             return;
         }
 
-        let pending = PendingTurn {
-            request,
-            executor,
-            reply,
-        };
         if self.running.is_some() {
-            self.pending.push_back(pending);
+            self.pending.push_back(command);
             return;
         }
 
-        self.start_turn(pending);
+        self.execute_or_start_command(command).await;
+        self.drain_pending_until_running().await;
+    }
+
+    async fn execute_or_start_command(&mut self, command: PendingCommand) {
+        match command {
+            PendingCommand::RunTurn(pending) => self.start_turn(pending),
+            PendingCommand::RetryTask(pending) => {
+                let result = pending
+                    .executor
+                    .retry_task(pending.workspace_id, pending.session_id, pending.task_id)
+                    .await;
+                let _ = pending.reply.send(result);
+            }
+            PendingCommand::CancelTask(pending) => {
+                let result = pending
+                    .executor
+                    .cancel_task(pending.workspace_id, pending.session_id, pending.task_id)
+                    .await;
+                let _ = pending.reply.send(result);
+            }
+        }
+    }
+
+    async fn drain_pending_until_running(&mut self) {
+        while self.running.is_none() && self.state != ExecutionState::Stopped {
+            let Some(next) = self.pending.pop_front() else {
+                self.state = ExecutionState::Idle;
+                return;
+            };
+            self.execute_or_start_command(next).await;
+        }
     }
 
     fn start_turn(&mut self, pending: PendingTurn) {
@@ -227,13 +370,13 @@ impl SessionExecutionActor {
             active.join.abort();
             let _ = active.reply.send(Err(actor_stopped()));
         }
-        while let Some(pending) = self.pending.pop_front() {
-            let _ = pending.reply.send(Err(actor_stopped()));
+        while let Some(command) = self.pending.pop_front() {
+            command.reject_stopped();
         }
         let _ = reply.send(Ok(()));
     }
 
-    fn finish_running_turn(
+    async fn finish_running_turn(
         &mut self,
         join_result: Result<agent_core::Result<()>, tokio::task::JoinError>,
     ) {
@@ -248,11 +391,7 @@ impl SessionExecutionActor {
         };
         let _ = active.reply.send(result);
         if self.state != ExecutionState::Stopped {
-            if let Some(next) = self.pending.pop_front() {
-                self.start_turn(next);
-            } else {
-                self.state = ExecutionState::Idle;
-            }
+            self.drain_pending_until_running().await;
         }
     }
 }

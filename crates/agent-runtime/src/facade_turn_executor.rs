@@ -1,8 +1,10 @@
 use crate::dag_executor::DagExecutor;
-use crate::execution_runtime::TurnExecutor;
+use crate::execution_runtime::{TaskControlExecutor, TurnExecutor};
 use crate::facade_runtime::{ExecutionMode, LocalRuntime};
 use crate::task_graph::TaskGraph;
-use agent_core::{DomainEvent, PermissionDecision, SendMessageRequest, SessionId};
+use agent_core::{
+    DomainEvent, PermissionDecision, SendMessageRequest, SessionId, TaskId, WorkspaceId,
+};
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
 use agent_store::{EventStore, ProjectMetaRepository};
@@ -132,6 +134,61 @@ where
                 )
                 .await
             }
+        }
+    }
+}
+
+#[async_trait]
+impl<S, M> TaskControlExecutor for LocalRuntimeTurnExecutor<S, M>
+where
+    S: EventStore + 'static,
+    M: ModelClient + 'static,
+{
+    async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        if let Some(executor) = &self.dag_executor {
+            let mut graphs = self.task_graphs.lock().await;
+            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "No task graph found for session {}",
+                    session_id
+                ))
+            })?;
+            executor
+                .retry_task(&workspace_id, &session_id, graph, &task_id)
+                .await
+        } else {
+            Err(agent_core::CoreError::InvalidState(
+                "DAG executor not available".into(),
+            ))
+        }
+    }
+
+    async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        if let Some(executor) = &self.dag_executor {
+            let mut graphs = self.task_graphs.lock().await;
+            let graph = graphs.get_mut(&session_id.to_string()).ok_or_else(|| {
+                agent_core::CoreError::InvalidState(format!(
+                    "No task graph found for session {}",
+                    session_id
+                ))
+            })?;
+            executor
+                .cancel_task(&workspace_id, &session_id, graph, &task_id)
+                .await
+        } else {
+            Err(agent_core::CoreError::InvalidState(
+                "DAG executor not available".into(),
+            ))
         }
     }
 }
