@@ -81,8 +81,6 @@ async fn agent_loop_processes_tool_call_and_continues() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -221,8 +219,6 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

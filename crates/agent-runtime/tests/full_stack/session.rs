@@ -16,8 +16,6 @@ async fn full_stack_start_session_under_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -46,8 +44,6 @@ async fn full_stack_rename_and_soft_delete_session() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

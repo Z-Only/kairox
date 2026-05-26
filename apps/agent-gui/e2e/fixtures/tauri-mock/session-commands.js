@@ -13,7 +13,6 @@
 registerCommandHandlers({
   start_session: function (args) {
     var profile = args.profile || "fast";
-    var permissionMode = args.permissionMode || "suggest";
     var sid = nextId("ses");
     var session = makeSessionInfo(
       sid,
@@ -22,10 +21,8 @@ registerCommandHandlers({
       null,
       null,
       null,
-      "visible",
-      permissionMode
+      "visible"
     );
-    state.currentPermissionMode = permissionMode;
     state.sessions.push(session);
     state.currentSessionId = sid;
     state.projections.set(sid, {
@@ -131,7 +128,6 @@ registerCommandHandlers({
     var session = getSession(sessionId);
     if (session) {
       state.currentProfile = session.profile;
-      if (session.permission_mode) state.currentPermissionMode = session.permission_mode;
     }
     return Promise.resolve(clone(getProjection(sessionId)));
   },
@@ -306,7 +302,6 @@ registerCommandHandlers({
     state.currentApprovalPolicy = approval;
     var session = getSession(state.currentSessionId);
     if (session) session.approval_policy = approval;
-    syncLegacyPermissionMode(state, session);
     return Promise.resolve(approval);
   },
   get_session_sandbox_policy: function (args) {
@@ -325,7 +320,6 @@ registerCommandHandlers({
     state.currentSandboxPolicy = sandboxJson;
     var session = getSession(state.currentSessionId);
     if (session) session.sandbox_policy = sandboxJson;
-    syncLegacyPermissionMode(state, session);
     return Promise.resolve(sandboxJson);
   },
   resolve_permission: function (args) {

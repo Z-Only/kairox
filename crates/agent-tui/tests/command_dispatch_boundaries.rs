@@ -125,7 +125,6 @@ async fn runtime_dispatch_handles_runtime_owned_save_draft() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id,
             model_profile: "reasoning".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

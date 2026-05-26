@@ -1,4 +1,4 @@
-// Integration tests for permission-mode behaviour in the agent loop.
+// Integration tests for approval/sandbox policy behaviour in the agent loop.
 use agent_core::{AppFacade, EventPayload, SendMessageRequest, StartSessionRequest};
 use agent_models::{ModelClient, ModelEvent, ModelRequest};
 use agent_runtime::LocalRuntime;
@@ -65,10 +65,10 @@ impl Tool for FsWriteTool {
 // Tests
 // ---------------------------------------------------------------------------
 
-/// In ReadOnly mode, the permission engine must deny the write-classified tool
+/// In read-only sandbox policy, the permission engine must deny the write-classified tool
 /// and emit a PermissionDenied event in the trace.
 #[tokio::test]
-async fn permission_mode_restricts_write_tool() {
+async fn readonly_sandbox_restricts_write_tool() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = WriteToolCallingModelClient;
     let mut runtime = LocalRuntime::new(store, model);
@@ -85,8 +85,6 @@ async fn permission_mode_restricts_write_tool() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -108,14 +106,14 @@ async fn permission_mode_restricts_write_tool() {
 
     assert!(
         event_types.contains(&"PermissionDenied".to_string()),
-        "Expected PermissionDenied in ReadOnly mode for write tool. Got: {:?}",
+        "Expected PermissionDenied under read-only sandbox for write tool. Got: {:?}",
         event_types
     );
 
     // The write tool must NOT be invoked when permission is denied.
     assert!(
         !event_types.contains(&"ToolInvocationCompleted".to_string()),
-        "Write tool should not be invoked in ReadOnly mode"
+        "Write tool should not be invoked under read-only sandbox"
     );
 
     // The loop should still finish normally (no error propagated).
@@ -142,8 +140,6 @@ async fn session_restore_preserves_messages() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

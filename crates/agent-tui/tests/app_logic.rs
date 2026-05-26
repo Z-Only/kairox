@@ -82,7 +82,6 @@ fn agent_settings_view(
         path: format!("{name}.md"),
         tools: vec!["fs.read".into()],
         model_profile: Some("fast".into()),
-        permission_mode: Some("read_only".into()),
         skills: vec!["kairox-dev-workflow".into()],
         nickname_candidates: vec![name.into()],
         enabled: true,
@@ -762,8 +761,6 @@ async fn tui_send_message_produces_user_and_assistant_messages() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -809,8 +806,6 @@ async fn tui_event_stream_matches_projection() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -883,8 +878,6 @@ async fn tui_multiple_sessions_have_isolated_projections() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -894,8 +887,6 @@ async fn tui_multiple_sessions_have_isolated_projections() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -939,8 +930,6 @@ async fn tui_cancel_session_marks_cancelled() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -976,8 +965,6 @@ async fn tui_trace_entries_populated_after_message() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -1025,8 +1012,6 @@ async fn tui_session_listing_works() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -1036,8 +1021,6 @@ async fn tui_session_listing_works() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "smart".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -1070,8 +1053,6 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -1081,8 +1062,6 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -3308,7 +3287,6 @@ async fn tui_agent_settings_commands_call_facade_and_refresh_overlay() {
                     description: "Plans work".into(),
                     tools: vec!["search".into()],
                     model_profile: Some("reasoning".into()),
-                    permission_mode: Some("workspace_write".into()),
                     skills: vec!["kairox-dev-workflow".into()],
                     nickname_candidates: vec!["Planner".into()],
                     enabled: true,

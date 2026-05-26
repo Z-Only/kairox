@@ -160,7 +160,6 @@ where
             model_profile,
             None,
             None,
-            None,
         )
         .await?;
         let git_status = crate::project::get_git_status(&project.root_path);
@@ -201,7 +200,6 @@ where
             &self.event_tx,
             WorkspaceId::from_string(project.workspace_id.clone()),
             model_profile,
-            None,
             None,
             None,
         )

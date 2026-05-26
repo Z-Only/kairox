@@ -21,8 +21,6 @@ async fn full_stack_send_message_text_only() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -58,8 +56,6 @@ async fn full_stack_tool_call_with_permission_grant() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "test".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -79,7 +75,7 @@ async fn full_stack_tool_call_with_permission_grant() {
     let trace = runtime.get_trace(sid.clone()).await.unwrap();
     let event_types: Vec<&str> = trace.iter().map(|e| e.event.event_type.as_str()).collect();
 
-    // With PermissionMode::Agent, permission should be auto-granted
+    // With OnRequest + WorkspaceWrite, this non-destructive tool should be auto-granted.
     assert!(
         event_types.contains(&"UserMessageAdded"),
         "Missing UserMessageAdded: {event_types:?}"
@@ -133,8 +129,6 @@ async fn full_stack_agent_mode_completes_without_prompt() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

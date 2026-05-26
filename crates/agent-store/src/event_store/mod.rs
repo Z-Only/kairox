@@ -60,8 +60,6 @@ pub trait EventStore: Send + Sync {
     async fn save_draft(&self, session_id: &str, draft_text: &str) -> crate::Result<()>;
     /// Get draft text for a session, returning empty string if none exists.
     async fn get_draft(&self, session_id: &str) -> crate::Result<String>;
-    /// Update the permission mode for a session.
-    async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()>;
     /// Update the approval policy (Codex/Claude-style) for a session.
     /// Stored as the policy's snake_case discriminator string (e.g. "never").
     async fn update_approval_policy(
@@ -76,13 +74,6 @@ pub trait EventStore: Send + Sync {
         session_id: &str,
         sandbox_policy_json: &str,
     ) -> crate::Result<()>;
-    /// Fetch the persisted `(approval_policy, sandbox_policy_json)` pair for a
-    /// single session. Used by writers that need to keep the legacy
-    /// `permission_mode` column consistent after a dual-axis update.
-    async fn get_session_policies(
-        &self,
-        session_id: &str,
-    ) -> crate::Result<Option<(Option<String>, Option<String>)>>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -100,7 +91,6 @@ pub struct ProjectSessionMetaRow {
     pub worktree_path: String,
     pub branch: Option<String>,
     pub visibility: String,
-    pub permission_mode: String,
     pub approval_policy: Option<String>,
     pub sandbox_policy: Option<String>,
 }
@@ -121,7 +111,6 @@ pub struct SessionRow {
     pub model_profile: String,
     pub model_id: Option<String>,
     pub provider: Option<String>,
-    pub permission_mode: String,
     pub approval_policy: Option<String>,
     pub sandbox_policy: Option<String>,
     pub deleted_at: Option<String>,
@@ -137,7 +126,6 @@ struct SessionRowForQuery {
     model_profile: String,
     model_id: Option<String>,
     provider: Option<String>,
-    permission_mode: String,
     approval_policy: Option<String>,
     sandbox_policy: Option<String>,
     deleted_at: Option<String>,
@@ -154,7 +142,6 @@ impl From<SessionRowForQuery> for SessionRow {
             model_profile: r.model_profile,
             model_id: r.model_id,
             provider: r.provider,
-            permission_mode: r.permission_mode,
             approval_policy: r.approval_policy,
             sandbox_policy: r.sandbox_policy,
             deleted_at: r.deleted_at,
@@ -291,10 +278,6 @@ impl EventStore for SqliteEventStore {
         SqliteEventStore::get_draft(self, session_id).await
     }
 
-    async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()> {
-        SqliteEventStore::update_permission_mode(self, session_id, mode).await
-    }
-
     async fn update_approval_policy(
         &self,
         session_id: &str,
@@ -309,13 +292,6 @@ impl EventStore for SqliteEventStore {
         sandbox_policy_json: &str,
     ) -> crate::Result<()> {
         SqliteEventStore::update_sandbox_policy(self, session_id, sandbox_policy_json).await
-    }
-
-    async fn get_session_policies(
-        &self,
-        session_id: &str,
-    ) -> crate::Result<Option<(Option<String>, Option<String>)>> {
-        SqliteEventStore::get_session_policies(self, session_id).await
     }
 }
 

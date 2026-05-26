@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -477,7 +478,7 @@ jobs:
   live-model-tests:
     name: Live model tests (GitHub Models)
     needs: changes
-    if: needs.changes.outputs.live_models == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: needs.changes.outputs.live_models == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
     # Serialize across every PR + push so concurrent live jobs do not
     # trigger GitHub Models' anti-abuse "scraping" throttle, which is
     # repository-scoped and distinct from the documented RPM/RPD quota.
@@ -611,7 +612,7 @@ jobs:
   tauri-pilot-live-e2e:
     name: Tauri pilot live E2E (GitHub Models)
     needs: changes
-    if: needs.changes.outputs.live_pilot == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: needs.changes.outputs.live_pilot == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
     # Share the live-models serialization group: the pilot live scenarios
     # also exercise the GitHub Models endpoint and contribute to the same
     # anti-abuse throttle.

@@ -305,8 +305,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },
@@ -421,8 +419,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },
@@ -485,8 +481,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },
@@ -518,8 +512,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "opus".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },
@@ -564,8 +556,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },
@@ -610,8 +600,6 @@ mod tests {
             StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fast".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             },

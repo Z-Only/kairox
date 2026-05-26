@@ -15,7 +15,6 @@ async fn save_and_get_draft() {
             model_profile: "fast".into(),
             model_id: None,
             provider: None,
-            permission_mode: "suggest".to_string(),
             approval_policy: None,
             sandbox_policy: None,
             deleted_at: None,

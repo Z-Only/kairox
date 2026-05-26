@@ -28,7 +28,6 @@ const form = reactive<AgentSettingsInput>({
   description: "",
   tools: [],
   modelProfile: null,
-  permissionMode: null,
   skills: [],
   nicknameCandidates: [],
   enabled: true,
@@ -87,7 +86,6 @@ function searchableAgentText(agent: AgentSettingsView): string {
     scopeLabel(agent.scope),
     agent.scope,
     agent.modelProfile,
-    agent.permissionMode,
     agent.tools.join(" "),
     agent.skills.join(" "),
     agent.nicknameCandidates.join(" "),
@@ -146,7 +144,6 @@ function startCreate(): void {
     description: "",
     tools: [],
     modelProfile: null,
-    permissionMode: null,
     skills: [],
     nicknameCandidates: [],
     enabled: true,
@@ -166,7 +163,6 @@ function editAgent(agent: AgentSettingsView): void {
     description: agent.description,
     tools: [...agent.tools],
     modelProfile: agent.modelProfile,
-    permissionMode: agent.permissionMode,
     skills: [...agent.skills],
     nicknameCandidates: [...agent.nicknameCandidates],
     enabled: agent.enabled,
@@ -192,7 +188,6 @@ async function saveAgent(): Promise<void> {
     skills: splitCsv(skillsText.value),
     nicknameCandidates: splitCsv(nicknamesText.value),
     modelProfile: form.modelProfile?.trim() || null,
-    permissionMode: form.permissionMode?.trim() || null,
     instructions: form.instructions.trimEnd()
   });
   closeEditor();
@@ -325,10 +320,6 @@ watch(
                 <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
               </div>
               <div>
-                <dt>{{ t("agents.permission") }}</dt>
-                <dd>{{ agent.permissionMode || t("agents.defaultValue") }}</dd>
-              </div>
-              <div>
                 <dt>{{ t("agents.tools") }}</dt>
                 <dd>
                   {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
@@ -393,13 +384,6 @@ watch(
           <KxInput
             v-model="form.modelProfile"
             data-test="agent-form-model"
-            :placeholder="t('agents.defaultValue')"
-          />
-        </KxFormField>
-        <KxFormField :label="t('agents.permissionMode')">
-          <KxInput
-            v-model="form.permissionMode"
-            data-test="agent-form-permission"
             :placeholder="t('agents.defaultValue')"
           />
         </KxFormField>

@@ -130,7 +130,6 @@ fn builtin_agent_views(roots: &AgentSettingsRoots) -> Vec<AgentSettingsView> {
                 path,
                 tools: agent.tools,
                 model_profile: agent.model_profile,
-                permission_mode: agent.permission_mode,
                 skills: agent.skills,
                 nickname_candidates: agent.nickname_candidates,
                 enabled: agent.enabled,
@@ -153,7 +152,6 @@ fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
             description: "General-purpose fallback agent.".into(),
             tools: Vec::new(),
             model_profile: None,
-            permission_mode: None,
             skills: Vec::new(),
             nickname_candidates: vec!["Default".into()],
             enabled: true,
@@ -164,7 +162,6 @@ fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
             description: "Execution-focused agent for implementation and fixes.".into(),
             tools: Vec::new(),
             model_profile: None,
-            permission_mode: Some("workspace_write".into()),
             skills: Vec::new(),
             nickname_candidates: vec!["Worker".into()],
             enabled: true,
@@ -177,7 +174,6 @@ fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
             description: "Read-heavy codebase exploration agent.".into(),
             tools: vec!["fs.read".into(), "search".into()],
             model_profile: None,
-            permission_mode: Some("read_only".into()),
             skills: Vec::new(),
             nickname_candidates: vec!["Explorer".into()],
             enabled: true,
@@ -189,7 +185,6 @@ fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
                 .into(),
             tools: vec!["fs.read".into(), "search".into(), "shell".into()],
             model_profile: None,
-            permission_mode: Some("read_only".into()),
             skills: Vec::new(),
             nickname_candidates: vec!["Reviewer".into()],
             enabled: true,
@@ -201,7 +196,6 @@ fn builtin_agents() -> Vec<ParsedAgentMarkdown> {
                 .into(),
             tools: vec!["shell".into(), "fs.read".into(), "search".into()],
             model_profile: None,
-            permission_mode: Some("workspace_write".into()),
             skills: Vec::new(),
             nickname_candidates: vec!["Test".into()],
             enabled: true,
@@ -251,7 +245,6 @@ fn view_from_parsed(
         path: path.display().to_string(),
         tools: agent.tools,
         model_profile: agent.model_profile,
-        permission_mode: agent.permission_mode,
         skills: agent.skills,
         nickname_candidates: agent.nickname_candidates,
         enabled: agent.enabled,
@@ -283,7 +276,6 @@ fn invalid_view(
         path: path.display().to_string(),
         tools: Vec::new(),
         model_profile: None,
-        permission_mode: None,
         skills: Vec::new(),
         nickname_candidates: Vec::new(),
         enabled: false,
@@ -315,7 +307,6 @@ mod projection_tests {
             path: format!("/mock/{name}.md"),
             tools: Vec::new(),
             model_profile: None,
-            permission_mode: None,
             skills: Vec::new(),
             nickname_candidates: Vec::new(),
             enabled,
@@ -335,7 +326,6 @@ mod projection_tests {
             description: format!("{name} description"),
             tools: vec!["shell".into()],
             model_profile: Some("fast".into()),
-            permission_mode: Some("ask".into()),
             skills: vec!["audit".into()],
             nickname_candidates: vec![name.into()],
             enabled: true,
@@ -525,7 +515,6 @@ mod projection_tests {
         assert_eq!(view.name, "planner");
         assert_eq!(view.path, "/x/planner.md");
         assert_eq!(view.tools, vec!["shell"]);
-        assert_eq!(view.permission_mode.as_deref(), Some("ask"));
         assert!(view.valid);
         assert!(view.editable);
         assert!(view.deletable);

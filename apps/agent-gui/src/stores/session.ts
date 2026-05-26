@@ -53,36 +53,6 @@ export function temporaryTitleFromFirstMessage(content: string): string {
     : trimmedContent;
 }
 
-interface LegacyPolicyMapping {
-  approval: string;
-  sandboxJson: string;
-}
-
-const WORKSPACE_WRITE_DEFAULT_JSON = JSON.stringify({
-  kind: "workspace_write",
-  network_access: false,
-  writable_roots: []
-});
-
-export function legacyModeToPolicy(mode: string): LegacyPolicyMapping | null {
-  switch (mode) {
-    case "read_only":
-      return { approval: "never", sandboxJson: JSON.stringify({ kind: "read_only" }) };
-    case "suggest":
-      return { approval: "always", sandboxJson: WORKSPACE_WRITE_DEFAULT_JSON };
-    case "agent":
-    case "interactive":
-      return { approval: "on_request", sandboxJson: WORKSPACE_WRITE_DEFAULT_JSON };
-    case "autonomous":
-      return {
-        approval: "never",
-        sandboxJson: JSON.stringify({ kind: "danger_full_access" })
-      };
-    default:
-      return null;
-  }
-}
-
 function titleCaseWords(value: string): string {
   return value
     .split(/[-_\s]+/)
@@ -143,7 +113,6 @@ function normalizeProjectSessionInfo(projectSession: ProjectSessionInfo): Sessio
     id: projectSession.sessionId,
     title: projectSession.title,
     profile: projectSession.profile,
-    permission_mode: null,
     project_id: projectSession.projectId,
     worktree_path: projectSession.worktreePath,
     branch: projectSession.branch,
@@ -181,7 +150,6 @@ export const useSessionStore = defineStore("session", () => {
   const loadingProfileInfo = ref(false);
   let profileInfoLoad: Promise<void> | null = null;
   const lastSendError = ref<string | null>(null);
-  const permissionMode = ref<string>("suggest");
   const approvalPolicy = ref<string>("on_request");
   const sandboxPolicy = ref<string>(
     '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
@@ -205,7 +173,6 @@ export const useSessionStore = defineStore("session", () => {
     currentSessionId,
     currentProfile,
     currentReasoningEffort,
-    permissionMode,
     approvalPolicy,
     sandboxPolicy,
     profileInfos,
@@ -253,7 +220,6 @@ export const useSessionStore = defineStore("session", () => {
         id: `new-project-session:${pending.projectId}`,
         title: "New Session",
         profile: currentProfile.value,
-        permission_mode: permissionMode.value,
         approval_policy: approvalPolicy.value,
         sandbox_policy: sandboxPolicy.value,
         project_id: pending.projectId,
@@ -347,10 +313,9 @@ export const useSessionStore = defineStore("session", () => {
    * directly. Throws on backend failure so the view can surface it.
    */
   async function createSession(
-    profile?: string,
-    permissionModeParam?: string
+    profile?: string
   ): Promise<{ id: string; title: string; profile: string }> {
-    const result = await createSessionImpl(profile, permissionModeParam, sessionActionDeps);
+    const result = await createSessionImpl(profile, sessionActionDeps);
     pendingSessionDraft.value = null;
     return result;
   }
@@ -520,33 +485,6 @@ export const useSessionStore = defineStore("session", () => {
     await loadProfileInfo({ refreshConfig: true });
   }
 
-  async function setPermissionMode(mode: string): Promise<void> {
-    const ui = useUiStore();
-    const mapping = legacyModeToPolicy(mode);
-    if (!mapping) {
-      ui.pushNotification("error", `Unknown permission mode: ${mode}`);
-      return;
-    }
-    try {
-      await Promise.all([
-        invoke("set_session_approval_policy", { approval: mapping.approval }),
-        invoke("set_session_sandbox_policy", { sandboxJson: mapping.sandboxJson })
-      ]);
-      approvalPolicy.value = mapping.approval;
-      sandboxPolicy.value = mapping.sandboxJson;
-      permissionMode.value = mode;
-      const session = sessions.value.find((s) => s.id === currentSessionId.value);
-      if (session) {
-        session.approval_policy = mapping.approval;
-        session.sandbox_policy = mapping.sandboxJson;
-        session.permission_mode = mode;
-      }
-    } catch (e) {
-      console.error("Failed to set permission mode:", e);
-      ui.pushNotification("error", `Failed to set permission mode: ${e}`);
-    }
-  }
-
   async function setApprovalPolicy(approval: string): Promise<void> {
     const ui = useUiStore();
     try {
@@ -620,7 +558,6 @@ export const useSessionStore = defineStore("session", () => {
     profileInfos,
     loadingProfileInfo,
     lastSendError,
-    permissionMode,
     approvalPolicy,
     sandboxPolicy,
     pendingSessionDraft,
@@ -648,7 +585,6 @@ export const useSessionStore = defineStore("session", () => {
     refreshProfileInfoForCurrentContext,
     recoverSessions,
     setConnected,
-    setPermissionMode,
     setApprovalPolicy,
     setSandboxPolicy
   };

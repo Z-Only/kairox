@@ -26,7 +26,6 @@ test.describe("Agents Settings", () => {
     await expect(page.getByTestId("agent-form-name")).toHaveValue("code-reviewer");
     await page.getByTestId("agent-form-description").fill("Review diffs before handoff.");
     await page.getByTestId("agent-form-model").fill("fast");
-    await page.getByTestId("agent-form-permission").fill("workspace_write");
     await page.getByTestId("agent-form-tools").fill("fs.read, search, shell");
     await page.getByTestId("agent-form-skills").fill("kairox-dev-workflow, test-driven-rust");
     await page.getByTestId("agent-form-nicknames").fill("Reviewer, Audit");
@@ -39,12 +38,10 @@ test.describe("Agents Settings", () => {
       "Review diffs before handoff."
     );
     await expect(agentRow(page, "code-reviewer", "User")).toContainText("fast");
-    await expect(agentRow(page, "code-reviewer", "User")).toContainText("workspace_write");
     await expect(agentRow(page, "code-reviewer", "User")).toContainText("shell");
 
     await page.getByTestId("agent-edit-code-reviewer").click();
     await expect(page.getByTestId("agent-form-model")).toHaveValue("fast");
-    await expect(page.getByTestId("agent-form-permission")).toHaveValue("workspace_write");
     await expect(page.getByTestId("agent-form-skills")).toHaveValue(
       "kairox-dev-workflow, test-driven-rust"
     );
@@ -68,7 +65,7 @@ test.describe("Agents Settings", () => {
     await expect(agentRow(page, "code-reviewer", "User")).toBeVisible();
     await expect(agentRow(page, "worker", "Builtin")).toHaveCount(0);
 
-    await search.fill("workspace_write");
+    await search.fill("Execution-focused");
     await expect(agentRow(page, "worker", "Builtin")).toBeVisible();
     await expect(agentRow(page, "code-reviewer", "User")).toHaveCount(0);
 
@@ -113,7 +110,6 @@ test.describe("Agents Settings", () => {
     await page.getByTestId("agent-form-name").fill("pilot-workflow-agent");
     await page.getByTestId("agent-form-description").fill("Project scoped workflow agent.");
     await page.getByTestId("agent-form-model").fill("fast");
-    await page.getByTestId("agent-form-permission").fill("read_only");
     await page.getByTestId("agent-form-tools").fill("fs.read, shell");
     await page.getByTestId("agent-form-skills").fill("kairox-dev-workflow");
     await page.getByTestId("agent-form-nicknames").fill("Pilot");
@@ -129,7 +125,6 @@ test.describe("Agents Settings", () => {
     await expect(projectRow).toContainText("Project");
     await expect(projectRow).toContainText("Disabled");
     await expect(projectRow).toContainText("fast");
-    await expect(projectRow).toContainText("read_only");
     await expect(projectRow).toContainText("fs.read, shell");
 
     await projectRow.getByTestId("agent-edit-pilot-workflow-agent").click();
