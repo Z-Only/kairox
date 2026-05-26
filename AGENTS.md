@@ -341,16 +341,16 @@ Floors below are the gates enforced today, calibrated against CI's actual LCOV o
 
 | Tier                     | Path patterns                                                                                                                            | functions | lines |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----- |
-| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 33        | 71    |
-| **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/` (currently `allowPartial: true`; group not yet in LCOV) | 55        | 75    |
-| **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | —         | —     |
-| **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 91        | 95    |
-| **T4 Floor**             | `agent-tui/src/`, `agent-eval/src/` (`minFiles` only)                                                                                    | —         | —     |
-| Workspace overall        | `crates/`, `apps/agent-gui/src-tauri/src/`                                                                                               | 37        | 71    |
+| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 37        | 84    |
+| **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/`                                                         | 27        | 78    |
+| **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | 2         | 18    |
+| **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 72        | 92    |
+| **T4 Floor**             | `agent-tui/src/`, `agent-eval/src/`                                                                                                      | 37        | 62    |
+| Workspace overall        | `crates/`, `apps/agent-gui/src-tauri/src/`                                                                                               | 30        | 70    |
 
-Each group also enforces a `minFiles` floor to catch report truncation. Groups can opt into `allowPartial: true` to warn rather than fail when no files match — used today for T2 High runtime while the LCOV pipeline is being investigated.
+Each group also enforces a `minFiles` floor to catch report truncation. Groups can opt into `allowPartial: true` to warn rather than fail when no files match (no group currently uses it after #509 — every workspace crate now appears in LCOV).
 
-**Tier targets** (what the floors should approach as tests are added and the LCOV pipeline is fixed): T1 70/80 · T2 High 55/75 · T2 Tauri 50/70 · T3 45/65 · T4 lines 50 · Workspace 50/70 (functions/lines).
+**Tier targets** (what the floors should approach as tests are added): T1 70/85 · T2 High 55/80 · T2 Tauri 50/70 · T3 80/95 · T4 50/65 · Workspace 50/75 (functions/lines).
 
 ### Web tiers (`apps/agent-gui/vitest.config.ts`)
 

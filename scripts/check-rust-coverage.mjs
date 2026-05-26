@@ -31,18 +31,16 @@ const groups = [
       /^crates\/agent-core\/src\//,
       /^crates\/agent-config\/src\//
     ],
-    minFiles: 24,
+    minFiles: 32,
     thresholds: {
-      // lines kept conservative: nightly llvm-cov line coverage measured
-      // 74.26 / 73.87 / 72.75 across consecutive runs (~1.5pp wobble).
-      functions: 33,
-      lines: 71
+      // Calibrated against post-#509 LCOV (39 files, functions 38.62%,
+      // lines 85.52%). Floors set to ≈ floor(actual − 1) for nightly wobble.
+      functions: 37,
+      lines: 84
     }
   },
-  // Tier 2A — High-risk runtime hot path. CI LCOV historically did not surface
-  // these source files; the group is kept for documentation and to alert when
-  // the pipeline starts including them. allowPartial keeps it from blocking
-  // CI in the meantime.
+  // Tier 2A — High-risk runtime hot path. The post-#509 pipeline finally
+  // surfaces these crates; allowPartial is gone.
   {
     name: "T2 high-risk runtime",
     include: [
@@ -51,16 +49,21 @@ const groups = [
       /^crates\/agent-models\/src\//,
       /^crates\/agent-mcp\/src\//
     ],
-    allowPartial: true,
+    minFiles: 120,
     thresholds: {
-      functions: 55,
-      lines: 75
+      // Post-#509 baseline: functions 28.06%, lines 80.04% across 132 files.
+      // The functions floor sits well below the tier target (55) because
+      // most of agent-runtime is async glue around hooked-into-tests work;
+      // raise it as runtime-side helper tests land.
+      functions: 27,
+      lines: 78
     }
   },
-  // Tier 2B — Tauri IPC boundary. Errors here block the desktop GUI. CI LCOV
-  // historically reported functions/lines as 0% on these files, so the group
-  // currently asserts only on the minFiles floor; metric thresholds will be
-  // added back once the pipeline produces real numbers.
+  // Tier 2B — Tauri IPC boundary. Post-#509 baseline finally produces real
+  // numbers (functions 3.24%, lines 19.55% across 19 files). The functions
+  // floor is intentionally near-zero — every #[tauri::command] is a thin
+  // adapter and unit-testing them requires a real AppHandle (#502 PR
+  // discussion). lines is gated to keep regressions visible.
   {
     name: "T2 Tauri IPC",
     include: [
@@ -70,7 +73,10 @@ const groups = [
     // specta.rs is a Specta registration glue file dominated by macro output.
     exclude: [/^apps\/agent-gui\/src-tauri\/src\/specta\.rs$/],
     minFiles: 13,
-    thresholds: {}
+    thresholds: {
+      functions: 2,
+      lines: 18
+    }
   },
   // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
   // Skills registry/state, Plugins manifest parsing.
@@ -83,30 +89,37 @@ const groups = [
     ],
     // T1 covers these with stricter thresholds; do not double-count them here.
     exclude: [/^crates\/agent-tools\/src\/(permission|registry)\.rs$/],
-    minFiles: 7,
+    minFiles: 30,
     thresholds: {
-      functions: 91,
-      lines: 95
+      // Post-#509 baseline across 34 files: functions 73.96%, lines 92.95%.
+      // The wider file set (skills + plugins src finally appearing) brought
+      // these down from the previous "8 files, 92/96" snapshot, but the
+      // numbers stay comfortably above the tier targets.
+      functions: 72,
+      lines: 92
     }
   },
-  // Tier 4 — Floor: rendering shells and evaluation CLI. CI LCOV historically
-  // reported functions/lines as 0% on these surfaces, so only minFiles is
-  // gated; metric thresholds will be added back once the pipeline produces
-  // real numbers.
+  // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
+  // sees the agent-tui src tree (82 files), so meaningful floors apply.
   {
     name: "T4 UI shells and eval",
     include: [/^crates\/agent-tui\/src\//, /^crates\/agent-eval\/src\//],
-    minFiles: 1,
-    thresholds: {}
+    minFiles: 75,
+    thresholds: {
+      // Post-#509 baseline: functions 38.02%, lines 63.14%.
+      functions: 37,
+      lines: 62
+    }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
   {
     name: "Rust workspace overall",
     include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
-    minFiles: 50,
+    minFiles: 280,
     thresholds: {
-      functions: 37,
-      lines: 71
+      // Post-#509 baseline: functions 31.66%, lines 71.89% across 308 files.
+      functions: 30,
+      lines: 70
     }
   }
 ];
