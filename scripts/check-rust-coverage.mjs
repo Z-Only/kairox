@@ -145,11 +145,9 @@ function readLcov(filePath) {
 
     if (!current) continue;
 
-    if (line.startsWith("BRF:")) {
-      current.summary.branches.count = Number(line.slice(4));
-    } else if (line.startsWith("BRH:")) {
-      current.summary.branches.covered = Number(line.slice(4));
-    } else if (line.startsWith("FNF:")) {
+    // BRF/BRH (branch coverage) records are intentionally not parsed — see
+    // the metrics constant above for context (LLVM #189169).
+    if (line.startsWith("FNF:")) {
       current.summary.functions.count = Number(line.slice(4));
     } else if (line.startsWith("FNH:")) {
       current.summary.functions.covered = Number(line.slice(4));
