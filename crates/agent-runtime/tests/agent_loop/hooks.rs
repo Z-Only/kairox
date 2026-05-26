@@ -36,6 +36,8 @@ async fn start_session_runs_session_start_hook() {
             workspace_id: workspace.workspace_id,
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -89,6 +91,8 @@ async fn agent_loop_runs_pre_and_post_tool_hooks() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -137,6 +141,8 @@ async fn agent_loop_runs_stop_hook_after_text_turn() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

@@ -23,6 +23,8 @@ async fn multiple_sessions_in_same_workspace() {
             model_profile: "gpt-4".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -32,6 +34,8 @@ async fn multiple_sessions_in_same_workspace() {
             model_profile: "claude".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -41,6 +45,8 @@ async fn multiple_sessions_in_same_workspace() {
             model_profile: "ollama".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

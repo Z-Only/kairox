@@ -19,6 +19,8 @@ async fn mark_session_visible_rejects_non_draft_sessions() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -48,6 +50,8 @@ async fn mark_session_visible_rejects_draft_visibility_without_project_binding()
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

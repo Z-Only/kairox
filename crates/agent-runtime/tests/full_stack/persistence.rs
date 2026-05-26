@@ -33,6 +33,8 @@ async fn full_stack_data_persists_across_reconnection() {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await
             .unwrap();

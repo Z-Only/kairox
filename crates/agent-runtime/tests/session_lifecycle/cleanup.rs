@@ -21,6 +21,8 @@ async fn cleanup_expired_removes_old_sessions_and_events() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

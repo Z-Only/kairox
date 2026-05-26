@@ -307,6 +307,8 @@ mod tests {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await
@@ -421,6 +423,8 @@ mod tests {
                 model_profile: "fast".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await
@@ -483,6 +487,8 @@ mod tests {
                 model_profile: "fast".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await
@@ -514,6 +520,8 @@ mod tests {
                 model_profile: "opus".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await
@@ -558,6 +566,8 @@ mod tests {
                 model_profile: "fast".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await
@@ -602,6 +612,8 @@ mod tests {
                 model_profile: "fast".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             },
         )
         .await

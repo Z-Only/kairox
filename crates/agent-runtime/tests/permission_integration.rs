@@ -85,6 +85,8 @@ async fn permission_mode_restricts_write_tool() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -140,6 +142,8 @@ async fn session_restore_preserves_messages() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

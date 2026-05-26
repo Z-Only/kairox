@@ -17,6 +17,8 @@ async fn full_stack_task_graph_populated() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

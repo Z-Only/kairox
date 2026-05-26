@@ -39,6 +39,8 @@ async fn agent_loop_handles_model_error_gracefully() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

@@ -311,6 +311,8 @@ where
                     workspace_id: workspace.workspace_id.clone(),
                     model_profile,
                     permission_mode,
+                    approval_policy: None,
+                    sandbox_policy: None,
                 },
             )
             .await?,

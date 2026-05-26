@@ -77,6 +77,8 @@ async fn agent_loop_processes_tool_call_and_continues() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -209,6 +211,8 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

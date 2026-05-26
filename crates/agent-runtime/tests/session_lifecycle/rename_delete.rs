@@ -21,6 +21,8 @@ async fn rename_and_soft_delete_flow() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

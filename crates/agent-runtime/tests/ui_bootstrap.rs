@@ -125,6 +125,8 @@ async fn ensure_workspace_session_reuses_most_recent_active_session() {
             workspace_id: first.workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("second session should start");

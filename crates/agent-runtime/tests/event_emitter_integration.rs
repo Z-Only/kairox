@@ -24,6 +24,8 @@ async fn event_emitter_forwards_key_payload_types() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

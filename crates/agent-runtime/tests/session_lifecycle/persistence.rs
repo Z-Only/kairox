@@ -21,6 +21,8 @@ async fn session_metadata_persists_across_reopen() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

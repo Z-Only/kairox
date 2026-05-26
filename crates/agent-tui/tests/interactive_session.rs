@@ -26,6 +26,8 @@ async fn full_session_flow_sends_message_and_receives_response() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -69,6 +71,8 @@ async fn event_subscription_receives_streaming_events() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

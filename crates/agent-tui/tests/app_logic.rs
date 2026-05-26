@@ -765,6 +765,8 @@ async fn tui_send_message_produces_user_and_assistant_messages() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -810,6 +812,8 @@ async fn tui_event_stream_matches_projection() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -882,6 +886,8 @@ async fn tui_multiple_sessions_have_isolated_projections() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -891,6 +897,8 @@ async fn tui_multiple_sessions_have_isolated_projections() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -934,6 +942,8 @@ async fn tui_cancel_session_marks_cancelled() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -969,6 +979,8 @@ async fn tui_trace_entries_populated_after_message() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -1016,6 +1028,8 @@ async fn tui_session_listing_works() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -1025,6 +1039,8 @@ async fn tui_session_listing_works() {
             model_profile: "smart".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -1057,6 +1073,8 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -1066,6 +1084,8 @@ async fn tui_subscribe_all_receives_events_across_sessions() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

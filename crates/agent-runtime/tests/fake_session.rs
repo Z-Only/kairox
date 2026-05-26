@@ -19,6 +19,8 @@ async fn fake_model_completes_full_session_and_trace_replays() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

@@ -35,6 +35,8 @@ async fn manual_activation_lists_active_skills_for_that_session() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -99,6 +101,8 @@ async fn repeated_skills_activation_does_not_emit_duplicate_skill_activated_even
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");

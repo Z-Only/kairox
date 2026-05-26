@@ -37,6 +37,8 @@ pub fn project_session_row_to_meta(row: ProjectSessionMetaRow) -> SessionMeta {
         branch: row.branch,
         visibility: Some(visibility_from_storage(&row.visibility)),
         permission_mode: Some(row.permission_mode.clone()),
+        approval_policy: row.approval_policy.clone(),
+        sandbox_policy: row.sandbox_policy.clone(),
         session_id: SessionId::from_string(row.session_id),
         workspace_id: WorkspaceId::from_string(row.workspace_id),
         title: row.title,

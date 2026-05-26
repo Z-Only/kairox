@@ -118,6 +118,8 @@ async fn model_switch_takes_effect_on_next_send_message() {
             model_profile: "fast".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -250,6 +252,8 @@ async fn switch_model_rejects_unknown_alias_in_running_session() {
             model_profile: "fast".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

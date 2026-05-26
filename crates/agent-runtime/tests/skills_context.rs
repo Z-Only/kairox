@@ -44,6 +44,8 @@ async fn send_message_skips_missing_active_skills_documents() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -100,6 +102,8 @@ async fn send_message_includes_active_skill_block_in_model_request() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
