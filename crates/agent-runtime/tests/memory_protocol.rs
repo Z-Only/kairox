@@ -220,6 +220,54 @@ async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
 }
 
 #[tokio::test]
+async fn user_scope_memory_auto_accepted_in_interactive_mode() {
+    let runtime = runtime_with_memory(
+        vec!["<memory scope=\"user\" key=\"editor\">Helix</memory> Saved.".into()],
+        PermissionMode::Interactive,
+    )
+    .await;
+    let (workspace_id, session_id) = start_session(&runtime).await;
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id,
+            session_id: session_id.clone(),
+            content: "I use Helix".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let trace = runtime.get_trace(session_id).await.unwrap();
+
+    let accepted: Vec<_> = trace
+        .iter()
+        .filter(|t| {
+            matches!(
+                &t.event.payload,
+                EventPayload::MemoryAccepted { scope, key, content, .. }
+                if scope == "user" && key.as_deref() == Some("editor") && content == "Helix"
+            )
+        })
+        .collect();
+    assert!(
+        !accepted.is_empty(),
+        "Expected MemoryAccepted with scope 'user', key 'editor', content 'Helix' in Interactive mode, found: {:?}",
+        trace.iter().map(|t| format!("{:?}", t.event.payload)).collect::<Vec<_>>()
+    );
+
+    let proposed: Vec<_> = trace
+        .iter()
+        .filter(|t| matches!(&t.event.payload, EventPayload::MemoryProposed { .. }))
+        .collect();
+    assert!(
+        proposed.is_empty(),
+        "Expected NO MemoryProposed in Interactive mode (auto-accept is now the default), found {}",
+        proposed.len()
+    );
+}
+
+#[tokio::test]
 async fn memory_markers_stripped_from_display() {
     let runtime = runtime_with_memory(
         vec![

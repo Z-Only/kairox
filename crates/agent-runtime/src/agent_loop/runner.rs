@@ -263,7 +263,6 @@ where
             &**deps.store,
             deps.event_tx,
             deps.permission_engine,
-            deps.pending_permissions,
             deps.memory_store,
             &request.workspace_id,
             &request.session_id,
