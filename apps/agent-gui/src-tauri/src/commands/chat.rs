@@ -85,6 +85,8 @@ pub async fn start_session(
         title,
         profile,
         permission_mode: permission_mode.or(Some("suggest".into())),
+        approval_policy: None,
+        sandbox_policy: None,
         project_id: None,
         worktree_path: None,
         branch: None,

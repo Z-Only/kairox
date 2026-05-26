@@ -1,0 +1,273 @@
+[connect]
+timeout_ms = 10000
+
+[scenario]
+name = "Double-axis approval + sandbox policy selectors"
+fail_fast = true
+global_timeout_ms = 120000
+
+[[step]]
+name = "wait for app shell"
+action = "wait"
+selector = "[data-test='sessions-sidebar']"
+timeout_ms = 15000
+
+[[step]]
+name = "wait for chat input"
+action = "wait"
+selector = "textarea[data-test='message-input']"
+timeout_ms = 15000
+
+[[step]]
+name = "approval trigger visible with valid label"
+action = "eval"
+script = """
+(() => {
+  const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+  if (!trigger) throw new Error("approval trigger missing");
+  const text = (trigger.textContent || "").trim();
+  const valid = ["Never", "On Request", "Always"];
+  if (!valid.some(function (v) { return text.indexOf(v) !== -1; })) {
+    throw new Error("approval trigger has unexpected label: " + text);
+  }
+  return text;
+})()
+"""
+
+[[step]]
+name = "sandbox trigger visible with valid label"
+action = "eval"
+script = """
+(() => {
+  const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
+  if (!trigger) throw new Error("sandbox trigger missing");
+  const text = (trigger.textContent || "").trim();
+  const valid = ["Read Only", "Workspace Write", "Danger Full Access"];
+  if (!valid.some(function (v) { return text.indexOf(v) !== -1; })) {
+    throw new Error("sandbox trigger has unexpected label: " + text);
+  }
+  return text;
+})()
+"""
+
+[[step]]
+name = "normalize approval to On Request"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+  if (!trigger) throw new Error("approval trigger missing");
+  trigger.click();
+  await new Promise(function (r) { setTimeout(r, 200); });
+
+  const opt = document.querySelector("[data-test='chat-approval-option-on_request']");
+  if (!opt) throw new Error("on_request option missing");
+  opt.click();
+
+  for (let i = 0; i < 100; i++) {
+    const t = document.querySelector("[data-test='chat-approval-trigger']");
+    const text = t ? (t.textContent || "").trim() : "";
+    if (text.indexOf("On Request") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  throw new Error("approval did not normalize to On Request");
+})()
+"""
+
+[[step]]
+name = "normalize sandbox to Workspace Write"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
+  if (!trigger) throw new Error("sandbox trigger missing");
+  trigger.click();
+  await new Promise(function (r) { setTimeout(r, 200); });
+
+  const opt = document.querySelector("[data-test='chat-sandbox-option-workspace_write']");
+  if (!opt) throw new Error("workspace_write option missing");
+  opt.click();
+
+  for (let i = 0; i < 100; i++) {
+    const t = document.querySelector("[data-test='chat-sandbox-trigger']");
+    const text = t ? (t.textContent || "").trim() : "";
+    if (text.indexOf("Workspace Write") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  throw new Error("sandbox did not normalize to Workspace Write");
+})()
+"""
+
+[[step]]
+name = "open approval popover"
+action = "click"
+target = "[data-test='chat-approval-trigger']"
+
+[[step]]
+name = "approval popover lists all three options"
+action = "eval"
+script = """
+(() => {
+  const expected = ["never", "on_request", "always"];
+  for (const v of expected) {
+    const opt = document.querySelector("[data-test='chat-approval-option-" + v + "']");
+    if (!opt) throw new Error("approval option missing: " + v);
+  }
+  return "found " + expected.length + " approval options";
+})()
+"""
+
+[[step]]
+name = "select Always approval"
+action = "click"
+target = "[data-test='chat-approval-option-always']"
+
+[[step]]
+name = "approval trigger updated to Always"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  for (let i = 0; i < 100; i++) {
+    const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+    const text = trigger ? (trigger.textContent || "").trim() : "";
+    if (text.indexOf("Always") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+  throw new Error("approval trigger did not update to Always: " + (trigger ? trigger.textContent : ""));
+})()
+"""
+
+[[step]]
+name = "approval popover closed after selection"
+action = "eval"
+script = """
+(() => {
+  const popover = document.querySelector("[data-test='chat-approval-popover']");
+  if (popover && popover.offsetParent !== null) {
+    throw new Error("approval popover still visible after selection");
+  }
+  return "popover closed";
+})()
+"""
+
+[[step]]
+name = "open sandbox popover"
+action = "click"
+target = "[data-test='chat-sandbox-trigger']"
+
+[[step]]
+name = "sandbox popover lists all three options"
+action = "eval"
+script = """
+(() => {
+  const expected = ["read_only", "workspace_write", "danger_full_access"];
+  for (const v of expected) {
+    const opt = document.querySelector("[data-test='chat-sandbox-option-" + v + "']");
+    if (!opt) throw new Error("sandbox option missing: " + v);
+  }
+  return "found " + expected.length + " sandbox options";
+})()
+"""
+
+[[step]]
+name = "select Read Only sandbox"
+action = "click"
+target = "[data-test='chat-sandbox-option-read_only']"
+
+[[step]]
+name = "sandbox trigger updated to Read Only"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  for (let i = 0; i < 100; i++) {
+    const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
+    const text = trigger ? (trigger.textContent || "").trim() : "";
+    if (text.indexOf("Read Only") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
+  throw new Error("sandbox trigger did not update to Read Only: " + (trigger ? trigger.textContent : ""));
+})()
+"""
+
+[[step]]
+name = "sandbox popover closed after selection"
+action = "eval"
+script = """
+(() => {
+  const popover = document.querySelector("[data-test='chat-sandbox-popover']");
+  if (popover && popover.offsetParent !== null) {
+    throw new Error("sandbox popover still visible after selection");
+  }
+  return "popover closed";
+})()
+"""
+
+[[step]]
+name = "approval still Always after sandbox switch (axes independent)"
+action = "eval"
+script = """
+(() => {
+  const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+  const text = trigger ? (trigger.textContent || "").trim() : "";
+  if (text.indexOf("Always") === -1) {
+    throw new Error("approval axis polluted by sandbox switch: " + text);
+  }
+  return "approval still Always";
+})()
+"""
+
+[[step]]
+name = "round-trip approval back to On Request"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const trigger = document.querySelector("[data-test='chat-approval-trigger']");
+  if (!trigger) throw new Error("approval trigger missing");
+  trigger.click();
+  await new Promise(function (r) { setTimeout(r, 200); });
+
+  const opt = document.querySelector("[data-test='chat-approval-option-on_request']");
+  if (!opt) throw new Error("on_request option missing");
+  opt.click();
+
+  for (let i = 0; i < 100; i++) {
+    const t = document.querySelector("[data-test='chat-approval-trigger']");
+    const text = t ? (t.textContent || "").trim() : "";
+    if (text.indexOf("On Request") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  throw new Error("approval did not return to On Request");
+})()
+"""
+
+[[step]]
+name = "round-trip sandbox back to Workspace Write"
+action = "eval"
+timeout_ms = 15000
+script = """
+(async () => {
+  const trigger = document.querySelector("[data-test='chat-sandbox-trigger']");
+  if (!trigger) throw new Error("sandbox trigger missing");
+  trigger.click();
+  await new Promise(function (r) { setTimeout(r, 200); });
+
+  const opt = document.querySelector("[data-test='chat-sandbox-option-workspace_write']");
+  if (!opt) throw new Error("workspace_write option missing");
+  opt.click();
+
+  for (let i = 0; i < 100; i++) {
+    const t = document.querySelector("[data-test='chat-sandbox-trigger']");
+    const text = t ? (t.textContent || "").trim() : "";
+    if (text.indexOf("Workspace Write") !== -1) return text;
+    await new Promise(function (r) { setTimeout(r, 100); });
+  }
+  throw new Error("sandbox did not return to Workspace Write");
+})()
+"""

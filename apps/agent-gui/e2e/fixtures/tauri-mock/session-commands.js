@@ -306,6 +306,37 @@ registerCommandHandlers({
     if (session) session.permission_mode = mode;
     return Promise.resolve(mode);
   },
+  get_session_approval_policy: function (args) {
+    var session = getSession(state.currentSessionId);
+    if (session && session.approval_policy) return Promise.resolve(session.approval_policy);
+    return Promise.resolve(state.currentApprovalPolicy || "on_request");
+  },
+  set_session_approval_policy: function (args) {
+    var approval = args.approval;
+    if (!approval) return Promise.reject(new Error("approval is required"));
+    state.currentApprovalPolicy = approval;
+    var session = getSession(state.currentSessionId);
+    if (session) session.approval_policy = approval;
+    return Promise.resolve(approval);
+  },
+  get_session_sandbox_policy: function (args) {
+    var session = getSession(state.currentSessionId);
+    if (session && session.sandbox_policy) return Promise.resolve(session.sandbox_policy);
+    return Promise.resolve(state.currentSandboxPolicy || '{"kind":"workspace_write"}');
+  },
+  set_session_sandbox_policy: function (args) {
+    var sandboxJson = args.sandboxJson || args.sandbox_json;
+    if (!sandboxJson) return Promise.reject(new Error("sandboxJson is required"));
+    try {
+      JSON.parse(sandboxJson);
+    } catch (e) {
+      return Promise.reject(new Error("invalid sandbox policy JSON: " + e.message));
+    }
+    state.currentSandboxPolicy = sandboxJson;
+    var session = getSession(state.currentSessionId);
+    if (session) session.sandbox_policy = sandboxJson;
+    return Promise.resolve(sandboxJson);
+  },
   resolve_permission: function (args) {
     var requestId = args.requestId || args.request_id;
     var decision = args.decision;

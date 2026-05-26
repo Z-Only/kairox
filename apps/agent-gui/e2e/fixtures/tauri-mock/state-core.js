@@ -23,6 +23,8 @@ const state = {
   currentProfile: "fast",
   currentReasoningEffort: null,
   currentPermissionMode: "suggest",
+  currentApprovalPolicy: "on_request",
+  currentSandboxPolicy: '{"kind":"workspace_write"}',
   sentMessages: [],
   responseDelayScale: 1,
   memories: [],

@@ -38,6 +38,8 @@ function makeSessionInfo(
     title: title,
     profile: profile,
     permission_mode: permissionMode || "suggest",
+    approval_policy: null,
+    sandbox_policy: null,
     project_id: projectId || null,
     worktree_path: worktreePath || null,
     branch: branch || null,
@@ -85,6 +87,8 @@ function persistMockState() {
         currentSessionId: state.currentSessionId,
         currentProfile: state.currentProfile,
         currentPermissionMode: state.currentPermissionMode,
+        currentApprovalPolicy: state.currentApprovalPolicy,
+        currentSandboxPolicy: state.currentSandboxPolicy,
         projections: snapshotMap(state.projections),
         traces: snapshotMap(state.traces),
         drafts: snapshotMap(state.drafts)
@@ -112,6 +116,8 @@ function restorePersistedMockState() {
     state.currentSessionId = snapshot.currentSessionId || null;
     state.currentProfile = snapshot.currentProfile || "fast";
     state.currentPermissionMode = snapshot.currentPermissionMode || "suggest";
+    state.currentApprovalPolicy = snapshot.currentApprovalPolicy || "on_request";
+    state.currentSandboxPolicy = snapshot.currentSandboxPolicy || '{"kind":"workspace_write"}';
     state.projections = new Map(snapshot.projections || []);
     state.traces = new Map(snapshot.traces || []);
     state.drafts = new Map(snapshot.drafts || []);

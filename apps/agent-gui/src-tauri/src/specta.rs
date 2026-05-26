@@ -74,6 +74,10 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             switch_model,
             get_permission_mode,
             set_permission_mode,
+            get_session_approval_policy,
+            set_session_approval_policy,
+            get_session_sandbox_policy,
+            set_session_sandbox_policy,
             get_build_info,
             // Skill commands
             list_skills,

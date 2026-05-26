@@ -110,6 +110,14 @@ export const commands = {
   getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
   setPermissionMode: (mode: string) =>
     typedError<string, string>(__TAURI_INVOKE("set_permission_mode", { mode })),
+  getSessionApprovalPolicy: () =>
+    typedError<string, string>(__TAURI_INVOKE("get_session_approval_policy")),
+  setSessionApprovalPolicy: (approval: string) =>
+    typedError<string, string>(__TAURI_INVOKE("set_session_approval_policy", { approval })),
+  getSessionSandboxPolicy: () =>
+    typedError<string, string>(__TAURI_INVOKE("get_session_sandbox_policy")),
+  setSessionSandboxPolicy: (sandboxJson: string) =>
+    typedError<string, string>(__TAURI_INVOKE("set_session_sandbox_policy", { sandboxJson })),
   getBuildInfo: () => __TAURI_INVOKE<BuildInfoResponse>("get_build_info"),
   listSkills: () => typedError<SkillView[], string>(__TAURI_INVOKE("list_skills")),
   getSkillDetail: (skillId: string) =>
@@ -894,6 +902,8 @@ export type SessionInfoResponse = {
   title: string;
   profile: string;
   permission_mode: string | null;
+  approval_policy: string | null;
+  sandbox_policy: string | null;
   project_id: string | null;
   worktree_path: string | null;
   branch: string | null;

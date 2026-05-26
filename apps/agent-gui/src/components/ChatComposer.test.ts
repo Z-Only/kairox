@@ -190,6 +190,104 @@ describe("permission mode selector", () => {
   });
 });
 
+describe("approval policy selector", () => {
+  it("renders the approval trigger with current policy label", () => {
+    const { wrapper, session } = mountChatComposer();
+    session.approvalPolicy = "on_request";
+
+    const trigger = wrapper.find('[data-test="chat-approval-trigger"]');
+    expect(trigger.exists()).toBe(true);
+    expect(trigger.text()).toBe("On Request");
+  });
+
+  it("updates trigger label when approval policy changes", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.approvalPolicy = "never";
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="chat-approval-trigger"]').text()).toBe("Never");
+
+    session.approvalPolicy = "always";
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="chat-approval-trigger"]').text()).toBe("Always");
+  });
+
+  it("has accessible aria-label reflecting current approval policy", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.approvalPolicy = "on_request";
+    await wrapper.vm.$nextTick();
+
+    const trigger = wrapper.find('[data-test="chat-approval-trigger"]');
+    expect(trigger.attributes("aria-label")).toBe("Select approval policy. Current: On Request");
+  });
+
+  it("invokes set_session_approval_policy when an option is clicked", async () => {
+    mockedInvoke.mockResolvedValueOnce("always");
+    const { wrapper, session } = mountChatComposer();
+    session.approvalPolicy = "on_request";
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-approval-trigger"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="chat-approval-option-always"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(session.approvalPolicy).toBe("always");
+  });
+});
+
+describe("sandbox policy selector", () => {
+  it("renders the sandbox trigger with current policy label parsed from JSON", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.sandboxPolicy = '{"kind":"read_only"}';
+    await wrapper.vm.$nextTick();
+
+    const trigger = wrapper.find('[data-test="chat-sandbox-trigger"]');
+    expect(trigger.exists()).toBe(true);
+    expect(trigger.text()).toBe("Read Only");
+  });
+
+  it("updates trigger label when sandbox policy changes", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.sandboxPolicy = '{"kind":"workspace_write","network_access":false,"writable_roots":[]}';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="chat-sandbox-trigger"]').text()).toBe("Workspace Write");
+
+    session.sandboxPolicy = '{"kind":"danger_full_access"}';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-test="chat-sandbox-trigger"]').text()).toBe("Danger Full Access");
+  });
+
+  it("has accessible aria-label reflecting current sandbox policy", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.sandboxPolicy = '{"kind":"read_only"}';
+    await wrapper.vm.$nextTick();
+
+    const trigger = wrapper.find('[data-test="chat-sandbox-trigger"]');
+    expect(trigger.attributes("aria-label")).toBe("Select sandbox policy. Current: Read Only");
+  });
+
+  it("invokes set_session_sandbox_policy with canonical JSON when an option is clicked", async () => {
+    const targetJson = '{"kind":"read_only"}';
+    mockedInvoke.mockResolvedValueOnce(targetJson);
+    const { wrapper, session } = mountChatComposer();
+    session.sandboxPolicy = '{"kind":"workspace_write","network_access":false,"writable_roots":[]}';
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="chat-sandbox-trigger"]').trigger("click");
+    await wrapper.vm.$nextTick();
+    await wrapper.find('[data-test="chat-sandbox-option-read_only"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson: targetJson
+    });
+    expect(session.sandboxPolicy).toBe(targetJson);
+  });
+});
+
 describe("model reasoning selector", () => {
   it("refreshes the current config context when opening the model selector", async () => {
     const { wrapper, session } = mountChatComposer();

@@ -10,6 +10,8 @@ import FileMentionPalette from "@/components/FileMentionPalette.vue";
 import AttachmentTray from "@/components/AttachmentTray.vue";
 import ChatModelSelector from "@/components/ChatModelSelector.vue";
 import ChatPermissionSelector from "@/components/ChatPermissionSelector.vue";
+import ChatApprovalSelector from "@/components/ChatApprovalSelector.vue";
+import ChatSandboxSelector from "@/components/ChatSandboxSelector.vue";
 import ProjectBranchSelector from "@/components/ProjectBranchSelector.vue";
 
 const props = defineProps<{
@@ -23,6 +25,8 @@ const skillsStore = useSkillsStore();
 const { notify } = useNotifications();
 const modelPopoverOpen = ref(false);
 const permissionPopoverOpen = ref(false);
+const approvalPopoverOpen = ref(false);
+const sandboxPopoverOpen = ref(false);
 const commandPaletteRef = ref<InstanceType<typeof CommandPalette> | null>(null);
 const fileMentionPaletteRef = ref<InstanceType<typeof FileMentionPalette> | null>(null);
 
@@ -88,6 +92,16 @@ function onSelectSkill(skillId: string) {
 async function handlePermissionSelect(mode: string) {
   await session.setPermissionMode(mode);
   permissionPopoverOpen.value = false;
+}
+
+async function handleApprovalSelect(approval: string) {
+  await session.setApprovalPolicy(approval);
+  approvalPopoverOpen.value = false;
+}
+
+async function handleSandboxSelect(sandboxJson: string) {
+  await session.setSandboxPolicy(sandboxJson);
+  sandboxPopoverOpen.value = false;
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -174,6 +188,16 @@ watch(modelPopoverOpen, (isOpen) => {
         v-model:open="permissionPopoverOpen"
         :permission-mode="session.permissionMode"
         @select-permission="handlePermissionSelect"
+      />
+      <ChatApprovalSelector
+        v-model:open="approvalPopoverOpen"
+        :approval-policy="session.approvalPolicy"
+        @select-approval="handleApprovalSelect"
+      />
+      <ChatSandboxSelector
+        v-model:open="sandboxPopoverOpen"
+        :sandbox-policy="session.sandboxPolicy"
+        @select-sandbox="handleSandboxSelect"
       />
       <ProjectBranchSelector
         v-if="pendingProjectId"

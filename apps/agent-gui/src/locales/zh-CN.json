@@ -170,6 +170,20 @@
       "autonomous": "自主",
       "interactive": "交互"
     },
+    "selectApprovalAria": "选择审批策略。当前：{approval}",
+    "approval": {
+      "label": "审批",
+      "never": "从不",
+      "onRequest": "按需",
+      "always": "总是"
+    },
+    "selectSandboxAria": "选择沙箱策略。当前：{sandbox}",
+    "sandbox": {
+      "label": "沙箱",
+      "readOnly": "只读",
+      "workspaceWrite": "工作区写入",
+      "dangerFullAccess": "完全访问（危险）"
+    },
     "attachFileAria": "附加文件",
     "removeFileAria": "移除 {name}",
     "fileMentionHeader": "文件",
@@ -667,7 +681,9 @@
     "sessionsLabel": "会话",
     "streamingLabel": "传输中",
     "connectedLabel": "已连接",
-    "modeLabel": "模式"
+    "modeLabel": "模式",
+    "approvalLabel": "审批",
+    "sandboxLabel": "沙箱"
   },
   "chatStream": {
     "permission": {

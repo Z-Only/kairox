@@ -17,6 +17,8 @@ export interface SessionActionDeps {
   currentProfile: Ref<string>;
   currentReasoningEffort: Ref<string | null>;
   permissionMode: Ref<string>;
+  approvalPolicy: Ref<string>;
+  sandboxPolicy: Ref<string>;
   profileInfos: Ref<{ alias: string }[]>;
 
   resetProjection(): void;
@@ -41,6 +43,12 @@ export async function switchToKnownSession(
   deps.currentReasoningEffort.value = null;
   if (target.permission_mode) {
     deps.permissionMode.value = target.permission_mode;
+  }
+  if (target.approval_policy) {
+    deps.approvalPolicy.value = target.approval_policy;
+  }
+  if (target.sandbox_policy) {
+    deps.sandboxPolicy.value = target.sandbox_policy;
   }
   if (deps.currentProfile.value === "default" && deps.profileInfos.value.length > 0) {
     deps.currentProfile.value = deps.profileInfos.value[0].alias;
