@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use agent_core::{SendMessageRequest, SessionId};
+use agent_core::{SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use tokio::sync::Mutex;
 
 use super::session_actor::SessionActorHandle;
-use super::types::{ExecutionState, TurnExecutor};
+use super::types::{ExecutionState, TaskControlExecutor, TurnExecutor};
 
 #[derive(Clone)]
 pub struct SessionExecutionRuntime {
@@ -39,6 +39,32 @@ impl SessionExecutionRuntime {
         } else {
             Ok(())
         }
+    }
+
+    pub async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
+    ) -> agent_core::Result<()> {
+        let actor = self.actor_for(&session_id).await;
+        actor
+            .retry_task(workspace_id, session_id, task_id, executor)
+            .await
+    }
+
+    pub async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+        executor: Arc<dyn TaskControlExecutor>,
+    ) -> agent_core::Result<()> {
+        let actor = self.actor_for(&session_id).await;
+        actor
+            .cancel_task(workspace_id, session_id, task_id, executor)
+            .await
     }
 
     pub async fn shutdown_session(&self, session_id: &SessionId) -> agent_core::Result<()> {

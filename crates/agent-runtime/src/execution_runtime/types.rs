@@ -1,4 +1,4 @@
-use agent_core::{SendMessageRequest, TaskId};
+use agent_core::{SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
 
@@ -25,5 +25,22 @@ pub trait TurnExecutor: Send + Sync + 'static {
         &self,
         request: SendMessageRequest,
         cancellation: CancellationToken,
+    ) -> agent_core::Result<()>;
+}
+
+#[async_trait]
+pub trait TaskControlExecutor: Send + Sync + 'static {
+    async fn retry_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
+    ) -> agent_core::Result<()>;
+
+    async fn cancel_task(
+        &self,
+        workspace_id: WorkspaceId,
+        session_id: SessionId,
+        task_id: TaskId,
     ) -> agent_core::Result<()>;
 }

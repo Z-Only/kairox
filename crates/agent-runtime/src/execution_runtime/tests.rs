@@ -2,12 +2,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_core::{CoreError, SendMessageRequest, SessionId, WorkspaceId};
+use agent_core::{CoreError, SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use async_trait::async_trait;
 use tokio::sync::{oneshot, Mutex};
 use tokio_util::sync::CancellationToken;
 
-use super::{ExecutionState, SessionExecutionRuntime, TurnExecutor};
+use super::{ExecutionState, SessionExecutionRuntime, TaskControlExecutor, TurnExecutor};
 
 fn request(session_id: SessionId, content: &str) -> SendMessageRequest {
     SendMessageRequest {
@@ -108,6 +108,34 @@ impl TurnExecutor for ConcurrentExecutor {
         self.max.fetch_max(active, Ordering::SeqCst);
         tokio::time::sleep(Duration::from_millis(25)).await;
         self.current.fetch_sub(1, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+struct RecordingTaskControlExecutor {
+    retries: AtomicUsize,
+    cancels: AtomicUsize,
+}
+
+#[async_trait]
+impl TaskControlExecutor for RecordingTaskControlExecutor {
+    async fn retry_task(
+        &self,
+        _workspace_id: WorkspaceId,
+        _session_id: SessionId,
+        _task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        self.retries.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    async fn cancel_task(
+        &self,
+        _workspace_id: WorkspaceId,
+        _session_id: SessionId,
+        _task_id: TaskId,
+    ) -> agent_core::Result<()> {
+        self.cancels.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
 }
@@ -250,6 +278,43 @@ async fn same_session_reuses_one_actor() {
         .unwrap();
 
     assert_eq!(runtime.actor_count().await, 1);
+}
+
+#[tokio::test]
+async fn task_control_commands_run_through_session_actor() {
+    let executor = Arc::new(RecordingTaskControlExecutor {
+        retries: AtomicUsize::new(0),
+        cancels: AtomicUsize::new(0),
+    });
+    let runtime = SessionExecutionRuntime::new();
+    let workspace_id = WorkspaceId::from_string("wrk_execution_runtime".into());
+    let session_id = SessionId::new();
+
+    runtime
+        .retry_task(
+            workspace_id.clone(),
+            session_id.clone(),
+            TaskId::from_string("task_retry".into()),
+            executor.clone(),
+        )
+        .await
+        .unwrap();
+    runtime
+        .cancel_task(
+            workspace_id,
+            session_id.clone(),
+            TaskId::from_string("task_cancel".into()),
+            executor.clone(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(executor.retries.load(Ordering::SeqCst), 1);
+    assert_eq!(executor.cancels.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        runtime.session_state(&session_id).await.unwrap(),
+        ExecutionState::Idle
+    );
 }
 
 #[tokio::test]
