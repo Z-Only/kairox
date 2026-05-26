@@ -23,6 +23,8 @@ Run `just check` and verify all jobs pass. Check applicable items:
 - [ ] `just test-fullstack` — full-stack runtime integration tests (if runtime changed)
 - [ ] `just test-mcp` — MCP integration tests (if MCP changed)
 - [ ] `just test-e2e` — Playwright E2E (if GUI/IPC changed)
+- [ ] `bun run coverage:rust` — Rust risk-tier coverage gates (`scripts/check-rust-coverage.mjs`)
+- [ ] `bun run coverage:web` — Vitest V8 coverage thresholds (`apps/agent-gui/vitest.config.ts`)
 - [ ] `just gen-types` — regenerate `apps/agent-gui/src/generated/{commands,events}.ts` if any `#[tauri::command]` or `EventPayload` / domain type changed
 - [ ] `just check-types` — assert generated TypeScript bindings are in sync
 - [ ] Updated `apps/agent-gui/e2e/tauri-mock.js` if new IPC commands or events were added

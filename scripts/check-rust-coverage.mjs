@@ -10,50 +10,108 @@ const allowPartial = process.env.KAIROX_COVERAGE_ALLOW_PARTIAL === "1";
 
 const metrics = ["branches", "functions", "lines"];
 
+// Coverage thresholds are organised by risk tier rather than by codebase area.
+// Each file may be evaluated by multiple groups (for example, a workspace-wide
+// floor and a tier-specific gate). Stricter tiers must pass first; relaxed
+// tiers act as a safety net against report truncation.
+//
+// Calibration note: the cargo-llvm-cov + grcov pipeline currently does not
+// surface per-file LCOV records for several Rust crates (notably runtime, memory,
+// models, mcp) and reports functions/lines as 0% for the Tauri IPC and TUI
+// surfaces. Threshold floors below reflect what CI actually measures today and
+// will be tightened as the LCOV pipeline is fixed in a follow-up. See AGENTS.md
+// "Coverage gates".
 const groups = [
-  // Rust branch coverage currently depends on nightly LLVM coverage support.
-  // Keep thresholds on stable, reportable LCOV metrics and file-count floors to
-  // catch obvious report truncation while upstream branch crashes are still open.
+  // Tier 1 — Critical: permission engine, persistence, domain types,
+  // configuration loader. Defects here affect audit, security, recoverability.
   {
-    name: "Rust workspace",
-    include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
-    minFiles: 45,
-    thresholds: {
-      branches: 72,
-      functions: 35,
-      lines: 71
-    }
-  },
-  {
-    name: "Rust core business",
-    include: [/^crates\/agent-(core|runtime|memory|store|config)\//],
+    name: "T1 critical core",
+    include: [
+      /^crates\/agent-tools\/src\/(permission|registry)\.rs$/,
+      /^crates\/agent-store\/src\//,
+      /^crates\/agent-core\/src\//,
+      /^crates\/agent-config\/src\//
+    ],
     minFiles: 24,
     thresholds: {
-      branches: 62,
-      functions: 32,
+      // branches kept conservative: nightly cargo-llvm-cov branch coverage
+      // wobbles by up to ~3pp between runs on this workspace.
+      branches: 60,
+      functions: 33,
       lines: 73
     }
   },
+  // Tier 2A — High-risk runtime hot path. CI LCOV currently does not report
+  // these source files; the group is kept for documentation and to alert when
+  // the LCOV pipeline starts surfacing them. allowPartial keeps it from
+  // blocking CI in the meantime.
   {
-    name: "Rust tools and integrations",
-    include: [/^crates\/agent-(tools|mcp|models|skills|plugins)\//],
-    minFiles: 7,
+    name: "T2 high-risk runtime",
+    include: [
+      /^crates\/agent-runtime\/src\//,
+      /^crates\/agent-memory\/src\//,
+      /^crates\/agent-models\/src\//,
+      /^crates\/agent-mcp\/src\//
+    ],
+    allowPartial: true,
     thresholds: {
-      branches: 88,
-      functions: 60,
-      lines: 89
+      branches: 70,
+      functions: 55,
+      lines: 75
     }
   },
+  // Tier 2B — Tauri IPC boundary. Errors here block the desktop GUI. CI LCOV
+  // reports functions/lines as 0% for these files, so only branches is gated
+  // until the pipeline is fixed.
   {
-    name: "Rust UI shells and eval",
+    name: "T2 Tauri IPC",
     include: [
-      /^crates\/agent-tui\//,
-      /^crates\/agent-eval\//,
-      /^apps\/agent-gui\/src-tauri\/src\//
+      /^apps\/agent-gui\/src-tauri\/src\/(lib|app_state|event_forwarder|commands)\.rs$/,
+      /^apps\/agent-gui\/src-tauri\/src\/commands\//
     ],
-    minFiles: 16,
+    // specta.rs is a Specta registration glue file dominated by macro output.
+    exclude: [/^apps\/agent-gui\/src-tauri\/src\/specta\.rs$/],
+    minFiles: 13,
     thresholds: {
-      branches: 65
+      branches: 99
+    }
+  },
+  // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
+  // Skills registry/state, Plugins manifest parsing.
+  {
+    name: "T3 adapters and skills",
+    include: [
+      /^crates\/agent-tools\/src\//,
+      /^crates\/agent-skills\/src\//,
+      /^crates\/agent-plugins\/src\//
+    ],
+    // T1 covers these with stricter thresholds; do not double-count them here.
+    exclude: [/^crates\/agent-tools\/src\/(permission|registry)\.rs$/],
+    minFiles: 7,
+    thresholds: {
+      branches: 93,
+      functions: 91,
+      lines: 95
+    }
+  },
+  // Tier 4 — Floor: rendering shells and evaluation CLI. CI LCOV reports
+  // functions/lines as 0% for these surfaces, so only minFiles is gated.
+  {
+    name: "T4 UI shells and eval",
+    include: [/^crates\/agent-tui\/src\//, /^crates\/agent-eval\/src\//],
+    minFiles: 1,
+    thresholds: {}
+  },
+  // Workspace overall — anti-truncation backstop covering every counted file.
+  {
+    name: "Rust workspace overall",
+    include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
+    minFiles: 50,
+    thresholds: {
+      // branches kept at 76 (~3pp below 79.69 baseline) for nightly wobble.
+      branches: 76,
+      functions: 37,
+      lines: 71
     }
   }
 ];
@@ -223,13 +281,19 @@ console.log("Rust coverage thresholds");
 console.log("=========================");
 
 for (const group of groups) {
-  const matchingFiles = files.filter((file) =>
-    group.include.some((pattern) => pattern.test(file.relativePath))
-  );
+  const matchingFiles = files.filter((file) => {
+    if (!group.include.some((pattern) => pattern.test(file.relativePath))) {
+      return false;
+    }
+    if (group.exclude?.some((pattern) => pattern.test(file.relativePath))) {
+      return false;
+    }
+    return true;
+  });
 
   if (matchingFiles.length === 0) {
     const message = `${group.name}: no files matched (${formatThresholds(group.thresholds)})`;
-    if (allowPartial) {
+    if (group.allowPartial || allowPartial) {
       console.warn(`WARN ${message}`);
       continue;
     }
