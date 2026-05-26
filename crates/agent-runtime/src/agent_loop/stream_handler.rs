@@ -56,7 +56,17 @@ where
     let mut assistant_text = String::new();
     let mut tool_calls: Vec<ToolCall> = Vec::new();
 
-    while let Some(event_result) = stream.next().await {
+    loop {
+        let event_result = tokio::select! {
+            _ = cancel_token.cancelled() => break,
+            event = stream.next() => {
+                let Some(event_result) = event else {
+                    break;
+                };
+                event_result
+            }
+        };
+
         match event_result {
             Ok(agent_models::ModelEvent::TokenDelta(delta)) => {
                 assistant_text.push_str(&delta);

@@ -1,5 +1,5 @@
 use crate::dag_executor::DagExecutor;
-use crate::execution_runtime::{TaskControlExecutor, TurnExecutor};
+use crate::execution_runtime::{CancellationRegistry, TaskControlExecutor, TurnExecutor};
 use crate::facade_runtime::{ExecutionMode, LocalRuntime};
 use crate::task_graph::TaskGraph;
 use agent_core::{
@@ -30,7 +30,7 @@ where
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     memory_store: Option<Arc<dyn MemoryStore>>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
-    active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
+    active_cancellation: CancellationRegistry,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
     config: Arc<agent_config::Config>,
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,

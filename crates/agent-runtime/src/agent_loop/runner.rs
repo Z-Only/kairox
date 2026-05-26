@@ -101,7 +101,7 @@ pub(crate) async fn load_active_skill_blocks(
     Ok(rendered_skills)
 }
 
-pub async fn run_agent_loop<S, M>(
+pub(crate) async fn run_agent_loop<S, M>(
     deps: AgentLoopDeps<'_, S, M>,
     request: &SendMessageRequest,
 ) -> agent_core::Result<()>
@@ -168,7 +168,9 @@ where
 
     // ── 5. Cancellation token ───────────────────────────────────────
     let cancel_token = deps.turn_cancellation.clone().unwrap_or_default();
-    *deps.active_cancellation.lock().await = Some(cancel_token.clone());
+    deps.active_cancellation
+        .register(&request.session_id, cancel_token.clone())
+        .await;
 
     // ── 6. Create root task ─────────────────────────────────────────
     let root_title: String = if request.content.chars().count() > 50 {
@@ -213,7 +215,9 @@ where
                 "cancelled by user",
             )
             .await;
-            *deps.active_cancellation.lock().await = None;
+            deps.active_cancellation
+                .unregister(&request.session_id)
+                .await;
             break;
         }
 
@@ -239,7 +243,9 @@ where
                 "max iterations exceeded",
             )
             .await;
-            *deps.active_cancellation.lock().await = None;
+            deps.active_cancellation
+                .unregister(&request.session_id)
+                .await;
             break;
         }
         iterations += 1;
@@ -256,6 +262,22 @@ where
             &current_request,
         )
         .await?;
+
+        if cancel_token.is_cancelled() {
+            fail_root_task(
+                &**deps.store,
+                deps.event_tx,
+                deps.task_graphs,
+                request,
+                &root_task_id,
+                "cancelled by user",
+            )
+            .await;
+            deps.active_cancellation
+                .unregister(&request.session_id)
+                .await;
+            break;
+        }
 
         // Process memory markers
         crate::memory_handler::store_memory_markers(
@@ -328,7 +350,9 @@ where
         }
     }
 
-    *deps.active_cancellation.lock().await = None;
+    deps.active_cancellation
+        .unregister(&request.session_id)
+        .await;
 
     Ok(())
 }
