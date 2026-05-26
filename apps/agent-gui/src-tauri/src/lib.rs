@@ -318,8 +318,6 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             })
@@ -337,8 +335,6 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             })
@@ -368,8 +364,6 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             })
@@ -401,8 +395,6 @@ mod integration_tests {
             .start_session(agent_core::StartSessionRequest {
                 workspace_id: workspace.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             })

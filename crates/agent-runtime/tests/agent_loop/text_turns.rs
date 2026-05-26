@@ -29,8 +29,6 @@ async fn agent_loop_stops_when_no_tool_calls() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -69,8 +67,6 @@ async fn agent_loop_emits_completion_event_sequence() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

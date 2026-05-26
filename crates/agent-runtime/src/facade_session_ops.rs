@@ -29,7 +29,6 @@ where
             &self.event_tx,
             request.workspace_id,
             request.model_profile,
-            request.permission_mode,
             request.approval_policy,
             request.sandbox_policy,
         )

@@ -2,7 +2,7 @@
 
 mod context_line;
 mod context_overlay;
-mod permission_mode;
+mod policy_labels;
 mod render;
 mod state;
 

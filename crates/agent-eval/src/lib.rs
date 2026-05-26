@@ -8,7 +8,7 @@ use agent_memory::SqliteMemoryStore;
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::{legacy_mode_string_for, parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -35,8 +35,8 @@ pub enum EvalError {
     Memory(#[from] agent_memory::MemoryStoreError),
     #[error("runtime error: {0}")]
     Runtime(#[from] agent_core::CoreError),
-    #[error("invalid permission mode: {0}")]
-    PermissionMode(String),
+    #[error("invalid policy: {0}")]
+    Policy(String),
     #[error("{0}")]
     Cli(String),
 }
@@ -48,7 +48,9 @@ pub struct EvalScenario {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub permission_mode: Option<String>,
+    pub approval_policy: Option<ApprovalPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox_policy: Option<SandboxPolicy>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
     #[serde(default)]
@@ -239,31 +241,24 @@ impl EvalHarness {
             .profile
             .clone()
             .unwrap_or_else(|| self.default_profile.clone());
-        let scenario_policies = scenario
-            .permission_mode
-            .as_deref()
-            .map(parse_permission_mode)
-            .transpose()?;
-
-        let (approval, sandbox) = scenario_policies.clone().unwrap_or_else(|| {
-            (
-                self.options.approval_policy,
-                self.options.sandbox_policy.clone(),
-            )
-        });
+        let approval = scenario
+            .approval_policy
+            .unwrap_or(self.options.approval_policy);
+        let sandbox = scenario
+            .sandbox_policy
+            .clone()
+            .unwrap_or_else(|| self.options.sandbox_policy.clone());
 
         self.runtime.set_approval_policy(approval).await;
         self.runtime.set_sandbox_policy(sandbox.clone()).await;
 
-        let legacy_mode = legacy_mode_string_for(approval, &sandbox).to_string();
         let session_id = self
             .runtime
             .start_session(StartSessionRequest {
                 workspace_id: self.workspace_id.clone(),
                 model_profile: profile.clone(),
-                permission_mode: Some(legacy_mode),
-                approval_policy: None,
-                sandbox_policy: None,
+                approval_policy: Some(approval.to_string()),
+                sandbox_policy: Some(serde_json::to_string(&sandbox)?),
             })
             .await?;
 
@@ -454,10 +449,6 @@ fn evaluate_expectations(
             ));
         }
     }
-}
-
-fn parse_permission_mode(value: &str) -> Result<(ApprovalPolicy, SandboxPolicy)> {
-    parse_legacy_mode(value).ok_or_else(|| EvalError::PermissionMode(value.to_string()))
 }
 
 fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> bool) -> usize {

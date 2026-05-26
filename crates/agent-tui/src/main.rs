@@ -212,8 +212,7 @@ async fn main() -> Result<()> {
     let workspace_path_str = workspace_path.display().to_string();
 
     let workspace_bootstrap =
-        ensure_workspace_session(runtime.as_ref(), workspace_path_str, profile.clone(), None)
-            .await?;
+        ensure_workspace_session(runtime.as_ref(), workspace_path_str, profile.clone()).await?;
     let workspace_id = workspace_bootstrap.workspace.workspace_id.clone();
     let active_session_id = workspace_bootstrap.session_id.clone();
 

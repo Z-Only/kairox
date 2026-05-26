@@ -161,15 +161,6 @@
     "applyReasoning": "应用",
     "currentModel": "当前",
     "selectModelAria": "选择模型。当前模型：{model}",
-    "selectPermissionAria": "选择权限级别。当前：{mode}",
-    "permission": "权限",
-    "permissions": {
-      "readOnly": "只读",
-      "suggest": "建议",
-      "agent": "智能体",
-      "autonomous": "自主",
-      "interactive": "交互"
-    },
     "selectApprovalAria": "选择审批策略。当前：{approval}",
     "approval": {
       "label": "审批",
@@ -616,7 +607,6 @@
     "valid": "有效",
     "invalid": "无效",
     "model": "模型",
-    "permission": "权限",
     "tools": "工具",
     "path": "路径",
     "view": "查看",
@@ -624,7 +614,6 @@
     "name": "名称",
     "description": "描述",
     "modelProfile": "模型配置",
-    "permissionMode": "权限模式",
     "skills": "Skills",
     "nicknames": "昵称",
     "saving": "保存中",

@@ -17,8 +17,6 @@ async fn mark_session_visible_rejects_non_draft_sessions() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id,
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -48,8 +46,6 @@ async fn mark_session_visible_rejects_draft_visibility_without_project_binding()
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id,
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

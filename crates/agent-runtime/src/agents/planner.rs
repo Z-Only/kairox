@@ -37,7 +37,6 @@ Rules:
 pub struct PlannerStrategy {
     system_prompt: String,
     model_profile: Option<String>,
-    permission_mode: Option<String>,
     skills: Vec<String>,
     tools_allowlist: Vec<String>,
 }
@@ -47,7 +46,6 @@ impl PlannerStrategy {
         Self {
             system_prompt: PLANNER_SYSTEM_PROMPT.to_string(),
             model_profile: None,
-            permission_mode: None,
             skills: Vec::new(),
             tools_allowlist: Vec::new(),
         }
@@ -62,7 +60,6 @@ impl PlannerStrategy {
                 view.instructions.clone()
             },
             model_profile: view.model_profile.clone(),
-            permission_mode: view.permission_mode.clone(),
             skills: view.skills.clone(),
             tools_allowlist: view.tools.clone(),
         }
@@ -188,10 +185,6 @@ impl AgentStrategy for PlannerStrategy {
         self.model_profile.as_deref()
     }
 
-    fn permission_mode_override(&self) -> Option<&str> {
-        self.permission_mode.as_deref()
-    }
-
     fn skills(&self) -> &[String] {
         &self.skills
     }
@@ -311,7 +304,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn from_agent_view_sets_model_profile_permission_mode_skills_and_instructions() {
+    async fn from_agent_view_sets_model_profile_skills_tools_and_instructions() {
         let view = agent_core::facade::AgentSettingsView {
             settings_id: "Builtin:default".into(),
             name: "default".into(),
@@ -320,7 +313,6 @@ mod tests {
             path: "builtin://default".into(),
             tools: vec!["fs.read".into(), "search".into()],
             model_profile: Some("fast".into()),
-            permission_mode: Some("read_only".into()),
             skills: vec!["kairox-dev-workflow".into()],
             nickname_candidates: vec!["Default".into()],
             enabled: true,
@@ -336,7 +328,6 @@ mod tests {
         let strategy = PlannerStrategy::from_agent_view(&view);
 
         assert_eq!(strategy.model_profile_override(), Some("fast"));
-        assert_eq!(strategy.permission_mode_override(), Some("read_only"));
         assert_eq!(strategy.skills(), &["kairox-dev-workflow"]);
         assert_eq!(strategy.tools_allowlist(), &["fs.read", "search"]);
 
@@ -369,7 +360,6 @@ mod tests {
             path: "builtin://default".into(),
             tools: vec![],
             model_profile: None,
-            permission_mode: None,
             skills: vec![],
             nickname_candidates: vec![],
             enabled: true,
@@ -385,7 +375,6 @@ mod tests {
         let strategy = PlannerStrategy::from_agent_view(&view);
 
         assert_eq!(strategy.model_profile_override(), None);
-        assert_eq!(strategy.permission_mode_override(), None);
         assert!(strategy.skills().is_empty());
         assert!(strategy.tools_allowlist().is_empty());
     }

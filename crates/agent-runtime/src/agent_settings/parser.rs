@@ -8,7 +8,6 @@ pub struct ParsedAgentMarkdown {
     pub description: String,
     pub tools: Vec<String>,
     pub model_profile: Option<String>,
-    pub permission_mode: Option<String>,
     pub skills: Vec<String>,
     pub nickname_candidates: Vec<String>,
     pub enabled: bool,
@@ -23,8 +22,6 @@ struct RawAgentFrontmatter {
     tools: Vec<String>,
     #[serde(default)]
     model_profile: Option<String>,
-    #[serde(default)]
-    permission_mode: Option<String>,
     #[serde(default)]
     skills: Vec<String>,
     #[serde(default)]
@@ -60,7 +57,6 @@ pub fn parse_agent_markdown(raw: &str) -> Result<ParsedAgentMarkdown> {
         description,
         tools: frontmatter.tools,
         model_profile: frontmatter.model_profile,
-        permission_mode: frontmatter.permission_mode,
         skills: frontmatter.skills,
         nickname_candidates: frontmatter.nickname_candidates,
         enabled: frontmatter.enabled,
@@ -74,7 +70,6 @@ pub(super) fn render_agent_markdown(input: &AgentSettingsInput) -> Result<String
         description: Some(input.description.clone()),
         tools: input.tools.clone(),
         model_profile: input.model_profile.clone(),
-        permission_mode: input.permission_mode.clone(),
         skills: input.skills.clone(),
         nickname_candidates: input.nickname_candidates.clone(),
         enabled: input.enabled,
@@ -121,7 +116,6 @@ mod parser_tests {
             description: "Test agent".to_string(),
             tools: vec![],
             model_profile: None,
-            permission_mode: None,
             skills: vec![],
             nickname_candidates: vec![],
             enabled: true,
@@ -136,7 +130,6 @@ mod parser_tests {
             description: Plans the work\n\
             tools:\n  - shell\n  - search\n\
             model_profile: fast\n\
-            permission_mode: ask\n\
             skills:\n  - skill-a\n\
             nickname_candidates:\n  - planr\n\
             enabled: true\n\
@@ -148,7 +141,6 @@ mod parser_tests {
         assert_eq!(parsed.description, "Plans the work");
         assert_eq!(parsed.tools, vec!["shell", "search"]);
         assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
-        assert_eq!(parsed.permission_mode.as_deref(), Some("ask"));
         assert_eq!(parsed.skills, vec!["skill-a"]);
         assert_eq!(parsed.nickname_candidates, vec!["planr"]);
         assert!(parsed.enabled);
@@ -285,7 +277,6 @@ mod parser_tests {
         let mut input = agent_input("multi");
         input.tools = vec!["shell".into(), "fs.read".into()];
         input.model_profile = Some("fast".into());
-        input.permission_mode = Some("ask".into());
         input.skills = vec!["audit".into()];
         input.nickname_candidates = vec!["m".into(), "mu".into()];
         input.enabled = false;
@@ -295,7 +286,6 @@ mod parser_tests {
 
         assert_eq!(parsed.tools, vec!["shell", "fs.read"]);
         assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
-        assert_eq!(parsed.permission_mode.as_deref(), Some("ask"));
         assert_eq!(parsed.skills, vec!["audit"]);
         assert_eq!(parsed.nickname_candidates, vec!["m", "mu"]);
         assert!(!parsed.enabled);

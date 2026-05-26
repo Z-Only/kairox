@@ -77,8 +77,6 @@ pub async fn make_runtime_with_session() -> (
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -168,16 +166,12 @@ pub async fn write_agent_settings(
     description: &str,
     instructions: &str,
     model_profile: Option<&str>,
-    permission_mode: Option<&str>,
     tools: &[&str],
     enabled: bool,
 ) {
     tokio::fs::create_dir_all(root).await.unwrap();
     let mp = model_profile
         .map(|v| format!("model_profile: \"{v}\"\n"))
-        .unwrap_or_default();
-    let pm = permission_mode
-        .map(|v| format!("permission_mode: \"{v}\"\n"))
         .unwrap_or_default();
     let tools_yaml = if tools.is_empty() {
         "tools: []\n".to_string()
@@ -191,7 +185,7 @@ pub async fn write_agent_settings(
         "enabled: false\n".to_string()
     };
     let content = format!(
-        "---\nname: {name}\ndescription: {description}\n{mp}{pm}{tools_yaml}{enabled_line}---\n{instructions}\n"
+        "---\nname: {name}\ndescription: {description}\n{mp}{tools_yaml}{enabled_line}---\n{instructions}\n"
     );
     tokio::fs::write(root.join(format!("{name}.md")), content)
         .await

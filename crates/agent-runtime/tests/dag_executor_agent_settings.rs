@@ -19,7 +19,6 @@ async fn agent_settings_model_profile_override() {
         "Custom default",
         "Custom planner instructions.",
         Some("fast"),
-        None,
         &[],
         true,
     )
@@ -36,40 +35,8 @@ async fn agent_settings_model_profile_override() {
         .agent_settings_overrides(AgentRole::Planner)
         .expect("planner strategy must exist");
     assert_eq!(overrides.0.as_deref(), Some("fast"));
-    assert_eq!(overrides.1, None);
-}
-
-#[tokio::test]
-async fn agent_settings_permission_mode_override() {
-    let workspace = tempfile::tempdir().unwrap();
-    let user = tempfile::tempdir().unwrap();
-    let ws_agents = workspace.path().join(".kairox/agents");
-    let usr_agents = user.path().join(".config/kairox/agents");
-
-    write_agent_settings(
-        &ws_agents,
-        "default",
-        "Read-only planner",
-        "Read-only instructions.",
-        None,
-        Some("read_only"),
-        &[],
-        true,
-    )
-    .await;
-
-    let roots = AgentSettingsRoots {
-        workspace_root: Some(ws_agents),
-        user_root: Some(usr_agents),
-        builtin_root: None,
-    };
-    let executor = make_executor_with_roots(roots).await;
-
-    let overrides = executor
-        .agent_settings_overrides(AgentRole::Planner)
-        .expect("planner strategy must exist");
-    assert_eq!(overrides.1.as_deref(), Some("read_only"));
-    assert_eq!(overrides.0, None);
+    assert!(overrides.1.is_empty());
+    assert!(overrides.2.is_empty());
 }
 
 #[tokio::test]
@@ -85,8 +52,7 @@ async fn agent_settings_project_overrides_user() {
         "User default",
         "User instructions.",
         Some("slow"),
-        Some("agent"),
-        &[],
+        &["fs.read"],
         true,
     )
     .await;
@@ -96,8 +62,7 @@ async fn agent_settings_project_overrides_user() {
         "Project default",
         "Project instructions.",
         Some("fast"),
-        Some("read_only"),
-        &[],
+        &["search"],
         true,
     )
     .await;
@@ -118,9 +83,9 @@ async fn agent_settings_project_overrides_user() {
         "project model_profile should override user"
     );
     assert_eq!(
-        overrides.1.as_deref(),
-        Some("read_only"),
-        "project permission_mode should override user"
+        overrides.2,
+        vec!["search"],
+        "project tools should override user"
     );
 }
 
@@ -137,8 +102,7 @@ async fn agent_settings_disabled_project_falls_back_to_user() {
         "User default",
         "User instructions.",
         Some("balanced"),
-        Some("agent"),
-        &[],
+        &["fs.read"],
         true,
     )
     .await;
@@ -148,8 +112,7 @@ async fn agent_settings_disabled_project_falls_back_to_user() {
         "Disabled project default",
         "Project instructions.",
         Some("fast"),
-        Some("read_only"),
-        &[],
+        &["search"],
         false,
     )
     .await;
@@ -165,7 +128,7 @@ async fn agent_settings_disabled_project_falls_back_to_user() {
         .agent_settings_overrides(AgentRole::Planner)
         .expect("planner strategy must exist");
     assert_eq!(overrides.0.as_deref(), Some("balanced"));
-    assert_eq!(overrides.1.as_deref(), Some("agent"));
+    assert_eq!(overrides.2, vec!["fs.read"]);
 }
 
 #[tokio::test]
@@ -181,8 +144,7 @@ async fn agent_settings_role_specific_worker_and_reviewer() {
         "Custom worker",
         "Worker instructions.",
         None,
-        Some("workspace_write"),
-        &[],
+        &["fs.write"],
         true,
     )
     .await;
@@ -192,7 +154,6 @@ async fn agent_settings_role_specific_worker_and_reviewer() {
         "Custom reviewer",
         "Reviewer instructions.",
         Some("fast"),
-        None,
         &["shell", "fs.read"],
         true,
     )
@@ -208,13 +169,13 @@ async fn agent_settings_role_specific_worker_and_reviewer() {
     let worker_overrides = executor
         .agent_settings_overrides(AgentRole::Worker)
         .expect("worker strategy must exist");
-    assert_eq!(worker_overrides.1.as_deref(), Some("workspace_write"));
+    assert_eq!(worker_overrides.2, vec!["fs.write"]);
 
     let reviewer_overrides = executor
         .agent_settings_overrides(AgentRole::Reviewer)
         .expect("reviewer strategy must exist");
     assert_eq!(reviewer_overrides.0.as_deref(), Some("fast"));
-    assert_eq!(reviewer_overrides.3, vec!["shell", "fs.read"]);
+    assert_eq!(reviewer_overrides.2, vec!["shell", "fs.read"]);
 }
 
 #[tokio::test]
@@ -230,7 +191,6 @@ async fn agent_settings_user_only_agent_applied() {
         "User-only default",
         "User-only instructions.",
         Some("slow"),
-        None,
         &[],
         true,
     )
@@ -267,19 +227,18 @@ async fn agent_settings_no_custom_agents_falls_back_to_builtins() {
         .agent_settings_overrides(AgentRole::Planner)
         .expect("planner strategy must exist");
     assert_eq!(planner.0, None, "builtin default has no model_profile");
-    assert_eq!(planner.1, None, "builtin default has no permission_mode");
+    assert!(planner.1.is_empty(), "builtin default has no skills");
 
     let worker = executor
         .agent_settings_overrides(AgentRole::Worker)
         .expect("worker strategy must exist");
-    assert_eq!(worker.1.as_deref(), Some("workspace_write"));
+    assert!(worker.2.is_empty(), "builtin worker has no tool allowlist");
 
     let reviewer = executor
         .agent_settings_overrides(AgentRole::Reviewer)
         .expect("reviewer strategy must exist");
-    assert_eq!(reviewer.1.as_deref(), Some("read_only"));
     assert_eq!(
-        reviewer.3,
+        reviewer.2,
         vec!["fs.read", "search", "shell"],
         "builtin code-reviewer tools"
     );
@@ -298,7 +257,6 @@ async fn agent_settings_instructions_override_wired_into_context() {
         "Custom planner",
         "Custom system prompt override.",
         None,
-        None,
         &[],
         true,
     )
@@ -316,7 +274,7 @@ async fn agent_settings_instructions_override_wired_into_context() {
         .expect("planner strategy must exist");
 
     assert_eq!(planner.0, None);
-    assert_eq!(planner.1, None);
+    assert!(planner.1.is_empty());
 }
 
 #[tokio::test]

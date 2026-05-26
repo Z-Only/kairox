@@ -16,7 +16,6 @@ export interface SessionActionDeps {
   currentSessionId: Ref<string | null>;
   currentProfile: Ref<string>;
   currentReasoningEffort: Ref<string | null>;
-  permissionMode: Ref<string>;
   approvalPolicy: Ref<string>;
   sandboxPolicy: Ref<string>;
   profileInfos: Ref<{ alias: string }[]>;
@@ -41,9 +40,6 @@ export async function switchToKnownSession(
   globalThis.localStorage?.setItem("kairox.last-active-session-id", sessionId);
   deps.currentProfile.value = target.profile;
   deps.currentReasoningEffort.value = null;
-  if (target.permission_mode) {
-    deps.permissionMode.value = target.permission_mode;
-  }
   if (target.approval_policy) {
     deps.approvalPolicy.value = target.approval_policy;
   }
@@ -70,12 +66,10 @@ export async function switchToKnownSession(
 
 export async function createSession(
   profileArg: string | undefined,
-  permissionModeArg: string | undefined,
   deps: SessionActionDeps
 ): Promise<{ id: string; title: string; profile: string }> {
   const result = await invoke<{ id: string; title: string; profile: string }>("start_session", {
-    profile: profileArg ?? deps.currentProfile.value,
-    permissionMode: permissionModeArg ?? deps.permissionMode.value
+    profile: profileArg ?? deps.currentProfile.value
   });
 
   deps.sessions.value = await listOrdinarySessions();

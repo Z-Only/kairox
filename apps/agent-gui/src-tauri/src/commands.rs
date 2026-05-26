@@ -27,7 +27,6 @@ pub struct SessionInfoResponse {
     pub id: String,
     pub title: String,
     pub profile: String,
-    pub permission_mode: Option<String>,
     pub approval_policy: Option<String>,
     pub sandbox_policy: Option<String>,
     pub project_id: Option<String>,
@@ -141,7 +140,6 @@ impl From<SessionMeta> for SessionInfoResponse {
             id: session.session_id.to_string(),
             title: session.title,
             profile: session.model_profile,
-            permission_mode: session.permission_mode,
             approval_policy: session.approval_policy,
             sandbox_policy: session.sandbox_policy,
             project_id: session.project_id.map(|project_id| project_id.to_string()),
@@ -181,7 +179,6 @@ mod tests {
             worktree_path: None,
             branch: None,
             visibility: None,
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
             session_id: SessionId::from_string("ses_archived".to_string()),
@@ -332,22 +329,14 @@ async fn switch_session_inner(
             .await
             .map_err(|e| format!("Failed to list sessions: {e}"))?;
         if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-            let mut approval: Option<agent_tools::ApprovalPolicy> = session
+            let approval: Option<agent_tools::ApprovalPolicy> = session
                 .approval_policy
                 .as_deref()
                 .and_then(|s| s.parse().ok());
-            let mut sandbox: Option<agent_tools::SandboxPolicy> = session
+            let sandbox: Option<agent_tools::SandboxPolicy> = session
                 .sandbox_policy
                 .as_deref()
                 .and_then(|s| serde_json::from_str(s).ok());
-            if approval.is_none() || sandbox.is_none() {
-                if let Some(ref mode_str) = session.permission_mode {
-                    if let Some((a, s)) = agent_tools::parse_legacy_mode(mode_str) {
-                        approval.get_or_insert(a);
-                        sandbox.get_or_insert(s);
-                    }
-                }
-            }
             if let Some(a) = approval {
                 state.runtime.set_approval_policy(a).await;
             }

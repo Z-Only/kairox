@@ -23,21 +23,11 @@ function getProject(projectId) {
   });
 }
 
-function makeSessionInfo(
-  id,
-  title,
-  profile,
-  projectId,
-  worktreePath,
-  branch,
-  visibility,
-  permissionMode
-) {
+function makeSessionInfo(id, title, profile, projectId, worktreePath, branch, visibility) {
   return {
     id: id,
     title: title,
     profile: profile,
-    permission_mode: permissionMode || "suggest",
     approval_policy: null,
     sandbox_policy: null,
     project_id: projectId || null,
@@ -64,30 +54,6 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function derivePermissionModeFromPolicy(approval, sandboxJson) {
-  var sandboxKind = "workspace_write";
-  try {
-    var parsed = sandboxJson ? JSON.parse(sandboxJson) : null;
-    if (parsed && parsed.kind) sandboxKind = parsed.kind;
-  } catch {
-    // fall through with default
-  }
-  if (approval === "never" && sandboxKind === "read_only") return "read_only";
-  if (approval === "never" && sandboxKind === "danger_full_access") return "autonomous";
-  if (approval === "always" && sandboxKind === "workspace_write") return "suggest";
-  if (approval === "on_request" && sandboxKind === "workspace_write") return "interactive";
-  return "interactive";
-}
-
-function syncLegacyPermissionMode(state, session) {
-  var derived = derivePermissionModeFromPolicy(
-    state.currentApprovalPolicy,
-    state.currentSandboxPolicy
-  );
-  state.currentPermissionMode = derived;
-  if (session) session.permission_mode = derived;
-}
-
 function snapshotMap(map) {
   return Array.from(map.entries()).map(function (entry) {
     return [entry[0], clone(entry[1])];
@@ -110,7 +76,6 @@ function persistMockState() {
         projectBranches: snapshotMap(state.projectBranches),
         currentSessionId: state.currentSessionId,
         currentProfile: state.currentProfile,
-        currentPermissionMode: state.currentPermissionMode,
         currentApprovalPolicy: state.currentApprovalPolicy,
         currentSandboxPolicy: state.currentSandboxPolicy,
         projections: snapshotMap(state.projections),
@@ -139,7 +104,6 @@ function restorePersistedMockState() {
     state.projectBranches = new Map(snapshot.projectBranches || []);
     state.currentSessionId = snapshot.currentSessionId || null;
     state.currentProfile = snapshot.currentProfile || "fast";
-    state.currentPermissionMode = snapshot.currentPermissionMode || "suggest";
     state.currentApprovalPolicy = snapshot.currentApprovalPolicy || "on_request";
     state.currentSandboxPolicy = snapshot.currentSandboxPolicy || '{"kind":"workspace_write"}';
     state.projections = new Map(snapshot.projections || []);
@@ -254,7 +218,6 @@ function createAgentSetting(input) {
     path: agentSettingsPath(scope, name),
     tools: input.tools || [],
     modelProfile: input.modelProfile || null,
-    permissionMode: input.permissionMode || null,
     skills: input.skills || [],
     nicknameCandidates: input.nicknameCandidates || [],
     enabled: input.enabled !== false,

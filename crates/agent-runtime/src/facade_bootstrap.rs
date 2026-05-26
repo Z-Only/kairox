@@ -7,8 +7,7 @@ use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
-    legacy_mode_string_for, ApprovalPolicy, BuiltinProvider, PermissionEngine, SandboxPolicy,
-    ToolProvider, ToolRegistry,
+    ApprovalPolicy, BuiltinProvider, PermissionEngine, SandboxPolicy, ToolProvider, ToolRegistry,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,8 +19,7 @@ where
     M: agent_models::ModelClient + 'static,
 {
     /// Builder: set the permission engine from an explicit
-    /// `(ApprovalPolicy, SandboxPolicy)` pair. Replaces the old
-    /// `with_permission_mode` shim.
+    /// `(ApprovalPolicy, SandboxPolicy)` pair.
     pub fn with_approval_and_sandbox(
         mut self,
         approval: ApprovalPolicy,
@@ -122,9 +120,7 @@ where
             .set_sandbox_policy(sandbox);
     }
 
-    /// Persist approval policy for a specific session (double-axis API).
-    /// Updates `approval_policy` and re-derives the legacy `permission_mode`
-    /// column so readers stuck on the old field stay consistent.
+    /// Persist and activate approval policy for a specific session.
     pub async fn set_session_approval_policy(
         &self,
         session_id: &agent_core::SessionId,
@@ -135,14 +131,11 @@ where
             .update_approval_policy(session_id.as_str(), &approval_str)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        self.sync_legacy_permission_mode(session_id.as_str(), Some(approval), None)
-            .await
+        self.set_approval_policy(approval).await;
+        Ok(())
     }
 
-    /// Persist sandbox policy for a specific session (double-axis API).
-    /// Updates `sandbox_policy` JSON and re-derives the legacy
-    /// `permission_mode` column so readers stuck on the old field stay
-    /// consistent.
+    /// Persist and activate sandbox policy for a specific session.
     pub async fn set_session_sandbox_policy(
         &self,
         session_id: &agent_core::SessionId,
@@ -154,47 +147,8 @@ where
             .update_sandbox_policy(session_id.as_str(), &json)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        self.sync_legacy_permission_mode(session_id.as_str(), None, Some(sandbox.clone()))
-            .await
-    }
-
-    /// Read the persisted dual-axis policy pair for `session_id`, layer the
-    /// caller-supplied `approval_override`/`sandbox_override` on top, and
-    /// rewrite the legacy `permission_mode` column accordingly.
-    ///
-    /// No-op when the session row is missing (e.g. project sessions that live
-    /// in a different table); callers treat that as success.
-    async fn sync_legacy_permission_mode(
-        &self,
-        session_id: &str,
-        approval_override: Option<ApprovalPolicy>,
-        sandbox_override: Option<SandboxPolicy>,
-    ) -> agent_core::Result<()> {
-        let policies = self
-            .store
-            .get_session_policies(session_id)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
-        let Some((approval_str, sandbox_str)) = policies else {
-            return Ok(());
-        };
-
-        let approval = approval_override
-            .or_else(|| approval_str.as_deref().and_then(|s| s.parse().ok()))
-            .unwrap_or_default();
-        let sandbox = sandbox_override
-            .or_else(|| {
-                sandbox_str
-                    .as_deref()
-                    .and_then(|s| serde_json::from_str(s).ok())
-            })
-            .unwrap_or_default();
-
-        let legacy = legacy_mode_string_for(approval, &sandbox);
-        self.store
-            .update_permission_mode(session_id, legacy)
-            .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+        self.set_sandbox_policy(sandbox.clone()).await;
+        Ok(())
     }
 
     /// Set the memory store for persistent memory.

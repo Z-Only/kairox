@@ -161,15 +161,6 @@
     "applyReasoning": "Apply",
     "currentModel": "Current",
     "selectModelAria": "Select model. Current model: {model}",
-    "selectPermissionAria": "Select permission level. Current: {mode}",
-    "permission": "Permission",
-    "permissions": {
-      "readOnly": "Read Only",
-      "suggest": "Suggest",
-      "agent": "Agent",
-      "autonomous": "Autonomous",
-      "interactive": "Interactive"
-    },
     "selectApprovalAria": "Select approval policy. Current: {approval}",
     "approval": {
       "label": "Approval",
@@ -527,7 +518,6 @@
     "valid": "Valid",
     "invalid": "Invalid",
     "model": "Model",
-    "permission": "Permission",
     "tools": "Tools",
     "path": "Path",
     "view": "View",
@@ -535,7 +525,6 @@
     "name": "Name",
     "description": "Description",
     "modelProfile": "Model profile",
-    "permissionMode": "Permission mode",
     "skills": "Skills",
     "nicknames": "Nicknames",
     "saving": "Saving",

@@ -45,7 +45,6 @@ async fn activate_plugin_skill_with_namespaced_id() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -86,7 +85,6 @@ async fn disabled_plugin_skill_does_not_reactivate_from_stale_session_state() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -157,7 +155,6 @@ async fn plugin_skill_block_appears_in_model_request() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -223,7 +220,6 @@ async fn disabled_plugin_skill_is_pruned_before_model_request_blocks() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -307,7 +303,6 @@ async fn activate_plugin_skill_without_namespace_qualifier_fails() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -422,7 +417,6 @@ async fn same_name_workspace_and_plugin_skills_activate_independently() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

@@ -21,7 +21,7 @@ pub async fn initialize_workspace(
         .to_string();
 
     let profile = state.config.read().unwrap().default_profile();
-    let bootstrap = ensure_workspace_session(state.runtime.as_ref(), workspace_path, profile, None)
+    let bootstrap = ensure_workspace_session(state.runtime.as_ref(), workspace_path, profile)
         .await
         .map_err(|e| format!("Failed to initialize workspace: {e}"))?;
 
@@ -54,7 +54,6 @@ pub async fn initialize_workspace(
 #[specta::specta]
 pub async fn start_session(
     profile: String,
-    permission_mode: Option<String>,
     state: State<'_, GuiState>,
     app_handle: tauri::AppHandle,
 ) -> Result<SessionInfoResponse, String> {
@@ -68,7 +67,6 @@ pub async fn start_session(
         .start_session(agent_core::StartSessionRequest {
             workspace_id: workspace_id.clone(),
             model_profile: profile.clone(),
-            permission_mode: permission_mode.clone(),
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -84,7 +82,6 @@ pub async fn start_session(
         id: session_id.to_string(),
         title,
         profile,
-        permission_mode: permission_mode.or(Some("suggest".into())),
         approval_policy: None,
         sandbox_policy: None,
         project_id: None,

@@ -119,11 +119,6 @@ pub trait AgentStrategy: Send + Sync {
         None
     }
 
-    /// Optional permission mode override from agent settings.
-    fn permission_mode_override(&self) -> Option<&str> {
-        None
-    }
-
     /// Skills configured for this agent.
     fn skills(&self) -> &[String] {
         &[]

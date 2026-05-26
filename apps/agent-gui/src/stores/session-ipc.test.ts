@@ -158,7 +158,7 @@ describe("createSession", () => {
     // start_session was invoked with the requested profile alias.
     const startCall = mockedInvoke.mock.calls.find(([cmd]) => cmd === "start_session");
     expect(startCall).toBeDefined();
-    expect(startCall?.[1]).toEqual({ profile: "fast", permissionMode: "suggest" });
+    expect(startCall?.[1]).toEqual({ profile: "fast" });
   });
 
   it("propagates start_session failures to the caller (the view surfaces them)", async () => {
@@ -185,70 +185,6 @@ describe("renameSession", () => {
       "error",
       expect.stringContaining("rename failed")
     );
-  });
-});
-
-describe("setPermissionMode", () => {
-  it("maps legacy mode to dual-axis policy IPCs and updates local state", async () => {
-    const session = useSessionStore();
-    expect(session.permissionMode).toBe("suggest");
-
-    mockedInvoke.mockResolvedValueOnce("on_request"); // set_session_approval_policy
-    mockedInvoke.mockResolvedValueOnce(
-      '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
-    ); // set_session_sandbox_policy
-    await session.setPermissionMode("agent");
-
-    expect(mockedInvoke).toHaveBeenCalledWith("set_session_approval_policy", {
-      approval: "on_request"
-    });
-    expect(mockedInvoke).toHaveBeenCalledWith("set_session_sandbox_policy", {
-      sandboxJson: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
-    });
-    expect(session.permissionMode).toBe("agent");
-    expect(session.approvalPolicy).toBe("on_request");
-    expect(session.sandboxPolicy).toBe(
-      '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
-    );
-  });
-
-  it("notifies on IPC failure and preserves previous mode", async () => {
-    const session = useSessionStore();
-    session.permissionMode = "suggest";
-
-    mockedInvoke.mockRejectedValueOnce(new Error("IPC offline"));
-    mockedInvoke.mockRejectedValueOnce(new Error("IPC offline"));
-    await session.setPermissionMode("autonomous");
-
-    expect(session.permissionMode).toBe("suggest");
-    expect(pushNotificationSpy).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("Failed to set permission mode")
-    );
-  });
-
-  it("rejects unknown permission mode without invoking IPC", async () => {
-    const session = useSessionStore();
-    await session.setPermissionMode("bogus");
-    expect(mockedInvoke).not.toHaveBeenCalled();
-    expect(pushNotificationSpy).toHaveBeenCalledWith(
-      "error",
-      expect.stringContaining("Unknown permission mode")
-    );
-  });
-
-  it("round-trips each valid permission mode value", async () => {
-    const session = useSessionStore();
-    const modes = ["read_only", "suggest", "agent", "autonomous", "interactive"];
-
-    for (const mode of modes) {
-      mockedInvoke.mockResolvedValueOnce("ok"); // approval
-      mockedInvoke.mockResolvedValueOnce("ok"); // sandbox
-      await session.setPermissionMode(mode);
-      expect(session.permissionMode).toBe(mode);
-    }
-
-    expect(mockedInvoke).toHaveBeenCalledTimes(modes.length * 2);
   });
 });
 

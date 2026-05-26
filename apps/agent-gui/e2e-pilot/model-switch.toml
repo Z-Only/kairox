@@ -29,9 +29,14 @@ action = "assert-visible"
 target = "[data-test='chat-model-trigger']"
 
 [[step]]
-name = "permission trigger visible"
+name = "approval trigger visible"
 action = "assert-visible"
-target = "[data-test='chat-permission-trigger']"
+target = "[data-test='chat-approval-trigger']"
+
+[[step]]
+name = "sandbox trigger visible"
+action = "assert-visible"
+target = "[data-test='chat-sandbox-trigger']"
 
 [[step]]
 name = "open model selector popover"

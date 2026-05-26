@@ -64,12 +64,6 @@ onMounted(() => {
         <span class="status-value">{{ session.connected ? t("common.yes") : t("common.no") }}</span>
       </div>
 
-      <!-- Mode -->
-      <div class="status-item">
-        <span class="status-label">{{ t("statusBar.modeLabel") }}:</span>
-        <span class="status-value">{{ session.permissionMode }}</span>
-      </div>
-
       <!-- Approval -->
       <div class="status-item" data-test="status-bar-approval">
         <span class="status-label">{{ t("statusBar.approvalLabel") }}:</span>

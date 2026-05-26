@@ -3,7 +3,6 @@ import { setActivePinia, createPinia } from "pinia";
 import { flushPromises } from "@vue/test-utils";
 import ChatComposer from "./ChatComposer.vue";
 import chatComposerSource from "./ChatComposer.vue?raw";
-import chatPermissionSelectorSource from "./ChatPermissionSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 
@@ -94,78 +93,17 @@ describe("composer textarea chrome", () => {
   });
 });
 
-describe("permission mode selector", () => {
-  it("does not keep standard permission labels inline in the selector source", () => {
-    expectSourceMigration(chatPermissionSelectorSource, {
-      forbidden: ["Read Only", "Suggest", "Agent", "Autonomous", "Interactive"]
-    });
+describe("legacy policy selector cleanup", () => {
+  it("does not render the removed monolithic selector", () => {
+    const { wrapper } = mountChatComposer();
+
+    expect(chatComposerSource).not.toContain("ChatPermissionSelector");
+    expect(wrapper.find('[data-test="chat-permission-trigger"]').exists()).toBe(false);
   });
+});
 
-  it("renders the permission trigger button with current mode label", () => {
-    const { wrapper, session } = mountChatComposer();
-    session.permissionMode = "suggest";
-
-    const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
-    expect(trigger.exists()).toBe(true);
-    expect(trigger.text()).toBe("Suggest");
-  });
-
-  it("updates trigger label when session permissionMode changes", async () => {
-    const { wrapper, session } = mountChatComposer();
-    session.permissionMode = "read_only";
-    await wrapper.vm.$nextTick();
-
-    const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
-    expect(trigger.text()).toBe("Read Only");
-
-    session.permissionMode = "autonomous";
-    await wrapper.vm.$nextTick();
-    expect(trigger.text()).toBe("Autonomous");
-  });
-
-  it("sets the default permission mode to suggest", () => {
-    const { session } = mountChatComposer();
-    expect(session.permissionMode).toBe("suggest");
-  });
-
-  it("falls back to raw mode string for unknown mode values", async () => {
-    const { wrapper, session } = mountChatComposer();
-    session.permissionMode = "custom_mode";
-    await wrapper.vm.$nextTick();
-
-    const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
-    expect(trigger.text()).toBe("custom_mode");
-  });
-
-  it("renders all five standard mode labels correctly", async () => {
-    const { wrapper, session } = mountChatComposer();
-
-    const modeLabels: Record<string, string> = {
-      read_only: "Read Only",
-      suggest: "Suggest",
-      agent: "Agent",
-      autonomous: "Autonomous",
-      interactive: "Interactive"
-    };
-
-    for (const [value, label] of Object.entries(modeLabels)) {
-      session.permissionMode = value;
-      await wrapper.vm.$nextTick();
-      const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
-      expect(trigger.text()).toBe(label);
-    }
-  });
-
-  it("has accessible aria-label reflecting current permission mode", async () => {
-    const { wrapper, session } = mountChatComposer();
-    session.permissionMode = "agent";
-    await wrapper.vm.$nextTick();
-
-    const trigger = wrapper.find('[data-test="chat-permission-trigger"]');
-    expect(trigger.attributes("aria-label")).toBe("Select permission level. Current: Agent");
-  });
-
-  it("renders pending project branch control in the git-meta slot after permissions", async () => {
+describe("composer metadata", () => {
+  it("renders pending project branch control after approval and sandbox controls", async () => {
     const { wrapper, session } = mountChatComposer();
     const projectStore = useProjectStore();
     vi.spyOn(projectStore, "listProjectBranches").mockResolvedValue(["main", "feat/chat"]);
@@ -184,7 +122,7 @@ describe("permission mode selector", () => {
     expect(branchSelector.exists()).toBe(true);
     expect(meta.classes()).toContain("composer-meta--branch-picker");
     expect(gitMeta.text()).toContain("main");
-    expect(meta.html().indexOf('data-test="chat-permission-trigger"')).toBeLessThan(
+    expect(meta.html().indexOf('data-test="chat-sandbox-trigger"')).toBeLessThan(
       meta.html().indexOf('data-test="session-git-meta"')
     );
   });
@@ -445,17 +383,17 @@ describe("model reasoning selector", () => {
     });
   });
 
-  it("uses shared popover option styling for permission choices", async () => {
+  it("uses shared popover option styling for approval choices", async () => {
     const { wrapper, session } = mountChatComposer();
-    session.permissionMode = "suggest";
+    session.approvalPolicy = "on_request";
     await wrapper.vm.$nextTick();
 
-    await wrapper.find('[data-test="chat-permission-trigger"]').trigger("click");
+    await wrapper.find('[data-test="chat-approval-trigger"]').trigger("click");
     await wrapper.vm.$nextTick();
 
-    const popover = wrapper.find('[data-test="chat-permission-popover"]');
-    const option = wrapper.find('[data-test="chat-permission-option-suggest"]');
-    expect(popover.classes()).toContain("chat-permission-popover-panel");
+    const popover = wrapper.find('[data-test="chat-approval-popover"]');
+    const option = wrapper.find('[data-test="chat-approval-option-on_request"]');
+    expect(popover.classes()).toContain("chat-approval-popover-panel");
     expect(option.classes()).toContain("kx-popover-option");
     expect(option.classes()).toContain("kx-popover-option--selected");
   });

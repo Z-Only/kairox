@@ -15,8 +15,6 @@ async fn full_stack_task_graph_populated() {
         .start_session(StartSessionRequest {
             workspace_id: ws.workspace_id.clone(),
             model_profile: "test".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
