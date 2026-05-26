@@ -1,4 +1,5 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
+use crate::execution_runtime::SessionExecutionRuntime;
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
@@ -47,6 +48,7 @@ where
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
     pub(crate) active_cancellation: Arc<Mutex<Option<CancellationToken>>>,
+    pub(crate) session_execution: SessionExecutionRuntime,
     pub(crate) dag_executor: Option<Arc<DagExecutor<S, M>>>,
     pub(crate) dag_config: DagConfig,
     /// Catalog provider (built-in + future remote sources). `None` when the
@@ -106,6 +108,7 @@ where
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
             active_cancellation: Arc::new(Mutex::new(None)),
+            session_execution: SessionExecutionRuntime::new(),
             mcp_manager: None,
             dag_executor: None,
             dag_config: DagConfig::default(),
@@ -254,8 +257,64 @@ where
 mod tests {
     use super::*;
     use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest, WorkspaceId};
-    use agent_models::FakeModelClient;
+    use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
     use agent_store::SqliteEventStore;
+    use async_trait::async_trait;
+    use futures::stream::BoxStream;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::sync::{oneshot, Mutex as TokioMutex};
+
+    struct BlockingModelClient {
+        started: TokioMutex<Option<oneshot::Sender<()>>>,
+        release: TokioMutex<Option<oneshot::Receiver<()>>>,
+        stream_calls: Arc<AtomicUsize>,
+    }
+
+    impl BlockingModelClient {
+        fn new(
+            started: oneshot::Sender<()>,
+            release: oneshot::Receiver<()>,
+            stream_calls: Arc<AtomicUsize>,
+        ) -> Self {
+            Self {
+                started: TokioMutex::new(Some(started)),
+                release: TokioMutex::new(Some(release)),
+                stream_calls,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl ModelClient for BlockingModelClient {
+        async fn stream(
+            &self,
+            _request: ModelRequest,
+        ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+            let call_index = self.stream_calls.fetch_add(1, Ordering::SeqCst);
+            if call_index == 0 {
+                if let Some(started) = self.started.lock().await.take() {
+                    let _ = started.send(());
+                }
+                let release = self
+                    .release
+                    .lock()
+                    .await
+                    .take()
+                    .expect("blocking stream should be consumed once");
+                let stream = async_stream::stream! {
+                    let _ = release.await;
+                    yield Ok(ModelEvent::TokenDelta("first".into()));
+                    yield Ok(ModelEvent::Completed { usage: None });
+                };
+                return Ok(Box::pin(stream));
+            }
+
+            Ok(Box::pin(futures::stream::iter(vec![
+                Ok(ModelEvent::TokenDelta("unexpected concurrent call".into())),
+                Ok(ModelEvent::Completed { usage: None }),
+            ])))
+        }
+    }
 
     #[tokio::test]
     async fn default_execution_mode_is_single_step() {
@@ -337,6 +396,66 @@ mod tests {
             }
             other => panic!("expected SessionBusy, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn send_message_returns_session_busy_when_actor_turn_running() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime = Arc::new(LocalRuntime::new(store, model));
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let first_runtime = runtime.clone();
+        let first_workspace_id = workspace.workspace_id.clone();
+        let first_session_id = session_id.clone();
+        let first = tokio::spawn(async move {
+            first_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: first_workspace_id,
+                    session_id: first_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let second = runtime
+            .send_message(SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "second".into(),
+                attachments: vec![],
+            })
+            .await;
+
+        match second {
+            Err(agent_core::CoreError::SessionBusy { session_id: id, .. }) => {
+                assert_eq!(id, session_id.to_string());
+            }
+            other => panic!("expected SessionBusy, got {other:?}"),
+        }
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+
+        release_tx.send(()).unwrap();
+        first.await.unwrap().unwrap();
     }
 
     // ------------------------------------------------------------------

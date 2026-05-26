@@ -11,6 +11,7 @@ const ACTOR_CHANNEL_CAPACITY: usize = 32;
 pub(crate) enum ActorMessage {
     RunTurn {
         request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
     Cancel {
@@ -38,16 +39,24 @@ pub(crate) struct SessionActorHandle {
 }
 
 impl SessionActorHandle {
-    pub(crate) fn spawn(session_id: SessionId, executor: Arc<dyn TurnExecutor>) -> Self {
+    pub(crate) fn spawn(session_id: SessionId) -> Self {
         let (sender, receiver) = mpsc::channel(ACTOR_CHANNEL_CAPACITY);
-        tokio::spawn(SessionExecutionActor::new(session_id, executor, receiver).run());
+        tokio::spawn(SessionExecutionActor::new(session_id, receiver).run());
         Self { sender }
     }
 
-    pub(crate) async fn run_turn(&self, request: SendMessageRequest) -> agent_core::Result<()> {
+    pub(crate) async fn run_turn(
+        &self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+    ) -> agent_core::Result<()> {
         let (reply, result) = oneshot::channel();
         self.sender
-            .send(ActorMessage::RunTurn { request, reply })
+            .send(ActorMessage::RunTurn {
+                request,
+                executor,
+                reply,
+            })
             .await
             .map_err(|_| actor_stopped())?;
         result.await.map_err(|_| actor_stopped())?
@@ -80,21 +89,15 @@ impl SessionActorHandle {
 
 struct SessionExecutionActor {
     session_id: SessionId,
-    executor: Arc<dyn TurnExecutor>,
     receiver: mpsc::Receiver<ActorMessage>,
     state: ExecutionState,
     running: Option<RunningTurn>,
 }
 
 impl SessionExecutionActor {
-    fn new(
-        session_id: SessionId,
-        executor: Arc<dyn TurnExecutor>,
-        receiver: mpsc::Receiver<ActorMessage>,
-    ) -> Self {
+    fn new(session_id: SessionId, receiver: mpsc::Receiver<ActorMessage>) -> Self {
         Self {
             session_id,
-            executor,
             receiver,
             state: ExecutionState::Idle,
             running: None,
@@ -130,8 +133,12 @@ impl SessionExecutionActor {
         };
 
         match message {
-            ActorMessage::RunTurn { request, reply } => {
-                self.handle_run_turn(request, reply);
+            ActorMessage::RunTurn {
+                request,
+                executor,
+                reply,
+            } => {
+                self.handle_run_turn(request, executor, reply);
                 true
             }
             ActorMessage::Cancel { reason, reply } => {
@@ -152,6 +159,7 @@ impl SessionExecutionActor {
     fn handle_run_turn(
         &mut self,
         request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     ) {
         if self.running.is_some() {
@@ -169,7 +177,6 @@ impl SessionExecutionActor {
 
         let turn_id = format!("turn_{}", uuid::Uuid::new_v4().simple());
         let cancellation = CancellationToken::new();
-        let executor = Arc::clone(&self.executor);
         let task_cancellation = cancellation.clone();
         let join =
             tokio::spawn(async move { executor.execute_turn(request, task_cancellation).await });

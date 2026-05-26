@@ -1,8 +1,12 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
-use crate::facade_runtime::{ExecutionMode, LocalRuntime};
+#[cfg(test)]
+use crate::facade_runtime::ExecutionMode;
+use crate::facade_runtime::LocalRuntime;
 use crate::skill_package::SkillPackageManager;
 use crate::McpServerManager;
-use agent_core::{PermissionDecision, SendMessageRequest};
+use agent_core::PermissionDecision;
+#[cfg(test)]
+use agent_core::SendMessageRequest;
 use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
@@ -361,6 +365,7 @@ where
     }
 
     /// Determine the execution mode for a given request.
+    #[cfg(test)]
     pub(crate) fn execution_mode(&self, request: &SendMessageRequest) -> ExecutionMode {
         if request.content.starts_with("/plan ") && self.dag_executor.is_some() {
             ExecutionMode::DagExecution
