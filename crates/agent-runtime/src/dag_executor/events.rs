@@ -92,6 +92,24 @@ impl<S: EventStore> EventEmitter<S> {
         append_and_broadcast(&*self.store, &self.event_tx, &event).await
     }
 
+    pub async fn emit_task_cancelled(
+        &self,
+        workspace_id: &WorkspaceId,
+        session_id: &agent_core::SessionId,
+        task_id: &TaskId,
+    ) -> agent_core::Result<()> {
+        let event = DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::TaskCancelled {
+                task_id: task_id.clone(),
+            },
+        );
+        append_and_broadcast(&*self.store, &self.event_tx, &event).await
+    }
+
     pub async fn emit_task_blocked(
         &self,
         workspace_id: &WorkspaceId,

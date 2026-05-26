@@ -14,11 +14,17 @@ use agent_tools::PermissionEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExecutionBatch {
     pub(crate) task_ids: Vec<TaskId>,
     pub(crate) capacity: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SchedulingOutcome {
+    pub(crate) cancelled: bool,
 }
 
 pub(crate) fn next_execution_batch(graph: &TaskGraph, max_concurrency: usize) -> ExecutionBatch {
@@ -41,7 +47,8 @@ pub(crate) async fn run_scheduling_loop<S, M>(
     graph: &mut TaskGraph,
     session_events: &[DomainEvent],
     ctx: &StepContext,
-) -> agent_core::Result<()>
+    cancellation: Option<&CancellationToken>,
+) -> agent_core::Result<SchedulingOutcome>
 where
     S: EventStore,
     M: ModelClient,
@@ -50,6 +57,11 @@ where
     let max_iterations = 100; // Safety guard
 
     loop {
+        if cancellation.is_some_and(CancellationToken::is_cancelled) {
+            cancel_non_terminal_tasks(events, workspace_id, session_id, graph).await?;
+            return Ok(SchedulingOutcome { cancelled: true });
+        }
+
         if iteration >= max_iterations {
             tracing::warn!("DAG scheduling loop exceeded max iterations");
             break;
@@ -107,6 +119,7 @@ where
                         session_events,
                         ctx,
                         &agent_id,
+                        cancellation,
                     )
                     .await
                 } else {
@@ -118,6 +131,14 @@ where
                         .await?;
                     continue;
                 };
+
+                if cancellation.is_some_and(CancellationToken::is_cancelled) {
+                    cancel_non_terminal_tasks(events, workspace_id, session_id, graph).await?;
+                    events
+                        .emit_agent_idle(workspace_id, session_id, &agent_id)
+                        .await?;
+                    return Ok(SchedulingOutcome { cancelled: true });
+                }
 
                 match result {
                     Ok(()) => {
@@ -157,6 +178,31 @@ where
                     .await?;
             }
         }
+    }
+
+    Ok(SchedulingOutcome { cancelled: false })
+}
+
+pub(crate) async fn cancel_non_terminal_tasks<S: EventStore>(
+    events: &EventEmitter<S>,
+    workspace_id: &WorkspaceId,
+    session_id: &agent_core::SessionId,
+    graph: &mut TaskGraph,
+) -> agent_core::Result<()> {
+    let cancellable_task_ids: Vec<TaskId> = graph
+        .snapshot()
+        .into_iter()
+        .filter(|task| !task.state.is_terminal())
+        .map(|task| task.id)
+        .collect();
+
+    for task_id in cancellable_task_ids {
+        graph
+            .mark_cancelled(&task_id)
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        events
+            .emit_task_cancelled(workspace_id, session_id, &task_id)
+            .await?;
     }
 
     Ok(())

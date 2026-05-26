@@ -12,6 +12,7 @@ use agent_tools::PermissionEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 /// Execute a single task using its assigned strategy.
 #[allow(clippy::too_many_arguments)]
@@ -27,11 +28,16 @@ pub(crate) async fn execute_task_with_strategy<S, M>(
     session_events: &[DomainEvent],
     ctx: &StepContext,
     agent_id: &AgentId,
+    cancellation: Option<&CancellationToken>,
 ) -> agent_core::Result<()>
 where
     S: EventStore,
     M: ModelClient,
 {
+    if cancellation.is_some_and(CancellationToken::is_cancelled) {
+        return Err(cancelled_error());
+    }
+
     let strategy = strategies.get(&task.role).ok_or_else(|| {
         agent_core::CoreError::InvalidState(format!(
             "No strategy registered for role {:?}",
@@ -81,7 +87,21 @@ where
 
             let mut response_text = String::new();
             use futures::StreamExt;
-            while let Some(event_result) = stream.next().await {
+            loop {
+                let event_result = match cancellation {
+                    Some(token) => {
+                        tokio::select! {
+                            _ = token.cancelled() => return Err(cancelled_error()),
+                            event_result = stream.next() => event_result,
+                        }
+                    }
+                    None => stream.next().await,
+                };
+
+                let Some(event_result) = event_result else {
+                    break;
+                };
+
                 match event_result {
                     Ok(agent_models::ModelEvent::TokenDelta(delta)) => {
                         response_text.push_str(&delta);
@@ -103,6 +123,10 @@ where
                         return Err(agent_core::CoreError::InvalidState(e.to_string()));
                     }
                 }
+            }
+
+            if cancellation.is_some_and(CancellationToken::is_cancelled) {
+                return Err(cancelled_error());
             }
 
             if !response_text.is_empty() {
@@ -154,6 +178,10 @@ where
     result
 }
 
+fn cancelled_error() -> agent_core::CoreError {
+    agent_core::CoreError::InvalidState("DAG execution cancelled by user".into())
+}
+
 /// Run the reviewer on completed worker outputs, if a reviewer task exists.
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_reviewer_if_needed<S, M>(
@@ -166,6 +194,7 @@ pub(crate) async fn run_reviewer_if_needed<S, M>(
     graph: &mut TaskGraph,
     session_events: &[DomainEvent],
     ctx: &StepContext,
+    cancellation: Option<&CancellationToken>,
 ) -> agent_core::Result<()>
 where
     S: EventStore,
@@ -188,6 +217,14 @@ where
         .collect();
 
     for reviewer_task_id in reviewer_tasks {
+        if cancellation.is_some_and(CancellationToken::is_cancelled) {
+            graph.mark_cancelled(&reviewer_task_id).unwrap();
+            events
+                .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
+                .await?;
+            return Ok(());
+        }
+
         graph.mark_running(&reviewer_task_id).unwrap();
         events
             .emit_task_started(workspace_id, session_id, &reviewer_task_id)
@@ -221,22 +258,37 @@ where
             session_events,
             ctx,
             &reviewer_agent_id,
+            cancellation,
         )
         .await;
 
         match result {
             Ok(()) => {
-                graph.mark_completed(&reviewer_task_id).unwrap();
-                events
-                    .emit_task_completed(workspace_id, session_id, &reviewer_task_id)
-                    .await?;
+                if cancellation.is_some_and(CancellationToken::is_cancelled) {
+                    graph.mark_cancelled(&reviewer_task_id).unwrap();
+                    events
+                        .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
+                        .await?;
+                } else {
+                    graph.mark_completed(&reviewer_task_id).unwrap();
+                    events
+                        .emit_task_completed(workspace_id, session_id, &reviewer_task_id)
+                        .await?;
+                }
             }
             Err(e) => {
-                let error = e.to_string();
-                graph.mark_failed(&reviewer_task_id, error.clone()).unwrap();
-                events
-                    .emit_task_failed(workspace_id, session_id, &reviewer_task_id, &error)
-                    .await?;
+                if cancellation.is_some_and(CancellationToken::is_cancelled) {
+                    graph.mark_cancelled(&reviewer_task_id).unwrap();
+                    events
+                        .emit_task_cancelled(workspace_id, session_id, &reviewer_task_id)
+                        .await?;
+                } else {
+                    let error = e.to_string();
+                    graph.mark_failed(&reviewer_task_id, error.clone()).unwrap();
+                    events
+                        .emit_task_failed(workspace_id, session_id, &reviewer_task_id, &error)
+                        .await?;
+                }
             }
         }
 

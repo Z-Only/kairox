@@ -259,7 +259,7 @@ mod tests {
     use agent_core::{
         AgentRole, AppFacade, SendMessageRequest, StartSessionRequest, TaskState, WorkspaceId,
     };
-    use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
+    use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelMessage, ModelRequest};
     use agent_store::SqliteEventStore;
     use async_trait::async_trait;
     use futures::stream::BoxStream;
@@ -316,6 +316,110 @@ mod tests {
                 Ok(ModelEvent::Completed { usage: None }),
             ])))
         }
+    }
+
+    struct DecomposingPlannerStrategy;
+
+    #[async_trait]
+    impl crate::agents::AgentStrategy for DecomposingPlannerStrategy {
+        fn role(&self) -> AgentRole {
+            AgentRole::Planner
+        }
+
+        async fn build_context(
+            &self,
+            _task: &crate::task_graph::AgentTask,
+            _graph: &TaskGraph,
+            _session_events: &[agent_core::DomainEvent],
+        ) -> Vec<ModelMessage> {
+            Vec::new()
+        }
+
+        async fn decide(
+            &self,
+            _ctx: &crate::agents::StepContext,
+            _messages: Vec<ModelMessage>,
+        ) -> crate::agents::AgentDecision {
+            crate::agents::AgentDecision::Decompose {
+                sub_tasks: vec![crate::agents::SubTaskDef {
+                    title: "blocked worker".into(),
+                    role: AgentRole::Worker,
+                    dependencies: Vec::new(),
+                    description: "waits for model stream".into(),
+                }],
+            }
+        }
+
+        async fn process_tool_result(
+            &self,
+            _tool_call: &agent_models::ToolCall,
+            _result: &str,
+            _iteration: usize,
+        ) -> crate::agents::ToolResultAction {
+            crate::agents::ToolResultAction::Continue
+        }
+    }
+
+    struct StreamingWorkerStrategy;
+
+    #[async_trait]
+    impl crate::agents::AgentStrategy for StreamingWorkerStrategy {
+        fn role(&self) -> AgentRole {
+            AgentRole::Worker
+        }
+
+        async fn build_context(
+            &self,
+            _task: &crate::task_graph::AgentTask,
+            _graph: &TaskGraph,
+            _session_events: &[agent_core::DomainEvent],
+        ) -> Vec<ModelMessage> {
+            vec![ModelMessage {
+                role: "user".into(),
+                content: "stream until cancelled".into(),
+                tool_calls: Vec::new(),
+                tool_call_id: None,
+            }]
+        }
+
+        async fn decide(
+            &self,
+            _ctx: &crate::agents::StepContext,
+            _messages: Vec<ModelMessage>,
+        ) -> crate::agents::AgentDecision {
+            crate::agents::AgentDecision::RequestModel { tools: Vec::new() }
+        }
+
+        async fn process_tool_result(
+            &self,
+            _tool_call: &agent_models::ToolCall,
+            _result: &str,
+            _iteration: usize,
+        ) -> crate::agents::ToolResultAction {
+            crate::agents::ToolResultAction::Continue
+        }
+    }
+
+    async fn install_streaming_dag_executor<S, M>(runtime: &mut LocalRuntime<S, M>)
+    where
+        S: EventStore + 'static,
+        M: ModelClient + 'static,
+    {
+        let executor = crate::dag_executor::DagExecutor::new(
+            runtime.store.clone(),
+            runtime.model.clone(),
+            runtime.event_tx.clone(),
+            runtime.tool_registry.clone(),
+            runtime.permission_engine.clone(),
+            runtime.pending_permissions.clone(),
+            runtime.memory_store.clone(),
+            runtime.dag_config.clone(),
+            runtime.agent_settings_roots.clone(),
+        )
+        .await
+        .with_strategy(AgentRole::Planner, Arc::new(DecomposingPlannerStrategy))
+        .with_strategy(AgentRole::Worker, Arc::new(StreamingWorkerStrategy));
+        runtime.dag_executor = Some(Arc::new(executor));
     }
 
     #[tokio::test]
@@ -527,6 +631,69 @@ mod tests {
 
         release_tx.send(()).unwrap();
         first.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancel_session_interrupts_running_dag_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let mut runtime = LocalRuntime::new(store, model);
+        install_streaming_dag_executor(&mut runtime).await;
+        let runtime = Arc::new(runtime);
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let turn_runtime = runtime.clone();
+        let turn_workspace_id = workspace.workspace_id.clone();
+        let turn_session_id = session_id.clone();
+        let mut turn = tokio::spawn(async move {
+            turn_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: turn_workspace_id,
+                    session_id: turn_session_id,
+                    content: "/plan blocked dag".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        runtime
+            .cancel_session(workspace.workspace_id, session_id.clone())
+            .await
+            .unwrap();
+
+        let completed =
+            tokio::time::timeout(std::time::Duration::from_millis(250), &mut turn).await;
+        if completed.is_err() {
+            drop(release_tx);
+            let _ = turn.await;
+            panic!("DAG turn should finish after session cancellation without stream release");
+        }
+
+        completed.unwrap().unwrap().unwrap();
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+
+        let graphs = runtime.task_graphs.lock().await;
+        let graph = graphs.get(&session_id.to_string()).unwrap();
+        let counts = graph.state_counts();
+        assert_eq!(counts.running, 0);
+        assert!(counts.cancelled > 0);
     }
 
     #[tokio::test]
