@@ -114,6 +114,8 @@ pub async fn start_session<S: EventStore>(
         model_id: None,
         provider: None,
         permission_mode: perm,
+        approval_policy: None,
+        sandbox_policy: None,
         deleted_at: None,
         created_at: now.clone(),
         updated_at: now,

@@ -25,6 +25,8 @@ async fn restore_session_draft_loads_saved_composer_text() {
             model_id: None,
             provider: None,
             permission_mode: "suggest".to_string(),
+            approval_policy: None,
+            sandbox_policy: None,
             deleted_at: None,
             created_at: now.clone(),
             updated_at: now,
