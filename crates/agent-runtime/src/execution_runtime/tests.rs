@@ -131,16 +131,17 @@ async fn run_turn_completes_and_returns_to_idle() {
 }
 
 #[tokio::test]
-async fn run_turn_rejects_when_session_is_busy() {
+async fn run_turn_queues_when_session_is_busy() {
     let (started_tx, started_rx) = oneshot::channel();
     let (release_tx, release_rx) = oneshot::channel();
     let (cancelled_tx, _cancelled_rx) = oneshot::channel();
-    let executor = Arc::new(BlockingExecutor::new(started_tx, release_rx, cancelled_tx));
+    let first_executor = Arc::new(BlockingExecutor::new(started_tx, release_rx, cancelled_tx));
+    let second_executor = Arc::new(ImmediateExecutor::new());
     let runtime = SessionExecutionRuntime::new();
     let session_id = SessionId::new();
 
     let runtime_for_first = runtime.clone();
-    let executor_for_first = executor.clone();
+    let executor_for_first = first_executor.clone();
     let first_session = session_id.clone();
     let first = tokio::spawn(async move {
         runtime_for_first
@@ -149,14 +150,23 @@ async fn run_turn_rejects_when_session_is_busy() {
     });
     started_rx.await.unwrap();
 
-    let second = runtime
-        .run_turn(request(session_id.clone(), "second"), executor)
-        .await
-        .unwrap_err();
+    let runtime_for_second = runtime.clone();
+    let second_session = session_id.clone();
+    let second_executor_for_turn = second_executor.clone();
+    let second = tokio::spawn(async move {
+        runtime_for_second
+            .run_turn(request(second_session, "second"), second_executor_for_turn)
+            .await
+    });
 
-    assert!(matches!(second, CoreError::SessionBusy { .. }));
+    tokio::time::sleep(Duration::from_millis(25)).await;
+    assert!(!second.is_finished());
+    assert_eq!(second_executor.calls.load(Ordering::SeqCst), 0);
+
     release_tx.send(()).unwrap();
     first.await.unwrap().unwrap();
+    second.await.unwrap().unwrap();
+    assert_eq!(second_executor.calls.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]

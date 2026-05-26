@@ -1,6 +1,7 @@
+use std::collections::VecDeque;
 use std::sync::Arc;
 
-use agent_core::{CoreError, SendMessageRequest, SessionId};
+use agent_core::{CoreError, SendMessageRequest};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
@@ -33,15 +34,21 @@ struct RunningTurn {
     join: tokio::task::JoinHandle<agent_core::Result<()>>,
 }
 
+struct PendingTurn {
+    request: SendMessageRequest,
+    executor: Arc<dyn TurnExecutor>,
+    reply: oneshot::Sender<agent_core::Result<()>>,
+}
+
 #[derive(Clone)]
 pub(crate) struct SessionActorHandle {
     sender: mpsc::Sender<ActorMessage>,
 }
 
 impl SessionActorHandle {
-    pub(crate) fn spawn(session_id: SessionId) -> Self {
+    pub(crate) fn spawn() -> Self {
         let (sender, receiver) = mpsc::channel(ACTOR_CHANNEL_CAPACITY);
-        tokio::spawn(SessionExecutionActor::new(session_id, receiver).run());
+        tokio::spawn(SessionExecutionActor::new(receiver).run());
         Self { sender }
     }
 
@@ -88,19 +95,19 @@ impl SessionActorHandle {
 }
 
 struct SessionExecutionActor {
-    session_id: SessionId,
     receiver: mpsc::Receiver<ActorMessage>,
     state: ExecutionState,
     running: Option<RunningTurn>,
+    pending: VecDeque<PendingTurn>,
 }
 
 impl SessionExecutionActor {
-    fn new(session_id: SessionId, receiver: mpsc::Receiver<ActorMessage>) -> Self {
+    fn new(receiver: mpsc::Receiver<ActorMessage>) -> Self {
         Self {
-            session_id,
             receiver,
             state: ExecutionState::Idle,
             running: None,
+            pending: VecDeque::new(),
         }
     }
 
@@ -162,22 +169,33 @@ impl SessionExecutionActor {
         executor: Arc<dyn TurnExecutor>,
         reply: oneshot::Sender<agent_core::Result<()>>,
     ) {
-        if self.running.is_some() {
-            let _ = reply.send(Err(CoreError::SessionBusy {
-                session_id: self.session_id.to_string(),
-                reason: "session execution already running".into(),
-            }));
-            return;
-        }
-
         if self.state == ExecutionState::Stopped {
             let _ = reply.send(Err(actor_stopped()));
             return;
         }
 
+        let pending = PendingTurn {
+            request,
+            executor,
+            reply,
+        };
+        if self.running.is_some() {
+            self.pending.push_back(pending);
+            return;
+        }
+
+        self.start_turn(pending);
+    }
+
+    fn start_turn(&mut self, pending: PendingTurn) {
         let turn_id = format!("turn_{}", uuid::Uuid::new_v4().simple());
         let cancellation = CancellationToken::new();
         let task_cancellation = cancellation.clone();
+        let PendingTurn {
+            request,
+            executor,
+            reply,
+        } = pending;
         let join =
             tokio::spawn(async move { executor.execute_turn(request, task_cancellation).await });
 
@@ -209,6 +227,9 @@ impl SessionExecutionActor {
             active.join.abort();
             let _ = active.reply.send(Err(actor_stopped()));
         }
+        while let Some(pending) = self.pending.pop_front() {
+            let _ = pending.reply.send(Err(actor_stopped()));
+        }
         let _ = reply.send(Ok(()));
     }
 
@@ -227,7 +248,11 @@ impl SessionExecutionActor {
         };
         let _ = active.reply.send(result);
         if self.state != ExecutionState::Stopped {
-            self.state = ExecutionState::Idle;
+            if let Some(next) = self.pending.pop_front() {
+                self.start_turn(next);
+            } else {
+                self.state = ExecutionState::Idle;
+            }
         }
     }
 }

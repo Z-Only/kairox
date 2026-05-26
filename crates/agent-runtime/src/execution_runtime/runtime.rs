@@ -68,7 +68,7 @@ impl SessionExecutionRuntime {
             return actor.clone();
         }
 
-        let actor = SessionActorHandle::spawn(session_id.clone());
+        let actor = SessionActorHandle::spawn();
         actors.insert(session_id.to_string(), actor.clone());
         actor
     }

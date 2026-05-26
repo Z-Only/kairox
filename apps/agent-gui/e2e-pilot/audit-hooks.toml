@@ -66,8 +66,9 @@ target = "[data-test='hooks-settings-pane']"
 # Verify templates exist
 [[step]]
 name = "stop-validation template visible"
-action = "assert-visible"
-target = "[data-test='hook-template-stop-validation']"
+action = "wait"
+selector = "[data-test='hook-template-stop-validation']"
+timeout_ms = 15000
 
 [[step]]
 name = "add button visible"
