@@ -8,19 +8,18 @@ const coveragePaths =
 const workspaceRoot = process.cwd();
 const allowPartial = process.env.KAIROX_COVERAGE_ALLOW_PARTIAL === "1";
 
-const metrics = ["branches", "functions", "lines"];
+// LCOV records still carry BRF/BRH lines if grcov is asked for them, but the
+// pipeline runs without `--branch` to dodge the llvm-cov SIGSEGV described in
+// `scripts/run-rust-coverage.sh` (upstream LLVM bug
+// https://github.com/llvm/llvm-project/issues/189169). Drop branches from the
+// gated metrics so the gate doesn't pretend to enforce something we no longer
+// measure.
+const metrics = ["functions", "lines"];
 
 // Coverage thresholds are organised by risk tier rather than by codebase area.
 // Each file may be evaluated by multiple groups (for example, a workspace-wide
 // floor and a tier-specific gate). Stricter tiers must pass first; relaxed
 // tiers act as a safety net against report truncation.
-//
-// Calibration note: the cargo-llvm-cov + grcov pipeline currently does not
-// surface per-file LCOV records for several Rust crates (notably runtime, memory,
-// models, mcp) and reports functions/lines as 0% for the Tauri IPC and TUI
-// surfaces. Threshold floors below reflect what CI actually measures today and
-// will be tightened as the LCOV pipeline is fixed in a follow-up. See AGENTS.md
-// "Coverage gates".
 const groups = [
   // Tier 1 — Critical: permission engine, persistence, domain types,
   // configuration loader. Defects here affect audit, security, recoverability.
@@ -32,20 +31,16 @@ const groups = [
       /^crates\/agent-core\/src\//,
       /^crates\/agent-config\/src\//
     ],
-    minFiles: 24,
+    minFiles: 32,
     thresholds: {
-      // Both branches and lines kept conservative: nightly llvm-cov coverage
-      // numbers wobble by up to ~3pp between runs on this workspace; T1 lines
-      // measured 74.26 / 73.87 / 72.75 across consecutive runs.
-      branches: 60,
-      functions: 33,
-      lines: 71
+      // Calibrated against post-#509 LCOV (39 files, functions 38.62%,
+      // lines 85.52%). Floors set to ≈ floor(actual − 1) for nightly wobble.
+      functions: 37,
+      lines: 84
     }
   },
-  // Tier 2A — High-risk runtime hot path. CI LCOV currently does not report
-  // these source files; the group is kept for documentation and to alert when
-  // the LCOV pipeline starts surfacing them. allowPartial keeps it from
-  // blocking CI in the meantime.
+  // Tier 2A — High-risk runtime hot path. The post-#509 pipeline finally
+  // surfaces these crates; allowPartial is gone.
   {
     name: "T2 high-risk runtime",
     include: [
@@ -54,16 +49,21 @@ const groups = [
       /^crates\/agent-models\/src\//,
       /^crates\/agent-mcp\/src\//
     ],
-    allowPartial: true,
+    minFiles: 120,
     thresholds: {
-      branches: 70,
-      functions: 55,
-      lines: 75
+      // Post-#509 baseline: functions 28.06%, lines 80.04% across 132 files.
+      // The functions floor sits well below the tier target (55) because
+      // most of agent-runtime is async glue around hooked-into-tests work;
+      // raise it as runtime-side helper tests land.
+      functions: 27,
+      lines: 78
     }
   },
-  // Tier 2B — Tauri IPC boundary. Errors here block the desktop GUI. CI LCOV
-  // reports functions/lines as 0% for these files, so only branches is gated
-  // until the pipeline is fixed.
+  // Tier 2B — Tauri IPC boundary. Post-#509 baseline finally produces real
+  // numbers (functions 3.24%, lines 19.55% across 19 files). The functions
+  // floor is intentionally near-zero — every #[tauri::command] is a thin
+  // adapter and unit-testing them requires a real AppHandle (#502 PR
+  // discussion). lines is gated to keep regressions visible.
   {
     name: "T2 Tauri IPC",
     include: [
@@ -74,7 +74,8 @@ const groups = [
     exclude: [/^apps\/agent-gui\/src-tauri\/src\/specta\.rs$/],
     minFiles: 13,
     thresholds: {
-      branches: 99
+      functions: 2,
+      lines: 18
     }
   },
   // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
@@ -88,31 +89,37 @@ const groups = [
     ],
     // T1 covers these with stricter thresholds; do not double-count them here.
     exclude: [/^crates\/agent-tools\/src\/(permission|registry)\.rs$/],
-    minFiles: 7,
+    minFiles: 30,
     thresholds: {
-      branches: 93,
-      functions: 91,
-      lines: 95
+      // Post-#509 baseline across 34 files: functions 73.96%, lines 92.95%.
+      // The wider file set (skills + plugins src finally appearing) brought
+      // these down from the previous "8 files, 92/96" snapshot, but the
+      // numbers stay comfortably above the tier targets.
+      functions: 72,
+      lines: 92
     }
   },
-  // Tier 4 — Floor: rendering shells and evaluation CLI. CI LCOV reports
-  // functions/lines as 0% for these surfaces, so only minFiles is gated.
+  // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
+  // sees the agent-tui src tree (82 files), so meaningful floors apply.
   {
     name: "T4 UI shells and eval",
     include: [/^crates\/agent-tui\/src\//, /^crates\/agent-eval\/src\//],
-    minFiles: 1,
-    thresholds: {}
+    minFiles: 75,
+    thresholds: {
+      // Post-#509 baseline: functions 38.02%, lines 63.14%.
+      functions: 37,
+      lines: 62
+    }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
   {
     name: "Rust workspace overall",
     include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
-    minFiles: 50,
+    minFiles: 280,
     thresholds: {
-      // branches kept at 76 (~3pp below 79.69 baseline) for nightly wobble.
-      branches: 76,
-      functions: 37,
-      lines: 71
+      // Post-#509 baseline: functions 31.66%, lines 71.89% across 308 files.
+      functions: 30,
+      lines: 70
     }
   }
 ];
@@ -151,11 +158,9 @@ function readLcov(filePath) {
 
     if (!current) continue;
 
-    if (line.startsWith("BRF:")) {
-      current.summary.branches.count = Number(line.slice(4));
-    } else if (line.startsWith("BRH:")) {
-      current.summary.branches.covered = Number(line.slice(4));
-    } else if (line.startsWith("FNF:")) {
+    // BRF/BRH (branch coverage) records are intentionally not parsed — see
+    // the metrics constant above for context (LLVM #189169).
+    if (line.startsWith("FNF:")) {
       current.summary.functions.count = Number(line.slice(4));
     } else if (line.startsWith("FNH:")) {
       current.summary.functions.covered = Number(line.slice(4));
