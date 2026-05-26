@@ -97,11 +97,32 @@ script = """
 """
 
 [[step]]
-name = "wait for materialization stream to finish"
-action = "wait"
-selector = "[data-test='stream-indicator']"
-gone = true
-timeout_ms = 15000
+name = "wait for materialization response to finish"
+action = "eval"
+timeout_ms = 70000
+script = """
+(async () => {
+  const deadline = Date.now() + 70000;
+
+  while (Date.now() < deadline) {
+    const error = document.querySelector("[data-test='error-banner'], [data-error='true']");
+    if (error) {
+      throw new Error(`live attachment materialization failed: ${error.textContent?.trim() ?? ""}`);
+    }
+
+    const messages = Array.from(
+      document.querySelectorAll("[data-test='chat-message'][data-role='assistant'] .message-content")
+    );
+    const stream = document.querySelector("[data-test='stream-indicator']");
+    if (messages.length > 0 && !stream) {
+      return messages.at(-1)?.textContent ?? "";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error("live attachment materialization response did not finish");
+})()
+"""
 
 [[step]]
 name = "remember pre-live attachment assistant count"

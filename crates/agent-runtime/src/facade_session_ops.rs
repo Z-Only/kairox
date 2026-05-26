@@ -1,4 +1,5 @@
-use super::{ExecutionMode, LocalRuntime};
+use super::LocalRuntime;
+use crate::facade_turn_executor::LocalRuntimeTurnExecutor;
 use agent_core::facade::SessionFacade;
 use agent_core::{
     AgentStatusInfo, DomainEvent, PermissionDecision, SendMessageRequest, SessionId,
@@ -8,6 +9,7 @@ use agent_store::EventStore;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
+use std::sync::Arc;
 
 #[async_trait]
 impl<S, M> SessionFacade for LocalRuntime<S, M>
@@ -101,56 +103,8 @@ where
             }
         }
 
-        match self.execution_mode(&request) {
-            ExecutionMode::DagExecution => {
-                let executor = self.dag_executor.as_ref().ok_or_else(|| {
-                    agent_core::CoreError::InvalidState("DAG executor not available".into())
-                })?;
-                let result = executor.execute(&request, &self.task_graphs).await?;
-                tracing::info!(
-                    "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
-                    result.total_tasks,
-                    result.completed,
-                    result.failed,
-                    result.skipped,
-                );
-                Ok(())
-            }
-            ExecutionMode::SingleStep => {
-                let root_path = match self.project_repository() {
-                    Ok(repo) => match repo.get_session_binding(request.session_id.as_str()).await {
-                        Ok(Some(binding)) => repo
-                            .get_project(&binding.project_id)
-                            .await
-                            .ok()
-                            .map(|project| std::path::PathBuf::from(project.root_path)),
-                        _ => None,
-                    },
-                    Err(_) => None,
-                };
-
-                crate::agent_loop::run_agent_loop(
-                    crate::agent_loop::AgentLoopDeps {
-                        store: &self.store,
-                        model: &self.model,
-                        event_tx: &self.event_tx,
-                        tool_registry: &self.tool_registry,
-                        permission_engine: &self.permission_engine,
-                        pending_permissions: &self.pending_permissions,
-                        memory_store: &self.memory_store,
-                        task_graphs: &self.task_graphs,
-                        active_cancellation: &self.active_cancellation,
-                        config: &self.config,
-                        session_states: &self.session_states,
-                        skill_registry: &self.skill_registry,
-                        active_skills: &self.active_skills,
-                        root_path,
-                    },
-                    &request,
-                )
-                .await
-            }
-        }
+        let executor = Arc::new(LocalRuntimeTurnExecutor::from_runtime(self));
+        self.session_execution.run_turn(request, executor).await
     }
 
     async fn decide_permission(&self, decision: PermissionDecision) -> agent_core::Result<()> {
@@ -163,6 +117,9 @@ where
         workspace_id: WorkspaceId,
         session_id: SessionId,
     ) -> agent_core::Result<()> {
+        self.session_execution
+            .cancel_session(&session_id, "user requested cancellation".into())
+            .await?;
         crate::session::cancel_session(
             &*self.store,
             &self.event_tx,

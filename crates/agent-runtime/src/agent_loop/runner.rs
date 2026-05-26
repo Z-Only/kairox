@@ -13,7 +13,6 @@ use agent_store::EventStore;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
 
 /// Resolve the active model profile alias from a session's full event log.
 ///
@@ -168,7 +167,7 @@ where
     };
 
     // ── 5. Cancellation token ───────────────────────────────────────
-    let cancel_token = CancellationToken::new();
+    let cancel_token = deps.turn_cancellation.clone().unwrap_or_default();
     *deps.active_cancellation.lock().await = Some(cancel_token.clone());
 
     // ── 6. Create root task ─────────────────────────────────────────

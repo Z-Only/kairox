@@ -18,6 +18,7 @@ pub(crate) mod facade_projects;
 pub mod facade_runtime;
 pub(crate) mod facade_sessions;
 pub(crate) mod facade_skills;
+pub(crate) mod facade_turn_executor;
 pub mod hooks;
 pub mod hooks_settings;
 pub mod instructions_settings;

@@ -9,25 +9,23 @@ use super::types::{ExecutionState, TurnExecutor};
 
 #[derive(Clone)]
 pub struct SessionExecutionRuntime {
-    executor: Arc<dyn TurnExecutor>,
     actors: Arc<Mutex<HashMap<String, SessionActorHandle>>>,
 }
 
 impl SessionExecutionRuntime {
-    pub fn new<E>(executor: Arc<E>) -> Self
-    where
-        E: TurnExecutor,
-    {
-        let executor: Arc<dyn TurnExecutor> = executor;
+    pub fn new() -> Self {
         Self {
-            executor,
             actors: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub async fn run_turn(&self, request: SendMessageRequest) -> agent_core::Result<()> {
+    pub async fn run_turn(
+        &self,
+        request: SendMessageRequest,
+        executor: Arc<dyn TurnExecutor>,
+    ) -> agent_core::Result<()> {
         let actor = self.actor_for(&request.session_id).await;
-        actor.run_turn(request).await
+        actor.run_turn(request, executor).await
     }
 
     pub async fn cancel_session(
@@ -70,7 +68,7 @@ impl SessionExecutionRuntime {
             return actor.clone();
         }
 
-        let actor = SessionActorHandle::spawn(session_id.clone(), Arc::clone(&self.executor));
+        let actor = SessionActorHandle::spawn();
         actors.insert(session_id.to_string(), actor.clone());
         actor
     }
@@ -81,5 +79,11 @@ impl SessionExecutionRuntime {
             .await
             .get(&session_id.to_string())
             .cloned()
+    }
+}
+
+impl Default for SessionExecutionRuntime {
+    fn default() -> Self {
+        Self::new()
     }
 }

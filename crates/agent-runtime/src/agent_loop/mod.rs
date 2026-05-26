@@ -48,6 +48,7 @@ where
     pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     pub skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
+    pub turn_cancellation: Option<CancellationToken>,
     pub root_path: Option<std::path::PathBuf>,
 }
 
