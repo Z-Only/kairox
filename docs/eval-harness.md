@@ -15,7 +15,7 @@ cargo run -p agent-eval --bin kairox-eval -- run \
 By default the harness:
 
 - loads normal Kairox model configuration for the selected workspace;
-- uses `agent` permission mode so headless runs do not block on UI approval;
+- uses `on_request` approval with `workspace_write` sandbox by default;
 - enables built-in tools rooted at `--workspace`;
 - disables MCP servers and hooks for reproducibility.
 
@@ -30,7 +30,8 @@ Each non-empty, non-comment JSONL row is one scenario:
   "id": "fake-smoke",
   "prompt": "Say hello from the configured fake model.",
   "profile": "fake",
-  "permission_mode": "agent",
+  "approval_policy": "on_request",
+  "sandbox_policy": { "kind": "workspace_write" },
   "tags": ["smoke"],
   "expected": {
     "assistant_contains": ["Kairox"],
@@ -41,7 +42,7 @@ Each non-empty, non-comment JSONL row is one scenario:
 }
 ```
 
-`profile`, `permission_mode`, and `tags` are optional. If `profile` is omitted, the harness uses `--profile`, then the loaded config default.
+`profile`, `approval_policy`, `sandbox_policy`, and `tags` are optional. If `profile` is omitted, the harness uses `--profile`, then the loaded config default.
 
 ## Result Metrics
 

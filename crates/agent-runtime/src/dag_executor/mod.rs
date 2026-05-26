@@ -369,17 +369,16 @@ where
             .collect()
     }
 
-    /// Return agent settings overrides for a role: (model_profile, permission_mode, skills, tools).
+    /// Return agent settings overrides for a role: (model_profile, skills, tools).
     #[doc(hidden)]
     #[allow(clippy::type_complexity)]
     pub fn agent_settings_overrides(
         &self,
         role: AgentRole,
-    ) -> Option<(Option<String>, Option<String>, Vec<String>, Vec<String>)> {
+    ) -> Option<(Option<String>, Vec<String>, Vec<String>)> {
         self.strategies.get(&role).map(|s| {
             (
                 s.model_profile_override().map(String::from),
-                s.permission_mode_override().map(String::from),
                 s.skills().to_vec(),
                 s.tools_allowlist().to_vec(),
             )

@@ -86,7 +86,7 @@ async fn registry_lists_all_tools_including_custom() {
 
 #[test]
 fn permission_engine_decide_per_policy_pair() {
-    // ── (Never, ReadOnly) — formerly PermissionMode::ReadOnly ───────────────
+    // ── (Never, ReadOnly) ───────────────────────────────────────────────────
     let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
 
     // fs.read (read) → Allowed
@@ -119,83 +119,83 @@ fn permission_engine_decide_per_policy_pair() {
         "ReadOnly should deny destructive ops, got: {destroy_decision:?}"
     );
 
-    // ── (Always, WorkspaceWrite) — formerly PermissionMode::Suggest ─────────
-    let suggest = PermissionEngine::new(ApprovalPolicy::Always, ws_default());
+    // ── (Always, WorkspaceWrite) ────────────────────────────────────────────
+    let always = PermissionEngine::new(ApprovalPolicy::Always, ws_default());
     assert!(
         matches!(
-            suggest.decide(&ToolRisk::read("fs.read")),
+            always.decide(&ToolRisk::read("fs.read")),
             PermissionOutcome::Allowed
         ),
-        "Suggest should allow reads"
+        "Always approval should allow reads"
     );
     assert!(
         matches!(
-            suggest.decide(&ToolRisk::write("fs.write")),
+            always.decide(&ToolRisk::write("fs.write")),
             PermissionOutcome::RequiresApproval
         ),
-        "Suggest should require approval for writes"
+        "Always approval should require approval for writes"
     );
     assert!(
         matches!(
-            suggest.decide(&ToolRisk::shell("shell.exec", false)),
+            always.decide(&ToolRisk::shell("shell.exec", false)),
             PermissionOutcome::RequiresApproval
         ),
-        "Suggest should require approval for shell"
+        "Always approval should require approval for shell"
     );
 
-    // ── (OnRequest, WorkspaceWrite) — formerly PermissionMode::Agent ─────────
-    let agent = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
+    // ── (OnRequest, WorkspaceWrite) ─────────────────────────────────────────
+    let on_request = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
     assert!(
         matches!(
-            agent.decide(&ToolRisk::read("fs.read")),
+            on_request.decide(&ToolRisk::read("fs.read")),
             PermissionOutcome::Allowed
         ),
-        "Agent should allow reads"
+        "OnRequest should allow reads"
     );
     assert!(
         matches!(
-            agent.decide(&ToolRisk::write("fs.write")),
+            on_request.decide(&ToolRisk::write("fs.write")),
             PermissionOutcome::Allowed
         ),
-        "Agent should allow writes"
+        "OnRequest should allow writes"
     );
     assert!(
         matches!(
-            agent.decide(&ToolRisk::shell("shell.exec", false)),
+            on_request.decide(&ToolRisk::shell("shell.exec", false)),
             PermissionOutcome::Allowed
         ),
-        "Agent should allow non-destructive shell"
+        "OnRequest should allow non-destructive shell"
     );
     assert!(
         matches!(
-            agent.decide(&ToolRisk::destructive("rm.rf")),
+            on_request.decide(&ToolRisk::destructive("rm.rf")),
             PermissionOutcome::RequiresApproval
         ),
-        "Agent should require approval for destructive ops"
+        "OnRequest should require approval for destructive ops"
     );
 
-    // ── Autonomous — (Never, DangerFullAccess); everything allowed including
+    // ── (Never, DangerFullAccess); everything allowed including
     //    destructive shell. To gate destructive ops, pick OnRequest approval
     //    instead.
-    let autonomous = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
+    let danger = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
     assert!(matches!(
-        autonomous.decide(&ToolRisk::read("fs.read")),
+        danger.decide(&ToolRisk::read("fs.read")),
         PermissionOutcome::Allowed
     ));
     assert!(matches!(
-        autonomous.decide(&ToolRisk::write("fs.write")),
+        danger.decide(&ToolRisk::write("fs.write")),
         PermissionOutcome::Allowed
     ));
     assert!(matches!(
-        autonomous.decide(&ToolRisk::shell("shell.exec", false)),
+        danger.decide(&ToolRisk::shell("shell.exec", false)),
         PermissionOutcome::Allowed
     ));
     assert!(
         matches!(
-            autonomous.decide(&ToolRisk::shell("shell.exec", true)),
+            danger.decide(&ToolRisk::shell("shell.exec", true)),
             PermissionOutcome::Allowed
         ),
-        "Autonomous (Never+DangerFullAccess) allows destructive shell"
+        "Never + DangerFullAccess allows destructive shell"
     );
 }
 

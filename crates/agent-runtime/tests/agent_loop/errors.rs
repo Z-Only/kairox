@@ -37,8 +37,6 @@ async fn agent_loop_handles_model_error_gracefully() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "test".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

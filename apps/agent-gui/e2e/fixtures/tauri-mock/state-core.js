@@ -22,7 +22,6 @@ const state = {
   currentSessionId: null,
   currentProfile: "fast",
   currentReasoningEffort: null,
-  currentPermissionMode: "suggest",
   currentApprovalPolicy: "on_request",
   currentSandboxPolicy: '{"kind":"workspace_write"}',
   sentMessages: [],

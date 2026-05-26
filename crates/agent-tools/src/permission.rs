@@ -1,10 +1,8 @@
 //! Permission outcomes, tool risks, and the [`PermissionEngine`] thin wrapper
 //! around [`crate::policy::PolicyEngine`].
 //!
-//! New code should construct [`PermissionEngine`] from an
-//! `(ApprovalPolicy, SandboxPolicy)` pair. The legacy `PermissionMode` enum
-//! that used to live here was removed in
-//! `docs/superpowers/specs/2026-05-26-permission-sandbox-approval-design.md`.
+//! Construct [`PermissionEngine`] from an `(ApprovalPolicy, SandboxPolicy)`
+//! pair.
 
 use std::collections::HashSet;
 use std::path::PathBuf;

@@ -33,8 +33,6 @@ async fn manual_activation_lists_active_skills_for_that_session() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -99,8 +97,6 @@ async fn repeated_skills_activation_does_not_emit_duplicate_skill_activated_even
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

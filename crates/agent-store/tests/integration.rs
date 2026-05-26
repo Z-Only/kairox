@@ -8,6 +8,20 @@ async fn new_store() -> SqliteEventStore {
     SqliteEventStore::in_memory().await.unwrap()
 }
 
+#[tokio::test]
+async fn session_schema_uses_only_approval_and_sandbox_policy() {
+    let store = new_store().await;
+    let columns: Vec<String> =
+        sqlx::query_scalar("SELECT name FROM pragma_table_info('kairox_sessions')")
+            .fetch_all(store.pool())
+            .await
+            .unwrap();
+
+    assert!(!columns.iter().any(|column| column == "permission_mode"));
+    assert!(columns.iter().any(|column| column == "approval_policy"));
+    assert!(columns.iter().any(|column| column == "sandbox_policy"));
+}
+
 // --- Event round-trip test ---
 
 #[tokio::test]
@@ -81,7 +95,6 @@ async fn workspace_and_session_crud() {
             model_profile: "fake".into(),
             model_id: None,
             provider: None,
-            permission_mode: "suggest".to_string(),
             approval_policy: None,
             sandbox_policy: None,
             deleted_at: None,
@@ -222,7 +235,6 @@ async fn project_meta_crud() {
             model_profile: "fake".into(),
             model_id: None,
             provider: None,
-            permission_mode: "suggest".to_string(),
             approval_policy: None,
             sandbox_policy: None,
             deleted_at: None,

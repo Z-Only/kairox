@@ -21,8 +21,6 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "gpt-4".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -32,8 +30,6 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "claude".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -43,8 +39,6 @@ async fn multiple_sessions_in_same_workspace() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "ollama".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

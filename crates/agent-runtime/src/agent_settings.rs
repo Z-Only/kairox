@@ -98,7 +98,6 @@ pub async fn copy_agent_settings(
             description: view.description,
             tools: view.tools,
             model_profile: view.model_profile,
-            permission_mode: view.permission_mode,
             skills: view.skills,
             nickname_candidates: view.nickname_candidates,
             enabled: view.enabled,
@@ -159,7 +158,6 @@ name: code-reviewer
 description: Review code for correctness and missing tests.
 tools: ["fs.read", "search"]
 model_profile: "fast"
-permission_mode: "read_only"
 skills: ["kairox-dev-workflow"]
 nickname_candidates: ["Reviewer", "Audit"]
 enabled: false
@@ -176,7 +174,6 @@ Review code like an owner.
         );
         assert_eq!(parsed.tools, vec!["fs.read", "search"]);
         assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
-        assert_eq!(parsed.permission_mode.as_deref(), Some("read_only"));
         assert_eq!(parsed.skills, vec!["kairox-dev-workflow"]);
         assert_eq!(parsed.nickname_candidates, vec!["Reviewer", "Audit"]);
         assert!(!parsed.enabled);
@@ -289,7 +286,6 @@ Review code like an owner.
             description: "Run focused tests and report failures.".into(),
             tools: vec!["shell".into()],
             model_profile: Some("fast".into()),
-            permission_mode: Some("workspace_write".into()),
             skills: vec![],
             nickname_candidates: vec!["Test".into()],
             enabled: true,

@@ -13,10 +13,8 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("refresh_config_for_project", { projectRoot })),
   initializeWorkspace: () =>
     typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
-  startSession: (profile: string, permissionMode: string | null) =>
-    typedError<SessionInfoResponse, string>(
-      __TAURI_INVOKE("start_session", { profile, permissionMode })
-    ),
+  startSession: (profile: string) =>
+    typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
   sendMessage: (content: string, attachments: AttachmentInfo[]) =>
     typedError<null, string>(__TAURI_INVOKE("send_message", { content, attachments })),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
@@ -384,7 +382,6 @@ export type AgentSettingsInput = {
   description: string;
   tools: string[];
   modelProfile: string | null;
-  permissionMode: string | null;
   skills: string[];
   nicknameCandidates: string[];
   enabled: boolean;
@@ -401,7 +398,6 @@ export type AgentSettingsView = {
   path: string;
   tools: string[];
   modelProfile: string | null;
-  permissionMode: string | null;
   skills: string[];
   nicknameCandidates: string[];
   enabled: boolean;
@@ -898,7 +894,6 @@ export type SessionInfoResponse = {
   id: string;
   title: string;
   profile: string;
-  permission_mode: string | null;
   approval_policy: string | null;
   sandbox_policy: string | null;
   project_id: string | null;

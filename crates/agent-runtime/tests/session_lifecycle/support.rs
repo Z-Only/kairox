@@ -54,14 +54,6 @@ impl EventStore for NonSqliteEventStore {
         Ok(())
     }
 
-    async fn update_permission_mode(
-        &self,
-        _session_id: &str,
-        _mode: &str,
-    ) -> agent_store::Result<()> {
-        Ok(())
-    }
-
     async fn update_approval_policy(
         &self,
         _session_id: &str,
@@ -110,13 +102,6 @@ impl EventStore for NonSqliteEventStore {
 
     async fn get_draft(&self, _session_id: &str) -> agent_store::Result<String> {
         Ok(String::new())
-    }
-
-    async fn get_session_policies(
-        &self,
-        _session_id: &str,
-    ) -> agent_store::Result<Option<(Option<String>, Option<String>)>> {
-        Ok(None)
     }
 }
 

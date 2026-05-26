@@ -116,7 +116,7 @@ async fn ensure_workspace_session_reuses_most_recent_active_session() {
     let runtime = LocalRuntime::new(store, FakeModelClient::new(vec!["ok".into()]));
     let workspace_path = "/tmp/kairox-ui-bootstrap".to_string();
 
-    let first = ensure_workspace_session(&runtime, workspace_path.clone(), "fake".into(), None)
+    let first = ensure_workspace_session(&runtime, workspace_path.clone(), "fake".into())
         .await
         .expect("initial workspace session should be created");
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
@@ -124,14 +124,13 @@ async fn ensure_workspace_session_reuses_most_recent_active_session() {
         .start_session(StartSessionRequest {
             workspace_id: first.workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
         .await
         .expect("second session should start");
 
-    let restored = ensure_workspace_session(&runtime, workspace_path, "fake".into(), None)
+    let restored = ensure_workspace_session(&runtime, workspace_path, "fake".into())
         .await
         .expect("workspace session should restore");
 

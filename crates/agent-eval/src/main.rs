@@ -2,7 +2,7 @@ use agent_eval::{
     load_scenarios, write_results_jsonl, write_summary_json, EvalHarness, EvalRunOptions,
     EvalSummary, Result,
 };
-use agent_tools::{parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -83,12 +83,13 @@ impl CliArgs {
                 "--summary" => summary = Some(next_path(&mut iter, "--summary")?),
                 "--workspace" => workspace = next_path(&mut iter, "--workspace")?,
                 "--profile" => profile = Some(next_value(&mut iter, "--profile")?),
-                "--permission-mode" => {
-                    let raw = next_value(&mut iter, "--permission-mode")?;
-                    let (parsed_approval, parsed_sandbox) = parse_legacy_mode(&raw)
-                        .ok_or_else(|| agent_eval::EvalError::PermissionMode(raw.clone()))?;
-                    approval_policy = parsed_approval;
-                    sandbox_policy = parsed_sandbox;
+                "--approval-policy" => {
+                    let raw = next_value(&mut iter, "--approval-policy")?;
+                    approval_policy = raw.parse().map_err(agent_eval::EvalError::Policy)?;
+                }
+                "--sandbox-policy" => {
+                    let raw = next_value(&mut iter, "--sandbox-policy")?;
+                    sandbox_policy = parse_sandbox_policy(&raw)?;
                 }
                 "--include-trace" => include_trace = true,
                 "--enable-mcp" => enable_mcp = true,
@@ -131,6 +132,24 @@ fn next_path(iter: &mut impl Iterator<Item = String>, flag: &'static str) -> Res
     Ok(PathBuf::from(next_value(iter, flag)?))
 }
 
+fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
+    match raw.to_ascii_lowercase().as_str() {
+        "read_only" | "readonly" | "read-only" => Ok(SandboxPolicy::ReadOnly),
+        "workspace_write" | "workspacewrite" | "workspace-write" => {
+            Ok(SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            })
+        }
+        "danger_full_access" | "dangerfullaccess" | "danger-full-access" => {
+            Ok(SandboxPolicy::DangerFullAccess)
+        }
+        _ => serde_json::from_str(raw).map_err(|error| {
+            agent_eval::EvalError::Policy(format!("invalid sandbox policy `{raw}`: {error}"))
+        }),
+    }
+}
+
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--permission-mode read_only|suggest|agent|autonomous|interactive] [--include-trace] [--enable-mcp] [--enable-hooks]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks]".into()
 }

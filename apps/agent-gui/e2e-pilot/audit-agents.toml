@@ -119,12 +119,6 @@ target = "[data-test='agent-form-model']"
 value = "fast"
 
 [[step]]
-name = "fill pilot agent permission"
-action = "fill"
-target = "[data-test='agent-form-permission']"
-value = "read_only"
-
-[[step]]
 name = "fill pilot agent tools"
 action = "fill"
 target = "[data-test='agent-form-tools']"
@@ -176,7 +170,6 @@ script = """
     "Disabled",
     "Project-scoped pilot audit agent.",
     "fast",
-    "read_only",
     "fs.read, shell",
   ]) {
     if (!text.includes(expected)) {
@@ -200,7 +193,6 @@ script = """
   const expected = {
     "agent-form-name": "pilot-settings-audit",
     "agent-form-model": "fast",
-    "agent-form-permission": "read_only",
     "agent-form-tools": "fs.read, shell",
     "agent-form-skills": "kairox-dev-workflow",
     "agent-form-nicknames": "Pilot",

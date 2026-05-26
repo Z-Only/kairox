@@ -85,16 +85,13 @@ pub async fn open_workspace<S: EventStore>(
 
 /// Start a new agent session within a workspace.
 ///
-/// `approval_policy` and `sandbox_policy` carry the new double-axis values.
-/// When omitted, the runtime derives them from `permission_mode` via the
-/// legacy shim and persists them alongside the legacy column so downstream
-/// readers can transition incrementally.
+/// `approval_policy` and `sandbox_policy` carry the persisted double-axis
+/// values. When omitted, the runtime stores the default policy pair.
 pub async fn start_session<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     workspace_id: WorkspaceId,
     model_profile: String,
-    permission_mode: Option<String>,
     approval_policy: Option<String>,
     sandbox_policy: Option<String>,
 ) -> agent_core::Result<SessionId> {
@@ -112,8 +109,7 @@ pub async fn start_session<S: EventStore>(
 
     // Persist session metadata for session recovery.
     let now = chrono::Utc::now().to_rfc3339();
-    let (perm, approval_str, sandbox_str) =
-        derive_policy_strings(permission_mode.as_deref(), approval_policy, sandbox_policy);
+    let (approval_str, sandbox_str) = derive_policy_strings(approval_policy, sandbox_policy);
     let session_row = SessionRow {
         session_id: session_id.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -121,7 +117,6 @@ pub async fn start_session<S: EventStore>(
         model_profile,
         model_id: None,
         provider: None,
-        permission_mode: perm,
         approval_policy: Some(approval_str),
         sandbox_policy: Some(sandbox_str),
         deleted_at: None,
@@ -135,42 +130,25 @@ pub async fn start_session<S: EventStore>(
     Ok(session_id)
 }
 
-/// Derive `(legacy_label, approval_policy_str, sandbox_policy_json)` for storage.
-///
-/// Resolution order for the dual-axis fields:
-/// 1. Caller-provided `approval_override` / `sandbox_override` (already canonical).
-/// 2. Legacy `permission_mode` parsed via `parse_legacy_mode`.
-/// 3. `ApprovalPolicy` / `SandboxPolicy` defaults.
-///
-/// The legacy `permission_mode` column is then re-derived from the resolved
-/// `(approval, sandbox)` tuple via `legacy_mode_string_for`, so the row stays
-/// internally consistent even when callers pass mismatched legacy + dual-axis
-/// values during the deprecation window.
+/// Derive `(approval_policy_str, sandbox_policy_json)` for storage.
 fn derive_policy_strings(
-    permission_mode: Option<&str>,
     approval_override: Option<String>,
     sandbox_override: Option<String>,
-) -> (String, String, String) {
-    use agent_tools::{legacy_mode_string_for, parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
-
-    let legacy_parsed = permission_mode.and_then(parse_legacy_mode);
-
+) -> (String, String) {
+    use agent_tools::{ApprovalPolicy, SandboxPolicy};
     let approval: ApprovalPolicy = approval_override
         .as_deref()
         .and_then(|s| s.parse().ok())
-        .or_else(|| legacy_parsed.as_ref().map(|(a, _)| *a))
         .unwrap_or_default();
 
     let sandbox: SandboxPolicy = sandbox_override
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok())
-        .or_else(|| legacy_parsed.as_ref().map(|(_, s)| s.clone()))
         .unwrap_or_default();
 
     let approval_str = approval.to_string();
     let sandbox_str = serde_json::to_string(&sandbox).unwrap_or_default();
-    let legacy = legacy_mode_string_for(approval, &sandbox).to_string();
-    (legacy, approval_str, sandbox_str)
+    (approval_str, sandbox_str)
 }
 
 /// Cancel a running session.
@@ -314,7 +292,6 @@ pub async fn list_sessions<S: EventStore>(
             worktree_path: None,
             branch: None,
             visibility: None,
-            permission_mode: Some(row.permission_mode.clone()),
             approval_policy: row.approval_policy.clone(),
             sandbox_policy: row.sandbox_policy.clone(),
             session_id: SessionId::from_string(row.session_id),

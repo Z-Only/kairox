@@ -23,8 +23,6 @@ async fn full_session_flow_sends_message_and_receives_response() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })
@@ -68,8 +66,6 @@ async fn event_subscription_receives_streaming_events() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

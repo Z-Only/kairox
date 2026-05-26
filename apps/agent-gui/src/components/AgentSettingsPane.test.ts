@@ -27,7 +27,6 @@ const workerAgent: AgentSettingsView = {
   path: "builtin://worker",
   tools: [],
   modelProfile: null,
-  permissionMode: "workspace_write",
   skills: [],
   nicknameCandidates: ["Worker"],
   enabled: true,
@@ -48,7 +47,6 @@ const reviewerAgent: AgentSettingsView = {
   path: "/home/.config/kairox/agents/code-reviewer.md",
   tools: ["fs.read", "search"],
   modelProfile: "fast",
-  permissionMode: "read_only",
   skills: ["kairox-dev-workflow"],
   nicknameCandidates: ["Reviewer"],
   enabled: true,
@@ -115,10 +113,10 @@ describe("AgentSettingsPane", () => {
     const wrapper = mountPane();
     await flushPromises();
 
-    await wrapper.find('[data-test="agent-search-input"]').setValue("workspace_write");
+    await wrapper.find('[data-test="agent-search-input"]').setValue("kairox-dev-workflow");
 
-    expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(false);
   });
 
   it("sorts the filtered agent list by selected order", async () => {

@@ -37,14 +37,6 @@ describe("StatusBar", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("get_profile_info");
   });
 
-  it("displays the permission mode from the session store", async () => {
-    const session = useSessionStore();
-    session.permissionMode = "suggest";
-    const wrapper = mountStatusBar(true);
-    await flushPromises();
-    expect(wrapper.text()).toContain("suggest");
-  });
-
   it("renders sessions count, streaming and connected status as text", async () => {
     const wrapper = mountStatusBar(true);
     await flushPromises();

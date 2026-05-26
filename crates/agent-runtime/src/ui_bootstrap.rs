@@ -288,7 +288,6 @@ pub async fn ensure_workspace_session<F>(
     facade: &F,
     workspace_path: String,
     model_profile: String,
-    permission_mode: Option<String>,
 ) -> agent_core::Result<WorkspaceSessionBootstrap>
 where
     F: AppFacade + Sync + ?Sized,
@@ -314,7 +313,6 @@ where
                 StartSessionRequest {
                     workspace_id: workspace.workspace_id.clone(),
                     model_profile,
-                    permission_mode,
                     approval_policy: None,
                     sandbox_policy: None,
                 },

@@ -21,8 +21,6 @@ async fn full_workspace_session_round_trip() {
         .start_session(StartSessionRequest {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
-
-            permission_mode: None,
             approval_policy: None,
             sandbox_policy: None,
         })

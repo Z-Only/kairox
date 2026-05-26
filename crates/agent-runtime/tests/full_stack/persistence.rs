@@ -37,8 +37,6 @@ async fn full_stack_data_persists_across_reconnection() {
             .start_session(StartSessionRequest {
                 workspace_id: ws.workspace_id.clone(),
                 model_profile: "fake".into(),
-
-                permission_mode: None,
                 approval_policy: None,
                 sandbox_policy: None,
             })
