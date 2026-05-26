@@ -33,6 +33,28 @@ fn independent_tasks_are_all_ready() {
 }
 
 #[test]
+fn readiness_diagnostics_report_dependency_blockers() {
+    let mut graph = TaskGraph::default();
+    let parent = graph.add_task("parent", AgentRole::Planner, vec![]);
+    let child = graph.add_task("child", AgentRole::Worker, vec![parent.clone()]);
+
+    graph.mark_running(&parent).unwrap();
+
+    let diagnostics = graph.readiness_diagnostics();
+
+    assert_eq!(diagnostics.ready, Vec::<TaskId>::new());
+    assert_eq!(diagnostics.running, vec![parent.clone()]);
+    assert_eq!(diagnostics.waiting.len(), 1);
+    assert_eq!(diagnostics.waiting[0].task_id, child);
+    assert_eq!(diagnostics.waiting[0].blockers.len(), 1);
+    assert_eq!(diagnostics.waiting[0].blockers[0].dependency_id, parent);
+    assert_eq!(
+        diagnostics.waiting[0].blockers[0].dependency_state,
+        Some(TaskState::Running)
+    );
+}
+
+#[test]
 fn diamond_dependency_unblocks_after_all_parents_complete() {
     let mut graph = TaskGraph::default();
     let a = graph.add_task("A", AgentRole::Planner, vec![]);

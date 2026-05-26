@@ -56,7 +56,10 @@ pub use dag_executor::{AgentStatus, DagConfig, DagExecutor, ExecutionResult};
 pub use execution_runtime::{SessionExecutionRuntime, TurnExecutor};
 pub use facade_runtime::{ExecutionMode, LocalRuntime};
 pub use mcp_manager::McpServerManager;
-pub use task_graph::{AgentTask, TaskGraph, TaskStateCounts};
+pub use task_graph::{
+    AgentTask, ReadinessDiagnostics, TaskDependencyBlocker, TaskGraph, TaskStateCounts,
+    TaskWaitDiagnostic,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum RuntimeError {
