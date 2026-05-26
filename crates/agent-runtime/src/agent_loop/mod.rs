@@ -15,6 +15,7 @@ pub(crate) use tool_loop::execute_tool_calls;
 pub(crate) use turn_context::prepare_turn_context;
 pub(crate) use turn_context::TurnContext;
 
+use crate::execution_runtime::CancellationRegistry;
 use crate::task_graph::TaskGraph;
 use agent_core::PermissionDecision;
 use agent_memory::MemoryStore;
@@ -29,27 +30,27 @@ use tokio_util::sync::CancellationToken;
 /// Bundles every dependency `run_agent_loop` needs. Introduced to avoid a
 /// 12-argument signature once `config` and `session_states` were added in
 /// Task 8.
-pub struct AgentLoopDeps<'a, S, M>
+pub(crate) struct AgentLoopDeps<'a, S, M>
 where
     S: EventStore + 'static,
     M: ModelClient + 'static,
 {
-    pub store: &'a Arc<S>,
-    pub model: &'a Arc<M>,
-    pub event_tx: &'a tokio::sync::broadcast::Sender<agent_core::DomainEvent>,
-    pub tool_registry: &'a Arc<Mutex<ToolRegistry>>,
-    pub permission_engine: &'a Arc<Mutex<PermissionEngine>>,
-    pub pending_permissions:
+    pub(crate) store: &'a Arc<S>,
+    pub(crate) model: &'a Arc<M>,
+    pub(crate) event_tx: &'a tokio::sync::broadcast::Sender<agent_core::DomainEvent>,
+    pub(crate) tool_registry: &'a Arc<Mutex<ToolRegistry>>,
+    pub(crate) permission_engine: &'a Arc<Mutex<PermissionEngine>>,
+    pub(crate) pending_permissions:
         &'a Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
-    pub memory_store: &'a Option<Arc<dyn MemoryStore>>,
-    pub task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
-    pub active_cancellation: &'a Arc<Mutex<Option<CancellationToken>>>,
-    pub config: &'a Arc<agent_config::Config>,
-    pub session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
-    pub skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
-    pub active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
-    pub turn_cancellation: Option<CancellationToken>,
-    pub root_path: Option<std::path::PathBuf>,
+    pub(crate) memory_store: &'a Option<Arc<dyn MemoryStore>>,
+    pub(crate) task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
+    pub(crate) active_cancellation: &'a CancellationRegistry,
+    pub(crate) config: &'a Arc<agent_config::Config>,
+    pub(crate) session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+    pub(crate) skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
+    pub(crate) active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
+    pub(crate) turn_cancellation: Option<CancellationToken>,
+    pub(crate) root_path: Option<std::path::PathBuf>,
 }
 
 pub const SYSTEM_PROMPT: &str = "\

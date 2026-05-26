@@ -6,6 +6,7 @@
 
 use crate::context_budget::UsageCorrector;
 use crate::event_emitter::append_and_broadcast;
+use crate::execution_runtime::CancellationRegistry;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, CoreError, DomainEvent, EventPayload, PrivacyClassification, SessionId, SessionMeta,
@@ -39,7 +40,6 @@ use futures::stream::BoxStream;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
 
 pub fn temporary_title_from_first_message(content: &str) -> String {
     const MAX_CHARS: usize = 48;
@@ -152,17 +152,15 @@ fn derive_policy_strings(
 }
 
 /// Cancel a running session.
-pub async fn cancel_session<S: EventStore>(
+pub(crate) async fn cancel_session<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
-    active_cancellation: &Arc<Mutex<Option<CancellationToken>>>,
+    active_cancellation: &CancellationRegistry,
     workspace_id: WorkspaceId,
     session_id: SessionId,
 ) -> agent_core::Result<()> {
     // Cancel the active agent loop if one is running
-    if let Some(token) = active_cancellation.lock().await.take() {
-        token.cancel();
-    }
+    active_cancellation.cancel(&session_id).await;
 
     let event = DomainEvent::new(
         workspace_id,
