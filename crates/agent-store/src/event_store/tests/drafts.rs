@@ -16,6 +16,8 @@ async fn save_and_get_draft() {
             model_id: None,
             provider: None,
             permission_mode: "suggest".to_string(),
+            approval_policy: None,
+            sandbox_policy: None,
             deleted_at: None,
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),

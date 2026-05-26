@@ -44,5 +44,36 @@ pub(super) async fn run(pool: &SqlitePool) -> crate::Result<()> {
             return Err(crate::StoreError::Sqlx(e));
         }
     }
+    // 0007 adds approval_policy column; tolerate duplicate on re-connect.
+    if let Err(e) = sqlx::query(include_str!(
+        "../../migrations/0007_approval_sandbox_policy.sql"
+    ))
+    .execute(pool)
+    .await
+    {
+        let msg = e.to_string();
+        if !msg.contains("duplicate column name") {
+            return Err(crate::StoreError::Sqlx(e));
+        }
+    }
+    // 0008 adds sandbox_policy column; tolerate duplicate on re-connect.
+    if let Err(e) = sqlx::query(include_str!(
+        "../../migrations/0008_sandbox_policy_column.sql"
+    ))
+    .execute(pool)
+    .await
+    {
+        let msg = e.to_string();
+        if !msg.contains("duplicate column name") {
+            return Err(crate::StoreError::Sqlx(e));
+        }
+    }
+    // 0009 backfills approval_policy/sandbox_policy from legacy permission_mode;
+    // the UPDATE is idempotent because of the WHERE clause guarding nullness.
+    sqlx::query(include_str!(
+        "../../migrations/0009_backfill_policy_from_mode.sql"
+    ))
+    .execute(pool)
+    .await?;
     Ok(())
 }

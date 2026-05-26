@@ -56,6 +56,8 @@ async fn metadata_survives_across_reopen() {
                 model_profile: "fast".into(),
                 model_id: Some("gpt-4.1-mini".into()),
                 permission_mode: "suggest".to_string(),
+                approval_policy: None,
+                sandbox_policy: None,
                 provider: Some("openai_compatible".into()),
                 deleted_at: None,
                 created_at: now.clone(),

@@ -62,6 +62,20 @@ pub trait EventStore: Send + Sync {
     async fn get_draft(&self, session_id: &str) -> crate::Result<String>;
     /// Update the permission mode for a session.
     async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()>;
+    /// Update the approval policy (Codex/Claude-style) for a session.
+    /// Stored as the policy's snake_case discriminator string (e.g. "never").
+    async fn update_approval_policy(
+        &self,
+        session_id: &str,
+        approval_policy: &str,
+    ) -> crate::Result<()>;
+    /// Update the sandbox policy JSON for a session.
+    /// Stored as the serde tagged JSON (e.g. `{"kind":"workspace_write",...}`).
+    async fn update_sandbox_policy(
+        &self,
+        session_id: &str,
+        sandbox_policy_json: &str,
+    ) -> crate::Result<()>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -80,6 +94,8 @@ pub struct ProjectSessionMetaRow {
     pub branch: Option<String>,
     pub visibility: String,
     pub permission_mode: String,
+    pub approval_policy: Option<String>,
+    pub sandbox_policy: Option<String>,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -99,6 +115,8 @@ pub struct SessionRow {
     pub model_id: Option<String>,
     pub provider: Option<String>,
     pub permission_mode: String,
+    pub approval_policy: Option<String>,
+    pub sandbox_policy: Option<String>,
     pub deleted_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -113,6 +131,8 @@ struct SessionRowForQuery {
     model_id: Option<String>,
     provider: Option<String>,
     permission_mode: String,
+    approval_policy: Option<String>,
+    sandbox_policy: Option<String>,
     deleted_at: Option<String>,
     created_at: String,
     updated_at: String,
@@ -128,6 +148,8 @@ impl From<SessionRowForQuery> for SessionRow {
             model_id: r.model_id,
             provider: r.provider,
             permission_mode: r.permission_mode,
+            approval_policy: r.approval_policy,
+            sandbox_policy: r.sandbox_policy,
             deleted_at: r.deleted_at,
             created_at: r.created_at,
             updated_at: r.updated_at,
@@ -264,6 +286,22 @@ impl EventStore for SqliteEventStore {
 
     async fn update_permission_mode(&self, session_id: &str, mode: &str) -> crate::Result<()> {
         SqliteEventStore::update_permission_mode(self, session_id, mode).await
+    }
+
+    async fn update_approval_policy(
+        &self,
+        session_id: &str,
+        approval_policy: &str,
+    ) -> crate::Result<()> {
+        SqliteEventStore::update_approval_policy(self, session_id, approval_policy).await
+    }
+
+    async fn update_sandbox_policy(
+        &self,
+        session_id: &str,
+        sandbox_policy_json: &str,
+    ) -> crate::Result<()> {
+        SqliteEventStore::update_sandbox_policy(self, session_id, sandbox_policy_json).await
     }
 }
 

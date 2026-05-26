@@ -62,6 +62,22 @@ impl EventStore for NonSqliteEventStore {
         Ok(())
     }
 
+    async fn update_approval_policy(
+        &self,
+        _session_id: &str,
+        _approval_policy: &str,
+    ) -> agent_store::Result<()> {
+        Ok(())
+    }
+
+    async fn update_sandbox_policy(
+        &self,
+        _session_id: &str,
+        _sandbox_policy_json: &str,
+    ) -> agent_store::Result<()> {
+        Ok(())
+    }
+
     async fn permanently_delete_session(&self, _session_id: &str) -> agent_store::Result<()> {
         Ok(())
     }
