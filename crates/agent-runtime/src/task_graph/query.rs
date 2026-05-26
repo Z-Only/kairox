@@ -3,7 +3,10 @@
 use agent_core::{TaskId, TaskState};
 use std::collections::BTreeSet;
 
-use super::{AgentTask, TaskGraph, TaskStateCounts};
+use super::{
+    AgentTask, ReadinessDiagnostics, TaskDependencyBlocker, TaskGraph, TaskStateCounts,
+    TaskWaitDiagnostic,
+};
 
 impl TaskGraph {
     /// Returns task IDs that are ready to execute: `Pending` tasks whose
@@ -27,6 +30,61 @@ impl TaskGraph {
             })
             .map(|task| task.id.clone())
             .collect()
+    }
+
+    /// Return scheduler-facing readiness diagnostics for the graph.
+    ///
+    /// This keeps the scheduling loop from relying on an empty ready set as an
+    /// opaque signal. Future actor commands can use the same report to decide
+    /// whether to re-plan, wait, retry, or surface a blocked state.
+    pub fn readiness_diagnostics(&self) -> ReadinessDiagnostics {
+        let ready = self.ready_tasks();
+        let mut running = Vec::new();
+        let mut blocked = Vec::new();
+        let mut waiting = Vec::new();
+
+        for task in self.tasks.values() {
+            match task.state {
+                TaskState::Running => running.push(task.id.clone()),
+                TaskState::Blocked => blocked.push(task.id.clone()),
+                TaskState::Pending | TaskState::Ready => {
+                    let blockers: Vec<TaskDependencyBlocker> = task
+                        .dependencies
+                        .iter()
+                        .filter_map(|dependency_id| {
+                            let dependency_state = self
+                                .get_task(dependency_id)
+                                .map(|dependency| dependency.state);
+                            if dependency_state == Some(TaskState::Completed) {
+                                None
+                            } else {
+                                Some(TaskDependencyBlocker {
+                                    dependency_id: dependency_id.clone(),
+                                    dependency_state,
+                                })
+                            }
+                        })
+                        .collect();
+                    if !blockers.is_empty() {
+                        waiting.push(TaskWaitDiagnostic {
+                            task_id: task.id.clone(),
+                            blockers,
+                        });
+                    }
+                }
+                TaskState::Completed
+                | TaskState::Failed
+                | TaskState::Skipped
+                | TaskState::Cancelled => {}
+            }
+        }
+
+        ReadinessDiagnostics {
+            ready,
+            running,
+            blocked,
+            waiting,
+        }
     }
 
     /// Find all transitive dependents of a task that would be blocked

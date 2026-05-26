@@ -47,3 +47,23 @@ pub struct TaskStateCounts {
     pub skipped: usize,
     pub cancelled: usize,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ReadinessDiagnostics {
+    pub ready: Vec<TaskId>,
+    pub running: Vec<TaskId>,
+    pub blocked: Vec<TaskId>,
+    pub waiting: Vec<TaskWaitDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskWaitDiagnostic {
+    pub task_id: TaskId,
+    pub blockers: Vec<TaskDependencyBlocker>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskDependencyBlocker {
+    pub dependency_id: TaskId,
+    pub dependency_state: Option<TaskState>,
+}

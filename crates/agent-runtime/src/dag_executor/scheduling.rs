@@ -6,7 +6,7 @@ use crate::event_emitter::append_and_broadcast;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, AgentRole, DomainEvent, EventPayload, PrivacyClassification, TaskFailureReason,
-    TaskId, TaskState, WorkspaceId,
+    TaskId, WorkspaceId,
 };
 use agent_models::ModelClient;
 use agent_store::EventStore;
@@ -14,6 +14,19 @@ use agent_tools::PermissionEngine;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExecutionBatch {
+    pub(crate) task_ids: Vec<TaskId>,
+    pub(crate) capacity: usize,
+}
+
+pub(crate) fn next_execution_batch(graph: &TaskGraph, max_concurrency: usize) -> ExecutionBatch {
+    let capacity = max_concurrency.max(1);
+    let mut task_ids = graph.ready_tasks();
+    task_ids.truncate(capacity);
+    ExecutionBatch { task_ids, capacity }
+}
 
 /// Run the scheduling loop until all tasks are in terminal states.
 #[allow(clippy::too_many_arguments)]
@@ -43,18 +56,18 @@ where
         }
         iteration += 1;
 
-        let ready = graph.ready_tasks();
-        if ready.is_empty() {
+        let diagnostics = graph.readiness_diagnostics();
+        if diagnostics.ready.is_empty() {
             if graph.is_finished() {
                 break;
             }
-            // Check if there are still running tasks — wait for them
-            let has_running = graph
-                .snapshot()
-                .iter()
-                .any(|t| t.state == TaskState::Running);
-            if !has_running {
+            if diagnostics.running.is_empty() {
                 // Deadlock: no ready tasks, no running tasks, but not finished
+                tracing::warn!(
+                    waiting_tasks = diagnostics.waiting.len(),
+                    blocked_tasks = diagnostics.blocked.len(),
+                    "DAG scheduling loop stalled with no runnable tasks"
+                );
                 break;
             }
             // Give running tasks time to complete
@@ -62,10 +75,12 @@ where
             continue;
         }
 
+        let batch = next_execution_batch(graph, config.max_concurrency);
+
         // For now, execute tasks sequentially within the loop.
         // Parallel execution with JoinSet + Semaphore will be added
         // once we have async tool execution properly wired.
-        for task_id in ready {
+        for task_id in batch.task_ids {
             if let Some(task) = graph.get_task(&task_id).cloned() {
                 graph.mark_running(&task_id).unwrap();
                 events
@@ -225,4 +240,25 @@ pub(crate) async fn handle_decomposition<S: EventStore>(
     append_and_broadcast(&*events.store, &events.event_tx, &event).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn next_execution_batch_respects_configured_concurrency() {
+        let mut graph = TaskGraph::default();
+        let first = graph.add_task("first", AgentRole::Worker, vec![]);
+        let second = graph.add_task("second", AgentRole::Worker, vec![]);
+        let third = graph.add_task("third", AgentRole::Worker, vec![]);
+
+        let batch = next_execution_batch(&graph, 2);
+
+        let mut expected = vec![first, second, third];
+        expected.sort_by_key(|id| id.to_string());
+        expected.truncate(2);
+        assert_eq!(batch.task_ids, expected);
+        assert_eq!(batch.capacity, 2);
+    }
 }
