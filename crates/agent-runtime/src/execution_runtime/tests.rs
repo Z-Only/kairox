@@ -1,0 +1,251 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+use agent_core::{CoreError, SendMessageRequest, SessionId, WorkspaceId};
+use async_trait::async_trait;
+use tokio::sync::{oneshot, Mutex};
+use tokio_util::sync::CancellationToken;
+
+use super::{ExecutionState, SessionExecutionRuntime, TurnExecutor};
+
+fn request(session_id: SessionId, content: &str) -> SendMessageRequest {
+    SendMessageRequest {
+        workspace_id: WorkspaceId::from_string("wrk_execution_runtime".into()),
+        session_id,
+        content: content.into(),
+        attachments: vec![],
+    }
+}
+
+struct ImmediateExecutor {
+    calls: AtomicUsize,
+}
+
+impl ImmediateExecutor {
+    fn new() -> Self {
+        Self {
+            calls: AtomicUsize::new(0),
+        }
+    }
+}
+
+#[async_trait]
+impl TurnExecutor for ImmediateExecutor {
+    async fn execute_turn(
+        &self,
+        _request: SendMessageRequest,
+        _cancellation: CancellationToken,
+    ) -> agent_core::Result<()> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+struct BlockingExecutor {
+    started: Mutex<Option<oneshot::Sender<()>>>,
+    release: Mutex<Option<oneshot::Receiver<()>>>,
+    cancelled: Mutex<Option<oneshot::Sender<()>>>,
+}
+
+impl BlockingExecutor {
+    fn new(
+        started: oneshot::Sender<()>,
+        release: oneshot::Receiver<()>,
+        cancelled: oneshot::Sender<()>,
+    ) -> Self {
+        Self {
+            started: Mutex::new(Some(started)),
+            release: Mutex::new(Some(release)),
+            cancelled: Mutex::new(Some(cancelled)),
+        }
+    }
+}
+
+#[async_trait]
+impl TurnExecutor for BlockingExecutor {
+    async fn execute_turn(
+        &self,
+        _request: SendMessageRequest,
+        cancellation: CancellationToken,
+    ) -> agent_core::Result<()> {
+        if let Some(started) = self.started.lock().await.take() {
+            let _ = started.send(());
+        }
+
+        let release = self
+            .release
+            .lock()
+            .await
+            .take()
+            .expect("blocking executor should be used once");
+
+        tokio::select! {
+            _ = release => Ok(()),
+            _ = cancellation.cancelled() => {
+                if let Some(cancelled) = self.cancelled.lock().await.take() {
+                    let _ = cancelled.send(());
+                }
+                Err(CoreError::InvalidState("turn cancelled".into()))
+            }
+        }
+    }
+}
+
+struct ConcurrentExecutor {
+    current: AtomicUsize,
+    max: AtomicUsize,
+}
+
+#[async_trait]
+impl TurnExecutor for ConcurrentExecutor {
+    async fn execute_turn(
+        &self,
+        _request: SendMessageRequest,
+        _cancellation: CancellationToken,
+    ) -> agent_core::Result<()> {
+        let active = self.current.fetch_add(1, Ordering::SeqCst) + 1;
+        self.max.fetch_max(active, Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        self.current.fetch_sub(1, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn run_turn_completes_and_returns_to_idle() {
+    let executor = Arc::new(ImmediateExecutor::new());
+    let runtime = SessionExecutionRuntime::new(executor.clone());
+    let session_id = SessionId::new();
+
+    runtime
+        .run_turn(request(session_id.clone(), "hello"))
+        .await
+        .unwrap();
+
+    assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        runtime.session_state(&session_id).await.unwrap(),
+        ExecutionState::Idle
+    );
+}
+
+#[tokio::test]
+async fn run_turn_rejects_when_session_is_busy() {
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let (cancelled_tx, _cancelled_rx) = oneshot::channel();
+    let runtime = SessionExecutionRuntime::new(Arc::new(BlockingExecutor::new(
+        started_tx,
+        release_rx,
+        cancelled_tx,
+    )));
+    let session_id = SessionId::new();
+
+    let runtime_for_first = runtime.clone();
+    let first_session = session_id.clone();
+    let first = tokio::spawn(async move {
+        runtime_for_first
+            .run_turn(request(first_session, "first"))
+            .await
+    });
+    started_rx.await.unwrap();
+
+    let second = runtime
+        .run_turn(request(session_id.clone(), "second"))
+        .await
+        .unwrap_err();
+
+    assert!(matches!(second, CoreError::SessionBusy { .. }));
+    release_tx.send(()).unwrap();
+    first.await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn cancel_running_turn_triggers_cancellation_token() {
+    let (started_tx, started_rx) = oneshot::channel();
+    let (_release_tx, release_rx) = oneshot::channel();
+    let (cancelled_tx, cancelled_rx) = oneshot::channel();
+    let runtime = SessionExecutionRuntime::new(Arc::new(BlockingExecutor::new(
+        started_tx,
+        release_rx,
+        cancelled_tx,
+    )));
+    let session_id = SessionId::new();
+
+    let runtime_for_turn = runtime.clone();
+    let turn_session = session_id.clone();
+    let turn = tokio::spawn(async move {
+        runtime_for_turn
+            .run_turn(request(turn_session, "cancel me"))
+            .await
+    });
+    started_rx.await.unwrap();
+
+    runtime
+        .cancel_session(&session_id, "user requested".into())
+        .await
+        .unwrap();
+
+    cancelled_rx.await.unwrap();
+    assert!(turn.await.unwrap().is_err());
+    assert_eq!(
+        runtime.session_state(&session_id).await.unwrap(),
+        ExecutionState::Idle
+    );
+}
+
+#[tokio::test]
+async fn different_sessions_can_run_concurrently() {
+    let executor = Arc::new(ConcurrentExecutor {
+        current: AtomicUsize::new(0),
+        max: AtomicUsize::new(0),
+    });
+    let runtime = SessionExecutionRuntime::new(executor.clone());
+
+    let first = {
+        let runtime = runtime.clone();
+        tokio::spawn(async move { runtime.run_turn(request(SessionId::new(), "a")).await })
+    };
+    let second = {
+        let runtime = runtime.clone();
+        tokio::spawn(async move { runtime.run_turn(request(SessionId::new(), "b")).await })
+    };
+
+    first.await.unwrap().unwrap();
+    second.await.unwrap().unwrap();
+
+    assert_eq!(executor.max.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn same_session_reuses_one_actor() {
+    let runtime = SessionExecutionRuntime::new(Arc::new(ImmediateExecutor::new()));
+    let session_id = SessionId::new();
+
+    runtime
+        .run_turn(request(session_id.clone(), "first"))
+        .await
+        .unwrap();
+    runtime
+        .run_turn(request(session_id, "second"))
+        .await
+        .unwrap();
+
+    assert_eq!(runtime.actor_count().await, 1);
+}
+
+#[tokio::test]
+async fn shutdown_stops_actor() {
+    let runtime = SessionExecutionRuntime::new(Arc::new(ImmediateExecutor::new()));
+    let session_id = SessionId::new();
+
+    runtime
+        .run_turn(request(session_id.clone(), "first"))
+        .await
+        .unwrap();
+    runtime.shutdown_session(&session_id).await.unwrap();
+
+    assert_eq!(runtime.session_state(&session_id).await, None);
+    assert_eq!(runtime.actor_count().await, 0);
+}

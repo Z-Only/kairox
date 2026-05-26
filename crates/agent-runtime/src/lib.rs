@@ -6,6 +6,7 @@ pub mod compaction;
 pub mod context_budget;
 pub mod dag_executor;
 pub mod event_emitter;
+pub mod execution_runtime;
 pub(crate) mod facade_agents;
 pub(crate) mod facade_bootstrap;
 pub(crate) mod facade_marketplace;
@@ -51,6 +52,7 @@ pub use agents::{
     StepOutcome, SubTaskDef, ToolResultAction, WorkerAgent,
 };
 pub use dag_executor::{AgentStatus, DagConfig, DagExecutor, ExecutionResult};
+pub use execution_runtime::{SessionExecutionRuntime, TurnExecutor};
 pub use facade_runtime::{ExecutionMode, LocalRuntime};
 pub use mcp_manager::McpServerManager;
 pub use task_graph::{AgentTask, TaskGraph, TaskStateCounts};
