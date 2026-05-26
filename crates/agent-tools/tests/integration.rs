@@ -166,7 +166,10 @@ fn permission_engine_decide_per_mode() {
         "Agent should require approval for destructive ops"
     );
 
-    // ── Interactive mode — reads allowed; writes/shell pended ───────────────
+    // ── Interactive mode — collapses to (OnRequest, WorkspaceWrite); reads,
+    //    writes, and non-destructive shell all allowed by sandbox + OnRequest.
+    //    Only destructive ops or network pend. New semantics locked in by the
+    //    Approval × Sandbox split (see policy module).
     let interactive = PermissionEngine::new(PermissionMode::Interactive);
     assert!(
         matches!(
@@ -178,19 +181,28 @@ fn permission_engine_decide_per_mode() {
     assert!(
         matches!(
             interactive.decide(&ToolRisk::write("fs.write")),
-            PermissionOutcome::Pending
+            PermissionOutcome::Allowed
         ),
-        "Interactive should pend writes"
+        "Interactive (OnRequest+WorkspaceWrite) should allow writes"
     );
     assert!(
         matches!(
             interactive.decide(&ToolRisk::shell("shell.exec", false)),
+            PermissionOutcome::Allowed
+        ),
+        "Interactive should allow non-destructive shell"
+    );
+    assert!(
+        matches!(
+            interactive.decide(&ToolRisk::destructive("rm.rf")),
             PermissionOutcome::Pending
         ),
-        "Interactive should pend shell"
+        "Interactive should pend destructive ops"
     );
 
-    // ── Autonomous mode — most things allowed; destructive shell needs approval
+    // ── Autonomous mode — (Never, DangerFullAccess); everything allowed
+    //    including destructive shell. To still gate destructive ops user picks
+    //    OnRequest approval instead. New semantics locked in.
     let autonomous = PermissionEngine::new(PermissionMode::Autonomous);
     assert!(matches!(
         autonomous.decide(&ToolRisk::read("fs.read")),
@@ -207,9 +219,9 @@ fn permission_engine_decide_per_mode() {
     assert!(
         matches!(
             autonomous.decide(&ToolRisk::shell("shell.exec", true)),
-            PermissionOutcome::RequiresApproval
+            PermissionOutcome::Allowed
         ),
-        "Autonomous should require approval for destructive shell"
+        "Autonomous (Never+DangerFullAccess) allows destructive shell"
     );
 }
 
