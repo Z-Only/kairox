@@ -13,8 +13,7 @@
 
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{
-    AgentId, DomainEvent, EventPayload, PermissionDecision, PrivacyClassification, SessionId,
-    WorkspaceId,
+    AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, WorkspaceId,
 };
 use agent_memory::{
     durable_memory_requires_confirmation, extract_memory_markers, MemoryEntry, MemoryQuery,
@@ -22,7 +21,6 @@ use agent_memory::{
 };
 use agent_store::EventStore;
 use agent_tools::{PermissionEngine, PermissionMode};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -105,18 +103,12 @@ pub async fn retrieve_memory_section(
 ///
 /// - **Session scope** – auto-accepted and stored.
 /// - **User / Workspace scope** – behaviour depends on `PermissionMode`:
-///   - `Interactive` – emits `MemoryProposed`, waits for a oneshot decision,
-///     then emits `MemoryAccepted` or `MemoryRejected`.
+///   - `Interactive` / `Agent` / `Autonomous` – auto-accepted (`MemoryAccepted`).
 ///   - `Suggest` / `ReadOnly` – auto-denied (`MemoryRejected`).
-///   - `Agent` / `Autonomous` – auto-accepted (`MemoryAccepted`).
-#[allow(clippy::too_many_arguments)]
 pub async fn store_memory_markers<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     permission_engine: &Arc<Mutex<PermissionEngine>>,
-    pending_permissions: &Arc<
-        Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>,
-    >,
     memory_store: &Option<Arc<dyn MemoryStore>>,
     workspace_id: &WorkspaceId,
     session_id: &SessionId,
@@ -136,109 +128,19 @@ pub async fn store_memory_markers<S: EventStore>(
         let mem_scope = entry.scope.clone();
         let mem_key = entry.key.clone();
         let mem_content = entry.content.clone();
-        if durable_memory_requires_confirmation(&entry.scope) {
+        let auto_accept = if durable_memory_requires_confirmation(&entry.scope) {
             match *permission_engine.lock().await.mode() {
-                PermissionMode::Interactive => {
-                    let (tx, rx) = tokio::sync::oneshot::channel();
-                    pending_permissions.lock().await.insert(mem_id.clone(), tx);
-                    let perm_event = DomainEvent::new(
-                        workspace_id.clone(),
-                        session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::MemoryProposed {
-                            memory_id: mem_id.clone(),
-                            scope: format!("{:?}", entry.scope).to_lowercase(),
-                            key: mem_key.clone(),
-                            content: mem_content.clone(),
-                        },
-                    );
-                    let _ = append_and_broadcast(store, event_tx, &perm_event).await;
-                    match rx.await {
-                        Ok(PermissionDecision { approve: true, .. }) => {
-                            let mut accepted = entry.clone();
-                            accepted.accepted = true;
-                            let _ = mem_store.store(accepted).await;
-                            let accept_event = DomainEvent::new(
-                                workspace_id.clone(),
-                                session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::MemoryAccepted {
-                                    memory_id: mem_id,
-                                    scope: format!("{:?}", mem_scope).to_lowercase(),
-                                    key: mem_key,
-                                    content: mem_content,
-                                },
-                            );
-                            let _ = append_and_broadcast(store, event_tx, &accept_event).await;
-                        }
-                        Ok(PermissionDecision {
-                            approve: false,
-                            reason,
-                            ..
-                        }) => {
-                            let reject_event = DomainEvent::new(
-                                workspace_id.clone(),
-                                session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::MemoryRejected {
-                                    memory_id: mem_id,
-                                    reason: reason.unwrap_or_else(|| "denied".into()),
-                                },
-                            );
-                            let _ = append_and_broadcast(store, event_tx, &reject_event).await;
-                        }
-                        Err(_) => {
-                            let reject_event = DomainEvent::new(
-                                workspace_id.clone(),
-                                session_id.clone(),
-                                AgentId::system(),
-                                PrivacyClassification::FullTrace,
-                                EventPayload::MemoryRejected {
-                                    memory_id: mem_id,
-                                    reason: "cancelled".into(),
-                                },
-                            );
-                            let _ = append_and_broadcast(store, event_tx, &reject_event).await;
-                        }
-                    }
-                }
-                PermissionMode::Suggest | PermissionMode::ReadOnly => {
-                    let reject_event = DomainEvent::new(
-                        workspace_id.clone(),
-                        session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::MemoryRejected {
-                            memory_id: mem_id,
-                            reason: "Auto-denied in Suggest mode".into(),
-                        },
-                    );
-                    let _ = append_and_broadcast(store, event_tx, &reject_event).await;
-                }
-                PermissionMode::Agent | PermissionMode::Autonomous => {
-                    let mut accepted = entry.clone();
-                    accepted.accepted = true;
-                    let _ = mem_store.store(accepted).await;
-                    let accept_event = DomainEvent::new(
-                        workspace_id.clone(),
-                        session_id.clone(),
-                        AgentId::system(),
-                        PrivacyClassification::FullTrace,
-                        EventPayload::MemoryAccepted {
-                            memory_id: mem_id,
-                            scope: format!("{:?}", mem_scope).to_lowercase(),
-                            key: mem_key,
-                            content: mem_content,
-                        },
-                    );
-                    let _ = append_and_broadcast(store, event_tx, &accept_event).await;
-                }
+                PermissionMode::Interactive
+                | PermissionMode::Agent
+                | PermissionMode::Autonomous => true,
+                PermissionMode::Suggest | PermissionMode::ReadOnly => false,
             }
         } else {
-            // Session scope: auto-accept
+            // Session scope: always auto-accept.
+            true
+        };
+
+        if auto_accept {
             let mut accepted = entry.clone();
             accepted.accepted = true;
             let _ = mem_store.store(accepted).await;
@@ -255,6 +157,18 @@ pub async fn store_memory_markers<S: EventStore>(
                 },
             );
             let _ = append_and_broadcast(store, event_tx, &accept_event).await;
+        } else {
+            let reject_event = DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::MemoryRejected {
+                    memory_id: mem_id,
+                    reason: "Auto-denied in Suggest mode".into(),
+                },
+            );
+            let _ = append_and_broadcast(store, event_tx, &reject_event).await;
         }
     }
 }
