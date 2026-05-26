@@ -29,6 +29,7 @@ use events::EventEmitter;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 use crate::agent_settings::AgentSettingsRoots;
 use crate::agents::{AgentDecision, AgentStrategy, StepContext};
@@ -139,6 +140,16 @@ where
         request: &agent_core::SendMessageRequest,
         task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
     ) -> agent_core::Result<ExecutionResult> {
+        self.execute_with_cancellation(request, task_graphs, CancellationToken::new())
+            .await
+    }
+
+    pub async fn execute_with_cancellation(
+        &self,
+        request: &agent_core::SendMessageRequest,
+        task_graphs: &Arc<Mutex<HashMap<String, TaskGraph>>>,
+        cancellation: CancellationToken,
+    ) -> agent_core::Result<ExecutionResult> {
         // Step 1: Create root Planner task
         let root_title = if request.content.chars().count() > 50 {
             let truncated: String = request.content.chars().take(50).collect();
@@ -223,7 +234,7 @@ where
                 .await?;
 
                 // Step 4: Run the scheduling loop
-                scheduling::run_scheduling_loop(
+                let scheduling_outcome = scheduling::run_scheduling_loop(
                     &self.events,
                     &self.model,
                     &self.strategies,
@@ -234,28 +245,46 @@ where
                     &mut graph,
                     &session_events,
                     &ctx,
+                    Some(&cancellation),
                 )
                 .await?;
 
-                // Step 5: Run reviewer on completed worker outputs
-                execution::run_reviewer_if_needed(
-                    &self.events,
-                    &self.model,
-                    &self.strategies,
-                    &self.permission_engine,
-                    &request.workspace_id,
-                    &request.session_id,
-                    &mut graph,
-                    &session_events,
-                    &ctx,
-                )
-                .await?;
-
-                // Mark root task as completed
-                graph.mark_completed(&root_task_id).unwrap();
-                self.events
-                    .emit_task_completed(&request.workspace_id, &request.session_id, &root_task_id)
+                if !scheduling_outcome.cancelled && !cancellation.is_cancelled() {
+                    // Step 5: Run reviewer on completed worker outputs
+                    execution::run_reviewer_if_needed(
+                        &self.events,
+                        &self.model,
+                        &self.strategies,
+                        &self.permission_engine,
+                        &request.workspace_id,
+                        &request.session_id,
+                        &mut graph,
+                        &session_events,
+                        &ctx,
+                        Some(&cancellation),
+                    )
                     .await?;
+                }
+
+                if cancellation.is_cancelled() {
+                    scheduling::cancel_non_terminal_tasks(
+                        &self.events,
+                        &request.workspace_id,
+                        &request.session_id,
+                        &mut graph,
+                    )
+                    .await?;
+                } else {
+                    // Mark root task as completed
+                    graph.mark_completed(&root_task_id).unwrap();
+                    self.events
+                        .emit_task_completed(
+                            &request.workspace_id,
+                            &request.session_id,
+                            &root_task_id,
+                        )
+                        .await?;
+                }
 
                 self.build_execution_result(&graph)
             }

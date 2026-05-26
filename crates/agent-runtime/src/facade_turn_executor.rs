@@ -100,7 +100,9 @@ where
                 let executor = self.dag_executor.as_ref().ok_or_else(|| {
                     agent_core::CoreError::InvalidState("DAG executor not available".into())
                 })?;
-                let result = executor.execute(&request, &self.task_graphs).await?;
+                let result = executor
+                    .execute_with_cancellation(&request, &self.task_graphs, cancellation)
+                    .await?;
                 tracing::info!(
                     "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
                     result.total_tasks,
