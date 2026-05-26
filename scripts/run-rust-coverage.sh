@@ -103,17 +103,24 @@ print_lcov_breakdown() {
 grcov="$(install_grcov)"
 
 # Run instrumented tests for the entire workspace in one cargo invocation.
-# The earlier core/tools/ui split required `cargo llvm-cov clean` between
-# groups, which deleted the previous group's instrumented test binaries.
-# grcov reads source/line maps from those binaries' debug info, so each
-# group's LCOV could only describe the crates whose binaries had survived
-# the most recent build. Running every -p in one pass keeps every test
-# binary on disk while grcov walks them, which is the whole point of the
-# 52-vs-200+ file gap diagnosed in #503.
+# Running every -p in one pass keeps every test binary on disk while grcov
+# walks them, restoring source-map coverage for dep crates that the prior
+# core/tools/ui split clobbered between groups.
 #
-# We still avoid `cargo llvm-cov --lcov` here because its `llvm-cov export`
-# step SIGSEGVs on this workspace's async coverage maps (see PR #505 close
-# comment); generating LCOV from profraw via grcov is the workaround.
+# `--branch` is intentionally absent. Branch coverage on this workspace
+# triggers SIGSEGV in `llvm::coverage::CoverageMapping::getInstantiationGroups`
+# inside llvm-cov when async test binaries are processed — the upstream LLVM
+# bug tracked at https://github.com/llvm/llvm-project/issues/189169 (still
+# open). grcov fans `llvm-cov export` out per-binary, so each crash quietly
+# drops one binary's source records; the cumulative result was the 52-file /
+# 7-crates-missing LCOV diagnosed in #503/#506. Running without `--branch`
+# routes around the crashing code path entirely. We still get function and
+# line coverage; the workspace's branches gate is removed in
+# `scripts/check-rust-coverage.mjs` to match.
+#
+# We also avoid `cargo llvm-cov --lcov` because that path calls llvm-cov
+# export over every object at once and the SIGSEGV becomes terminal there
+# (see PR #505 close comment). Profraw → grcov → lcov stays.
 cargo "+${toolchain}" llvm-cov clean --workspace
 cargo "+${toolchain}" llvm-cov \
   -p agent-core \
@@ -130,7 +137,6 @@ cargo "+${toolchain}" llvm-cov \
   -p agent-eval \
   -p agent-gui-tauri \
   --all-targets \
-  --branch \
   --no-report
 
 profraw_count="$(find "$profile_dir" -name '*.profraw' | wc -l | tr -d ' ')"
@@ -140,7 +146,6 @@ run_grcov "$grcov" "$profile_dir" \
   --binary-path "${profile_dir}/debug/deps" \
   --source-dir . \
   --output-types lcov \
-  --branch \
   --threads "$grcov_threads" \
   --llvm-path "$llvm_bin" \
   --log-level "$grcov_log_level" \
