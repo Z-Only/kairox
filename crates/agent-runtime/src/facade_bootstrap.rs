@@ -7,8 +7,8 @@ use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
 use agent_tools::{
-    ApprovalPolicy, BuiltinProvider, PermissionEngine, PermissionMode, SandboxPolicy, ToolProvider,
-    ToolRegistry,
+    legacy_mode_string_for, ApprovalPolicy, BuiltinProvider, PermissionEngine, SandboxPolicy,
+    ToolProvider, ToolRegistry,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,8 +19,15 @@ where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    pub fn with_permission_mode(mut self, mode: PermissionMode) -> Self {
-        self.permission_engine = Arc::new(Mutex::new(PermissionEngine::new(mode)));
+    /// Builder: set the permission engine from an explicit
+    /// `(ApprovalPolicy, SandboxPolicy)` pair. Replaces the old
+    /// `with_permission_mode` shim.
+    pub fn with_approval_and_sandbox(
+        mut self,
+        approval: ApprovalPolicy,
+        sandbox: SandboxPolicy,
+    ) -> Self {
+        self.permission_engine = Arc::new(Mutex::new(PermissionEngine::new(approval, sandbox)));
         self
     }
 
@@ -89,45 +96,53 @@ where
             .ok_or_else(crate::project::invalid_project_store_error)
     }
 
-    /// Get the current permission mode.
-    pub async fn permission_mode(&self) -> PermissionMode {
-        *self.permission_engine.lock().await.mode()
+    /// Get the current approval policy.
+    pub async fn approval_policy(&self) -> ApprovalPolicy {
+        self.permission_engine.lock().await.approval_policy()
     }
 
-    /// Set the current permission mode (session-scoped).
-    pub async fn set_permission_mode(&self, mode: PermissionMode) {
-        self.permission_engine.lock().await.set_mode(mode);
+    /// Get the current sandbox policy.
+    pub async fn sandbox_policy(&self) -> SandboxPolicy {
+        self.permission_engine.lock().await.sandbox_policy().clone()
     }
 
-    /// Persist permission mode for a specific session.
-    /// Updates both the in-memory engine AND the database row.
-    pub async fn set_session_permission_mode(
-        &self,
-        session_id: &agent_core::SessionId,
-        mode: PermissionMode,
-    ) -> agent_core::Result<()> {
-        self.permission_engine.lock().await.set_mode(mode);
-        self.store
-            .update_permission_mode(session_id.as_str(), &mode.to_string())
+    /// Set the current approval policy (session-scoped, in-memory).
+    pub async fn set_approval_policy(&self, approval: ApprovalPolicy) {
+        self.permission_engine
+            .lock()
             .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+            .set_approval_policy(approval);
+    }
+
+    /// Set the current sandbox policy (session-scoped, in-memory).
+    pub async fn set_sandbox_policy(&self, sandbox: SandboxPolicy) {
+        self.permission_engine
+            .lock()
+            .await
+            .set_sandbox_policy(sandbox);
     }
 
     /// Persist approval policy for a specific session (double-axis API).
-    /// Writes only the `approval_policy` column; sandbox stays unchanged.
+    /// Updates `approval_policy` and re-derives the legacy `permission_mode`
+    /// column so readers stuck on the old field stay consistent.
     pub async fn set_session_approval_policy(
         &self,
         session_id: &agent_core::SessionId,
         approval: ApprovalPolicy,
     ) -> agent_core::Result<()> {
+        let approval_str = approval.to_string();
         self.store
-            .update_approval_policy(session_id.as_str(), &approval.to_string())
+            .update_approval_policy(session_id.as_str(), &approval_str)
             .await
-            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        self.sync_legacy_permission_mode(session_id.as_str(), Some(approval), None)
+            .await
     }
 
     /// Persist sandbox policy for a specific session (double-axis API).
-    /// Writes only the `sandbox_policy` column as JSON; approval stays unchanged.
+    /// Updates `sandbox_policy` JSON and re-derives the legacy
+    /// `permission_mode` column so readers stuck on the old field stay
+    /// consistent.
     pub async fn set_session_sandbox_policy(
         &self,
         session_id: &agent_core::SessionId,
@@ -137,6 +152,47 @@ where
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
         self.store
             .update_sandbox_policy(session_id.as_str(), &json)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        self.sync_legacy_permission_mode(session_id.as_str(), None, Some(sandbox.clone()))
+            .await
+    }
+
+    /// Read the persisted dual-axis policy pair for `session_id`, layer the
+    /// caller-supplied `approval_override`/`sandbox_override` on top, and
+    /// rewrite the legacy `permission_mode` column accordingly.
+    ///
+    /// No-op when the session row is missing (e.g. project sessions that live
+    /// in a different table); callers treat that as success.
+    async fn sync_legacy_permission_mode(
+        &self,
+        session_id: &str,
+        approval_override: Option<ApprovalPolicy>,
+        sandbox_override: Option<SandboxPolicy>,
+    ) -> agent_core::Result<()> {
+        let policies = self
+            .store
+            .get_session_policies(session_id)
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        let Some((approval_str, sandbox_str)) = policies else {
+            return Ok(());
+        };
+
+        let approval = approval_override
+            .or_else(|| approval_str.as_deref().and_then(|s| s.parse().ok()))
+            .unwrap_or_default();
+        let sandbox = sandbox_override
+            .or_else(|| {
+                sandbox_str
+                    .as_deref()
+                    .and_then(|s| serde_json::from_str(s).ok())
+            })
+            .unwrap_or_default();
+
+        let legacy = legacy_mode_string_for(approval, &sandbox);
+        self.store
+            .update_permission_mode(session_id, legacy)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
     }

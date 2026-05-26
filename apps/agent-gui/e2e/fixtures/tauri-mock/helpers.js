@@ -64,6 +64,30 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function derivePermissionModeFromPolicy(approval, sandboxJson) {
+  var sandboxKind = "workspace_write";
+  try {
+    var parsed = sandboxJson ? JSON.parse(sandboxJson) : null;
+    if (parsed && parsed.kind) sandboxKind = parsed.kind;
+  } catch {
+    // fall through with default
+  }
+  if (approval === "never" && sandboxKind === "read_only") return "read_only";
+  if (approval === "never" && sandboxKind === "danger_full_access") return "autonomous";
+  if (approval === "always" && sandboxKind === "workspace_write") return "suggest";
+  if (approval === "on_request" && sandboxKind === "workspace_write") return "interactive";
+  return "interactive";
+}
+
+function syncLegacyPermissionMode(state, session) {
+  var derived = derivePermissionModeFromPolicy(
+    state.currentApprovalPolicy,
+    state.currentSandboxPolicy
+  );
+  state.currentPermissionMode = derived;
+  if (session) session.permission_mode = derived;
+}
+
 function snapshotMap(map) {
   return Array.from(map.entries()).map(function (entry) {
     return [entry[0], clone(entry[1])];

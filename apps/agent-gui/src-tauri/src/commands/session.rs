@@ -233,27 +233,6 @@ pub async fn cancel_session(state: State<'_, GuiState>) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn set_permission_mode(
-    mode: String,
-    state: State<'_, GuiState>,
-) -> Result<String, String> {
-    let session_id = {
-        let current = state.current_session_id.lock().await;
-        current
-            .clone()
-            .ok_or_else(|| "No active session".to_string())?
-    };
-    let permission_mode: agent_tools::PermissionMode = mode.parse().map_err(|e: String| e)?;
-    state
-        .runtime
-        .set_session_permission_mode(&session_id, permission_mode)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(permission_mode.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn set_session_approval_policy(
     approval: String,
     state: State<'_, GuiState>,
@@ -341,32 +320,6 @@ pub async fn get_session_sandbox_policy(state: State<'_, GuiState>) -> Result<St
         }
     }
     serde_json::to_string(&agent_tools::SandboxPolicy::default()).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_permission_mode(state: State<'_, GuiState>) -> Result<String, String> {
-    // Try to read from current session's metadata first
-    let workspace_id = {
-        let ws = state.workspace_id.lock().await;
-        ws.clone().ok_or("Workspace not initialized")?
-    };
-    let session_id = {
-        let current = state.current_session_id.lock().await;
-        current.clone().ok_or("No active session")?
-    };
-    let sessions = state
-        .runtime
-        .list_sessions(&workspace_id)
-        .await
-        .map_err(|e| format!("Failed to list sessions: {e}"))?;
-    if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-        if let Some(ref mode_str) = session.permission_mode {
-            return Ok(mode_str.clone());
-        }
-    }
-    // Fallback to engine's current mode
-    Ok(state.runtime.permission_mode().await.to_string())
 }
 
 #[tauri::command]

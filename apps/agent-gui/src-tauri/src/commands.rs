@@ -314,14 +314,13 @@ fn project_git_status_kind_to_string(kind: ProjectGitStatusKind) -> String {
 }
 
 /// Inner helper: update current session.
-/// Restores the session's permission mode from stored metadata.
+/// Restores the session's approval + sandbox policy from stored metadata.
 /// No forwarder respawning needed since we use subscribe_all().
 async fn switch_session_inner(
     state: &GuiState,
     session_id: agent_core::SessionId,
     _app_handle: &tauri::AppHandle,
 ) -> Result<(), String> {
-    // Restore permission mode from session metadata before switching
     {
         let workspace_id = {
             let ws = state.workspace_id.lock().await;
@@ -333,15 +332,31 @@ async fn switch_session_inner(
             .await
             .map_err(|e| format!("Failed to list sessions: {e}"))?;
         if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-            if let Some(ref mode_str) = session.permission_mode {
-                if let Ok(mode) = mode_str.parse::<agent_tools::PermissionMode>() {
-                    state.runtime.set_permission_mode(mode).await;
+            let mut approval: Option<agent_tools::ApprovalPolicy> = session
+                .approval_policy
+                .as_deref()
+                .and_then(|s| s.parse().ok());
+            let mut sandbox: Option<agent_tools::SandboxPolicy> = session
+                .sandbox_policy
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok());
+            if approval.is_none() || sandbox.is_none() {
+                if let Some(ref mode_str) = session.permission_mode {
+                    if let Some((a, s)) = agent_tools::parse_legacy_mode(mode_str) {
+                        approval.get_or_insert(a);
+                        sandbox.get_or_insert(s);
+                    }
                 }
+            }
+            if let Some(a) = approval {
+                state.runtime.set_approval_policy(a).await;
+            }
+            if let Some(s) = sandbox {
+                state.runtime.set_sandbox_policy(s).await;
             }
         }
     }
 
-    // Update current session
     {
         let mut current = state.current_session_id.lock().await;
         *current = Some(session_id);

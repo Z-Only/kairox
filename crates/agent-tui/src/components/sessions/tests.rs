@@ -69,7 +69,6 @@ fn ctx<'a>(
         projects,
         sessions,
         model_profile: "fast",
-        permission_mode: agent_tools::PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id,

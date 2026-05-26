@@ -16,7 +16,7 @@ use agent_runtime::ui_bootstrap::{
     ensure_workspace_session, load_catalog_sources, load_ui_config, spawn_runtime_event_forwarder,
     UiRuntimeOptions,
 };
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use anyhow::Result;
 use crossterm::event::{Event, EventStream};
 use crossterm::terminal::{
@@ -199,7 +199,8 @@ async fn main() -> Result<()> {
             data_dir.clone(),
             "kairox.sqlite",
             workspace_path.clone(),
-            PermissionMode::Suggest,
+            ApprovalPolicy::default(),
+            SandboxPolicy::default(),
             config_load.config,
             catalog_load.sources,
         ),
@@ -265,7 +266,7 @@ async fn main() -> Result<()> {
     );
 
     // 4. Create App with restored sessions
-    let mut app = App::new(&profile, PermissionMode::Suggest, workspace_id.clone());
+    let mut app = App::new(&profile, workspace_id.clone());
     app.chat
         .set_workspace_files(workspace_path.clone(), workspace_files);
     app.current_session_id = Some(active_session_id.clone());

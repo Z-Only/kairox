@@ -136,7 +136,6 @@ pub fn resolve_key(
             KeyAction::OpenArchiveManager
         }
         KeyCode::Char('x') => KeyAction::ContextMenu,
-        KeyCode::Char('P') => KeyAction::CyclePermissionMode,
         KeyCode::Char('A') => KeyAction::CycleApprovalPolicy,
         KeyCode::Char('B') => KeyAction::CycleSandboxPolicy,
         KeyCode::Char(c) => KeyAction::InputCharacter(c),

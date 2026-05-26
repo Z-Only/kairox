@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use agent_core::projection::SessionProjection;
 use agent_core::{ConfigScope, ProjectId};
-use agent_tools::{ApprovalPolicy, PermissionMode, SandboxPolicy};
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 use crate::components::{FocusTarget, ProjectInfo, SessionInfo};
 
@@ -329,9 +329,6 @@ pub struct AppState {
     /// `EventPayload::ModelProfileSwitched.reasoning_effort`. `None` until the
     /// first switch event lands, or for non-reasoning profiles.
     pub reasoning_effort: Option<String>,
-    /// Legacy single-axis permission mode (PR-2e will remove this in favor of
-    /// the orthogonal approval × sandbox model below).
-    pub permission_mode: PermissionMode,
     /// Approval axis of the double-axis policy. Mirrored to the active session
     /// via [`agent_runtime::AppFacade::set_session_approval_policy`].
     pub approval_policy: ApprovalPolicy,
@@ -360,7 +357,7 @@ impl AppState {
     const CTRL_C_CONFIRM_WINDOW: Duration = Duration::from_secs(5);
     const CTRL_C_FORCE_WINDOW: Duration = Duration::from_secs(2);
 
-    pub fn new(model_profile: impl Into<String>, permission_mode: PermissionMode) -> Self {
+    pub fn new(model_profile: impl Into<String>) -> Self {
         Self {
             focus_manager: FocusManager::new(FocusTarget::Chat),
             render_scheduler: RenderScheduler::new(),
@@ -373,7 +370,6 @@ impl AppState {
             settings_project_id: None,
             model_profile: model_profile.into(),
             reasoning_effort: None,
-            permission_mode,
             approval_policy: ApprovalPolicy::default(),
             sandbox_policy: SandboxPolicy::default(),
             input_mode: InputMode::SingleLine,
@@ -449,7 +445,6 @@ impl AppState {
             projects: &self.projects,
             sessions: &self.sessions,
             model_profile: &self.model_profile,
-            permission_mode: self.permission_mode,
             sidebar_left_visible: self.sidebar_left_visible,
             sidebar_right_visible: self.sidebar_right_visible,
             workspace_id,
@@ -505,14 +500,6 @@ impl AppState {
     pub fn reset_ctrl_c(&mut self) {
         self.ctrl_c_count = 0;
         self.last_ctrl_c = None;
-    }
-
-    /// Advance the active permission mode to the next value in the cycle.
-    /// Returns the new mode so the caller can dispatch it to the runtime.
-    pub fn cycle_permission_mode(&mut self) -> PermissionMode {
-        use crate::components::status_bar::PermissionModeExt;
-        self.permission_mode = self.permission_mode.next();
-        self.permission_mode
     }
 
     /// Advance the active approval policy to the next value in the cycle.
@@ -664,7 +651,7 @@ mod tests {
 
     #[test]
     fn ctrl_c_progressive_exit_interrupt_then_confirm_then_force() {
-        let mut state = AppState::new("fake", PermissionMode::Suggest);
+        let mut state = AppState::new("fake");
 
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
         assert_eq!(state.record_ctrl_c(), CtrlCAction::ConfirmQuit);
@@ -673,7 +660,7 @@ mod tests {
 
     #[test]
     fn ctrl_c_resets_after_timeout() {
-        let mut state = AppState::new("fake", PermissionMode::Suggest);
+        let mut state = AppState::new("fake");
 
         assert_eq!(state.record_ctrl_c(), CtrlCAction::Interrupt);
 
@@ -685,7 +672,7 @@ mod tests {
 
     #[test]
     fn status_log_keeps_latest_entries_only() {
-        let mut state = AppState::new("fake", PermissionMode::Suggest);
+        let mut state = AppState::new("fake");
 
         for index in 0..105 {
             state.push_status_message(format!("status {index}"));

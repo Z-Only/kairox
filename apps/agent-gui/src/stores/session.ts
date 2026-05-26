@@ -53,6 +53,36 @@ export function temporaryTitleFromFirstMessage(content: string): string {
     : trimmedContent;
 }
 
+interface LegacyPolicyMapping {
+  approval: string;
+  sandboxJson: string;
+}
+
+const WORKSPACE_WRITE_DEFAULT_JSON = JSON.stringify({
+  kind: "workspace_write",
+  network_access: false,
+  writable_roots: []
+});
+
+export function legacyModeToPolicy(mode: string): LegacyPolicyMapping | null {
+  switch (mode) {
+    case "read_only":
+      return { approval: "never", sandboxJson: JSON.stringify({ kind: "read_only" }) };
+    case "suggest":
+      return { approval: "always", sandboxJson: WORKSPACE_WRITE_DEFAULT_JSON };
+    case "agent":
+    case "interactive":
+      return { approval: "on_request", sandboxJson: WORKSPACE_WRITE_DEFAULT_JSON };
+    case "autonomous":
+      return {
+        approval: "never",
+        sandboxJson: JSON.stringify({ kind: "danger_full_access" })
+      };
+    default:
+      return null;
+  }
+}
+
 function titleCaseWords(value: string): string {
   return value
     .split(/[-_\s]+/)
@@ -492,9 +522,25 @@ export const useSessionStore = defineStore("session", () => {
 
   async function setPermissionMode(mode: string): Promise<void> {
     const ui = useUiStore();
+    const mapping = legacyModeToPolicy(mode);
+    if (!mapping) {
+      ui.pushNotification("error", `Unknown permission mode: ${mode}`);
+      return;
+    }
     try {
-      const result: string = await invoke("set_permission_mode", { mode });
-      permissionMode.value = result;
+      await Promise.all([
+        invoke("set_session_approval_policy", { approval: mapping.approval }),
+        invoke("set_session_sandbox_policy", { sandboxJson: mapping.sandboxJson })
+      ]);
+      approvalPolicy.value = mapping.approval;
+      sandboxPolicy.value = mapping.sandboxJson;
+      permissionMode.value = mode;
+      const session = sessions.value.find((s) => s.id === currentSessionId.value);
+      if (session) {
+        session.approval_policy = mapping.approval;
+        session.sandbox_policy = mapping.sandboxJson;
+        session.permission_mode = mode;
+      }
     } catch (e) {
       console.error("Failed to set permission mode:", e);
       ui.pushNotification("error", `Failed to set permission mode: ${e}`);

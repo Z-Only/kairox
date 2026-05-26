@@ -3,7 +3,9 @@ use agent_core::{AppFacade, EventPayload, SendMessageRequest, StartSessionReques
 use agent_models::{ModelClient, ModelEvent, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_store::{EventStore, SqliteEventStore};
-use agent_tools::{PermissionMode, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRisk};
+use agent_tools::{
+    ApprovalPolicy, SandboxPolicy, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRisk,
+};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
@@ -70,7 +72,7 @@ async fn permission_mode_restricts_write_tool() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = WriteToolCallingModelClient;
     let mut runtime = LocalRuntime::new(store, model);
-    runtime = runtime.with_permission_mode(PermissionMode::ReadOnly);
+    runtime = runtime.with_approval_and_sandbox(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
 
     let registry = runtime.tool_registry();
     registry.lock().await.register(Box::new(FsWriteTool));

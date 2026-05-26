@@ -15,10 +15,10 @@ pub use agent_mcp::McpServerDef;
 pub use agent_mcp::McpTransportDef;
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
-pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
+pub use permission::{PermissionEngine, PermissionOutcome, ToolEffect, ToolRisk};
 pub use policy::{
-    legacy_mode_for, ApprovalPolicy, ApprovalReason, PolicyDecision, PolicyEffect, PolicyEngine,
-    PolicyRisk, SandboxPolicy,
+    legacy_mode_string_for, parse_legacy_mode, ApprovalPolicy, ApprovalReason, PolicyDecision,
+    PolicyEffect, PolicyEngine, PolicyRisk, SandboxPolicy,
 };
 pub use provider::{BuiltinProvider, McpToolAdapter};
 pub use registry::{

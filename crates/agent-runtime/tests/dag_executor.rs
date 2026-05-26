@@ -15,7 +15,7 @@ use agent_runtime::{
     AgentDecision, AgentSettingsRoots, DagConfig, DagExecutor, SubTaskDef, TaskGraph,
 };
 use agent_store::SqliteEventStore;
-use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
+use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy, ToolRegistry};
 use support::dag_executor::{
     append_model_profile_events, make_executor, make_runtime_with_session, FixedDecisionStrategy,
     RecordingModelClient,
@@ -118,7 +118,13 @@ async fn dag_executor_request_model_uses_latest_reasoning_effort() {
     let model = Arc::new(RecordingModelClient::new(captured_requests.clone()));
     let (event_tx, _) = tokio::sync::broadcast::channel(1024);
     let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
-    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )));
     let pending: Arc<
         Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
     > = Arc::new(Mutex::new(HashMap::new()));

@@ -26,62 +26,42 @@ pub use effect::{PolicyEffect, PolicyRisk};
 pub use engine::PolicyEngine;
 pub use sandbox::SandboxPolicy;
 
-use crate::permission::PermissionMode;
-
-/// Migration helper for callers still passing the legacy [`PermissionMode`].
-/// Maps each legacy value to the (approval, sandbox) pair it now expands to.
-///
-/// | `PermissionMode` | `ApprovalPolicy` | `SandboxPolicy`                                              |
-/// |------------------|------------------|--------------------------------------------------------------|
-/// | `ReadOnly`       | `Never`          | `ReadOnly`                                                   |
-/// | `Suggest`        | `Always`         | `WorkspaceWrite { network=false, roots=[] }`                 |
-/// | `Agent`          | `OnRequest`      | `WorkspaceWrite { network=false, roots=[] }`                 |
-/// | `Autonomous`     | `Never`          | `DangerFullAccess`                                           |
-/// | `Interactive`    | `OnRequest`      | `WorkspaceWrite { network=false, roots=[] }`                 |
-impl From<PermissionMode> for (ApprovalPolicy, SandboxPolicy) {
-    fn from(mode: PermissionMode) -> Self {
-        match mode {
-            PermissionMode::ReadOnly => (ApprovalPolicy::Never, SandboxPolicy::ReadOnly),
-            PermissionMode::Suggest => (
-                ApprovalPolicy::Always,
-                SandboxPolicy::WorkspaceWrite {
-                    network_access: false,
-                    writable_roots: vec![],
-                },
-            ),
-            PermissionMode::Agent => (
-                ApprovalPolicy::OnRequest,
-                SandboxPolicy::WorkspaceWrite {
-                    network_access: false,
-                    writable_roots: vec![],
-                },
-            ),
-            PermissionMode::Autonomous => (ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess),
-            PermissionMode::Interactive => (
-                ApprovalPolicy::OnRequest,
-                SandboxPolicy::WorkspaceWrite {
-                    network_access: false,
-                    writable_roots: vec![],
-                },
-            ),
-        }
+/// Storage helper: pick the legacy `permission_mode` string for a given
+/// `(approval, sandbox)` pair. The DB column is retained one release cycle
+/// per spec `2026-05-26-permission-sandbox-approval-design.md` §5.2; writers
+/// must keep populating it until the next migration drops the column.
+pub fn legacy_mode_string_for(approval: ApprovalPolicy, sandbox: &SandboxPolicy) -> &'static str {
+    match (approval, sandbox) {
+        (ApprovalPolicy::Never, SandboxPolicy::ReadOnly) => "read_only",
+        (ApprovalPolicy::Always, SandboxPolicy::WorkspaceWrite { .. }) => "suggest",
+        (ApprovalPolicy::OnRequest, SandboxPolicy::WorkspaceWrite { .. }) => "agent",
+        (ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess) => "autonomous",
+        (ApprovalPolicy::OnRequest, SandboxPolicy::DangerFullAccess) => "autonomous",
+        (ApprovalPolicy::Always, SandboxPolicy::DangerFullAccess) => "suggest",
+        (ApprovalPolicy::Always, SandboxPolicy::ReadOnly) => "read_only",
+        (ApprovalPolicy::OnRequest, SandboxPolicy::ReadOnly) => "read_only",
+        (ApprovalPolicy::Never, SandboxPolicy::WorkspaceWrite { .. }) => "agent",
     }
 }
 
-/// Inverse helper: pick the closest legacy [`PermissionMode`] for a given
-/// `(approval, sandbox)` pair. Used by storage layers that still serialize
-/// to the legacy column during the transition window.
-pub fn legacy_mode_for(approval: ApprovalPolicy, sandbox: &SandboxPolicy) -> PermissionMode {
-    match (approval, sandbox) {
-        (ApprovalPolicy::Never, SandboxPolicy::ReadOnly) => PermissionMode::ReadOnly,
-        (ApprovalPolicy::Always, SandboxPolicy::WorkspaceWrite { .. }) => PermissionMode::Suggest,
-        (ApprovalPolicy::OnRequest, SandboxPolicy::WorkspaceWrite { .. }) => PermissionMode::Agent,
-        (ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess) => PermissionMode::Autonomous,
-        (ApprovalPolicy::OnRequest, SandboxPolicy::DangerFullAccess) => PermissionMode::Autonomous,
-        (ApprovalPolicy::Always, SandboxPolicy::DangerFullAccess) => PermissionMode::Suggest,
-        (ApprovalPolicy::Always, SandboxPolicy::ReadOnly) => PermissionMode::ReadOnly,
-        (ApprovalPolicy::OnRequest, SandboxPolicy::ReadOnly) => PermissionMode::ReadOnly,
-        (ApprovalPolicy::Never, SandboxPolicy::WorkspaceWrite { .. }) => PermissionMode::Agent,
+/// Config helper: parse the legacy `permission_mode` string into a canonical
+/// `(approval, sandbox)` pair. Used to keep accepting the old enum strings on
+/// the agent-settings frontmatter boundary while the rest of the system speaks
+/// the double-axis API directly. Returns `None` for unknown strings.
+pub fn parse_legacy_mode(s: &str) -> Option<(ApprovalPolicy, SandboxPolicy)> {
+    let ws = SandboxPolicy::WorkspaceWrite {
+        network_access: false,
+        writable_roots: vec![],
+    };
+    match s {
+        "read_only" => Some((ApprovalPolicy::Never, SandboxPolicy::ReadOnly)),
+        "suggest" => Some((ApprovalPolicy::Always, ws)),
+        "agent" | "workspace_write" => Some((ApprovalPolicy::OnRequest, ws)),
+        "autonomous" | "danger_full_access" => {
+            Some((ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess))
+        }
+        "interactive" => Some((ApprovalPolicy::OnRequest, ws)),
+        _ => None,
     }
 }
 
@@ -90,22 +70,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn legacy_mode_roundtrips_for_canonical_pairs() {
-        for mode in [
-            PermissionMode::ReadOnly,
-            PermissionMode::Suggest,
-            PermissionMode::Agent,
-            PermissionMode::Autonomous,
-            PermissionMode::Interactive,
-        ] {
-            let (a, s): (ApprovalPolicy, SandboxPolicy) = mode.into();
-            // Interactive collapses to Agent (same pair). Other four roundtrip.
-            let back = legacy_mode_for(a, &s);
-            if mode == PermissionMode::Interactive {
-                assert_eq!(back, PermissionMode::Agent);
-            } else {
-                assert_eq!(back, mode);
-            }
-        }
+    fn legacy_mode_string_covers_canonical_pairs() {
+        let ws = SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        };
+        assert_eq!(
+            legacy_mode_string_for(ApprovalPolicy::Never, &SandboxPolicy::ReadOnly),
+            "read_only"
+        );
+        assert_eq!(
+            legacy_mode_string_for(ApprovalPolicy::Always, &ws),
+            "suggest"
+        );
+        assert_eq!(
+            legacy_mode_string_for(ApprovalPolicy::OnRequest, &ws),
+            "agent"
+        );
+        assert_eq!(
+            legacy_mode_string_for(ApprovalPolicy::Never, &SandboxPolicy::DangerFullAccess),
+            "autonomous"
+        );
+    }
+
+    #[test]
+    fn parse_legacy_mode_round_trips_canonical_strings() {
+        let ws = SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        };
+        assert_eq!(
+            parse_legacy_mode("read_only"),
+            Some((ApprovalPolicy::Never, SandboxPolicy::ReadOnly))
+        );
+        assert_eq!(
+            parse_legacy_mode("suggest"),
+            Some((ApprovalPolicy::Always, ws.clone()))
+        );
+        assert_eq!(
+            parse_legacy_mode("agent"),
+            Some((ApprovalPolicy::OnRequest, ws.clone()))
+        );
+        assert_eq!(
+            parse_legacy_mode("workspace_write"),
+            Some((ApprovalPolicy::OnRequest, ws.clone()))
+        );
+        assert_eq!(
+            parse_legacy_mode("autonomous"),
+            Some((ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess))
+        );
+        assert_eq!(
+            parse_legacy_mode("interactive"),
+            Some((ApprovalPolicy::OnRequest, ws))
+        );
+        assert_eq!(parse_legacy_mode("bogus"), None);
     }
 }

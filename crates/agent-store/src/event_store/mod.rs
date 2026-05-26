@@ -76,6 +76,13 @@ pub trait EventStore: Send + Sync {
         session_id: &str,
         sandbox_policy_json: &str,
     ) -> crate::Result<()>;
+    /// Fetch the persisted `(approval_policy, sandbox_policy_json)` pair for a
+    /// single session. Used by writers that need to keep the legacy
+    /// `permission_mode` column consistent after a dual-axis update.
+    async fn get_session_policies(
+        &self,
+        session_id: &str,
+    ) -> crate::Result<Option<(Option<String>, Option<String>)>>;
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -302,6 +309,13 @@ impl EventStore for SqliteEventStore {
         sandbox_policy_json: &str,
     ) -> crate::Result<()> {
         SqliteEventStore::update_sandbox_policy(self, session_id, sandbox_policy_json).await
+    }
+
+    async fn get_session_policies(
+        &self,
+        session_id: &str,
+    ) -> crate::Result<Option<(Option<String>, Option<String>)>> {
+        SqliteEventStore::get_session_policies(self, session_id).await
     }
 }
 

@@ -107,9 +107,6 @@ export const commands = {
     typedError<null, string>(
       __TAURI_INVOKE("switch_model", { sessionId, profileAlias, reasoningEffort })
     ),
-  getPermissionMode: () => typedError<string, string>(__TAURI_INVOKE("get_permission_mode")),
-  setPermissionMode: (mode: string) =>
-    typedError<string, string>(__TAURI_INVOKE("set_permission_mode", { mode })),
   getSessionApprovalPolicy: () =>
     typedError<string, string>(__TAURI_INVOKE("get_session_approval_policy")),
   setSessionApprovalPolicy: (approval: string) =>

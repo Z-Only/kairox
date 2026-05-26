@@ -5,7 +5,6 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
 use futures::StreamExt;
 
 #[tokio::test]
@@ -13,7 +12,7 @@ async fn full_session_flow_sends_message_and_receives_response() {
     // Setup: in-memory event store + fake model + LocalRuntime with Suggest mode
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["hello from fake model".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+    let runtime = LocalRuntime::new(store, model);
 
     // Open workspace and start session
     let workspace = runtime
@@ -59,7 +58,7 @@ async fn full_session_flow_sends_message_and_receives_response() {
 async fn event_subscription_receives_streaming_events() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["hello from fake model".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+    let runtime = LocalRuntime::new(store, model);
 
     let workspace = runtime
         .open_workspace("/tmp/kairox-test-subscribe".into())

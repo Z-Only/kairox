@@ -215,7 +215,6 @@ mod tests {
     use agent_core::{
         AgentId, DomainEvent, EventPayload, PrivacyClassification, SessionId, WorkspaceId,
     };
-    use agent_tools::PermissionMode;
 
     fn event(
         workspace_id: &WorkspaceId,
@@ -235,7 +234,7 @@ mod tests {
     fn resolving_permission_event_keeps_other_pending_prompts_visible() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = SessionId::from_string("ses_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        let mut app = App::new("test", workspace_id.clone());
         app.current_session_id = Some(session_id.clone());
         app.state.sessions = vec![crate::components::SessionInfo {
             id: session_id.clone(),

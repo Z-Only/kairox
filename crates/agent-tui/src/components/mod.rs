@@ -314,13 +314,9 @@ pub enum QueueAction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusInfo {
     pub profile: String,
-    pub permission_mode: String,
-    /// Approval axis label (e.g. `on_request`). Empty string means "not yet
-    /// rendered as a separate badge" — the status bar will fall back to the
-    /// legacy `permission_mode` badge only.
+    /// Approval axis label (e.g. `on_request`).
     pub approval_policy: String,
-    /// Sandbox axis label (e.g. `workspace_write`). See `approval_policy` for
-    /// the empty-string fallback rule.
+    /// Sandbox axis label (e.g. `workspace_write`).
     pub sandbox_policy: String,
     pub session_count: usize,
     pub mcp_server_count: usize,
@@ -814,11 +810,6 @@ pub enum Command {
     InstallPlugin {
         request: agent_core::facade::InstallPluginRequest,
     },
-    /// User cycled the permission mode from the status bar (Shift+P).
-    /// The runtime should apply the new mode for subsequent permission checks.
-    SetPermissionMode {
-        mode: agent_tools::PermissionMode,
-    },
     /// User cycled the approval-axis policy (Shift+A while not focused on Sessions).
     /// The runtime should apply it to the current session, if any.
     SetSessionApprovalPolicy {
@@ -960,7 +951,6 @@ pub struct EventContext<'a> {
     pub projects: &'a [ProjectInfo],
     pub sessions: &'a [SessionInfo],
     pub model_profile: &'a str,
-    pub permission_mode: agent_tools::PermissionMode,
     pub sidebar_left_visible: bool,
     pub sidebar_right_visible: bool,
     pub workspace_id: &'a agent_core::WorkspaceId,

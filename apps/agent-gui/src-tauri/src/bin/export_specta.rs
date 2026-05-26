@@ -85,8 +85,6 @@ fn main() {
             agent_gui_tauri::commands::cancel_session,
             agent_gui_tauri::commands::compact_session,
             agent_gui_tauri::commands::switch_model,
-            agent_gui_tauri::commands::get_permission_mode,
-            agent_gui_tauri::commands::set_permission_mode,
             agent_gui_tauri::commands::get_session_approval_policy,
             agent_gui_tauri::commands::set_session_approval_policy,
             agent_gui_tauri::commands::get_session_sandbox_policy,

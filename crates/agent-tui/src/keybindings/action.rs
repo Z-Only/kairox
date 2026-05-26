@@ -51,8 +51,6 @@ pub enum KeyAction {
     OpenArchiveManager,
 
     // -- Status bar shortcuts ---------------------------------------------
-    /// Cycle through permission modes (Shift+P).
-    CyclePermissionMode,
     /// Cycle through approval-axis policies (Shift+A — outside Sessions focus).
     CycleApprovalPolicy,
     /// Cycle through sandbox-axis policies (Shift+B).

@@ -9,7 +9,7 @@ use agent_mcp::installer::Installer;
 use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
+use agent_tools::{PermissionEngine, ToolRegistry};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -98,7 +98,7 @@ where
         Self {
             store: Arc::new(store),
             model: Arc::new(model),
-            permission_engine: Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Suggest))),
+            permission_engine: Arc::new(Mutex::new(PermissionEngine::default())),
             tool_registry: Arc::new(Mutex::new(ToolRegistry::new())),
             context_assembler: ContextAssembler::new_standalone(),
             memory_store: None,

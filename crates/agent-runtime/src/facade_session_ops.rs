@@ -5,7 +5,7 @@ use agent_core::{
     StartSessionRequest, TaskId, TraceEntry, WorkspaceId, WorkspaceInfo,
 };
 use agent_store::EventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
@@ -22,7 +22,8 @@ where
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {
         let workspace_id = request.workspace_id.clone();
         let model_profile_alias = request.model_profile.clone();
-        let permission_mode = request.permission_mode.clone();
+        let approval_policy_str = request.approval_policy.clone();
+        let sandbox_policy_str = request.sandbox_policy.clone();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
@@ -37,9 +38,20 @@ where
         self.initialize_session_limits(&session_id, &model_profile_alias)
             .await;
 
-        if let Some(ref mode_str) = permission_mode {
-            if let Ok(mode) = mode_str.parse::<PermissionMode>() {
-                self.permission_engine.lock().await.set_mode(mode);
+        if let Some(ref approval_str) = approval_policy_str {
+            if let Ok(approval) = approval_str.parse::<ApprovalPolicy>() {
+                self.permission_engine
+                    .lock()
+                    .await
+                    .set_approval_policy(approval);
+            }
+        }
+        if let Some(ref sandbox_str) = sandbox_policy_str {
+            if let Ok(sandbox) = serde_json::from_str::<SandboxPolicy>(sandbox_str) {
+                self.permission_engine
+                    .lock()
+                    .await
+                    .set_sandbox_policy(sandbox);
             }
         }
 

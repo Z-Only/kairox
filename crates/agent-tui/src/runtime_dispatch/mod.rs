@@ -67,12 +67,6 @@ pub async fn dispatch_commands(
                 model::dispatch(runtime, app, command).await;
             }
 
-            Command::SetPermissionMode { mode } => {
-                runtime.set_permission_mode(mode).await;
-                app.sync_status_bar();
-                app.state.render_scheduler.mark_dirty();
-            }
-
             Command::SetSessionApprovalPolicy {
                 workspace_id: _,
                 session_id,

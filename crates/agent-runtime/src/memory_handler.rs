@@ -8,8 +8,8 @@
 //!    that gets appended to the prompt.
 //!
 //! 2. **Storage** – after the model responds, `<memory>` markers are extracted
-//!    from the assistant text and persisted according to the current
-//!    `PermissionMode` and the memory scope.
+//!    from the assistant text and persisted according to the active
+//!    `(ApprovalPolicy, SandboxPolicy)` pair and the memory scope.
 
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{
@@ -20,7 +20,7 @@ use agent_memory::{
     MemoryStore,
 };
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, PermissionMode};
+use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -99,12 +99,12 @@ pub async fn retrieve_memory_section(
 /// Process memory markers extracted from the assistant response.
 ///
 /// Strips `<memory>` tags from display text and persists each marker according
-/// to the active `PermissionMode`:
+/// to the active `(ApprovalPolicy, SandboxPolicy)` pair:
 ///
-/// - **Session scope** – auto-accepted and stored.
-/// - **User / Workspace scope** – behaviour depends on `PermissionMode`:
-///   - `Interactive` / `Agent` / `Autonomous` – auto-accepted (`MemoryAccepted`).
-///   - `Suggest` / `ReadOnly` – auto-denied (`MemoryRejected`).
+/// - **Session scope** – always auto-accepted and stored.
+/// - **User / Workspace scope** – auto-accepted when the sandbox permits writes
+///   (`WorkspaceWrite` or `DangerFullAccess`) AND approval is not `Always`.
+///   Otherwise auto-denied (`MemoryRejected`).
 pub async fn store_memory_markers<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
@@ -129,12 +129,10 @@ pub async fn store_memory_markers<S: EventStore>(
         let mem_key = entry.key.clone();
         let mem_content = entry.content.clone();
         let auto_accept = if durable_memory_requires_confirmation(&entry.scope) {
-            match *permission_engine.lock().await.mode() {
-                PermissionMode::Interactive
-                | PermissionMode::Agent
-                | PermissionMode::Autonomous => true,
-                PermissionMode::Suggest | PermissionMode::ReadOnly => false,
-            }
+            let engine = permission_engine.lock().await;
+            let approval = engine.approval_policy();
+            let sandbox_allows_write = !matches!(engine.sandbox_policy(), SandboxPolicy::ReadOnly);
+            sandbox_allows_write && !matches!(approval, ApprovalPolicy::Always)
         } else {
             // Session scope: always auto-accept.
             true
@@ -165,7 +163,7 @@ pub async fn store_memory_markers<S: EventStore>(
                 PrivacyClassification::FullTrace,
                 EventPayload::MemoryRejected {
                     memory_id: mem_id,
-                    reason: "Auto-denied in Suggest mode".into(),
+                    reason: "Auto-denied: approval=Always or sandbox=ReadOnly".into(),
                 },
             );
             let _ = append_and_broadcast(store, event_tx, &reject_event).await;

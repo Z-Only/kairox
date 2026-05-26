@@ -8,7 +8,6 @@ use agent_mcp::{McpServerDef, McpTransportDef};
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::app_state::SettingsConfigSource;
 use agent_tui::components::{Command, McpServerStatusView, ProjectInfo};
@@ -83,7 +82,7 @@ async fn make_runtime_with_mcp() -> Arc<LocalRuntime<SqliteEventStore, ModelRout
 }
 
 fn new_app() -> App {
-    App::new("reasoning", PermissionMode::Suggest, WorkspaceId::new())
+    App::new("reasoning", WorkspaceId::new())
 }
 
 fn unique_temp_dir(prefix: &str) -> std::path::PathBuf {

@@ -50,21 +50,28 @@ impl McpServerManager {
 mod resources_tests {
     use super::*;
     use agent_mcp::types::{McpServerDef, McpTransportDef};
-    use agent_tools::permission::{PermissionEngine, PermissionMode};
+    use agent_tools::permission::PermissionEngine;
     use agent_tools::registry::ToolRegistry;
+    use agent_tools::{ApprovalPolicy, SandboxPolicy};
     use std::collections::HashMap;
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
     fn empty_manager() -> McpServerManager {
         let registry = Arc::new(Mutex::new(ToolRegistry::new()));
-        let engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::ReadOnly)));
+        let engine = Arc::new(Mutex::new(PermissionEngine::new(
+            ApprovalPolicy::Always,
+            SandboxPolicy::ReadOnly,
+        )));
         McpServerManager::from_config(Vec::new(), registry, engine, None)
     }
 
     fn manager_with_stopped_server(server_id: &str) -> McpServerManager {
         let registry = Arc::new(Mutex::new(ToolRegistry::new()));
-        let engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::ReadOnly)));
+        let engine = Arc::new(Mutex::new(PermissionEngine::new(
+            ApprovalPolicy::Always,
+            SandboxPolicy::ReadOnly,
+        )));
         let def = McpServerDef {
             name: server_id.to_string(),
             transport: McpTransportDef::Stdio {

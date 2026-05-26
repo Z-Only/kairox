@@ -9,5 +9,4 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-pub use permission_mode::PermissionModeExt;
 pub use state::StatusBar;

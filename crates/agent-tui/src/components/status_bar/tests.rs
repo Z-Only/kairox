@@ -3,7 +3,7 @@
 
 use super::context_line::{render_context_details_lines, render_context_line_string};
 use super::render::render_status_bar;
-use super::{PermissionModeExt, StatusBar};
+use super::StatusBar;
 
 use crate::components::{Command, CrossPanelEffect, EventContext, FocusTarget, StatusInfo};
 
@@ -19,7 +19,6 @@ fn test_terminal(width: u16, height: u16) -> Terminal<TestBackend> {
 fn status_bar_renders_without_panic() {
     let info = StatusInfo {
         profile: "fast".to_string(),
-        permission_mode: "suggest".to_string(),
         approval_policy: String::new(),
         sandbox_policy: String::new(),
         session_count: 3,
@@ -43,7 +42,6 @@ fn status_bar_renders_without_panic() {
 fn status_bar_renders_with_mcp_count_zero() {
     let info = StatusInfo {
         profile: "fast".to_string(),
-        permission_mode: "suggest".to_string(),
         approval_policy: String::new(),
         sandbox_policy: String::new(),
         session_count: 3,
@@ -67,7 +65,6 @@ fn status_bar_renders_with_mcp_count_zero() {
 fn status_bar_renders_with_error_without_panic() {
     let info = StatusInfo {
         profile: "local-code".to_string(),
-        permission_mode: "agent".to_string(),
         approval_policy: String::new(),
         sandbox_policy: String::new(),
         session_count: 1,
@@ -88,48 +85,6 @@ fn status_bar_renders_with_error_without_panic() {
 }
 
 #[test]
-fn permission_mode_as_str() {
-    assert_eq!(agent_tools::PermissionMode::ReadOnly.as_str(), "readonly");
-    assert_eq!(agent_tools::PermissionMode::Suggest.as_str(), "suggest");
-    assert_eq!(agent_tools::PermissionMode::Agent.as_str(), "agent");
-    assert_eq!(
-        agent_tools::PermissionMode::Autonomous.as_str(),
-        "autonomous"
-    );
-}
-
-#[test]
-fn cycles_permission_mode() {
-    use agent_tools::PermissionMode;
-    assert_eq!(PermissionMode::ReadOnly.next(), PermissionMode::Suggest);
-    assert_eq!(PermissionMode::Suggest.next(), PermissionMode::Agent);
-    assert_eq!(PermissionMode::Agent.next(), PermissionMode::Autonomous);
-    assert_eq!(
-        PermissionMode::Autonomous.next(),
-        PermissionMode::Interactive
-    );
-    assert_eq!(PermissionMode::Interactive.next(), PermissionMode::ReadOnly);
-}
-
-#[test]
-fn status_info_permission_mode_label() {
-    let info = StatusInfo {
-        profile: "fast".to_string(),
-        permission_mode: "agent".to_string(),
-        approval_policy: String::new(),
-        sandbox_policy: String::new(),
-        session_count: 0,
-        mcp_server_count: 0,
-        session_metadata: Vec::new(),
-        hint: String::new(),
-        error: None,
-        context_usage: None,
-        compacting: false,
-    };
-    assert_eq!(info.permission_mode_label(), "agent");
-}
-
-#[test]
 fn status_bar_component_handle_event_returns_empty() {
     use crate::components::Component;
 
@@ -144,7 +99,6 @@ fn status_bar_component_handle_event_returns_empty() {
         projects: &[],
         sessions: &[],
         model_profile: "fast",
-        permission_mode: agent_tools::PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: ws_id,
@@ -166,7 +120,6 @@ fn status_bar_component_handle_effect_stores_info() {
     let mut bar = StatusBar::new();
     let info = StatusInfo {
         profile: "fast".to_string(),
-        permission_mode: "readonly".to_string(),
         approval_policy: String::new(),
         sandbox_policy: String::new(),
         session_count: 5,
@@ -179,7 +132,6 @@ fn status_bar_component_handle_effect_stores_info() {
     };
     bar.handle_effect(&CrossPanelEffect::SetStatus(info.clone()));
     assert_eq!(bar.info.profile, "fast");
-    assert_eq!(bar.info.permission_mode, "readonly");
     assert_eq!(bar.info.session_count, 5);
     assert_eq!(bar.info.mcp_server_count, 3);
     assert_eq!(bar.info.error, Some("oops".to_string()));
@@ -235,7 +187,6 @@ mod context_line_tests {
     fn make_info(usage_opt: Option<ContextUsage>, compacting: bool) -> StatusInfo {
         StatusInfo {
             profile: "fast".into(),
-            permission_mode: "suggest".into(),
             approval_policy: String::new(),
             sandbox_policy: String::new(),
             session_count: 1,
@@ -253,7 +204,6 @@ mod context_line_tests {
         let info = make_info(Some(usage(110_000, 180_000)), false);
         let rendered = render_context_line_string(&info, 120);
         assert!(rendered.contains("profile: fast"), "got: {rendered}");
-        assert!(rendered.contains("perm: suggest"), "got: {rendered}");
         assert!(rendered.contains("ctx: 110.0k/180.0k"), "got: {rendered}");
         assert!(rendered.contains("sys 2k"), "got: {rendered}");
         assert!(rendered.contains("hist 64k"), "got: {rendered}");
@@ -329,7 +279,6 @@ mod context_line_tests {
             projects: &[],
             sessions: &[],
             model_profile: "fast",
-            permission_mode: agent_tools::PermissionMode::Suggest,
             sidebar_left_visible: true,
             sidebar_right_visible: false,
             workspace_id: &workspace_id,
