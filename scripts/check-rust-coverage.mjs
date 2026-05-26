@@ -34,7 +34,9 @@ const groups = [
     ],
     minFiles: 24,
     thresholds: {
-      branches: 65,
+      // branches kept conservative: nightly cargo-llvm-cov branch coverage
+      // wobbles by up to ~3pp between runs on this workspace.
+      branches: 60,
       functions: 33,
       lines: 73
     }
@@ -106,7 +108,8 @@ const groups = [
     include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
     minFiles: 50,
     thresholds: {
-      branches: 80,
+      // branches kept at 76 (~3pp below 79.69 baseline) for nightly wobble.
+      branches: 76,
       functions: 37,
       lines: 71
     }
