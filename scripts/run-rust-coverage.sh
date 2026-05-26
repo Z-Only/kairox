@@ -2,10 +2,7 @@
 set -euo pipefail
 
 coverage_dir="target/coverage"
-profile_dir="target/llvm-cov-target"
-grcov_version="${KAIROX_GRCOV_VERSION:-v0.10.7}"
 toolchain="${KAIROX_COVERAGE_TOOLCHAIN:-nightly}"
-grcov_threads="${KAIROX_GRCOV_THREADS:-1}"
 
 if [ "$(uname -s)" = "Linux" ] && [ -z "${CC:-}" ] && command -v clang >/dev/null 2>&1; then
   export CC=clang
@@ -18,117 +15,17 @@ fi
 mkdir -p "$coverage_dir"
 rm -f "$coverage_dir"/rust*.lcov
 
-host_triple="$(rustc "+${toolchain}" -vV | awk '/^host:/ { print $2 }')"
-rust_sysroot="$(rustc "+${toolchain}" --print sysroot)"
-llvm_bin="${rust_sysroot}/lib/rustlib/${host_triple}/bin"
-
-install_grcov() {
-  if command -v grcov >/dev/null 2>&1; then
-    command -v grcov
-    return
-  fi
-
-  local cached_grcov="${coverage_dir}/bin/grcov"
-  if [ -x "$cached_grcov" ]; then
-    printf '%s\n' "$cached_grcov"
-    return
-  fi
-
-  local os arch asset tmpdir
-  os="$(uname -s)"
-  arch="$(uname -m)"
-
-  case "${os}:${arch}" in
-    Darwin:arm64) asset="grcov-aarch64-apple-darwin.tar.bz2" ;;
-    Darwin:x86_64) asset="grcov-x86_64-apple-darwin.tar.bz2" ;;
-    Linux:aarch64) asset="grcov-aarch64-unknown-linux-gnu.tar.bz2" ;;
-    Linux:x86_64) asset="grcov-x86_64-unknown-linux-gnu.tar.bz2" ;;
-    *)
-      echo "Unsupported platform for automatic grcov install: ${os}/${arch}" >&2
-      exit 1
-      ;;
-  esac
-
-  mkdir -p "${coverage_dir}/bin"
-  tmpdir="$(mktemp -d)"
-  curl -L --retry 3 --fail \
-    "https://github.com/mozilla/grcov/releases/download/${grcov_version}/${asset}" \
-    | tar -xjf - -C "$tmpdir"
-  install -m 0755 "${tmpdir}/grcov" "$cached_grcov"
-  rm -rf "$tmpdir"
-  printf '%s\n' "$cached_grcov"
-}
-
-run_grcov() {
-  local grcov="$1"
-  shift
-
-  if "$grcov" "$@"; then
-    return
-  fi
-
-  local status=$?
-  if [ "$status" -ne 137 ] && [ "$status" -ne 139 ]; then
-    return "$status"
-  fi
-
-  echo "grcov exited with ${status}; waiting briefly before one retry" >&2
-  sleep 5
-  "$grcov" "$@"
-}
-
-run_coverage_group() {
-  local name="$1"
-  shift
-
-  local output_path="${coverage_dir}/rust-${name}.lcov"
-
-  # cargo-llvm-cov remains the Rust test/instrumentation driver recommended by
-  # Rust projects. We intentionally let grcov generate LCOV from profraw files
-  # because `cargo llvm-cov --branch --lcov` calls llvm-cov export, which is
-  # currently crash-prone for this workspace's async Rust coverage maps.
-  cargo "+${toolchain}" llvm-cov clean --workspace
-  cargo "+${toolchain}" llvm-cov \
-    "$@" \
-    --all-targets \
-    --branch \
-    --no-report
-
-  local profraw_count
-  profraw_count="$(find "$profile_dir" -name '*.profraw' | wc -l | tr -d ' ')"
-  echo "Generating Rust ${name} LCOV from ${profraw_count} profraw files with $("$grcov" --version)"
-
-  run_grcov "$grcov" "$profile_dir" \
-    --binary-path "${profile_dir}/debug/deps" \
-    --source-dir . \
-    --output-types lcov \
-    --branch \
-    --threads "$grcov_threads" \
-    --llvm-path "$llvm_bin" \
-    --ignore-not-existing \
-    --ignore 'target/*' \
-    --ignore '*/tests/*' \
-    --ignore '*/benches/*' \
-    --ignore '*/examples/*' \
-    --ignore '*/build.rs' \
-    --ignore '*/src/bin/*' \
-    --ignore 'apps/agent-gui/src-tauri/gen/*' \
-    --keep-only 'crates/*/src/*' \
-    --keep-only 'apps/agent-gui/src-tauri/src/*' \
-    --output-path "$output_path"
-
-  local source_count
-  source_count="$(grep -c '^SF:' "$output_path" || true)"
-  echo "Generated ${output_path} with ${source_count} source files"
-  print_lcov_breakdown "$output_path"
-}
+# Workspace files we never want to count toward coverage. See agent-tools/tests
+# (integration tests), benches, examples, build.rs, src/bin (binary entry
+# points), and the auto-generated Tauri gen/ tree. cargo-llvm-cov passes the
+# expression to llvm-cov export's --ignore-filename-regex, which matches on
+# the absolute source path that ends up in LCOV SF: records.
+ignore_filename_regex='(/tests/|/benches/|/examples/|/src/bin/|apps/agent-gui/src-tauri/gen/|build\.rs$)'
 
 # Diagnostic helper: group every SF: record in an LCOV file by its top-level
-# workspace path (crate or app). check-rust-coverage.mjs has been reporting
-# "no files matched" for the T2 high-risk runtime tier and "0% lines / 0%
-# functions" for T2 Tauri / T4 UI; emitting this breakdown at CI time is the
-# cheapest way to learn whether grcov dropped records for those crates before
-# group classification, or whether classification itself is buggy.
+# workspace path (crate or app). Originally added in the grcov-based pipeline
+# (#503) to investigate why agent-runtime/memory/models/mcp/tools/tui/config
+# never appeared in LCOV; kept here so future regressions stay easy to spot.
 print_lcov_breakdown() {
   local lcov_path="$1"
   if [ ! -f "$lcov_path" ]; then
@@ -147,7 +44,32 @@ print_lcov_breakdown() {
     | sed 's/^/[diag]   /'
 }
 
-grcov="$(install_grcov)"
+# Generate LCOV for one logical workspace group (core / tools / ui). We rely
+# on cargo-llvm-cov's built-in `--lcov` exporter, which goes through
+# `llvm-cov export` against every .rlib/.o/binary in the instrumented build,
+# so dependency crates within the workspace appear in the report. The earlier
+# grcov-based pipeline only saw symbols whose debug info reached final test
+# binaries, which dropped half the workspace (#503 diagnosis).
+run_coverage_group() {
+  local name="$1"
+  shift
+
+  local output_path="${coverage_dir}/rust-${name}.lcov"
+
+  cargo "+${toolchain}" llvm-cov clean --workspace
+  cargo "+${toolchain}" llvm-cov \
+    "$@" \
+    --all-targets \
+    --branch \
+    --ignore-filename-regex "$ignore_filename_regex" \
+    --lcov \
+    --output-path "$output_path"
+
+  local source_count
+  source_count="$(grep -c '^SF:' "$output_path" || true)"
+  echo "Generated ${output_path} with ${source_count} source files"
+  print_lcov_breakdown "$output_path"
+}
 
 run_coverage_group core \
   -p agent-core \
