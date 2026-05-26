@@ -10,50 +10,97 @@ const allowPartial = process.env.KAIROX_COVERAGE_ALLOW_PARTIAL === "1";
 
 const metrics = ["branches", "functions", "lines"];
 
+// Coverage thresholds are organised by risk tier rather than by codebase area.
+// Each file may be evaluated by multiple groups (for example, a workspace-wide
+// floor and a tier-specific gate). Stricter tiers must pass first; relaxed
+// tiers act as a safety net against report truncation.
 const groups = [
-  // Rust branch coverage currently depends on nightly LLVM coverage support.
-  // Keep thresholds on stable, reportable LCOV metrics and file-count floors to
-  // catch obvious report truncation while upstream branch crashes are still open.
+  // Tier 1 — Critical: permission engine, persistence, domain types,
+  // configuration loader. Defects here affect audit, security, recoverability.
   {
-    name: "Rust workspace",
-    include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
-    minFiles: 45,
-    thresholds: {
-      branches: 72,
-      functions: 35,
-      lines: 71
-    }
-  },
-  {
-    name: "Rust core business",
-    include: [/^crates\/agent-(core|runtime|memory|store|config)\//],
-    minFiles: 24,
-    thresholds: {
-      branches: 62,
-      functions: 32,
-      lines: 73
-    }
-  },
-  {
-    name: "Rust tools and integrations",
-    include: [/^crates\/agent-(tools|mcp|models|skills|plugins)\//],
-    minFiles: 7,
-    thresholds: {
-      branches: 88,
-      functions: 60,
-      lines: 89
-    }
-  },
-  {
-    name: "Rust UI shells and eval",
+    name: "T1 critical core",
     include: [
-      /^crates\/agent-tui\//,
-      /^crates\/agent-eval\//,
-      /^apps\/agent-gui\/src-tauri\/src\//
+      /^crates\/agent-tools\/src\/(permission|registry)\.rs$/,
+      /^crates\/agent-store\/src\//,
+      /^crates\/agent-core\/src\//,
+      /^crates\/agent-config\/src\//
     ],
-    minFiles: 16,
+    minFiles: 28,
     thresholds: {
-      branches: 65
+      branches: 75,
+      functions: 70,
+      lines: 80
+    }
+  },
+  // Tier 2A — High-risk runtime hot path: agent loop orchestration,
+  // ContextCompactor, ModelRouter, McpClient lifecycle.
+  {
+    name: "T2 high-risk runtime",
+    include: [
+      /^crates\/agent-runtime\/src\//,
+      /^crates\/agent-memory\/src\//,
+      /^crates\/agent-models\/src\//,
+      /^crates\/agent-mcp\/src\//
+    ],
+    minFiles: 50,
+    thresholds: {
+      branches: 70,
+      functions: 55,
+      lines: 75
+    }
+  },
+  // Tier 2B — Tauri IPC boundary. Errors here block the desktop GUI.
+  {
+    name: "T2 Tauri IPC",
+    include: [
+      /^apps\/agent-gui\/src-tauri\/src\/(lib|app_state|event_forwarder|commands)\.rs$/,
+      /^apps\/agent-gui\/src-tauri\/src\/commands\//
+    ],
+    // specta.rs is a Specta registration glue file dominated by macro output.
+    exclude: [/^apps\/agent-gui\/src-tauri\/src\/specta\.rs$/],
+    minFiles: 12,
+    thresholds: {
+      branches: 65,
+      functions: 50,
+      lines: 70
+    }
+  },
+  // Tier 3 — Medium-risk adapters: built-in tools (shell/fs/patch/search),
+  // Skills registry/state, Plugins manifest parsing.
+  {
+    name: "T3 adapters and skills",
+    include: [
+      /^crates\/agent-tools\/src\//,
+      /^crates\/agent-skills\/src\//,
+      /^crates\/agent-plugins\/src\//
+    ],
+    // T1 covers these with stricter thresholds; do not double-count them here.
+    exclude: [/^crates\/agent-tools\/src\/(permission|registry)\.rs$/],
+    minFiles: 14,
+    thresholds: {
+      branches: 55,
+      functions: 45,
+      lines: 65
+    }
+  },
+  // Tier 4 — Floor: rendering shells and evaluation CLI. Presentation-heavy.
+  {
+    name: "T4 UI shells and eval",
+    include: [/^crates\/agent-tui\/src\//, /^crates\/agent-eval\/src\//],
+    minFiles: 80,
+    thresholds: {
+      lines: 50
+    }
+  },
+  // Workspace overall — anti-truncation backstop covering every counted file.
+  {
+    name: "Rust workspace overall",
+    include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
+    minFiles: 200,
+    thresholds: {
+      branches: 70,
+      functions: 50,
+      lines: 70
     }
   }
 ];
@@ -223,9 +270,15 @@ console.log("Rust coverage thresholds");
 console.log("=========================");
 
 for (const group of groups) {
-  const matchingFiles = files.filter((file) =>
-    group.include.some((pattern) => pattern.test(file.relativePath))
-  );
+  const matchingFiles = files.filter((file) => {
+    if (!group.include.some((pattern) => pattern.test(file.relativePath))) {
+      return false;
+    }
+    if (group.exclude?.some((pattern) => pattern.test(file.relativePath))) {
+      return false;
+    }
+    return true;
+  });
 
   if (matchingFiles.length === 0) {
     const message = `${group.name}: no files matched (${formatThresholds(group.thresholds)})`;

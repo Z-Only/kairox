@@ -328,6 +328,52 @@ The script runs checks, verifies the GUI build, generates `CHANGELOG.md` with gi
 - **Release Build** (`release-build.yml`) runs on `v*` tags: publishes release notes via git-cliff, builds TUI binaries for all platforms, builds Tauri desktop bundles for all platforms
 - **Dependabot Auto Merge** automatically merges passing Dependabot PRs for Bun, Cargo, and GitHub Actions dependencies
 
+## Coverage gates
+
+Coverage gates are organised by **risk tier**, not by codebase area. Stricter tiers fail first; relaxed tiers act as a workspace-wide anti-truncation backstop. Two CI jobs enforce the gates:
+
+- `coverage-rust` — runs `bun run coverage:rust` (cargo-llvm-cov + grcov → LCOV → `scripts/check-rust-coverage.mjs`).
+- `coverage-web` — runs `bun run coverage:web` (Vitest V8 with thresholds in `apps/agent-gui/vitest.config.ts`).
+
+### Rust tiers (`scripts/check-rust-coverage.mjs`)
+
+| Tier                     | Path patterns                                                                                                                            | branches | functions | lines |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------- | ----- |
+| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 75       | 70        | 80    |
+| **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/`                                                         | 70       | 55        | 75    |
+| **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | 65       | 50        | 70    |
+| **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 55       | 45        | 65    |
+| **T4 Floor**             | `agent-tui/src/`, `agent-eval/src/`                                                                                                      | —        | —         | 50    |
+| Workspace overall        | `crates/`, `apps/agent-gui/src-tauri/src/`                                                                                               | 70       | 50        | 70    |
+
+Each group also enforces a `minFiles` floor to catch report truncation.
+
+### Web tiers (`apps/agent-gui/vitest.config.ts`)
+
+| Tier               | Glob                           | statements | branches | functions | lines |
+| ------------------ | ------------------------------ | ---------- | -------- | --------- | ----- |
+| Global             | aggregate                      | 80         | 72       | 76        | 80    |
+| **T1 Utils**       | `src/utils/**/*.ts`            | 92         | 90       | 95        | 92    |
+| **T2 Stores**      | `src/stores/**/*.ts`           | 80         | 67       | 80        | 82    |
+| **T2 Composables** | `src/composables/**/*.ts`      | 74         | 60       | 78        | 74    |
+| **T3 Components**  | `src/components/**/*.{ts,vue}` | 78         | 72       | 74        | 78    |
+| **T3 Views**       | `src/views/**/*.vue`           | 90         | 82       | 78        | 90    |
+
+### Local calibration
+
+```bash
+bun run coverage:rust   # macOS may hit aws-lc-sys + Apple clang panic; rely on CI
+bun run coverage:web    # works on macOS without extra setup
+```
+
+`bun run coverage:rust` ends with `Rust coverage thresholds satisfied.` on success or prints a list of failing groups + metric deltas.
+
+### Adjusting thresholds
+
+When real coverage tracks above a threshold by ≥3pp on `origin/main` for several PRs in a row, raise the threshold in the same PR that added the new tests, by editing the relevant entry in `scripts/check-rust-coverage.mjs` (Rust) or `apps/agent-gui/vitest.config.ts` (Web). When a threshold blocks a legitimate PR, prefer adding tests over lowering the threshold; only fall back to a one-line `metric: floor(actual − 1)` exemption when the gap is < 5pp and the gap is documented in the PR body with a follow-up plan.
+
+`KAIROX_COVERAGE_ALLOW_PARTIAL=1` only suppresses "no files matched" warnings (useful when running `coverage:rust` against a partial workspace). It does **not** bypass threshold checks.
+
 ## AI coding guidelines
 
 ### tauri-specta for type generation

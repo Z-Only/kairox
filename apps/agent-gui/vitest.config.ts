@@ -32,40 +32,52 @@ export default defineConfig({
         "src/types/**",
         "src/env.d.ts"
       ],
+      // Thresholds are organised by risk tier:
+      //   T1 (utils)        — pure functions, easy to test exhaustively
+      //   T2 (stores, composables) — Pinia stores + reusable business logic;
+      //                       user-action aggregation points
+      //   T3 (components, views)   — UI presentation layer
+      // Aggregate (no glob) is the workspace floor.
       thresholds: {
-        statements: 79,
+        statements: 80,
         branches: 72,
         functions: 76,
         lines: 80,
+        // T3
         "src/components/**/*.{ts,vue}": {
           statements: 78,
           branches: 72,
           functions: 74,
           lines: 78
         },
-        "src/composables/**/*.ts": {
-          statements: 68,
-          branches: 54,
-          functions: 76,
-          lines: 70
-        },
-        "src/stores/**/*.ts": {
-          statements: 78,
-          branches: 64,
-          functions: 78,
-          lines: 80
-        },
-        "src/utils/**/*.ts": {
-          statements: 92,
-          branches: 90,
-          functions: 95,
-          lines: 92
-        },
+        // T3
         "src/views/**/*.vue": {
           statements: 90,
           branches: 82,
           functions: 78,
           lines: 90
+        },
+        // T2 — branches 67.08% in baseline; held at 67 (local exemption per
+        // §校准流程 §6, target 70 in follow-up PR).
+        "src/stores/**/*.ts": {
+          statements: 80,
+          branches: 67,
+          functions: 80,
+          lines: 82
+        },
+        // T2
+        "src/composables/**/*.ts": {
+          statements: 74,
+          branches: 60,
+          functions: 78,
+          lines: 74
+        },
+        // T1
+        "src/utils/**/*.ts": {
+          statements: 92,
+          branches: 90,
+          functions: 95,
+          lines: 92
         }
       }
     }
