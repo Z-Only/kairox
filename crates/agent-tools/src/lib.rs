@@ -5,6 +5,7 @@ pub mod fs_read;
 pub mod fs_write;
 pub mod patch;
 pub mod permission;
+pub mod policy;
 pub mod provider;
 pub mod registry;
 pub mod search;
@@ -15,6 +16,10 @@ pub use agent_mcp::McpTransportDef;
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
 pub use permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolEffect, ToolRisk};
+pub use policy::{
+    legacy_mode_for, ApprovalPolicy, ApprovalReason, PolicyDecision, PolicyEffect, PolicyEngine,
+    PolicyRisk, SandboxPolicy,
+};
 pub use provider::{BuiltinProvider, McpToolAdapter};
 pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
