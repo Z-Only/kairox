@@ -19,6 +19,8 @@ async fn full_stack_event_stream_matches_trace() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

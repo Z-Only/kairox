@@ -259,6 +259,8 @@ impl EvalHarness {
                         .unwrap_or(self.options.permission_mode)
                         .to_string(),
                 ),
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await?;
 

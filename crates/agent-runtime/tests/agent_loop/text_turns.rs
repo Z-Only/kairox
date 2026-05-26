@@ -31,6 +31,8 @@ async fn agent_loop_stops_when_no_tool_calls() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -69,6 +71,8 @@ async fn agent_loop_emits_completion_event_sequence() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

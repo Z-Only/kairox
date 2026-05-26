@@ -69,6 +69,8 @@ pub async fn start_session(
             workspace_id: workspace_id.clone(),
             model_profile: profile.clone(),
             permission_mode: permission_mode.clone(),
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .map_err(|e| format!("Failed to start session: {e}"))?;

@@ -18,6 +18,8 @@ async fn full_stack_memory_store_queries() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

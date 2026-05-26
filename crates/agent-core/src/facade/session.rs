@@ -21,6 +21,17 @@ pub struct StartSessionRequest {
     pub workspace_id: WorkspaceId,
     pub model_profile: String,
     pub permission_mode: Option<String>,
+    /// New double-axis approval policy (`never` | `on_request` | `always`).
+    /// When set together with `sandbox_policy`, takes precedence over
+    /// the legacy `permission_mode`; when omitted, the runtime derives
+    /// `(approval, sandbox)` from `permission_mode` via the shim.
+    #[serde(default)]
+    pub approval_policy: Option<String>,
+    /// New double-axis sandbox policy serialized as JSON
+    /// (`{"kind":"read_only"}` | `{"kind":"workspace_write",...}` |
+    /// `{"kind":"danger_full_access"}`). See `SandboxPolicy` in `agent-tools`.
+    #[serde(default)]
+    pub sandbox_policy: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,6 +80,14 @@ pub struct SessionMeta {
     pub branch: Option<String>,
     pub visibility: Option<ProjectSessionVisibility>,
     pub permission_mode: Option<String>,
+    /// Persisted approval policy for this session. `None` for sessions
+    /// created before the double-axis migration.
+    #[serde(default)]
+    pub approval_policy: Option<String>,
+    /// Persisted sandbox policy JSON for this session. `None` for sessions
+    /// created before the double-axis migration.
+    #[serde(default)]
+    pub sandbox_policy: Option<String>,
     pub session_id: SessionId,
     pub workspace_id: WorkspaceId,
     pub title: String,

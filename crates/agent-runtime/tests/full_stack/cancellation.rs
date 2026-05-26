@@ -25,6 +25,8 @@ async fn full_stack_cancel_session() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -94,6 +96,8 @@ async fn cancellation_stops_agent_loop_mid_stream() {
             model_profile: "slow".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

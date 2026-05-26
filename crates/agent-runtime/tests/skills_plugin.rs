@@ -46,6 +46,8 @@ async fn activate_plugin_skill_with_namespaced_id() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -85,6 +87,8 @@ async fn disabled_plugin_skill_does_not_reactivate_from_stale_session_state() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -154,6 +158,8 @@ async fn plugin_skill_block_appears_in_model_request() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -218,6 +224,8 @@ async fn disabled_plugin_skill_is_pruned_before_model_request_blocks() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -300,6 +308,8 @@ async fn activate_plugin_skill_without_namespace_qualifier_fails() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");
@@ -413,6 +423,8 @@ async fn same_name_workspace_and_plugin_skills_activate_independently() {
             workspace_id: workspace.workspace_id.clone(),
             model_profile: "fake".into(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .expect("session should start");

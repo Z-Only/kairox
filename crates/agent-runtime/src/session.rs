@@ -84,12 +84,19 @@ pub async fn open_workspace<S: EventStore>(
 }
 
 /// Start a new agent session within a workspace.
+///
+/// `approval_policy` and `sandbox_policy` carry the new double-axis values.
+/// When omitted, the runtime derives them from `permission_mode` via the
+/// legacy shim and persists them alongside the legacy column so downstream
+/// readers can transition incrementally.
 pub async fn start_session<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
     workspace_id: WorkspaceId,
     model_profile: String,
     permission_mode: Option<String>,
+    approval_policy: Option<String>,
+    sandbox_policy: Option<String>,
 ) -> agent_core::Result<SessionId> {
     let session_id = SessionId::new();
     let event = DomainEvent::new(
@@ -103,9 +110,12 @@ pub async fn start_session<S: EventStore>(
     );
     append_and_broadcast(store, event_tx, &event).await?;
 
-    // Persist session metadata for session recovery
+    // Persist session metadata for session recovery.
     let now = chrono::Utc::now().to_rfc3339();
-    let perm = permission_mode.unwrap_or_else(|| "suggest".to_string());
+    let perm = permission_mode
+        .clone()
+        .unwrap_or_else(|| "suggest".to_string());
+    let (approval_str, sandbox_str) = derive_policy_strings(&perm, approval_policy, sandbox_policy);
     let session_row = SessionRow {
         session_id: session_id.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -114,8 +124,8 @@ pub async fn start_session<S: EventStore>(
         model_id: None,
         provider: None,
         permission_mode: perm,
-        approval_policy: None,
-        sandbox_policy: None,
+        approval_policy: Some(approval_str),
+        sandbox_policy: Some(sandbox_str),
         deleted_at: None,
         created_at: now.clone(),
         updated_at: now,
@@ -125,6 +135,30 @@ pub async fn start_session<S: EventStore>(
     }
 
     Ok(session_id)
+}
+
+/// Derive `(approval_policy_str, sandbox_policy_json)` for storage.
+///
+/// Preference order:
+/// 1. Caller-provided values (already canonical strings/JSON).
+/// 2. Shim conversion from legacy `permission_mode`.
+fn derive_policy_strings(
+    permission_mode: &str,
+    approval_override: Option<String>,
+    sandbox_override: Option<String>,
+) -> (String, String) {
+    use agent_tools::{ApprovalPolicy, PermissionMode, SandboxPolicy};
+
+    let parsed_mode = permission_mode
+        .parse::<PermissionMode>()
+        .unwrap_or(PermissionMode::Suggest);
+    let (default_approval, default_sandbox): (ApprovalPolicy, SandboxPolicy) = parsed_mode.into();
+
+    let approval = approval_override.unwrap_or_else(|| default_approval.to_string());
+    let sandbox = sandbox_override
+        .unwrap_or_else(|| serde_json::to_string(&default_sandbox).unwrap_or_default());
+
+    (approval, sandbox)
 }
 
 /// Cancel a running session.
@@ -269,6 +303,8 @@ pub async fn list_sessions<S: EventStore>(
             branch: None,
             visibility: None,
             permission_mode: Some(row.permission_mode.clone()),
+            approval_policy: row.approval_policy.clone(),
+            sandbox_policy: row.sandbox_policy.clone(),
             session_id: SessionId::from_string(row.session_id),
             workspace_id: WorkspaceId::from_string(row.workspace_id),
             title: row.title,

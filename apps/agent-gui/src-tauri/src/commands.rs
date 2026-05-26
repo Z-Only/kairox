@@ -178,6 +178,8 @@ mod tests {
             branch: None,
             visibility: None,
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
             session_id: SessionId::from_string("ses_archived".to_string()),
             workspace_id: WorkspaceId::from_string("wrk_default".to_string()),
             title: "Archived task".into(),

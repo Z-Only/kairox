@@ -313,6 +313,8 @@ mod integration_tests {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await
             .unwrap();
@@ -330,6 +332,8 @@ mod integration_tests {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await
             .unwrap();
@@ -359,6 +363,8 @@ mod integration_tests {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await
             .unwrap();
@@ -390,6 +396,8 @@ mod integration_tests {
                 model_profile: "fake".into(),
 
                 permission_mode: None,
+                approval_policy: None,
+                sandbox_policy: None,
             })
             .await
             .unwrap();

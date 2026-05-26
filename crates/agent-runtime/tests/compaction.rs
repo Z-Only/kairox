@@ -42,6 +42,8 @@ async fn fixture_runtime_with_history(
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

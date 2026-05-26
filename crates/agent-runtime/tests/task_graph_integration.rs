@@ -20,6 +20,8 @@ async fn create_runtime() -> (
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

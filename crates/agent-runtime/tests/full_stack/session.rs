@@ -18,6 +18,8 @@ async fn full_stack_start_session_under_workspace() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -46,6 +48,8 @@ async fn full_stack_rename_and_soft_delete_session() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

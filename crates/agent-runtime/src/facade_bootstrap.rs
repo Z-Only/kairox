@@ -6,7 +6,10 @@ use agent_core::{PermissionDecision, SendMessageRequest};
 use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
-use agent_tools::{BuiltinProvider, PermissionEngine, PermissionMode, ToolProvider, ToolRegistry};
+use agent_tools::{
+    ApprovalPolicy, BuiltinProvider, PermissionEngine, PermissionMode, SandboxPolicy, ToolProvider,
+    ToolRegistry,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -106,6 +109,34 @@ where
         self.permission_engine.lock().await.set_mode(mode);
         self.store
             .update_permission_mode(session_id.as_str(), &mode.to_string())
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
+    /// Persist approval policy for a specific session (double-axis API).
+    /// Writes only the `approval_policy` column; sandbox stays unchanged.
+    pub async fn set_session_approval_policy(
+        &self,
+        session_id: &agent_core::SessionId,
+        approval: ApprovalPolicy,
+    ) -> agent_core::Result<()> {
+        self.store
+            .update_approval_policy(session_id.as_str(), &approval.to_string())
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
+    }
+
+    /// Persist sandbox policy for a specific session (double-axis API).
+    /// Writes only the `sandbox_policy` column as JSON; approval stays unchanged.
+    pub async fn set_session_sandbox_policy(
+        &self,
+        session_id: &agent_core::SessionId,
+        sandbox: &SandboxPolicy,
+    ) -> agent_core::Result<()> {
+        let json = serde_json::to_string(sandbox)
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+        self.store
+            .update_sandbox_policy(session_id.as_str(), &json)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))
     }

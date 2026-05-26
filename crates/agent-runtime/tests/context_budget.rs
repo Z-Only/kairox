@@ -48,6 +48,8 @@ async fn context_assembled_event_emitted_with_budget_respected() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -157,6 +159,8 @@ base_url = "{}"
             model_profile: "ollama-test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

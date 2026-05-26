@@ -23,6 +23,8 @@ async fn full_stack_send_message_text_only() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -58,6 +60,8 @@ async fn full_stack_tool_call_with_permission_grant() {
             model_profile: "test".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();
@@ -125,6 +129,8 @@ async fn full_stack_agent_mode_completes_without_prompt() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

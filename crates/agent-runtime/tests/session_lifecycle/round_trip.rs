@@ -23,6 +23,8 @@ async fn full_workspace_session_round_trip() {
             model_profile: "fake".into(),
 
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
         .unwrap();

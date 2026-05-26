@@ -25,6 +25,8 @@ pub(super) async fn start_session(
             workspace_id,
             model_profile: model_profile.clone(),
             permission_mode: None,
+            approval_policy: None,
+            sandbox_policy: None,
         })
         .await
     {
