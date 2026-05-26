@@ -120,6 +120,31 @@ run_coverage_group() {
   local source_count
   source_count="$(grep -c '^SF:' "$output_path" || true)"
   echo "Generated ${output_path} with ${source_count} source files"
+  print_lcov_breakdown "$output_path"
+}
+
+# Diagnostic helper: group every SF: record in an LCOV file by its top-level
+# workspace path (crate or app). check-rust-coverage.mjs has been reporting
+# "no files matched" for the T2 high-risk runtime tier and "0% lines / 0%
+# functions" for T2 Tauri / T4 UI; emitting this breakdown at CI time is the
+# cheapest way to learn whether grcov dropped records for those crates before
+# group classification, or whether classification itself is buggy.
+print_lcov_breakdown() {
+  local lcov_path="$1"
+  if [ ! -f "$lcov_path" ]; then
+    return
+  fi
+  local sf_count
+  sf_count="$(grep -c '^SF:' "$lcov_path" 2>/dev/null || echo 0)"
+  echo "[diag] LCOV breakdown for ${lcov_path} (${sf_count} SF records):"
+  if [ "${sf_count}" -eq 0 ]; then
+    echo "[diag]   (empty)"
+    return
+  fi
+  grep '^SF:' "$lcov_path" \
+    | sed -E 's|.*/(crates/[^/]+)/.*|\1|; s|.*/(apps/agent-gui/src-tauri)/.*|\1|' \
+    | sort | uniq -c | sort -rn \
+    | sed 's/^/[diag]   /'
 }
 
 grcov="$(install_grcov)"
@@ -148,5 +173,7 @@ cat \
   "${coverage_dir}/rust-tools.lcov" \
   "${coverage_dir}/rust-ui.lcov" \
   >"${coverage_dir}/rust.lcov"
+
+print_lcov_breakdown "${coverage_dir}/rust.lcov"
 
 bun scripts/check-rust-coverage.mjs "${coverage_dir}/rust.lcov"
