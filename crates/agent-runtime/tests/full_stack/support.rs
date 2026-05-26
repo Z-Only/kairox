@@ -4,7 +4,9 @@ use agent_memory::SqliteMemoryStore;
 use agent_models::{FakeModelClient, ModelClient, ModelEvent, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::{PermissionMode, Tool, ToolDefinition, ToolInvocation, ToolOutput};
+use agent_tools::{
+    ApprovalPolicy, SandboxPolicy, Tool, ToolDefinition, ToolInvocation, ToolOutput,
+};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -83,14 +85,26 @@ impl Tool for EchoTool {
 pub(crate) async fn make_simple_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["Simple response".into()]);
-    LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest)
+    LocalRuntime::new(store, model).with_approval_and_sandbox(
+        ApprovalPolicy::Always,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )
 }
 
 /// Create an in-memory runtime with tool-calling model and a registered echo tool.
 pub(crate) async fn make_tool_runtime() -> LocalRuntime<SqliteEventStore, ToolThenTextModel> {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = ToolThenTextModel::new("Tool was executed successfully");
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Agent);
+    let runtime = LocalRuntime::new(store, model).with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
     let registry = runtime.tool_registry();
     registry.lock().await.register(Box::new(EchoTool));
     runtime
@@ -103,6 +117,12 @@ pub(crate) async fn make_runtime_with_memory() -> LocalRuntime<SqliteEventStore,
         Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
     let model = FakeModelClient::new(vec!["response".into()]);
     LocalRuntime::new(store, model)
-        .with_permission_mode(PermissionMode::Suggest)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
         .with_memory_store(mem_store)
 }

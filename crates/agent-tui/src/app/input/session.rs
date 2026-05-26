@@ -17,7 +17,6 @@ impl App {
         let projects = self.state.projects.clone();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
-        let permission_mode = self.state.permission_mode;
         let sidebar_left = self.state.sidebar_left_visible;
         let sidebar_right = self.state.sidebar_right_visible;
         let ctx = EventContext {
@@ -26,7 +25,6 @@ impl App {
             projects: &projects,
             sessions: &sessions,
             model_profile: &model_profile,
-            permission_mode,
             sidebar_left_visible: sidebar_left,
             sidebar_right_visible: sidebar_right,
             workspace_id: &self.workspace_id,
@@ -47,7 +45,6 @@ impl App {
         let projects = self.state.projects.clone();
         let sessions = self.state.sessions.clone();
         let model_profile = self.state.model_profile.clone();
-        let permission_mode = self.state.permission_mode;
         let sidebar_left = self.state.sidebar_left_visible;
         let sidebar_right = self.state.sidebar_right_visible;
         let ctx = EventContext {
@@ -56,7 +53,6 @@ impl App {
             projects: &projects,
             sessions: &sessions,
             model_profile: &model_profile,
-            permission_mode,
             sidebar_left_visible: sidebar_left,
             sidebar_right_visible: sidebar_right,
             workspace_id: &self.workspace_id,

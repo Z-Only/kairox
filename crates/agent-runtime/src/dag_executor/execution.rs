@@ -8,7 +8,7 @@ use agent_core::{
 };
 use agent_models::ModelClient;
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, PermissionMode};
+use agent_tools::{parse_legacy_mode, ApprovalPolicy, PermissionEngine, SandboxPolicy};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -39,19 +39,24 @@ where
         ))
     })?;
 
-    // Apply per-agent permission mode if the strategy provides an override.
-    let previous_permission_mode = if let Some(mode_str) = strategy.permission_mode_override() {
-        if let Ok(mode) = mode_str.parse::<PermissionMode>() {
-            let mut engine = permission_engine.lock().await;
-            let prev = *engine.mode();
-            engine.set_mode(mode);
-            Some(prev)
+    // Apply per-agent policy if the strategy provides an override. Strategies
+    // still report a legacy `permission_mode` string from agent settings; we
+    // translate that into the canonical `(approval, sandbox)` pair on the way
+    // in and snapshot the previous pair so we can restore it after the task.
+    let previous_policy: Option<(ApprovalPolicy, SandboxPolicy)> =
+        if let Some(mode_str) = strategy.permission_mode_override() {
+            if let Some((approval, sandbox)) = parse_legacy_mode(mode_str) {
+                let mut engine = permission_engine.lock().await;
+                let prev = (engine.approval_policy(), engine.sandbox_policy().clone());
+                engine.set_approval_policy(approval);
+                engine.set_sandbox_policy(sandbox);
+                Some(prev)
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
+        };
 
     let messages = strategy.build_context(task, graph, session_events).await;
     let decision = strategy.decide(ctx, messages).await;
@@ -165,9 +170,11 @@ where
         }
     };
 
-    // Restore previous permission mode if it was overridden.
-    if let Some(prev_mode) = previous_permission_mode {
-        permission_engine.lock().await.set_mode(prev_mode);
+    // Restore previous policy pair if it was overridden.
+    if let Some((prev_approval, prev_sandbox)) = previous_policy {
+        let mut engine = permission_engine.lock().await;
+        engine.set_approval_policy(prev_approval);
+        engine.set_sandbox_policy(prev_sandbox);
     }
 
     result

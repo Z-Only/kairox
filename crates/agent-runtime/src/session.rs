@@ -112,10 +112,8 @@ pub async fn start_session<S: EventStore>(
 
     // Persist session metadata for session recovery.
     let now = chrono::Utc::now().to_rfc3339();
-    let perm = permission_mode
-        .clone()
-        .unwrap_or_else(|| "suggest".to_string());
-    let (approval_str, sandbox_str) = derive_policy_strings(&perm, approval_policy, sandbox_policy);
+    let (perm, approval_str, sandbox_str) =
+        derive_policy_strings(permission_mode.as_deref(), approval_policy, sandbox_policy);
     let session_row = SessionRow {
         session_id: session_id.to_string(),
         workspace_id: workspace_id.to_string(),
@@ -137,28 +135,42 @@ pub async fn start_session<S: EventStore>(
     Ok(session_id)
 }
 
-/// Derive `(approval_policy_str, sandbox_policy_json)` for storage.
+/// Derive `(legacy_label, approval_policy_str, sandbox_policy_json)` for storage.
 ///
-/// Preference order:
-/// 1. Caller-provided values (already canonical strings/JSON).
-/// 2. Shim conversion from legacy `permission_mode`.
+/// Resolution order for the dual-axis fields:
+/// 1. Caller-provided `approval_override` / `sandbox_override` (already canonical).
+/// 2. Legacy `permission_mode` parsed via `parse_legacy_mode`.
+/// 3. `ApprovalPolicy` / `SandboxPolicy` defaults.
+///
+/// The legacy `permission_mode` column is then re-derived from the resolved
+/// `(approval, sandbox)` tuple via `legacy_mode_string_for`, so the row stays
+/// internally consistent even when callers pass mismatched legacy + dual-axis
+/// values during the deprecation window.
 fn derive_policy_strings(
-    permission_mode: &str,
+    permission_mode: Option<&str>,
     approval_override: Option<String>,
     sandbox_override: Option<String>,
-) -> (String, String) {
-    use agent_tools::{ApprovalPolicy, PermissionMode, SandboxPolicy};
+) -> (String, String, String) {
+    use agent_tools::{legacy_mode_string_for, parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
 
-    let parsed_mode = permission_mode
-        .parse::<PermissionMode>()
-        .unwrap_or(PermissionMode::Suggest);
-    let (default_approval, default_sandbox): (ApprovalPolicy, SandboxPolicy) = parsed_mode.into();
+    let legacy_parsed = permission_mode.and_then(parse_legacy_mode);
 
-    let approval = approval_override.unwrap_or_else(|| default_approval.to_string());
-    let sandbox = sandbox_override
-        .unwrap_or_else(|| serde_json::to_string(&default_sandbox).unwrap_or_default());
+    let approval: ApprovalPolicy = approval_override
+        .as_deref()
+        .and_then(|s| s.parse().ok())
+        .or_else(|| legacy_parsed.as_ref().map(|(a, _)| *a))
+        .unwrap_or_default();
 
-    (approval, sandbox)
+    let sandbox: SandboxPolicy = sandbox_override
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .or_else(|| legacy_parsed.as_ref().map(|(_, s)| s.clone()))
+        .unwrap_or_default();
+
+    let approval_str = approval.to_string();
+    let sandbox_str = serde_json::to_string(&sandbox).unwrap_or_default();
+    let legacy = legacy_mode_string_for(approval, &sandbox).to_string();
+    (legacy, approval_str, sandbox_str)
 }
 
 /// Cancel a running session.

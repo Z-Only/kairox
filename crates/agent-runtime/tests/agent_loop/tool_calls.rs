@@ -8,7 +8,7 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::{ModelClient, ModelEvent, ModelMessage, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
@@ -61,7 +61,13 @@ async fn agent_loop_processes_tool_call_and_continues() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = ToolCallingModelClient::new();
     let mut runtime = LocalRuntime::new(store, model);
-    runtime = runtime.with_permission_mode(PermissionMode::Agent);
+    runtime = runtime.with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
 
     // Register echo tool
     let registry = runtime.tool_registry();
@@ -195,7 +201,13 @@ async fn agent_loop_feeds_tool_results_to_next_model_request() {
     // Clone the call-count Arc before model is moved into the runtime.
     let call_count = model.call_count.clone();
     let mut runtime = LocalRuntime::new(store, model);
-    runtime = runtime.with_permission_mode(PermissionMode::Agent);
+    runtime = runtime.with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
 
     // Register the same EchoTool from the existing test above.
     let registry = runtime.tool_registry();

@@ -6,7 +6,6 @@
 use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
 use agent_core::projection::{ProjectedMessage, ProjectedRole};
 use agent_core::{AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId};
-use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::components::trace::RightPanelTab;
 use agent_tui::components::{FocusTarget, QueuedMessage, SessionInfo, SessionState};
@@ -20,7 +19,7 @@ use support::render::render_app;
 fn seeded_app() -> App {
     let workspace_id = WorkspaceId::from_string("wrk_full_app_render".into());
     let session_id = SessionId::from_string("ses_full_app_render".into());
-    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id);
+    let mut app = App::new("fake", workspace_id);
     app.current_session_id = Some(session_id.clone());
     app.state.sessions = vec![SessionInfo {
         id: session_id,
@@ -90,7 +89,8 @@ fn full_app_renders_core_shell_regions_without_hiding_composer() {
         "composer prompt and draft should be visible:\n{output}"
     );
     assert!(output.contains(" fake "), "{output}");
-    assert!(output.contains(" suggest "), "{output}");
+    assert!(output.contains("A:on_request"), "{output}");
+    assert!(output.contains("S:workspace_write"), "{output}");
 }
 
 #[test]

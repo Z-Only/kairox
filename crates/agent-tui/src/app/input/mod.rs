@@ -92,7 +92,6 @@ mod tests {
         AgentRole, ProjectSessionVisibility, SessionId, TaskId, TaskState, WorkspaceId,
     };
     use agent_memory::MemoryScope;
-    use agent_tools::PermissionMode;
 
     fn task_snapshot(
         id: TaskId,
@@ -137,7 +136,7 @@ mod tests {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = agent_core::SessionId::from_string("ses_test".into());
         let task_id = TaskId::from_string("task_failed".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        let mut app = App::new("test", workspace_id.clone());
         app.current_session_id = Some(session_id.clone());
         app.trace.active_tab = RightPanelTab::Tasks;
         app.trace.selected_task_index = 0;
@@ -170,7 +169,7 @@ mod tests {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = agent_core::SessionId::from_string("ses_test".into());
         let task_id = TaskId::from_string("task_blocked".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        let mut app = App::new("test", workspace_id.clone());
         app.current_session_id = Some(session_id.clone());
         app.trace.active_tab = RightPanelTab::Tasks;
         app.trace.selected_task_index = 0;
@@ -204,7 +203,7 @@ mod tests {
         let root_id = TaskId::from_string("task_root".into());
         let child_id = TaskId::from_string("task_child".into());
         let grandchild_id = TaskId::from_string("task_grandchild".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.state.focus_manager.set(FocusTarget::Trace);
         app.sync_component_focus();
         app.trace.active_tab = RightPanelTab::Tasks;
@@ -260,7 +259,7 @@ mod tests {
     #[test]
     fn cycling_to_memory_tab_requests_memory_load() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.trace.active_tab = RightPanelTab::Tasks;
 
         let commands = app.apply_action(KeyAction::CycleTraceTabNext);
@@ -279,7 +278,7 @@ mod tests {
     #[test]
     fn memory_scope_cycle_updates_filter_and_loads_memories() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.trace.active_tab = RightPanelTab::Memory;
 
         let commands = app.apply_action(KeyAction::CycleMemoryScope);
@@ -298,7 +297,7 @@ mod tests {
     #[test]
     fn memory_search_enter_loads_keyword_filter() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.trace.active_tab = RightPanelTab::Memory;
 
         assert!(app.apply_action(KeyAction::StartMemorySearch).is_empty());
@@ -321,7 +320,7 @@ mod tests {
     #[test]
     fn memory_search_mode_captures_filter_shortcut_characters() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.state.focus_manager.set(FocusTarget::Trace);
         app.sync_component_focus();
         app.trace.active_tab = RightPanelTab::Memory;
@@ -344,7 +343,7 @@ mod tests {
     #[test]
     fn memory_refresh_uses_current_filters() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.trace.active_tab = RightPanelTab::Memory;
         app.trace.memory_scope_filter = MemoryScopeFilter::Workspace;
         app.trace.memory_search_query = "release notes".into();
@@ -364,7 +363,7 @@ mod tests {
     #[test]
     fn memory_tab_emits_delete_command_for_selected_memory() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.trace.active_tab = RightPanelTab::Memory;
         app.trace.set_memory_rows(vec![MemoryRow::new(
             "mem_user".into(),
@@ -396,7 +395,7 @@ mod tests {
     fn context_details_shortcut_routes_compact_command() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = SessionId::from_string("ses_current".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        let mut app = App::new("test", workspace_id.clone());
         app.current_session_id = Some(session_id.clone());
         app.last_context_usage = Some(agent_core::context_types::ContextUsage {
             total_tokens: 110_000,
@@ -438,7 +437,7 @@ mod tests {
     #[test]
     fn f1_toggles_help_overlay_without_commands() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
 
         let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
             crossterm::event::KeyEvent::new(
@@ -466,7 +465,7 @@ mod tests {
     #[test]
     fn f1_opens_help_overlay_above_existing_overlay() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.dispatch_effects(vec![CrossPanelEffect::ShowCommandPalette]);
 
         let commands = app.handle_crossterm_event(&crossterm::event::Event::Key(
@@ -490,7 +489,7 @@ mod tests {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let current = SessionId::from_string("ses_current".into());
         let next = SessionId::from_string("ses_next".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.current_session_id = Some(current.clone());
         app.state.sessions = vec![
             session_info(current.clone(), "current"),
@@ -521,7 +520,7 @@ mod tests {
         let mut archived = session_info(archived_id.clone(), "archived");
         archived.archived = true;
         archived.visibility = Some(ProjectSessionVisibility::Archived);
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.state.sessions = vec![archived];
         app.state.focus_manager.set(FocusTarget::Sessions);
 
@@ -549,7 +548,7 @@ mod tests {
     fn typing_updates_current_session_draft() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = SessionId::from_string("ses_current".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.current_session_id = Some(session_id.clone());
 
         let commands = app.apply_action(KeyAction::InputCharacter('a'));
@@ -567,7 +566,7 @@ mod tests {
     fn sending_message_clears_current_session_draft_after_send_command() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
         let session_id = SessionId::from_string("ses_current".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+        let mut app = App::new("test", workspace_id.clone());
         app.current_session_id = Some(session_id.clone());
         app.state.sessions = vec![session_info(session_id.clone(), "current")];
         app.chat.input_content = "ready to send".to_string();
@@ -600,7 +599,7 @@ mod tests {
     #[test]
     fn mcp_trust_key_routes_to_permission_modal() {
         let workspace_id = WorkspaceId::from_string("wrk_test".into());
-        let mut app = App::new("test", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("test", workspace_id);
         app.dispatch_effects(vec![CrossPanelEffect::ShowPermissionPrompt(
             PermissionRequest {
                 request_id: "req_mcp".into(),

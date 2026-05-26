@@ -2,9 +2,8 @@ use agent_eval::{
     load_scenarios, write_results_jsonl, write_summary_json, EvalHarness, EvalRunOptions,
     EvalSummary, Result,
 };
-use agent_tools::PermissionMode;
+use agent_tools::{parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
@@ -21,7 +20,8 @@ async fn run() -> Result<()> {
         workspace_root: args.workspace,
         default_profile: args.profile,
         config: None,
-        permission_mode: args.permission_mode,
+        approval_policy: args.approval_policy,
+        sandbox_policy: args.sandbox_policy,
         include_trace: args.include_trace,
         enable_mcp: args.enable_mcp,
         enable_hooks: args.enable_hooks,
@@ -48,7 +48,8 @@ struct CliArgs {
     summary: Option<PathBuf>,
     workspace: PathBuf,
     profile: Option<String>,
-    permission_mode: PermissionMode,
+    approval_policy: ApprovalPolicy,
+    sandbox_policy: SandboxPolicy,
     include_trace: bool,
     enable_mcp: bool,
     enable_hooks: bool,
@@ -61,7 +62,11 @@ impl CliArgs {
         let mut summary = None;
         let mut workspace = std::env::current_dir()?;
         let mut profile = None;
-        let mut permission_mode = PermissionMode::Agent;
+        let mut approval_policy = ApprovalPolicy::OnRequest;
+        let mut sandbox_policy = SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        };
         let mut include_trace = false;
         let mut enable_mcp = false;
         let mut enable_hooks = false;
@@ -80,8 +85,10 @@ impl CliArgs {
                 "--profile" => profile = Some(next_value(&mut iter, "--profile")?),
                 "--permission-mode" => {
                     let raw = next_value(&mut iter, "--permission-mode")?;
-                    permission_mode = PermissionMode::from_str(&raw)
-                        .map_err(agent_eval::EvalError::PermissionMode)?;
+                    let (parsed_approval, parsed_sandbox) = parse_legacy_mode(&raw)
+                        .ok_or_else(|| agent_eval::EvalError::PermissionMode(raw.clone()))?;
+                    approval_policy = parsed_approval;
+                    sandbox_policy = parsed_sandbox;
                 }
                 "--include-trace" => include_trace = true,
                 "--enable-mcp" => enable_mcp = true,
@@ -106,7 +113,8 @@ impl CliArgs {
             summary,
             workspace,
             profile,
-            permission_mode,
+            approval_policy,
+            sandbox_policy,
             include_trace,
             enable_mcp,
             enable_hooks,

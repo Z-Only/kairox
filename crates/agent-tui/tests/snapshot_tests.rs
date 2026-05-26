@@ -3,7 +3,6 @@
 use agent_core::facade::TaskGraphSnapshot;
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 use agent_core::WorkspaceId;
-use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::components::chat::render_messages;
 use agent_tui::components::FocusTarget;
@@ -84,11 +83,7 @@ fn chat_panel_renders_streaming_token_with_cursor() {
 
 #[test]
 fn help_overlay_renders_keybinding_snapshot() {
-    let mut app = App::new(
-        "test",
-        PermissionMode::Suggest,
-        WorkspaceId::from_string("wrk_test".into()),
-    );
+    let mut app = App::new("test", WorkspaceId::from_string("wrk_test".into()));
     app.handle_crossterm_event(&crossterm::event::Event::Key(
         crossterm::event::KeyEvent::new(
             crossterm::event::KeyCode::F(1),
@@ -106,11 +101,7 @@ fn help_overlay_renders_keybinding_snapshot() {
 
 #[test]
 fn help_overlay_content_changes_with_current_focus() {
-    let mut app = App::new(
-        "test",
-        PermissionMode::Suggest,
-        WorkspaceId::from_string("wrk_test".into()),
-    );
+    let mut app = App::new("test", WorkspaceId::from_string("wrk_test".into()));
 
     app.handle_crossterm_event(&crossterm::event::Event::Key(
         crossterm::event::KeyEvent::new(
@@ -145,11 +136,7 @@ fn help_overlay_content_changes_with_current_focus() {
 
 #[test]
 fn help_overlay_content_changes_with_current_overlay() {
-    let mut app = App::new(
-        "test",
-        PermissionMode::Suggest,
-        WorkspaceId::from_string("wrk_test".into()),
-    );
+    let mut app = App::new("test", WorkspaceId::from_string("wrk_test".into()));
     app.dispatch_effects(vec![
         agent_tui::components::CrossPanelEffect::ShowCommandPalette,
     ]);

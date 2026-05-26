@@ -5,7 +5,7 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 #[tokio::test]
 async fn full_stack_data_persists_across_reconnection() {
@@ -21,7 +21,13 @@ async fn full_stack_data_persists_across_reconnection() {
     let original_ws_id = {
         let store = SqliteEventStore::connect(&database_url).await.unwrap();
         let model = FakeModelClient::new(vec!["persisted response".into()]);
-        let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+        let runtime = LocalRuntime::new(store, model).with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        );
 
         let ws = runtime
             .open_workspace("/tmp/persist-test".into())
@@ -56,8 +62,13 @@ async fn full_stack_data_persists_across_reconnection() {
     {
         let store2 = SqliteEventStore::connect(&database_url).await.unwrap();
         let model2 = FakeModelClient::new(vec!["new response".into()]);
-        let runtime2 =
-            LocalRuntime::new(store2, model2).with_permission_mode(PermissionMode::Suggest);
+        let runtime2 = LocalRuntime::new(store2, model2).with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        );
 
         let workspaces = runtime2.list_workspaces().await.unwrap();
         assert_eq!(workspaces.len(), 1, "Should recover workspace");

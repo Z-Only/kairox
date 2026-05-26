@@ -359,7 +359,6 @@ mod tests {
             projects: &[],
             sessions,
             model_profile: "fake",
-            permission_mode: agent_tools::PermissionMode::Suggest,
             sidebar_left_visible: true,
             sidebar_right_visible: true,
             workspace_id: Box::leak(Box::new(agent_core::WorkspaceId::new())),

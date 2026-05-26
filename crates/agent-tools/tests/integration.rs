@@ -1,6 +1,14 @@
-use agent_tools::permission::{PermissionEngine, PermissionMode, PermissionOutcome, ToolRisk};
+use agent_tools::permission::{PermissionEngine, PermissionOutcome, ToolRisk};
+use agent_tools::policy::{ApprovalPolicy, SandboxPolicy};
 use agent_tools::registry::{Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolRegistry};
 use agent_tools::{FsListTool, FsReadTool, FsWriteTool, ShellExecTool};
+
+fn ws_default() -> SandboxPolicy {
+    SandboxPolicy::WorkspaceWrite {
+        network_access: false,
+        writable_roots: vec![],
+    }
+}
 use async_trait::async_trait;
 use std::path::PathBuf;
 
@@ -73,13 +81,13 @@ async fn registry_lists_all_tools_including_custom() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Test 2 — PermissionEngine decide() per mode
+// Test 2 — PermissionEngine decide() per (approval, sandbox) pair
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn permission_engine_decide_per_mode() {
-    // ── ReadOnly mode ──────────────────────────────────────────────────────
-    let engine = PermissionEngine::new(PermissionMode::ReadOnly);
+fn permission_engine_decide_per_policy_pair() {
+    // ── (Never, ReadOnly) — formerly PermissionMode::ReadOnly ───────────────
+    let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
 
     // fs.read (read) → Allowed
     assert!(
@@ -111,8 +119,8 @@ fn permission_engine_decide_per_mode() {
         "ReadOnly should deny destructive ops, got: {destroy_decision:?}"
     );
 
-    // ── Suggest mode — reads allowed, everything else requires approval ─────
-    let suggest = PermissionEngine::new(PermissionMode::Suggest);
+    // ── (Always, WorkspaceWrite) — formerly PermissionMode::Suggest ─────────
+    let suggest = PermissionEngine::new(ApprovalPolicy::Always, ws_default());
     assert!(
         matches!(
             suggest.decide(&ToolRisk::read("fs.read")),
@@ -135,8 +143,8 @@ fn permission_engine_decide_per_mode() {
         "Suggest should require approval for shell"
     );
 
-    // ── Agent mode — reads and writes allowed; destructive needs approval ───
-    let agent = PermissionEngine::new(PermissionMode::Agent);
+    // ── (OnRequest, WorkspaceWrite) — formerly PermissionMode::Agent ─────────
+    let agent = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
     assert!(
         matches!(
             agent.decide(&ToolRisk::read("fs.read")),
@@ -166,44 +174,10 @@ fn permission_engine_decide_per_mode() {
         "Agent should require approval for destructive ops"
     );
 
-    // ── Interactive mode — collapses to (OnRequest, WorkspaceWrite); reads,
-    //    writes, and non-destructive shell all allowed by sandbox + OnRequest.
-    //    Only destructive ops or network pend. New semantics locked in by the
-    //    Approval × Sandbox split (see policy module).
-    let interactive = PermissionEngine::new(PermissionMode::Interactive);
-    assert!(
-        matches!(
-            interactive.decide(&ToolRisk::read("fs.read")),
-            PermissionOutcome::Allowed
-        ),
-        "Interactive should allow reads"
-    );
-    assert!(
-        matches!(
-            interactive.decide(&ToolRisk::write("fs.write")),
-            PermissionOutcome::Allowed
-        ),
-        "Interactive (OnRequest+WorkspaceWrite) should allow writes"
-    );
-    assert!(
-        matches!(
-            interactive.decide(&ToolRisk::shell("shell.exec", false)),
-            PermissionOutcome::Allowed
-        ),
-        "Interactive should allow non-destructive shell"
-    );
-    assert!(
-        matches!(
-            interactive.decide(&ToolRisk::destructive("rm.rf")),
-            PermissionOutcome::Pending
-        ),
-        "Interactive should pend destructive ops"
-    );
-
-    // ── Autonomous mode — (Never, DangerFullAccess); everything allowed
-    //    including destructive shell. To still gate destructive ops user picks
-    //    OnRequest approval instead. New semantics locked in.
-    let autonomous = PermissionEngine::new(PermissionMode::Autonomous);
+    // ── Autonomous — (Never, DangerFullAccess); everything allowed including
+    //    destructive shell. To gate destructive ops, pick OnRequest approval
+    //    instead.
+    let autonomous = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
     assert!(matches!(
         autonomous.decide(&ToolRisk::read("fs.read")),
         PermissionOutcome::Allowed

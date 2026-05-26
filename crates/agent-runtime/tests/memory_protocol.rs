@@ -8,7 +8,7 @@ use agent_memory::{MemoryEntry, MemoryScope, MemoryStore, SqliteMemoryStore};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::sync::Arc;
 
 /// Helper: create an in-memory SQLite pool for the memory store.
@@ -24,13 +24,14 @@ async fn memory_pool() -> sqlx::sqlite::SqlitePool {
 /// an in-memory SqliteMemoryStore wired in.
 async fn runtime_with_memory(
     model_responses: Vec<String>,
-    permission_mode: PermissionMode,
+    approval: ApprovalPolicy,
+    sandbox: SandboxPolicy,
 ) -> LocalRuntime<SqliteEventStore, FakeModelClient> {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(model_responses);
     let mem_store = SqliteMemoryStore::new(memory_pool().await).await.unwrap();
     LocalRuntime::new(store, model)
-        .with_permission_mode(permission_mode)
+        .with_approval_and_sandbox(approval, sandbox)
         .with_memory_store(Arc::new(mem_store))
 }
 
@@ -60,7 +61,11 @@ async fn start_session(
 async fn session_scope_memory_auto_accepted() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"session\">User likes dark mode</memory> I'll remember that.".into()],
-        PermissionMode::Suggest,
+        ApprovalPolicy::Always,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
     )
     .await;
     let (workspace_id, session_id) = start_session(&runtime).await;
@@ -127,7 +132,11 @@ async fn session_scope_memory_auto_accepted() {
 async fn user_scope_memory_requires_approval_in_suggest_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"user\" key=\"preferred-language\">Rust</memory> Noted!".into()],
-        PermissionMode::Suggest,
+        ApprovalPolicy::Always,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
     )
     .await;
     let (workspace_id, session_id) = start_session(&runtime).await;
@@ -168,13 +177,13 @@ async fn user_scope_memory_requires_approval_in_suggest_mode() {
             matches!(
                 &t.event.payload,
                 EventPayload::MemoryRejected { reason, .. }
-                if reason == "Auto-denied in Suggest mode"
+                if reason == "Auto-denied: approval=Always or sandbox=ReadOnly"
             )
         })
         .collect();
     assert!(
         !rejected.is_empty(),
-        "Expected MemoryRejected with 'Auto-denied in Suggest mode', found: {:?}",
+        "Expected MemoryRejected with 'Auto-denied: approval=Always or sandbox=ReadOnly', found: {:?}",
         trace
             .iter()
             .map(|t| format!("{:?}", t.event.payload))
@@ -186,7 +195,8 @@ async fn user_scope_memory_requires_approval_in_suggest_mode() {
 async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"workspace\" key=\"build-cmd\">cargo nextest</memory> Got it!".into()],
-        PermissionMode::Autonomous,
+        ApprovalPolicy::Never,
+        SandboxPolicy::DangerFullAccess,
     )
     .await;
     let (workspace_id, session_id) = start_session(&runtime).await;
@@ -225,7 +235,11 @@ async fn workspace_scope_memory_auto_accepted_in_autonomous_mode() {
 async fn user_scope_memory_auto_accepted_in_interactive_mode() {
     let runtime = runtime_with_memory(
         vec!["<memory scope=\"user\" key=\"editor\">Helix</memory> Saved.".into()],
-        PermissionMode::Interactive,
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
     )
     .await;
     let (workspace_id, session_id) = start_session(&runtime).await;
@@ -276,7 +290,11 @@ async fn memory_markers_stripped_from_display() {
             "Here's my answer. <memory scope=\"session\">temp note</memory> End of response."
                 .into(),
         ],
-        PermissionMode::Suggest,
+        ApprovalPolicy::Always,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
     )
     .await;
     let (workspace_id, session_id) = start_session(&runtime).await;
@@ -351,7 +369,13 @@ async fn stored_memories_injected_into_subsequent_request() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["Acknowledged your preference.".into()]);
     let runtime = LocalRuntime::new(store, model)
-        .with_permission_mode(PermissionMode::Suggest)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
         .with_memory_store(Arc::new(mem_store));
 
     let (workspace_id, session_id) = start_session(&runtime).await;

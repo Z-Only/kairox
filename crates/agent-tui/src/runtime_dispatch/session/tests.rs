@@ -39,7 +39,6 @@ async fn restore_session_draft_loads_saved_composer_text() {
         .unwrap();
     let mut app = App::new(
         "test",
-        agent_tools::PermissionMode::Suggest,
         agent_core::WorkspaceId::from_string("wrk_test".to_string()),
     );
     app.chat.input_content = "old text".to_string();
@@ -56,7 +55,6 @@ fn session_git_meta_applies_refreshed_status_to_session() {
     let session_id = agent_core::SessionId::from_string("ses_git".to_string());
     let mut app = App::new(
         "test",
-        agent_tools::PermissionMode::Suggest,
         agent_core::WorkspaceId::from_string("wrk_test".to_string()),
     );
     app.current_session_id = Some(session_id.clone());

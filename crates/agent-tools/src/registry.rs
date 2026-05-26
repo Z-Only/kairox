@@ -192,7 +192,8 @@ impl ToolRegistry {
 #[cfg(test)]
 mod registry_tests {
     use super::*;
-    use crate::permission::{PermissionEngine, PermissionMode};
+    use crate::permission::PermissionEngine;
+    use crate::policy::{ApprovalPolicy, SandboxPolicy};
 
     struct EchoTool;
 
@@ -240,7 +241,7 @@ mod registry_tests {
     async fn invoke_with_permission_allows_reads_in_readonly_mode() {
         let mut registry = ToolRegistry::new();
         registry.register(Box::new(EchoTool));
-        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
         let invocation = ToolInvocation {
             tool_id: "echo".into(),
             arguments: serde_json::json!({"text": "hello"}),
@@ -284,7 +285,7 @@ mod registry_tests {
 
         let mut registry = ToolRegistry::new();
         registry.register(Box::new(WriteTool));
-        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
         let invocation = ToolInvocation {
             tool_id: "write".into(),
             arguments: serde_json::json!({}),
@@ -301,7 +302,8 @@ mod registry_tests {
 #[cfg(test)]
 mod provider_tests {
     use super::*;
-    use crate::permission::{PermissionEngine, PermissionMode};
+    use crate::permission::PermissionEngine;
+    use crate::policy::{ApprovalPolicy, SandboxPolicy};
 
     struct SingleToolProvider {
         tool_id: String,
@@ -467,7 +469,7 @@ mod provider_tests {
             }))
             .await;
 
-        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
         let invocation = ToolInvocation {
             tool_id: "fs.read".into(),
             arguments: serde_json::json!({"path": "test.txt"}),

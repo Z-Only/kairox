@@ -11,7 +11,6 @@ use agent_core::facade::{
     SkillInstallTarget, SkillSourceView,
 };
 use agent_core::{ProjectSessionVisibility, SessionId, WorkspaceId};
-use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::app_state::SettingsConfigSource;
 use agent_tui::components::{
@@ -32,7 +31,7 @@ impl TerminalHarness {
     fn new() -> Self {
         let workspace_id = WorkspaceId::from_string("wrk_terminal_harness".into());
         let session_id = SessionId::from_string("ses_terminal_harness".into());
-        let mut app = App::new("fake", PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("fake", workspace_id);
         app.current_session_id = Some(session_id);
         Self { app }
     }

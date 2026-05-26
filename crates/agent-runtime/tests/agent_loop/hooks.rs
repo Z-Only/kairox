@@ -4,7 +4,7 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 use crate::tool_calls::ToolCallingModelClient;
 use crate::{hook_test_config, EchoTool};
@@ -74,7 +74,13 @@ async fn agent_loop_runs_pre_and_post_tool_hooks() {
             enabled: true,
         },
     ]));
-    runtime = runtime.with_permission_mode(PermissionMode::Agent);
+    runtime = runtime.with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
     runtime
         .tool_registry()
         .lock()

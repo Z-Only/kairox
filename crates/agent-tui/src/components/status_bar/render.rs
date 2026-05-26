@@ -61,17 +61,6 @@ pub(super) fn render_status_bar_with_notification(
 
     spans.push(Span::raw(" "));
 
-    // Permission mode badge (legacy single axis — kept until PR-2e removes it)
-    spans.push(Span::styled(
-        format!(" {} ", info.permission_mode_label()),
-        Style::default()
-            .bg(Color::Yellow)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD),
-    ));
-
-    spans.push(Span::raw(" "));
-
     // Approval-axis badge (orthogonal policy model) — only shown when set.
     let approval = info.approval_policy_label();
     if !approval.is_empty() {

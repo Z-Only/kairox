@@ -295,17 +295,6 @@ registerCommandHandlers({
     if (!sessionId) return Promise.reject(new Error("sessionId is required"));
     return Promise.resolve(clone(getProjection(sessionId).task_graph.tasks));
   },
-  get_permission_mode: function (args) {
-    return Promise.resolve(state.currentPermissionMode);
-  },
-  set_permission_mode: function (args) {
-    var mode = args.mode;
-    if (!mode) return Promise.reject(new Error("mode is required"));
-    state.currentPermissionMode = mode;
-    var session = getSession(state.currentSessionId);
-    if (session) session.permission_mode = mode;
-    return Promise.resolve(mode);
-  },
   get_session_approval_policy: function (args) {
     var session = getSession(state.currentSessionId);
     if (session && session.approval_policy) return Promise.resolve(session.approval_policy);
@@ -317,6 +306,7 @@ registerCommandHandlers({
     state.currentApprovalPolicy = approval;
     var session = getSession(state.currentSessionId);
     if (session) session.approval_policy = approval;
+    syncLegacyPermissionMode(state, session);
     return Promise.resolve(approval);
   },
   get_session_sandbox_policy: function (args) {
@@ -335,6 +325,7 @@ registerCommandHandlers({
     state.currentSandboxPolicy = sandboxJson;
     var session = getSession(state.currentSessionId);
     if (session) session.sandbox_policy = sandboxJson;
+    syncLegacyPermissionMode(state, session);
     return Promise.resolve(sandboxJson);
   },
   resolve_permission: function (args) {

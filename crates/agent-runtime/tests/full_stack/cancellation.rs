@@ -5,7 +5,7 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::{ModelClient, ModelEvent, ModelRequest};
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::sync::Arc;
@@ -83,8 +83,13 @@ async fn cancellation_stops_agent_loop_mid_stream() {
             "cancellation ".into(),
         ],
     };
-    let runtime =
-        Arc::new(LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest));
+    let runtime = Arc::new(LocalRuntime::new(store, model).with_approval_and_sandbox(
+        ApprovalPolicy::Always,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    ));
 
     let ws = runtime
         .open_workspace("/tmp/test-cancel-stream".into())

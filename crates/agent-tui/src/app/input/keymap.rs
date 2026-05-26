@@ -222,12 +222,6 @@ impl App {
                 }
                 self.state.render_scheduler.mark_dirty();
             }
-            KeyAction::CyclePermissionMode => {
-                let new_mode = self.state.cycle_permission_mode();
-                commands.push(Command::SetPermissionMode { mode: new_mode });
-                self.sync_status_bar();
-                self.state.render_scheduler.mark_dirty();
-            }
             KeyAction::CycleApprovalPolicy => {
                 let new_approval = self.state.cycle_approval_policy();
                 if let Some(session_id) = self.current_session_id.clone() {

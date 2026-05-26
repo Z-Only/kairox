@@ -275,7 +275,11 @@ async fn list_merges_file_runtime_and_trust_state() {
         }],
         Arc::new(Mutex::new(agent_tools::registry::ToolRegistry::new())),
         Arc::new(Mutex::new(agent_tools::permission::PermissionEngine::new(
-            agent_tools::PermissionMode::Suggest,
+            agent_tools::ApprovalPolicy::Always,
+            agent_tools::SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
         ))),
         None,
     )));

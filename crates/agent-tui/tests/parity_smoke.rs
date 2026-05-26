@@ -13,7 +13,6 @@ use agent_core::facade::{
 use agent_core::facade::{TaskGraphSnapshot, TaskSnapshot};
 use agent_core::projection::SessionProjection;
 use agent_core::{AgentRole, SessionId, TaskId, TaskState, WorkspaceId};
-use agent_tools::PermissionMode;
 use agent_tui::app::App;
 use agent_tui::components::command_palette::CommandPalette;
 use agent_tui::components::mcp_overlay::McpOverlay;
@@ -46,7 +45,6 @@ fn test_ctx(focus: FocusTarget, current_session_id: Option<SessionId>) -> EventC
         projects: &[],
         sessions,
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: true,
         workspace_id,
@@ -534,7 +532,7 @@ fn parity_smoke_queue_task_and_memory_panel_actions_remain_reachable() {
     let session_id = SessionId::from_string("ses_panels".into());
     let failed_task_id = TaskId::from_string("task_failed".into());
     let blocked_task_id = TaskId::from_string("task_blocked".into());
-    let mut app = App::new("test", PermissionMode::Suggest, workspace_id.clone());
+    let mut app = App::new("test", workspace_id.clone());
     app.current_session_id = Some(session_id.clone());
 
     app.chat

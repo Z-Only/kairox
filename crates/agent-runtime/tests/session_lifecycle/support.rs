@@ -111,6 +111,13 @@ impl EventStore for NonSqliteEventStore {
     async fn get_draft(&self, _session_id: &str) -> agent_store::Result<String> {
         Ok(String::new())
     }
+
+    async fn get_session_policies(
+        &self,
+        _session_id: &str,
+    ) -> agent_store::Result<Option<(Option<String>, Option<String>)>> {
+        Ok(None)
+    }
 }
 
 /// Helper: create an in-memory runtime for quick tests.

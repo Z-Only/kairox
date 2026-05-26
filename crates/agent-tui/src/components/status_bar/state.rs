@@ -29,7 +29,6 @@ impl StatusBar {
             focused: false,
             info: StatusInfo {
                 profile: String::new(),
-                permission_mode: String::new(),
                 approval_policy: String::new(),
                 sandbox_policy: String::new(),
                 session_count: 0,

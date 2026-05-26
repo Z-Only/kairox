@@ -7,7 +7,7 @@ use agent_core::{AppFacade, DomainEvent, SessionId, StartSessionRequest, Workspa
 use agent_memory::{MemoryStore, SqliteMemoryStore};
 use agent_models::ModelRouter;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use futures::StreamExt;
 use tokio::task::JoinHandle;
 
@@ -33,7 +33,8 @@ pub struct UiRuntimeOptions {
     pub data_dir: PathBuf,
     pub database_filename: String,
     pub workspace_root: PathBuf,
-    pub permission_mode: PermissionMode,
+    pub approval_policy: ApprovalPolicy,
+    pub sandbox_policy: SandboxPolicy,
     pub config: Config,
     pub catalog_sources: Vec<CatalogSourceConfig>,
     pub enable_marketplace: bool,
@@ -59,12 +60,14 @@ pub struct WorkspaceSessionBootstrap {
 }
 
 impl UiRuntimeOptions {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         home_dir: PathBuf,
         data_dir: PathBuf,
         database_filename: impl Into<String>,
         workspace_root: PathBuf,
-        permission_mode: PermissionMode,
+        approval_policy: ApprovalPolicy,
+        sandbox_policy: SandboxPolicy,
         config: Config,
         catalog_sources: Vec<CatalogSourceConfig>,
     ) -> Self {
@@ -73,7 +76,8 @@ impl UiRuntimeOptions {
             data_dir,
             database_filename: database_filename.into(),
             workspace_root,
-            permission_mode,
+            approval_policy,
+            sandbox_policy,
             config,
             catalog_sources,
             enable_marketplace: true,
@@ -249,7 +253,7 @@ pub async fn build_ui_runtime_from_store(
     let mcp_server_defs = options.config.mcp_server_defs();
     let config_arc = Arc::new(options.config.clone());
     let mut runtime = LocalRuntime::new(store, router)
-        .with_permission_mode(options.permission_mode)
+        .with_approval_and_sandbox(options.approval_policy, options.sandbox_policy)
         .with_context_limit(100_000)
         .with_memory_store(memory_store.clone())
         .with_config(config_arc)

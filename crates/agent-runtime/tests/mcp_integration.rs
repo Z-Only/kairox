@@ -9,7 +9,7 @@ use agent_memory::SqliteMemoryStore;
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::sync::Arc;
 
 async fn create_simple_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
@@ -18,7 +18,13 @@ async fn create_simple_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClie
     let mem_store: Arc<dyn agent_memory::MemoryStore> =
         Arc::new(SqliteMemoryStore::new(store.pool().clone()).await.unwrap());
     LocalRuntime::new(store, model)
-        .with_permission_mode(PermissionMode::Suggest)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
         .with_context_limit(100_000)
         .with_memory_store(mem_store)
 }
@@ -44,7 +50,13 @@ async fn create_runtime_with_mcp() -> LocalRuntime<SqliteEventStore, FakeModelCl
     }];
 
     LocalRuntime::new(store, model)
-        .with_permission_mode(PermissionMode::Suggest)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
         .with_context_limit(100_000)
         .with_memory_store(mem_store)
         .with_mcp_servers(configs)

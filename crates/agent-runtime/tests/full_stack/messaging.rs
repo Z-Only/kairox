@@ -6,7 +6,7 @@ use agent_core::{AppFacade, SendMessageRequest, StartSessionRequest};
 use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 use super::support::{make_simple_runtime, make_tool_runtime};
 
@@ -117,7 +117,13 @@ async fn full_stack_tool_call_with_permission_grant() {
 async fn full_stack_agent_mode_completes_without_prompt() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["response".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Agent);
+    let runtime = LocalRuntime::new(store, model).with_approval_and_sandbox(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    );
 
     let ws = runtime
         .open_workspace("/tmp/test-agent-mode".into())

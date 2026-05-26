@@ -140,14 +140,10 @@ test.describe("Permission mode selector", () => {
     // Wait for the response to start
     await page.waitForTimeout(300);
 
-    // Mode should still be "agent"
+    // Mode should still be "agent" in the UI (driven by Pinia store, not mock state).
+    // Note: legacy `agent` and `interactive` both collapse to (on_request, workspace_write)
+    // in the dual-axis model, so the derived mock currentPermissionMode is "interactive".
     await expect(page.locator('[data-test="chat-permission-trigger"]')).toContainText("Agent");
-
-    // Mock state should still reflect "agent"
-    const mode = await page.evaluate(
-      () => (window as any).__KAIROX_MOCK__.state.currentPermissionMode
-    );
-    expect(mode).toBe("agent");
   });
 
   test("supports keyboard navigation for the permission selector", async ({ page }) => {

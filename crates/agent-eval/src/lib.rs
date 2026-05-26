@@ -8,10 +8,9 @@ use agent_memory::SqliteMemoryStore;
 use agent_models::ModelRouter;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{legacy_mode_string_for, parse_legacy_mode, ApprovalPolicy, SandboxPolicy};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -73,7 +72,8 @@ pub struct EvalRunOptions {
     pub workspace_root: PathBuf,
     pub default_profile: Option<String>,
     pub config: Option<Config>,
-    pub permission_mode: PermissionMode,
+    pub approval_policy: ApprovalPolicy,
+    pub sandbox_policy: SandboxPolicy,
     pub include_trace: bool,
     pub enable_mcp: bool,
     pub enable_hooks: bool,
@@ -85,7 +85,11 @@ impl Default for EvalRunOptions {
             workspace_root: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             default_profile: None,
             config: None,
-            permission_mode: PermissionMode::Agent,
+            approval_policy: ApprovalPolicy::OnRequest,
+            sandbox_policy: SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
             include_trace: false,
             enable_mcp: false,
             enable_hooks: false,
@@ -207,7 +211,7 @@ impl EvalHarness {
         let mem_store = Arc::new(SqliteMemoryStore::new(store.pool().clone()).await?)
             as Arc<dyn agent_memory::MemoryStore>;
         let runtime = LocalRuntime::new(store, router)
-            .with_permission_mode(options.permission_mode)
+            .with_approval_and_sandbox(options.approval_policy, options.sandbox_policy.clone())
             .with_context_limit(100_000)
             .with_memory_store(mem_store)
             .with_config(config_arc)
@@ -235,30 +239,29 @@ impl EvalHarness {
             .profile
             .clone()
             .unwrap_or_else(|| self.default_profile.clone());
-        let permission_mode = scenario
+        let scenario_policies = scenario
             .permission_mode
             .as_deref()
             .map(parse_permission_mode)
             .transpose()?;
 
-        if let Some(mode) = permission_mode {
-            self.runtime.set_permission_mode(mode).await;
-        } else {
-            self.runtime
-                .set_permission_mode(self.options.permission_mode)
-                .await;
-        }
+        let (approval, sandbox) = scenario_policies.clone().unwrap_or_else(|| {
+            (
+                self.options.approval_policy,
+                self.options.sandbox_policy.clone(),
+            )
+        });
 
+        self.runtime.set_approval_policy(approval).await;
+        self.runtime.set_sandbox_policy(sandbox.clone()).await;
+
+        let legacy_mode = legacy_mode_string_for(approval, &sandbox).to_string();
         let session_id = self
             .runtime
             .start_session(StartSessionRequest {
                 workspace_id: self.workspace_id.clone(),
                 model_profile: profile.clone(),
-                permission_mode: Some(
-                    permission_mode
-                        .unwrap_or(self.options.permission_mode)
-                        .to_string(),
-                ),
+                permission_mode: Some(legacy_mode),
                 approval_policy: None,
                 sandbox_policy: None,
             })
@@ -453,8 +456,8 @@ fn evaluate_expectations(
     }
 }
 
-fn parse_permission_mode(value: &str) -> Result<PermissionMode> {
-    PermissionMode::from_str(value).map_err(EvalError::PermissionMode)
+fn parse_permission_mode(value: &str) -> Result<(ApprovalPolicy, SandboxPolicy)> {
+    parse_legacy_mode(value).ok_or_else(|| EvalError::PermissionMode(value.to_string()))
 }
 
 fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> bool) -> usize {

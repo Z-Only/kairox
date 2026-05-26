@@ -72,8 +72,6 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             cancel_session,
             compact_session,
             switch_model,
-            get_permission_mode,
-            set_permission_mode,
             get_session_approval_policy,
             set_session_approval_policy,
             get_session_sandbox_policy,

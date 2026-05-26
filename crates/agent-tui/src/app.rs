@@ -10,7 +10,6 @@ pub use commands::{
 };
 
 use agent_core::{DomainEvent, SessionId, WorkspaceId};
-use agent_tools::PermissionMode;
 
 use crate::app_state::AppState;
 use crate::components::agent_overlay::AgentOverlay;
@@ -25,7 +24,7 @@ use crate::components::permission_modal::PermissionModal;
 use crate::components::plugin_overlay::PluginOverlay;
 use crate::components::sessions::SessionsPanel;
 use crate::components::skills_overlay::SkillsOverlay;
-use crate::components::status_bar::{PermissionModeExt, StatusBar};
+use crate::components::status_bar::StatusBar;
 use crate::components::trace::TracePanel;
 use crate::components::{
     Component, CrossPanelEffect, DestructiveConfirmationState, FocusTarget, SessionInfo,
@@ -61,13 +60,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(
-        model_profile: &str,
-        permission_mode: PermissionMode,
-        workspace_id: WorkspaceId,
-    ) -> Self {
+    pub fn new(model_profile: &str, workspace_id: WorkspaceId) -> Self {
         Self {
-            state: AppState::new(model_profile, permission_mode),
+            state: AppState::new(model_profile),
             chat: ChatPanel::new(),
             sessions: SessionsPanel::new(),
             trace: TracePanel::new(),
@@ -346,7 +341,6 @@ impl App {
 
         let info = crate::components::StatusInfo {
             profile: self.state.model_profile.clone(),
-            permission_mode: self.state.permission_mode.as_str().to_string(),
             approval_policy: self.state.approval_policy.as_str().to_string(),
             sandbox_policy: self.state.sandbox_policy.kind_str().to_string(),
             session_count: self

@@ -11,7 +11,6 @@ use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
 use futures::StreamExt;
 use std::sync::Arc;
 
@@ -19,7 +18,7 @@ use std::sync::Arc;
 async fn make_runtime() -> LocalRuntime<SqliteEventStore, FakeModelClient> {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["Hello from TUI test!".into()]);
-    LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest)
+    LocalRuntime::new(store, model)
 }
 
 #[derive(Default)]
@@ -873,7 +872,7 @@ async fn tui_event_stream_matches_projection() {
 async fn tui_multiple_sessions_have_isolated_projections() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["response".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+    let runtime = LocalRuntime::new(store, model);
 
     let workspace = runtime
         .open_workspace("/tmp/tui-multi-session".into())
@@ -929,7 +928,7 @@ async fn tui_multiple_sessions_have_isolated_projections() {
 async fn tui_cancel_session_marks_cancelled() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["response".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+    let runtime = LocalRuntime::new(store, model);
 
     let workspace = runtime
         .open_workspace("/tmp/tui-cancel".into())
@@ -1060,7 +1059,7 @@ async fn tui_session_listing_works() {
 async fn tui_subscribe_all_receives_events_across_sessions() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["hello".into()]);
-    let runtime = LocalRuntime::new(store, model).with_permission_mode(PermissionMode::Suggest);
+    let runtime = LocalRuntime::new(store, model);
 
     let workspace = runtime
         .open_workspace("/tmp/tui-sub-all".into())
@@ -1163,7 +1162,6 @@ fn colon_compact_input_dispatches_compact_session_command() {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1219,7 +1217,6 @@ fn colon_model_alias_input_dispatches_switch_model_command() {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1270,7 +1267,6 @@ fn colon_model_without_alias_falls_through_as_chat_message() {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1315,7 +1311,6 @@ fn chat_commands_for_input(input: &str) -> Vec<agent_tui::components::Command> {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1362,7 +1357,6 @@ fn chat_commands_for_project_input(
         projects: &[],
         sessions: &sessions,
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1394,7 +1388,6 @@ fn colon_attach_then_send_carries_attachment_payload() {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: false,
         workspace_id: &workspace_id,
@@ -1657,7 +1650,7 @@ fn overlay_shortcut_smoke_matrix_emits_open_command_and_dismisses_effect() {
     ];
 
     for case in cases {
-        let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+        let mut app = App::new("fake", WorkspaceId::new());
 
         let commands = app.handle_crossterm_event(&case.open_key);
         assert!(
@@ -1694,7 +1687,7 @@ fn overlay_shortcut_smoke_matrix_emits_open_command_and_dismisses_effect() {
         );
     }
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowAgentSettingsOverlay(
         AgentOverlaySnapshot {
             agents: vec![agent_settings_view("worker", AgentSettingsScope::Builtin)],
@@ -1735,7 +1728,7 @@ fn archive_overlay_smoke_opens_from_sessions_focus_and_restores_selected_session
         branch: None,
         visibility: Some(ProjectSessionVisibility::Archived),
     };
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.state.sessions = vec![app_session];
     app.state.focus_manager.set(FocusTarget::Sessions);
     app.sync_component_focus();
@@ -1867,7 +1860,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         }
     }
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let archive_id = SessionId::from_string("ses_active_confirm".into());
     app.state.sessions = vec![SessionInfo {
         id: archive_id.clone(),
@@ -1887,7 +1880,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::ArchiveSession { session_id }] if session_id == &archive_id
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let archived_id = SessionId::from_string("ses_archived_confirm".into());
     app.state.sessions = vec![SessionInfo {
         id: archived_id.clone(),
@@ -1907,7 +1900,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::DeleteSession { session_id }] if session_id == &archived_id
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let project_id = ProjectId::from_string("prj_confirm".into());
     app.state.projects = vec![ProjectInfo {
         id: project_id.clone(),
@@ -1929,7 +1922,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::RemoveProject { project_id: id }] if id == &project_id
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowMcpOverlay(McpOverlaySnapshot {
         runtime_servers: Vec::new(),
         settings: Vec::new(),
@@ -1957,7 +1950,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::UninstallMcpServer { server_id }] if server_id == "alpha"
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowSkillsOverlay(
         SkillOverlaySnapshot {
             discovered: Vec::new(),
@@ -1979,7 +1972,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::DeleteSkillSettings { skill_id }] if skill_id == "review"
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowPluginsOverlay(
         PluginOverlaySnapshot {
             plugins: vec![installed_plugin("user:alpha")],
@@ -1999,7 +1992,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::DeletePluginSettings { settings_id }] if settings_id == "user:alpha"
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowModelOverlay(
         ModelOverlaySnapshot {
             profiles: vec![ModelProfileEntry {
@@ -2035,7 +2028,7 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
         [Command::DeleteProfileSettings { alias }] if alias == "slow"
     ));
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.dispatch_effects(vec![CrossPanelEffect::ShowHooksOverlay(
         HooksSettingsView {
             user: vec![hook("user-verify")],
@@ -2427,7 +2420,7 @@ async fn tui_skill_commands_call_facade_and_render_visible_messages() {
 
     let workspace_id = WorkspaceId::new();
     let session_id = SessionId::new();
-    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    let mut app = App::new("fake", workspace_id.clone());
     app.current_session_id = Some(session_id.clone());
 
     agent_tui::app::dispatch_commands(
@@ -2511,7 +2504,7 @@ async fn config_source_model_overlay_uses_selected_project_filter() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.state
         .set_settings_config_source(SettingsConfigSource::Project);
 
@@ -2534,7 +2527,7 @@ async fn config_source_mcp_overlay_uses_selected_project_filter() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     app.state
         .set_settings_config_source(SettingsConfigSource::Project);
 
@@ -2558,7 +2551,7 @@ async fn config_source_model_save_uses_selected_project_config_path() {
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
     let project_root = unique_temp_dir("kairox-tui-model-save-source");
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let project = test_project("prj_model_save", &project_root);
     let project_id = project.id.clone();
     app.state.projects = vec![project];
@@ -2615,7 +2608,7 @@ async fn config_source_mcp_save_uses_selected_project_config_path() {
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
     let project_root = unique_temp_dir("kairox-tui-mcp-save-source");
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let project = test_project("prj_mcp_save", &project_root);
     let project_id = project.id.clone();
     app.state.projects = vec![project];
@@ -2674,7 +2667,7 @@ async fn config_source_instructions_overlay_uses_selected_project_config_path() 
     )
     .expect("project config should be written");
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let project = test_project("prj_selected_instructions", &project_root);
     let project_id = project.id.clone();
     app.state.projects = vec![project];
@@ -2711,7 +2704,7 @@ async fn config_source_hooks_overlay_uses_selected_project_config_path() {
     )
     .expect("project config should be written");
 
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let project = test_project("prj_selected_hooks", &project_root);
     let project_id = project.id.clone();
     app.state.projects = vec![project];
@@ -2740,7 +2733,7 @@ async fn tui_mcp_marketplace_commands_call_facade_and_refresh_overlay() {
     use std::collections::BTreeMap;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenMcpOverlay]).await;
 
@@ -2823,7 +2816,7 @@ async fn tui_mcp_install_command_forwards_env_overrides() {
     use std::collections::BTreeMap;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let mut env_overrides = BTreeMap::new();
     env_overrides.insert("Authorization".to_string(), "Bearer test-token".to_string());
     env_overrides.insert("GITHUB_ORG".to_string(), "kairox-dev".to_string());
@@ -2922,7 +2915,7 @@ async fn mcp_overlay_install_outcome_persists_after_command_refresh() {
 
     for (install_result, expected) in cases {
         let runtime = Arc::new(TuiMcpFakeFacade::with_install_result(install_result));
-        let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+        let mut app = App::new("fake", WorkspaceId::new());
 
         agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenMcpOverlay]).await;
         for _ in 0..3 {
@@ -2963,7 +2956,7 @@ async fn tui_skill_source_commands_call_facade_and_refresh_overlay() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenSkillsOverlay]).await;
 
@@ -3044,7 +3037,7 @@ async fn tui_skill_catalog_overlay_queries_include_keyword_and_sources() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(&runtime, &mut app, vec![Command::OpenSkillsOverlay]).await;
     assert!(app.skills_overlay.is_visible());
@@ -3096,7 +3089,7 @@ async fn tui_model_profile_settings_commands_call_facade_and_report_results() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(
         &runtime,
@@ -3168,7 +3161,7 @@ async fn app_logic_command_status_success_does_not_pollute_chat_transcript() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let initial_chat_count = app.state.current_session.messages.len();
 
     agent_tui::app::dispatch_commands(
@@ -3197,7 +3190,7 @@ async fn app_logic_command_status_failure_does_not_pollute_chat_transcript() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
     let initial_chat_count = app.state.current_session.messages.len();
 
     agent_tui::app::dispatch_commands(
@@ -3248,13 +3241,12 @@ async fn tui_plugin_overlay_refresh_passes_catalog_filters_to_facade() {
         projects: &[],
         sessions: &[],
         model_profile: "fake",
-        permission_mode: PermissionMode::Suggest,
         sidebar_left_visible: true,
         sidebar_right_visible: true,
         workspace_id: &workspace_id,
         current_session_id: &current_session_id,
     };
-    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    let mut app = App::new("fake", workspace_id.clone());
     app.plugin_overlay.show(PluginOverlaySnapshot {
         plugins: Vec::new(),
         catalog: Vec::new(),
@@ -3302,7 +3294,7 @@ async fn tui_agent_settings_commands_call_facade_and_refresh_overlay() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(
         &runtime,
@@ -3357,7 +3349,7 @@ async fn tui_project_manager_commands_call_facade_and_update_state() {
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
     let workspace_id = WorkspaceId::new();
-    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id.clone());
+    let mut app = App::new("fake", workspace_id.clone());
     let alpha = ProjectId::from_string("prj_alpha".to_string());
     let beta = ProjectId::from_string("prj_beta".to_string());
     app.state.projects = vec![
@@ -3462,7 +3454,7 @@ async fn settings_utility_commands_call_facade_open_dir_methods() {
     use agent_tui::components::Command;
 
     let runtime = Arc::new(TuiMcpFakeFacade::default());
-    let mut app = App::new("fake", PermissionMode::Suggest, WorkspaceId::new());
+    let mut app = App::new("fake", WorkspaceId::new());
 
     agent_tui::app::dispatch_commands(
         &runtime,
@@ -3544,7 +3536,7 @@ cache_ttl_seconds = 900
     );
 
     let workspace_id = WorkspaceId::new();
-    let mut app = App::new("fake", PermissionMode::Suggest, workspace_id);
+    let mut app = App::new("fake", workspace_id);
 
     agent_tui::app::dispatch_commands(
         &runtime,

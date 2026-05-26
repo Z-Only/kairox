@@ -328,7 +328,7 @@ mod tests {
         let workspace_id = WorkspaceId::from_string("wrk_test".to_string());
         let project_id = ProjectId::from_string("prj_alpha".to_string());
         let session_id = SessionId::from_string("ses_active".to_string());
-        let mut app = App::new("fast", agent_tools::PermissionMode::Suggest, workspace_id);
+        let mut app = App::new("fast", workspace_id);
         app.current_session_id = Some(session_id.clone());
         app.state.sidebar_left_visible = false;
         app.state.projects = vec![ProjectInfo {

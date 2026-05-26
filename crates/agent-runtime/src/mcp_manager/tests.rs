@@ -1,7 +1,7 @@
 use super::*;
 use agent_mcp::types::{McpServerDef, McpServerStatus, McpTransportDef};
 use agent_mcp::McpError;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::collections::HashMap;
 
 fn make_test_def(name: &str, keep_alive: bool) -> McpServerDef {
@@ -25,7 +25,13 @@ fn make_manager(configs: Vec<McpServerDef>) -> McpServerManager {
     McpServerManager::from_config(
         configs,
         Arc::new(Mutex::new(ToolRegistry::new())),
-        Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Suggest))),
+        Arc::new(Mutex::new(PermissionEngine::new(
+            ApprovalPolicy::Always,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        ))),
         Some(event_tx),
     )
 }

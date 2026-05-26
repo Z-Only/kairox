@@ -19,7 +19,7 @@ use agent_runtime::{
     StepContext, TaskGraph, ToolResultAction,
 };
 use agent_store::SqliteEventStore;
-use agent_tools::{PermissionEngine, PermissionMode, ToolRegistry};
+use agent_tools::{ApprovalPolicy, PermissionEngine, SandboxPolicy, ToolRegistry};
 
 /// Build a DagExecutor with default strategies and an in-memory store.
 pub async fn make_executor() -> DagExecutor<SqliteEventStore, FakeModelClient> {
@@ -34,7 +34,13 @@ pub async fn make_executor_with_config(
     let model = FakeModelClient::new(vec!["test response".into()]);
     let (event_tx, _) = tokio::sync::broadcast::channel(1024);
     let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
-    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )));
     let pending: Arc<
         Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
     > = Arc::new(Mutex::new(HashMap::new()));
@@ -200,7 +206,13 @@ pub async fn make_executor_with_roots(
     let model = FakeModelClient::new(vec!["test response".into()]);
     let (event_tx, _) = tokio::sync::broadcast::channel(1024);
     let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
-    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(PermissionMode::Agent)));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )));
     let pending: Arc<
         Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
     > = Arc::new(Mutex::new(HashMap::new()));

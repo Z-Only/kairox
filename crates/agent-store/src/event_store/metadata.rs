@@ -312,4 +312,22 @@ impl SqliteEventStore {
             .map(|r: sqlx::sqlite::SqliteRow| r.get::<String, _>("draft_text"))
             .unwrap_or_default())
     }
+
+    pub async fn get_session_policies(
+        &self,
+        session_id: &str,
+    ) -> crate::Result<Option<(Option<String>, Option<String>)>> {
+        let row = sqlx::query(
+            "SELECT approval_policy, sandbox_policy FROM kairox_sessions WHERE session_id = ?1",
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r: sqlx::sqlite::SqliteRow| {
+            (
+                r.get::<Option<String>, _>("approval_policy"),
+                r.get::<Option<String>, _>("sandbox_policy"),
+            )
+        }))
+    }
 }

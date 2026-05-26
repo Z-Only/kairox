@@ -1,56 +1,18 @@
-//! Legacy permission API.
+//! Permission outcomes, tool risks, and the [`PermissionEngine`] thin wrapper
+//! around [`crate::policy::PolicyEngine`].
 //!
-//! All decisions delegate to [`crate::policy::PolicyEngine`]; this module is a
-//! thin compatibility shim around it. Callers that still pass a
-//! [`PermissionMode`] are mapped to the `(ApprovalPolicy, SandboxPolicy)` pair
-//! the legacy mode encoded. New code should use `crate::policy::*` directly.
+//! New code should construct [`PermissionEngine`] from an
+//! `(ApprovalPolicy, SandboxPolicy)` pair. The legacy `PermissionMode` enum
+//! that used to live here was removed in
+//! `docs/superpowers/specs/2026-05-26-permission-sandbox-approval-design.md`.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use crate::policy::{
     ApprovalPolicy, ApprovalReason, PolicyDecision, PolicyEffect, PolicyEngine, PolicyRisk,
     SandboxPolicy,
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PermissionMode {
-    ReadOnly,
-    Suggest,
-    Agent,
-    Autonomous,
-    Interactive,
-}
-
-impl std::fmt::Display for PermissionMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ReadOnly => write!(f, "read_only"),
-            Self::Suggest => write!(f, "suggest"),
-            Self::Agent => write!(f, "agent"),
-            Self::Autonomous => write!(f, "autonomous"),
-            Self::Interactive => write!(f, "interactive"),
-        }
-    }
-}
-
-impl FromStr for PermissionMode {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "read_only" | "readonly" => Ok(Self::ReadOnly),
-            "suggest" => Ok(Self::Suggest),
-            "agent" => Ok(Self::Agent),
-            "autonomous" => Ok(Self::Autonomous),
-            "interactive" => Ok(Self::Interactive),
-            other => Err(format!("unknown permission mode: {other}")),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionOutcome {
@@ -127,16 +89,12 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
     }
 }
 
-fn from_policy_decision(
-    decision: PolicyDecision,
-    legacy_was_interactive: bool,
-) -> PermissionOutcome {
+fn from_policy_decision(decision: PolicyDecision) -> PermissionOutcome {
     match decision {
         PolicyDecision::Allowed => PermissionOutcome::Allowed,
         PolicyDecision::DeniedBySandbox { reason } => PermissionOutcome::Denied(reason),
         PolicyDecision::NeedsApproval { reason } => match reason {
             ApprovalReason::UntrustedMcpServer => PermissionOutcome::PromptWithTrust,
-            _ if legacy_was_interactive => PermissionOutcome::Pending,
             _ => PermissionOutcome::RequiresApproval,
         },
     }
@@ -144,39 +102,20 @@ fn from_policy_decision(
 
 #[derive(Debug, Clone)]
 pub struct PermissionEngine {
-    mode: PermissionMode,
     policy: PolicyEngine,
 }
 
+impl Default for PermissionEngine {
+    fn default() -> Self {
+        Self::new(ApprovalPolicy::default(), SandboxPolicy::default())
+    }
+}
+
 impl PermissionEngine {
-    pub fn new(mode: PermissionMode) -> Self {
-        let (approval, sandbox): (ApprovalPolicy, SandboxPolicy) = mode.into();
+    pub fn new(approval: ApprovalPolicy, sandbox: SandboxPolicy) -> Self {
         Self {
-            mode,
             policy: PolicyEngine::new(approval, sandbox, PathBuf::new()),
         }
-    }
-
-    /// Construct directly from the new policy pair, without funneling through
-    /// a legacy [`PermissionMode`]. The legacy `mode` accessor returns the
-    /// best-fit value via [`crate::policy::legacy_mode_for`].
-    pub fn with_policy(approval: ApprovalPolicy, sandbox: SandboxPolicy) -> Self {
-        let mode = crate::policy::legacy_mode_for(approval, &sandbox);
-        Self {
-            mode,
-            policy: PolicyEngine::new(approval, sandbox, PathBuf::new()),
-        }
-    }
-
-    pub fn mode(&self) -> &PermissionMode {
-        &self.mode
-    }
-
-    pub fn set_mode(&mut self, mode: PermissionMode) {
-        self.mode = mode;
-        let (approval, sandbox): (ApprovalPolicy, SandboxPolicy) = mode.into();
-        self.policy.set_approval(approval);
-        self.policy.set_sandbox(sandbox);
     }
 
     pub fn approval_policy(&self) -> ApprovalPolicy {
@@ -189,11 +128,9 @@ impl PermissionEngine {
 
     pub fn set_approval_policy(&mut self, approval: ApprovalPolicy) {
         self.policy.set_approval(approval);
-        self.mode = crate::policy::legacy_mode_for(approval, self.policy.sandbox());
     }
 
     pub fn set_sandbox_policy(&mut self, sandbox: SandboxPolicy) {
-        self.mode = crate::policy::legacy_mode_for(self.policy.approval(), &sandbox);
         self.policy.set_sandbox(sandbox);
     }
 
@@ -211,8 +148,7 @@ impl PermissionEngine {
             effect: ToolEffect::McpInvoke,
         };
         let policy_risk = to_policy_risk(&risk, Some(server_id));
-        let decision = self.policy.decide(&policy_risk);
-        from_policy_decision(decision, self.mode == PermissionMode::Interactive)
+        from_policy_decision(self.policy.decide(&policy_risk))
     }
 
     pub fn trust_server(&mut self, server_id: String) {
@@ -229,8 +165,7 @@ impl PermissionEngine {
 
     pub fn decide(&self, risk: &ToolRisk) -> PermissionOutcome {
         let policy_risk = to_policy_risk(risk, None);
-        let decision = self.policy.decide(&policy_risk);
-        from_policy_decision(decision, self.mode == PermissionMode::Interactive)
+        from_policy_decision(self.policy.decide(&policy_risk))
     }
 }
 
@@ -238,10 +173,16 @@ impl PermissionEngine {
 mod tests {
     use super::*;
 
+    fn ws_default() -> SandboxPolicy {
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        }
+    }
+
     #[test]
     fn readonly_allows_reads_and_blocks_shell_writes() {
-        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
-
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
         assert_eq!(
             engine.decide(&ToolRisk::read("fs.read")),
             PermissionOutcome::Allowed
@@ -257,8 +198,8 @@ mod tests {
     }
 
     #[test]
-    fn suggest_requires_approval_for_effectful_tools() {
-        let engine = PermissionEngine::new(PermissionMode::Suggest);
+    fn always_requires_approval_for_effectful_tools() {
+        let engine = PermissionEngine::new(ApprovalPolicy::Always, ws_default());
         assert_eq!(
             engine.decide(&ToolRisk::write("patch.apply")),
             PermissionOutcome::RequiresApproval
@@ -266,106 +207,46 @@ mod tests {
     }
 
     #[test]
-    fn autonomous_still_requires_approval_for_destructive_shell() {
-        let engine = PermissionEngine::new(PermissionMode::Autonomous);
-        // Autonomous → (Never, DangerFullAccess). New semantics: Never +
-        // Danger allows even destructive operations because the user opted
-        // into full-access. Legacy behavior wanted to keep requiring approval
-        // for destructive shell, but that's now expressed by switching the
-        // approval policy to OnRequest. Lock in the new behavior.
+    fn never_plus_danger_allows_destructive() {
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
         assert_eq!(
             engine.decide(&ToolRisk::shell("shell.exec", true)),
             PermissionOutcome::Allowed
         );
-    }
-
-    #[test]
-    fn destructive_risk_allowed_in_autonomous_mode() {
-        let engine = PermissionEngine::new(PermissionMode::Autonomous);
-        let risk = ToolRisk::destructive("rm.rf");
-        assert_eq!(engine.decide(&risk), PermissionOutcome::Allowed);
-    }
-
-    #[test]
-    fn destructive_risk_denied_in_readonly_mode() {
-        let engine = PermissionEngine::new(PermissionMode::ReadOnly);
-        let risk = ToolRisk::destructive("rm.rf");
-        assert!(matches!(engine.decide(&risk), PermissionOutcome::Denied(_)));
-    }
-
-    #[test]
-    fn destructive_risk_requires_approval_in_suggest_mode() {
-        let engine = PermissionEngine::new(PermissionMode::Suggest);
-        let risk = ToolRisk::destructive("rm.rf");
-        assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
-    }
-
-    #[test]
-    fn destructive_risk_requires_approval_in_agent_mode() {
-        let engine = PermissionEngine::new(PermissionMode::Agent);
-        let risk = ToolRisk::destructive("rm.rf");
-        assert_eq!(engine.decide(&risk), PermissionOutcome::RequiresApproval);
-    }
-
-    #[test]
-    fn interactive_allows_reads_but_pends_writes() {
-        let engine = PermissionEngine::new(PermissionMode::Interactive);
-        assert_eq!(
-            engine.decide(&ToolRisk::read("fs.read")),
-            PermissionOutcome::Allowed
-        );
-        // Interactive collapses to (OnRequest, WorkspaceWrite); pure write
-        // under WorkspaceWrite passes the sandbox and OnRequest allows it.
-        // To still pend writes the user must switch sandbox to ReadOnly or
-        // approval to Always. Lock the new semantics in.
-        assert_eq!(
-            engine.decide(&ToolRisk::write("fs.write")),
-            PermissionOutcome::Allowed
-        );
-        assert_eq!(
-            engine.decide(&ToolRisk::shell("shell.exec", false)),
-            PermissionOutcome::Allowed
-        );
-    }
-
-    #[test]
-    fn interactive_pends_destructive_operations() {
-        let engine = PermissionEngine::new(PermissionMode::Interactive);
         assert_eq!(
             engine.decide(&ToolRisk::destructive("rm.rf")),
-            PermissionOutcome::Pending
-        );
-        assert_eq!(
-            engine.decide(&ToolRisk::shell("shell.exec", true)),
-            PermissionOutcome::Pending
+            PermissionOutcome::Allowed
         );
     }
 
     #[test]
-    fn interactive_pends_network() {
-        let engine = PermissionEngine::new(PermissionMode::Interactive);
+    fn destructive_denied_under_readonly_sandbox() {
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
+        assert!(matches!(
+            engine.decide(&ToolRisk::destructive("rm.rf")),
+            PermissionOutcome::Denied(_)
+        ));
+    }
+
+    #[test]
+    fn on_request_pends_destructive_in_workspace_write() {
+        let engine = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
         assert_eq!(
-            engine.decide(&ToolRisk {
-                tool_id: "http.fetch".into(),
-                effect: ToolEffect::Network
-            }),
-            PermissionOutcome::Pending
+            engine.decide(&ToolRisk::destructive("rm.rf")),
+            PermissionOutcome::RequiresApproval
         );
     }
 
     #[test]
-    fn mcp_untrusted_server_prompts_with_trust() {
-        let engine = PermissionEngine::new(PermissionMode::Autonomous);
-        // Autonomous → (Never, DangerFullAccess). Untrusted MCP under Never
-        // is denied (not prompted). Trust-prompt behavior now lives on
-        // OnRequest/Always. Swap the test to those.
+    fn mcp_untrusted_server_under_never_denies() {
+        let engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
         let outcome = engine.check_mcp_permission("unknown-server", "some-tool");
-        assert!(
-            matches!(outcome, PermissionOutcome::Denied(_)),
-            "got {outcome:?}"
-        );
+        assert!(matches!(outcome, PermissionOutcome::Denied(_)));
+    }
 
-        let engine = PermissionEngine::new(PermissionMode::Agent);
+    #[test]
+    fn mcp_untrusted_server_under_on_request_prompts_for_trust() {
+        let engine = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
         assert_eq!(
             engine.check_mcp_permission("unknown-server", "some-tool"),
             PermissionOutcome::PromptWithTrust
@@ -373,36 +254,27 @@ mod tests {
     }
 
     #[test]
-    fn mcp_trusted_server_autonomous_allows() {
-        let mut engine = PermissionEngine::new(PermissionMode::Autonomous);
+    fn mcp_trusted_server_always_allowed() {
+        let mut engine =
+            PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
         engine.trust_server("my-server".into());
-        let outcome = engine.check_mcp_permission("my-server", "some-tool");
-        assert_eq!(outcome, PermissionOutcome::Allowed);
-    }
+        assert_eq!(
+            engine.check_mcp_permission("my-server", "tool"),
+            PermissionOutcome::Allowed
+        );
 
-    #[test]
-    fn mcp_trusted_server_readonly_allows() {
-        // New semantics: trusting an MCP server bypasses sandbox; ReadOnly
-        // does not block trusted MCP. To block, user picks `Never` approval
-        // and does not trust the server, or untrusts it.
-        let mut engine = PermissionEngine::new(PermissionMode::ReadOnly);
+        let mut engine = PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::ReadOnly);
         engine.trust_server("my-server".into());
-        let outcome = engine.check_mcp_permission("my-server", "some-tool");
-        assert_eq!(outcome, PermissionOutcome::Allowed);
-    }
-
-    #[test]
-    fn mcp_trusted_server_suggest_allows() {
-        // Trusted server is always allowed under any approval policy now.
-        let mut engine = PermissionEngine::new(PermissionMode::Suggest);
-        engine.trust_server("my-server".into());
-        let outcome = engine.check_mcp_permission("my-server", "some-tool");
-        assert_eq!(outcome, PermissionOutcome::Allowed);
+        assert_eq!(
+            engine.check_mcp_permission("my-server", "tool"),
+            PermissionOutcome::Allowed
+        );
     }
 
     #[test]
     fn trust_and_revoke_roundtrip() {
-        let mut engine = PermissionEngine::new(PermissionMode::Autonomous);
+        let mut engine =
+            PermissionEngine::new(ApprovalPolicy::Never, SandboxPolicy::DangerFullAccess);
         engine.trust_server("srv-a".into());
         engine.trust_server("srv-b".into());
         assert!(engine.trusted_servers().contains("srv-a"));
@@ -414,82 +286,8 @@ mod tests {
     }
 
     #[test]
-    fn display_roundtrip_via_fromstr() {
-        for mode in [
-            PermissionMode::ReadOnly,
-            PermissionMode::Suggest,
-            PermissionMode::Agent,
-            PermissionMode::Autonomous,
-            PermissionMode::Interactive,
-        ] {
-            let s = mode.to_string();
-            let parsed: PermissionMode = s.parse().unwrap();
-            assert_eq!(mode, parsed);
-        }
-    }
-
-    #[test]
-    fn fromstr_readonly_alias() {
-        assert_eq!(
-            "readonly".parse::<PermissionMode>().unwrap(),
-            PermissionMode::ReadOnly
-        );
-        assert_eq!(
-            "ReadOnly".parse::<PermissionMode>().unwrap(),
-            PermissionMode::ReadOnly
-        );
-    }
-
-    #[test]
-    fn fromstr_invalid() {
-        assert!("bogus".parse::<PermissionMode>().is_err());
-    }
-
-    #[test]
-    fn serde_roundtrip() {
-        for mode in [
-            PermissionMode::ReadOnly,
-            PermissionMode::Suggest,
-            PermissionMode::Agent,
-            PermissionMode::Autonomous,
-            PermissionMode::Interactive,
-        ] {
-            let json = serde_json::to_string(&mode).unwrap();
-            let back: PermissionMode = serde_json::from_str(&json).unwrap();
-            assert_eq!(mode, back);
-        }
-    }
-
-    #[test]
-    fn serde_is_snake_case() {
-        let json = serde_json::to_string(&PermissionMode::ReadOnly).unwrap();
-        assert_eq!(json, "\"read_only\"");
-    }
-
-    #[test]
-    fn set_mode_updates_engine() {
-        let mut engine = PermissionEngine::new(PermissionMode::Suggest);
-        assert_eq!(*engine.mode(), PermissionMode::Suggest);
-        engine.set_mode(PermissionMode::Agent);
-        assert_eq!(*engine.mode(), PermissionMode::Agent);
-    }
-
-    #[test]
-    fn with_policy_constructor_works() {
-        let engine = PermissionEngine::with_policy(
-            ApprovalPolicy::Always,
-            SandboxPolicy::WorkspaceWrite {
-                network_access: true,
-                writable_roots: vec![],
-            },
-        );
-        assert_eq!(engine.approval_policy(), ApprovalPolicy::Always);
-        assert!(engine.sandbox_policy().allows_network());
-    }
-
-    #[test]
     fn set_approval_keeps_sandbox() {
-        let mut engine = PermissionEngine::new(PermissionMode::Agent);
+        let mut engine = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
         let before = engine.sandbox_policy().clone();
         engine.set_approval_policy(ApprovalPolicy::Always);
         assert_eq!(engine.approval_policy(), ApprovalPolicy::Always);
@@ -498,7 +296,7 @@ mod tests {
 
     #[test]
     fn set_sandbox_keeps_approval() {
-        let mut engine = PermissionEngine::new(PermissionMode::Agent);
+        let mut engine = PermissionEngine::new(ApprovalPolicy::OnRequest, ws_default());
         let before = engine.approval_policy();
         engine.set_sandbox_policy(SandboxPolicy::DangerFullAccess);
         assert_eq!(engine.approval_policy(), before);

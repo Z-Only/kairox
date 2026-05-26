@@ -18,7 +18,7 @@ use agent_runtime::ui_bootstrap::{
 use agent_runtime::LocalRuntime;
 #[cfg(test)]
 use agent_store::SqliteEventStore;
-use agent_tools::PermissionMode;
+use agent_tools::{ApprovalPolicy, SandboxPolicy};
 
 #[cfg(not(test))]
 use app_state::GuiState;
@@ -62,7 +62,11 @@ pub fn run() {
                 let config = config_load.config;
                 eprintln!("Available model profiles: {:?}", config.profile_names());
                 eprintln!("Default profile: {}", config.default_profile());
-                eprintln!("Permission mode: Interactive");
+                eprintln!(
+                    "Default policy: approval={} sandbox={}",
+                    ApprovalPolicy::default(),
+                    SandboxPolicy::default().kind_str()
+                );
                 let cwd = std::env::current_dir().expect("Cannot get current dir");
                 eprintln!(
                     "Catalog sources: {} (enabled: {})",
@@ -76,7 +80,8 @@ pub fn run() {
                     db_dir.clone(),
                     "kairox-gui.sqlite",
                     cwd,
-                    PermissionMode::Interactive,
+                    ApprovalPolicy::default(),
+                    SandboxPolicy::default(),
                     config,
                     catalog_load.sources,
                 ))
@@ -162,8 +167,6 @@ pub fn run() {
             crate::commands::cancel_session,
             crate::commands::compact_session,
             crate::commands::switch_model,
-            crate::commands::get_permission_mode,
-            crate::commands::set_permission_mode,
             crate::commands::get_session_approval_policy,
             crate::commands::set_session_approval_policy,
             crate::commands::get_session_sandbox_policy,
@@ -300,7 +303,7 @@ mod integration_tests {
         let ollama_clients = agent_config::build_ollama_clients(&config);
         let config_arc = std::sync::Arc::new(config);
         LocalRuntime::new(store, router)
-            .with_permission_mode(PermissionMode::Suggest)
+            .with_approval_and_sandbox(ApprovalPolicy::default(), SandboxPolicy::default())
             .with_context_limit(100_000)
             .with_config(config_arc)
             .with_ollama_clients(ollama_clients)
