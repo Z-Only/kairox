@@ -73,6 +73,38 @@ pub async fn dispatch_commands(
                 app.state.render_scheduler.mark_dirty();
             }
 
+            Command::SetSessionApprovalPolicy {
+                workspace_id: _,
+                session_id,
+                approval,
+            } => {
+                if let Err(err) = runtime
+                    .set_session_approval_policy(&session_id, approval)
+                    .await
+                {
+                    app.status_bar
+                        .push_notification(format!("[approval] error: {err}"));
+                }
+                app.sync_status_bar();
+                app.state.render_scheduler.mark_dirty();
+            }
+
+            Command::SetSessionSandboxPolicy {
+                workspace_id: _,
+                session_id,
+                sandbox,
+            } => {
+                if let Err(err) = runtime
+                    .set_session_sandbox_policy(&session_id, &sandbox)
+                    .await
+                {
+                    app.status_bar
+                        .push_notification(format!("[sandbox] error: {err}"));
+                }
+                app.sync_status_bar();
+                app.state.render_scheduler.mark_dirty();
+            }
+
             Command::OpenSkillsOverlay
             | Command::OpenPluginsOverlay
             | Command::OpenHooksOverlay

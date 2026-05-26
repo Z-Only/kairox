@@ -315,6 +315,13 @@ pub enum QueueAction {
 pub struct StatusInfo {
     pub profile: String,
     pub permission_mode: String,
+    /// Approval axis label (e.g. `on_request`). Empty string means "not yet
+    /// rendered as a separate badge" — the status bar will fall back to the
+    /// legacy `permission_mode` badge only.
+    pub approval_policy: String,
+    /// Sandbox axis label (e.g. `workspace_write`). See `approval_policy` for
+    /// the empty-string fallback rule.
+    pub sandbox_policy: String,
     pub session_count: usize,
     pub mcp_server_count: usize,
     pub session_metadata: Vec<String>,
@@ -811,6 +818,20 @@ pub enum Command {
     /// The runtime should apply the new mode for subsequent permission checks.
     SetPermissionMode {
         mode: agent_tools::PermissionMode,
+    },
+    /// User cycled the approval-axis policy (Shift+A while not focused on Sessions).
+    /// The runtime should apply it to the current session, if any.
+    SetSessionApprovalPolicy {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: agent_core::SessionId,
+        approval: agent_tools::ApprovalPolicy,
+    },
+    /// User cycled the sandbox-axis policy (Shift+B).
+    /// The runtime should apply it to the current session, if any.
+    SetSessionSandboxPolicy {
+        workspace_id: agent_core::WorkspaceId,
+        session_id: agent_core::SessionId,
+        sandbox: agent_tools::SandboxPolicy,
     },
 }
 

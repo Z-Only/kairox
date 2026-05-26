@@ -53,4 +53,14 @@ impl StatusInfo {
     pub fn permission_mode_label(&self) -> &str {
         &self.permission_mode
     }
+
+    /// Approval-axis label (e.g. `on_request`); empty when unset.
+    pub fn approval_policy_label(&self) -> &str {
+        &self.approval_policy
+    }
+
+    /// Sandbox-axis label (e.g. `workspace_write`); empty when unset.
+    pub fn sandbox_policy_label(&self) -> &str {
+        &self.sandbox_policy
+    }
 }

@@ -228,6 +228,30 @@ impl App {
                 self.sync_status_bar();
                 self.state.render_scheduler.mark_dirty();
             }
+            KeyAction::CycleApprovalPolicy => {
+                let new_approval = self.state.cycle_approval_policy();
+                if let Some(session_id) = self.current_session_id.clone() {
+                    commands.push(Command::SetSessionApprovalPolicy {
+                        workspace_id: self.workspace_id.clone(),
+                        session_id,
+                        approval: new_approval,
+                    });
+                }
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
+            KeyAction::CycleSandboxPolicy => {
+                let new_sandbox = self.state.cycle_sandbox_policy();
+                if let Some(session_id) = self.current_session_id.clone() {
+                    commands.push(Command::SetSessionSandboxPolicy {
+                        workspace_id: self.workspace_id.clone(),
+                        session_id,
+                        sandbox: new_sandbox,
+                    });
+                }
+                self.sync_status_bar();
+                self.state.render_scheduler.mark_dirty();
+            }
             KeyAction::ToggleContextDetails => {
                 self.status_bar.toggle_context_details();
                 self.state.render_scheduler.mark_dirty_immediate();

@@ -347,6 +347,8 @@ impl App {
         let info = crate::components::StatusInfo {
             profile: self.state.model_profile.clone(),
             permission_mode: self.state.permission_mode.as_str().to_string(),
+            approval_policy: self.state.approval_policy.as_str().to_string(),
+            sandbox_policy: self.state.sandbox_policy.kind_str().to_string(),
             session_count: self
                 .state
                 .sessions

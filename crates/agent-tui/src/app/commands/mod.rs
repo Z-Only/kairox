@@ -68,7 +68,9 @@ pub async fn dispatch_commands<F>(
             | Command::CreateProjectWorktreeSession { .. }
             | Command::CompactSession { .. }
             | Command::SwitchModel { .. }
-            | Command::SetPermissionMode { .. } => {}
+            | Command::SetPermissionMode { .. }
+            | Command::SetSessionApprovalPolicy { .. }
+            | Command::SetSessionSandboxPolicy { .. } => {}
 
             Command::OpenMcpOverlay
             | Command::SetMcpServerEnabled { .. }
