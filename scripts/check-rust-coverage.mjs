@@ -34,11 +34,12 @@ const groups = [
     ],
     minFiles: 24,
     thresholds: {
-      // branches kept conservative: nightly cargo-llvm-cov branch coverage
-      // wobbles by up to ~3pp between runs on this workspace.
+      // Both branches and lines kept conservative: nightly llvm-cov coverage
+      // numbers wobble by up to ~3pp between runs on this workspace; T1 lines
+      // measured 74.26 / 73.87 / 72.75 across consecutive runs.
       branches: 60,
       functions: 33,
-      lines: 73
+      lines: 71
     }
   },
   // Tier 2A — High-risk runtime hot path. CI LCOV currently does not report

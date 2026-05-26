@@ -341,7 +341,7 @@ Floors below are the gates enforced today, calibrated against CI's actual LCOV o
 
 | Tier                     | Path patterns                                                                                                                            | branches | functions | lines |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------- | ----- |
-| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 60       | 33        | 73    |
+| **T1 Critical**          | `agent-tools/src/{permission,registry}.rs`, `agent-store/src/`, `agent-core/src/`, `agent-config/src/`                                   | 60       | 33        | 71    |
 | **T2 High runtime**      | `agent-runtime/src/`, `agent-memory/src/`, `agent-models/src/`, `agent-mcp/src/` (currently `allowPartial: true`; group not yet in LCOV) | 70       | 55        | 75    |
 | **T2 Tauri IPC**         | `apps/agent-gui/src-tauri/src/{lib,app_state,event_forwarder,commands}.rs`, `apps/agent-gui/src-tauri/src/commands/` (excl. `specta.rs`) | 99       | —         | —     |
 | **T3 Adapters & skills** | `agent-tools/src/` (excl. T1), `agent-skills/src/`, `agent-plugins/src/`                                                                 | 93       | 91        | 95    |
