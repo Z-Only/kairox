@@ -173,9 +173,10 @@ where
     S: EventStore + 'static,
     M: agent_models::ModelClient + 'static,
 {
-    /// Trigger a compaction pass for `session_id`. Blocks until the chain
-    /// completes (success or fallback). Returns `Err(SessionBusy)` if a
-    /// compaction is already running for the same session.
+    /// Trigger a compaction pass for `session_id`. Queues behind any active
+    /// session actor turn and blocks until the chain completes (success or
+    /// fallback). Returns `Err(SessionBusy)` if a compaction is already
+    /// running for the same session.
     ///
     /// This is the inherent method; P3 will surface it via the `AppFacade`
     /// trait once the GUI/TUI commands wire to it.
@@ -229,17 +230,27 @@ where
                     .unwrap_or_else(|| "fake".to_string())
             });
 
-        crate::compaction::compact_session(
-            &*self.store,
-            &self.event_tx,
-            &*self.model,
-            &profile_alias,
-            &self.session_states,
-            workspace_id,
-            session_id,
-            reason,
-        )
-        .await
+        let store = self.store.clone();
+        let event_tx = self.event_tx.clone();
+        let model = self.model.clone();
+        let session_states = self.session_states.clone();
+        let operation_session_id = session_id.clone();
+
+        self.session_execution
+            .run_operation(&session_id, async move {
+                crate::compaction::compact_session(
+                    &*store,
+                    &event_tx,
+                    &*model,
+                    &profile_alias,
+                    &session_states,
+                    workspace_id,
+                    operation_session_id,
+                    reason,
+                )
+                .await
+            })
+            .await
     }
 }
 
@@ -360,6 +371,42 @@ mod tests {
                 yield Ok(ModelEvent::Completed { usage: None });
             };
             Ok(Box::pin(stream))
+        }
+    }
+
+    async fn append_compaction_history<S: EventStore>(
+        store: &S,
+        workspace_id: &WorkspaceId,
+        session_id: &SessionId,
+        pairs: usize,
+    ) {
+        let base = chrono::Utc::now() - chrono::Duration::hours(1);
+        for i in 0..pairs {
+            let user = agent_core::DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                agent_core::AgentId::system(),
+                agent_core::PrivacyClassification::FullTrace,
+                agent_core::EventPayload::UserMessageAdded {
+                    message_id: format!("seed-user-{i}"),
+                    content: format!("seed user {i}"),
+                },
+            )
+            .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2));
+            store.append(&user).await.unwrap();
+
+            let assistant = agent_core::DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                agent_core::AgentId::system(),
+                agent_core::PrivacyClassification::FullTrace,
+                agent_core::EventPayload::AssistantMessageCompleted {
+                    message_id: format!("seed-assistant-{i}"),
+                    content: format!("seed assistant {i}"),
+                },
+            )
+            .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2 + 1));
+            store.append(&assistant).await.unwrap();
         }
     }
 
@@ -1667,6 +1714,95 @@ mod tests {
             1
         );
         assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn compact_session_queues_behind_active_actor_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime = Arc::new(LocalRuntime::new(store, model));
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+        append_compaction_history(
+            runtime.event_store_for_test(),
+            &workspace.workspace_id,
+            &session_id,
+            8,
+        )
+        .await;
+
+        let turn_runtime = runtime.clone();
+        let turn_workspace_id = workspace.workspace_id;
+        let turn_session_id = session_id.clone();
+        let turn = tokio::spawn(async move {
+            turn_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: turn_workspace_id,
+                    session_id: turn_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let compact_runtime = runtime.clone();
+        let compact_session_id = session_id.clone();
+        let compact = tokio::spawn(async move {
+            compact_runtime
+                .compact_session(
+                    compact_session_id,
+                    agent_core::CompactionReason::UserRequested,
+                )
+                .await
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        assert!(!compact.is_finished());
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        assert!(!events.iter().any(|event| matches!(
+            &event.payload,
+            agent_core::EventPayload::ContextCompactionStarted { .. }
+                | agent_core::EventPayload::CompactionSummary { .. }
+                | agent_core::EventPayload::ContextCompactionCompleted { .. }
+        )));
+
+        release_tx.send(()).unwrap();
+        turn.await.unwrap().unwrap();
+        compact.await.unwrap().unwrap();
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(
+                    &event.payload,
+                    agent_core::EventPayload::ContextCompactionStarted { .. }
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]
