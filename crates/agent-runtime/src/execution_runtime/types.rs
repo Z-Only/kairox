@@ -1,6 +1,9 @@
 use agent_core::{SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use async_trait::async_trait;
+use std::{future::Future, pin::Pin};
 use tokio_util::sync::CancellationToken;
+
+pub type SessionOperation = Pin<Box<dyn Future<Output = agent_core::Result<()>> + Send + 'static>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecutionState {

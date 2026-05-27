@@ -198,6 +198,48 @@ async fn run_turn_queues_when_session_is_busy() {
 }
 
 #[tokio::test]
+async fn run_operation_queues_when_session_is_busy() {
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let (cancelled_tx, _cancelled_rx) = oneshot::channel();
+    let executor = Arc::new(BlockingExecutor::new(started_tx, release_rx, cancelled_tx));
+    let operation_calls = Arc::new(AtomicUsize::new(0));
+    let runtime = SessionExecutionRuntime::new();
+    let session_id = SessionId::new();
+
+    let runtime_for_turn = runtime.clone();
+    let executor_for_turn = executor.clone();
+    let turn_session = session_id.clone();
+    let turn = tokio::spawn(async move {
+        runtime_for_turn
+            .run_turn(request(turn_session, "first"), executor_for_turn)
+            .await
+    });
+    started_rx.await.unwrap();
+
+    let runtime_for_operation = runtime.clone();
+    let operation_session = session_id.clone();
+    let calls_for_operation = operation_calls.clone();
+    let operation = tokio::spawn(async move {
+        runtime_for_operation
+            .run_operation(&operation_session, async move {
+                calls_for_operation.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(25)).await;
+    assert!(!operation.is_finished());
+    assert_eq!(operation_calls.load(Ordering::SeqCst), 0);
+
+    release_tx.send(()).unwrap();
+    turn.await.unwrap().unwrap();
+    operation.await.unwrap().unwrap();
+    assert_eq!(operation_calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
 async fn cancel_running_turn_triggers_cancellation_token() {
     let (started_tx, started_rx) = oneshot::channel();
     let (_release_tx, release_rx) = oneshot::channel();

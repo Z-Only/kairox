@@ -5,7 +5,7 @@ use agent_core::{CoreError, SendMessageRequest, SessionId, TaskId, WorkspaceId};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
-use super::types::{ExecutionState, TaskControlExecutor, TurnExecutor};
+use super::types::{ExecutionState, SessionOperation, TaskControlExecutor, TurnExecutor};
 
 const ACTOR_CHANNEL_CAPACITY: usize = 32;
 
@@ -31,6 +31,10 @@ pub(crate) enum ActorMessage {
         session_id: SessionId,
         task_id: TaskId,
         executor: Arc<dyn TaskControlExecutor>,
+        reply: oneshot::Sender<agent_core::Result<()>>,
+    },
+    RunOperation {
+        operation: SessionOperation,
         reply: oneshot::Sender<agent_core::Result<()>>,
     },
     State {
@@ -62,10 +66,16 @@ struct PendingTaskControl {
     reply: oneshot::Sender<agent_core::Result<()>>,
 }
 
+struct PendingOperation {
+    operation: SessionOperation,
+    reply: oneshot::Sender<agent_core::Result<()>>,
+}
+
 enum PendingCommand {
     RunTurn(PendingTurn),
     RetryTask(PendingTaskControl),
     CancelTask(PendingTaskControl),
+    RunOperation(PendingOperation),
 }
 
 impl PendingCommand {
@@ -77,6 +87,9 @@ impl PendingCommand {
             Self::RetryTask(pending) | Self::CancelTask(pending) => {
                 let _ = pending.reply.send(Err(actor_stopped()));
             }
+            Self::RunOperation(pending) => {
+                let _ = pending.reply.send(Err(actor_stopped()));
+            }
         }
     }
 
@@ -86,6 +99,9 @@ impl PendingCommand {
                 let _ = pending.reply.send(Err(actor_cancelled(reason)));
             }
             Self::RetryTask(pending) | Self::CancelTask(pending) => {
+                let _ = pending.reply.send(Err(actor_cancelled(reason)));
+            }
+            Self::RunOperation(pending) => {
                 let _ = pending.reply.send(Err(actor_cancelled(reason)));
             }
         }
@@ -158,6 +174,18 @@ impl SessionActorHandle {
                 executor,
                 reply,
             })
+            .await
+            .map_err(|_| actor_stopped())?;
+        result.await.map_err(|_| actor_stopped())?
+    }
+
+    pub(crate) async fn run_operation(
+        &self,
+        operation: SessionOperation,
+    ) -> agent_core::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.sender
+            .send(ActorMessage::RunOperation { operation, reply })
             .await
             .map_err(|_| actor_stopped())?;
         result.await.map_err(|_| actor_stopped())?
@@ -285,6 +313,14 @@ impl SessionExecutionActor {
                 .await;
                 true
             }
+            ActorMessage::RunOperation { operation, reply } => {
+                self.handle_command(PendingCommand::RunOperation(PendingOperation {
+                    operation,
+                    reply,
+                }))
+                .await;
+                true
+            }
             ActorMessage::State { reply } => {
                 let _ = reply.send(self.state.clone());
                 true
@@ -331,6 +367,10 @@ impl SessionExecutionActor {
                     .executor
                     .cancel_task(pending.workspace_id, pending.session_id, pending.task_id)
                     .await;
+                let _ = pending.reply.send(result);
+            }
+            PendingCommand::RunOperation(pending) => {
+                let result = pending.operation.await;
                 let _ = pending.reply.send(result);
             }
         }
