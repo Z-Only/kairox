@@ -21,7 +21,7 @@
     },
     "apps/agent-gui": {
       "name": "agent-gui",
-      "version": "0.30.0",
+      "version": "0.31.0",
       "dependencies": {
         "@tauri-apps/api": "^2.11.0",
         "@tauri-apps/plugin-dialog": "^2.4.0",
@@ -54,7 +54,7 @@
         "vue-tsc": "^3.3.1",
       },
       "optionalDependencies": {
-        "@rolldown/binding-darwin-arm64": "1.0.2",
+        "@rolldown/binding-darwin-arm64": "1.0.3",
         "@rolldown/binding-linux-x64-gnu": "1.0.2",
         "@rolldown/binding-win32-x64-msvc": "1.0.2",
       },
@@ -389,7 +389,7 @@
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.0.1", "https://registry.npmmirror.com/@rolldown/binding-android-arm64/-/binding-android-arm64-1.0.1.tgz", { "os": "android", "cpu": "arm64" }, "sha512-fJI3I0r3C3Oj/zdBCpaCmBRZYf07xpaq4yCfDDoSFm+beWNzbIl26puW8RraUdugoJw/95zerNOn6jasAhzSmg=="],
 
-    "@rolldown/binding-darwin-arm64": ["@rolldown/binding-darwin-arm64@1.0.2", "https://registry.npmmirror.com/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.0.2.tgz", { "os": "darwin", "cpu": "arm64" }, "sha512-vdFA9+C/rekyGce7WqHs/xoT0ioZEWaOFyZLIV1mEeNFaFDUQrPIo8Vs2GvJ6eetb3rzDUtUBgzto3ExpXJB3w=="],
+    "@rolldown/binding-darwin-arm64": ["@rolldown/binding-darwin-arm64@1.0.3", "", { "os": "darwin", "cpu": "arm64" }, "sha512-PcAhP+ynjURNyy8SKGl5DQP94aGuB/7JrXJb/t7P+hanXvQVMWzUvRRhBAcg/lNRadBhoUPqSoP4xw5tR/KBEA=="],
 
     "@rolldown/binding-darwin-x64": ["@rolldown/binding-darwin-x64@1.0.1", "https://registry.npmmirror.com/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.0.1.tgz", { "os": "darwin", "cpu": "x64" }, "sha512-YKrVwQjIRBPo+5G/u03wGjbdy4q7pyzCe93DK9VJ7zkVmeg8LJ7GbgsiHWdR4xSoe4CAXRD7Bcjgbtr64bkXNg=="],
 
