@@ -23,6 +23,17 @@ pub enum CompactionReason {
     Threshold { ratio: f32 },
 }
 
+/// Why a turn-end auto-compaction trigger did NOT enqueue a compaction.
+/// `BelowThreshold` is intentionally not modeled — it is the steady state
+/// and would flood the event log.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type")]
+pub enum CompactionSkipReason {
+    AlreadyCompacting,
+    ThresholdDisabled,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "PascalCase")]
@@ -65,6 +76,12 @@ pub enum EventPayload {
     ContextCompactionFailed {
         error: String,
         fallback_used: bool,
+    },
+    /// Turn-end auto-compaction was suppressed. Emitted only for reasons
+    /// that callers/UIs may want to surface; below-threshold is silent.
+    ContextCompactionSkipped {
+        reason: CompactionSkipReason,
+        ratio: f32,
     },
     CompactionSummary {
         summary_id: String,
@@ -312,6 +329,7 @@ impl EventPayload {
             Self::ContextCompactionStarted { .. } => "ContextCompactionStarted",
             Self::ContextCompactionCompleted { .. } => "ContextCompactionCompleted",
             Self::ContextCompactionFailed { .. } => "ContextCompactionFailed",
+            Self::ContextCompactionSkipped { .. } => "ContextCompactionSkipped",
             Self::CompactionSummary { .. } => "CompactionSummary",
             Self::ModelProfileSwitched { .. } => "ModelProfileSwitched",
             Self::ModelRequestStarted { .. } => "ModelRequestStarted",
@@ -705,6 +723,34 @@ fn event_type_method_covers_new_compaction_variants() {
         summarised_by_profile: "fast".into(),
     };
     assert_eq!(summary.event_type(), "CompactionSummary");
+}
+
+#[test]
+fn context_compaction_skipped_round_trips() {
+    let payload = EventPayload::ContextCompactionSkipped {
+        reason: CompactionSkipReason::AlreadyCompacting,
+        ratio: 0.92,
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "ContextCompactionSkipped");
+    assert_eq!(json["reason"]["type"], "AlreadyCompacting");
+    assert!((json["ratio"].as_f64().unwrap() - 0.92).abs() < 1e-6);
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    assert!(matches!(
+        back,
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::AlreadyCompacting,
+            ..
+        }
+    ));
+
+    let disabled = EventPayload::ContextCompactionSkipped {
+        reason: CompactionSkipReason::ThresholdDisabled,
+        ratio: 0.5,
+    };
+    let json = serde_json::to_value(&disabled).unwrap();
+    assert_eq!(json["reason"]["type"], "ThresholdDisabled");
+    assert_eq!(disabled.event_type(), "ContextCompactionSkipped");
 }
 
 #[test]
