@@ -67,6 +67,10 @@ impl SessionExecutionRuntime {
             .await
     }
 
+    pub async fn ensure_session(&self, session_id: &SessionId) {
+        self.actor_for(session_id).await;
+    }
+
     pub async fn shutdown_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
         let actor = {
             let mut actors = self.actors.lock().await;

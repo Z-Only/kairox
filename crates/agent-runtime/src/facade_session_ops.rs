@@ -38,6 +38,7 @@ where
 
         self.initialize_session_limits(&session_id, &model_profile_alias)
             .await;
+        self.session_execution.ensure_session(&session_id).await;
 
         if let Some(ref approval_str) = approval_policy_str {
             if let Ok(approval) = approval_str.parse::<ApprovalPolicy>() {
@@ -162,10 +163,12 @@ where
     }
 
     async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        self.session_execution.shutdown_session(session_id).await?;
         crate::session::soft_delete_session(&*self.store, session_id).await
     }
 
     async fn permanently_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        self.session_execution.shutdown_session(session_id).await?;
         crate::session::permanently_delete_session(&*self.store, session_id.as_str()).await
     }
 
