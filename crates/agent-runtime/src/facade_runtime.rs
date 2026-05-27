@@ -744,6 +744,85 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cancel_session_rejects_queued_same_session_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime = Arc::new(LocalRuntime::new(store, model));
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "blocking".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let first_runtime = runtime.clone();
+        let first_workspace_id = workspace.workspace_id.clone();
+        let first_session_id = session_id.clone();
+        let mut first = tokio::spawn(async move {
+            first_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: first_workspace_id,
+                    session_id: first_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let second_runtime = runtime.clone();
+        let second_workspace_id = workspace.workspace_id.clone();
+        let second_session_id = session_id.clone();
+        let second = tokio::spawn(async move {
+            second_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: second_workspace_id,
+                    session_id: second_session_id,
+                    content: "second".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        assert!(!second.is_finished());
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+
+        runtime
+            .cancel_session(workspace.workspace_id, session_id.clone())
+            .await
+            .unwrap();
+
+        let first_completed =
+            tokio::time::timeout(std::time::Duration::from_millis(250), &mut first).await;
+        if first_completed.is_err() {
+            drop(release_tx);
+            let _ = first.await;
+            let _ = second.await;
+            panic!("first turn should finish after session cancellation");
+        }
+
+        first_completed.unwrap().unwrap().unwrap();
+        let second_result = second.await.unwrap();
+        assert!(
+            matches!(second_result, Err(agent_core::CoreError::InvalidState(ref message)) if message.contains("session execution cancelled")),
+            "expected queued turn cancellation error, got {second_result:?}"
+        );
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
     async fn cancel_session_does_not_cancel_other_running_session() {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let (first_started_tx, first_started_rx) = oneshot::channel();

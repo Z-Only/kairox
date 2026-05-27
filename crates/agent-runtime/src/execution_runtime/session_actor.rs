@@ -79,6 +79,17 @@ impl PendingCommand {
             }
         }
     }
+
+    fn reject_cancelled(self, reason: &str) {
+        match self {
+            Self::RunTurn(pending) => {
+                let _ = pending.reply.send(Err(actor_cancelled(reason)));
+            }
+            Self::RetryTask(pending) | Self::CancelTask(pending) => {
+                let _ = pending.reply.send(Err(actor_cancelled(reason)));
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -291,6 +302,11 @@ impl SessionExecutionActor {
             return;
         }
 
+        if matches!(self.state, ExecutionState::Cancelling { .. }) {
+            command.reject_cancelled("cancellation in progress");
+            return;
+        }
+
         if self.running.is_some() {
             self.pending.push_back(command);
             return;
@@ -353,14 +369,21 @@ impl SessionExecutionActor {
         });
     }
 
-    fn handle_cancel(&mut self, _reason: String, reply: oneshot::Sender<agent_core::Result<()>>) {
+    fn handle_cancel(&mut self, reason: String, reply: oneshot::Sender<agent_core::Result<()>>) {
         if let Some(active) = &self.running {
             active.cancellation.cancel();
             self.state = ExecutionState::Cancelling {
                 turn_id: active.turn_id.clone(),
             };
         }
+        self.reject_pending_cancelled(&reason);
         let _ = reply.send(Ok(()));
+    }
+
+    fn reject_pending_cancelled(&mut self, reason: &str) {
+        while let Some(command) = self.pending.pop_front() {
+            command.reject_cancelled(reason);
+        }
     }
 
     fn handle_shutdown(&mut self, reply: oneshot::Sender<agent_core::Result<()>>) {
@@ -398,4 +421,8 @@ impl SessionExecutionActor {
 
 fn actor_stopped() -> CoreError {
     CoreError::InvalidState("session execution actor stopped".into())
+}
+
+fn actor_cancelled(reason: &str) -> CoreError {
+    CoreError::InvalidState(format!("session execution cancelled: {reason}"))
 }
