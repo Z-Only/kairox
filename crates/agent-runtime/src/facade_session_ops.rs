@@ -173,7 +173,9 @@ where
     }
 
     async fn restore_archived_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
-        crate::session::restore_archived_session(&*self.store, session_id.as_str()).await
+        crate::session::restore_archived_session(&*self.store, session_id.as_str()).await?;
+        self.session_execution.ensure_session(session_id).await;
+        Ok(())
     }
 
     async fn cleanup_expired_sessions(

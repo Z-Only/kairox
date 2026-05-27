@@ -89,6 +89,19 @@ where
     }
 
     pub(crate) async fn remove_project(&self, project_id: ProjectId) -> agent_core::Result<()> {
+        let archived_session_ids: Vec<SessionId> = self
+            .store
+            .list_visible_project_sessions(project_id.as_str())
+            .await
+            .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?
+            .into_iter()
+            .map(|session| SessionId::from_string(session.session_id))
+            .collect();
+
+        for session_id in &archived_session_ids {
+            self.session_execution.shutdown_session(session_id).await?;
+        }
+
         self.project_repository()?
             .remove_project(project_id.as_str())
             .await
@@ -115,6 +128,7 @@ where
             .set_session_visibility(session_id.as_str(), "visible")
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        self.session_execution.ensure_session(&session_id).await;
         Ok(crate::project::project_row_to_meta(project))
     }
 
@@ -157,11 +171,13 @@ where
             &*self.store,
             &self.event_tx,
             WorkspaceId::from_string(project.workspace_id.clone()),
-            model_profile,
+            model_profile.clone(),
             None,
             None,
         )
         .await?;
+        self.initialize_session_limits(&session_id, &model_profile)
+            .await;
         let git_status = crate::project::get_git_status(&project.root_path);
         let branch = git_status.branch.as_deref();
         repository
@@ -177,6 +193,7 @@ where
             .set_session_visibility(session_id.as_str(), "draft_hidden")
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        self.session_execution.ensure_session(&session_id).await;
         Ok(session_id)
     }
 
@@ -199,11 +216,13 @@ where
             &*self.store,
             &self.event_tx,
             WorkspaceId::from_string(project.workspace_id.clone()),
-            model_profile,
+            model_profile.clone(),
             None,
             None,
         )
         .await?;
+        self.initialize_session_limits(&session_id, &model_profile)
+            .await;
         repository
             .bind_session(
                 session_id.as_str(),
@@ -213,6 +232,7 @@ where
             )
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        self.session_execution.ensure_session(&session_id).await;
         Ok(session_id)
     }
 
@@ -452,5 +472,99 @@ where
         project_id: ProjectId,
     ) -> agent_core::Result<ProjectInstructionSummary> {
         LocalRuntime::get_project_instruction_summary(self, project_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execution_runtime::ExecutionState;
+    use agent_core::AppFacade;
+    use agent_models::FakeModelClient;
+    use agent_store::SqliteEventStore;
+
+    #[tokio::test]
+    async fn create_project_draft_session_registers_idle_actor() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hello".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime
+            .open_workspace("/tmp/kairox-workspace".into())
+            .await
+            .unwrap();
+        let project = runtime
+            .add_existing_project(workspace.workspace_id, "/tmp/kairox-project".into())
+            .await
+            .unwrap();
+
+        assert_eq!(runtime.session_execution.actor_count().await, 0);
+        let session_id = runtime
+            .create_project_draft_session(project.project_id)
+            .await
+            .unwrap();
+
+        assert_eq!(runtime.session_execution.actor_count().await, 1);
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            Some(ExecutionState::Idle)
+        );
+    }
+
+    #[tokio::test]
+    async fn project_removal_stops_archived_session_actor_and_restore_restarts_it() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hello".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime
+            .open_workspace("/tmp/kairox-workspace".into())
+            .await
+            .unwrap();
+        let project = runtime
+            .add_existing_project(workspace.workspace_id.clone(), "/tmp/kairox-project".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .create_project_draft_session(project.project_id.clone())
+            .await
+            .unwrap();
+        runtime
+            .mark_session_visible(&session_id, "hello project".into())
+            .await
+            .unwrap();
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            Some(ExecutionState::Idle)
+        );
+
+        runtime
+            .remove_project(project.project_id.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            None
+        );
+        assert_eq!(runtime.session_execution.actor_count().await, 0);
+        let archived = runtime
+            .list_archived_sessions(&workspace.workspace_id)
+            .await
+            .unwrap();
+        assert!(archived
+            .iter()
+            .any(|session| session.session_id == session_id));
+
+        runtime
+            .restore_project_session(session_id.clone())
+            .await
+            .unwrap();
+
+        assert_eq!(runtime.session_execution.actor_count().await, 1);
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            Some(ExecutionState::Idle)
+        );
     }
 }
