@@ -21,7 +21,7 @@
     },
     "apps/agent-gui": {
       "name": "agent-gui",
-      "version": "0.30.0",
+      "version": "0.31.0",
       "dependencies": {
         "@tauri-apps/api": "^2.11.0",
         "@tauri-apps/plugin-dialog": "^2.4.0",
@@ -31,7 +31,7 @@
         "highlight.js": "^11.11.1",
         "markdown-it": "^14.1.1",
         "pinia": "^3.0.4",
-        "reka-ui": "^2.9.7",
+        "reka-ui": "^2.9.8",
         "vue": "^3.5.34",
         "vue-i18n": "^11.4.4",
         "vue-router": "^5.0.7",
@@ -1257,7 +1257,7 @@
 
     "regex-utilities": ["regex-utilities@2.3.0", "https://registry.npmmirror.com/regex-utilities/-/regex-utilities-2.3.0.tgz", {}, "sha512-8VhliFJAWRaUiVvREIiW2NXXTmHs4vMNnSzuJVhscgmGav3g9VDxLrQndI3dZZVVdp0ZO/5v0xmX516/7M9cng=="],
 
-    "reka-ui": ["reka-ui@2.9.7", "https://registry.npmmirror.com/reka-ui/-/reka-ui-2.9.7.tgz", { "dependencies": { "@floating-ui/dom": "1.7.6", "@floating-ui/vue": "1.1.11", "@internationalized/date": "3.12.1", "@internationalized/number": "3.6.6", "@tanstack/vue-virtual": "3.13.24", "@vueuse/core": "14.3.0", "@vueuse/shared": "14.3.0", "aria-hidden": "1.2.6", "defu": "6.1.7", "ohash": "2.0.11" }, "peerDependencies": { "vue": "3.5.34" } }, "sha512-aX7foYYR20v4+majO58OJJdBNfLMm0eJb448l9N4JVy8JB7GXOr4H/S4a+J1pkcoxZH8Cb7YHpJ855+miAm7sA=="],
+    "reka-ui": ["reka-ui@2.9.8", "", { "dependencies": { "@floating-ui/dom": "^1.6.13", "@floating-ui/vue": "^1.1.6", "@internationalized/date": "^3.5.0", "@internationalized/number": "^3.5.0", "@tanstack/vue-virtual": "^3.12.0", "@vueuse/core": "^14.1.0", "@vueuse/shared": "^14.1.0", "aria-hidden": "^1.2.4", "defu": "^6.1.5", "ohash": "^2.0.11" }, "peerDependencies": { "vue": ">= 3.4.0" } }, "sha512-7dxaBJ6nQ0zOQZXPV45219tTEgZPstmihBLS9ABPhSiPiJ8SiF0sacfZHFaBptS0v9N4tzsevq+8MNBpE4p5JQ=="],
 
     "require-from-string": ["require-from-string@2.0.2", "https://registry.npmmirror.com/require-from-string/-/require-from-string-2.0.2.tgz", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 
