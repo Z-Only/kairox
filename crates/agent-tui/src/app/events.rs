@@ -170,6 +170,13 @@ impl App {
                 self.compacting = false;
                 self.state.render_scheduler.mark_dirty();
             }
+            EventPayload::ContextCompactionSkipped { .. } => {
+                // The skipped event is one-shot — there is no in-flight
+                // compaction to track. Clearing the flag also recovers
+                // gracefully if a stale spinner was somehow left running.
+                self.compacting = false;
+                self.state.render_scheduler.mark_dirty();
+            }
             EventPayload::ModelProfileSwitched {
                 to_profile,
                 reasoning_effort,
@@ -228,6 +235,32 @@ mod tests {
             PrivacyClassification::MinimalTrace,
             payload,
         )
+    }
+
+    #[test]
+    fn skipped_compaction_event_marks_compaction_not_in_flight() {
+        let workspace_id = WorkspaceId::from_string("wrk_test".into());
+        let session_id = SessionId::from_string("ses_test".into());
+        let mut app = App::new("test", workspace_id.clone());
+        app.current_session_id = Some(session_id.clone());
+        // Pretend a compaction was in flight so we can observe that the
+        // Skipped event clears the in-flight flag rather than leaving
+        // the spinner stuck on screen.
+        app.compacting = true;
+
+        app.handle_domain_event(&event(
+            &workspace_id,
+            &session_id,
+            EventPayload::ContextCompactionSkipped {
+                reason: agent_core::events::CompactionSkipReason::AlreadyCompacting,
+                ratio: 0.42,
+            },
+        ));
+
+        assert!(
+            !app.compacting,
+            "ContextCompactionSkipped should clear the in-flight compaction flag"
+        );
     }
 
     #[test]
