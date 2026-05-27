@@ -69,12 +69,15 @@ function firstParagraph(body) {
 }
 
 function stripMarkdown(body) {
-  return body
-    .replace(/```[\s\S]*?```/g, (block) => block)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .trim();
+  let out = body.replace(/```[\s\S]*?```/g, (block) => block);
+  let prev;
+  do {
+    prev = out;
+    out = out
+      .replace(/<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style\s*>)<[^<]*)*<\/style\s*>/gi, "");
+  } while (out !== prev);
+  return out.replace(/<[^>]+>/g, "").trim();
 }
 
 function pathToUrl(absPath) {
