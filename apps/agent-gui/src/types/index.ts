@@ -7,8 +7,10 @@ export type {
   TaskSnapshot,
   TaskGraphSnapshot,
   PrivacyClassification,
-  MemoryScope
+  MemoryScope,
+  CompactionSkipReason
 } from "../generated/events";
+import type { CompactionSkipReason } from "../generated/events";
 
 // ===== P3 hand-written mirrors for context-mgmt types =====
 //
@@ -83,11 +85,15 @@ export interface ProjectedModelLimits {
   source: string;
 }
 
-/** Mirrors `crates/agent-core/src/projection.rs::CompactionStatus`. */
+/**
+ * Mirrors `crates/agent-core/src/projection.rs::CompactionStatus`.
+ * `Skipped` payload mirrors `ContextCompactionSkipped` in events.rs.
+ */
 export type CompactionStatus =
   | { type: "Idle" }
   | { type: "Running" }
-  | { type: "Failed"; error: string };
+  | { type: "Failed"; error: string }
+  | { type: "Skipped"; reason: CompactionSkipReason; ratio: number | null };
 
 /**
  * Mirrors `crates/agent-core/src/events.rs::CompactionReason`.

@@ -715,7 +715,14 @@
       },
       "ratio": "Compressed to {value}",
       "duration": "in {value}",
-      "fallbackUsed": "Sliding-window fallback"
+      "fallbackUsed": "Sliding-window fallback",
+      "skipped": {
+        "label": "Auto-compaction skipped",
+        "reason": {
+          "alreadyCompacting": "another compaction in flight",
+          "thresholdDisabled": "threshold disabled"
+        }
+      }
     }
   }
 }

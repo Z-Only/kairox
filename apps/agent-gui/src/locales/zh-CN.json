@@ -715,7 +715,14 @@
       },
       "ratio": "压缩至 {value}",
       "duration": "耗时 {value}",
-      "fallbackUsed": "已使用滑动窗口回退"
+      "fallbackUsed": "已使用滑动窗口回退",
+      "skipped": {
+        "label": "已跳过自动压缩",
+        "reason": {
+          "alreadyCompacting": "另一次压缩进行中",
+          "thresholdDisabled": "阈值已关闭"
+        }
+      }
     }
   }
 }

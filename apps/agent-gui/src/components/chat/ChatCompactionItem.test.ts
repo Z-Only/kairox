@@ -84,6 +84,53 @@ describe("ChatCompactionItem", () => {
     expect(fallback.text()).toBe("Sliding-window fallback");
   });
 
+  it("renders the skipped status with the alreadyCompacting reason chip and ratio", () => {
+    const wrapper = mountWithPlugins(ChatCompactionItem, {
+      props: {
+        status: {
+          type: "Skipped",
+          reason: { type: "AlreadyCompacting" },
+          ratio: 0.5
+        }
+      }
+    });
+
+    const root = wrapper.find('[data-test="chat-compaction-skipped"]');
+    expect(root.exists()).toBe(true);
+    expect(root.attributes("data-status")).toBe("skipped");
+    expect(root.text()).toContain("Auto-compaction skipped");
+
+    const reason = wrapper.find('[data-test="chat-compaction-skipped-reason"]');
+    expect(reason.exists()).toBe(true);
+    expect(reason.text()).toBe("another compaction in flight");
+
+    const ratio = wrapper.find('[data-test="chat-compaction-ratio"]');
+    expect(ratio.exists()).toBe(true);
+    expect(ratio.text()).toContain("50%");
+  });
+
+  it("renders the thresholdDisabled reason chip and hides ratio when ratio is null", () => {
+    const wrapper = mountWithPlugins(ChatCompactionItem, {
+      props: {
+        status: {
+          type: "Skipped",
+          reason: { type: "ThresholdDisabled" },
+          ratio: null
+        }
+      }
+    });
+
+    const root = wrapper.find('[data-test="chat-compaction-skipped"]');
+    expect(root.exists()).toBe(true);
+    expect(root.attributes("data-status")).toBe("skipped");
+
+    const reason = wrapper.find('[data-test="chat-compaction-skipped-reason"]');
+    expect(reason.exists()).toBe(true);
+    expect(reason.text()).toBe("threshold disabled");
+
+    expect(wrapper.find('[data-test="chat-compaction-ratio"]').exists()).toBe(false);
+  });
+
   it("omits the fallback chip when fallback was not used", () => {
     const wrapper = mountWithPlugins(ChatCompactionItem, {
       props: {
