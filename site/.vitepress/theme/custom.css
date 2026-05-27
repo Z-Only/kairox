@@ -107,3 +107,140 @@
     max-width: 180px;
   }
 }
+
+.kairox-feedback {
+  margin: 56px 0 12px;
+  padding: 20px 22px;
+  border: 1px solid var(--kairox-border);
+  border-radius: 10px;
+  background: var(--kairox-surface-soft);
+}
+
+.kairox-feedback__prompt {
+  margin: 0 0 10px;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.kairox-feedback__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.kairox-feedback__button {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--kairox-border);
+  border-radius: 999px;
+  background: var(--kairox-surface);
+  color: var(--vp-c-text-1);
+  font-size: 14px;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.kairox-feedback__button:hover {
+  border-color: var(--vp-c-brand-2);
+  color: var(--vp-c-brand-1);
+}
+
+.kairox-feedback__button--ok {
+  border-color: var(--vp-c-brand-3);
+}
+
+.kairox-feedback__button--bad {
+  border-color: var(--kairox-border);
+}
+
+.kairox-feedback__hint {
+  margin: 0;
+  color: var(--kairox-text-muted);
+  font-size: 13px;
+}
+
+.kairox-release-banner {
+  margin: 0 0 28px;
+  padding: 16px 20px;
+  border: 1px solid var(--kairox-border);
+  border-radius: 10px;
+  background: var(--kairox-surface-soft);
+}
+
+.kairox-release-banner__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.kairox-release-banner__title {
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+}
+
+.kairox-release-banner__date {
+  color: var(--kairox-text-muted);
+  font-size: 13px;
+}
+
+.kairox-release-banner__more {
+  margin-left: auto;
+  color: var(--vp-c-brand-1);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.kairox-release-banner__more:hover {
+  text-decoration: underline;
+}
+
+.kairox-release-banner__assets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kairox-release-banner__assets a {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--kairox-border);
+  border-radius: 6px;
+  background: var(--kairox-surface);
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.kairox-release-banner__assets a:hover {
+  border-color: var(--vp-c-brand-2);
+  color: var(--vp-c-brand-1);
+}
+
+.kairox-release-banner--fallback {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+  padding: 12px;
+  border: 1px solid var(--kairox-border);
+  border-radius: 10px;
+  background: var(--kairox-surface-soft);
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
