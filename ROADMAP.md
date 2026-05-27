@@ -64,6 +64,10 @@
 - ✅ Add plugin settings marketplace and plugin-namespaced skill discovery (#206, #213)
 - ✅ Add reasoning effort selection for reasoning-capable profiles (#222)
 - ✅ Expose MCP connectivity actions in the GUI (#302)
+- ✅ Introduce orthogonal `ApprovalPolicy` × `SandboxPolicy` PolicyEngine and drop legacy `PermissionMode` (#504, #507, #508, #510, #511, #517)
+- ✅ Route session execution through per-session actors with race-free turn-end compaction (#521, #522, #523, #524, #525, #533)
+- ✅ Ship VitePress documentation site with EN/ZH parity and `pages.yml` deploy (#535, #536)
+- ✅ Add headless evaluation harness crate (`agent-eval`, binary `kairox-eval`)
 
 ## Mid term
 
