@@ -4,6 +4,65 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0] - 2026-05-27
+
+### 🚀 Features
+
+- **runtime**: auto-accept memory markers in interactive mode (#501)
+- **tools**: PolicyEngine — orthogonal Approval × Sandbox (PR-1: shim) (#504)
+- **store**: add approval_policy/sandbox_policy columns (#507)
+- **runtime**: expose double-axis approval+sandbox policy API (#508)
+- **tui**: surface double-axis approval+sandbox policy in status bar (#510)
+- **gui**: orthogonal approval × sandbox policy selectors in chat (#511)
+- **runtime,store,tools,tui,gui**: drop PermissionMode shim end-to-end (#517)
+- **runtime**: add session execution runtime (#521)
+- **runtime**: route turns through session actors (#522)
+- **runtime**: route task control through actors (#523)
+- **runtime**: add scheduler batches (#524)
+- **runtime**: cancel DAG turns via actor (#525)
+- **runtime**: race-free auto-compaction at turn end (#533)
+- **docs**: add VitePress website (#535)
+
+### 🐛 Bug Fixes
+
+- **gui**: defer new session creation (#497)
+- **gui**: refresh config for model drafts (#498)
+- **ci**: drop --branch from coverage pipeline to dodge LLVM #189169 (#509)
+- **runtime**: scope turn cancellation by session (#526)
+- **runtime**: reject queued work on cancel (#527)
+- **ci**: harden stripMarkdown HTML sanitization in llms-txt generator (#537)
+
+### 📚 Documentation
+
+- spec + plan for race-free auto-compaction (#534)
+- overhaul VitePress site with concepts/reference/community pages and ZH parity (#536)
+- **ai**: sync AGENTS.md/CLAUDE.md/.cursorrules with current code
+
+### 🧪 Testing
+
+- **gui**: lift stores branch coverage past the 68 floor (#500)
+- **gui**: cover Tauri command pure helpers (#502)
+- **runtime**: cover agent_settings parser error paths and round trip (#512)
+- **runtime**: cover mcp_manager resources NotRunning paths (#514)
+- **tui**: cover system_file_manager_command and config-path helpers (#515)
+- **runtime**: cover resolve_permission behaviour and lifecycle (#516)
+- **runtime**: cover agent_settings projection effective-scope and view builders (#513)
+
+### 🧹 Refactor
+
+- **runtime**: remove legacy permission mode (#520)
+- **runtime**: move cancellation into actor (#528)
+- **runtime**: own session actor lifecycle (#529)
+- **runtime**: own project session actors (#530)
+- **runtime**: queue model switches in actor (#531)
+- **runtime**: queue compaction in session actor (#532)
+
+### 🔧 Miscellaneous Tasks
+
+- **ci**: split coverage gates into risk-tiered groups (#499)
+- **ci**: emit LCOV crate breakdown for coverage diagnostics (#503)
+- **ci**: unify coverage runs and surface llvm-cov export failures (#506)
+
 ## [0.30.0] - 2026-05-25
 
 ### 🚀 Features
