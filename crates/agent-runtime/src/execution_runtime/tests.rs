@@ -230,6 +230,58 @@ async fn cancel_running_turn_triggers_cancellation_token() {
 }
 
 #[tokio::test]
+async fn cancel_running_turn_rejects_queued_turns() {
+    let (started_tx, started_rx) = oneshot::channel();
+    let (_release_tx, release_rx) = oneshot::channel();
+    let (cancelled_tx, cancelled_rx) = oneshot::channel();
+    let first_executor = Arc::new(BlockingExecutor::new(started_tx, release_rx, cancelled_tx));
+    let second_executor = Arc::new(ImmediateExecutor::new());
+    let runtime = SessionExecutionRuntime::new();
+    let session_id = SessionId::new();
+
+    let runtime_for_first = runtime.clone();
+    let first_executor_for_turn = first_executor.clone();
+    let first_session = session_id.clone();
+    let first = tokio::spawn(async move {
+        runtime_for_first
+            .run_turn(request(first_session, "first"), first_executor_for_turn)
+            .await
+    });
+    started_rx.await.unwrap();
+
+    let runtime_for_second = runtime.clone();
+    let second_session = session_id.clone();
+    let second_executor_for_turn = second_executor.clone();
+    let second = tokio::spawn(async move {
+        runtime_for_second
+            .run_turn(request(second_session, "second"), second_executor_for_turn)
+            .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(25)).await;
+    assert!(!second.is_finished());
+    assert_eq!(second_executor.calls.load(Ordering::SeqCst), 0);
+
+    runtime
+        .cancel_session(&session_id, "user requested".into())
+        .await
+        .unwrap();
+
+    cancelled_rx.await.unwrap();
+    assert!(first.await.unwrap().is_err());
+    let second_result = second.await.unwrap();
+    assert!(
+        matches!(second_result, Err(CoreError::InvalidState(ref message)) if message.contains("session execution cancelled")),
+        "expected queued turn cancellation error, got {second_result:?}"
+    );
+    assert_eq!(second_executor.calls.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        runtime.session_state(&session_id).await.unwrap(),
+        ExecutionState::Idle
+    );
+}
+
+#[tokio::test]
 async fn different_sessions_can_run_concurrently() {
     let executor = Arc::new(ConcurrentExecutor {
         current: AtomicUsize::new(0),
