@@ -33,7 +33,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "mermaid": "^11.4.1",
-    "oxfmt": "^0.51.0",
+    "oxfmt": "^0.52.0",
     "oxlint": "^1.66.0",
     "postcss-html": "^1.8.1",
     "stylelint": "^17.12.0",
