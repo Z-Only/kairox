@@ -136,6 +136,16 @@ export function applySessionEvent(
       ctx.lastCompactionError.value = p.error;
       break;
     }
+    case "ContextCompactionSkipped": {
+      ctx.projection.value.compaction = {
+        type: "Skipped",
+        reason: p.reason,
+        ratio: p.ratio
+      };
+      ctx.compacting.value = false;
+      ctx.lastCompactionError.value = null;
+      break;
+    }
     case "ModelProfileSwitched": {
       ctx.currentProfile.value = p.to_profile;
       ctx.currentReasoningEffort.value = p.reasoning_effort ?? null;

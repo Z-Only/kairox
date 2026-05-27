@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CompactionStatus, CompactionReason } from "@/types";
 
-// Rust `CompactionStatus` has no Completed variant; we accept a local extended discriminator + sibling props so a parent dispatcher can drive every visual state (running/completed/failed).
+// Rust `CompactionStatus` has no Completed variant; we accept a local extended discriminator + sibling props so a parent dispatcher can drive every visual state (running/completed/failed/skipped).
 type ChatCompactionStatus = CompactionStatus | { type: "Completed" };
 
 const props = defineProps<{
@@ -14,9 +14,17 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
+const effectiveRatio = computed(() => {
+  if (props.status.type === "Skipped" && typeof props.status.ratio === "number") {
+    return props.status.ratio;
+  }
+  return typeof props.ratio === "number" ? props.ratio : null;
+});
+
 const ratioLabel = computed(() => {
-  if (typeof props.ratio !== "number" || !Number.isFinite(props.ratio)) return null;
-  return `${Math.round(props.ratio * 100)}%`;
+  const r = effectiveRatio.value;
+  if (r === null || !Number.isFinite(r)) return null;
+  return `${Math.round(r * 100)}%`;
 });
 
 const durationLabel = computed(() => {
@@ -31,14 +39,26 @@ const reasonLabel = computed(() => {
     : t("chatStream.compaction.reason.threshold");
 });
 
-const dataStatus = computed<"running" | "completed" | "failed" | null>(() => {
+const skippedReasonLabel = computed(() => {
+  if (props.status.type !== "Skipped") return null;
+  return props.status.reason.type === "AlreadyCompacting"
+    ? t("chatStream.compaction.skipped.reason.alreadyCompacting")
+    : t("chatStream.compaction.skipped.reason.thresholdDisabled");
+});
+
+const dataStatus = computed<"running" | "completed" | "failed" | "skipped" | null>(() => {
   if (props.status.type === "Running") return "running";
   if (props.status.type === "Completed") return "completed";
   if (props.status.type === "Failed") return "failed";
+  if (props.status.type === "Skipped") return "skipped";
   return null;
 });
 
 const errorMessage = computed(() => (props.status.type === "Failed" ? props.status.error : null));
+
+const rootTestId = computed(() =>
+  props.status.type === "Skipped" ? "chat-compaction-skipped" : "chat-compaction-item"
+);
 </script>
 
 <template>
@@ -46,7 +66,7 @@ const errorMessage = computed(() => (props.status.type === "Failed" ? props.stat
     v-if="props.status.type !== 'Idle'"
     class="chat-compaction-item"
     :class="dataStatus ? `chat-compaction-item--${dataStatus}` : undefined"
-    data-test="chat-compaction-item"
+    :data-test="rootTestId"
     :data-status="dataStatus ?? undefined"
     role="status"
     :aria-label="t('chatStream.compaction.summary')"
@@ -102,6 +122,22 @@ const errorMessage = computed(() => (props.status.type === "Failed" ? props.stat
         >{{ t("chatStream.compaction.fallbackUsed") }}</span
       >
     </template>
+
+    <template v-else-if="props.status.type === 'Skipped'">
+      <span class="chat-compaction-label">{{ t("chatStream.compaction.skipped.label") }}</span>
+      <span
+        v-if="skippedReasonLabel"
+        class="chat-compaction-chip chat-compaction-chip--reason"
+        data-test="chat-compaction-skipped-reason"
+        >{{ skippedReasonLabel }}</span
+      >
+      <span
+        v-if="ratioLabel"
+        class="chat-compaction-stat chat-compaction-stat--ratio"
+        data-test="chat-compaction-ratio"
+        >{{ t("chatStream.compaction.ratio", { value: ratioLabel }) }}</span
+      >
+    </template>
   </div>
 </template>
 
@@ -127,6 +163,9 @@ const errorMessage = computed(() => (props.status.type === "Failed" ? props.stat
 }
 .chat-compaction-item--failed {
   border-left-color: var(--app-error-color, #d03050);
+}
+.chat-compaction-item--skipped {
+  border-left-color: var(--app-warning-color, #faad14);
 }
 .chat-compaction-label {
   font-weight: 600;

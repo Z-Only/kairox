@@ -55,6 +55,31 @@ describe("useSessionStore — context fields", () => {
     expect(session.lastContextUsage?.budget_tokens).toBe(180_000);
   });
 
+  it("records ContextCompactionSkipped with reason and ratio, leaves compacting=false", () => {
+    const session = useSessionStore();
+
+    // Pre-condition: a previous failure should not bleed into Skipped.
+    session.applyEvent(
+      makeEvent({ type: "ContextCompactionFailed", error: "earlier", fallback_used: false })
+    );
+
+    session.applyEvent(
+      makeEvent({
+        type: "ContextCompactionSkipped",
+        reason: { type: "AlreadyCompacting" },
+        ratio: 0.42
+      })
+    );
+
+    expect(session.compacting).toBe(false);
+    expect(session.lastCompactionError).toBeNull();
+    expect(session.projection.compaction).toEqual({
+      type: "Skipped",
+      reason: { type: "AlreadyCompacting" },
+      ratio: 0.42
+    });
+  });
+
   it("flips compacting on ContextCompactionStarted/Completed/Failed", () => {
     const session = useSessionStore();
 

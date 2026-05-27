@@ -203,6 +203,25 @@ describe("buildChatStream", () => {
     expect(result.filter((item) => item.kind === "compaction")).toHaveLength(1);
   });
 
+  it("appends a Skipped compaction item at the end with id 'compaction-Skipped'", () => {
+    const skipped: CompactionStatus = {
+      type: "Skipped",
+      reason: { type: "AlreadyCompacting" },
+      ratio: 0.5
+    };
+    const messages: ChatStreamMessageInput[] = [{ role: "user", content: "hi" }];
+
+    const result = buildChatStream(messages, [], skipped);
+
+    expect(result).toHaveLength(2);
+    const last = result[result.length - 1];
+    expect(last).toEqual<ChatCompactionStreamItem>({
+      kind: "compaction",
+      id: "compaction-Skipped",
+      status: skipped
+    });
+  });
+
   it("preserves trace insertion order when entries share equal startedAt values", () => {
     const entries: TraceEntryData[] = [
       toolEntry({ id: "first", title: "first", startedAt: 0 }),
