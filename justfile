@@ -184,6 +184,16 @@ test-live:
     cargo test -p agent-runtime --features live-model-tests --test live_model_tests -- --nocapture
     @echo "✅ Live model tests passed (or skipped without GITHUB_TOKEN)"
 
+# Run the deterministic kairox-eval smoke fixture (fake profile, no network).
+# Produces target/eval-smoke/results.jsonl and target/eval-smoke/summary.json.
+eval-smoke:
+    mkdir -p target/eval-smoke
+    cargo run --quiet -p agent-eval --bin kairox-eval -- \
+        run \
+        --scenarios crates/agent-eval/fixtures/smoke.jsonl \
+        --output target/eval-smoke/results.jsonl \
+        --summary target/eval-smoke/summary.json
+
 # Build the Tauri debug binary with the pilot plugin enabled and run the
 # tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/. Requires the
 # tauri-pilot CLI on PATH; install via:
