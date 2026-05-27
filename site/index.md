@@ -22,7 +22,7 @@ features:
   - title: TUI and desktop GUI on one core
     details: Use the ratatui TUI for fast keyboard workflows or the Tauri + Vue desktop app for persistent sessions, trace timelines, and settings — both speak to the same Rust runtime.
   - title: Permission-aware tools and MCP
-    details: Five permission modes gate every tool call. Built-in shell / filesystem / search tools and a curated MCP marketplace make capabilities composable and auditable.
+    details: An orthogonal Approval × Sandbox policy engine gates every tool call — `ApprovalPolicy` decides when you are asked, `SandboxPolicy` decides what is structurally allowed. Built-in shell / filesystem / search tools and a curated MCP marketplace make capabilities composable and auditable.
   - title: Extensible by design
     details: Native skills, plugins, model routing, hooks, and per-workspace configuration are first-class. Bring your own model and your own tools.
 ---

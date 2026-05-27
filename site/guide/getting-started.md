@@ -130,17 +130,17 @@ The full configuration schema — every provider, every field, every supported M
 
 Pick the doc that matches what you want to do:
 
-| Goal                                                          | Read                                                               |
-| ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Set up a clean dev environment on your OS.                    | [Installation](./installation)                                     |
-| Walk through your first real session step by step.            | [First Session](./first-session)                                   |
-| Understand the runtime, the event stream, and the agent loop. | [Runtime & Sessions](../concepts/runtime-and-sessions)             |
-| Understand how memory is stored, retrieved, and compacted.    | [Memory & Context](../concepts/memory-and-context)                 |
-| Understand the permission engine and the built-in tools.      | [Permissions & Tools](../concepts/permissions-and-tools)           |
-| Extend Kairox with MCP, skills, or plugins.                   | [Extensibility: MCP / Skills / Plugins](../concepts/extensibility) |
-| Look up a `just` recipe, a TUI key, or a GUI shortcut.        | [CLI & Keyboard](../reference/cli-and-keyboard)                    |
-| Find a crate, see its public API, and link out to source.     | [Crate Index](../reference/crate-index)                            |
-| Hit an error you do not understand.                           | [Troubleshooting & FAQ](./troubleshooting)                         |
+| Goal                                                                    | Read                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Set up a clean dev environment on your OS.                              | [Installation](./installation)                                     |
+| Walk through your first real session step by step.                      | [First Session](./first-session)                                   |
+| Understand the runtime, the event stream, and the agent loop.           | [Runtime & Sessions](../concepts/runtime-and-sessions)             |
+| Understand how memory is stored, retrieved, and compacted.              | [Memory & Context](../concepts/memory-and-context)                 |
+| Understand the Approval × Sandbox policy engine and the built-in tools. | [Permissions & Tools](../concepts/permissions-and-tools)           |
+| Extend Kairox with MCP, skills, or plugins.                             | [Extensibility: MCP / Skills / Plugins](../concepts/extensibility) |
+| Look up a `just` recipe, a TUI key, or a GUI shortcut.                  | [CLI & Keyboard](../reference/cli-and-keyboard)                    |
+| Find a crate, see its public API, and link out to source.               | [Crate Index](../reference/crate-index)                            |
+| Hit an error you do not understand.                                     | [Troubleshooting & FAQ](./troubleshooting)                         |
 
 ## What this page does not cover
 

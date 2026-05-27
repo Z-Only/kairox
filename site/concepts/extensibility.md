@@ -145,7 +145,7 @@ The registry deduplicates by `name` with workspace-scoped skills overriding user
 
 ### SkillHub install
 
-The marketplace integrates with SkillHub (or equivalent skill registries) to install skills into the configured user or workspace directory. Installs are file-write operations that go through the permission engine like everything else — installing a skill in `Suggest` mode prompts for `fs.write` on the target directory.
+The marketplace integrates with SkillHub (or equivalent skill registries) to install skills into the configured user or workspace directory. Installs are file-write operations that go through the policy engine like everything else — under the default `ApprovalPolicy::OnRequest` + `SandboxPolicy::WorkspaceWrite` pair, an install prompts for `fs.write` whenever the target directory falls outside the sandbox's writable roots.
 
 ## Plugins — manifests that ship bundles
 

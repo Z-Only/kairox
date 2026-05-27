@@ -22,7 +22,7 @@ features:
   - title: TUI 与桌面 GUI 共享同一内核
     details: 用 ratatui TUI 进行高效键盘操作，或用 Tauri + Vue 桌面应用获得持久会话、trace 时间线和设置 —— 两者背后是同一个 Rust runtime。
   - title: 带 permission 的 tool 与 MCP
-    details: 五种 permission 模式管控每一次 tool 调用。内置的 shell / 文件系统 / 搜索工具，加上经过整理的 MCP marketplace，让能力既可组合又可审计。
+    details: 正交的 Approval × Sandbox 策略引擎管控每一次 tool 调用 —— `ApprovalPolicy` 决定何时询问用户，`SandboxPolicy` 决定 runtime 在结构上允许什么。内置的 shell / 文件系统 / 搜索工具，加上经过整理的 MCP marketplace，让能力既可组合又可审计。
   - title: 为扩展而生
     details: 原生 skill、plugin、模型路由、hook 与按 workspace 的配置都是一等公民。带上你自己的模型和工具即可上手。
 ---

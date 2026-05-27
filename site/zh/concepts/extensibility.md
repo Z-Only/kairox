@@ -145,7 +145,7 @@ registry 会按 `name` 做去重,workspace 作用域的 skill 覆盖 user 作用
 
 ### SkillHub 安装
 
-marketplace 跟 SkillHub(或等价的 skill 注册中心)集成,可以把 skill 安装到配置好的 user 或 workspace 目录。安装本质上是写文件操作,跟其他写操作一样要走 permission engine —— 在 `Suggest` 模式下安装 skill 会针对目标目录弹出一次 `fs.write` 的 prompt。
+marketplace 跟 SkillHub(或等价的 skill 注册中心)集成,可以把 skill 安装到配置好的 user 或 workspace 目录。安装本质上是写文件操作,跟其他写操作一样要走 policy engine —— 在默认的 `ApprovalPolicy::OnRequest` + `SandboxPolicy::WorkspaceWrite` 组合下,当目标目录落在 sandbox 的 writable roots 之外时,安装会针对该目录弹出一次 `fs.write` 的 prompt。
 
 ## Plugins —— 用 manifest 打包的 bundle
 

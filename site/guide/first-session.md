@@ -26,7 +26,7 @@ sequenceDiagram
   participant User
   participant UI as TUI / GUI
   participant Runtime as agent-runtime
-  participant Engine as PermissionEngine
+  participant Engine as PolicyEngine
   participant Model as ModelClient
   participant Tool as Tool / MCP
 
@@ -35,8 +35,8 @@ sequenceDiagram
   Runtime->>Runtime: build context (memory + history)
   Runtime->>Model: stream prompt
   Model-->>Runtime: AssistantDelta (text + tool_call)
-  Runtime->>Engine: check tool call
-  Engine-->>UI: PermissionRequested (Suggest mode)
+  Runtime->>Engine: decide(PolicyRisk)
+  Engine-->>UI: PermissionRequested (NeedsApproval)
   User->>UI: approve / deny
   UI->>Runtime: PermissionDecision
   Runtime->>Tool: invoke tool
@@ -59,7 +59,7 @@ Open the TUI:
 just tui
 ```
 
-You will see a three-pane layout: sessions on the left, chat in the middle, trace on the right. The status bar at the bottom shows the active profile, the permission mode, and the context usage meter.
+You will see a three-pane layout: sessions on the left, chat in the middle, trace on the right. The status bar at the bottom shows the active profile, the current `ApprovalPolicy` and `SandboxPolicy`, and the context usage meter.
 
 ### Pick a profile
 
@@ -170,7 +170,7 @@ Close the window. Reopen with `just tauri-dev`. The session list, the chat histo
 
 The marketplace view (top-level navigation) lists curated MCP servers — git, GitHub, filesystem, fetch, and more. Install one (the marketplace handles the runtime requirement check, downloads the server, and registers it).
 
-Once installed, the server's tools appear in the registry. The model can call them; they pass through the same permission engine as the built-ins. The trace marks tool calls with the originating server so you can audit what spoke to what.
+Once installed, the server's tools appear in the registry. The model can call them; they pass through the same policy engine as the built-ins. The trace marks tool calls with the originating server so you can audit what spoke to what.
 
 For the full extensibility story — MCP, skills, plugins — see [Extensibility: MCP / Skills / Plugins](../concepts/extensibility).
 
@@ -179,7 +179,7 @@ For the full extensibility story — MCP, skills, plugins — see [Extensibility
 After this walkthrough you have hands-on intuition for:
 
 - The agent loop and the event stream that drives every UI.
-- The five permission modes and the inline permission flow.
+- The orthogonal `ApprovalPolicy` × `SandboxPolicy` model and the inline permission flow.
 - Profile switching mid-session without losing history.
 - Automatic and manual context compaction.
 - Persistent sessions across restarts.
@@ -190,7 +190,7 @@ The deeper conceptual reads:
 - [Architecture](../concepts/architecture) — the layered design, the dependency rule, the facade trait.
 - [Runtime & Sessions](../concepts/runtime-and-sessions) — the actor model, the agent loop, DAG execution, multi-agent strategies.
 - [Memory & Context](../concepts/memory-and-context) — the `<memory>` protocol, context assembly, compaction internals.
-- [Permissions & Tools](../concepts/permissions-and-tools) — every mode, every built-in tool, the decision flow.
+- [Permissions & Tools](../concepts/permissions-and-tools) — both policy axes, every built-in tool, the decision flow.
 
 ## What this page does not cover
 

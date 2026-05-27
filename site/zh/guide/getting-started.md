@@ -136,7 +136,7 @@ OPENAI_API_KEY=sk-...
 | 跟着第一个真实 session 一步步走。               | [First Session](./first-session)                                   |
 | 理解 runtime、event 流以及 Agent loop。         | [Runtime & Sessions](../concepts/runtime-and-sessions)             |
 | 理解 memory 是如何存储、检索和 compaction 的。  | [Memory & Context](../concepts/memory-and-context)                 |
-| 理解 permission 引擎以及内置 tool。             | [Permissions & Tools](../concepts/permissions-and-tools)           |
+| 理解 Approval × Sandbox 策略引擎以及内置 tool。 | [Permissions & Tools](../concepts/permissions-and-tools)           |
 | 用 MCP、skill 或 plugin 扩展 Kairox。           | [Extensibility: MCP / Skills / Plugins](../concepts/extensibility) |
 | 查询某个 `just` 命令、TUI 快捷键或 GUI 快捷键。 | [CLI & Keyboard](../reference/cli-and-keyboard)                    |
 | 找到某个 crate、查看它的公共 API,并跳转到源码。 | [Crate Index](../reference/crate-index)                            |

@@ -32,7 +32,7 @@ flowchart TB
     MEMORY["agent-memory<br/>MemoryStore · ContextAssembler · Compactor"]
     STORE["agent-store<br/>EventStore · SqliteEventStore · metadata"]
     MODELS["agent-models<br/>ModelClient · ModelRouter · ModelRegistry"]
-    TOOLS["agent-tools<br/>ToolRegistry · PermissionEngine · built-ins"]
+    TOOLS["agent-tools<br/>ToolRegistry · PolicyEngine · built-ins"]
     MCP["agent-mcp<br/>McpClient · transports · marketplace"]
     SKILLS["agent-skills<br/>SkillRegistry · SkillDef · frontmatter"]
     PLUGINS["agent-plugins<br/>PluginManifest · inventory"]
@@ -89,17 +89,17 @@ In code, the rule is enforced at compile time — `cargo` will refuse to build a
 
 ### Domain layer
 
-| Crate             | Role                                                                                                                                                                           | Key types                                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **agent-runtime** | Orchestrates the agent loop, session lifecycle, context budgets, compaction, model switching, configurable agent settings, multi-agent strategies, MCP lifecycle, permissions. | `LocalRuntime<S, M>`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`, `McpServerManager`. |
-| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake) with metadata and context-window registry.                                                             | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`, `ModelRegistry`.                                                   |
-| **agent-tools**   | Tool registry, permission engine, built-in tools (`shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`), MCP-tool adapter.                                             | `ToolRegistry`, `PermissionEngine`, `Tool` trait, `PermissionMode`, `ToolRisk`, `McpToolAdapter`.                                      |
-| **agent-mcp**     | MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources).                               | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `CatalogEntry`.                   |
-| **agent-skills**  | Native skills system — reusable prompt/tool/workflow capabilities, frontmatter parsing, registry, GUI settings.                                                                | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`, `SkillScope`, `SkillSettings`.                                                        |
-| **agent-plugins** | Plugin manifest and inventory for plugin-provided skills, tools, hooks, and MCP servers.                                                                                       | `PluginManifest`, plugin inventory helpers.                                                                                            |
-| **agent-memory**  | Durable, user-, workspace-, and session-scoped memory, context assembly with `tiktoken` budgets, prompt compaction.                                                            | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `ContextCompactor`.                                      |
-| **agent-store**   | Append-only SQLite event store plus metadata tables for workspace and session tracking.                                                                                        | `EventStore` trait, `SqliteEventStore`, `SessionMeta`.                                                                                 |
-| **agent-config**  | TOML config loading, model profile discovery, API key resolution from env, `.kairox/` project discovery, skills config, instructions config.                                   | `ProfileDef`, `load_from_str`, `build_router`.                                                                                         |
+| Crate             | Role                                                                                                                                                                                                            | Key types                                                                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **agent-runtime** | Orchestrates the agent loop, session-actor execution runtime, context budgets, race-free turn-end compaction, model switching, configurable agent settings, multi-agent strategies, MCP lifecycle, permissions. | `LocalRuntime<S, M>`, `SessionActor`, `SessionExecutionRuntime`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`, `McpServerManager`. |
+| **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake) with metadata and context-window registry.                                                                                              | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`, `ModelRegistry`.                                                                                              |
+| **agent-tools**   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools (`shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`), MCP-tool adapter.                                                    | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `Tool` trait, `ToolRisk`, `McpToolAdapter`.                                    |
+| **agent-mcp**     | MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources).                                                                | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `CatalogEntry`.                                                              |
+| **agent-skills**  | Native skills system — reusable prompt/tool/workflow capabilities, frontmatter parsing, registry, GUI settings.                                                                                                 | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`, `SkillScope`, `SkillSettings`.                                                                                                   |
+| **agent-plugins** | Plugin manifest and inventory for plugin-provided skills, tools, hooks, and MCP servers.                                                                                                                        | `PluginManifest`, plugin inventory helpers.                                                                                                                                       |
+| **agent-memory**  | Durable, user-, workspace-, and session-scoped memory, context assembly with `tiktoken` budgets, prompt compaction.                                                                                             | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `ContextCompactor`.                                                                                 |
+| **agent-store**   | Append-only SQLite event store plus metadata tables for workspace and session tracking.                                                                                                                         | `EventStore` trait, `SqliteEventStore`, `SessionMeta`.                                                                                                                            |
+| **agent-config**  | TOML config loading, model profile discovery, API key resolution from env, `.kairox/` project discovery, skills config, instructions config.                                                                    | `ProfileDef`, `load_from_str`, `build_router`.                                                                                                                                    |
 
 `agent-runtime` is the only domain crate that fans out to every other domain crate. The rest stay narrow: `agent-memory` does not know about `agent-tools`, `agent-models` does not know about `agent-mcp`. When a runtime feature needs both, the runtime composes them; it never asks one domain crate to import another.
 
@@ -125,7 +125,7 @@ sequenceDiagram
   participant F as AppFacade
   participant R as LocalRuntime
   participant M as ModelClient
-  participant T as ToolRegistry + PermissionEngine
+  participant T as ToolRegistry + PolicyEngine
   participant S as EventStore
 
   U->>F: send_message(session, prompt)
@@ -243,4 +243,4 @@ The repository pins `packageManager` to Bun and the project's lint-staged, husky
 
 ## What this page does not cover
 
-This page maps the system. It does not explain the runtime's per-turn behavior, the memory protocol, the permission modes, or the extensibility surfaces. Each of those has its own page in this section. Start with [Runtime & Sessions](./runtime-and-sessions) for what happens on every prompt.
+This page maps the system. It does not explain the runtime's per-turn behavior, the memory protocol, the Approval × Sandbox policy axes, or the extensibility surfaces. Each of those has its own page in this section. Start with [Runtime & Sessions](./runtime-and-sessions) for what happens on every prompt.
