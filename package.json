@@ -19,6 +19,9 @@
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "lint:style": "stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
     "lint:web": "oxlint && stylelint \"apps/agent-gui/src/**/*.{vue,css,scss,sass,less}\"",
+    "site:build": "vitepress build site",
+    "site:dev": "vitepress dev site --host 0.0.0.0",
+    "site:preview": "vitepress preview site --host 0.0.0.0",
     "coverage": "bun run coverage:rust && bun run coverage:web",
     "coverage:rust": "bash scripts/run-rust-coverage.sh",
     "coverage:web": "cd apps/agent-gui && NODE_OPTIONS=\"--localstorage-file=/tmp/kairox-vitest-localstorage.json\" bun run test -- --coverage",
@@ -33,7 +36,8 @@
     "oxlint": "^1.66.0",
     "postcss-html": "^1.8.1",
     "stylelint": "^17.12.0",
-    "stylelint-config-recommended-vue": "^1.6.1"
+    "stylelint-config-recommended-vue": "^1.6.1",
+    "vitepress": "^1.6.4"
   },
   "overrides": {
     "glob": ">=10.5.0"
