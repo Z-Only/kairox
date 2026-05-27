@@ -167,10 +167,7 @@ where
     };
 
     // ── 5. Cancellation token ───────────────────────────────────────
-    let cancel_token = deps.turn_cancellation.clone().unwrap_or_default();
-    deps.active_cancellation
-        .register(&request.session_id, cancel_token.clone())
-        .await;
+    let cancel_token = deps.turn_cancellation.clone();
 
     // ── 6. Create root task ─────────────────────────────────────────
     let root_title: String = if request.content.chars().count() > 50 {
@@ -215,9 +212,6 @@ where
                 "cancelled by user",
             )
             .await;
-            deps.active_cancellation
-                .unregister(&request.session_id)
-                .await;
             break;
         }
 
@@ -243,9 +237,6 @@ where
                 "max iterations exceeded",
             )
             .await;
-            deps.active_cancellation
-                .unregister(&request.session_id)
-                .await;
             break;
         }
         iterations += 1;
@@ -273,9 +264,6 @@ where
                 "cancelled by user",
             )
             .await;
-            deps.active_cancellation
-                .unregister(&request.session_id)
-                .await;
             break;
         }
 
@@ -349,10 +337,6 @@ where
             current_request = current_request.add_tool_result(tool_call_id, output_text);
         }
     }
-
-    deps.active_cancellation
-        .unregister(&request.session_id)
-        .await;
 
     Ok(())
 }

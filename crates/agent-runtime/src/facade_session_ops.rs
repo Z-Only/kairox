@@ -120,14 +120,7 @@ where
         self.session_execution
             .cancel_session(&session_id, "user requested cancellation".into())
             .await?;
-        crate::session::cancel_session(
-            &*self.store,
-            &self.event_tx,
-            &self.active_cancellation,
-            workspace_id,
-            session_id,
-        )
-        .await
+        crate::session::cancel_session(&*self.store, &self.event_tx, workspace_id, session_id).await
     }
 
     async fn get_session_projection(
