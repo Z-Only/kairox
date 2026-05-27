@@ -1,0 +1,27 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Kairox logo</title>
+  <desc id="desc">A compact geometric K monogram on a dark rounded app tile for the Kairox local-first AI agent workbench.</desc>
+  <defs>
+    <linearGradient id="tile" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111D"/>
+      <stop offset="0.52" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="68" y1="52" x2="198" y2="206" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DD4BF"/>
+      <stop offset="0.48" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="32" y1="28" x2="224" y2="228" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#475569"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#tile)"/>
+  <rect x="17" y="17" width="222" height="222" rx="51" stroke="url(#edge)" stroke-opacity="0.78" stroke-width="2"/>
+  <path d="M54 88H202" stroke="#1E293B" stroke-width="6" stroke-linecap="round" opacity="0.48"/>
+  <path d="M54 128H202" stroke="#1E293B" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+  <path d="M54 168H202" stroke="#1E293B" stroke-width="6" stroke-linecap="round" opacity="0.38"/>
+  <path d="M74 62C74 57.5817 77.5817 54 82 54H104C108.418 54 112 57.5817 112 62V112.4L159.2 58.2C161.48 55.5805 164.784 54 168.256 54H197.4C204.229 54 207.862 62.0713 203.34 67.186L147.63 130.19L205.715 188.411C210.736 193.444 207.171 202 200.061 202H171.802C168.65 202 165.681 200.516 163.788 197.996L112 129.02V194C112 198.418 108.418 202 104 202H82C77.5817 202 74 198.418 74 194V62Z" fill="url(#mark)"/>
+  <path d="M158 62L112 114V128L176 54H168.256C164.784 54 161.48 55.5805 159.2 58.2L158 62Z" fill="#E0F2FE" opacity="0.42"/>
+</svg>

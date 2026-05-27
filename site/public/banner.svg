@@ -1,0 +1,101 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Kairox banner</title>
+  <desc id="desc">A restrained dark banner for Kairox showing a compact logo mark, local-first AI agent workbench positioning, and abstract task, trace, memory, skills, plugins, hooks, and tool panels.</desc>
+  <defs>
+    <linearGradient id="bannerBg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06111F"/>
+      <stop offset="0.55" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#142018"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="88" y1="72" x2="198" y2="182" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111D"/>
+      <stop offset="0.52" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="111" y1="88" x2="176" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DD4BF"/>
+      <stop offset="0.48" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="lineAccent" x1="670" y1="128" x2="1110" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2DD4BF"/>
+      <stop offset="0.52" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bannerBg)"/>
+  <rect x="40" y="40" width="1200" height="560" rx="28" fill="#020617" fill-opacity="0.22" stroke="#334155" stroke-opacity="0.5"/>
+
+  <g opacity="0.16" stroke="#64748B" stroke-width="1">
+    <path d="M88 112H1192"/>
+    <path d="M88 224H1192"/>
+    <path d="M88 336H1192"/>
+    <path d="M88 448H1192"/>
+    <path d="M224 72V568"/>
+    <path d="M416 72V568"/>
+    <path d="M608 72V568"/>
+    <path d="M800 72V568"/>
+    <path d="M992 72V568"/>
+  </g>
+
+  <g aria-label="Kairox mark">
+    <rect x="84" y="78" width="118" height="118" rx="30" fill="url(#tile)"/>
+    <rect x="85" y="79" width="116" height="116" rx="29" stroke="#475569" stroke-opacity="0.78" stroke-width="2"/>
+    <path d="M104 116H182" stroke="#1E293B" stroke-width="4" stroke-linecap="round" opacity="0.52"/>
+    <path d="M104 137H182" stroke="#1E293B" stroke-width="4" stroke-linecap="round" opacity="0.62"/>
+    <path d="M104 158H182" stroke="#1E293B" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+    <path d="M116 103C116 100.791 117.791 99 120 99H131C133.209 99 135 100.791 135 103V128.2L158.6 101.1C159.74 99.7903 161.392 99 163.128 99H177.7C181.114 99 182.931 103.036 180.67 105.593L152.815 137.095L181.858 166.206C184.368 168.722 182.585 173 179.03 173H164.901C163.325 173 161.841 172.258 160.894 170.998L135 136.51V169C135 171.209 133.209 173 131 173H120C117.791 173 116 171.209 116 169V103Z" fill="url(#mark)"/>
+  </g>
+
+  <g aria-label="Kairox title">
+    <text x="84" y="286" fill="#F8FAFC" font-size="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="760">Kairox</text>
+    <text x="88" y="340" fill="#A7F3D0" font-size="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="520">Local-first AI agent workbench</text>
+    <text x="88" y="394" fill="#CBD5E1" font-size="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core · TUI · Tauri GUI · MCP · Skills · Plugins · Hooks</text>
+  </g>
+
+  <g aria-label="Workbench preview">
+    <rect x="672" y="104" width="466" height="340" rx="24" fill="#0B1220" stroke="#334155"/>
+    <rect x="672" y="104" width="466" height="54" rx="24" fill="#111827"/>
+    <path d="M672 158H1138" stroke="#334155"/>
+    <circle cx="706" cy="131" r="7" fill="#2DD4BF"/>
+    <circle cx="730" cy="131" r="7" fill="#F59E0B"/>
+    <circle cx="754" cy="131" r="7" fill="#A78BFA"/>
+    <rect x="795" y="124" width="166" height="14" rx="7" fill="#334155"/>
+    <rect x="700" y="188" width="124" height="210" rx="18" fill="#0F172A" stroke="#334155"/>
+    <rect x="724" y="216" width="58" height="10" rx="5" fill="#2DD4BF"/>
+    <rect x="724" y="248" width="76" height="9" rx="4.5" fill="#475569"/>
+    <rect x="724" y="278" width="62" height="9" rx="4.5" fill="#475569"/>
+    <rect x="724" y="338" width="78" height="22" rx="11" fill="#13251F" stroke="#14532D"/>
+    <rect x="856" y="188" width="248" height="88" rx="18" fill="#0F172A" stroke="#334155"/>
+    <rect x="884" y="216" width="84" height="10" rx="5" fill="#38BDF8"/>
+    <rect x="884" y="244" width="174" height="9" rx="4.5" fill="#475569"/>
+    <rect x="856" y="310" width="248" height="88" rx="18" fill="#0F172A" stroke="#334155"/>
+    <rect x="884" y="338" width="64" height="10" rx="5" fill="#A78BFA"/>
+    <rect x="884" y="366" width="188" height="9" rx="4.5" fill="#475569"/>
+    <path d="M824 294C866 294 866 252 856 252" stroke="url(#lineAccent)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M824 306C866 306 866 352 856 352" stroke="url(#lineAccent)" stroke-width="3" stroke-linecap="round" opacity="0.72"/>
+    <circle cx="824" cy="300" r="8" fill="#2DD4BF"/>
+    <circle cx="856" cy="252" r="7" fill="#38BDF8"/>
+    <circle cx="856" cy="352" r="7" fill="#A78BFA"/>
+  </g>
+
+  <g aria-label="Capability labels">
+    <rect x="84" y="474" width="112" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="106" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Rust core</text>
+    <rect x="210" y="474" width="80" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="234" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Skills</text>
+    <rect x="304" y="474" width="70" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="330" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">MCP</text>
+    <rect x="388" y="474" width="86" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="418" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Tools</text>
+    <rect x="488" y="474" width="106" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="514" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Plugins</text>
+    <rect x="608" y="474" width="82" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="634" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Hooks</text>
+    <rect x="704" y="474" width="112" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="732" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Memory</text>
+    <rect x="830" y="474" width="134" height="46" rx="14" fill="#0B1220" stroke="#334155"/>
+    <text x="862" y="504" fill="#E2E8F0" font-size="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Context</text>
+  </g>
+</svg>
