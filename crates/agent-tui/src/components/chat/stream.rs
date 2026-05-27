@@ -27,7 +27,7 @@
 
 use std::collections::HashMap;
 
-use agent_core::events::{DomainEvent, EventPayload};
+use agent_core::events::{CompactionSkipReason, DomainEvent, EventPayload};
 use agent_core::projection::{ProjectedRole, SessionProjection};
 
 /// Role of a [`ChatStreamItem::Message`].
@@ -103,7 +103,11 @@ pub enum CompactionItemStatus {
 /// `PermissionRequested` event for a `Permission` item, not the later
 /// `PermissionGranted`) so chronological ordering stays stable across
 /// the item's full lifecycle.
-#[derive(Debug, Clone, PartialEq, Eq)]
+// `Eq` is intentionally omitted: the `CompactionSkipped { ratio: f32 }`
+// payload mirrors `EventPayload::ContextCompactionSkipped`, and `f32`
+// does not implement `Eq` (NaN ≠ NaN). `PartialEq` is sufficient for
+// every existing assertion in the test suites.
+#[derive(Debug, Clone, PartialEq)]
 pub enum ChatStreamItem {
     Message {
         id: String,
@@ -149,6 +153,18 @@ pub enum ChatStreamItem {
         after_tokens: Option<u64>,
         timestamp_ms: i64,
     },
+    /// A turn-end auto-compaction trigger that did NOT run, surfaced so
+    /// the user can see *why* nothing happened (v0.31.0 "UIs can explain
+    /// inaction" promise). Has no lifecycle — fires once and renders
+    /// once. The `ratio` is the assembled-context ratio at the moment
+    /// the skip was decided; renderers may omit it when it carries no
+    /// useful signal (e.g. `ThresholdDisabled`).
+    CompactionSkipped {
+        id: String,
+        reason: CompactionSkipReason,
+        ratio: f32,
+        timestamp_ms: i64,
+    },
 }
 
 impl ChatStreamItem {
@@ -162,6 +178,7 @@ impl ChatStreamItem {
             Self::ToolCall { timestamp_ms, .. } => *timestamp_ms,
             Self::Permission { timestamp_ms, .. } => *timestamp_ms,
             Self::Compaction { timestamp_ms, .. } => *timestamp_ms,
+            Self::CompactionSkipped { timestamp_ms, .. } => *timestamp_ms,
         }
     }
 
@@ -174,6 +191,7 @@ impl ChatStreamItem {
             Self::ToolCall { id, .. } => id,
             Self::Permission { id, .. } => id,
             Self::Compaction { id, .. } => id,
+            Self::CompactionSkipped { id, .. } => id,
         }
     }
 }
@@ -446,6 +464,21 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
                         *summary = Some(error.clone());
                     }
                 }
+            }
+            EventPayload::ContextCompactionSkipped { reason, ratio } => {
+                // One-shot: no Started before it, no Completed/Failed
+                // after it. Bumping `compaction_counter` keeps the
+                // synthetic id unique across all compaction-row siblings;
+                // we intentionally do NOT touch `pending_compaction` or
+                // `compaction_index` so the Started/Completed lifecycle
+                // invariants stay intact.
+                compaction_counter += 1;
+                items.push(ChatStreamItem::CompactionSkipped {
+                    id: format!("compaction-{compaction_counter}"),
+                    reason: *reason,
+                    ratio: *ratio,
+                    timestamp_ms,
+                });
             }
             EventPayload::CompactionSummary {
                 summary_id,

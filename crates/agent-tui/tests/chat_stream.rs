@@ -404,6 +404,7 @@ fn chronological_interleaving_across_item_kinds() {
             ChatStreamItem::ToolCall { .. } => "tool_call",
             ChatStreamItem::Permission { .. } => "permission",
             ChatStreamItem::Compaction { .. } => "compaction",
+            ChatStreamItem::CompactionSkipped { .. } => "compaction_skipped",
         })
         .collect();
     assert_eq!(

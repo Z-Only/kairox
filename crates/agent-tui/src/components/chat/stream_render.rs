@@ -37,7 +37,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use agent_core::events::{DomainEvent, EventPayload};
+use agent_core::events::{CompactionSkipReason, DomainEvent, EventPayload};
 use agent_core::projection::SessionProjection;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
@@ -117,6 +117,9 @@ pub fn render_chat_stream(
                     }
                 }
             },
+            ChatStreamItem::CompactionSkipped { reason, ratio, .. } => {
+                append_compaction_skipped(&mut lines, *reason, *ratio);
+            }
         }
     }
 
@@ -394,6 +397,30 @@ fn append_compaction(lines: &mut Vec<Line>, item: &ChatStreamItem) {
             lines.push(Line::from(spans));
         }
     }
+}
+
+fn append_compaction_skipped(lines: &mut Vec<Line>, reason: CompactionSkipReason, ratio: f32) {
+    let style = Style::default().add_modifier(Modifier::BOLD);
+    let reason_phrase = match reason {
+        CompactionSkipReason::AlreadyCompacting => "another compaction in flight",
+        CompactionSkipReason::ThresholdDisabled => "threshold disabled",
+    };
+    let mut spans = vec![Span::styled(
+        format!("⊘ Compaction skipped: {reason_phrase}"),
+        style.fg(Color::DarkGray),
+    )];
+    // The ratio only carries useful signal when there was a real
+    // threshold to compare against. With the threshold disabled it
+    // describes nothing actionable, so omit it instead of rendering a
+    // misleading "(ratio 0.91)" tail.
+    if !matches!(reason, CompactionSkipReason::ThresholdDisabled) {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("(ratio {ratio:.2})"),
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+    lines.push(Line::from(spans));
 }
 
 /// Percent reduction from `before` to `after`, clamped to `0..=100`.

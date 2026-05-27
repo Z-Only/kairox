@@ -18,7 +18,7 @@
 
 use std::collections::HashSet;
 
-use agent_core::events::{CompactionReason, EventPayload};
+use agent_core::events::{CompactionReason, CompactionSkipReason, EventPayload};
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
 use agent_tui::components::chat::render_chat_stream;
@@ -666,6 +666,108 @@ fn idle_compaction_renders_no_compaction_line() {
             "idle compaction must not render glyph `{glyph}`; got:\n{output}"
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// 8b. ContextCompactionSkipped (AlreadyCompacting) → renders a "skipped"
+//     line with the human-readable reason phrase and the ratio.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn skipped_compaction_already_compacting_renders_reason_and_ratio() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![make_event_at(
+        500,
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::AlreadyCompacting,
+            ratio: 0.42,
+        },
+    )];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(120, 8, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("Compaction skipped"),
+        "skipped compaction should announce itself with `Compaction skipped`; got:\n{output}"
+    );
+    assert!(
+        output.contains("another compaction in flight"),
+        "AlreadyCompacting should render the `another compaction in flight` reason phrase; \
+         got:\n{output}"
+    );
+    assert!(
+        output.contains("0.42"),
+        "skipped compaction should surface the ratio when informative; got:\n{output}"
+    );
+    // It must not look like an in-flight, completed, or failed compaction.
+    assert!(
+        !output.contains(COMPACTION_RUNNING_GLYPH),
+        "skipped compaction must not render the running glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_COMPLETED_GLYPH),
+        "skipped compaction must not render the completed glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_FAILED_GLYPH),
+        "skipped compaction must not render the failed glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains("Compacting context..."),
+        "skipped compaction must not render the running banner; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 8c. ContextCompactionSkipped (ThresholdDisabled) → renders the reason
+//     phrase without a misleading "ratio" segment (the threshold is off,
+//     so the ratio carries no useful information for the user).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn skipped_compaction_threshold_disabled_renders_reason_without_ratio() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![make_event_at(
+        500,
+        EventPayload::ContextCompactionSkipped {
+            reason: CompactionSkipReason::ThresholdDisabled,
+            ratio: 0.91,
+        },
+    )];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(120, 8, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("Compaction skipped"),
+        "skipped compaction should announce itself with `Compaction skipped`; got:\n{output}"
+    );
+    assert!(
+        output.contains("threshold disabled"),
+        "ThresholdDisabled should render the `threshold disabled` reason phrase; got:\n{output}"
+    );
+    assert!(
+        !output.contains("ratio"),
+        "ThresholdDisabled should omit the ratio segment — ratio is moot when threshold is off; \
+         got:\n{output}"
+    );
+    assert!(
+        !output.contains("0.91"),
+        "ThresholdDisabled should omit the raw ratio value; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_RUNNING_GLYPH),
+        "skipped compaction must not render the running glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_COMPLETED_GLYPH),
+        "skipped compaction must not render the completed glyph; got:\n{output}"
+    );
+    assert!(
+        !output.contains(COMPACTION_FAILED_GLYPH),
+        "skipped compaction must not render the failed glyph; got:\n{output}"
+    );
 }
 
 // ---------------------------------------------------------------------------
