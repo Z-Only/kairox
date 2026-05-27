@@ -221,7 +221,8 @@ impl SessionProjection {
             | EventPayload::CatalogSourceAdded { .. }
             | EventPayload::CatalogSourceFailed { .. }
             | EventPayload::CatalogSourceResultsArrived { .. }
-            | EventPayload::CompactionSummary { .. } => {}
+            | EventPayload::CompactionSummary { .. }
+            | EventPayload::ContextCompactionSkipped { .. } => {}
         }
     }
 

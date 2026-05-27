@@ -18,7 +18,9 @@ pub use config_scope::ConfigScope;
 pub use context_types::{ContextSource, ContextUsage};
 pub use effective::EffectiveItem;
 pub use error::CoreError;
-pub use events::{CompactionReason, DomainEvent, EventPayload, PrivacyClassification};
+pub use events::{
+    CompactionReason, CompactionSkipReason, DomainEvent, EventPayload, PrivacyClassification,
+};
 pub use facade::{
     ActivateSkillRequest, ActiveSkillView, AddCatalogSourceRequest, AgentStatusInfo, AppFacade,
     AttachmentInfo, CatalogQuery, CatalogSourceView, DeactivateSkillRequest, InstallOutcomeView,

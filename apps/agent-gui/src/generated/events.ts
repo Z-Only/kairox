@@ -13,6 +13,13 @@ export type CompactionReason =
   | { type: "UserRequested" }
   | { type: "Threshold"; ratio: number | null };
 
+/**
+ *  Why a turn-end auto-compaction trigger did NOT enqueue a compaction.
+ *  `BelowThreshold` is intentionally not modeled — it is the steady state
+ *  and would flood the event log.
+ */
+export type CompactionSkipReason = { type: "AlreadyCompacting" } | { type: "ThresholdDisabled" };
+
 export type ContextUsage = {
   total_tokens: number;
   budget_tokens: number;
@@ -59,6 +66,11 @@ export type EventPayload =
       fallback_used: boolean;
     }
   | { type: "ContextCompactionFailed"; error: string; fallback_used: boolean }
+  /**
+   *  Turn-end auto-compaction was suppressed. Emitted only for reasons
+   *  that callers/UIs may want to surface; below-threshold is silent.
+   */
+  | { type: "ContextCompactionSkipped"; reason: CompactionSkipReason; ratio: number | null }
   | {
       type: "CompactionSummary";
       summary_id: string;

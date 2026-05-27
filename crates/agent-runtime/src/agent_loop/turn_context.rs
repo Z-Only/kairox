@@ -197,45 +197,11 @@ where
     );
     append_and_broadcast(&**deps.store, deps.event_tx, &assembled_event).await?;
 
-    // Auto-compaction trigger (fire-and-forget).
-    {
-        let already_compacting = {
-            let states = deps.session_states.lock().await;
-            states
-                .get(&request.session_id.to_string())
-                .map(|s| s.compacting)
-                .unwrap_or(false)
-        };
-        let threshold = deps.config.context.auto_compact_threshold;
-        if super::should_trigger_auto_compaction(&usage, threshold, already_compacting) {
-            let store_clone = deps.store.clone();
-            let model_clone = deps.model.clone();
-            let tx_clone = deps.event_tx.clone();
-            let states_clone = deps.session_states.clone();
-            let workspace_id = request.workspace_id.clone();
-            let session_id = request.session_id.clone();
-            let ratio = usage.ratio();
-            let profile_alias = deps
-                .config
-                .context
-                .compactor_profile
-                .clone()
-                .unwrap_or_else(|| model_profile_alias.clone());
-            tokio::spawn(async move {
-                let _ = crate::compaction::compact_session(
-                    &*store_clone,
-                    &tx_clone,
-                    &*model_clone,
-                    &profile_alias,
-                    &states_clone,
-                    workspace_id,
-                    session_id,
-                    agent_core::CompactionReason::Threshold { ratio },
-                )
-                .await;
-            });
-        }
-    }
+    // Auto-compaction is now scheduled at TURN END by
+    // `LocalRuntimeTurnExecutor::maybe_schedule_auto_compaction`, routed
+    // through `SessionExecutionRuntime::run_operation` so the actor
+    // serializes it behind any in-flight turn. Triggering at turn-start
+    // raced with the turn's own event writes.
 
     Ok(TurnContext {
         model_profile_alias,

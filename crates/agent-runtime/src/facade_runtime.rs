@@ -1819,4 +1819,406 @@ mod tests {
         };
         assert_eq!(runtime.execution_mode(&request), ExecutionMode::SingleStep);
     }
+
+    // ------------------------------------------------------------------
+    // Turn-end auto-compaction (race-free) integration tests.
+    // Spec: docs/superpowers/specs/2026-05-27-race-free-auto-compaction-design.md
+    // ------------------------------------------------------------------
+
+    /// Build a `Config` with one enabled `"fake"` profile and a custom
+    /// auto-compaction threshold. Matches the field list used by
+    /// `test_config_with_two_profiles` above.
+    fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Config> {
+        use agent_config::{ConfigSource, ContextPolicy, ProfileDef};
+        let fake = ProfileDef {
+            provider: "fake".into(),
+            model_id: "fake".into(),
+            api_key: None,
+            api_key_env: None,
+            base_url: None,
+            context_window: None,
+            output_limit: None,
+            response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: Some(true),
+            extra_params: None,
+            enabled: true,
+        };
+        Arc::new(agent_config::Config {
+            profiles: vec![("fake".into(), fake)],
+            mcp_servers: vec![],
+            source: ConfigSource::Defaults,
+            context: ContextPolicy {
+                auto_compact_threshold: threshold,
+                compactor_profile: None,
+                max_tool_definition_tokens: None,
+            },
+            disabled_mcp_servers: vec![],
+            instructions: None,
+            features: agent_config::FeatureFlags::default(),
+            hooks: vec![],
+        })
+    }
+
+    /// Planner strategy that resolves the root task by responding directly
+    /// (no model call, no sub-task decomposition). Lets a `/plan ...`
+    /// `send_message` complete deterministically so we can observe what
+    /// `LocalRuntimeTurnExecutor::maybe_schedule_auto_compaction` does at
+    /// the tail of the DAG path.
+    struct RespondingPlannerStrategy;
+
+    #[async_trait]
+    impl crate::agents::AgentStrategy for RespondingPlannerStrategy {
+        fn role(&self) -> AgentRole {
+            AgentRole::Planner
+        }
+
+        async fn build_context(
+            &self,
+            _task: &crate::task_graph::AgentTask,
+            _graph: &TaskGraph,
+            _session_events: &[agent_core::DomainEvent],
+        ) -> Vec<ModelMessage> {
+            Vec::new()
+        }
+
+        async fn decide(
+            &self,
+            _ctx: &crate::agents::StepContext,
+            _messages: Vec<ModelMessage>,
+        ) -> crate::agents::AgentDecision {
+            crate::agents::AgentDecision::Respond("done".into())
+        }
+
+        async fn process_tool_result(
+            &self,
+            _tool_call: &agent_models::ToolCall,
+            _result: &str,
+            _iteration: usize,
+        ) -> crate::agents::ToolResultAction {
+            crate::agents::ToolResultAction::Continue
+        }
+    }
+
+    async fn install_responding_dag_executor<S, M>(runtime: &mut LocalRuntime<S, M>)
+    where
+        S: EventStore + 'static,
+        M: ModelClient + 'static,
+    {
+        let executor = crate::dag_executor::DagExecutor::new(
+            runtime.store.clone(),
+            runtime.model.clone(),
+            runtime.event_tx.clone(),
+            runtime.tool_registry.clone(),
+            runtime.permission_engine.clone(),
+            runtime.pending_permissions.clone(),
+            runtime.memory_store.clone(),
+            runtime.dag_config.clone(),
+            runtime.agent_settings_roots.clone(),
+        )
+        .await
+        .with_strategy(AgentRole::Planner, Arc::new(RespondingPlannerStrategy));
+        runtime.dag_executor = Some(Arc::new(executor));
+    }
+
+    /// Poll the event store until `predicate` matches an event or `timeout`
+    /// elapses. Used for events the scheduler appends from a spawned task.
+    async fn wait_for_event<S: EventStore>(
+        store: &S,
+        session_id: &SessionId,
+        predicate: impl Fn(&agent_core::EventPayload) -> bool,
+        timeout: std::time::Duration,
+    ) -> bool {
+        let deadline = std::time::Instant::now() + timeout;
+        loop {
+            let events = store.load_session(session_id).await.unwrap();
+            if events.iter().any(|e| predicate(&e.payload)) {
+                return true;
+            }
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn auto_compaction_queues_after_threshold_turn() {
+        // SingleStep path: threshold=0.001 with FALLBACK_FAKE budget guarantees
+        // the turn's `last_estimated_tokens` overshoots; tail of `execute_turn`
+        // routes a `compact_session` through the actor and we observe its
+        // `ContextCompactionCompleted` event arrive after the turn finishes.
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime =
+            LocalRuntime::new(store, model).with_config(test_config_with_threshold(0.001));
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+        append_compaction_history(
+            runtime.event_store_for_test(),
+            &workspace.workspace_id,
+            &session_id,
+            8,
+        )
+        .await;
+
+        runtime
+            .send_message(SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "trigger".into(),
+                attachments: vec![],
+            })
+            .await
+            .unwrap();
+
+        // Compaction is detached behind the actor — wait for the completion event.
+        let saw_completed = wait_for_event(
+            runtime.event_store_for_test(),
+            &session_id,
+            |p| {
+                matches!(
+                    p,
+                    agent_core::EventPayload::ContextCompactionCompleted { .. }
+                )
+            },
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+        assert!(saw_completed, "expected ContextCompactionCompleted event");
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        assert!(
+            events.iter().any(|e| matches!(
+                &e.payload,
+                agent_core::EventPayload::ContextCompactionStarted { .. }
+            )),
+            "expected ContextCompactionStarted event"
+        );
+        assert!(
+            !events.iter().any(|e| matches!(
+                &e.payload,
+                agent_core::EventPayload::ContextCompactionSkipped { .. }
+            )),
+            "no ContextCompactionSkipped expected on the trigger path"
+        );
+    }
+
+    #[tokio::test]
+    async fn auto_compaction_emits_skipped_when_already_compacting() {
+        // We bypass `send_message`'s busy gate by driving the executor
+        // directly. Pre-setting `compacting = true` makes the scheduler take
+        // the skip path and emit `ContextCompactionSkipped { AlreadyCompacting }`
+        // inline.
+        use crate::execution_runtime::TurnExecutor;
+        use crate::facade_turn_executor::LocalRuntimeTurnExecutor;
+
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime =
+            LocalRuntime::new(store, model).with_config(test_config_with_threshold(0.001));
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        // Flip the busy flag on the entry that `initialize_session_limits`
+        // already seeded with FALLBACK_FAKE limits.
+        {
+            let mut states = runtime.session_states_for_test().lock().await;
+            states
+                .get_mut(&session_id.to_string())
+                .expect("session entry seeded by start_session")
+                .compacting = true;
+        }
+
+        let executor = LocalRuntimeTurnExecutor::from_runtime(&runtime);
+        executor
+            .execute_turn(
+                SendMessageRequest {
+                    workspace_id: workspace.workspace_id,
+                    session_id: session_id.clone(),
+                    content: "trigger".into(),
+                    attachments: vec![],
+                },
+                tokio_util::sync::CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        let skipped = events.iter().find_map(|e| match &e.payload {
+            agent_core::EventPayload::ContextCompactionSkipped { reason, ratio } => {
+                Some((*reason, *ratio))
+            }
+            _ => None,
+        });
+        let (reason, _ratio) = skipped.expect("expected ContextCompactionSkipped event");
+        assert!(matches!(
+            reason,
+            agent_core::CompactionSkipReason::AlreadyCompacting
+        ));
+        assert!(
+            !events.iter().any(|e| matches!(
+                &e.payload,
+                agent_core::EventPayload::ContextCompactionStarted { .. }
+            )),
+            "compaction must not start when AlreadyCompacting"
+        );
+    }
+
+    #[tokio::test]
+    async fn auto_compaction_skipped_when_threshold_disabled() {
+        // threshold = 1.0 disables auto-compaction; SingleStep turn still
+        // populates `last_estimated_tokens`, so the scheduler reaches the
+        // skip branch and emits `ContextCompactionSkipped { ThresholdDisabled }`.
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let runtime = LocalRuntime::new(store, model).with_config(test_config_with_threshold(1.0));
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        runtime
+            .send_message(SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "trigger".into(),
+                attachments: vec![],
+            })
+            .await
+            .unwrap();
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        let skipped = events.iter().find_map(|e| match &e.payload {
+            agent_core::EventPayload::ContextCompactionSkipped { reason, ratio } => {
+                Some((*reason, *ratio))
+            }
+            _ => None,
+        });
+        let (reason, _ratio) = skipped.expect("expected ContextCompactionSkipped event");
+        assert!(matches!(
+            reason,
+            agent_core::CompactionSkipReason::ThresholdDisabled
+        ));
+        assert!(
+            !events.iter().any(|e| matches!(
+                &e.payload,
+                agent_core::EventPayload::ContextCompactionStarted { .. }
+            )),
+            "compaction must not start when ThresholdDisabled"
+        );
+    }
+
+    #[tokio::test]
+    async fn dag_turn_also_triggers_auto_compaction() {
+        // DAG path skips `prepare_turn_context`, so we pre-seed
+        // `last_estimated_tokens` to prove the tail scheduler in
+        // `LocalRuntimeTurnExecutor::execute_turn` fires on both branches.
+        // RespondingPlannerStrategy keeps the DAG single-step: planner
+        // emits AssistantMessageCompleted via Respond, no model call.
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["hi".into()]);
+        let mut runtime = LocalRuntime::new(store, model)
+            .with_config(test_config_with_threshold(0.001))
+            .with_dag_execution()
+            .await;
+        install_responding_dag_executor(&mut runtime).await;
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+        append_compaction_history(
+            runtime.event_store_for_test(),
+            &workspace.workspace_id,
+            &session_id,
+            8,
+        )
+        .await;
+
+        // Pre-seed last_estimated_tokens so the DAG-tail scheduler sees usage.
+        {
+            let mut states = runtime.session_states_for_test().lock().await;
+            let entry = states
+                .get_mut(&session_id.to_string())
+                .expect("session entry seeded by start_session");
+            entry.last_estimated_tokens = 5_000;
+        }
+
+        runtime
+            .send_message(SendMessageRequest {
+                workspace_id: workspace.workspace_id,
+                session_id: session_id.clone(),
+                content: "/plan run a tiny experiment".into(),
+                attachments: vec![],
+            })
+            .await
+            .unwrap();
+
+        let saw_completed = wait_for_event(
+            runtime.event_store_for_test(),
+            &session_id,
+            |p| {
+                matches!(
+                    p,
+                    agent_core::EventPayload::ContextCompactionCompleted { .. }
+                )
+            },
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+        assert!(
+            saw_completed,
+            "expected ContextCompactionCompleted event on DAG path"
+        );
+    }
 }

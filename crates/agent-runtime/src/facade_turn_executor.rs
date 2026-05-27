@@ -1,9 +1,11 @@
 use crate::dag_executor::DagExecutor;
-use crate::execution_runtime::{TaskControlExecutor, TurnExecutor};
+use crate::event_emitter::append_and_broadcast;
+use crate::execution_runtime::{SessionExecutionRuntime, TaskControlExecutor, TurnExecutor};
 use crate::facade_runtime::{ExecutionMode, LocalRuntime};
 use crate::task_graph::TaskGraph;
 use agent_core::{
-    DomainEvent, PermissionDecision, SendMessageRequest, SessionId, TaskId, WorkspaceId,
+    AgentId, CompactionReason, CompactionSkipReason, DomainEvent, EventPayload, PermissionDecision,
+    PrivacyClassification, SendMessageRequest, SessionId, TaskId, WorkspaceId,
 };
 use agent_memory::MemoryStore;
 use agent_models::ModelClient;
@@ -33,6 +35,7 @@ where
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
     config: Arc<agent_config::Config>,
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
+    session_execution: SessionExecutionRuntime,
     skill_registry: Option<Arc<dyn agent_skills::SkillRegistry>>,
     active_skills: Arc<Mutex<HashMap<String, Vec<String>>>>,
 }
@@ -55,6 +58,7 @@ where
             dag_executor: runtime.dag_executor.clone(),
             config: runtime.config.clone(),
             session_states: runtime.session_states.clone(),
+            session_execution: runtime.session_execution.clone(),
             skill_registry: runtime.skill_registry.clone(),
             active_skills: runtime.active_skills.clone(),
         }
@@ -80,6 +84,136 @@ where
             .ok()
             .map(|project| PathBuf::from(project.root_path))
     }
+
+    /// Decide whether to enqueue an auto-compaction after a turn ends.
+    /// Called from the tail of `execute_turn` for both `SingleStep` and
+    /// `DagExecution`. The decision uses the same `should_trigger_auto_compaction`
+    /// helper the turn-start trigger used to call.
+    ///
+    /// On `true`, spawns a detached task that calls
+    /// `SessionExecutionRuntime::run_operation` so the actor serializes the
+    /// compaction behind any user `RunTurn` already in the mailbox. On the
+    /// two skip reasons callers care about (`AlreadyCompacting`,
+    /// `ThresholdDisabled`), emits a `ContextCompactionSkipped` event so
+    /// UIs can surface why a session that crossed the threshold did not
+    /// compact. Below-threshold is the steady state and is silent.
+    async fn maybe_schedule_auto_compaction(&self, request: &SendMessageRequest) {
+        // 1. Read session state once.
+        let (last_estimate, limits_opt, already_compacting) = {
+            let states = self.session_states.lock().await;
+            match states.get(&request.session_id.to_string()) {
+                Some(s) => (
+                    s.last_estimated_tokens,
+                    s.model_limits.clone(),
+                    s.compacting,
+                ),
+                None => return,
+            }
+        };
+        let Some(limits) = limits_opt else { return };
+        if last_estimate == 0 {
+            return;
+        }
+
+        // 2. Reconstruct usage ratio from the same budget the turn used.
+        let budget = crate::context_budget::build_budget(&limits);
+        let usage = agent_core::ContextUsage {
+            total_tokens: last_estimate,
+            budget_tokens: budget.input_budget(),
+            context_window: budget.context_window,
+            output_reservation: budget.output_reservation,
+            by_source: vec![],
+            estimator: "cl100k_base".into(),
+            corrected_by_real_usage: false,
+        };
+        let ratio = usage.ratio();
+        let threshold = self.config.context.auto_compact_threshold;
+
+        // 3. Decide.
+        if crate::agent_loop::should_trigger_auto_compaction(&usage, threshold, already_compacting)
+        {
+            let session_id = request.session_id.clone();
+            let workspace_id = request.workspace_id.clone();
+            let profile_alias = self.resolve_compactor_profile(&session_id).await;
+            let store = self.store.clone();
+            let event_tx = self.event_tx.clone();
+            let model = self.model.clone();
+            let states_ref = self.session_states.clone();
+            let rt = self.session_execution.clone();
+            // Detached: do not block return to caller. The actor still
+            // serializes the operation behind any in-flight or queued
+            // `RunTurn`. The compactor emits its own
+            // `ContextCompactionStarted/Completed/Failed` events.
+            tokio::spawn(async move {
+                let queued_id = session_id.clone();
+                let result = rt
+                    .run_operation(&queued_id, async move {
+                        crate::compaction::compact_session(
+                            &*store,
+                            &event_tx,
+                            &*model,
+                            &profile_alias,
+                            &states_ref,
+                            workspace_id,
+                            session_id,
+                            CompactionReason::Threshold { ratio },
+                        )
+                        .await
+                    })
+                    .await;
+                if let Err(e) = result {
+                    tracing::warn!("auto-compaction enqueue failed for session {queued_id}: {e}");
+                }
+            });
+            return;
+        }
+
+        // 4. Emit a skipped event for reasons callers care about.
+        let skip_reason = if already_compacting {
+            Some(CompactionSkipReason::AlreadyCompacting)
+        } else if threshold >= 1.0 {
+            Some(CompactionSkipReason::ThresholdDisabled)
+        } else {
+            None
+        };
+        if let Some(reason) = skip_reason {
+            let event = DomainEvent::new(
+                request.workspace_id.clone(),
+                request.session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::ContextCompactionSkipped { reason, ratio },
+            );
+            if let Err(e) = append_and_broadcast(&*self.store, &self.event_tx, &event).await {
+                tracing::warn!(
+                    "failed to append ContextCompactionSkipped for session {}: {e}",
+                    request.session_id
+                );
+            }
+        }
+    }
+
+    /// Pick the model profile alias the compactor should use. Mirrors the
+    /// inherent `LocalRuntime::compact_session` path: `compactor_profile`
+    /// wins; otherwise fall back to the session's `SessionInitialized`
+    /// profile; otherwise the literal `"fake"` (test-friendly).
+    async fn resolve_compactor_profile(&self, session_id: &SessionId) -> String {
+        if let Some(alias) = self.config.context.compactor_profile.clone() {
+            return alias;
+        }
+        match self.store.load_session(session_id).await {
+            Ok(events) => events
+                .iter()
+                .find_map(|e| match &e.payload {
+                    EventPayload::SessionInitialized { model_profile } => {
+                        Some(model_profile.clone())
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(|| "fake".to_string()),
+            Err(_) => "fake".to_string(),
+        }
+    }
 }
 
 #[async_trait]
@@ -93,22 +227,27 @@ where
         request: SendMessageRequest,
         cancellation: CancellationToken,
     ) -> agent_core::Result<()> {
-        match self.execution_mode(&request) {
+        let outcome = match self.execution_mode(&request) {
             ExecutionMode::DagExecution => {
                 let executor = self.dag_executor.as_ref().ok_or_else(|| {
                     agent_core::CoreError::InvalidState("DAG executor not available".into())
                 })?;
-                let result = executor
+                match executor
                     .execute_with_cancellation(&request, &self.task_graphs, cancellation)
-                    .await?;
-                tracing::info!(
-                    "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
-                    result.total_tasks,
-                    result.completed,
-                    result.failed,
-                    result.skipped,
-                );
-                Ok(())
+                    .await
+                {
+                    Ok(result) => {
+                        tracing::info!(
+                            "DAG execution completed: {} tasks, {} completed, {} failed, {} skipped",
+                            result.total_tasks,
+                            result.completed,
+                            result.failed,
+                            result.skipped,
+                        );
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
             }
             ExecutionMode::SingleStep => {
                 let root_path = self.root_path_for_session(&request.session_id).await;
@@ -133,7 +272,12 @@ where
                 )
                 .await
             }
+        };
+
+        if outcome.is_ok() {
+            self.maybe_schedule_auto_compaction(&request).await;
         }
+        outcome
     }
 }
 
