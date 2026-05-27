@@ -12,20 +12,21 @@
 
 ## Crate map (dependency direction →)
 
-| Crate         | Role                                                                                             | Key trait/type                                        |
-| ------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| agent-core    | Domain types, events, facade, build info                                                         | `AppFacade`, `EventPayload`, `TaskSnapshot`           |
-| agent-store   | SQLite event store + metadata                                                                    | `EventStore`, `SqliteEventStore`                      |
-| agent-memory  | Memory, context assembly, and compaction                                                         | `MemoryStore`, `ContextAssembler`, `ContextCompactor` |
-| agent-models  | LLM adapters + model metadata/context windows                                                    | `ModelClient`, `ModelRouter`, `ModelRegistry`         |
-| agent-tools   | Tool registry & permissions, built-in tools                                                      | `ToolRegistry`, `PermissionEngine`, `Tool`            |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                               | `McpClient`, `Transport`, `ServerLifecycle`           |
-| agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`       |
-| agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers  | `PluginManifest`, plugin inventory helpers            |
-| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config            | `ProfileDef`, `build_router`                          |
-| agent-runtime | Agent loop, context budgets, compaction, model switching, configurable agents, DAG execution     | `LocalRuntime<S,M>`, `DagExecutor`, `AgentStrategy`   |
-| agent-tui     | Terminal UI (ratatui)                                                                            | `App`                                                 |
-| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces | `commands.rs` → Pinia stores                          |
+| Crate         | Role                                                                                                                                             | Key trait/type                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| agent-core    | Domain types, events, facade, build info                                                                                                         | `AppFacade`, `EventPayload`, `TaskSnapshot`                                                   |
+| agent-store   | SQLite event store + metadata                                                                                                                    | `EventStore`, `SqliteEventStore`                                                              |
+| agent-memory  | Memory, context assembly, and compaction                                                                                                         | `MemoryStore`, `ContextAssembler`, `ContextCompactor`                                         |
+| agent-models  | LLM adapters + model metadata/context windows                                                                                                    | `ModelClient`, `ModelRouter`, `ModelRegistry`                                                 |
+| agent-tools   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools                                                                       | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PermissionEngine`, `Tool` |
+| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, marketplace catalog                                                                               | `McpClient`, `Transport`, `ServerLifecycle`                                                   |
+| agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery                                                       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`                                               |
+| agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers                                                  | `PluginManifest`, plugin inventory helpers                                                    |
+| agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config                                                            | `ProfileDef`, `build_router`                                                                  |
+| agent-runtime | Agent loop, session-actor execution runtime, context budgets, race-free turn-end compaction, model switching, configurable agents, DAG execution | `LocalRuntime<S,M>`, `SessionActor`, `DagExecutor`, `AgentStrategy`                           |
+| agent-eval    | Headless evaluation harness for agent loops over fixture profiles                                                                                | `kairox-eval` binary                                                                          |
+| agent-tui     | Terminal UI (ratatui)                                                                                                                            | `App`                                                                                         |
+| agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces                                                 | `commands.rs` → Pinia stores                                                                  |
 
 > Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`). External tools come from MCP servers via `McpToolAdapter`.
 
@@ -51,7 +52,7 @@ Edit all 5 files in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfi
 
 ## Commit convention
 
-Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `plugins`, `tui`, `gui`, `deps`, `ci`.
+Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `plugins`, `eval`, `tui`, `gui`, `docs`, `deps`, `ci`.
 
 Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps): ...`
 
@@ -74,3 +75,5 @@ Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps):
 - After creating a worktree, always run `bun install` so husky hooks fire.
 - Register new Tauri commands in **both** `generate_handler!` (in `lib.rs`) **and** `collect_commands!` (in `src/specta.rs`).
 - Keep context-budget, compaction, and model-switching behavior in sync across `agent-core`, `agent-runtime`, `agent-memory`, `agent-models`, TUI, and GUI when touching session/model state.
+- Permissions use the orthogonal `ApprovalPolicy` × `SandboxPolicy` model in `agent-tools/src/policy/`; the legacy `PermissionMode` enum has been removed end-to-end. Update both axes (and any persisted columns in `agent-store`) when changing approval or sandbox behavior.
+- If you edit the VitePress site under `site/**` (or `README.md`, `bun.lock`, `package.json`, `docs/assets/**`, `.github/workflows/pages.yml`), validate locally with `bun run site:build` before pushing — the `pages.yml` workflow deploys on push to `main` matching those paths.

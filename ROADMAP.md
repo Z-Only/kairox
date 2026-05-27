@@ -64,6 +64,10 @@
 - ✅ Add plugin settings marketplace and plugin-namespaced skill discovery (#206, #213)
 - ✅ Add reasoning effort selection for reasoning-capable profiles (#222)
 - ✅ Expose MCP connectivity actions in the GUI (#302)
+- ✅ Introduce orthogonal `ApprovalPolicy` × `SandboxPolicy` PolicyEngine and drop legacy `PermissionMode` (#504, #507, #508, #510, #511, #517)
+- ✅ Route session execution through per-session actors with race-free turn-end compaction (#521, #522, #523, #524, #525, #533)
+- ✅ Ship VitePress documentation site with EN/ZH parity and `pages.yml` deploy (#535, #536)
+- ✅ Add headless evaluation harness crate (`agent-eval`, binary `kairox-eval`)
 
 ## Mid term
 
@@ -71,20 +75,29 @@
 - ✅ Add multi-agent orchestration UX in TUI and GUI
 - ✅ MCP server marketplace UX (Phase 1 + 2 shipped in v0.16.0)
 - ✅ Improve GUI UX with richer interaction patterns, accessibility, and explainable agent state
-- Continue expanding MCP ecosystem coverage (additional transports, richer discovery)
 - ✅ Design a first-class **Skills** system for reusable prompt/tool/workflow capabilities
 - ✅ Add first-class GUI management for user/project instructions
-- Design a signed **Plugin** manifest and installation flow that composes with MCP and the tool registry
-- Improve extension and manifest discovery flows, including local development and marketplace publishing paths
-- Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles
-- Add better observability, tracing, diagnostics, and replay tools for long-running agent work
-- Continue runtime modularization (Phase 2+ extraction beyond `facade_runtime` split)
+- ✅ Parse plugin manifests and surface plugin-namespaced skills, tools, hooks, and MCP servers (`agent-plugins`)
+- ✅ Wire lifecycle hooks end-to-end (`agent-runtime/src/hooks.rs`, GUI hook settings #202)
+- ✅ Run sessions through per-session actors with race-free turn-end compaction (v0.31.0)
+- ✅ Ship a headless evaluation harness (`agent-eval` / `kairox-eval`) as the foundation for CI and batch runs
+- Continue expanding MCP ecosystem coverage (additional transports, richer discovery, server health diagnostics)
+- Extend the **Plugin** story: signed manifests, remote plugin registries, install/upgrade UX, plugin sandboxing aligned with the `ApprovalPolicy × SandboxPolicy` engine
+- Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles with per-agent context windows, tool allowlists, and reasoning effort
+- Support background and long-running parallel agents with cancellation, resumable sessions, and durable status surfacing in TUI/GUI
+- Grow `kairox-eval` into a real headless/CI mode for agent loops (fixtures, scripted prompts, exit codes, JSON reports)
+- Add user-extensible slash commands, output styles, and statusline customization in TUI and GUI (Claude Code / Codex parity)
+- Add observability and replay tooling: structured trace export, event replay over `EventStore`, redacted diagnostics bundles
+- Continue runtime modularization beyond `SessionActor` (model router lifecycle, MCP manager isolation, hook execution boundary)
 
 ## Long term
 
-- Mature local-first AI agent workbench for planning, execution, review, and recovery
-- Strong **Skills** ecosystem with composable workflows, reusable instructions, and capability discovery
-- Strong **Plugin** ecosystem and extension story built on top of MCP, the tool registry, signed manifests, and marketplace governance
-- Rich subagent and multi-agent collaboration: delegation, arbitration, specialist teams, shared memory, and auditable handoffs
-- Cross-platform desktop distribution polish and auto-update support
-- Telemetry-free privacy story with `minimal_trace` defaults in production
+- Mature local-first AI agent workbench for planning, execution, review, and recovery, with first-class worktree, multi-session, and multi-project workflows
+- Strong **Skills** ecosystem with composable workflows, reusable instructions, capability discovery, and a stable Skill ABI
+- Strong **Plugin** ecosystem: signed manifests, remote registries, sandboxed execution, marketplace governance, and reproducible installs across desktop platforms
+- Rich subagent and multi-agent collaboration: delegation, arbitration, specialist teams, shared memory, isolated context windows, and auditable handoffs
+- Headless / CI-friendly Kairox: `kairox-eval` and a non-interactive runtime mode usable from scripts and pipelines without the desktop GUI
+- First-class observability and replay: deterministic event replay, time-travel debugging of agent loops, exportable trace bundles
+- Cross-platform desktop distribution polish, signed auto-update, and reproducible packaging
+- Local-first privacy story: telemetry-free defaults (`minimal_trace`), explicit opt-in for any network egress beyond model and MCP traffic, and clear data residency for memory/eval artifacts
+- Explicit scope boundary vs. hosted offerings: Kairox stays a local-first workbench; any remote or cloud session bridge is opt-in and isolated, not the default model
