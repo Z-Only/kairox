@@ -4,6 +4,19 @@ use agent_store::EventStore;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+type SessionStates = Arc<tokio::sync::Mutex<HashMap<String, crate::session::SessionState>>>;
+
+struct SwitchModelOperation<S>
+where
+    S: EventStore + 'static,
+{
+    store: Arc<S>,
+    event_tx: tokio::sync::broadcast::Sender<agent_core::DomainEvent>,
+    session_states: SessionStates,
+    config: Arc<agent_config::Config>,
+    ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
+}
+
 impl<S, M> LocalRuntime<S, M>
 where
     S: EventStore + 'static,
@@ -35,11 +48,7 @@ where
         session_id: &SessionId,
         limits: agent_models::ModelLimits,
     ) {
-        let mut states = self.session_states.lock().await;
-        let entry = states
-            .entry(session_id.to_string())
-            .or_insert_with(crate::session::SessionState::default);
-        entry.model_limits = Some(limits);
+        set_session_limits_in_state(&self.session_states, session_id, limits).await;
     }
 
     pub(crate) async fn initialize_session_limits(
@@ -57,40 +66,13 @@ where
             let initial_limits = agent_config::resolve_limits(&def);
             self.set_session_limits(session_id, initial_limits.clone())
                 .await;
-            self.spawn_ollama_context_probe(session_id.clone(), model_profile_alias, &def);
-        }
-    }
-
-    fn spawn_ollama_context_probe(
-        &self,
-        session_id: SessionId,
-        profile_alias: &str,
-        profile_def: &agent_config::ProfileDef,
-    ) {
-        if profile_def.provider != "ollama" {
-            return;
-        }
-
-        if let Some(client) = self.ollama_clients.get(profile_alias).cloned() {
-            let model_id = profile_def.model_id.clone();
-            let session_id_for_probe = session_id.clone();
-            let session_states = self.session_states.clone();
-            tokio::spawn(async move {
-                let probe = tokio::time::timeout(
-                    std::time::Duration::from_secs(3),
-                    client.probe_context_window(&model_id),
-                )
-                .await;
-                if let Ok(Some(window)) = probe {
-                    let mut states = session_states.lock().await;
-                    if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
-                        if let Some(ref mut l) = entry.model_limits {
-                            l.context_window = window;
-                            l.source = agent_models::LimitSource::RuntimeProbe;
-                        }
-                    }
-                }
-            });
+            spawn_ollama_context_probe_for(
+                session_id.clone(),
+                model_profile_alias,
+                &def,
+                &self.ollama_clients,
+                self.session_states.clone(),
+            );
         }
     }
 
@@ -113,9 +95,44 @@ where
         profile_alias: String,
         reasoning_effort: Option<String>,
     ) -> agent_core::Result<()> {
+        let operation = SwitchModelOperation {
+            store: self.store.clone(),
+            event_tx: self.event_tx.clone(),
+            session_states: self.session_states.clone(),
+            config: self.config.clone(),
+            ollama_clients: self.ollama_clients.clone(),
+        };
+        let queued_session_id = session_id.clone();
+        self.session_execution
+            .run_operation(&queued_session_id, async move {
+                operation
+                    .execute(session_id, profile_alias, reasoning_effort)
+                    .await
+            })
+            .await
+    }
+}
+
+impl<S> SwitchModelOperation<S>
+where
+    S: EventStore + 'static,
+{
+    async fn execute(
+        self,
+        session_id: SessionId,
+        profile_alias: String,
+        reasoning_effort: Option<String>,
+    ) -> agent_core::Result<()> {
+        let Self {
+            store,
+            event_tx,
+            session_states,
+            config,
+            ollama_clients,
+        } = self;
+
         // Validate alias exists in the loaded Config.
-        let profile_def = self
-            .config
+        let profile_def = config
             .profiles
             .iter()
             .find(|(alias, def)| alias == &profile_alias && def.enabled)
@@ -124,10 +141,9 @@ where
                 agent_core::CoreError::InvalidState(format!("unknown model: {profile_alias}"))
             })?;
 
-        // Resolve the session's current profile using the same helper
-        // the agent loop uses — the two resolvers must never drift.
-        let events = self
-            .store
+        // Resolve the session's current profile using the same helper the agent
+        // loop uses; the two resolvers must never drift.
+        let events = store
             .load_session(&session_id)
             .await
             .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
@@ -139,7 +155,7 @@ where
             None
         };
 
-        // Same profile + unchanged/no requested reasoning → silent no-op.
+        // Same profile + unchanged/no requested reasoning means silent no-op.
         if from_profile == profile_alias
             && (requested_reasoning_effort.is_none()
                 || requested_reasoning_effort == from_reasoning_effort)
@@ -155,7 +171,7 @@ where
         // Busy-gate mirrors `compact_session`: refuse switches while compaction
         // is mutating the same session state.
         {
-            let states = self.session_states.lock().await;
+            let states = session_states.lock().await;
             if let Some(entry) = states.get(&session_id.to_string()) {
                 if entry.compacting {
                     return Err(agent_core::CoreError::SessionBusy {
@@ -190,15 +206,65 @@ where
                 limit_source: limit_source_str.into(),
             },
         );
-        crate::event_emitter::append_and_broadcast(&*self.store, &self.event_tx, &event).await?;
+        crate::event_emitter::append_and_broadcast(&*store, &event_tx, &event).await?;
 
-        // Refresh cached limits so the next send_message's agent loop
-        // doesn't re-derive from the old profile.
-        self.set_session_limits(&session_id, new_limits.clone())
-            .await;
+        // Refresh cached limits so the next send_message's agent loop does not
+        // re-derive from the old profile.
+        set_session_limits_in_state(&session_states, &session_id, new_limits).await;
 
-        self.spawn_ollama_context_probe(session_id.clone(), &profile_alias, &profile_def);
+        spawn_ollama_context_probe_for(
+            session_id,
+            &profile_alias,
+            &profile_def,
+            &ollama_clients,
+            session_states,
+        );
 
         Ok(())
+    }
+}
+
+async fn set_session_limits_in_state(
+    session_states: &SessionStates,
+    session_id: &SessionId,
+    limits: agent_models::ModelLimits,
+) {
+    let mut states = session_states.lock().await;
+    let entry = states
+        .entry(session_id.to_string())
+        .or_insert_with(crate::session::SessionState::default);
+    entry.model_limits = Some(limits);
+}
+
+fn spawn_ollama_context_probe_for(
+    session_id: SessionId,
+    profile_alias: &str,
+    profile_def: &agent_config::ProfileDef,
+    ollama_clients: &HashMap<String, Arc<agent_models::OllamaClient>>,
+    session_states: SessionStates,
+) {
+    if profile_def.provider != "ollama" {
+        return;
+    }
+
+    if let Some(client) = ollama_clients.get(profile_alias).cloned() {
+        let model_id = profile_def.model_id.clone();
+        let session_id_for_probe = session_id.clone();
+        tokio::spawn(async move {
+            let probe = tokio::time::timeout(
+                std::time::Duration::from_secs(3),
+                client.probe_context_window(&model_id),
+            )
+            .await;
+            if let Ok(Some(window)) = probe {
+                let mut states = session_states.lock().await;
+                if let Some(entry) = states.get_mut(session_id_for_probe.as_str()) {
+                    if let Some(ref mut limits) = entry.model_limits {
+                        limits.context_window = window;
+                        limits.source = agent_models::LimitSource::RuntimeProbe;
+                    }
+                }
+            }
+        });
     }
 }

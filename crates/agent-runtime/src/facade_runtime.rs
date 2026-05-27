@@ -1592,6 +1592,84 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn switch_model_queues_behind_active_actor_turn() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let stream_calls = Arc::new(AtomicUsize::new(0));
+        let model = BlockingModelClient::new(started_tx, release_rx, stream_calls.clone());
+        let runtime =
+            Arc::new(LocalRuntime::new(store, model).with_config(test_config_with_two_profiles()));
+
+        let workspace = runtime.open_workspace("/tmp/ws".into()).await.unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id.clone(),
+                model_profile: "fast".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+
+        let turn_runtime = runtime.clone();
+        let turn_workspace_id = workspace.workspace_id;
+        let turn_session_id = session_id.clone();
+        let turn = tokio::spawn(async move {
+            turn_runtime
+                .send_message(SendMessageRequest {
+                    workspace_id: turn_workspace_id,
+                    session_id: turn_session_id,
+                    content: "first".into(),
+                    attachments: vec![],
+                })
+                .await
+        });
+        started_rx.await.unwrap();
+
+        let switch_runtime = runtime.clone();
+        let switch_session_id = session_id.clone();
+        let switch = tokio::spawn(async move {
+            switch_runtime
+                .switch_model(switch_session_id, "opus".into(), None)
+                .await
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        assert!(!switch.is_finished());
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        assert!(!events.iter().any(|event| matches!(
+            &event.payload,
+            agent_core::EventPayload::ModelProfileSwitched { .. }
+        )));
+
+        release_tx.send(()).unwrap();
+        turn.await.unwrap().unwrap();
+        switch.await.unwrap().unwrap();
+
+        let events = runtime
+            .event_store_for_test()
+            .load_session(&session_id)
+            .await
+            .unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(
+                    &event.payload,
+                    agent_core::EventPayload::ModelProfileSwitched { .. }
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(stream_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
     async fn no_plan_prefix_uses_single_step_even_with_dag() {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let model = FakeModelClient::new(vec!["hi".into()]);

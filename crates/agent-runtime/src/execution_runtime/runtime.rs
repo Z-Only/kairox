@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use agent_core::{SendMessageRequest, SessionId, TaskId, WorkspaceId};
@@ -65,6 +66,18 @@ impl SessionExecutionRuntime {
         actor
             .cancel_task(workspace_id, session_id, task_id, executor)
             .await
+    }
+
+    pub async fn run_operation<F>(
+        &self,
+        session_id: &SessionId,
+        operation: F,
+    ) -> agent_core::Result<()>
+    where
+        F: Future<Output = agent_core::Result<()>> + Send + 'static,
+    {
+        let actor = self.actor_for(session_id).await;
+        actor.run_operation(Box::pin(operation)).await
     }
 
     pub async fn ensure_session(&self, session_id: &SessionId) {
