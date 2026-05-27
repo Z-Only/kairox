@@ -1,0 +1,4 @@
+# kairox-eval smoke fixtures — deterministic fake profile only
+{"id":"smoke-hello","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["hello from Kairox"],"event_types":["UserMessageAdded","AssistantMessageCompleted"],"max_tool_failures":0}}
+{"id":"smoke-event-trace","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"event_types":["SessionInitialized","UserMessageAdded","AssistantMessageCompleted"]}}
+{"id":"smoke-no-tool-failures","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"max_tool_failures":0}}

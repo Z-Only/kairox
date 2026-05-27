@@ -475,6 +475,39 @@ jobs:
         working-directory: apps/agent-gui
         run: bun run build
 
+  eval-smoke:
+    name: kairox-eval smoke
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: rust-ci
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Run kairox-eval smoke fixture
+        run: just eval-smoke
+
+      - name: Upload eval-smoke summary
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: eval-smoke-summary
+          path: target/eval-smoke/summary.json
+          retention-days: 7
+
   live-model-tests:
     name: Live model tests (GitHub Models)
     needs: changes
@@ -713,6 +746,7 @@ jobs:
         type-sync,
         build-tui,
         build-gui,
+        eval-smoke,
         live-model-tests,
         tauri-pilot-e2e,
         tauri-pilot-live-e2e
