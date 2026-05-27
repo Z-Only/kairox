@@ -1,5 +1,5 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
-use crate::execution_runtime::{CancellationRegistry, SessionExecutionRuntime};
+use crate::execution_runtime::SessionExecutionRuntime;
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
 use crate::task_graph::TaskGraph;
 use crate::McpServerManager;
@@ -46,7 +46,6 @@ where
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     pub(crate) event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
     pub(crate) task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
-    pub(crate) active_cancellation: CancellationRegistry,
     pub(crate) session_execution: SessionExecutionRuntime,
     pub(crate) dag_executor: Option<Arc<DagExecutor<S, M>>>,
     pub(crate) dag_config: DagConfig,
@@ -106,7 +105,6 @@ where
             pending_permissions: Arc::new(Mutex::new(HashMap::new())),
             event_tx,
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
-            active_cancellation: CancellationRegistry::new(),
             session_execution: SessionExecutionRuntime::new(),
             mcp_manager: None,
             dag_executor: None,

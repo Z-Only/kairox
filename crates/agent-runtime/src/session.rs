@@ -6,7 +6,6 @@
 
 use crate::context_budget::UsageCorrector;
 use crate::event_emitter::append_and_broadcast;
-use crate::execution_runtime::CancellationRegistry;
 use crate::task_graph::TaskGraph;
 use agent_core::{
     AgentId, CoreError, DomainEvent, EventPayload, PrivacyClassification, SessionId, SessionMeta,
@@ -155,13 +154,9 @@ fn derive_policy_strings(
 pub(crate) async fn cancel_session<S: EventStore>(
     store: &S,
     event_tx: &tokio::sync::broadcast::Sender<DomainEvent>,
-    active_cancellation: &CancellationRegistry,
     workspace_id: WorkspaceId,
     session_id: SessionId,
 ) -> agent_core::Result<()> {
-    // Cancel the active agent loop if one is running
-    active_cancellation.cancel(&session_id).await;
-
     let event = DomainEvent::new(
         workspace_id,
         session_id,

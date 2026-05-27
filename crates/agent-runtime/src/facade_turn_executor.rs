@@ -1,5 +1,5 @@
 use crate::dag_executor::DagExecutor;
-use crate::execution_runtime::{CancellationRegistry, TaskControlExecutor, TurnExecutor};
+use crate::execution_runtime::{TaskControlExecutor, TurnExecutor};
 use crate::facade_runtime::{ExecutionMode, LocalRuntime};
 use crate::task_graph::TaskGraph;
 use agent_core::{
@@ -30,7 +30,6 @@ where
         Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     memory_store: Option<Arc<dyn MemoryStore>>,
     task_graphs: Arc<Mutex<HashMap<String, TaskGraph>>>,
-    active_cancellation: CancellationRegistry,
     dag_executor: Option<Arc<DagExecutor<S, M>>>,
     config: Arc<agent_config::Config>,
     session_states: Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
@@ -53,7 +52,6 @@ where
             pending_permissions: runtime.pending_permissions.clone(),
             memory_store: runtime.memory_store.clone(),
             task_graphs: runtime.task_graphs.clone(),
-            active_cancellation: runtime.active_cancellation.clone(),
             dag_executor: runtime.dag_executor.clone(),
             config: runtime.config.clone(),
             session_states: runtime.session_states.clone(),
@@ -124,12 +122,11 @@ where
                         pending_permissions: &self.pending_permissions,
                         memory_store: &self.memory_store,
                         task_graphs: &self.task_graphs,
-                        active_cancellation: &self.active_cancellation,
                         config: &self.config,
                         session_states: &self.session_states,
                         skill_registry: &self.skill_registry,
                         active_skills: &self.active_skills,
-                        turn_cancellation: Some(cancellation),
+                        turn_cancellation: cancellation,
                         root_path,
                     },
                     &request,

@@ -15,7 +15,6 @@ pub(crate) use tool_loop::execute_tool_calls;
 pub(crate) use turn_context::prepare_turn_context;
 pub(crate) use turn_context::TurnContext;
 
-use crate::execution_runtime::CancellationRegistry;
 use crate::task_graph::TaskGraph;
 use agent_core::PermissionDecision;
 use agent_memory::MemoryStore;
@@ -44,12 +43,11 @@ where
         &'a Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<PermissionDecision>>>>,
     pub(crate) memory_store: &'a Option<Arc<dyn MemoryStore>>,
     pub(crate) task_graphs: &'a Arc<Mutex<HashMap<String, TaskGraph>>>,
-    pub(crate) active_cancellation: &'a CancellationRegistry,
     pub(crate) config: &'a Arc<agent_config::Config>,
     pub(crate) session_states: &'a Arc<Mutex<HashMap<String, crate::session::SessionState>>>,
     pub(crate) skill_registry: &'a Option<Arc<dyn agent_skills::SkillRegistry>>,
     pub(crate) active_skills: &'a Arc<Mutex<HashMap<String, Vec<String>>>>,
-    pub(crate) turn_cancellation: Option<CancellationToken>,
+    pub(crate) turn_cancellation: CancellationToken,
     pub(crate) root_path: Option<std::path::PathBuf>,
 }
 
