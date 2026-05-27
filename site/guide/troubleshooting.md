@@ -88,13 +88,14 @@ That runs against GitHub Models with a known-good profile to verify your toolcha
 
 ### "Permission denied" on a tool the model wants to run
 
-This is expected behavior in `Suggest` mode (the default): the runtime prompts on anything risky and denies if you say no, or if the session is in `ReadOnly` mode.
+This is expected behavior under the default `ApprovalPolicy::OnRequest` + `SandboxPolicy::WorkspaceWrite` pair: the policy engine prompts on anything risky and denies if you say no, or fails the call structurally if the active sandbox does not permit it (for example, any write attempt under `SandboxPolicy::ReadOnly`).
 
 - To approve once: <kbd>Y</kbd> in the TUI, **Allow** in the GUI.
 - To approve persistently for this workspace: **Always allow** in the GUI.
-- To relax the policy for an autonomous job: switch the session to `Autonomous` mode (TUI: command palette → "Set permission mode"; GUI: session header dropdown).
+- To stop being prompted for sandbox-cleared calls: switch `ApprovalPolicy` to `Never` (TUI status bar selector; GUI `ChatApprovalSelector`).
+- To allow writes that the sandbox is currently rejecting: switch `SandboxPolicy` to a wider variant such as `WorkspaceWrite` or `DangerFullAccess` (TUI: <kbd>B</kbd> cycles; GUI `ChatSandboxSelector`). Approval cannot widen the sandbox — only switching the sandbox can.
 
-See [Permissions & Tools](../concepts/permissions-and-tools) for the full table.
+See [Permissions & Tools](../concepts/permissions-and-tools) for the full decision matrix.
 
 ### Context compaction triggers too often (or never)
 
@@ -147,7 +148,7 @@ The updater could not reach GitHub Releases. Check your network and that GitHub 
 
 ### Settings changes do not apply
 
-Some settings (model defaults, MCP server registration) apply on the next session; others (skills, permission mode) apply immediately. If a setting did not take effect, start a new session and try again. If it still does not, file an issue with the exact setting.
+Some settings (model defaults, MCP server registration) apply on the next session; others (skills, `ApprovalPolicy`, `SandboxPolicy`) apply immediately. If a setting did not take effect, start a new session and try again. If it still does not, file an issue with the exact setting.
 
 ## Data and storage
 

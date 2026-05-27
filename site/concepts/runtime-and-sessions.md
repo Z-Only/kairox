@@ -6,7 +6,7 @@ outline: [2, 3]
 
 # Runtime & Sessions
 
-`agent-runtime` is the engine that turns a user prompt into work. It owns the agent loop, manages sessions, applies context budgets, calls model providers, invokes tools, asks the permission engine, runs multi-agent strategies, executes task DAGs, and orchestrates the MCP server lifecycle. Every other domain crate is something the runtime composes; the runtime composes none of the UIs.
+`agent-runtime` is the engine that turns a user prompt into work. It owns the agent loop, manages sessions, applies context budgets, calls model providers, invokes tools, asks the policy engine, runs multi-agent strategies, executes task DAGs, and orchestrates the MCP server lifecycle. Every other domain crate is something the runtime composes; the runtime composes none of the UIs.
 
 If [Architecture](./architecture) explained the static shape of the system, this page explains how the system moves.
 
@@ -22,7 +22,7 @@ flowchart LR
   loop --> session["session"]
   loop --> agents["agents (Planner / Worker / Reviewer)"]
   loop --> models["ModelClient / ModelRouter"]
-  loop --> tools["ToolRegistry + PermissionEngine"]
+  loop --> tools["ToolRegistry + PolicyEngine"]
   loop --> memory["ContextAssembler + MemoryStore"]
   loop --> dag["DagExecutor"]
   loop --> mcp["McpServerManager"]
@@ -49,7 +49,7 @@ sequenceDiagram
   participant SA as Session actor
   participant CA as ContextAssembler
   participant MC as ModelClient
-  participant PE as PermissionEngine
+  participant PE as PolicyEngine
   participant T as Tool
   participant ES as EventStore
 
@@ -62,11 +62,11 @@ sequenceDiagram
   MC-->>SA: AssistantDelta(text)
   SA->>ES: append AssistantDelta
   MC-->>SA: ToolCall{name, args}
-  SA->>PE: decide(tool, args)
-  PE-->>U: PermissionRequested event (if Suggest/Interactive)
+  SA->>PE: decide(PolicyRisk)
+  PE-->>U: PermissionRequested event (NeedsApproval)
   U-->>PE: PermissionDecision
   PE->>ES: append Permission* events
-  PE-->>SA: Approved | Denied
+  PE-->>SA: Allowed | DeniedBySandbox | Denied
   SA->>T: invoke(args)
   T-->>SA: ToolResult
   SA->>ES: append ToolCompleted
@@ -83,22 +83,22 @@ Five things are worth pointing out:
 
 1. **The session is an actor.** Turns enqueue against the session, so a second user message arriving mid-turn waits for the current turn's terminal `Completed` event. Model switches and compaction enqueue against the same actor — they cannot interleave halfway through a tool call.
 2. **The context assembler is consulted every turn.** It rebuilds the message list from recent history and relevant memory, respecting the active model's context window. Nothing is "kept in memory between turns"; everything is rebuilt from events.
-3. **Permission is a request/response on the event bus.** The permission engine emits `PermissionRequested`, waits for `PermissionDecision`, then emits the terminal `PermissionGranted` / `PermissionDenied`. UIs subscribe to the request and post the decision back through the facade.
+3. **Permission is a request/response on the event bus.** When `PolicyEngine::decide(PolicyRisk)` returns `NeedsApproval`, the runtime emits `PermissionRequested`, waits for `PermissionDecision`, then emits the terminal `PermissionGranted` / `PermissionDenied`. UIs subscribe to the request and post the decision back through the facade.
 4. **Tool results are model input.** The runtime feeds tool results back into the model in the same stream, so the assistant's next deltas may reflect the tool's output without a new user prompt.
 5. **`Completed` is the terminal signal.** The UI uses it to clear the "thinking" indicator and the test suite uses it to assert the turn ended. There is no other "I'm done" channel.
 
 ## Session lifecycle
 
-A session is the unit of conversation. It owns a model profile, an agent strategy, a permission mode, and a stream of events. Sessions live as long as their event stream — there is no in-memory session struct that has to be hydrated.
+A session is the unit of conversation. It owns a model profile, an agent strategy, an `ApprovalPolicy` × `SandboxPolicy` pair, and a stream of events. Sessions live as long as their event stream — there is no in-memory session struct that has to be hydrated.
 
-| State            | Triggered by                                                 | What changes                                                                                            |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `Created`        | `AppFacade::create_session(workspace, profile, agent, mode)` | `SessionId` minted, `SessionCreated` appended, metadata row inserted, subscriber stream opened.         |
-| `Active`         | First `send_message`                                         | Session actor accepts turns; events stream to subscribers.                                              |
-| `SwitchingModel` | `AppFacade::switch_model(session, profile)`                  | Switch enqueued behind the active turn; `ModelSwitched` event appended once the previous turn finishes. |
-| `Compacting`     | Manual compaction request or auto-compaction at turn end     | `CompactionStarted` → context summarized → `CompactionCompleted`; budget guard prevents reentry.        |
-| `Idle`           | After `Completed`, no enqueued work                          | Subscriber stream stays open; UI keeps the chat scrolled to the last message.                           |
-| `Archived`       | `AppFacade::archive_session(session)`                        | Metadata flag set; events remain on disk; the session disappears from the active list in both UIs.      |
+| State            | Triggered by                                                                            | What changes                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `Created`        | `AppFacade::create_session(workspace, profile, agent, approval_policy, sandbox_policy)` | `SessionId` minted, `SessionCreated` appended, metadata row inserted, subscriber stream opened.         |
+| `Active`         | First `send_message`                                                                    | Session actor accepts turns; events stream to subscribers.                                              |
+| `SwitchingModel` | `AppFacade::switch_model(session, profile)`                                             | Switch enqueued behind the active turn; `ModelSwitched` event appended once the previous turn finishes. |
+| `Compacting`     | Manual compaction request or auto-compaction at turn end                                | `CompactionStarted` → context summarized → `CompactionCompleted`; budget guard prevents reentry.        |
+| `Idle`           | After `Completed`, no enqueued work                                                     | Subscriber stream stays open; UI keeps the chat scrolled to the last message.                           |
+| `Archived`       | `AppFacade::archive_session(session)`                                                   | Metadata flag set; events remain on disk; the session disappears from the active list in both UIs.      |
 
 A session is never deleted by default. Archiving hides it. Removing events is a destructive operation that the runtime does not expose by design — the trace is the audit log, and tampering with it is not a casual action.
 
@@ -177,9 +177,9 @@ Servers are _managed_ by the runtime but _defined_ by `agent-config`. Adding an 
 
 ## Permissions in the loop
 
-The permission engine is consulted on every tool call. It returns an `AccessDecision` (`Allowed`, `Denied`, or `Prompt`); a `Prompt` causes the runtime to emit a `PermissionRequested` event and wait. The wait is bounded by the session actor's queue, so a user who walks away with an unanswered prompt blocks new turns but does not corrupt state.
+The policy engine is consulted on every tool call. `PolicyEngine::decide(PolicyRisk)` returns one of three variants: `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`. `NeedsApproval` causes the runtime to emit a `PermissionRequested` event and wait for a `PermissionDecision`. The wait is bounded by the session actor's queue, so a user who walks away with an unanswered prompt blocks new turns but does not corrupt state. `DeniedBySandbox` is structural and cannot be widened by user approval — the runtime appends `ToolFailed` directly.
 
-See [Permissions & Tools](./permissions-and-tools) for the five permission modes and the built-in tools' risk classifications.
+See [Permissions & Tools](./permissions-and-tools) for the orthogonal `ApprovalPolicy` × `SandboxPolicy` model and the built-in tools' risk classifications.
 
 ## Where the runtime gets its inputs
 

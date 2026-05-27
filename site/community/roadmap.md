@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.30.x)
+## What ships today (v0.31.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -28,7 +28,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 ### Tools, permissions, MCP
 
 - Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`.
-- Five permission modes: `ReadOnly`, `Suggest`, `Agent`, `Autonomous`, `Interactive`.
+- Orthogonal Approval × Sandbox policy engine: `ApprovalPolicy` (`Never` / `OnRequest` / `Always`) gates _when_ the user is asked; `SandboxPolicy` (`ReadOnly` / `WorkspaceWrite` / `DangerFullAccess`) gates _what_ the runtime structurally allows. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0 (PRs #517, #520).
 - MCP client with stdio and SSE transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`).
 - MCP marketplace with built-in catalog plus remote sources; one-click install with runtime requirement hints.
 - MCP connectivity actions in the GUI.
@@ -42,14 +42,14 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 ### UIs
 
 - **TUI** built on ratatui: three-pane layout, streaming chat, trace panel, permission overlay, command palette, settings/marketplace overlays.
-- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, inline permission flow, per-session permission mode, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions.
+- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, inline permission flow, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions.
 - Tauri 2 auto-update wired to GitHub Releases.
 
 ### Extensibility
 
 - Native **skills** with workspace / user / session scopes; SkillHub install support.
 - **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery.
-- Configurable agent overrides per role (model, permission mode, skills, tool allowlists).
+- Configurable agent overrides per role (model, `ApprovalPolicy`, `SandboxPolicy`, skills, tool allowlists).
 
 ### Quality and CI
 

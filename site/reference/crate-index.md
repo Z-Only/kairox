@@ -109,14 +109,14 @@ One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRe
 
 ### `agent-tools`
 
-| What           | Detail                                                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                |
-| Purpose        | The `Tool` trait, the `ToolRegistry`, the `PermissionEngine`, and the built-in tools.                                |
-| Key types      | `Tool`, `ToolRegistry`, `PermissionEngine`, `PermissionMode`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool` |
-| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`)                                                                  |
+| What           | Detail                                                                                                                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                                                                               |
+| Purpose        | The `Tool` trait, the `ToolRegistry`, the orthogonal Approval × Sandbox `PolicyEngine`, and the built-in tools.                                                                     |
+| Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool` |
+| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`)                                                                                                                                 |
 
-Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`. The permission engine returns `AccessDecision` enums (`Allowed`, `Denied`, `Prompt`) that the runtime turns into permission events. See [Permissions & Tools](../concepts/permissions-and-tools).
+Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
 
 ### `agent-mcp`
 

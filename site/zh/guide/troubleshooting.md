@@ -88,13 +88,14 @@ just test-live    # 没设 GITHUB_TOKEN 时会自动 skip
 
 ### 模型想跑的 tool 报 “Permission denied”
 
-这是 `Suggest` 模式(默认模式)下的预期行为:runtime 会对任何有风险的操作弹提示,你不允许就拒,session 在 `ReadOnly` 模式下也会拒。
+这是默认 `ApprovalPolicy::OnRequest` + `SandboxPolicy::WorkspaceWrite` 组合下的预期行为:policy engine 会对任何有风险的操作弹提示,你不允许就拒,或者在当前 sandbox 结构上不允许时直接失败(例如在 `SandboxPolicy::ReadOnly` 下的任何写操作)。
 
 - 只允许这一次:TUI 里按 <kbd>Y</kbd>,GUI 里点 **Allow**。
 - 在这个 workspace 里持续允许:GUI 里点 **Always allow**。
-- 给一个自主任务放宽策略:把 session 切到 `Autonomous` 模式(TUI:命令面板 → “Set permission mode”;GUI:session 头部的下拉框)。
+- 不希望被 sandbox 已放行的调用再打扰:把 `ApprovalPolicy` 切到 `Never`(TUI 状态栏选择器;GUI `ChatApprovalSelector`)。
+- 想允许当前 sandbox 正在拒绝的写操作:把 `SandboxPolicy` 切到更宽的变体,如 `WorkspaceWrite` 或 `DangerFullAccess`(TUI:<kbd>B</kbd> 循环切换;GUI `ChatSandboxSelector`)。批准不能放宽 sandbox —— 只有切换 sandbox 才行。
 
-完整对照表见 [Permissions & Tools](../concepts/permissions-and-tools)。
+完整决策矩阵见 [Permissions 与 Tools](../concepts/permissions-and-tools)。
 
 ### Context compaction 触发得太频繁(或者从来不触发)
 
@@ -147,7 +148,7 @@ updater 联不上 GitHub Releases。检查网络以及 GitHub 是否可达。更
 
 ### 设置改了没生效
 
-有些设置(模型默认值、MCP server 注册)在下一个 session 才生效;另一些(skill、permission 模式)是立即生效的。如果某个设置没生效,新建一个 session 再试一次。如果还是没生效,请连同具体的设置项提个 issue。
+有些设置(模型默认值、MCP server 注册)在下一个 session 才生效;另一些(skill、`ApprovalPolicy`、`SandboxPolicy`)是立即生效的。如果某个设置没生效,新建一个 session 再试一次。如果还是没生效,请连同具体的设置项提个 issue。
 
 ## 数据与存储
 
