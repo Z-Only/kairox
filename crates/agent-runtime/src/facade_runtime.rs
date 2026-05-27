@@ -613,6 +613,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn restore_archived_session_restarts_session_actor() {
+        let store = SqliteEventStore::in_memory().await.unwrap();
+        let model = FakeModelClient::new(vec!["done".into()]);
+        let runtime = LocalRuntime::new(store, model);
+
+        let workspace = runtime
+            .open_workspace("/tmp/workspace".into())
+            .await
+            .unwrap();
+        let session_id = runtime
+            .start_session(StartSessionRequest {
+                workspace_id: workspace.workspace_id,
+                model_profile: "fake".into(),
+                approval_policy: None,
+                sandbox_policy: None,
+            })
+            .await
+            .unwrap();
+        assert_eq!(runtime.session_execution.actor_count().await, 1);
+
+        runtime.soft_delete_session(&session_id).await.unwrap();
+        assert_eq!(runtime.session_execution.actor_count().await, 0);
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            None
+        );
+
+        runtime.restore_archived_session(&session_id).await.unwrap();
+
+        assert_eq!(runtime.session_execution.actor_count().await, 1);
+        assert_eq!(
+            runtime.session_execution.session_state(&session_id).await,
+            Some(crate::execution_runtime::ExecutionState::Idle)
+        );
+    }
+
+    #[tokio::test]
     async fn send_message_returns_session_busy_when_compacting() {
         let store = SqliteEventStore::in_memory().await.unwrap();
         let model = FakeModelClient::new(vec!["hello".into()]);
