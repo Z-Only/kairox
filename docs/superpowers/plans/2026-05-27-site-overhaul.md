@@ -1,3 +1,71 @@
+# Site Overhaul Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Expand the VitePress site from 3 thin pages per locale to 16 substantive pages per locale (EN+ZH), deepen Architecture in particular, add Mermaid / edit-on-GitHub / footer / llms.txt / 404 / feedback widget / build-time release banner.
+
+**Architecture:** Pure docs-only PR. Reorganize site into Guide / Concepts / Reference / Community sections. Add VitePress theme components for feedback and release banner. Post-build Node script generates llms.txt + llms-full.txt. CI workflow gains a step to fetch latest release JSON before building.
+
+**Tech Stack:** VitePress 1.6, Vue 3 (theme components), `vitepress-plugin-mermaid`, `mermaid`, Bun build pipeline, Node post-build script, GitHub Actions Pages workflow.
+
+**Spec:** `docs/superpowers/specs/2026-05-27-site-overhaul-design.md`
+
+**Branch:** `docs/site-overhaul` (worktree at `.worktrees/docs-site-overhaul`)
+
+---
+
+## Task 1: Foundation — install Mermaid plugin
+
+**Files:**
+
+- Modify: `package.json` (add `vitepress-plugin-mermaid`, `mermaid` to devDependencies; update `site:build` script)
+
+- [ ] **Step 1: Add devDependencies and update site:build script**
+
+Edit `package.json` and add to `devDependencies`:
+
+```json
+"mermaid": "^11.4.1",
+"vitepress-plugin-mermaid": "^2.0.17"
+```
+
+Update the `site:build` script value from:
+
+```
+"site:build": "vitepress build site"
+```
+
+to:
+
+```
+"site:build": "vitepress build site && node scripts/generate-llms-txt.mjs"
+```
+
+- [ ] **Step 2: Install**
+
+Run: `bun install`
+Expected: `vitepress-plugin-mermaid` and `mermaid` resolve and lockfile updates.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add package.json bun.lock
+git commit -m "chore(deps): add mermaid + vitepress-plugin-mermaid for docs"
+```
+
+---
+
+## Task 2: Foundation — rewrite VitePress config
+
+**Files:**
+
+- Modify: `site/.vitepress/config.ts` (full rewrite — new nav/sidebar, edit-link, footer, withMermaid wrapper, EN+ZH parity)
+
+- [ ] **Step 1: Rewrite `site/.vitepress/config.ts`**
+
+Replace full file contents with:
+
+```ts
 import { defineConfig, type DefaultTheme } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
 
@@ -263,7 +331,7 @@ export default withMermaid(
         lang: "zh-CN",
         link: "/zh/",
         title: "Kairox",
-        description: "本地优先的 AI Agent 工作台，提供共享 Rust 核心、终端界面和 Tauri 桌面 GUI。",
+        description: "本地优先的 AI Agent 工作台,提供共享 Rust 核心、终端界面和 Tauri 桌面 GUI。",
         themeConfig: {
           nav: zhNav(),
           sidebar: zhSidebar(),
@@ -298,3 +366,18 @@ export default withMermaid(
     }
   })
 );
+```
+
+- [ ] **Step 2: Verify dev server boots**
+
+Run: `bun run site:dev` (let it boot, then Ctrl-C)
+Expected: server starts on `http://localhost:5173/kairox/` with no errors. Empty 404s for unwritten pages are expected.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add site/.vitepress/config.ts
+git commit -m "feat(docs): expand VitePress nav, sidebar, edit-link, footer, mermaid"
+```
+
+// **CONTINUE_HERE**

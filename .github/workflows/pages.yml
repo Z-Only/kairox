@@ -47,6 +47,18 @@ jobs:
       - name: Install dependencies
         run: bun ci
 
+      - name: Fetch latest release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/.vitepress/cache
+          if gh release view --repo "${{ github.repository }}" --json tagName,publishedAt,assets > site/.vitepress/cache/release.json; then
+            echo "Wrote site/.vitepress/cache/release.json"
+          else
+            echo "No release available yet; writing empty fallback"
+            echo '{}' > site/.vitepress/cache/release.json
+          fi
+
       - name: Build site
         run: bun run site:build
 
