@@ -91,8 +91,9 @@ function stripMarkdown(body) {
   let out = body.replace(/```[\s\S]*?```/g, (block) => block);
   out = stripTagBlocks(out, "script");
   out = stripTagBlocks(out, "style");
-  out = out.replace(/<[^>]*>/g, "");
-  out = out.replace(/</g, "");
+  out = out.replace(/</g, "�");
+  out = out.replace(/�[^>]*>/g, "");
+  out = out.replace(/�/g, "");
   return out.trim();
 }
 
