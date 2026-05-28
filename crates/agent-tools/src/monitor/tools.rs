@@ -325,6 +325,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stop_tool_invoke_success() {
+        let registry = test_registry();
+        let start = MonitorStartTool::new(registry.clone());
+        let inv = ToolInvocation {
+            tool_id: MONITOR_START_TOOL_ID.into(),
+            arguments: serde_json::json!({"command": "sleep 60", "description": "to stop"}),
+            workspace_id: "wrk_test".into(),
+            preview: "sleep 60".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let out = start.invoke(inv).await.unwrap();
+        let monitor_id = out.text.strip_prefix("Monitor started: ").unwrap();
+
+        let stop = MonitorStopTool::new(registry.clone());
+        let inv = ToolInvocation {
+            tool_id: MONITOR_STOP_TOOL_ID.into(),
+            arguments: serde_json::json!({"monitor_id": monitor_id}),
+            workspace_id: "wrk_test".into(),
+            preview: format!("stop {monitor_id}"),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let out = stop.invoke(inv).await.unwrap();
+        assert!(out.text.contains("Monitor stopped:"));
+    }
+
+    #[tokio::test]
     async fn stop_tool_missing_monitor_id_errors() {
         let tool = MonitorStopTool::new(test_registry());
         let invocation = ToolInvocation {
@@ -337,6 +365,39 @@ mod tests {
         };
         let result = tool.invoke(invocation).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn list_with_active_monitor_shows_entries() {
+        let registry = test_registry();
+        let start = MonitorStartTool::new(registry.clone());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_START_TOOL_ID.into(),
+            arguments: serde_json::json!({
+                "command": "sleep 60",
+                "description": "long running"
+            }),
+            workspace_id: "wrk_test".into(),
+            preview: "sleep 60".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        start.invoke(invocation).await.unwrap();
+
+        let list = MonitorListTool::new(registry.clone());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_LIST_TOOL_ID.into(),
+            arguments: serde_json::json!({}),
+            workspace_id: "wrk_test".into(),
+            preview: "list".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let output = list.invoke(invocation).await.unwrap();
+        assert!(output.text.contains("mon_"), "got: {}", output.text);
+        assert!(output.text.contains("long running"));
+
+        registry.stop_all().await;
     }
 
     #[tokio::test]
