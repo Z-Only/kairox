@@ -6,6 +6,7 @@
 //! `:`-prefixed slash form; selection routes the same [`Command`] the slash
 //! parser would produce, or hands the prefill back to [`ChatPanel`].
 
+mod keys;
 mod registry;
 mod render;
 mod state;
@@ -14,7 +15,7 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -35,37 +36,9 @@ impl Component for CommandPalette {
         let Event::Key(key) = event else {
             return (Vec::new(), Vec::new());
         };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
 
-        match key.code {
-            KeyCode::Esc => {
-                self.hide();
-                (vec![CrossPanelEffect::DismissCommandPalette], Vec::new())
-            }
-            KeyCode::Down => {
-                self.move_down();
-                (Vec::new(), Vec::new())
-            }
-            KeyCode::Up => {
-                self.move_up();
-                (Vec::new(), Vec::new())
-            }
-            KeyCode::Enter => self.activate(ctx),
-            KeyCode::Backspace => {
-                self.filter.pop();
-                self.clamp_selection();
-                (Vec::new(), Vec::new())
-            }
-            KeyCode::Char(c) => {
-                self.filter.push(c);
-                self.selected = 0;
-                self.clamp_selection();
-                (Vec::new(), Vec::new())
-            }
-            _ => (Vec::new(), Vec::new()),
-        }
+        self.handle_key_event(ctx, key.code)
+            .unwrap_or_else(|| (Vec::new(), Vec::new()))
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
