@@ -123,6 +123,43 @@ test("C. tool-call row starts collapsed and reveals output + duration on toggle"
   await expect(toolRow.locator(".chat-tool-code").first()).toContainText("/Users/mock");
 });
 
+test("C2. tool-call row is keyboard-accessible: Tab focus + Enter/Space toggle", async ({
+  page
+}) => {
+  await waitForSessionReady(page);
+
+  await page.evaluate(() => {
+    (window as any).__KAIROX_MOCK__.simulateToolInvocation("shell", "echo from kbd\n", 900);
+  });
+
+  const toolRow = page.locator('[data-test="chat-tool-call-item"]');
+  await expect(toolRow).toBeVisible();
+
+  const row = toolRow.locator(".chat-tool-call__row");
+  // a11y contract: clickable header is a focusable button-like control.
+  await expect(row).toHaveAttribute("role", "button");
+  await expect(row).toHaveAttribute("tabindex", "0");
+  await expect(row).toHaveAttribute("aria-expanded", "false");
+
+  // Enter dispatched on the row triggers the same toggle path the
+  // keyboard would take. We dispatch via DOM event so this exercises
+  // the @keydown handler directly without depending on Playwright's
+  // focus heuristics for non-button focusables.
+  await row.dispatchEvent("keydown", { key: "Enter", bubbles: true });
+  await expect(toolRow.locator(".chat-tool-call__detail")).toBeVisible();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+
+  // The detail panel id matches the row's aria-controls.
+  const controls = await row.getAttribute("aria-controls");
+  expect(controls).toBeTruthy();
+  await expect(toolRow.locator(".chat-tool-call__detail")).toHaveAttribute("id", controls!);
+
+  // Space collapses again (and must not scroll the page).
+  await row.dispatchEvent("keydown", { key: " ", bubbles: true });
+  await expect(toolRow.locator(".chat-tool-call__detail")).toHaveCount(0);
+  await expect(row).toHaveAttribute("aria-expanded", "false");
+});
+
 test("D. compaction item is visible while running and after completion", async ({ page }) => {
   await waitForSessionReady(page);
 

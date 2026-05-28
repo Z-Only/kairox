@@ -242,6 +242,133 @@ describe("ChatToolCallItem", () => {
     });
   });
 
+  describe("keyboard accessibility (parity with ChatPermissionItem)", () => {
+    it("makes the row keyboard-focusable with role=button and tabindex=0", () => {
+      const wrapper = mountItem({ toolId: "shell_exec", status: "completed" });
+      const row = wrapper.find(".chat-tool-call__row");
+      expect(row.attributes("role")).toBe("button");
+      expect(row.attributes("tabindex")).toBe("0");
+    });
+
+    it("reflects expand state via aria-expanded on the row", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      const row = wrapper.find(".chat-tool-call__row");
+      expect(row.attributes("aria-expanded")).toBe("false");
+
+      await row.trigger("click");
+
+      expect(row.attributes("aria-expanded")).toBe("true");
+    });
+
+    it("links the expanded detail panel via aria-controls", () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls",
+        defaultExpanded: true
+      });
+      const row = wrapper.find(".chat-tool-call__row");
+      const detail = wrapper.find(".chat-tool-call__detail");
+      const controls = row.attributes("aria-controls");
+      expect(controls).toBeTruthy();
+      expect(detail.attributes("id")).toBe(controls);
+    });
+
+    it("toggles expand state when Enter is pressed on the row", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+
+      await wrapper.find(".chat-tool-call__row").trigger("keydown", { key: "Enter" });
+
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(true);
+      const events = wrapper.emitted("update:expanded");
+      expect(events).toBeTruthy();
+      expect(events!.at(-1)).toEqual([true]);
+    });
+
+    it("toggles expand state when Space is pressed on the row", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+
+      await wrapper.find(".chat-tool-call__row").trigger("keydown", { key: " " });
+
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(true);
+    });
+
+    it("calls preventDefault on Space to avoid page scroll", () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      const row = wrapper.find<HTMLElement>(".chat-tool-call__row");
+      const event = new KeyboardEvent("keydown", { key: " ", cancelable: true });
+      row.element.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("ignores unrelated keys on the row", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      const row = wrapper.find(".chat-tool-call__row");
+      await row.trigger("keydown", { key: "a" });
+      await row.trigger("keydown", { key: "Tab" });
+      await row.trigger("keydown", { key: "ArrowDown" });
+
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+      expect(wrapper.emitted("update:expanded")).toBeUndefined();
+    });
+
+    it("ignores keydown bubbling from the inner toggle button to avoid double-toggle", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls"
+      });
+      // Enter pressed while the inner KxIconButton is focused bubbles a
+      // keydown event to the row. The row's handler must ignore it; the
+      // button's native click activation will handle the toggle once.
+      await wrapper
+        .find('[data-test="chat-tool-call-toggle"]')
+        .trigger("keydown", { key: "Enter" });
+
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+      expect(wrapper.emitted("update:expanded")).toBeUndefined();
+    });
+
+    it("emits update:expanded on Enter in controlled mode but does not flip local state", async () => {
+      const wrapper = mountItem({
+        toolId: "shell_exec",
+        status: "completed",
+        input: "ls",
+        expanded: false
+      });
+
+      await wrapper.find(".chat-tool-call__row").trigger("keydown", { key: "Enter" });
+
+      const events = wrapper.emitted("update:expanded");
+      expect(events).toBeTruthy();
+      expect(events!.at(-1)).toEqual([true]);
+      // Local state did not flip because the prop drives rendering.
+      expect(wrapper.find(".chat-tool-call__detail").exists()).toBe(false);
+    });
+  });
+
   it("persists uncontrolled expand state per session in localStorage", async () => {
     const session = useSessionStore();
     session.currentSessionId = "ses_persist";
