@@ -17,7 +17,8 @@ export type ChatStreamItem =
   | ChatToolCallStreamItem
   | ChatPermissionStreamItem
   | ChatPermissionGroupStreamItem
-  | ChatCompactionStreamItem;
+  | ChatCompactionStreamItem
+  | ChatMonitorStreamItem;
 
 export interface ChatMessageStreamItem {
   kind: "message";
@@ -95,4 +96,17 @@ export interface ChatCompactionStreamItem {
   /** Stable per compaction transition — derived from the status discriminator. */
   id: string;
   status: CompactionStatus;
+}
+
+export interface ChatMonitorStreamItem {
+  kind: "monitor";
+  id: string;
+  description: string;
+  status: "running" | "completed" | "failed";
+  /** Most recent stdout line from the monitor process. */
+  lastLine?: string;
+  /** The shell command being monitored. */
+  command?: string;
+  /** Stop reason label when status is "completed". */
+  stopReason?: string;
 }
