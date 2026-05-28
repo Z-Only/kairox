@@ -9,6 +9,7 @@
 mod registry;
 mod render;
 mod state;
+mod types;
 
 #[cfg(test)]
 mod tests;
