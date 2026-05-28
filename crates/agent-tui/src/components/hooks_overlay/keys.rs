@@ -7,7 +7,8 @@ use agent_core::facade::HookSettingsInput;
 use agent_core::ConfigScope;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 
-use super::state::{HookDraft, HookEditorField, HooksMode, HooksOverlay, HooksTab, EDITOR_FIELDS};
+use super::state::HooksOverlay;
+use super::types::{HookDraft, HookEditorField, HooksMode, HooksTab, EDITOR_FIELDS};
 use crate::components::{Command, CrossPanelEffect};
 
 impl HooksOverlay {
