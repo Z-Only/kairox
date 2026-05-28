@@ -12,12 +12,10 @@ use ratatui::Frame;
 // Re-export all types from the new `types` submodule so that existing
 // `super::state::Foo` paths in sibling modules (keys, actions, render) and
 // `pub use state::Foo` in mod.rs continue to resolve without changes.
-pub use super::types::{
-    session_list_rows, ArchiveStats, SessionAction, SessionListRow,
-};
 pub(super) use super::types::{
     archive_stats, archived_sessions, project_exists, SelectedRow, SessionActionMode,
 };
+pub use super::types::{session_list_rows, ArchiveStats, SessionAction, SessionListRow};
 
 #[allow(dead_code)]
 pub struct SessionsPanel {

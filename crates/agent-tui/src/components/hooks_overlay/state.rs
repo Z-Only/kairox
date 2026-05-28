@@ -7,9 +7,9 @@
 //!
 //! Key-event handling lives in [`super::keys`].
 
-use agent_core::facade::{HookSettingsView, HookTemplateView, HooksSettingsView};
 #[cfg(test)]
 use agent_core::facade::HookSettingsInput;
+use agent_core::facade::{HookSettingsView, HookTemplateView, HooksSettingsView};
 use agent_core::ConfigScope;
 use ratatui::widgets::ListState;
 
