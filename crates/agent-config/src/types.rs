@@ -386,9 +386,7 @@ impl Config {
                 base = Self::merge_config(base, &project_path, ConfigSource::ProjectFile)?;
             } else {
                 // Fallback: walk up from project_root looking for .kairox/config.toml
-                if let Some((found_path, _)) =
-                    crate::discovery::find_config_upward(root)
-                {
+                if let Some((found_path, _)) = crate::discovery::find_config_upward(root) {
                     base = Self::merge_config(base, &found_path, ConfigSource::ProjectFile)?;
                 }
             }
@@ -410,8 +408,7 @@ impl Config {
         source: ConfigSource,
     ) -> Result<Self, ConfigError> {
         let content = std::fs::read_to_string(path)?;
-        let mut overlay =
-            crate::loader::load_from_str(&content, &path.display().to_string())?;
+        let mut overlay = crate::loader::load_from_str(&content, &path.display().to_string())?;
         crate::loader::resolve_api_keys(&mut overlay);
         crate::loader::resolve_mcp_env(&mut overlay);
 
