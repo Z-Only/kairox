@@ -11,7 +11,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};
 use ratatui::Frame;
 
-use super::state::{AgentDraft, AgentEditorField, AgentOverlay, AgentOverlayMode, EDITOR_FIELDS};
+use super::state::AgentOverlay;
+use super::types::{AgentDraft, AgentEditorField, AgentOverlayMode, EDITOR_FIELDS};
 
 fn scope_label(scope: AgentSettingsScope) -> &'static str {
     match scope {

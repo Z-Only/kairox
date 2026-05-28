@@ -6,7 +6,8 @@
 use agent_core::facade::AgentSettingsScope;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 
-use super::state::{AgentDraft, AgentOverlay, AgentOverlayMode, EDITOR_FIELDS};
+use super::state::AgentOverlay;
+use super::types::{AgentDraft, AgentOverlayMode, EDITOR_FIELDS};
 use crate::components::{Command, CrossPanelEffect};
 
 #[cfg(test)]
