@@ -1,12 +1,12 @@
 //! Protocol handshake — `initialize` request and `notifications/initialized`.
 //!
 //! Tries each protocol version from
-//! [`MCP_PROTOCOL_VERSION_CANDIDATES`][crate::types::MCP_PROTOCOL_VERSION_CANDIDATES]
+//! [`MCP_PROTOCOL_VERSION_CANDIDATES`][crate::protocol::MCP_PROTOCOL_VERSION_CANDIDATES]
 //! in turn, falling back to the next when the server reports an unsupported
 //! protocol version.
 
 use super::McpClient;
-use crate::types::*;
+use crate::protocol::*;
 use crate::{McpError, Result};
 
 impl McpClient {

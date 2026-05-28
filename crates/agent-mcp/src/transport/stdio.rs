@@ -148,7 +148,7 @@ impl Transport for StdioTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::JsonRpcRequest;
+    use crate::protocol::JsonRpcRequest;
     use serde_json::json;
 
     /// Helper: a one-line Python script that echoes back JSON-RPC responses.

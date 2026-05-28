@@ -1,6 +1,7 @@
 //! Unit tests for [`McpClient`][super::McpClient] using a mock transport.
 
 use super::McpClient;
+use crate::protocol::*;
 use crate::transport::Transport;
 use crate::types::*;
 use crate::{McpError, Result};

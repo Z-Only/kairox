@@ -1,6 +1,7 @@
 //! Invocation requests — `tools/call`, `resources/read`, `prompts/get`.
 
 use super::McpClient;
+use crate::protocol::JsonRpcRequest;
 use crate::types::*;
 use crate::{McpError, Result};
 

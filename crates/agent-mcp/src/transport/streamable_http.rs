@@ -8,8 +8,8 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde_json::Value;
 
+use crate::protocol::MCP_PROTOCOL_VERSION;
 use crate::transport::Transport;
-use crate::types::MCP_PROTOCOL_VERSION;
 use crate::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, McpError, Result};
 
 /// Transport that communicates with an MCP server over Streamable HTTP.
