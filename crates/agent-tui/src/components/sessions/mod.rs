@@ -3,11 +3,13 @@
 //! sidebar.
 //!
 //! Split into:
-//! - [`state`]: data model, selection, key handling, and panel methods.
+//! - [`state`]: data model, selection queries, and panel methods.
+//! - [`actions`]: action handler methods that mutate panel state.
 //! - [`render`]: list layout, archive manager modal, and action overlay.
 //!
 //! Mirrors the layout used by `mcp_overlay` and `skills_overlay`.
 
+mod actions;
 mod render;
 mod state;
 
