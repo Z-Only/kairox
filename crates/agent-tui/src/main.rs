@@ -1,8 +1,10 @@
 mod app;
 mod app_state;
 mod components;
+mod focus;
 mod keybindings;
 mod runtime_dispatch;
+mod scheduler;
 mod view;
 mod workspace_recovery;
 
