@@ -6,6 +6,7 @@
 use ratatui::widgets::ListState;
 
 use super::registry::{builtin_entries, filter_entries, prefill_text, PaletteAction, PaletteEntry};
+use super::types::{active_project_id, model_profile_display};
 use crate::components::{Command, CrossPanelEffect, EventContext, ModelProfileEntry, SkillEntry};
 
 pub struct CommandPalette {
@@ -280,23 +281,5 @@ impl CommandPalette {
         self.hide();
         effects.push(CrossPanelEffect::DismissCommandPalette);
         (effects, commands)
-    }
-}
-
-fn active_project_id(ctx: &EventContext) -> Option<agent_core::ProjectId> {
-    let session_id = ctx.current_session_id.as_ref()?;
-    ctx.sessions
-        .iter()
-        .find(|session| &session.id == session_id)
-        .and_then(|session| session.project_id.clone())
-}
-
-fn model_profile_display(profile: &ModelProfileEntry) -> String {
-    if !profile.provider_display.is_empty() && !profile.model_display.is_empty() {
-        format!("{} / {}", profile.provider_display, profile.model_display)
-    } else if !profile.model_display.is_empty() {
-        profile.model_display.clone()
-    } else {
-        profile.alias.clone()
     }
 }
