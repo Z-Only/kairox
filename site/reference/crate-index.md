@@ -120,12 +120,12 @@ Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`. `P
 
 ### `agent-mcp`
 
-| What           | Detail                                                                                                          |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-mcp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-mcp)                               |
-| Purpose        | MCP client, transports (stdio + SSE), lifecycle state machine, marketplace catalog.                             |
-| Key types      | `McpClient`, `Transport`, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpToolAdapter`, `CatalogEntry` |
-| Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                   |
+| What           | Detail                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Repo path      | [`crates/agent-mcp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-mcp)                                  |
+| Purpose        | MCP client, transports (stdio + SSE), lifecycle state machine, health checks, protocol types, marketplace catalog. |
+| Key types      | `McpClient`, `Transport`, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpToolAdapter`, `CatalogEntry`    |
+| Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                      |
 
 `McpToolAdapter` wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like a built-in. The marketplace catalog is pluggable (built-in static list + remote `CatalogSource`). See [Extensibility](../concepts/extensibility).
 

@@ -4,6 +4,110 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] - 2026-05-28
+
+### 🚀 Features
+
+- **gui**: render ContextCompactionSkipped in chat stream (#540)
+- **tui**: render ContextCompactionSkipped in chat stream (#542)
+- **eval,ci**: add kairox-eval smoke fixtures + CI job (#541)
+- **gui**: make ChatToolCallItem expand row keyboard-accessible (#558)
+- **eval**: add tool-call and compaction smoke scenarios (#561)
+- **tui**: add CLI arguments for version, profile, and policy control (#598)
+
+### 🐛 Bug Fixes
+
+- **docs**: enlarge site media previews (#562)
+- **ci**: auto-rebase dependabot PRs and group minor/patch updates
+- **ci**: don't treat cancelled jobs as CI gate failure
+- **docs**: replace regex HTML stripping with indexOf-based parsing (#589)
+- **docs**: strip residual <script>/<style> fragments after tag removal (#590)
+- **docs**: use single-char < removal to satisfy CodeQL sanitization check (#591)
+- **docs**: use sentinel-char approach to silence CodeQL multi-char sanitization alert (#592)
+- **tui**: apply rustfmt to resolve CI format failure (#616)
+
+### 📚 Documentation
+
+- **site**: refresh policy/sandbox terminology for v0.31.0 (#539)
+- **ai**: sync AGENTS.md/CLAUDE.md with current code
+
+### 🧪 Testing
+
+- **tui**: split app_logic.rs into domain-scoped test files (#559)
+- **gui**: add Vitest for McpServerCard.vue (#564)
+- **gui**: add Vitest for SessionsSidebar.vue (#566)
+- **gui**: add Vitest for ModelProfileCard.vue (#568)
+- **gui**: add Vitest for CatalogDetail.vue (#569)
+- **gui**: add Vitest for ProjectSection.vue (#570)
+- **gui**: add Vitest for Marketplace sub-components (#572)
+- **gui**: add Vitest for ChatApprovalSelector and ChatSandboxSelector
+- **gui**: add Vitest for trace store (#581)
+- **gui**: add Vitest for sessionActions and sessionEvents stores (#582)
+- **gui**: add Vitest for contextFormatting and useMarketplace composables (#586)
+- **gui**: add Vitest for sidebar composables (#587)
+- **gui**: add Vitest for McpPromptAccordion and McpResourceAccordion (#593)
+- **gui**: add Vitest for ModelParameterControls, ContextMeterDetails, and ToastContainer (#597)
+- **gui**: add Vitest for useUpdater, useMentionSearch, useConfirm, and useToast composables (#602)
+- **gui**: add Vitest for MCP store modules (#604)
+- **gui**: add Vitest for SettingsFilterBar and SettingsSubtabs (#606)
+- **gui**: add Vitest for SkillCatalogDetail and ProjectBranchSelector (#607)
+- **gui**: add Vitest for SettingsLayout (#612)
+- **gui**: add Vitest for SessionSection and MarketplacePane (#614)
+- **gui**: add Vitest for MCP store utilities (#617)
+- **gui**: add Vitest for useMarketplace and MarketplaceView (#620)
+- **gui**: add Vitest for KxAccordionItem and KxAccordionState (#621)
+- **gui**: add Vitest for AppLayout and router (#627)
+
+### 🧹 Refactor
+
+- **runtime**: split facade_runtime.rs into focused modules (#560)
+- **config**: extract config types from lib.rs into types.rs (#567)
+- **tui**: split components/mod.rs into focused modules (#565)
+- **tui**: extract session action handlers from sessions/state.rs (#574)
+- **tui**: extract FocusManager and RenderScheduler from app_state.rs (#575)
+- **mcp**: extract JSON-RPC protocol types from types.rs (#571)
+- **mcp**: extract health and connectivity checks from lifecycle.rs (#578)
+- **tui**: extract key handlers from mcp_overlay/state.rs (#579)
+- **tui**: extract key handlers from hooks_overlay/state.rs (#580)
+- **tui**: split help_overlay.rs into focused module (#584)
+- **tui**: split permission_modal.rs into focused module (#585)
+- **tui**: extract key handlers from agent_overlay/state.rs (#583)
+- **tui**: extract command palette registry from state.rs (#588)
+- **tui**: extract key handlers from skills_overlay/state.rs (#594)
+- **tui**: extract key handlers from model_overlay/state.rs (#596)
+- **tui**: extract key handlers from plugin_overlay/state.rs (#595)
+- **tui**: split instructions_overlay.rs into focused module (#599)
+- **tui**: extract key handlers from sessions panel (#603)
+- **tui**: extract data types from mcp_overlay/state.rs (#605)
+- **tui**: extract data types from plugin_overlay/state.rs (#608)
+- **tui**: extract data types from skills_overlay/state.rs (#609)
+- **tui**: extract data types from model_overlay/state.rs (#611)
+- **tui**: extract data types from hooks_overlay/state.rs (#610)
+- **tui**: extract data types from agent_overlay/state.rs (#613)
+- **tui**: extract data types from sessions/state.rs (#615)
+- **tui**: extract data types from command_palette/state.rs (#618)
+- **tui**: extract data types from status_bar and permission_modal (#619)
+- **tui**: extract key handlers from status_bar (#622)
+- **tui**: extract data types from help_overlay and instructions_overlay (#623)
+- **tui**: extract key handlers from permission_modal (#624)
+- **tui**: extract key handlers from instructions_overlay (#626)
+- **tui**: extract key handlers from command_palette (#625)
+
+### 👷 CI
+
+- **gui**: merge live pilot scenarios to reduce GitHub Models API usage (#577)
+- **gui**: tighten web coverage thresholds to current baselines (#601)
+- **coverage**: tighten Rust coverage thresholds to current baselines (#600)
+
+### 📦 Dependencies
+
+- **deps**: bump actions/configure-pages from 4 to 6 (#543)
+- **deps**: bump actions/upload-pages-artifact from 3 to 5 (#545)
+- **deps**: bump actions/deploy-pages from 4 to 5 (#544)
+- **deps**: bump the bun-minor-patch group with 11 updates (#563)
+- **deps**: bump tauri-plugin-pilot from v0.5.2 to v0.6.0 (#552)
+- **deps**: bump toml_edit from 0.22.27 to 0.25.12+spec-1.1.0 (#546)
+
 ## [0.31.0] - 2026-05-27
 
 ### 🚀 Features
@@ -36,7 +140,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - spec + plan for race-free auto-compaction (#534)
 - overhaul VitePress site with concepts/reference/community pages and ZH parity (#536)
-- **ai**: sync AGENTS.md/CLAUDE.md/.cursorrules with current code
 
 ### 🧪 Testing
 
