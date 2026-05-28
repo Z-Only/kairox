@@ -33,17 +33,13 @@ const groups = [
     ],
     minFiles: 32,
     thresholds: {
-      // Calibrated against post-#509 LCOV (39 files, functions 38.62%,
-      // lines 85.52%). Floors set to ≈ floor(actual − 1) for nightly wobble.
-      // Post-#559 (TUI app_logic split into 9 binaries): per-binary
-      // instrumentation merge shifts measured functions down ~2-4pp without
-      // any src/test behavior change. Floor relaxed to 35 to absorb shift.
+      // Latest CI baseline (40 files): functions 36.19%, lines 86.93%.
+      // Floors set to floor(actual − 1) for nightly wobble.
       functions: 35,
-      lines: 84
+      lines: 85
     }
   },
-  // Tier 2A — High-risk runtime hot path. The post-#509 pipeline finally
-  // surfaces these crates; allowPartial is gone.
+  // Tier 2A — High-risk runtime hot path.
   {
     name: "T2 high-risk runtime",
     include: [
@@ -54,19 +50,17 @@ const groups = [
     ],
     minFiles: 120,
     thresholds: {
-      // Post-#509 baseline: functions 28.06%, lines 80.04% across 132 files.
-      // The functions floor sits well below the tier target (55) because
-      // most of agent-runtime is async glue around hooked-into-tests work;
-      // raise it as runtime-side helper tests land.
-      functions: 27,
-      lines: 78
+      // Latest CI baseline (138 files): functions 30.64%, lines 81.34%.
+      // Floors set to floor(actual − 1); raise as runtime-side tests land.
+      functions: 29,
+      lines: 80
     }
   },
-  // Tier 2B — Tauri IPC boundary. Post-#509 baseline finally produces real
-  // numbers (functions 3.24%, lines 19.55% across 19 files). The functions
-  // floor is intentionally near-zero — every #[tauri::command] is a thin
-  // adapter and unit-testing them requires a real AppHandle (#502 PR
-  // discussion). lines is gated to keep regressions visible.
+  // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
+  // lines 18.98% across 19 files. The functions floor is intentionally
+  // near-zero — every #[tauri::command] is a thin adapter and
+  // unit-testing them requires a real AppHandle (#502 PR discussion).
+  // lines is gated to keep regressions visible.
   {
     name: "T2 Tauri IPC",
     include: [
@@ -94,11 +88,9 @@ const groups = [
     exclude: [/^crates\/agent-tools\/src\/(permission|registry)\.rs$/],
     minFiles: 30,
     thresholds: {
-      // Post-#509 baseline across 34 files: functions 73.96%, lines 92.95%.
-      // The wider file set (skills + plugins src finally appearing) brought
-      // these down from the previous "8 files, 92/96" snapshot, but the
-      // numbers stay comfortably above the tier targets.
-      functions: 72,
+      // Latest CI baseline (33 files): functions 75.06%, lines 93.06%.
+      // Floors set to floor(actual − 1).
+      functions: 74,
       lines: 92
     }
   },
@@ -109,10 +101,8 @@ const groups = [
     include: [/^crates\/agent-tui\/src\//, /^crates\/agent-eval\/src\//],
     minFiles: 75,
     thresholds: {
-      // Post-#509 baseline: functions 38.02%, lines 63.14%.
-      // Post-#559 (TUI app_logic split into 9 binaries): per-binary
-      // instrumentation merge shifts measured functions down ~2pp without
-      // any src/test behavior change. Floor relaxed to 35 to absorb shift.
+      // Latest CI baseline (99 files): functions 36.40%, lines 63.91%.
+      // Floors already tight at floor(actual − 1).
       functions: 35,
       lines: 62
     }
@@ -123,9 +113,10 @@ const groups = [
     include: [/^(crates|apps\/agent-gui\/src-tauri\/src)\//],
     minFiles: 280,
     thresholds: {
-      // Post-#509 baseline: functions 31.66%, lines 71.89% across 308 files.
-      functions: 30,
-      lines: 70
+      // Latest CI baseline (331 files): functions 32.42%, lines 72.84%.
+      // Floors set to floor(actual − 1).
+      functions: 31,
+      lines: 71
     }
   }
 ];
