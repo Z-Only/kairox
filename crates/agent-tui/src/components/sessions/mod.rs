@@ -8,6 +8,7 @@
 //!
 //! Mirrors the layout used by `mcp_overlay` and `skills_overlay`.
 
+mod keys;
 mod render;
 mod state;
 
