@@ -27,7 +27,7 @@
 
 use std::collections::HashMap;
 
-use agent_core::events::{CompactionSkipReason, DomainEvent, EventPayload};
+use agent_core::events::{CompactionSkipReason, DomainEvent, EventPayload, MonitorStopReason};
 use agent_core::projection::{ProjectedRole, SessionProjection};
 
 /// Role of a [`ChatStreamItem::Message`].
@@ -92,6 +92,14 @@ pub enum PermissionStatus {
 pub enum CompactionItemStatus {
     Running,
     Completed,
+    Failed,
+}
+
+/// Lifecycle status for a [`ChatStreamItem::Monitor`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MonitorItemStatus {
+    Running,
+    Stopped(MonitorStopReason),
     Failed,
 }
 
@@ -165,6 +173,14 @@ pub enum ChatStreamItem {
         ratio: f32,
         timestamp_ms: i64,
     },
+    Monitor {
+        id: String,
+        monitor_id: String,
+        description: String,
+        status: MonitorItemStatus,
+        last_line: Option<String>,
+        timestamp_ms: i64,
+    },
 }
 
 impl ChatStreamItem {
@@ -179,6 +195,7 @@ impl ChatStreamItem {
             Self::Permission { timestamp_ms, .. } => *timestamp_ms,
             Self::Compaction { timestamp_ms, .. } => *timestamp_ms,
             Self::CompactionSkipped { timestamp_ms, .. } => *timestamp_ms,
+            Self::Monitor { timestamp_ms, .. } => *timestamp_ms,
         }
     }
 
@@ -192,6 +209,7 @@ impl ChatStreamItem {
             Self::Permission { id, .. } => id,
             Self::Compaction { id, .. } => id,
             Self::CompactionSkipped { id, .. } => id,
+            Self::Monitor { id, .. } => id,
         }
     }
 }
@@ -220,6 +238,8 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
     // `Completed` / `Failed` can resolve the most recent unresolved run.
     let mut pending_compaction: Vec<usize> = Vec::new();
     let mut compaction_counter: usize = 0;
+    // monitor_id -> index into `items`.
+    let mut monitor_index: HashMap<String, usize> = HashMap::new();
 
     for event in events {
         let timestamp_ms = event.timestamp.timestamp_millis();
@@ -491,6 +511,49 @@ pub fn fold_stream(_projection: &SessionProjection, events: &[DomainEvent]) -> V
                     }
                 }
             }
+            EventPayload::MonitorStarted {
+                monitor_id,
+                description,
+                ..
+            } => {
+                let idx = items.len();
+                items.push(ChatStreamItem::Monitor {
+                    id: format!("monitor-{monitor_id}"),
+                    monitor_id: monitor_id.clone(),
+                    description: description.clone(),
+                    status: MonitorItemStatus::Running,
+                    last_line: None,
+                    timestamp_ms,
+                });
+                monitor_index.insert(monitor_id.clone(), idx);
+            }
+            EventPayload::MonitorEvent {
+                monitor_id, line, ..
+            } => {
+                if let Some(idx) = monitor_index.get(monitor_id).copied() {
+                    if let ChatStreamItem::Monitor { last_line, .. } = &mut items[idx] {
+                        *last_line = Some(line.clone());
+                    }
+                }
+            }
+            EventPayload::MonitorStopped { monitor_id, reason } => {
+                if let Some(idx) = monitor_index.get(monitor_id).copied() {
+                    if let ChatStreamItem::Monitor { status, .. } = &mut items[idx] {
+                        *status = MonitorItemStatus::Stopped(*reason);
+                    }
+                }
+            }
+            EventPayload::MonitorFailed { monitor_id, error } => {
+                if let Some(idx) = monitor_index.get(monitor_id).copied() {
+                    if let ChatStreamItem::Monitor {
+                        status, last_line, ..
+                    } = &mut items[idx]
+                    {
+                        *status = MonitorItemStatus::Failed;
+                        *last_line = Some(error.clone());
+                    }
+                }
+            }
             // All other events are surfaced elsewhere (trace panel, task
             // graph, MCP overlay, status bar, etc.) and have no inline
             // chat-stream representation.
@@ -606,6 +669,183 @@ mod tests {
             }
             _ => unreachable!(),
         }
+    }
+
+    #[test]
+    fn monitor_started_creates_running_item() {
+        let events = vec![make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch build".into(),
+                command: "tail -f build.log".into(),
+                persistent: false,
+                timeout_ms: 300_000,
+            },
+        )];
+        let projection = SessionProjection::from_events(&events);
+        let items = fold_stream(&projection, &events);
+
+        let monitors: Vec<_> = items
+            .iter()
+            .filter(|i| matches!(i, ChatStreamItem::Monitor { .. }))
+            .collect();
+        assert_eq!(monitors.len(), 1);
+        match &monitors[0] {
+            ChatStreamItem::Monitor {
+                monitor_id,
+                description,
+                status,
+                last_line,
+                ..
+            } => {
+                assert_eq!(monitor_id, "mon_1");
+                assert_eq!(description, "watch build");
+                assert_eq!(*status, MonitorItemStatus::Running);
+                assert!(last_line.is_none());
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn monitor_event_updates_last_line() {
+        let events = vec![
+            make_event_at(
+                100,
+                EventPayload::MonitorStarted {
+                    monitor_id: "mon_1".into(),
+                    description: "watch".into(),
+                    command: "cmd".into(),
+                    persistent: false,
+                    timeout_ms: 300_000,
+                },
+            ),
+            make_event_at(
+                200,
+                EventPayload::MonitorEvent {
+                    monitor_id: "mon_1".into(),
+                    line: "first line".into(),
+                },
+            ),
+            make_event_at(
+                300,
+                EventPayload::MonitorEvent {
+                    monitor_id: "mon_1".into(),
+                    line: "second line".into(),
+                },
+            ),
+        ];
+        let projection = SessionProjection::from_events(&events);
+        let items = fold_stream(&projection, &events);
+
+        let mon = items
+            .iter()
+            .find(|i| matches!(i, ChatStreamItem::Monitor { .. }))
+            .unwrap();
+        match mon {
+            ChatStreamItem::Monitor { last_line, .. } => {
+                assert_eq!(last_line.as_deref(), Some("second line"));
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn monitor_stopped_updates_status() {
+        let events = vec![
+            make_event_at(
+                100,
+                EventPayload::MonitorStarted {
+                    monitor_id: "mon_1".into(),
+                    description: "watch".into(),
+                    command: "cmd".into(),
+                    persistent: false,
+                    timeout_ms: 300_000,
+                },
+            ),
+            make_event_at(
+                500,
+                EventPayload::MonitorStopped {
+                    monitor_id: "mon_1".into(),
+                    reason: MonitorStopReason::ExitCode { code: 0 },
+                },
+            ),
+        ];
+        let projection = SessionProjection::from_events(&events);
+        let items = fold_stream(&projection, &events);
+
+        let mon = items
+            .iter()
+            .find(|i| matches!(i, ChatStreamItem::Monitor { .. }))
+            .unwrap();
+        match mon {
+            ChatStreamItem::Monitor { status, .. } => {
+                assert_eq!(
+                    *status,
+                    MonitorItemStatus::Stopped(MonitorStopReason::ExitCode { code: 0 })
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn monitor_failed_sets_error_as_last_line() {
+        let events = vec![
+            make_event_at(
+                100,
+                EventPayload::MonitorStarted {
+                    monitor_id: "mon_1".into(),
+                    description: "watch".into(),
+                    command: "cmd".into(),
+                    persistent: false,
+                    timeout_ms: 300_000,
+                },
+            ),
+            make_event_at(
+                200,
+                EventPayload::MonitorFailed {
+                    monitor_id: "mon_1".into(),
+                    error: "spawn failed".into(),
+                },
+            ),
+        ];
+        let projection = SessionProjection::from_events(&events);
+        let items = fold_stream(&projection, &events);
+
+        let mon = items
+            .iter()
+            .find(|i| matches!(i, ChatStreamItem::Monitor { .. }))
+            .unwrap();
+        match mon {
+            ChatStreamItem::Monitor {
+                status, last_line, ..
+            } => {
+                assert_eq!(*status, MonitorItemStatus::Failed);
+                assert_eq!(last_line.as_deref(), Some("spawn failed"));
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn monitor_item_id_and_timestamp_accessors() {
+        let events = vec![make_event_at(
+            42,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_x".into(),
+                description: "d".into(),
+                command: "c".into(),
+                persistent: false,
+                timeout_ms: 0,
+            },
+        )];
+        let projection = SessionProjection::from_events(&events);
+        let items = fold_stream(&projection, &events);
+        let mon = &items[0];
+        assert_eq!(mon.id(), "monitor-mon_x");
+        assert_eq!(mon.timestamp_ms(), 42);
     }
 
     /// A Failed compaction never produces an `after_tokens` value, so
