@@ -39,9 +39,3 @@ impl HelpOverlay {
         self.visible = false;
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Shortcut {
-    pub key: &'static str,
-    pub label: &'static str,
-}

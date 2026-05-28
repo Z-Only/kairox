@@ -8,7 +8,8 @@ use ratatui::Frame;
 
 use crate::components::FocusTarget;
 
-use super::state::{HelpOverlay, Shortcut};
+use super::state::HelpOverlay;
+use super::types::Shortcut;
 
 pub fn render_help_overlay(area: Rect, frame: &mut Frame, overlay: &HelpOverlay) {
     let modal_width = 84.min(area.width.saturating_sub(4));

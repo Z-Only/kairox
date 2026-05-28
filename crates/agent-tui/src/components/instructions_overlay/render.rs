@@ -6,7 +6,8 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::state::{InstructionsOverlay, InstructionsTab};
+use super::state::InstructionsOverlay;
+use super::types::InstructionsTab;
 
 pub fn render_instructions_overlay(area: Rect, frame: &mut Frame, overlay: &InstructionsOverlay) {
     let modal_width = 84.min(area.width.saturating_sub(4));

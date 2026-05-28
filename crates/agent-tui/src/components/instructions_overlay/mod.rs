@@ -8,6 +8,7 @@
 
 mod render;
 mod state;
+mod types;
 
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::Rect;
