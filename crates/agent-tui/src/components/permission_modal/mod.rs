@@ -1,3 +1,4 @@
+mod keys;
 mod render;
 mod state;
 mod types;
@@ -5,11 +6,11 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
-use crate::components::{Command, Component, CrossPanelEffect, EventContext, RiskLevel};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
 pub use state::PermissionModal;
 
@@ -22,57 +23,9 @@ impl Component for PermissionModal {
         let Event::Key(key) = event else {
             return (Vec::new(), Vec::new());
         };
-        let Some(req) = self.request.clone() else {
-            return (Vec::new(), Vec::new());
-        };
 
-        let mut effects = Vec::new();
-        let mut commands = Vec::new();
-
-        match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => {
-                let Some(req) = self.resolve_active_request(true) else {
-                    return (Vec::new(), Vec::new());
-                };
-                commands.push(Command::DecidePermission {
-                    request_id: req.request_id.clone(),
-                    approved: true,
-                });
-                effects.push(CrossPanelEffect::DismissPermissionPrompt);
-            }
-            KeyCode::Char('n')
-            | KeyCode::Char('N')
-            | KeyCode::Char('d')
-            | KeyCode::Char('D')
-            | KeyCode::Esc => {
-                let Some(req) = self.resolve_active_request(false) else {
-                    return (Vec::new(), Vec::new());
-                };
-                commands.push(Command::DecidePermission {
-                    request_id: req.request_id.clone(),
-                    approved: false,
-                });
-                effects.push(CrossPanelEffect::DismissPermissionPrompt);
-            }
-            KeyCode::Char('t') | KeyCode::Char('T') => {
-                // Trust the MCP server and approve this request
-                if let RiskLevel::McpTool { server_id } = &req.risk_level {
-                    let server_id = server_id.clone();
-                    let Some(req) = self.resolve_active_request(true) else {
-                        return (Vec::new(), Vec::new());
-                    };
-                    commands.push(Command::TrustMcpServer { server_id });
-                    commands.push(Command::DecidePermission {
-                        request_id: req.request_id.clone(),
-                        approved: true,
-                    });
-                    effects.push(CrossPanelEffect::DismissPermissionPrompt);
-                }
-            }
-            _ => {}
-        }
-
-        (effects, commands)
+        self.handle_key_event(key.code)
+            .unwrap_or_else(|| (Vec::new(), Vec::new()))
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
