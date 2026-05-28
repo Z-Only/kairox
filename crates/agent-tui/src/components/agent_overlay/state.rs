@@ -6,10 +6,9 @@
 //! [`super::render`].
 
 use agent_core::facade::{AgentSettingsInput, AgentSettingsScope, AgentSettingsView};
-use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::widgets::ListState;
 
-use crate::components::{AgentOverlaySnapshot, Command, CrossPanelEffect};
+use crate::components::AgentOverlaySnapshot;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum AgentOverlayMode {
@@ -70,7 +69,7 @@ impl AgentDraft {
         }
     }
 
-    fn from_view(view: &AgentSettingsView) -> Self {
+    pub(super) fn from_view(view: &AgentSettingsView) -> Self {
         Self {
             scope: if view.scope == AgentSettingsScope::Builtin {
                 AgentSettingsScope::User
@@ -89,7 +88,7 @@ impl AgentDraft {
     }
 
     #[cfg(test)]
-    fn from_input(input: AgentSettingsInput) -> Self {
+    pub(super) fn from_input(input: AgentSettingsInput) -> Self {
         Self {
             scope: input.scope,
             name: input.name,
@@ -103,7 +102,7 @@ impl AgentDraft {
         }
     }
 
-    fn to_input(&self) -> Option<AgentSettingsInput> {
+    pub(super) fn to_input(&self) -> Option<AgentSettingsInput> {
         let name = self.name.trim();
         let description = self.description.trim();
         if name.is_empty() || description.is_empty() {
@@ -123,7 +122,7 @@ impl AgentDraft {
         })
     }
 
-    fn push_char(&mut self, field: AgentEditorField, ch: char) {
+    pub(super) fn push_char(&mut self, field: AgentEditorField, ch: char) {
         match field {
             AgentEditorField::Scope => match ch {
                 'u' | 'U' => self.scope = AgentSettingsScope::User,
@@ -146,7 +145,7 @@ impl AgentDraft {
         }
     }
 
-    fn backspace(&mut self, field: AgentEditorField) {
+    pub(super) fn backspace(&mut self, field: AgentEditorField) {
         match field {
             AgentEditorField::Name => {
                 self.name.pop();
@@ -173,7 +172,7 @@ impl AgentDraft {
         }
     }
 
-    fn clear_field(&mut self, field: AgentEditorField) {
+    pub(super) fn clear_field(&mut self, field: AgentEditorField) {
         match field {
             AgentEditorField::Name => self.name.clear(),
             AgentEditorField::Description => self.description.clear(),
@@ -256,189 +255,14 @@ impl AgentOverlay {
         self.list_state.selected()
     }
 
-    fn selected_agent(&self) -> Option<&AgentSettingsView> {
+    pub(super) fn selected_agent(&self) -> Option<&AgentSettingsView> {
         self.list_state
             .selected()
             .and_then(|index| self.agents.get(index))
     }
 
-    fn start_create(&mut self, scope: AgentSettingsScope) {
-        self.mode = AgentOverlayMode::Editor;
-        self.draft = AgentDraft::new(scope);
-        self.editor_field_index = 1;
-        self.visible = true;
-    }
-
-    fn start_edit_selected(&mut self) {
-        let Some(agent) = self
-            .selected_agent()
-            .filter(|agent| agent.editable)
-            .cloned()
-        else {
-            return;
-        };
-        self.mode = AgentOverlayMode::Editor;
-        self.draft = AgentDraft::from_view(&agent);
-        self.editor_field_index = 1;
-    }
-
-    fn move_down(&mut self) {
-        match self.mode {
-            AgentOverlayMode::List => {
-                if self.agents.is_empty() {
-                    return;
-                }
-                let next = match self.list_state.selected() {
-                    Some(index) if index + 1 < self.agents.len() => index + 1,
-                    Some(_) => self.agents.len() - 1,
-                    None => 0,
-                };
-                self.list_state.select(Some(next));
-            }
-            AgentOverlayMode::Editor => {
-                self.editor_field_index = (self.editor_field_index + 1) % EDITOR_FIELDS.len();
-            }
-        }
-    }
-
-    fn move_up(&mut self) {
-        match self.mode {
-            AgentOverlayMode::List => {
-                if self.agents.is_empty() {
-                    return;
-                }
-                let next = match self.list_state.selected() {
-                    Some(index) if index > 0 => index - 1,
-                    _ => 0,
-                };
-                self.list_state.select(Some(next));
-            }
-            AgentOverlayMode::Editor => {
-                self.editor_field_index = if self.editor_field_index == 0 {
-                    EDITOR_FIELDS.len() - 1
-                } else {
-                    self.editor_field_index - 1
-                };
-            }
-        }
-    }
-
     pub(super) fn current_editor_field(&self) -> AgentEditorField {
         EDITOR_FIELDS[self.editor_field_index]
-    }
-
-    fn handle_list_key(&mut self, key: KeyCode) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let mut effects = Vec::new();
-        let mut commands = Vec::new();
-
-        match key {
-            KeyCode::Char('j') | KeyCode::Down => self.move_down(),
-            KeyCode::Char('k') | KeyCode::Up => self.move_up(),
-            KeyCode::Char('n') => self.start_create(AgentSettingsScope::User),
-            KeyCode::Char('N') => self.start_create(AgentSettingsScope::Project),
-            KeyCode::Char('e') | KeyCode::Char('E') | KeyCode::Enter => {
-                self.start_edit_selected();
-            }
-            KeyCode::Char('c') | KeyCode::Char('C') => {
-                if let Some(agent) = self.selected_agent() {
-                    commands.push(Command::CopyAgentSettings {
-                        settings_id: agent.settings_id.clone(),
-                        scope: AgentSettingsScope::User,
-                    });
-                }
-            }
-            KeyCode::Char('p') | KeyCode::Char('P') => {
-                if let Some(agent) = self.selected_agent() {
-                    commands.push(Command::CopyAgentSettings {
-                        settings_id: agent.settings_id.clone(),
-                        scope: AgentSettingsScope::Project,
-                    });
-                }
-            }
-            KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete => {
-                if let Some(agent) = self.selected_agent().filter(|agent| agent.deletable) {
-                    commands.push(Command::DeleteAgentSettings {
-                        settings_id: agent.settings_id.clone(),
-                    });
-                }
-            }
-            KeyCode::Char('o') | KeyCode::Char('O') => commands.push(Command::OpenAgentsDir),
-            KeyCode::Char('r') | KeyCode::Char('R') => {
-                commands.push(Command::OpenAgentSettingsOverlay);
-            }
-            KeyCode::Esc => {
-                self.hide();
-                effects.push(CrossPanelEffect::DismissAgentSettingsOverlay);
-            }
-            _ => {}
-        }
-
-        (effects, commands)
-    }
-
-    fn handle_editor_key(
-        &mut self,
-        key: KeyCode,
-        modifiers: KeyModifiers,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let mut commands = Vec::new();
-
-        match key {
-            KeyCode::Down | KeyCode::Tab => self.move_down(),
-            KeyCode::Up | KeyCode::BackTab => self.move_up(),
-            KeyCode::Esc => self.mode = AgentOverlayMode::List,
-            KeyCode::Backspace => self.draft.backspace(self.current_editor_field()),
-            KeyCode::Delete => self.draft.clear_field(self.current_editor_field()),
-            KeyCode::Enter => {
-                if let Some(input) = self.draft.to_input() {
-                    commands.push(Command::SaveAgentSettings { input });
-                    self.mode = AgentOverlayMode::List;
-                }
-            }
-            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
-                self.draft.push_char(self.current_editor_field(), ch);
-            }
-            _ => {}
-        }
-
-        (Vec::new(), commands)
-    }
-
-    pub(super) fn handle_key_event(
-        &mut self,
-        event: &Event,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let Event::Key(key) = event else {
-            return (Vec::new(), Vec::new());
-        };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
-
-        match self.mode {
-            AgentOverlayMode::List => self.handle_list_key(key.code),
-            AgentOverlayMode::Editor => self.handle_editor_key(key.code, key.modifiers),
-        }
-    }
-
-    #[cfg(test)]
-    pub(super) fn handle_event_for_test(
-        &mut self,
-        event: &Event,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        self.handle_key_event(event)
-    }
-
-    #[cfg(test)]
-    pub(super) fn start_create_for_test(&mut self, scope: AgentSettingsScope) {
-        self.start_create(scope);
-    }
-
-    #[cfg(test)]
-    pub(super) fn replace_draft_for_test(&mut self, input: AgentSettingsInput) {
-        self.draft = AgentDraft::from_input(input);
-        self.mode = AgentOverlayMode::Editor;
-        self.visible = true;
     }
 }
 
