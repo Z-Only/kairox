@@ -9,6 +9,7 @@ import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
 import ChatToolCallItem from "@/components/chat/ChatToolCallItem.vue";
 import ChatPermissionItem from "@/components/chat/ChatPermissionItem.vue";
 import ChatCompactionItem from "@/components/chat/ChatCompactionItem.vue";
+import ChatMonitorItem from "@/components/chat/ChatMonitorItem.vue";
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -420,6 +421,15 @@ watch(
               :raw-event="item.rawEvent"
             />
             <ChatCompactionItem v-else-if="item.kind === 'compaction'" :status="item.status" />
+            <ChatMonitorItem
+              v-else-if="item.kind === 'monitor'"
+              :monitor-id="item.id"
+              :description="item.description"
+              :status="item.status"
+              :last-line="item.lastLine"
+              :command="item.command"
+              :stop-reason="item.stopReason"
+            />
           </div>
         </template>
         <div
