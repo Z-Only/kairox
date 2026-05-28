@@ -4,6 +4,7 @@ mod input;
 mod render;
 pub mod stream;
 mod stream_render;
+pub mod stream_types;
 
 #[allow(unused_imports)]
 pub use render::render_messages;
