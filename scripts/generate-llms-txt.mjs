@@ -91,7 +91,9 @@ function stripMarkdown(body) {
   let out = body.replace(/```[\s\S]*?```/g, (block) => block);
   out = stripTagBlocks(out, "script");
   out = stripTagBlocks(out, "style");
-  return out.replace(/<[^>]+>/g, "").trim();
+  out = out.replace(/<[^>]+>/g, "");
+  out = out.replace(/<\/?(script|style)\b[^>]*/gi, "");
+  return out.trim();
 }
 
 function pathToUrl(absPath) {
