@@ -405,6 +405,7 @@ fn chronological_interleaving_across_item_kinds() {
             ChatStreamItem::Permission { .. } => "permission",
             ChatStreamItem::Compaction { .. } => "compaction",
             ChatStreamItem::CompactionSkipped { .. } => "compaction_skipped",
+            ChatStreamItem::Monitor { .. } => "monitor",
         })
         .collect();
     assert_eq!(
