@@ -1,7 +1,14 @@
 //! Model profile manager overlay — pop-up modal listing profile settings with
 //! the current profile/effort highlighted. It keeps the fast model switch path
 //! while exposing the same first-pass settings actions as the GUI model pane.
+//!
+//! State and behaviour live in [`state`], key-event handlers live in
+//! [`keys`], rendering helpers live in [`render`], and tests live in
+//! [`tests`]. The [`Component`] implementation lives here so it stays
+//! close to the public surface that other components use through
+//! `crate::components::model_overlay::ModelOverlay`.
 
+mod keys;
 mod render;
 mod state;
 
@@ -19,7 +26,6 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 #[allow(unused_imports)]
 pub use render::render_model_overlay;
 pub use state::ModelOverlay;
-use state::OverlayMode;
 #[allow(unused_imports)]
 pub use state::REASONING_EFFORTS;
 
@@ -29,17 +35,7 @@ impl Component for ModelOverlay {
         ctx: &EventContext,
         event: &Event,
     ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let Event::Key(key) = event else {
-            return (Vec::new(), Vec::new());
-        };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
-
-        match self.mode {
-            OverlayMode::List => self.handle_list_key(ctx, key.code),
-            OverlayMode::Editor => self.handle_editor_key(key.code, key.modifiers),
-        }
+        self.handle_key_event(ctx, event)
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {
