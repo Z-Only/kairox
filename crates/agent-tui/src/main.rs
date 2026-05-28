@@ -12,13 +12,13 @@ use std::io::stdout;
 use std::sync::Arc;
 use std::time::Duration;
 
+use agent_core::build_info::BuildInfo;
 use agent_core::AppFacade;
 use agent_runtime::ui_bootstrap::{
     build_ui_runtime_from_store, connect_ui_event_store, default_data_dir, default_home_dir,
     ensure_workspace_session, load_catalog_sources, load_ui_config, spawn_runtime_event_forwarder,
     UiRuntimeOptions,
 };
-use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use anyhow::Result;
 use crossterm::event::{Event, EventStream};
 use crossterm::terminal::{
@@ -36,8 +36,8 @@ use runtime_dispatch::{
     dispatch_commands, project_info_from_meta, restore_session_draft, session_info_from_meta,
 };
 use workspace_recovery::{
-    format_known_workspaces, parse_workspace_args, prompt_workspace_selector,
-    resolve_workspace_selector, workspace_usage, KnownWorkspace, WorkspaceCliMode,
+    cli_usage, format_known_workspaces, parse_workspace_args, prompt_workspace_selector,
+    resolve_workspace_selector, CliAction, KnownWorkspace, WorkspaceCliMode,
 };
 
 // ---------------------------------------------------------------------------
@@ -120,10 +120,24 @@ fn walk_workspace_files(root: &std::path::Path, max: usize) -> Vec<String> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = parse_workspace_args(std::env::args().skip(1)).map_err(anyhow::Error::msg)?;
-    if matches!(&cli.mode, WorkspaceCliMode::Help) {
-        println!("{}", workspace_usage());
-        return Ok(());
+
+    match &cli.action {
+        CliAction::Help => {
+            println!("{}", cli_usage());
+            return Ok(());
+        }
+        CliAction::Version => {
+            let info = BuildInfo::from_env();
+            println!("kairox {info}");
+            return Ok(());
+        }
+        CliAction::Run(_) => {}
     }
+
+    let workspace_mode = match cli.action {
+        CliAction::Run(mode) => mode,
+        _ => unreachable!(),
+    };
 
     let mut startup_messages = Vec::new();
     let home_dir = default_home_dir();
@@ -139,8 +153,8 @@ async fn main() -> Result<()> {
         })
         .collect();
 
-    match cli.mode {
-        WorkspaceCliMode::CurrentDir | WorkspaceCliMode::Help => {}
+    match workspace_mode {
+        WorkspaceCliMode::CurrentDir => {}
         WorkspaceCliMode::List => {
             print!("{}", format_known_workspaces(&known_workspaces));
             return Ok(());
@@ -193,7 +207,11 @@ async fn main() -> Result<()> {
     startup_messages.extend(config_load.warnings);
     let catalog_load = load_catalog_sources(&data_dir);
     startup_messages.extend(catalog_load.warnings);
-    let profile = config_load.config.default_profile();
+    let profile = cli
+        .profile
+        .unwrap_or_else(|| config_load.config.default_profile());
+    let approval = cli.approval_policy.unwrap_or_default();
+    let sandbox = cli.sandbox_policy.unwrap_or_default();
     let runtime_bootstrap = build_ui_runtime_from_store(
         store,
         UiRuntimeOptions::new(
@@ -201,8 +219,8 @@ async fn main() -> Result<()> {
             data_dir.clone(),
             "kairox.sqlite",
             workspace_path.clone(),
-            ApprovalPolicy::default(),
-            SandboxPolicy::default(),
+            approval,
+            sandbox,
             config_load.config,
             catalog_load.sources,
         ),
