@@ -73,6 +73,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
+  cursor: zoom-in;
   object-fit: cover;
 }
 
@@ -82,6 +83,110 @@
   color: var(--kairox-text-muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.vp-doc .mermaid {
+  margin: 28px 0;
+  padding: 18px;
+  overflow-x: auto;
+  border: 1px solid var(--kairox-border);
+  border-radius: 8px;
+  background: var(--kairox-surface-soft);
+  cursor: zoom-in;
+}
+
+.vp-doc .mermaid svg {
+  display: block;
+  width: 100%;
+  min-width: 760px;
+  max-width: none;
+  height: auto;
+  margin: 0 auto;
+}
+
+.vp-doc :where(p, figure) > img {
+  cursor: zoom-in;
+}
+
+.kairox-media-lightbox {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.86);
+}
+
+.kairox-media-lightbox__dialog {
+  position: relative;
+  display: flex;
+  width: min(1480px, 100%);
+  max-height: calc(100vh - 48px);
+  flex-direction: column;
+  gap: 12px;
+  outline: none;
+}
+
+.kairox-media-lightbox__close {
+  position: absolute;
+  z-index: 1;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgb(226 232 240 / 0.45);
+  border-radius: 999px;
+  background: rgb(15 23 42 / 0.86);
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.kairox-media-lightbox__close:hover {
+  border-color: rgb(45 212 191 / 0.85);
+}
+
+.kairox-media-lightbox__viewport {
+  display: grid;
+  max-height: calc(100vh - 104px);
+  overflow: auto;
+  border: 1px solid rgb(226 232 240 / 0.18);
+  border-radius: 8px;
+  background: var(--kairox-surface);
+  box-shadow: 0 28px 80px rgb(0 0 0 / 0.36);
+}
+
+.kairox-media-lightbox__viewport img {
+  display: block;
+  max-width: min(1400px, calc(100vw - 72px));
+  max-height: calc(100vh - 128px);
+  margin: auto;
+  object-fit: contain;
+}
+
+.kairox-media-lightbox__svg {
+  width: min(1400px, calc(100vw - 72px));
+  min-width: 960px;
+  padding: 20px;
+}
+
+.kairox-media-lightbox__svg svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+.kairox-media-lightbox__caption {
+  margin: 0;
+  color: rgb(241 245 249 / 0.92);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .kairox-link-card {
@@ -105,6 +210,38 @@
 @media (max-width: 640px) {
   .VPHome .image-src {
     max-width: 180px;
+  }
+
+  .vp-doc .mermaid {
+    margin-right: -8px;
+    margin-left: -8px;
+    padding: 12px;
+  }
+
+  .vp-doc .mermaid svg {
+    min-width: 640px;
+  }
+
+  .kairox-media-lightbox {
+    padding: 12px;
+  }
+
+  .kairox-media-lightbox__dialog {
+    max-height: calc(100vh - 24px);
+  }
+
+  .kairox-media-lightbox__viewport {
+    max-height: calc(100vh - 80px);
+  }
+
+  .kairox-media-lightbox__viewport img {
+    max-width: calc(100vw - 24px);
+  }
+
+  .kairox-media-lightbox__svg {
+    width: calc(100vw - 24px);
+    min-width: 720px;
+    padding: 14px;
   }
 }
 
