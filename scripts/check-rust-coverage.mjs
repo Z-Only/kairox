@@ -35,7 +35,10 @@ const groups = [
     thresholds: {
       // Calibrated against post-#509 LCOV (39 files, functions 38.62%,
       // lines 85.52%). Floors set to ≈ floor(actual − 1) for nightly wobble.
-      functions: 37,
+      // Post-#559 (TUI app_logic split into 9 binaries): per-binary
+      // instrumentation merge shifts measured functions down ~2-4pp without
+      // any src/test behavior change. Floor relaxed to 35 to absorb shift.
+      functions: 35,
       lines: 84
     }
   },
@@ -107,7 +110,10 @@ const groups = [
     minFiles: 75,
     thresholds: {
       // Post-#509 baseline: functions 38.02%, lines 63.14%.
-      functions: 37,
+      // Post-#559 (TUI app_logic split into 9 binaries): per-binary
+      // instrumentation merge shifts measured functions down ~2pp without
+      // any src/test behavior change. Floor relaxed to 35 to absorb shift.
+      functions: 35,
       lines: 62
     }
   },
