@@ -6,7 +6,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use super::state::{CommandPalette, PaletteEntry};
+use super::registry::PaletteEntry;
+use super::state::CommandPalette;
 
 pub fn render_command_palette(
     area: Rect,
