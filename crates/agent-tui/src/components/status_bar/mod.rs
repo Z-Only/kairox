@@ -5,6 +5,7 @@ mod context_overlay;
 mod policy_labels;
 mod render;
 mod state;
+mod types;
 
 #[cfg(test)]
 mod tests;

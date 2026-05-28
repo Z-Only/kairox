@@ -7,6 +7,7 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext, Stat
 
 use super::context_overlay::render_context_details_overlay;
 use super::render::render_status_bar_with_notification;
+use super::types::NOTIFICATION_LOG_LIMIT;
 
 // ---------------------------------------------------------------------------
 // StatusBar component
@@ -22,8 +23,6 @@ pub struct StatusBar {
 }
 
 impl StatusBar {
-    pub(super) const NOTIFICATION_LOG_LIMIT: usize = 100;
-
     pub fn new() -> Self {
         Self {
             focused: false,
@@ -62,8 +61,8 @@ impl StatusBar {
             return;
         }
         self.notifications.push(message);
-        if self.notifications.len() > Self::NOTIFICATION_LOG_LIMIT {
-            let overflow = self.notifications.len() - Self::NOTIFICATION_LOG_LIMIT;
+        if self.notifications.len() > NOTIFICATION_LOG_LIMIT {
+            let overflow = self.notifications.len() - NOTIFICATION_LOG_LIMIT;
             self.notifications.drain(0..overflow);
         }
     }
