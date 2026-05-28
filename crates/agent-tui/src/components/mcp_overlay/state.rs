@@ -443,4 +443,3 @@ impl McpOverlay {
             .and_then(|index| self.current_resources().get(index))
     }
 }
-
