@@ -10,6 +10,7 @@ mod editor;
 mod keys;
 mod render;
 mod state;
+mod types;
 
 #[cfg(test)]
 mod tests;
@@ -20,7 +21,8 @@ use ratatui::Frame;
 
 use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
-pub use state::{BodyView, SkillsOverlay};
+pub use state::SkillsOverlay;
+pub use types::BodyView;
 
 impl Component for SkillsOverlay {
     fn handle_event(

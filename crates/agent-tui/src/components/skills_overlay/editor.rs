@@ -3,7 +3,8 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::components::Command;
 
-use super::state::{trim_option, SkillOverlayMode, SkillsOverlay};
+use super::state::{trim_option, SkillsOverlay};
+use super::types::SkillOverlayMode;
 
 const DEFAULT_SKILL_SEARCH_TEMPLATE: &str =
     "/api/skills?keyword={{query}}&page=1&pageSize={{limit}}&sortBy=downloads&order=desc";
