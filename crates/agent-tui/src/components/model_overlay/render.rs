@@ -6,9 +6,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use super::state::{
-    ModelOverlay, OverlayFocus, OverlayMode, ProfileDraft, ProfileEditorField,
-    PROFILE_EDITOR_FIELDS, REASONING_EFFORTS,
+use super::state::{ModelOverlay, REASONING_EFFORTS};
+use super::types::{
+    OverlayFocus, OverlayMode, ProfileDraft, ProfileEditorField, PROFILE_EDITOR_FIELDS,
 };
 
 pub fn render_model_overlay(
