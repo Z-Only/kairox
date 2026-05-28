@@ -260,6 +260,9 @@ pub fn run() {
             crate::commands::add_catalog_source,
             crate::commands::remove_catalog_source,
             crate::commands::set_catalog_source_enabled,
+            // Monitor commands
+            crate::commands::list_monitors,
+            crate::commands::stop_monitor,
             // Draft persistence commands
             crate::commands::list_workspace_files,
             crate::commands::save_draft,

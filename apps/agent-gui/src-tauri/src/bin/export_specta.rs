@@ -23,9 +23,10 @@ use agent_gui_tauri::commands::{
     CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult,
     InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
     McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
-    McpToolStatesResponse, MemoryEntryResponse, ProfileDetailResponse, ProjectGitStatusResponse,
-    ProjectInfoResponse, ProjectInstructionSummaryResponse, SaveDraftRequest, ServerEntryResponse,
-    SessionInfoResponse, TaskSnapshotResponse, WorkspaceFilesResponse, WorkspaceInfoResponse,
+    McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
+    ProjectGitStatusResponse, ProjectInfoResponse, ProjectInstructionSummaryResponse,
+    SaveDraftRequest, ServerEntryResponse, SessionInfoResponse, TaskSnapshotResponse,
+    WorkspaceFilesResponse, WorkspaceInfoResponse,
 };
 use agent_mcp::McpServerStatus;
 use tauri_specta::collect_commands;
@@ -180,6 +181,9 @@ fn main() {
             agent_gui_tauri::commands::add_catalog_source,
             agent_gui_tauri::commands::remove_catalog_source,
             agent_gui_tauri::commands::set_catalog_source_enabled,
+            // Monitor commands
+            agent_gui_tauri::commands::list_monitors,
+            agent_gui_tauri::commands::stop_monitor,
             agent_gui_tauri::commands::list_workspace_files,
             agent_gui_tauri::commands::save_draft,
             agent_gui_tauri::commands::get_draft,
@@ -195,6 +199,7 @@ fn main() {
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
+        .typ::<MonitorInfoResponse>()
         // Skill response types
         .typ::<SkillView>()
         .typ::<SkillDetail>()

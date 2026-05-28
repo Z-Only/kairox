@@ -167,6 +167,9 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             add_catalog_source,
             remove_catalog_source,
             set_catalog_source_enabled,
+            // Monitor commands
+            list_monitors,
+            stop_monitor,
             list_workspace_files,
             save_draft,
             get_draft,
@@ -182,6 +185,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ProfileWithLimits>()
         .typ::<TaskSnapshotResponse>()
         .typ::<BuildInfoResponse>()
+        .typ::<MonitorInfoResponse>()
         // Skill response types
         .typ::<SkillView>()
         .typ::<SkillDetail>()
