@@ -9,7 +9,7 @@ use agent_mcp::installer::Installer;
 use agent_mcp::{HttpResponseCache, SharedHttpClient};
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, ToolRegistry};
+use agent_tools::{MonitorRegistry, PermissionEngine, ToolRegistry};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -69,6 +69,7 @@ where
     /// no Ollama profiles are configured.
     pub(crate) ollama_clients: HashMap<String, Arc<agent_models::OllamaClient>>,
     // Skill catalog
+    pub(crate) monitor_registry: Option<Arc<MonitorRegistry>>,
     pub(crate) skill_catalog: std::sync::OnceLock<Arc<AggregateSkillCatalogProvider>>,
     pub(crate) skill_sources_toml: Option<crate::skill_sources_toml::SkillSourcesToml>,
     pub(crate) skill_catalog_http: Option<SharedHttpClient>,
@@ -120,6 +121,7 @@ where
                 hooks: vec![],
             }),
             ollama_clients: HashMap::new(),
+            monitor_registry: None,
             skill_catalog: std::sync::OnceLock::new(),
             skill_sources_toml: None,
             skill_catalog_http: None,
@@ -136,6 +138,10 @@ where
     /// model overlay, GUI settings) that need to snapshot profile metadata.
     pub fn config(&self) -> &Arc<agent_config::Config> {
         &self.config
+    }
+
+    pub fn monitor_registry(&self) -> Option<&Arc<MonitorRegistry>> {
+        self.monitor_registry.as_ref()
     }
 
     /// Test-only accessor for the underlying event store. Gated so production

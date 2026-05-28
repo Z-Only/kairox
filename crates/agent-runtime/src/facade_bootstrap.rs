@@ -203,6 +203,7 @@ where
         }
         let provider =
             BuiltinProvider::with_defaults_and_event_tx(workspace_root, self.event_tx.clone());
+        self.monitor_registry = Some(provider.monitor_registry().clone());
         self.tool_registry
             .lock()
             .await
