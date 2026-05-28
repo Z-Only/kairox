@@ -1,6 +1,7 @@
 # GitHub Models profile for CI integration tests.
 # Uses GITHUB_TOKEN (auto-provided in GitHub Actions with `permissions: models: read`).
-# Model: gpt-4o-mini (Low tier — 15 RPM / 150 RPD, generous for CI).
+# Model: gpt-4o-mini (Low tier — 15 RPM / 150 RPD).
+# Budget: 1 req (live-model-tests) + 2 req (pilot-live chat+attachment) = 3 req/CI run → 50 runs/day.
 
 [profiles.github-gpt4o-mini]
 provider = "openai_compatible"
