@@ -1,8 +1,8 @@
 //! SSE integration tests using wiremock to mock an MCP server endpoint.
 
+use agent_mcp::protocol::JsonRpcRequest;
 use agent_mcp::transport::sse::SseTransport;
 use agent_mcp::transport::Transport;
-use agent_mcp::types::JsonRpcRequest;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -178,7 +178,7 @@ async fn sse_send_notification() {
         .await
         .expect("Failed to create SseTransport");
 
-    let notification = agent_mcp::types::JsonRpcNotification {
+    let notification = agent_mcp::protocol::JsonRpcNotification {
         jsonrpc: "2.0".to_string(),
         method: "notifications/initialized".to_string(),
         params: None,

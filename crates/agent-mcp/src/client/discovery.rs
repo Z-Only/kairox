@@ -4,6 +4,7 @@
 //! [`DiscoveryCache`][crate::DiscoveryCache] for a caching layer on top.
 
 use super::McpClient;
+use crate::protocol::JsonRpcRequest;
 use crate::types::*;
 use crate::{McpError, Result};
 

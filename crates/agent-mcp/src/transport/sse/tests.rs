@@ -5,7 +5,7 @@ use serde_json::json;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::types::JsonRpcRequest;
+use crate::protocol::JsonRpcRequest;
 use crate::{transport::Transport, JsonRpcNotification};
 
 use super::parser::{parse_sse_response, SseResponse};

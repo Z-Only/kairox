@@ -8,9 +8,11 @@ pub mod client;
 pub mod discovery;
 pub mod installer;
 pub mod lifecycle;
+pub mod protocol;
 pub mod transport;
 pub mod types;
 
+pub use protocol::*;
 pub use types::*;
 // Re-export key top-level types
 pub use client::McpClient;

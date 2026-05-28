@@ -18,8 +18,8 @@ mod invocation;
 #[cfg(test)]
 mod tests;
 
+use crate::protocol::*;
 use crate::transport::Transport;
-use crate::types::*;
 use crate::Result;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
