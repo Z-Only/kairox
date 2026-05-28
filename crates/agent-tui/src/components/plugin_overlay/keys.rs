@@ -7,7 +7,8 @@ use agent_core::facade::{InstallPluginRequest, PluginInstallTarget};
 use agent_core::ConfigScope;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 
-use super::state::{PluginOverlay, PluginOverlayMode, PluginTab};
+use super::state::PluginOverlay;
+use super::types::{PluginOverlayMode, PluginTab};
 use crate::components::{Command, CrossPanelEffect};
 
 impl PluginOverlay {
