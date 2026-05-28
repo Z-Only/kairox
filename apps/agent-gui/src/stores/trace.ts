@@ -228,6 +228,46 @@ export const useTraceStore = defineStore("trace", () => {
         });
         break;
       }
+
+      case "MonitorStarted": {
+        pushEntry({
+          id: p.monitor_id,
+          kind: "monitor",
+          status: "running",
+          toolId: "monitor",
+          title: p.description,
+          startedAt: Date.now(),
+          expanded: false,
+          input: p.command,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
+      case "MonitorEvent": {
+        updateEntry(p.monitor_id, {
+          outputPreview: p.line
+        });
+        break;
+      }
+
+      case "MonitorStopped": {
+        updateEntry(p.monitor_id, {
+          status: "completed",
+          reason: p.reason.type,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
+      case "MonitorFailed": {
+        updateEntry(p.monitor_id, {
+          status: "failed",
+          outputPreview: p.error,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
     }
   }
 

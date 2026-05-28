@@ -23,6 +23,7 @@ import type { TraceEntryData } from "@/types/trace";
 import type {
   ChatCompactionStreamItem,
   ChatMessageStreamItem,
+  ChatMonitorStreamItem,
   ChatPermissionGroupStreamItem,
   ChatPermissionStreamItem,
   ChatStreamItem,
@@ -154,6 +155,23 @@ function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {
     case "memory":
       if (entry.status !== "pending") return null;
       return buildPermissionItem(entry, "memory");
+    case "monitor": {
+      const monitorItem: ChatMonitorStreamItem = {
+        kind: "monitor",
+        id: entry.id,
+        description: entry.title,
+        status:
+          entry.status === "running"
+            ? "running"
+            : entry.status === "failed"
+              ? "failed"
+              : "completed"
+      };
+      if (entry.outputPreview !== undefined) monitorItem.lastLine = entry.outputPreview;
+      if (entry.input !== undefined) monitorItem.command = entry.input;
+      if (entry.reason !== undefined) monitorItem.stopReason = entry.reason;
+      return monitorItem;
+    }
     default:
       // Defensive: ignore any future / unknown trace kinds rather than
       // surfacing them as half-typed items.

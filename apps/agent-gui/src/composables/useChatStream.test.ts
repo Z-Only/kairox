@@ -5,6 +5,7 @@ import { buildChatStream, type ChatStreamMessageInput } from "./useChatStream";
 import type {
   ChatCompactionStreamItem,
   ChatMessageStreamItem,
+  ChatMonitorStreamItem,
   ChatPermissionGroupStreamItem,
   ChatPermissionStreamItem,
   ChatToolCallStreamItem
@@ -354,6 +355,77 @@ describe("buildChatStream", () => {
       expect(group.kind).toBe("permission_group");
       expect(group.count).toBe(2);
       expect(group.permissionIds).toEqual(["perm-1", "mem-1"]);
+    });
+  });
+
+  describe("monitor trace entries", () => {
+    function monitorEntry(overrides: Partial<TraceEntryData> & { id: string }): TraceEntryData {
+      return {
+        kind: "monitor",
+        status: "running",
+        title: "watch build",
+        toolId: "monitor",
+        startedAt: 0,
+        expanded: false,
+        ...overrides
+      };
+    }
+
+    it("maps a running monitor trace entry to a ChatMonitorStreamItem", () => {
+      const entries: TraceEntryData[] = [
+        monitorEntry({ id: "mon-1", input: "tail -f build.log", startedAt: 10 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual<ChatMonitorStreamItem>({
+        kind: "monitor",
+        id: "mon-1",
+        description: "watch build",
+        status: "running",
+        command: "tail -f build.log"
+      });
+    });
+
+    it("maps a completed monitor with stop reason", () => {
+      const entries: TraceEntryData[] = [
+        monitorEntry({ id: "mon-2", status: "completed", reason: "Timeout" })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      const item = result[0] as ChatMonitorStreamItem;
+      expect(item.kind).toBe("monitor");
+      expect(item.status).toBe("completed");
+      expect(item.stopReason).toBe("Timeout");
+    });
+
+    it("maps a failed monitor with error as lastLine", () => {
+      const entries: TraceEntryData[] = [
+        monitorEntry({ id: "mon-3", status: "failed", outputPreview: "spawn failed" })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result).toHaveLength(1);
+      const item = result[0] as ChatMonitorStreamItem;
+      expect(item.kind).toBe("monitor");
+      expect(item.status).toBe("failed");
+      expect(item.lastLine).toBe("spawn failed");
+    });
+
+    it("interleaves monitors with tool calls in startedAt order", () => {
+      const entries: TraceEntryData[] = [
+        toolEntry({ id: "tool-1", startedAt: 5 }),
+        monitorEntry({ id: "mon-1", startedAt: 10 }),
+        toolEntry({ id: "tool-2", startedAt: 15 })
+      ];
+
+      const result = buildChatStream([], entries, idle);
+
+      expect(result.map((item) => item.id)).toEqual(["tool-1", "mon-1", "tool-2"]);
     });
   });
 
