@@ -45,9 +45,11 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
 
+use agent_core::events::MonitorStopReason;
+
 use super::stream::{
-    fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, PermissionKind,
-    PermissionStatus, ToolCallStatus,
+    fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, MonitorItemStatus,
+    PermissionKind, PermissionStatus, ToolCallStatus,
 };
 
 /// Render the entire unified chat-stream feed into `area`.
@@ -119,6 +121,9 @@ pub fn render_chat_stream(
             },
             ChatStreamItem::CompactionSkipped { reason, ratio, .. } => {
                 append_compaction_skipped(&mut lines, *reason, *ratio);
+            }
+            ChatStreamItem::Monitor { .. } => {
+                append_monitor(&mut lines, item);
             }
         }
     }
@@ -421,6 +426,58 @@ fn append_compaction_skipped(lines: &mut Vec<Line>, reason: CompactionSkipReason
         ));
     }
     lines.push(Line::from(spans));
+}
+
+fn append_monitor(lines: &mut Vec<Line>, item: &ChatStreamItem) {
+    let (description, status, last_line) = match item {
+        ChatStreamItem::Monitor {
+            description,
+            status,
+            last_line,
+            ..
+        } => (description.as_str(), *status, last_line.as_deref()),
+        _ => return,
+    };
+
+    let (icon, label, color) = match status {
+        MonitorItemStatus::Running => ("⟳", "watching", Color::Yellow),
+        MonitorItemStatus::Stopped(reason) => {
+            let label = match reason {
+                MonitorStopReason::ExitCode { code } => {
+                    if code == 0 {
+                        "done"
+                    } else {
+                        "exited"
+                    }
+                }
+                MonitorStopReason::Timeout => "timed out",
+                MonitorStopReason::UserStopped => "stopped",
+                MonitorStopReason::SessionEnded => "ended",
+            };
+            let color = match reason {
+                MonitorStopReason::ExitCode { code: 0 } => Color::Green,
+                _ => Color::DarkGray,
+            };
+            ("■", label, color)
+        }
+        MonitorItemStatus::Failed => ("✗", "failed", Color::Red),
+    };
+
+    let style = Style::default().add_modifier(Modifier::BOLD);
+    lines.push(Line::from(vec![
+        Span::styled(format!("{icon} "), style.fg(color)),
+        Span::styled(description.to_string(), style.fg(color)),
+        Span::raw("  "),
+        Span::styled(label.to_string(), Style::default().fg(color)),
+    ]));
+
+    if let Some(line) = last_line {
+        let truncated = truncate_chars(line, 120);
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(truncated, Style::default().fg(Color::DarkGray)),
+        ]));
+    }
 }
 
 /// Percent reduction from `before` to `after`, clamped to `0..=100`.
