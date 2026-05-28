@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.31.x)
+## What ships today (v0.32.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
