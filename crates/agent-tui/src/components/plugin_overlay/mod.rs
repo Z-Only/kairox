@@ -3,14 +3,21 @@
 //!
 //! The App builds a [`PluginOverlaySnapshot`] from the existing plugin facade;
 //! the overlay only owns selection state and emits mutation commands.
+//!
+//! State and behaviour live in [`state`], key-event handlers live in
+//! [`keys`], rendering helpers live in [`render`], and tests live in
+//! [`tests`]. The [`Component`] implementation lives here so it stays
+//! close to the public surface that other components use through
+//! `crate::components::plugin_overlay::PluginOverlay`.
 
+mod keys;
 mod render;
 mod state;
 
 #[cfg(test)]
 mod tests;
 
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
@@ -18,7 +25,6 @@ use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
 pub use render::render_plugin_overlay;
 pub use state::PluginOverlay;
-use state::PluginOverlayMode;
 
 impl Component for PluginOverlay {
     fn handle_event(
@@ -26,54 +32,7 @@ impl Component for PluginOverlay {
         _ctx: &EventContext,
         event: &Event,
     ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let Event::Key(key) = event else {
-            return (Vec::new(), Vec::new());
-        };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
-
-        let mut effects = Vec::new();
-        let mut commands = Vec::new();
-
-        if self.mode == PluginOverlayMode::CatalogSearch {
-            if self.handle_catalog_search_key(key.code, key.modifiers) {
-                commands.push(Command::OpenPluginsOverlay);
-            }
-            return (effects, commands);
-        }
-
-        match key.code {
-            KeyCode::Tab => {
-                self.tab = self.tab.next();
-                self.ensure_selection();
-            }
-            KeyCode::BackTab => {
-                self.tab = self.tab.previous();
-                self.ensure_selection();
-            }
-            KeyCode::Char('j') | KeyCode::Down => self.move_down(),
-            KeyCode::Char('k') | KeyCode::Up => self.move_up(),
-            KeyCode::Char('/') if self.tab == state::PluginTab::Catalog => {
-                self.mode = PluginOverlayMode::CatalogSearch;
-            }
-            KeyCode::Char('s') | KeyCode::Char('S') if self.tab == state::PluginTab::Catalog => {
-                self.cycle_catalog_marketplace_filter();
-                commands.push(Command::OpenPluginsOverlay);
-            }
-            KeyCode::Esc => {
-                self.hide();
-                effects.push(CrossPanelEffect::DismissPluginsOverlay);
-            }
-            KeyCode::Char('r') | KeyCode::Char('R') => commands.push(Command::OpenPluginsOverlay),
-            key => {
-                if let Some(command) = self.command_for_current_tab(key) {
-                    commands.push(command);
-                }
-            }
-        }
-
-        (effects, commands)
+        self.handle_key_event(event)
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {

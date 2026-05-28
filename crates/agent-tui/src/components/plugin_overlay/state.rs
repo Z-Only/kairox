@@ -1,12 +1,9 @@
 use agent_core::facade::{
-    InstallPluginRequest, PluginCatalogEntry, PluginInstallTarget, PluginMarketplaceSourceView,
-    PluginSettingsView,
+    PluginCatalogEntry, PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView,
 };
-use agent_core::ConfigScope;
-use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::widgets::ListState;
 
-use crate::components::{Command, PluginCatalogFilters, PluginOverlaySnapshot};
+use crate::components::{PluginCatalogFilters, PluginOverlaySnapshot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum PluginTab {
@@ -131,7 +128,7 @@ impl PluginOverlay {
         }
     }
 
-    fn current_len(&self) -> usize {
+    pub(super) fn current_len(&self) -> usize {
         match self.tab {
             PluginTab::Installed => self.plugins.len(),
             PluginTab::Catalog => self.catalog.len(),
@@ -139,7 +136,7 @@ impl PluginOverlay {
         }
     }
 
-    fn current_selected(&self) -> Option<usize> {
+    pub(super) fn current_selected(&self) -> Option<usize> {
         match self.tab {
             PluginTab::Installed => self.plugins_state.selected(),
             PluginTab::Catalog => self.catalog_state.selected(),
@@ -147,7 +144,7 @@ impl PluginOverlay {
         }
     }
 
-    fn select_current(&mut self, selected: Option<usize>) {
+    pub(super) fn select_current(&mut self, selected: Option<usize>) {
         match self.tab {
             PluginTab::Installed => self.plugins_state.select(selected),
             PluginTab::Catalog => self.catalog_state.select(selected),
@@ -170,43 +167,19 @@ impl PluginOverlay {
         }
     }
 
-    pub(super) fn move_down(&mut self) {
-        let len = self.current_len();
-        if len == 0 {
-            return;
-        }
-        let next = match self.current_selected() {
-            Some(i) if i + 1 < len => i + 1,
-            Some(_) => len - 1,
-            None => 0,
-        };
-        self.select_current(Some(next));
-    }
-
-    pub(super) fn move_up(&mut self) {
-        if self.current_len() == 0 {
-            return;
-        }
-        let next = match self.current_selected() {
-            Some(i) if i > 0 => i - 1,
-            _ => 0,
-        };
-        self.select_current(Some(next));
-    }
-
-    fn selected_plugin(&self) -> Option<&PluginSettingsView> {
+    pub(super) fn selected_plugin(&self) -> Option<&PluginSettingsView> {
         self.plugins_state
             .selected()
             .and_then(|index| self.plugins.get(index))
     }
 
-    fn selected_catalog_entry(&self) -> Option<&PluginCatalogEntry> {
+    pub(super) fn selected_catalog_entry(&self) -> Option<&PluginCatalogEntry> {
         self.catalog_state
             .selected()
             .and_then(|index| self.catalog.get(index))
     }
 
-    fn selected_source(&self) -> Option<&PluginMarketplaceSourceView> {
+    pub(super) fn selected_source(&self) -> Option<&PluginMarketplaceSourceView> {
         self.sources_state
             .selected()
             .and_then(|index| self.sources.get(index))
@@ -261,81 +234,6 @@ impl PluginOverlay {
 
     pub(super) fn catalog_filters_active(&self) -> bool {
         self.catalog_marketplace_filter.is_some() || !self.catalog_keyword.trim().is_empty()
-    }
-
-    pub(super) fn handle_catalog_search_key(
-        &mut self,
-        code: KeyCode,
-        modifiers: KeyModifiers,
-    ) -> bool {
-        match code {
-            KeyCode::Enter | KeyCode::Esc => {
-                self.mode = PluginOverlayMode::List;
-                true
-            }
-            KeyCode::Backspace => {
-                self.catalog_keyword.pop();
-                false
-            }
-            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
-                self.catalog_keyword.clear();
-                false
-            }
-            KeyCode::Char(ch)
-                if !modifiers.contains(KeyModifiers::CONTROL)
-                    && !modifiers.contains(KeyModifiers::ALT) =>
-            {
-                self.catalog_keyword.push(ch);
-                false
-            }
-            _ => false,
-        }
-    }
-
-    fn toggle_install_target(&mut self) {
-        self.install_target = match self.install_target {
-            PluginInstallTarget::User => PluginInstallTarget::Project,
-            PluginInstallTarget::Project => PluginInstallTarget::User,
-        };
-    }
-
-    pub(super) fn command_for_current_tab(&mut self, key: KeyCode) -> Option<Command> {
-        match (self.tab, key) {
-            (PluginTab::Installed, KeyCode::Char('e') | KeyCode::Char('E')) => self
-                .selected_plugin()
-                .filter(|plugin| plugin.scope != ConfigScope::Builtin)
-                .map(|plugin| Command::SetPluginEnabled {
-                    settings_id: plugin.settings_id.clone(),
-                    enabled: !plugin.enabled,
-                }),
-            (PluginTab::Installed, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => {
-                self.selected_plugin()
-                    .filter(|plugin| plugin.scope != ConfigScope::Builtin)
-                    .map(|plugin| Command::DeletePluginSettings {
-                        settings_id: plugin.settings_id.clone(),
-                    })
-            }
-            (PluginTab::Catalog, KeyCode::Char('i') | KeyCode::Char('I')) => self
-                .selected_catalog_entry()
-                .map(|entry| Command::InstallPlugin {
-                    request: InstallPluginRequest {
-                        marketplace_id: entry.marketplace_id.clone(),
-                        plugin_name: entry.name.clone(),
-                        target: self.install_target,
-                    },
-                }),
-            (PluginTab::Catalog, KeyCode::Char('t') | KeyCode::Char('T')) => {
-                self.toggle_install_target();
-                None
-            }
-            (PluginTab::Sources, KeyCode::Char('e') | KeyCode::Char('E')) => self
-                .selected_source()
-                .map(|source| Command::SetPluginMarketplaceSourceEnabled {
-                    source_id: source.id.clone(),
-                    enabled: !source.enabled,
-                }),
-            _ => None,
-        }
     }
 }
 
