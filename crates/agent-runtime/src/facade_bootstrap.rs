@@ -201,7 +201,8 @@ where
                     &workspace_root,
                 );
         }
-        let provider = BuiltinProvider::with_defaults(workspace_root);
+        let provider =
+            BuiltinProvider::with_defaults_and_event_tx(workspace_root, self.event_tx.clone());
         self.tool_registry
             .lock()
             .await

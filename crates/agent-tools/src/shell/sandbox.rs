@@ -10,7 +10,7 @@ use std::time::Duration;
 
 pub(super) const DEFAULT_TIMEOUT_SECS: u64 = 30;
 pub(super) const DEFAULT_MAX_OUTPUT_BYTES: usize = 102_400; // 100 KB
-pub(super) const ALLOWED_ENV_VARS: &[&str] =
+pub(crate) const ALLOWED_ENV_VARS: &[&str] =
     &["PATH", "HOME", "LANG", "TERM", "USER", "TMPDIR", "SHELL"];
 
 /// Default per-invocation timeout.
