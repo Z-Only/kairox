@@ -1,0 +1,4 @@
+# kairox-eval tool-call smoke fixture — deterministic fake profile that
+# emits an fs.list({"path":"."}) tool call after its token stream.
+# Drive with: --fake-emit-tool-call --wait-timeout-ms 5000
+{"id":"smoke-tool-call","prompt":"List the workspace root","profile":"fake","expected":{"event_types":["UserMessageAdded","ModelToolCallRequested","ToolInvocationStarted","ToolInvocationCompleted","AssistantMessageCompleted"],"min_tool_invocations":1,"max_tool_failures":0}}

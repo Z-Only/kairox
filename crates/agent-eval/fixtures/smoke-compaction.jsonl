@@ -1,0 +1,8 @@
+# kairox-eval compaction smoke fixture — deterministic fake profile with
+# an auto-compact threshold pushed below the first-turn usage ratio so a
+# single send_message reliably triggers a turn-end auto-compaction. The
+# runtime needs at least KEEP_LAST_PAIRS + 1 (= 4) user/assistant pairs
+# in the event store before compaction will actually fire; seed them via
+# --seed-synthetic-pairs 4.
+# Drive with: --auto-compact-threshold 0.001 --seed-synthetic-pairs 4 --wait-timeout-ms 5000
+{"id":"smoke-compaction","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["hello from Kairox"],"event_types":["UserMessageAdded","AssistantMessageCompleted","ContextCompactionStarted","ContextCompactionCompleted"],"max_tool_failures":0}}
