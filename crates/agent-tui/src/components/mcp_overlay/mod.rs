@@ -6,6 +6,7 @@
 //! dispatches to the runtime manager or MCP facade.
 
 mod editor;
+mod editor_types;
 mod keys;
 mod render;
 mod state;
