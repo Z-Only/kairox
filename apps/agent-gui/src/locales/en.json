@@ -704,6 +704,17 @@
         "failedAfter": "failed after {duration}"
       }
     },
+    "monitor": {
+      "label": "Monitor: {description}",
+      "command": "Command",
+      "lastLine": "Last output",
+      "stopReason": "Stop reason",
+      "status": {
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
+    },
     "compaction": {
       "running": "Compacting context…",
       "completed": "Context compacted",

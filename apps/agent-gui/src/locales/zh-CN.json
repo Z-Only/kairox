@@ -704,6 +704,17 @@
         "failedAfter": "{duration} 后失败"
       }
     },
+    "monitor": {
+      "label": "监控：{description}",
+      "command": "命令",
+      "lastLine": "最新输出",
+      "stopReason": "停止原因",
+      "status": {
+        "running": "运行中",
+        "completed": "已完成",
+        "failed": "失败"
+      }
+    },
     "compaction": {
       "running": "正在压缩上下文…",
       "completed": "上下文已压缩",
