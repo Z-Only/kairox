@@ -6,6 +6,7 @@
 pub mod catalog;
 pub mod client;
 pub mod discovery;
+pub mod health;
 pub mod installer;
 pub mod lifecycle;
 pub mod protocol;
