@@ -5,9 +5,7 @@
 
 use ratatui::widgets::ListState;
 
-use super::registry::{
-    builtin_entries, filter_entries, prefill_text, PaletteAction, PaletteEntry,
-};
+use super::registry::{builtin_entries, filter_entries, prefill_text, PaletteAction, PaletteEntry};
 use crate::components::{Command, CrossPanelEffect, EventContext, ModelProfileEntry, SkillEntry};
 
 pub struct CommandPalette {
