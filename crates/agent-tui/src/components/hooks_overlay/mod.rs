@@ -8,6 +8,7 @@
 mod keys;
 mod render;
 mod state;
+mod types;
 
 #[cfg(test)]
 mod tests;

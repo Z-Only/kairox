@@ -12,7 +12,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::state::{HookDraft, HookEditorField, HooksMode, HooksOverlay, HooksTab, EDITOR_FIELDS};
+use super::state::HooksOverlay;
+use super::types::{HookDraft, HookEditorField, HooksMode, HooksTab, EDITOR_FIELDS};
 
 pub(super) fn render_hooks_overlay(area: Rect, frame: &mut Frame, overlay: &HooksOverlay) {
     let modal_width = 112.min(area.width.saturating_sub(4));
