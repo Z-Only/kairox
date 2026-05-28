@@ -183,7 +183,18 @@ export type EventPayload =
    *  `entries` is the current state of the fully-merged, sorted list
    *  across all providers that have responded so far.
    */
-  | { type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] };
+  | { type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] }
+  | {
+      type: "MonitorStarted";
+      monitor_id: string;
+      description: string;
+      command: string;
+      persistent: boolean;
+      timeout_ms: number;
+    }
+  | { type: "MonitorEvent"; monitor_id: string; line: string }
+  | { type: "MonitorStopped"; monitor_id: string; reason: MonitorStopReason }
+  | { type: "MonitorFailed"; monitor_id: string; error: string };
 
 /**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
@@ -197,6 +208,13 @@ export type McpServerStatus =
   | "failed";
 
 export type MemoryScope = "User" | "Workspace" | "Session";
+
+/**  Why a background monitor process was stopped. */
+export type MonitorStopReason =
+  | { type: "ExitCode"; code: number }
+  | { type: "Timeout" }
+  | { type: "UserStopped" }
+  | { type: "SessionEnded" };
 
 export type PrivacyClassification = "minimal_trace" | "full_trace";
 

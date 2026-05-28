@@ -222,7 +222,11 @@ impl SessionProjection {
             | EventPayload::CatalogSourceFailed { .. }
             | EventPayload::CatalogSourceResultsArrived { .. }
             | EventPayload::CompactionSummary { .. }
-            | EventPayload::ContextCompactionSkipped { .. } => {}
+            | EventPayload::ContextCompactionSkipped { .. }
+            | EventPayload::MonitorStarted { .. }
+            | EventPayload::MonitorEvent { .. }
+            | EventPayload::MonitorStopped { .. }
+            | EventPayload::MonitorFailed { .. } => {}
         }
     }
 
