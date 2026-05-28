@@ -38,48 +38,46 @@ export default defineConfig({
       //                       user-action aggregation points
       //   T3 (components, views)   — UI presentation layer
       // Aggregate (no glob) is the workspace floor.
+      // Baseline: 2026-05-28 — floor(actual - 1), only raised.
       thresholds: {
-        statements: 80,
-        branches: 72,
-        functions: 76,
-        lines: 80,
-        // T3
+        statements: 85,
+        branches: 80,
+        functions: 86,
+        lines: 86,
+        // T3 — components aggregate: stmts 87.71, br 82.84, fn 88.31, ln 88.59
         "src/components/**/*.{ts,vue}": {
-          statements: 78,
-          branches: 72,
-          functions: 74,
-          lines: 78
+          statements: 86,
+          branches: 81,
+          functions: 87,
+          lines: 87
         },
-        // T3
+        // T3 — views aggregate: stmts 91.46, br 86.20, fn 79.16, ln 90.78
         "src/views/**/*.vue": {
           statements: 90,
-          branches: 82,
+          branches: 85,
           functions: 78,
           lines: 90
         },
-        // T2 — stores branches lifted from the 67.08% pre-test baseline to
-        // ~70% with new workspaceUi/agentSettings/modelProfiles/catalog tests.
-        // Gate at 68 (~1.7pp buffer) because vitest V8 wobbles by ~0.3pp
-        // between runs; plan target 70 stays the next follow-up.
+        // T2 — stores aggregate: stmts 85.17, br 76.32, fn 85.15, ln 86.66
         "src/stores/**/*.ts": {
-          statements: 80,
-          branches: 68,
-          functions: 80,
-          lines: 82
+          statements: 84,
+          branches: 75,
+          functions: 84,
+          lines: 85
         },
-        // T2
+        // T2 — composables aggregate: stmts 83.66, br 76.11, fn 85.45, ln 85.00
         "src/composables/**/*.ts": {
-          statements: 74,
-          branches: 60,
-          functions: 78,
-          lines: 74
+          statements: 82,
+          branches: 75,
+          functions: 84,
+          lines: 84
         },
-        // T1
+        // T1 — utils aggregate: stmts 95.83, br 100, fn 100, ln 95.83
         "src/utils/**/*.ts": {
-          statements: 92,
-          branches: 90,
-          functions: 95,
-          lines: 92
+          statements: 94,
+          branches: 99,
+          functions: 99,
+          lines: 94
         }
       }
     }
