@@ -8,9 +8,7 @@ use crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::Frame;
 
-use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, RiskLevel,
-};
+use crate::components::{Command, Component, CrossPanelEffect, EventContext, RiskLevel};
 
 pub use state::PermissionModal;
 

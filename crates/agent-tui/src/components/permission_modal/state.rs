@@ -52,10 +52,7 @@ impl PermissionModal {
         }
     }
 
-    pub(super) fn resolve_active_request(
-        &mut self,
-        approved: bool,
-    ) -> Option<PermissionRequest> {
+    pub(super) fn resolve_active_request(&mut self, approved: bool) -> Option<PermissionRequest> {
         let request_id = self.request.as_ref()?.request_id.clone();
         self.resolve_request(&request_id, approved)
     }
