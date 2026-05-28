@@ -1,11 +1,13 @@
 //! Agent settings manager overlay — TUI access to the same custom agent
 //! profiles managed by the GUI settings pane.
 //!
-//! State and behaviour live in [`state`], rendering helpers live in
-//! [`render`], and tests live in [`tests`]. The [`Component`] implementation
-//! lives here so it stays close to the public surface that other components
-//! use through `crate::components::agent_overlay::AgentOverlay`.
+//! State and behaviour live in [`state`], key-event handlers live in
+//! [`keys`], rendering helpers live in [`render`], and tests live in
+//! [`tests`]. The [`Component`] implementation lives here so it stays
+//! close to the public surface that other components use through
+//! `crate::components::agent_overlay::AgentOverlay`.
 
+mod keys;
 mod render;
 mod state;
 
