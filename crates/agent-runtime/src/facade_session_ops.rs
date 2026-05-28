@@ -118,6 +118,9 @@ where
         workspace_id: WorkspaceId,
         session_id: SessionId,
     ) -> agent_core::Result<()> {
+        if let Some(registry) = &self.monitor_registry {
+            registry.stop_all().await;
+        }
         self.session_execution
             .cancel_session(&session_id, "user requested cancellation".into())
             .await?;
@@ -163,11 +166,17 @@ where
     }
 
     async fn soft_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        if let Some(registry) = &self.monitor_registry {
+            registry.stop_all().await;
+        }
         self.session_execution.shutdown_session(session_id).await?;
         crate::session::soft_delete_session(&*self.store, session_id).await
     }
 
     async fn permanently_delete_session(&self, session_id: &SessionId) -> agent_core::Result<()> {
+        if let Some(registry) = &self.monitor_registry {
+            registry.stop_all().await;
+        }
         self.session_execution.shutdown_session(session_id).await?;
         crate::session::permanently_delete_session(&*self.store, session_id.as_str()).await
     }
