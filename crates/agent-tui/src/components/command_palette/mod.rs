@@ -6,6 +6,7 @@
 //! `:`-prefixed slash form; selection routes the same [`Command`] the slash
 //! parser would produce, or hands the prefill back to [`ChatPanel`].
 
+mod registry;
 mod render;
 mod state;
 
@@ -19,10 +20,10 @@ use ratatui::Frame;
 use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
 #[allow(unused_imports)]
+pub use registry::{builtin_entries, filter_entries, prefill_text, PaletteAction, PaletteEntry};
+#[allow(unused_imports)]
 pub use render::render_command_palette;
 pub use state::CommandPalette;
-#[allow(unused_imports)]
-pub use state::{builtin_entries, filter_entries, prefill_text, PaletteAction, PaletteEntry};
 
 impl Component for CommandPalette {
     fn handle_event(
