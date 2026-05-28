@@ -5,7 +5,8 @@
 
 use crossterm::event::{Event, KeyCode};
 
-use super::state::{SkillOverlayMode, SkillTab, SkillsOverlay};
+use super::state::SkillsOverlay;
+use super::types::{SkillOverlayMode, SkillTab};
 use crate::components::{Command, CrossPanelEffect, EventContext};
 
 impl SkillsOverlay {

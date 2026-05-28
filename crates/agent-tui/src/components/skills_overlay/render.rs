@@ -10,7 +10,8 @@ use ratatui::Frame;
 use crate::components::SkillEntry;
 
 use super::editor::{SkillSourceDraft, SkillSourceEditorField, SKILL_SOURCE_EDITOR_FIELDS};
-use super::state::{SkillOverlayMode, SkillTab, SkillsOverlay};
+use super::state::SkillsOverlay;
+use super::types::{SkillOverlayMode, SkillTab};
 
 struct SkillsOverlayRenderState<'a> {
     discovered: &'a mut ListState,
