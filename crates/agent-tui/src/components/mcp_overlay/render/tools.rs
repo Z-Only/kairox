@@ -4,7 +4,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{ListItem, ListState};
 use ratatui::Frame;
 
-use super::super::state::{resource_preview_key, McpOverlay};
+use super::super::state::McpOverlay;
+use super::super::types::resource_preview_key;
 use super::{clip, render_empty, render_list};
 
 pub(super) fn render_tools(
