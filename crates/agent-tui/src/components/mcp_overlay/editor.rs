@@ -9,7 +9,8 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::components::Command;
 
-use super::state::{McpOverlay, McpOverlayMode};
+use super::state::McpOverlay;
+use super::types::McpOverlayMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ServerEditorField {

@@ -9,6 +9,7 @@ mod editor;
 mod keys;
 mod render;
 mod state;
+mod types;
 
 #[cfg(test)]
 mod tests;
@@ -20,7 +21,7 @@ use ratatui::Frame;
 use crate::components::{Command, Component, CrossPanelEffect, EventContext};
 
 pub use state::McpOverlay;
-use state::{resource_preview_key, McpHealthState, McpOverlayMode, McpOverlayTab};
+use types::{resource_preview_key, McpHealthState, McpOverlayMode, McpOverlayTab};
 
 impl Component for McpOverlay {
     fn handle_event(

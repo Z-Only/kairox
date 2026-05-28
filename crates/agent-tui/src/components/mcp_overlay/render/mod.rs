@@ -4,7 +4,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use super::state::{McpOverlay, McpOverlayMode, McpOverlayTab};
+use super::state::McpOverlay;
+use super::types::{McpOverlayMode, McpOverlayTab};
 
 mod catalog;
 mod editors;

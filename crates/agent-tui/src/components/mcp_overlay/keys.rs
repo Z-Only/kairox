@@ -8,7 +8,8 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::components::{Command, McpServerStatusView};
 
-use super::state::{McpOverlay, McpOverlayMode, McpOverlayTab};
+use super::state::McpOverlay;
+use super::types::{McpOverlayMode, McpOverlayTab};
 
 impl McpOverlay {
     pub(super) fn move_down(&mut self) {

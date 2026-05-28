@@ -7,7 +7,8 @@ use ratatui::widgets::{Block, Borders, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
 use super::super::editor::{catalog_config_items, parse_install_spec, parse_requirements};
-use super::super::state::{CatalogInstallStatus, McpOverlay};
+use super::super::state::McpOverlay;
+use super::super::types::CatalogInstallStatus;
 use super::{clip, render_empty, render_list};
 
 pub(super) fn render_catalog(
