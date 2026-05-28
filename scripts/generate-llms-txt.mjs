@@ -68,15 +68,29 @@ function firstParagraph(body) {
   return "";
 }
 
+function stripTagBlocks(html, tagName) {
+  let out = html;
+  const openRe = new RegExp(`<${tagName}[\\s>]`, "i");
+  const closeStr = `</${tagName}`;
+  let match;
+  while ((match = openRe.exec(out)) !== null) {
+    const start = match.index;
+    const closeIdx = out.toLowerCase().indexOf(closeStr.toLowerCase(), start + match[0].length);
+    if (closeIdx < 0) {
+      out = out.slice(0, start);
+      break;
+    }
+    const afterClose = out.indexOf(">", closeIdx + closeStr.length);
+    const end = afterClose < 0 ? out.length : afterClose + 1;
+    out = out.slice(0, start) + out.slice(end);
+  }
+  return out;
+}
+
 function stripMarkdown(body) {
   let out = body.replace(/```[\s\S]*?```/g, (block) => block);
-  let prev;
-  do {
-    prev = out;
-    out = out
-      .replace(/<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi, "")
-      .replace(/<style\b[^<]*(?:(?!<\/style\s*>)<[^<]*)*<\/style\s*>/gi, "");
-  } while (out !== prev);
+  out = stripTagBlocks(out, "script");
+  out = stripTagBlocks(out, "style");
   return out.replace(/<[^>]+>/g, "").trim();
 }
 
