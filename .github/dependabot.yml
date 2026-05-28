@@ -9,6 +9,14 @@ updates:
     labels:
       - "dependencies"
       - "bun"
+    groups:
+      bun-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      bun-major:
+        update-types:
+          - "major"
 
   - package-ecosystem: "cargo"
     directory: "/"
@@ -19,6 +27,14 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+    groups:
+      cargo-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      cargo-major:
+        update-types:
+          - "major"
 
   - package-ecosystem: "github-actions"
     directory: "/"
