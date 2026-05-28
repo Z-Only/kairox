@@ -1,8 +1,10 @@
 use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
+use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool};
 use crate::patch::PatchApplyTool;
 use crate::registry::{Tool, ToolDefinition, ToolProvider};
 use crate::search::RipgrepSearchTool;
 use crate::shell::ShellExecTool;
+use agent_core::DomainEvent;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -10,10 +12,19 @@ use std::sync::Arc;
 
 pub struct BuiltinProvider {
     tools: HashMap<String, Arc<dyn Tool>>,
+    monitor_registry: Arc<MonitorRegistry>,
 }
 
 impl BuiltinProvider {
     pub fn with_defaults(workspace_root: PathBuf) -> Self {
+        let (event_tx, _) = tokio::sync::broadcast::channel(64);
+        Self::with_defaults_and_event_tx(workspace_root, event_tx)
+    }
+
+    pub fn with_defaults_and_event_tx(
+        workspace_root: PathBuf,
+        event_tx: tokio::sync::broadcast::Sender<DomainEvent>,
+    ) -> Self {
         let mut tools: HashMap<String, Arc<dyn Tool>> = HashMap::new();
 
         let shell = Box::new(ShellExecTool::new(workspace_root.clone())) as Box<dyn Tool>;
@@ -21,7 +32,12 @@ impl BuiltinProvider {
         let patch = Box::new(PatchApplyTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let fs_read = Box::new(FsReadTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let fs_write = Box::new(FsWriteTool::new(workspace_root.clone())) as Box<dyn Tool>;
-        let fs_list = Box::new(FsListTool::new(workspace_root)) as Box<dyn Tool>;
+        let fs_list = Box::new(FsListTool::new(workspace_root.clone())) as Box<dyn Tool>;
+
+        let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root, event_tx));
+        let mon_start = Box::new(MonitorStartTool::new(monitor_registry.clone())) as Box<dyn Tool>;
+        let mon_stop = Box::new(MonitorStopTool::new(monitor_registry.clone())) as Box<dyn Tool>;
+        let mon_list = Box::new(MonitorListTool::new(monitor_registry.clone())) as Box<dyn Tool>;
 
         tools.insert(shell.definition().tool_id.clone(), Arc::from(shell));
         tools.insert(search.definition().tool_id.clone(), Arc::from(search));
@@ -29,8 +45,18 @@ impl BuiltinProvider {
         tools.insert(fs_read.definition().tool_id.clone(), Arc::from(fs_read));
         tools.insert(fs_write.definition().tool_id.clone(), Arc::from(fs_write));
         tools.insert(fs_list.definition().tool_id.clone(), Arc::from(fs_list));
+        tools.insert(mon_start.definition().tool_id.clone(), Arc::from(mon_start));
+        tools.insert(mon_stop.definition().tool_id.clone(), Arc::from(mon_stop));
+        tools.insert(mon_list.definition().tool_id.clone(), Arc::from(mon_list));
 
-        Self { tools }
+        Self {
+            tools,
+            monitor_registry,
+        }
+    }
+
+    pub fn monitor_registry(&self) -> &Arc<MonitorRegistry> {
+        &self.monitor_registry
     }
 }
 
@@ -92,7 +118,22 @@ mod tests {
             "missing fs.list, got: {:?}",
             tool_ids
         );
-        assert_eq!(tools.len(), 6);
+        assert!(
+            tool_ids.contains(&"monitor.start"),
+            "missing monitor.start, got: {:?}",
+            tool_ids
+        );
+        assert!(
+            tool_ids.contains(&"monitor.stop"),
+            "missing monitor.stop, got: {:?}",
+            tool_ids
+        );
+        assert!(
+            tool_ids.contains(&"monitor.list"),
+            "missing monitor.list, got: {:?}",
+            tool_ids
+        );
+        assert_eq!(tools.len(), 9);
     }
 
     #[tokio::test]

@@ -3,6 +3,7 @@ pub mod fs_helpers;
 pub mod fs_list;
 pub mod fs_read;
 pub mod fs_write;
+pub mod monitor;
 pub mod patch;
 pub mod permission;
 pub mod policy;
@@ -14,6 +15,9 @@ pub mod shell;
 pub use agent_mcp::McpServerDef;
 pub use agent_mcp::McpTransportDef;
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
+pub use monitor::{
+    MonitorInfo, MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool,
+};
 pub use patch::{parse_unified_diff, FilePatch, Hunk, PatchApplyTool, PatchLine, PatchParseError};
 pub use permission::{PermissionEngine, PermissionOutcome, ToolEffect, ToolRisk};
 pub use policy::{
