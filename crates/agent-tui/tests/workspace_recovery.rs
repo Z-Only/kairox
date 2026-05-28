@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use agent_tui::workspace_recovery::{
-    format_known_workspaces, parse_workspace_args, resolve_workspace_selector, KnownWorkspace,
-    WorkspaceCliMode,
+    format_known_workspaces, parse_workspace_args, resolve_workspace_selector, CliAction,
+    KnownWorkspace, WorkspaceCliMode,
 };
 
 struct TempProject {
@@ -44,16 +44,16 @@ fn known(id: &str, path: &str) -> KnownWorkspace {
 #[test]
 fn workspace_recovery_parses_list_select_and_selector_flags() {
     let list = parse_workspace_args(["--workspace-list"]).expect("list flag should parse");
-    assert_eq!(list.mode, WorkspaceCliMode::List);
+    assert_eq!(list.action, CliAction::Run(WorkspaceCliMode::List));
 
     let select = parse_workspace_args(["--workspace-select"]).expect("select flag should parse");
-    assert_eq!(select.mode, WorkspaceCliMode::Select);
+    assert_eq!(select.action, CliAction::Run(WorkspaceCliMode::Select));
 
     let selector =
         parse_workspace_args(["--workspace", "wrk_project"]).expect("selector should parse");
     assert_eq!(
-        selector.mode,
-        WorkspaceCliMode::Use("wrk_project".to_string())
+        selector.action,
+        CliAction::Run(WorkspaceCliMode::Use("wrk_project".to_string()))
     );
 }
 

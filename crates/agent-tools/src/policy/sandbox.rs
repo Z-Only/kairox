@@ -77,6 +77,23 @@ impl fmt::Display for SandboxPolicy {
     }
 }
 
+impl std::str::FromStr for SandboxPolicy {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().replace('-', "_").as_str() {
+            "read_only" | "readonly" => Ok(Self::ReadOnly),
+            "workspace_write" | "workspacewrite" => Ok(Self::default()),
+            "danger_full_access" | "dangerfullaccess" | "full_access" => {
+                Ok(Self::DangerFullAccess)
+            }
+            other => Err(format!(
+                "unknown sandbox policy `{other}`; expected read_only|workspace_write|danger_full_access"
+            )),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +170,45 @@ mod tests {
         let s = serde_json::to_string(&p).unwrap();
         let back: SandboxPolicy = serde_json::from_str(&s).unwrap();
         assert_eq!(back, p);
+    }
+
+    #[test]
+    fn fromstr_canonical() {
+        assert_eq!(
+            "read_only".parse::<SandboxPolicy>().unwrap(),
+            SandboxPolicy::ReadOnly
+        );
+        assert_eq!(
+            "workspace_write"
+                .parse::<SandboxPolicy>()
+                .unwrap()
+                .kind_str(),
+            "workspace_write"
+        );
+        assert_eq!(
+            "danger_full_access".parse::<SandboxPolicy>().unwrap(),
+            SandboxPolicy::DangerFullAccess
+        );
+    }
+
+    #[test]
+    fn fromstr_aliases() {
+        assert_eq!(
+            "ReadOnly".parse::<SandboxPolicy>().unwrap(),
+            SandboxPolicy::ReadOnly
+        );
+        assert_eq!(
+            "read-only".parse::<SandboxPolicy>().unwrap(),
+            SandboxPolicy::ReadOnly
+        );
+        assert_eq!(
+            "full_access".parse::<SandboxPolicy>().unwrap(),
+            SandboxPolicy::DangerFullAccess
+        );
+    }
+
+    #[test]
+    fn fromstr_invalid() {
+        assert!("bogus".parse::<SandboxPolicy>().is_err());
     }
 }
