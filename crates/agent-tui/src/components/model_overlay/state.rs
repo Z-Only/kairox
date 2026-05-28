@@ -8,7 +8,9 @@ use std::collections::BTreeMap;
 
 use ratatui::widgets::ListState;
 
-use super::types::{OverlayFocus, OverlayMode, ProfileDraft, ProfileEditorField, PROFILE_EDITOR_FIELDS};
+use super::types::{
+    OverlayFocus, OverlayMode, ProfileDraft, ProfileEditorField, PROFILE_EDITOR_FIELDS,
+};
 use crate::components::{ModelOverlaySnapshot, ModelProfileEntry, ModelProfileTestResult};
 
 /// Effort presets exposed for reasoning-capable profiles. Mirrors the GUI's
