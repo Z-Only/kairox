@@ -1,8 +1,11 @@
+//! State types and behaviour for [`SkillsOverlay`].
+//!
+//! Key-event handling lives in [`super::keys`].
+
 use agent_core::facade::{
-    InstallRemoteSkillRequest, SkillCatalogEntry, SkillInstallSource, SkillInstallTarget,
-    SkillSettingsScope, SkillSettingsView, SkillSourceView,
+    InstallRemoteSkillRequest, SkillCatalogEntry, SkillInstallTarget, SkillSettingsView,
+    SkillSourceView,
 };
-use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 
 use crate::components::{Command, SkillEntry, SkillOverlaySnapshot};
@@ -257,43 +260,6 @@ impl SkillsOverlay {
         }
     }
 
-    pub(super) fn toggle_install_target(&mut self) {
-        self.install_target = match self.install_target {
-            SkillInstallTarget::User => SkillInstallTarget::Project,
-            SkillInstallTarget::Project => SkillInstallTarget::User,
-        };
-    }
-
-    pub(super) fn move_down(&mut self) {
-        let len = self.current_len();
-        if len == 0 {
-            return;
-        }
-        let next = match self.current_selected() {
-            Some(i) if i + 1 < len => i + 1,
-            Some(_) => len - 1,
-            None => 0,
-        };
-        self.select_current(Some(next));
-    }
-
-    pub(super) fn move_up(&mut self) {
-        if self.current_len() == 0 {
-            return;
-        }
-        let next = match self.current_selected() {
-            Some(i) if i > 0 => i - 1,
-            _ => 0,
-        };
-        self.select_current(Some(next));
-    }
-
-    pub(super) fn start_source_create(&mut self) {
-        self.mode = SkillOverlayMode::SourceEditor;
-        self.source_draft = SkillSourceDraft::new();
-        self.source_field_index = 0;
-    }
-
     pub(super) fn prune_catalog_source_filter(&mut self) {
         if let Some(source_id) = self.catalog_source_filter.as_ref() {
             if !self.sources.iter().any(|source| source.id == *source_id) {
@@ -371,65 +337,6 @@ impl SkillsOverlay {
                     package_url: entry.package_url.clone(),
                 },
             })
-    }
-
-    pub(super) fn handle_catalog_detail_key(&mut self, key: KeyCode) -> Vec<Command> {
-        match key {
-            KeyCode::Esc => self.mode = SkillOverlayMode::List,
-            KeyCode::Enter | KeyCode::Char('i') | KeyCode::Char('I') => {
-                return self
-                    .install_selected_catalog_command()
-                    .into_iter()
-                    .collect();
-            }
-            KeyCode::Char('t') | KeyCode::Char('T') => self.toggle_install_target(),
-            _ => {}
-        }
-        Vec::new()
-    }
-
-    pub(super) fn command_for_current_tab(&mut self, key: KeyCode) -> Option<Command> {
-        match (self.tab, key) {
-            (SkillTab::Installed, KeyCode::Char('e') | KeyCode::Char('E')) => self
-                .selected_installed()
-                .filter(|skill| skill.editable && skill.scope != SkillSettingsScope::Builtin)
-                .map(|skill| Command::SetSkillEnabled {
-                    skill_id: skill.id.clone(),
-                    enabled: !skill.enabled,
-                }),
-            (SkillTab::Installed, KeyCode::Char('u') | KeyCode::Char('U')) => self
-                .selected_installed()
-                .filter(|skill| skill.install_source != SkillInstallSource::Builtin)
-                .map(|skill| Command::UpdateSkillSettings {
-                    skill_id: skill.id.clone(),
-                }),
-            (SkillTab::Installed, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => {
-                self.selected_installed()
-                    .filter(|skill| skill.deletable)
-                    .map(|skill| Command::DeleteSkillSettings {
-                        skill_id: skill.id.clone(),
-                    })
-            }
-            (SkillTab::Catalog, KeyCode::Char('i') | KeyCode::Char('I')) => {
-                self.install_selected_catalog_command()
-            }
-            (SkillTab::Catalog, KeyCode::Char('t') | KeyCode::Char('T')) => {
-                self.toggle_install_target();
-                None
-            }
-            (SkillTab::Sources, KeyCode::Char('e') | KeyCode::Char('E')) => self
-                .selected_source()
-                .map(|source| Command::SetSkillSourceEnabled {
-                    source_id: source.id.clone(),
-                    enabled: !source.enabled,
-                }),
-            (SkillTab::Sources, KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete) => self
-                .selected_source()
-                .map(|source| Command::RemoveSkillSource {
-                    source_id: source.id.clone(),
-                }),
-            _ => None,
-        }
     }
 }
 
