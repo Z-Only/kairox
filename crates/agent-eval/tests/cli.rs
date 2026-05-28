@@ -1,32 +1,42 @@
-//! End-to-end test for the `kairox-eval` binary against the smoke fixture.
+//! End-to-end tests for the `kairox-eval` binary against the smoke
+//! fixtures.
 //!
-//! Verifies that invoking the CLI over `fixtures/smoke.jsonl` with the
-//! deterministic `fake` profile exits 0 and produces a summary in which
+//! Each test drives the CLI over a deterministic fake-profile fixture
+//! and asserts that the binary exits 0 and produces a summary in which
 //! all scenarios pass.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[test]
-fn smoke_fixture_runs_clean_through_cli() {
-    let bin = env!("CARGO_BIN_EXE_kairox-eval");
+fn fixture_path(name: &str) -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let fixture = manifest_dir.join("fixtures").join("smoke.jsonl");
-    assert!(
-        fixture.is_file(),
-        "smoke fixture must exist at {}",
-        fixture.display()
-    );
+    let path = manifest_dir.join("fixtures").join(name);
+    assert!(path.is_file(), "fixture must exist at {}", path.display());
+    path
+}
 
+fn run_cli<I, S>(fixture: &Path, extra_args: I) -> serde_json::Value
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let bin = env!("CARGO_BIN_EXE_kairox-eval");
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let outputs = tempfile::tempdir().expect("outputs tempdir");
+    let home_dir = tempfile::tempdir().expect("home tempdir");
     let results_path = outputs.path().join("results.jsonl");
     let summary_path = outputs.path().join("summary.json");
 
+    // Isolate config discovery from any user-level `~/.kairox/config.toml`
+    // by pointing HOME at an empty temp dir; this keeps the fake profile
+    // bound to its built-in defaults regardless of the developer's setup.
     let output = Command::new(bin)
+        .env("HOME", home_dir.path())
+        .env("USERPROFILE", home_dir.path())
+        .current_dir(workspace.path())
         .arg("run")
         .arg("--scenarios")
-        .arg(&fixture)
+        .arg(fixture)
         .arg("--output")
         .arg(&results_path)
         .arg("--summary")
@@ -35,6 +45,7 @@ fn smoke_fixture_runs_clean_through_cli() {
         .arg(workspace.path())
         .arg("--profile")
         .arg("fake")
+        .args(extra_args)
         .output()
         .expect("kairox-eval binary should execute");
 
@@ -53,22 +64,57 @@ fn smoke_fixture_runs_clean_through_cli() {
     );
     let summary_raw =
         std::fs::read_to_string(&summary_path).expect("summary.json should be readable");
-    let summary: serde_json::Value =
-        serde_json::from_str(&summary_raw).expect("summary.json should parse as JSON");
+    serde_json::from_str(&summary_raw).expect("summary.json should parse as JSON")
+}
 
+fn assert_all_passed(summary: &serde_json::Value, expected_total: u64) {
     assert_eq!(
         summary["total"].as_u64(),
-        Some(3),
-        "summary should report 3 total scenarios, got: {summary_raw}"
+        Some(expected_total),
+        "summary should report {expected_total} total scenarios, got: {summary}"
     );
     assert_eq!(
         summary["failed"].as_u64(),
         Some(0),
-        "summary should report 0 failed scenarios, got: {summary_raw}"
+        "summary should report 0 failed scenarios, got: {summary}"
     );
     assert_eq!(
         summary["passed"].as_u64(),
-        Some(3),
-        "summary should report 3 passed scenarios, got: {summary_raw}"
+        Some(expected_total),
+        "summary should report {expected_total} passed scenarios, got: {summary}"
     );
+}
+
+#[test]
+fn smoke_fixture_runs_clean_through_cli() {
+    let fixture = fixture_path("smoke.jsonl");
+    let summary = run_cli(&fixture, std::iter::empty::<&str>());
+    assert_all_passed(&summary, 3);
+}
+
+#[test]
+fn smoke_tool_call_fixture_runs_clean_through_cli() {
+    let fixture = fixture_path("smoke-tool-call.jsonl");
+    let summary = run_cli(
+        &fixture,
+        ["--fake-emit-tool-call", "--wait-timeout-ms", "5000"],
+    );
+    assert_all_passed(&summary, 1);
+}
+
+#[test]
+fn smoke_compaction_fixture_runs_clean_through_cli() {
+    let fixture = fixture_path("smoke-compaction.jsonl");
+    let summary = run_cli(
+        &fixture,
+        [
+            "--auto-compact-threshold",
+            "0.001",
+            "--seed-synthetic-pairs",
+            "4",
+            "--wait-timeout-ms",
+            "5000",
+        ],
+    );
+    assert_all_passed(&summary, 1);
 }

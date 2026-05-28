@@ -2,17 +2,18 @@
 
 use agent_config::Config;
 use agent_core::{
-    AppFacade, DomainEvent, EventPayload, SendMessageRequest, StartSessionRequest, TraceEntry,
+    AgentId, AppFacade, DomainEvent, EventPayload, PrivacyClassification, SendMessageRequest,
+    SessionId, StartSessionRequest, TraceEntry, WorkspaceId,
 };
 use agent_memory::SqliteMemoryStore;
-use agent_models::ModelRouter;
+use agent_models::{FakeModelClient, ModelRouter};
 use agent_runtime::LocalRuntime;
-use agent_store::SqliteEventStore;
+use agent_store::{EventStore, SqliteEventStore};
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub type Result<T> = std::result::Result<T, EvalError>;
 
@@ -79,6 +80,32 @@ pub struct EvalRunOptions {
     pub include_trace: bool,
     pub enable_mcp: bool,
     pub enable_hooks: bool,
+    /// Override `config.context.auto_compact_threshold` for this run. Use
+    /// a small value (for example `0.001`) on the `fake` profile to force
+    /// a single-turn auto-compaction; leave `None` to keep the
+    /// project/default value (typically `0.85`).
+    pub auto_compact_threshold: Option<f32>,
+    /// When true, re-register the `fake` profile on the router with a
+    /// `FakeModelClient` that emits a tool-call after its token stream.
+    /// Combine with `fake_tool_id` / `fake_tool_arguments` to control the
+    /// tool invoked. Defaults to `fs.list {"path":"."}` which is safe in
+    /// any temp workspace.
+    pub fake_emit_tool_call: bool,
+    pub fake_tool_id: Option<String>,
+    pub fake_tool_arguments: Option<serde_json::Value>,
+    /// When set, after `send_message` returns, [`EvalHarness::run_scenario`]
+    /// polls the persisted trace until every event listed in
+    /// `scenario.expected.event_types` is present or this many milliseconds
+    /// have elapsed. Needed for events emitted by detached background tasks
+    /// such as auto-compaction.
+    pub wait_timeout_ms: Option<u64>,
+    /// Seed this many synthetic `UserMessageAdded`/`AssistantMessageCompleted`
+    /// pairs directly into the event store before each `send_message`.
+    /// `compaction::pick_compaction_boundary` needs at least
+    /// `KEEP_LAST_PAIRS + 1` complete pairs (currently 4) to emit
+    /// `ContextCompactionStarted`/`Completed`; a single fake turn alone is
+    /// silently dropped. Use `4` to drive a deterministic compaction smoke.
+    pub seed_synthetic_pairs: Option<usize>,
 }
 
 impl Default for EvalRunOptions {
@@ -95,6 +122,12 @@ impl Default for EvalRunOptions {
             include_trace: false,
             enable_mcp: false,
             enable_hooks: false,
+            auto_compact_threshold: None,
+            fake_emit_tool_call: false,
+            fake_tool_id: None,
+            fake_tool_arguments: None,
+            wait_timeout_ms: None,
+            seed_synthetic_pairs: None,
         }
     }
 }
@@ -196,11 +229,17 @@ impl EvalHarness {
             config.features.hooks = false;
             config.hooks.clear();
         }
+        if let Some(threshold) = options.auto_compact_threshold {
+            config.context.auto_compact_threshold = threshold;
+        }
         let default_profile = options
             .default_profile
             .clone()
             .unwrap_or_else(|| config.default_profile());
-        let router = config.build_router();
+        let mut router = config.build_router();
+        if options.fake_emit_tool_call {
+            install_fake_tool_call(&mut router, &options)?;
+        }
         let ollama_clients = agent_config::build_ollama_clients(&config);
         let mcp_server_defs = if options.enable_mcp {
             config.mcp_server_defs()
@@ -262,6 +301,16 @@ impl EvalHarness {
             })
             .await?;
 
+        if let Some(pairs) = self.options.seed_synthetic_pairs {
+            seed_synthetic_history_pairs(
+                self.runtime.store(),
+                &self.workspace_id,
+                &session_id,
+                pairs,
+            )
+            .await?;
+        }
+
         let started = Instant::now();
         let send_result = self
             .runtime
@@ -278,8 +327,21 @@ impl EvalHarness {
             .runtime
             .get_session_projection(session_id.clone())
             .await?;
-        let trace_entries = self.runtime.get_trace(session_id).await?;
-        let trace_events: Vec<DomainEvent> = trace_entries.into_iter().map(trace_event).collect();
+        let trace_events: Vec<DomainEvent> = match self.options.wait_timeout_ms {
+            Some(timeout_ms) if !scenario.expected.event_types.is_empty() => {
+                wait_for_expected_event_types(
+                    &self.runtime,
+                    session_id,
+                    &scenario.expected.event_types,
+                    Duration::from_millis(timeout_ms),
+                )
+                .await?
+            }
+            _ => {
+                let trace_entries = self.runtime.get_trace(session_id).await?;
+                trace_entries.into_iter().map(trace_event).collect()
+            }
+        };
         let event_types: Vec<String> = trace_events
             .iter()
             .map(|event| event.event_type.clone())
@@ -460,4 +522,104 @@ fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> boo
 
 fn trace_event(entry: TraceEntry) -> DomainEvent {
     entry.event
+}
+
+/// Re-register the `fake` profile on `router` with a [`FakeModelClient`]
+/// that also emits a tool-call after its token stream. The default tool
+/// is `fs.list {"path":"."}` which is always callable in a temp
+/// workspace; callers can override via `options.fake_tool_id` and
+/// `options.fake_tool_arguments`.
+fn install_fake_tool_call(router: &mut ModelRouter, options: &EvalRunOptions) -> Result<()> {
+    let profile = router.get_profile("fake").cloned().ok_or_else(|| {
+        EvalError::Cli(
+            "--fake-emit-tool-call requested but the loaded config has no `fake` profile"
+                .to_string(),
+        )
+    })?;
+    let tool_id = options
+        .fake_tool_id
+        .clone()
+        .unwrap_or_else(|| "fs.list".to_string());
+    let arguments = options
+        .fake_tool_arguments
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({"path": "."}));
+    let client = FakeModelClient::new(vec!["hello from Kairox".to_string()])
+        .with_tool_call_for(tool_id, arguments);
+    router.register(profile, Arc::new(client));
+    Ok(())
+}
+
+/// Append `pairs` synthetic `UserMessageAdded`/`AssistantMessageCompleted`
+/// turns directly into the event store. Used to give the auto-compaction
+/// scheduler enough history (`>= KEEP_LAST_PAIRS + 1` pairs) so that
+/// `compact_session` actually emits `ContextCompactionStarted` and
+/// `ContextCompactionCompleted` on the first real turn. Timestamps are
+/// monotonic and live in the recent past so the boundary picker keeps
+/// them in the compaction candidate window.
+async fn seed_synthetic_history_pairs(
+    store: &SqliteEventStore,
+    workspace_id: &WorkspaceId,
+    session_id: &SessionId,
+    pairs: usize,
+) -> Result<()> {
+    let base = chrono::Utc::now() - chrono::Duration::hours(1);
+    for i in 0..pairs {
+        let user = DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: format!("eval-seed-user-{i}"),
+                content: format!("seed user {i}"),
+            },
+        )
+        .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2));
+        store.append(&user).await?;
+
+        let assistant = DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::AssistantMessageCompleted {
+                message_id: format!("eval-seed-assistant-{i}"),
+                content: format!("seed assistant {i}"),
+            },
+        )
+        .with_timestamp(base + chrono::Duration::seconds(i as i64 * 2 + 1));
+        store.append(&assistant).await?;
+    }
+    Ok(())
+}
+
+/// Poll [`AppFacade::get_trace`] up to `timeout` waiting for every event
+/// type in `expected_types` to appear at least once. Returns the most
+/// recently observed trace. Used by [`EvalHarness::run_scenario`] to
+/// surface events emitted by detached background tasks (e.g.
+/// auto-compaction) that fire after `send_message` has returned.
+async fn wait_for_expected_event_types(
+    runtime: &Arc<LocalRuntime<SqliteEventStore, ModelRouter>>,
+    session_id: agent_core::SessionId,
+    expected_types: &[String],
+    timeout: Duration,
+) -> Result<Vec<DomainEvent>> {
+    let deadline = Instant::now() + timeout;
+    let poll_interval = Duration::from_millis(25);
+    loop {
+        let trace_entries = runtime.get_trace(session_id.clone()).await?;
+        let trace_events: Vec<DomainEvent> = trace_entries.into_iter().map(trace_event).collect();
+        let event_types: Vec<&str> = trace_events
+            .iter()
+            .map(|event| event.event_type.as_str())
+            .collect();
+        let all_present = expected_types
+            .iter()
+            .all(|needle| event_types.iter().any(|seen| *seen == needle));
+        if all_present || Instant::now() >= deadline {
+            return Ok(trace_events);
+        }
+        tokio::time::sleep(poll_interval).await;
+    }
 }

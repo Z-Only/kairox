@@ -497,15 +497,15 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
 
-      - name: Run kairox-eval smoke fixture
+      - name: Run kairox-eval smoke fixtures
         run: just eval-smoke
 
-      - name: Upload eval-smoke summary
+      - name: Upload eval-smoke summaries
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: eval-smoke-summary
-          path: target/eval-smoke/summary.json
+          path: target/eval-smoke/**/summary.json
           retention-days: 7
 
   live-model-tests:

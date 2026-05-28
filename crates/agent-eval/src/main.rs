@@ -25,6 +25,12 @@ async fn run() -> Result<()> {
         include_trace: args.include_trace,
         enable_mcp: args.enable_mcp,
         enable_hooks: args.enable_hooks,
+        auto_compact_threshold: args.auto_compact_threshold,
+        fake_emit_tool_call: args.fake_emit_tool_call,
+        fake_tool_id: args.fake_tool_id,
+        fake_tool_arguments: args.fake_tool_arguments,
+        wait_timeout_ms: args.wait_timeout_ms,
+        seed_synthetic_pairs: args.seed_synthetic_pairs,
     })
     .await?;
     let results = harness.run_scenarios(&scenarios).await;
@@ -53,6 +59,12 @@ struct CliArgs {
     include_trace: bool,
     enable_mcp: bool,
     enable_hooks: bool,
+    auto_compact_threshold: Option<f32>,
+    fake_emit_tool_call: bool,
+    fake_tool_id: Option<String>,
+    fake_tool_arguments: Option<serde_json::Value>,
+    wait_timeout_ms: Option<u64>,
+    seed_synthetic_pairs: Option<usize>,
 }
 
 impl CliArgs {
@@ -70,6 +82,12 @@ impl CliArgs {
         let mut include_trace = false;
         let mut enable_mcp = false;
         let mut enable_hooks = false;
+        let mut auto_compact_threshold: Option<f32> = None;
+        let mut fake_emit_tool_call = false;
+        let mut fake_tool_id: Option<String> = None;
+        let mut fake_tool_arguments: Option<serde_json::Value> = None;
+        let mut wait_timeout_ms: Option<u64> = None;
+        let mut seed_synthetic_pairs: Option<usize> = None;
 
         let mut iter = args.into_iter().peekable();
         if iter.peek().is_some_and(|arg| arg == "run") {
@@ -94,6 +112,42 @@ impl CliArgs {
                 "--include-trace" => include_trace = true,
                 "--enable-mcp" => enable_mcp = true,
                 "--enable-hooks" => enable_hooks = true,
+                "--auto-compact-threshold" => {
+                    let raw = next_value(&mut iter, "--auto-compact-threshold")?;
+                    auto_compact_threshold = Some(raw.parse().map_err(|error| {
+                        agent_eval::EvalError::Cli(format!(
+                            "invalid --auto-compact-threshold `{raw}`: {error}"
+                        ))
+                    })?);
+                }
+                "--fake-emit-tool-call" => fake_emit_tool_call = true,
+                "--fake-tool-id" => {
+                    fake_tool_id = Some(next_value(&mut iter, "--fake-tool-id")?);
+                }
+                "--fake-tool-arguments" => {
+                    let raw = next_value(&mut iter, "--fake-tool-arguments")?;
+                    fake_tool_arguments = Some(serde_json::from_str(&raw).map_err(|error| {
+                        agent_eval::EvalError::Cli(format!(
+                            "invalid --fake-tool-arguments JSON `{raw}`: {error}"
+                        ))
+                    })?);
+                }
+                "--wait-timeout-ms" => {
+                    let raw = next_value(&mut iter, "--wait-timeout-ms")?;
+                    wait_timeout_ms = Some(raw.parse().map_err(|error| {
+                        agent_eval::EvalError::Cli(format!(
+                            "invalid --wait-timeout-ms `{raw}`: {error}"
+                        ))
+                    })?);
+                }
+                "--seed-synthetic-pairs" => {
+                    let raw = next_value(&mut iter, "--seed-synthetic-pairs")?;
+                    seed_synthetic_pairs = Some(raw.parse().map_err(|error| {
+                        agent_eval::EvalError::Cli(format!(
+                            "invalid --seed-synthetic-pairs `{raw}`: {error}"
+                        ))
+                    })?);
+                }
                 "--help" | "-h" => return Err(agent_eval::EvalError::Cli(usage())),
                 other => {
                     return Err(agent_eval::EvalError::Cli(format!(
@@ -119,6 +173,12 @@ impl CliArgs {
             include_trace,
             enable_mcp,
             enable_hooks,
+            auto_compact_threshold,
+            fake_emit_tool_call,
+            fake_tool_id,
+            fake_tool_arguments,
+            wait_timeout_ms,
+            seed_synthetic_pairs,
         })
     }
 }
@@ -151,5 +211,5 @@ fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
 }
 
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>]".into()
 }

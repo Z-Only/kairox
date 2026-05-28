@@ -184,15 +184,51 @@ test-live:
     cargo test -p agent-runtime --features live-model-tests --test live_model_tests -- --nocapture
     @echo "✅ Live model tests passed (or skipped without GITHUB_TOKEN)"
 
-# Run the deterministic kairox-eval smoke fixture (fake profile, no network).
-# Produces target/eval-smoke/results.jsonl and target/eval-smoke/summary.json.
+# Run the deterministic kairox-eval smoke fixtures (fake profile, no
+# network): the base smoke fixture, the tool-call fixture, and the
+# compaction fixture. Each produces results.jsonl + summary.json under
+# target/eval-smoke/<name>/.
+#
+# After building, HOME is redirected to a per-run temp dir for the
+# binary invocations so the recipe ignores any user-level
+# `~/.kairox/config.toml` overrides and uses the built-in fake-profile
+# defaults; this keeps local runs equivalent to CI. HOME is left intact
+# for `cargo build` itself so rustup and the cargo cache work normally.
 eval-smoke:
-    mkdir -p target/eval-smoke
-    cargo run --quiet -p agent-eval --bin kairox-eval -- \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --quiet -p agent-eval --bin kairox-eval
+    KAIROX_EVAL_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
+    KAIROX_EVAL_BIN="${KAIROX_EVAL_TARGET_DIR}/debug/kairox-eval"
+    KAIROX_EVAL_HOME="$(mktemp -d)"
+    KAIROX_EVAL_WS="$(mktemp -d)"
+    trap 'rm -rf "$KAIROX_EVAL_HOME" "$KAIROX_EVAL_WS"' EXIT
+    mkdir -p target/eval-smoke/base
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
         run \
         --scenarios crates/agent-eval/fixtures/smoke.jsonl \
-        --output target/eval-smoke/results.jsonl \
-        --summary target/eval-smoke/summary.json
+        --output target/eval-smoke/base/results.jsonl \
+        --summary target/eval-smoke/base/summary.json \
+        --workspace "$KAIROX_EVAL_WS"
+    mkdir -p target/eval-smoke/tool-call
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/smoke-tool-call.jsonl \
+        --output target/eval-smoke/tool-call/results.jsonl \
+        --summary target/eval-smoke/tool-call/summary.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --fake-emit-tool-call \
+        --wait-timeout-ms 5000
+    mkdir -p target/eval-smoke/compaction
+    HOME="$KAIROX_EVAL_HOME" "$KAIROX_EVAL_BIN" \
+        run \
+        --scenarios crates/agent-eval/fixtures/smoke-compaction.jsonl \
+        --output target/eval-smoke/compaction/results.jsonl \
+        --summary target/eval-smoke/compaction/summary.json \
+        --workspace "$KAIROX_EVAL_WS" \
+        --auto-compact-threshold 0.001 \
+        --seed-synthetic-pairs 4 \
+        --wait-timeout-ms 5000
 
 # Build the Tauri debug binary with the pilot plugin enabled and run the
 # tauri-pilot E2E scenarios under apps/agent-gui/e2e-pilot/. Requires the

@@ -72,6 +72,108 @@ async fn runs_fake_scenario_and_records_trace_metrics() {
     assert!(result.trace.is_some());
 }
 
+#[tokio::test]
+async fn fake_tool_call_scenario_emits_tool_lifecycle_events() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        include_trace: true,
+        fake_emit_tool_call: true,
+        wait_timeout_ms: Some(5_000),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "fake-tool-call".into(),
+        prompt: "List the workspace root".into(),
+        expected: EvalExpectation {
+            event_types: vec![
+                "UserMessageAdded".into(),
+                "ModelToolCallRequested".into(),
+                "ToolInvocationStarted".into(),
+                "ToolInvocationCompleted".into(),
+                "AssistantMessageCompleted".into(),
+            ],
+            min_tool_invocations: Some(1),
+            max_tool_failures: Some(0),
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+    assert!(result
+        .event_types
+        .contains(&"ModelToolCallRequested".into()));
+    assert!(result.event_types.contains(&"ToolInvocationStarted".into()));
+    assert!(result
+        .event_types
+        .contains(&"ToolInvocationCompleted".into()));
+    assert_eq!(result.tool_invocations, 1);
+    assert_eq!(result.tool_failures, 0);
+}
+
+#[tokio::test]
+async fn fake_compaction_scenario_triggers_auto_compaction_events() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        include_trace: true,
+        // Push the threshold below the first-turn usage ratio so the
+        // turn-end auto-compaction fires. The runtime needs at least
+        // `KEEP_LAST_PAIRS + 1` pairs (4) in the event store to actually
+        // emit `ContextCompactionStarted`/`Completed`, so we also seed
+        // synthetic history.
+        auto_compact_threshold: Some(0.001),
+        seed_synthetic_pairs: Some(4),
+        wait_timeout_ms: Some(5_000),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "fake-compaction".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_contains: vec!["hello from Kairox".into()],
+            event_types: vec![
+                "UserMessageAdded".into(),
+                "AssistantMessageCompleted".into(),
+                "ContextCompactionStarted".into(),
+                "ContextCompactionCompleted".into(),
+            ],
+            max_tool_failures: Some(0),
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(result.passed, "{:?}", result.failures);
+    assert!(result
+        .event_types
+        .contains(&"ContextCompactionStarted".into()));
+    assert!(result
+        .event_types
+        .contains(&"ContextCompactionCompleted".into()));
+}
+
 #[test]
 fn summary_counts_passes_failures_and_cost_drivers() {
     let passed = EvalResult {
