@@ -5,9 +5,8 @@
 
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 
-use super::state::{
-    ModelOverlay, OverlayFocus, OverlayMode, ProfileDraft, PROFILE_EDITOR_FIELDS, REASONING_EFFORTS,
-};
+use super::state::{ModelOverlay, REASONING_EFFORTS};
+use super::types::{OverlayFocus, OverlayMode, ProfileDraft, PROFILE_EDITOR_FIELDS};
 use crate::components::{Command, CrossPanelEffect, EventContext};
 
 #[cfg(test)]
