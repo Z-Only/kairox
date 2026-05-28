@@ -105,6 +105,36 @@ function toggle() {
   }
 }
 
+// Stable per-instance id so the row can advertise the controlled
+// detail panel via `aria-controls`. `useId()` (Vue 3.5+) guarantees
+// uniqueness even when multiple rows for the same `toolId` are mounted.
+const detailPanelId = useId();
+
+/**
+ * Keyboard activation parity with `ChatPermissionItem`'s row.
+ *
+ * The clickable header row is now Tab-reachable (`tabindex="0"`,
+ * `role="button"`), so Enter and Space must toggle the detail panel.
+ * Two correctness rules:
+ *
+ *   1. Only handle the key when the row itself is focused — otherwise
+ *      a keydown bubbling up from the inner `KxIconButton` (which
+ *      already handles its own activation via native click) would
+ *      double-toggle.
+ *   2. `preventDefault()` on Space to avoid the default page-scroll
+ *      behaviour, matching the WAI-ARIA button pattern.
+ */
+function onKeydown(event: KeyboardEvent) {
+  if (event.target !== event.currentTarget) return;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    toggle();
+  } else if (event.key === " " || event.key === "Spacebar") {
+    event.preventDefault();
+    toggle();
+  }
+}
+
 const statusIcon: Record<ChatToolCallItemProps["status"], string> = {
   running: "⏳",
   completed: "✅",
@@ -176,7 +206,15 @@ const outputIsDiff = computed(() =>
     :class="['chat-tool-call', `chat-tool-call--${props.status}`]"
     data-test="chat-tool-call-item"
   >
-    <div class="chat-tool-call__row" @click="toggle">
+    <div
+      class="chat-tool-call__row"
+      role="button"
+      tabindex="0"
+      :aria-expanded="isExpanded ? 'true' : 'false'"
+      :aria-controls="detailPanelId"
+      @click="toggle"
+      @keydown="onKeydown"
+    >
       <span
         class="chat-tool-call__status"
         role="img"
@@ -223,7 +261,7 @@ const outputIsDiff = computed(() =>
         <span aria-hidden="true">{{ isExpanded ? "▾" : "▸" }}</span>
       </KxIconButton>
     </div>
-    <div v-if="isExpanded" class="chat-tool-call__detail">
+    <div v-if="isExpanded" :id="detailPanelId" class="chat-tool-call__detail">
       <div
         v-if="startedAgoLabel"
         class="chat-tool-call__started-ago"
@@ -270,9 +308,18 @@ const outputIsDiff = computed(() =>
   gap: 6px;
   padding: 6px 8px;
   cursor: pointer;
+  /* The row is a keyboard-focusable role="button"; strip the default
+     user-agent focus halo and replace it via :focus-visible below so
+     mouse clicks don't show a ring but Tab focus stays obvious. */
+  outline: none;
 }
 .chat-tool-call__row:hover {
   background: var(--app-hover-color);
+}
+.chat-tool-call__row:focus-visible {
+  outline: 2px solid var(--app-primary-color, #2080f0);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 .chat-tool-call__status {
   font-size: 12px;
