@@ -4,12 +4,14 @@
 //!
 //! Split into:
 //! - [`state`]: data model, selection queries, and panel methods.
-//! - [`actions`]: action handler methods that mutate panel state.
+//! - [`keys`]: key-event dispatch (KeyCode → actions/commands).
+//! - [`actions`]: business-logic mutations invoked by key handlers.
 //! - [`render`]: list layout, archive manager modal, and action overlay.
 //!
 //! Mirrors the layout used by `mcp_overlay` and `skills_overlay`.
 
 mod actions;
+mod keys;
 mod render;
 mod state;
 
