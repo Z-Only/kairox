@@ -1,59 +1,14 @@
-//! Help overlay for global and context-specific TUI shortcuts.
+//! Rendering functions for the help overlay.
 
-use crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::components::{
-    Command, Component, CrossPanelEffect, EventContext, FocusTarget, HelpOverlaySnapshot,
-};
+use crate::components::FocusTarget;
 
-#[derive(Debug, Clone)]
-pub struct HelpOverlay {
-    focused: bool,
-    visible: bool,
-    snapshot: HelpOverlaySnapshot,
-}
-
-impl Default for HelpOverlay {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl HelpOverlay {
-    pub fn new() -> Self {
-        Self {
-            focused: false,
-            visible: false,
-            snapshot: HelpOverlaySnapshot {
-                focus: FocusTarget::Chat,
-            },
-        }
-    }
-
-    pub fn is_visible(&self) -> bool {
-        self.visible
-    }
-
-    pub fn show(&mut self, snapshot: HelpOverlaySnapshot) {
-        self.visible = true;
-        self.snapshot = snapshot;
-    }
-
-    pub fn hide(&mut self) {
-        self.visible = false;
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Shortcut {
-    key: &'static str,
-    label: &'static str,
-}
+use super::state::{HelpOverlay, Shortcut};
 
 pub fn render_help_overlay(area: Rect, frame: &mut Frame, overlay: &HelpOverlay) {
     let modal_width = 84.min(area.width.saturating_sub(4));
@@ -538,50 +493,5 @@ fn context_shortcuts(focus: FocusTarget) -> &'static [Shortcut] {
                 label: "close",
             },
         ],
-    }
-}
-
-impl Component for HelpOverlay {
-    fn handle_event(
-        &mut self,
-        _ctx: &EventContext,
-        event: &Event,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let Event::Key(key) = event else {
-            return (Vec::new(), Vec::new());
-        };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
-
-        match key.code {
-            KeyCode::Esc | KeyCode::F(1) => {
-                self.hide();
-                (vec![CrossPanelEffect::DismissHelpOverlay], Vec::new())
-            }
-            _ => (Vec::new(), Vec::new()),
-        }
-    }
-
-    fn handle_effect(&mut self, effect: &CrossPanelEffect) {
-        match effect {
-            CrossPanelEffect::ShowHelpOverlay(snapshot) => self.show(*snapshot),
-            CrossPanelEffect::DismissHelpOverlay => self.hide(),
-            _ => {}
-        }
-    }
-
-    fn render(&self, area: Rect, frame: &mut Frame) {
-        if self.visible {
-            render_help_overlay(area, frame, self);
-        }
-    }
-
-    fn focused(&self) -> bool {
-        self.focused
-    }
-
-    fn set_focused(&mut self, focused: bool) {
-        self.focused = focused;
     }
 }
