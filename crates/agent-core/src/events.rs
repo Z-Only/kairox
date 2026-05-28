@@ -34,6 +34,17 @@ pub enum CompactionSkipReason {
     ThresholdDisabled,
 }
 
+/// Why a background monitor process was stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(tag = "type")]
+pub enum MonitorStopReason {
+    ExitCode { code: i32 },
+    Timeout,
+    UserStopped,
+    SessionEnded,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "type", rename_all = "PascalCase")]
@@ -315,6 +326,26 @@ pub enum EventPayload {
         source: String,
         entries: Vec<crate::facade::ServerEntry>,
     },
+    MonitorStarted {
+        monitor_id: String,
+        description: String,
+        command: String,
+        persistent: bool,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        timeout_ms: u64,
+    },
+    MonitorEvent {
+        monitor_id: String,
+        line: String,
+    },
+    MonitorStopped {
+        monitor_id: String,
+        reason: MonitorStopReason,
+    },
+    MonitorFailed {
+        monitor_id: String,
+        error: String,
+    },
 }
 
 impl EventPayload {
@@ -378,6 +409,10 @@ impl EventPayload {
             Self::CatalogSourceAdded { .. } => "CatalogSourceAdded",
             Self::CatalogSourceFailed { .. } => "CatalogSourceFailed",
             Self::CatalogSourceResultsArrived { .. } => "CatalogSourceResultsArrived",
+            Self::MonitorStarted { .. } => "MonitorStarted",
+            Self::MonitorEvent { .. } => "MonitorEvent",
+            Self::MonitorStopped { .. } => "MonitorStopped",
+            Self::MonitorFailed { .. } => "MonitorFailed",
         }
     }
 }
@@ -845,4 +880,130 @@ fn event_type_method_covers_model_profile_switched() {
         limit_source: "fallback".into(),
     };
     assert_eq!(p.event_type(), "ModelProfileSwitched");
+}
+
+#[test]
+fn monitor_stop_reason_serializes_with_internal_tag() {
+    let exit = MonitorStopReason::ExitCode { code: 1 };
+    let json = serde_json::to_value(exit).unwrap();
+    assert_eq!(json["type"], "ExitCode");
+    assert_eq!(json["code"], 1);
+
+    let timeout = MonitorStopReason::Timeout;
+    let json = serde_json::to_value(timeout).unwrap();
+    assert_eq!(json["type"], "Timeout");
+
+    let user = MonitorStopReason::UserStopped;
+    let json = serde_json::to_value(user).unwrap();
+    assert_eq!(json["type"], "UserStopped");
+
+    let session = MonitorStopReason::SessionEnded;
+    let json = serde_json::to_value(session).unwrap();
+    assert_eq!(json["type"], "SessionEnded");
+}
+
+#[test]
+fn monitor_started_event_round_trips() {
+    let payload = EventPayload::MonitorStarted {
+        monitor_id: "mon_1".into(),
+        description: "watch build logs".into(),
+        command: "tail -f build.log".into(),
+        persistent: false,
+        timeout_ms: 300_000,
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "MonitorStarted");
+    assert_eq!(json["monitor_id"], "mon_1");
+    assert_eq!(json["persistent"], false);
+    assert_eq!(json["timeout_ms"], 300_000);
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    assert!(
+        matches!(back, EventPayload::MonitorStarted { ref monitor_id, .. } if monitor_id == "mon_1")
+    );
+}
+
+#[test]
+fn monitor_event_round_trips() {
+    let payload = EventPayload::MonitorEvent {
+        monitor_id: "mon_1".into(),
+        line: "ERROR: connection refused".into(),
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "MonitorEvent");
+    assert_eq!(json["line"], "ERROR: connection refused");
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    assert!(matches!(back, EventPayload::MonitorEvent { .. }));
+}
+
+#[test]
+fn monitor_stopped_event_round_trips() {
+    let payload = EventPayload::MonitorStopped {
+        monitor_id: "mon_1".into(),
+        reason: MonitorStopReason::ExitCode { code: 0 },
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "MonitorStopped");
+    assert_eq!(json["reason"]["type"], "ExitCode");
+    assert_eq!(json["reason"]["code"], 0);
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    match back {
+        EventPayload::MonitorStopped { reason, .. } => {
+            assert_eq!(reason, MonitorStopReason::ExitCode { code: 0 });
+        }
+        other => panic!("wrong variant: {other:?}"),
+    }
+}
+
+#[test]
+fn monitor_failed_event_round_trips() {
+    let payload = EventPayload::MonitorFailed {
+        monitor_id: "mon_1".into(),
+        error: "spawn failed".into(),
+    };
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["type"], "MonitorFailed");
+    assert_eq!(json["error"], "spawn failed");
+    let back: EventPayload = serde_json::from_value(json).unwrap();
+    assert!(
+        matches!(back, EventPayload::MonitorFailed { ref error, .. } if error == "spawn failed")
+    );
+}
+
+#[test]
+fn event_type_method_covers_monitor_variants() {
+    assert_eq!(
+        EventPayload::MonitorStarted {
+            monitor_id: "x".into(),
+            description: "x".into(),
+            command: "x".into(),
+            persistent: false,
+            timeout_ms: 0,
+        }
+        .event_type(),
+        "MonitorStarted"
+    );
+    assert_eq!(
+        EventPayload::MonitorEvent {
+            monitor_id: "x".into(),
+            line: "x".into(),
+        }
+        .event_type(),
+        "MonitorEvent"
+    );
+    assert_eq!(
+        EventPayload::MonitorStopped {
+            monitor_id: "x".into(),
+            reason: MonitorStopReason::Timeout,
+        }
+        .event_type(),
+        "MonitorStopped"
+    );
+    assert_eq!(
+        EventPayload::MonitorFailed {
+            monitor_id: "x".into(),
+            error: "x".into(),
+        }
+        .event_type(),
+        "MonitorFailed"
+    );
 }
