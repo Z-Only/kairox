@@ -86,17 +86,17 @@ impl MonitorRegistry {
         let sid = session_id.clone();
 
         let join_handle = tokio::spawn(async move {
-            run_monitor(
-                mid,
+            run_monitor(RunMonitorArgs {
+                monitor_id: mid,
                 command,
                 persistent,
-                timeout,
+                timeout_ms: timeout,
                 workspace_root,
                 event_tx,
                 monitors,
-                wid,
-                sid,
-            )
+                workspace_id: wid,
+                session_id: sid,
+            })
             .await;
         });
 
@@ -153,7 +153,7 @@ impl MonitorRegistry {
     }
 }
 
-async fn run_monitor(
+struct RunMonitorArgs {
     monitor_id: String,
     command: String,
     persistent: bool,
@@ -163,7 +163,21 @@ async fn run_monitor(
     monitors: Arc<Mutex<HashMap<String, MonitorHandle>>>,
     workspace_id: WorkspaceId,
     session_id: SessionId,
-) {
+}
+
+async fn run_monitor(args: RunMonitorArgs) {
+    let RunMonitorArgs {
+        monitor_id,
+        command,
+        persistent,
+        timeout_ms,
+        workspace_root,
+        event_tx,
+        monitors,
+        workspace_id,
+        session_id,
+    } = args;
+
     let emit = |payload: EventPayload| {
         let _ = event_tx.send(DomainEvent::new(
             workspace_id.clone(),

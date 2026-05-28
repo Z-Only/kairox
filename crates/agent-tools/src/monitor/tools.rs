@@ -271,4 +271,91 @@ mod tests {
         let output = tool.invoke(invocation).await.unwrap();
         assert_eq!(output.text, "No active monitors.");
     }
+
+    #[tokio::test]
+    async fn start_tool_invoke_returns_monitor_id() {
+        let tool = MonitorStartTool::new(test_registry());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_START_TOOL_ID.into(),
+            arguments: serde_json::json!({
+                "command": "echo hello",
+                "description": "test monitor"
+            }),
+            workspace_id: "wrk_test".into(),
+            preview: "echo hello".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let output = tool.invoke(invocation).await.unwrap();
+        assert!(
+            output.text.starts_with("Monitor started: mon_"),
+            "got: {}",
+            output.text
+        );
+    }
+
+    #[tokio::test]
+    async fn start_tool_missing_command_errors() {
+        let tool = MonitorStartTool::new(test_registry());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_START_TOOL_ID.into(),
+            arguments: serde_json::json!({"description": "no cmd"}),
+            workspace_id: "wrk_test".into(),
+            preview: "".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let result = tool.invoke(invocation).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn stop_tool_unknown_monitor_errors() {
+        let tool = MonitorStopTool::new(test_registry());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_STOP_TOOL_ID.into(),
+            arguments: serde_json::json!({"monitor_id": "mon_999"}),
+            workspace_id: "wrk_test".into(),
+            preview: "stop mon_999".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let result = tool.invoke(invocation).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn stop_tool_missing_monitor_id_errors() {
+        let tool = MonitorStopTool::new(test_registry());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_STOP_TOOL_ID.into(),
+            arguments: serde_json::json!({}),
+            workspace_id: "wrk_test".into(),
+            preview: "".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let result = tool.invoke(invocation).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn start_tool_with_optional_params() {
+        let tool = MonitorStartTool::new(test_registry());
+        let invocation = ToolInvocation {
+            tool_id: MONITOR_START_TOOL_ID.into(),
+            arguments: serde_json::json!({
+                "command": "echo test",
+                "description": "persistent test",
+                "persistent": true,
+                "timeout_ms": 60000
+            }),
+            workspace_id: "wrk_test".into(),
+            preview: "echo test".into(),
+            timeout_ms: 0,
+            output_limit_bytes: 0,
+        };
+        let output = tool.invoke(invocation).await.unwrap();
+        assert!(output.text.starts_with("Monitor started: mon_"));
+    }
 }
