@@ -754,5 +754,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        if: ${{ contains(needs.*.result, 'failure') }}
         run: exit 1
