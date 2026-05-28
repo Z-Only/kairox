@@ -7,7 +7,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use super::state::{non_empty_trimmed, PluginOverlay, PluginOverlayMode, PluginTab};
+use super::state::{non_empty_trimmed, PluginOverlay};
+use super::types::{PluginOverlayMode, PluginTab};
 
 pub fn render_plugin_overlay(
     area: Rect,
