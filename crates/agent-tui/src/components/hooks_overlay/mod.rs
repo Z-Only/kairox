@@ -5,6 +5,7 @@
 //! lives here so it stays close to the public surface that other components
 //! use through `crate::components::hooks_overlay::HooksOverlay`.
 
+mod keys;
 mod render;
 mod state;
 

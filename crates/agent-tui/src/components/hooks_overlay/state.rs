@@ -4,15 +4,14 @@
 //! exposes high-level helpers used by the [`Component`](crate::components::Component)
 //! implementation in [`super::mod`](super) and the rendering helpers in
 //! [`super::render`](super::render).
+//!
+//! Key-event handling lives in [`super::keys`].
 
 use agent_core::facade::{
     HookSettingsInput, HookSettingsView, HookTemplateView, HooksSettingsView,
 };
 use agent_core::ConfigScope;
-use crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::widgets::ListState;
-
-use crate::components::{Command, CrossPanelEffect};
 
 pub(super) const HOOK_EVENTS: [&str; 6] = [
     "SessionStart",
@@ -119,7 +118,7 @@ impl HookDraft {
         }
     }
 
-    fn from_hook(hook: &HookSettingsView, fallback_scope: ConfigScope) -> Self {
+    pub(super) fn from_hook(hook: &HookSettingsView, fallback_scope: ConfigScope) -> Self {
         Self {
             scope: hook.source,
             id: hook.id.clone(),
@@ -136,7 +135,7 @@ impl HookDraft {
         .with_scope_if_read_only(fallback_scope)
     }
 
-    fn from_template(template: &HookTemplateView, scope: ConfigScope) -> Self {
+    pub(super) fn from_template(template: &HookTemplateView, scope: ConfigScope) -> Self {
         Self {
             scope,
             id: template.id.clone(),
@@ -176,7 +175,7 @@ impl HookDraft {
         self
     }
 
-    fn to_input(&self) -> Option<HookSettingsInput> {
+    pub(super) fn to_input(&self) -> Option<HookSettingsInput> {
         let id = self.id.trim();
         let event = self.event.trim();
         let command = self.command.trim();
@@ -201,7 +200,7 @@ impl HookDraft {
         })
     }
 
-    fn push_char(&mut self, field: HookEditorField, ch: char) {
+    pub(super) fn push_char(&mut self, field: HookEditorField, ch: char) {
         match field {
             HookEditorField::Scope => match ch {
                 'u' | 'U' => self.scope = ConfigScope::User,
@@ -224,7 +223,7 @@ impl HookDraft {
         }
     }
 
-    fn backspace(&mut self, field: HookEditorField) {
+    pub(super) fn backspace(&mut self, field: HookEditorField) {
         match field {
             HookEditorField::Id => {
                 self.id.pop();
@@ -248,7 +247,7 @@ impl HookDraft {
         }
     }
 
-    fn clear_field(&mut self, field: HookEditorField) {
+    pub(super) fn clear_field(&mut self, field: HookEditorField) {
         match field {
             HookEditorField::Id => self.id.clear(),
             HookEditorField::Event => self.event.clear(),
@@ -260,7 +259,7 @@ impl HookDraft {
         }
     }
 
-    fn cycle_event(&mut self, direction: i32) {
+    pub(super) fn cycle_event(&mut self, direction: i32) {
         let current = HOOK_EVENTS
             .iter()
             .position(|event| *event == self.event)
@@ -364,7 +363,7 @@ impl HooksOverlay {
         &self.project
     }
 
-    fn current_len(&self) -> usize {
+    pub(super) fn current_len(&self) -> usize {
         match self.tab {
             HooksTab::User => self.user.len(),
             HooksTab::Project => self.project.len(),
@@ -372,7 +371,7 @@ impl HooksOverlay {
         }
     }
 
-    fn current_selected(&self) -> Option<usize> {
+    pub(super) fn current_selected(&self) -> Option<usize> {
         match self.tab {
             HooksTab::User => self.user_state.selected(),
             HooksTab::Project => self.project_state.selected(),
@@ -380,7 +379,7 @@ impl HooksOverlay {
         }
     }
 
-    fn current_state_mut(&mut self) -> &mut ListState {
+    pub(super) fn current_state_mut(&mut self) -> &mut ListState {
         match self.tab {
             HooksTab::User => &mut self.user_state,
             HooksTab::Project => &mut self.project_state,
@@ -388,7 +387,7 @@ impl HooksOverlay {
         }
     }
 
-    fn selected_hook(&self) -> Option<&HookSettingsView> {
+    pub(super) fn selected_hook(&self) -> Option<&HookSettingsView> {
         let index = self.current_selected()?;
         match self.tab {
             HooksTab::User => self.user.get(index),
@@ -397,13 +396,13 @@ impl HooksOverlay {
         }
     }
 
-    fn selected_template(&self) -> Option<&HookTemplateView> {
+    pub(super) fn selected_template(&self) -> Option<&HookTemplateView> {
         self.template_state
             .selected()
             .and_then(|index| self.templates.get(index))
     }
 
-    fn ensure_selection(&mut self) {
+    pub(super) fn ensure_selection(&mut self) {
         for (len, state) in [
             (self.user.len(), &mut self.user_state),
             (self.project.len(), &mut self.project_state),
@@ -418,224 +417,8 @@ impl HooksOverlay {
         }
     }
 
-    fn move_down(&mut self) {
-        match self.mode {
-            HooksMode::List => {
-                let len = self.current_len();
-                if len == 0 {
-                    return;
-                }
-                let next = match self.current_selected() {
-                    Some(index) if index + 1 < len => index + 1,
-                    Some(_) => len - 1,
-                    None => 0,
-                };
-                self.current_state_mut().select(Some(next));
-            }
-            HooksMode::Editor => {
-                self.editor_field_index = (self.editor_field_index + 1) % EDITOR_FIELDS.len();
-            }
-        }
-    }
-
-    fn move_up(&mut self) {
-        match self.mode {
-            HooksMode::List => {
-                if self.current_len() == 0 {
-                    return;
-                }
-                let next = match self.current_selected() {
-                    Some(index) if index > 0 => index - 1,
-                    _ => 0,
-                };
-                self.current_state_mut().select(Some(next));
-            }
-            HooksMode::Editor => {
-                self.editor_field_index = if self.editor_field_index == 0 {
-                    EDITOR_FIELDS.len() - 1
-                } else {
-                    self.editor_field_index - 1
-                };
-            }
-        }
-    }
-
     pub(super) fn current_editor_field(&self) -> HookEditorField {
         EDITOR_FIELDS[self.editor_field_index]
-    }
-
-    fn switch_tab_next(&mut self) {
-        self.tab = self.tab.next();
-        self.ensure_selection();
-    }
-
-    fn switch_tab_previous(&mut self) {
-        self.tab = self.tab.previous();
-        self.ensure_selection();
-    }
-
-    fn start_create(&mut self, scope: ConfigScope) {
-        self.mode = HooksMode::Editor;
-        self.draft = HookDraft::new(scope);
-        self.editor_field_index = 1;
-    }
-
-    fn start_edit_selected(&mut self) {
-        if self.tab == HooksTab::Templates {
-            self.start_template(ConfigScope::User);
-            return;
-        }
-        let Some(scope) = self.tab.scope() else {
-            return;
-        };
-        let Some(hook) = self.selected_hook().cloned() else {
-            return;
-        };
-        self.mode = HooksMode::Editor;
-        self.draft = HookDraft::from_hook(&hook, scope);
-        self.editor_field_index = 1;
-    }
-
-    fn start_template(&mut self, scope: ConfigScope) {
-        let Some(template) = self.selected_template().cloned() else {
-            return;
-        };
-        self.mode = HooksMode::Editor;
-        self.draft = HookDraft::from_template(&template, scope);
-        self.editor_field_index = 1;
-    }
-
-    fn selected_delete_command(&self) -> Option<Command> {
-        let scope = self.tab.scope()?;
-        let hook = self.selected_hook()?;
-        Some(Command::DeleteHookSettings {
-            scope,
-            event: hook.event.clone(),
-            id: hook.id.clone(),
-        })
-    }
-
-    fn selected_toggle_command(&self) -> Option<Command> {
-        let scope = self.tab.scope()?;
-        let hook = self.selected_hook()?;
-        Some(Command::SaveHookSettings {
-            input: HookSettingsInput {
-                scope,
-                id: hook.id.clone(),
-                event: hook.event.clone(),
-                matcher: hook.matcher.clone(),
-                command: hook.command.clone(),
-                status_message: hook.status_message.clone(),
-                timeout_secs: hook.timeout_secs,
-                enabled: !hook.enabled,
-            },
-        })
-    }
-
-    fn handle_list_key(&mut self, key: KeyCode) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let mut effects = Vec::new();
-        let mut commands = Vec::new();
-
-        match key {
-            KeyCode::Char('j') | KeyCode::Down => self.move_down(),
-            KeyCode::Char('k') | KeyCode::Up => self.move_up(),
-            KeyCode::Tab | KeyCode::Right => self.switch_tab_next(),
-            KeyCode::BackTab | KeyCode::Left => self.switch_tab_previous(),
-            KeyCode::Char('n') => {
-                let scope = self.tab.scope().unwrap_or(ConfigScope::User);
-                self.start_create(scope);
-            }
-            KeyCode::Char('N') => {
-                let scope = match self.tab.scope().unwrap_or(ConfigScope::User) {
-                    ConfigScope::User => ConfigScope::Project,
-                    _ => ConfigScope::User,
-                };
-                self.start_create(scope);
-            }
-            KeyCode::Char('e') | KeyCode::Char('E') | KeyCode::Enter => {
-                self.start_edit_selected();
-            }
-            KeyCode::Char('u') | KeyCode::Char('U') if self.tab == HooksTab::Templates => {
-                self.start_template(ConfigScope::User);
-            }
-            KeyCode::Char('p') | KeyCode::Char('P') if self.tab == HooksTab::Templates => {
-                self.start_template(ConfigScope::Project);
-            }
-            KeyCode::Char(' ') => {
-                if let Some(command) = self.selected_toggle_command() {
-                    commands.push(command);
-                }
-            }
-            KeyCode::Char('x') | KeyCode::Char('X') | KeyCode::Delete => {
-                if let Some(command) = self.selected_delete_command() {
-                    commands.push(command);
-                }
-            }
-            KeyCode::Char('r') | KeyCode::Char('R') => commands.push(Command::OpenHooksOverlay),
-            KeyCode::Esc => {
-                self.hide();
-                effects.push(CrossPanelEffect::DismissHooksOverlay);
-            }
-            _ => {}
-        }
-
-        (effects, commands)
-    }
-
-    fn handle_editor_key(
-        &mut self,
-        key: KeyCode,
-        modifiers: KeyModifiers,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let mut commands = Vec::new();
-        let field = self.current_editor_field();
-
-        match key {
-            KeyCode::Down | KeyCode::Tab => self.move_down(),
-            KeyCode::Up | KeyCode::BackTab => self.move_up(),
-            KeyCode::Esc => self.mode = HooksMode::List,
-            KeyCode::Backspace => self.draft.backspace(field),
-            KeyCode::Delete => self.draft.clear_field(field),
-            KeyCode::Left if field == HookEditorField::Event => self.draft.cycle_event(-1),
-            KeyCode::Right if field == HookEditorField::Event => self.draft.cycle_event(1),
-            KeyCode::Enter => {
-                if let Some(input) = self.draft.to_input() {
-                    commands.push(Command::SaveHookSettings { input });
-                    self.mode = HooksMode::List;
-                }
-            }
-            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
-                self.draft.push_char(field, ch);
-            }
-            _ => {}
-        }
-
-        (Vec::new(), commands)
-    }
-
-    pub(super) fn handle_key_event(
-        &mut self,
-        event: &Event,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        let Event::Key(key) = event else {
-            return (Vec::new(), Vec::new());
-        };
-        if !self.visible {
-            return (Vec::new(), Vec::new());
-        }
-
-        match self.mode {
-            HooksMode::List => self.handle_list_key(key.code),
-            HooksMode::Editor => self.handle_editor_key(key.code, key.modifiers),
-        }
-    }
-
-    #[cfg(test)]
-    pub(super) fn handle_event_for_test(
-        &mut self,
-        event: &Event,
-    ) -> (Vec<CrossPanelEffect>, Vec<Command>) {
-        self.handle_key_event(event)
     }
 
     #[cfg(test)]
