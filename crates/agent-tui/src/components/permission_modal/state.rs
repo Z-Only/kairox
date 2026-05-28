@@ -1,10 +1,6 @@
 use crate::components::PermissionRequest;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct PermissionHistoryEntry {
-    pub request: PermissionRequest,
-    pub approved: bool,
-}
+use super::types::{PermissionHistoryEntry, MAX_HISTORY};
 
 pub struct PermissionModal {
     pub(super) focused: bool,
@@ -92,7 +88,6 @@ impl PermissionModal {
     fn push_history(&mut self, request: PermissionRequest, approved: bool) {
         self.history
             .push(PermissionHistoryEntry { request, approved });
-        const MAX_HISTORY: usize = 6;
         if self.history.len() > MAX_HISTORY {
             let excess = self.history.len() - MAX_HISTORY;
             self.history.drain(0..excess);

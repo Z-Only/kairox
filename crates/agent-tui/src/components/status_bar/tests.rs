@@ -153,7 +153,10 @@ fn status_bar_keeps_bounded_notification_log() {
         bar.push_notification(format!("status {index}"));
     }
 
-    assert_eq!(bar.notifications.len(), StatusBar::NOTIFICATION_LOG_LIMIT);
+    assert_eq!(
+        bar.notifications.len(),
+        super::types::NOTIFICATION_LOG_LIMIT
+    );
     assert_eq!(bar.latest_notification(), Some("status 104"));
     assert_eq!(
         bar.notifications.first().map(String::as_str),
