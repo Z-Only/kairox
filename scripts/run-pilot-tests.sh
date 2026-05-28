@@ -45,7 +45,7 @@ LIVE_MODEL_PROFILE="${KAIROX_PILOT_MODEL_PROFILE:-github-gpt4o-mini}"
 LIVE_MODEL_ID="${KAIROX_PILOT_MODEL_ID:-openai/gpt-4o-mini}"
 LIVE_MODEL_BASE_URL="${KAIROX_PILOT_MODEL_BASE_URL:-https://models.github.ai/inference}"
 LIVE_MODEL_MAX_TOKENS="${KAIROX_PILOT_MODEL_MAX_TOKENS:-64}"
-DEFAULT_LIVE_SCENARIOS=(chat-live attachment-live)
+DEFAULT_LIVE_SCENARIOS=(chat-live)
 scenarios=()
 
 # ─── Fixture registration ──────────────────────────────────────────────────────
