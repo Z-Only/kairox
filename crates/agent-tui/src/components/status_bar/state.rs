@@ -92,28 +92,8 @@ impl Component for StatusBar {
             return (Vec::new(), Vec::new());
         };
 
-        match key.code {
-            crossterm::event::KeyCode::Esc => {
-                self.close_context_details();
-                (Vec::new(), Vec::new())
-            }
-            crossterm::event::KeyCode::Char('c') | crossterm::event::KeyCode::Char('C')
-                if self.info.context_usage.is_some() && !self.info.compacting =>
-            {
-                self.close_context_details();
-                let Some(session_id) = ctx.current_session_id.as_ref() else {
-                    return (Vec::new(), Vec::new());
-                };
-                (
-                    Vec::new(),
-                    vec![Command::CompactSession {
-                        workspace_id: ctx.workspace_id.clone(),
-                        session_id: session_id.clone(),
-                    }],
-                )
-            }
-            _ => (Vec::new(), Vec::new()),
-        }
+        let commands = self.handle_key_event(ctx, key).unwrap_or_default();
+        (Vec::new(), commands)
     }
 
     fn handle_effect(&mut self, effect: &CrossPanelEffect) {

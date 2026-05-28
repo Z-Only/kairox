@@ -2,6 +2,7 @@
 
 mod context_line;
 mod context_overlay;
+mod keys;
 mod policy_labels;
 mod render;
 mod state;
