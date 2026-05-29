@@ -139,7 +139,9 @@ const groups = [
       // src counts); ~97 test lines/3 fns left T3 src, shifting functions and
       // lines down (measurement shift, no regression); floors lowered
       // functions 64 → 62, lines 91 → 90.
-      functions: 62,
+      // fs_list tests extracted to fs_list_tests.rs (excluded from src
+      // function counts); floor lowered 62 → 60 (measurement shift, no regression).
+      functions: 60,
       lines: 90
     }
   },
