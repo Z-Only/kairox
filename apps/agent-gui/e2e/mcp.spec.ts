@@ -54,6 +54,21 @@ test.describe("MCP Settings", () => {
     await expect(page.getByTestId("mcp-server-row-github")).toBeVisible();
   });
 
+  test("sorts installed servers from the filter bar", async ({ page }) => {
+    await openMcpSettings(page);
+
+    const sort = page.getByTestId("mcp-server-sort-select");
+    await expect(sort).toBeVisible();
+    await expect(sort).toHaveValue("original");
+
+    const rows = page.locator('[data-test^="mcp-server-row-"]');
+    await expect(rows.nth(0)).toHaveAttribute("data-test", "mcp-server-row-github");
+
+    await sort.selectOption("name");
+    await expect(rows.nth(0)).toHaveAttribute("data-test", "mcp-server-row-builtin-docs");
+    await expect(rows.nth(1)).toHaveAttribute("data-test", "mcp-server-row-github");
+  });
+
   test("disables and re-enables a user server at project scope", async ({ page }) => {
     await openMcpSettings(page);
     await page.getByTestId("source-btn-project").click();

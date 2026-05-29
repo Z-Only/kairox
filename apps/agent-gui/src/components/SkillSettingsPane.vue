@@ -528,6 +528,7 @@ async function installFromGithub(): Promise<void> {
 .skill-settings__remote-list {
   display: grid;
   gap: 8px;
+  align-content: start;
 }
 
 .skill-settings__remote:last-child {

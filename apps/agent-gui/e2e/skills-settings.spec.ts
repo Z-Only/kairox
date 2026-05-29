@@ -32,6 +32,26 @@ test.describe("Skills Settings", () => {
     await expect(page.getByTestId("skill-row-user-user-planning")).toBeVisible();
   });
 
+  test("keeps installed skill filter bar compact", async ({ page }) => {
+    await page.getByTestId("source-btn-project").click();
+
+    const filterBar = page.getByTestId("skill-installed-filters");
+    const searchInput = page.getByTestId("skill-installed-search-input");
+    const list = page.getByTestId("skill-installed-list");
+    await expect(filterBar).toBeVisible();
+
+    const filterBox = await filterBar.boundingBox();
+    const inputBox = await searchInput.boundingBox();
+    const listBox = await list.boundingBox();
+
+    expect(filterBox).not.toBeNull();
+    expect(inputBox).not.toBeNull();
+    expect(listBox).not.toBeNull();
+    expect(filterBox!.height).toBeLessThan(72);
+    expect(inputBox!.y - filterBox!.y).toBeLessThan(12);
+    expect(listBox!.y - (filterBox!.y + filterBox!.height)).toBeLessThan(24);
+  });
+
   test("filters skill catalog sources by search", async ({ page }) => {
     await page.getByTestId("skill-subtab-discover").click();
     await page.getByTestId("skill-source-settings-btn").click();
