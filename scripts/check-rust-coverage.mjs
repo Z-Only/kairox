@@ -75,8 +75,10 @@ const groups = [
       // mcp discovery tests extracted to discovery_tests.rs (excluded from src function counts); floor lowered 25 → 23.
       // The ~285-line discovery.rs test block also moved test lines out of the
       // T2 src tree (measurement shift, no regression); floor lowered 79 → 78.
-      functions: 23,
-      lines: 78
+      // mcp_registry tests extracted to mcp_registry_tests.rs (excluded from src function counts); floor lowered 23 → 21.
+      // The ~248-line mcp_registry.rs test block also moved test lines out of the T2 src tree (measurement shift, no regression); floor lowered 78 → 77.
+      functions: 21,
+      lines: 77
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
