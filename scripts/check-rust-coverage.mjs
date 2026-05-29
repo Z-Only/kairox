@@ -164,7 +164,8 @@ const groups = [
       // function counts); floor lowered 31 → 29.
       // app_state tests extracted to app_state_tests.rs (excluded from src
       // function counts); floor lowered 29 → 27.
-      functions: 27,
+      // scheduler tests extracted to scheduler_tests.rs (excluded from src function counts); floor lowered 27 → 25.
+      functions: 25,
       lines: 62
     }
   },
