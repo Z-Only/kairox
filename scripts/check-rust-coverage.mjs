@@ -46,7 +46,8 @@ const groups = [
       // Floor lowered 33 → 31: facade tests extracted to facade_tests.rs,
       // excluded from src function counts (same measurement shift, no regression).
       // config loader/mcp tests extracted to mcp_tests.rs (excluded from src function counts); floor lowered 31 → 29.
-      functions: 29,
+      // config loader/env tests extracted to env_tests.rs (excluded from src function counts); floor lowered 29 → 27.
+      functions: 27,
       lines: 85
     }
   },
