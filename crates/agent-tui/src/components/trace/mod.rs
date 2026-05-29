@@ -7,6 +7,7 @@
 mod memory;
 mod render;
 mod task_tree;
+mod types;
 
 #[cfg(test)]
 mod tests;
@@ -31,6 +32,7 @@ pub use task_tree::{
     build_task_tree_from_snapshot, extract_task_traces, flatten_task_tree_with_collapsed,
     TaskListRow, TaskTreeNode,
 };
+pub use types::{RightPanelTab, TraceKind, TraceStatus};
 
 #[allow(dead_code)]
 pub struct TracePanel {
@@ -307,64 +309,6 @@ impl TracePanel {
     fn clear_memory_transient_state_if_hidden(&mut self) {
         if self.active_tab != RightPanelTab::Memory {
             self.clear_memory_transient_state();
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RightPanelTab {
-    Trace,
-    Tasks,
-    Memory,
-}
-
-impl RightPanelTab {
-    fn next(self) -> Self {
-        match self {
-            Self::Trace => Self::Tasks,
-            Self::Tasks => Self::Memory,
-            Self::Memory => Self::Trace,
-        }
-    }
-
-    fn previous(self) -> Self {
-        match self {
-            Self::Trace => Self::Memory,
-            Self::Tasks => Self::Trace,
-            Self::Memory => Self::Tasks,
-        }
-    }
-
-    pub(super) fn label(self) -> &'static str {
-        match self {
-            Self::Trace => "Trace",
-            Self::Tasks => "Tasks",
-            Self::Memory => "Memory",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceStatus {
-    Running,
-    Success,
-    Failed,
-    Pending,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TraceKind {
-    Tool,
-    Memory,
-}
-
-impl std::fmt::Display for TraceStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Running => write!(f, "⏳"),
-            Self::Success => write!(f, "✓"),
-            Self::Failed => write!(f, "✕"),
-            Self::Pending => write!(f, "?"),
         }
     }
 }
