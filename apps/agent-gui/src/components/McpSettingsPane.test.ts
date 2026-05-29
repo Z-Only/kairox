@@ -195,6 +195,50 @@ describe("McpSettingsPane", () => {
     expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);
   });
 
+  it("sorts installed servers after applying search", async () => {
+    const zetaServer = {
+      ...githubServer,
+      id: "zeta-server",
+      name: "Zeta Server",
+      description: "Team automation"
+    };
+    const betaServer = {
+      ...githubServer,
+      id: "beta-docs",
+      name: "Beta Docs",
+      description: "Documentation helper"
+    };
+    const alphaServer = {
+      ...githubServer,
+      id: "alpha-server",
+      name: "Alpha Server",
+      description: "Team filesystem"
+    };
+    const serverFixtures = [zetaServer, betaServer, alphaServer];
+    const effectiveFixtures = serverFixtures.map(toEffective);
+    mockedCommands.listMcpServerSettings.mockResolvedValue(ok(serverFixtures));
+    mockedCommands.getEffectiveMcpServers.mockResolvedValue(ok(effectiveFixtures));
+
+    const wrapper = mountPane();
+    await flushPromises();
+    const rowIds = () =>
+      wrapper.findAll('[data-test^="mcp-server-row-"]').map((row) => row.attributes("data-test"));
+
+    const sortSelect = wrapper.get('[data-test="mcp-server-sort-select"]');
+    expect(sortSelect.attributes("aria-label")).toBe("MCP server sort");
+
+    await wrapper.find('[data-test="mcp-server-search-input"]').setValue("team");
+    expect(rowIds()).toEqual(["mcp-server-row-zeta-server", "mcp-server-row-alpha-server"]);
+
+    await sortSelect.setValue("name");
+    expect(rowIds()).toEqual(["mcp-server-row-alpha-server", "mcp-server-row-zeta-server"]);
+    expect(effectiveFixtures.map((server) => server.value.id)).toEqual([
+      "zeta-server",
+      "beta-docs",
+      "alpha-server"
+    ]);
+  });
+
   it("matches installed server search against metadata", async () => {
     const wrapper = mountPane();
     await flushPromises();

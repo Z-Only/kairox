@@ -467,6 +467,12 @@ describe("SkillSettingsPane", () => {
     });
   });
 
+  it("keeps the installed skill filters from stretching inside the scroll body", () => {
+    expectSourceMigration(skillSettingsPaneSource, {
+      requiredPatterns: [/\.skill-settings__body[\s\S]*align-content:\s*start/]
+    });
+  });
+
   it("uses shared settings toolbar and subtabs instead of local skill chrome", () => {
     expectSourceMigration(skillSettingsPaneSource, {
       required: ["SettingsSubtabs", "SettingsToolbar", "SettingsFilterBar"],

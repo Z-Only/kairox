@@ -7,6 +7,8 @@ import McpServerCard from "@/components/McpServerCard.vue";
 import McpServerFormDialog from "@/components/McpServerFormDialog.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 
+type McpServerSortMode = "original" | "name" | "source" | "transport" | "status" | "trust";
+
 const { t } = useI18n();
 const mcp = useMcpStore();
 const projectStore = useProjectStore();
@@ -15,6 +17,16 @@ const addServerDialogOpen = ref(false);
 const addServerMode = ref<"git" | "manual">("manual");
 const addServerDropdownOpen = ref(false);
 const serverSearchQuery = ref("");
+const serverSortMode = ref<McpServerSortMode>("original");
+const serverSortOptions: Array<{ value: McpServerSortMode; label: string }> = [
+  { value: "original", label: "Original order" },
+  { value: "name", label: "Name" },
+  { value: "source", label: "Source" },
+  { value: "transport", label: "Transport" },
+  { value: "status", label: "Status" },
+  { value: "trust", label: "Trust" }
+];
+const serverSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -58,6 +70,41 @@ const filteredEffectiveServers = computed(() => {
   const query = normalizedServerSearchQuery.value;
   if (!query) return mcp.effectiveServers;
   return mcp.effectiveServers.filter((server) => searchableServerText(server).includes(query));
+});
+
+function installedServerSortValue(
+  server: EffectiveMcpServerView,
+  sortMode: Exclude<McpServerSortMode, "original">
+): string {
+  switch (sortMode) {
+    case "name":
+      return server.value.name;
+    case "source":
+      return server.source;
+    case "transport":
+      return server.value.transport;
+    case "status":
+      return server.enabled ? "enabled" : "disabled";
+    case "trust":
+      return server.value.trusted ? "trusted" : "untrusted";
+  }
+}
+
+const displayedEffectiveServers = computed(() => {
+  const sortMode = serverSortMode.value;
+  const servers = filteredEffectiveServers.value;
+  if (sortMode === "original") return servers;
+
+  return servers
+    .map((server, index) => ({ server, index }))
+    .sort((left, right) => {
+      const result = serverSortCollator.compare(
+        installedServerSortValue(left.server, sortMode),
+        installedServerSortValue(right.server, sortMode)
+      );
+      return result === 0 ? left.index - right.index : result;
+    })
+    .map(({ server }) => server);
 });
 
 async function refreshInstalledServers(): Promise<void> {
@@ -195,6 +242,22 @@ function closeAddServerDialog(): void {
                 placeholder="Search MCP servers"
                 data-test="mcp-server-search-input"
               />
+              <KxSelect
+                :model-value="serverSortMode"
+                aria-label="MCP server sort"
+                data-test="mcp-server-sort-select"
+                size="compact"
+                class="mcp-settings__sort-select"
+                @update:model-value="serverSortMode = $event as McpServerSortMode"
+              >
+                <option
+                  v-for="option in serverSortOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </KxSelect>
             </div>
           </SettingsFilterBar>
 
@@ -214,7 +277,7 @@ function closeAddServerDialog(): void {
             :scroll="false"
           >
             <McpServerCard
-              v-for="server in filteredEffectiveServers"
+              v-for="server in displayedEffectiveServers"
               :key="server.value.id"
               :server="server"
             />
@@ -269,6 +332,11 @@ function closeAddServerDialog(): void {
 
 .mcp-settings__filter {
   margin-bottom: 8px;
+}
+
+.mcp-settings__sort-select {
+  flex: 0 1 180px;
+  max-width: 100%;
 }
 
 .mcp-settings button:focus-visible {
