@@ -11,19 +11,34 @@ use crate::keybindings::{resolve_key, resolve_paste, KeyAction};
 
 use crate::app::App;
 
+macro_rules! route_to_overlay {
+    ($self:ident, $overlay:expr, $event:expr) => {{
+        let ctx = EventContext {
+            focus: $self.state.focus_manager.current(),
+            current_session: &$self.state.current_session,
+            projects: &$self.state.projects,
+            sessions: &$self.state.sessions,
+            model_profile: &$self.state.model_profile,
+            sidebar_left_visible: $self.state.sidebar_left_visible,
+            sidebar_right_visible: $self.state.sidebar_right_visible,
+            workspace_id: &$self.workspace_id,
+            current_session_id: &$self.current_session_id,
+        };
+        let (effects, cmds) = $overlay.handle_event(&ctx, $event);
+        $self.dispatch_effects(effects);
+        $self.state.render_scheduler.mark_dirty();
+        return cmds;
+    }};
+}
+
 impl App {
     pub(super) fn handle_crossterm_event_unconfirmed(&mut self, event: &Event) -> Vec<Command> {
         match event {
             Event::Key(key_event) => {
-                // Ctrl+M toggles the MCP overlay even when the overlay is
-                // already visible; route through the resolver in that case.
                 let is_ctrl_m = key_event
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('m'));
-                // Ctrl+P toggles the command palette even when already
-                // visible; let the resolver fire instead of consuming the
-                // event in the palette.
                 let is_ctrl_p = key_event
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
@@ -36,8 +51,6 @@ impl App {
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
                     && matches!(key_event.code, crossterm::event::KeyCode::Char('g'));
-                // Ctrl+L toggles the model overlay even when the overlay is
-                // already visible; route through the resolver in that case.
                 let is_ctrl_l = key_event
                     .modifiers
                     .contains(crossterm::event::KeyModifiers::CONTROL)
@@ -57,43 +70,17 @@ impl App {
                 let is_f1 = matches!(key_event.code, crossterm::event::KeyCode::F(1))
                     && key_event.modifiers.is_empty();
                 if self.help_overlay.is_visible() && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.help_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.help_overlay, event);
                 }
                 if self.permission_modal.is_visible() && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
                     let ctx = EventContext {
-                        focus,
+                        focus: self.state.focus_manager.current(),
                         current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
+                        projects: &self.state.projects,
+                        sessions: &self.state.sessions,
+                        model_profile: &self.state.model_profile,
+                        sidebar_left_visible: self.state.sidebar_left_visible,
+                        sidebar_right_visible: self.state.sidebar_right_visible,
                         workspace_id: &self.workspace_id,
                         current_session_id: &self.current_session_id,
                     };
@@ -111,234 +98,34 @@ impl App {
                     }
                 }
                 if self.command_palette.is_visible() && !is_ctrl_p && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.command_palette.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.command_palette, event);
                 }
                 if self.mcp_overlay.is_visible() && !is_ctrl_m && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.mcp_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.mcp_overlay, event);
                 }
                 if self.skills_overlay.is_visible() && !is_ctrl_s && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.skills_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.skills_overlay, event);
                 }
                 if self.plugin_overlay.is_visible() && !is_ctrl_g && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.plugin_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.plugin_overlay, event);
                 }
                 if self.model_overlay.is_visible() && !is_ctrl_l && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.model_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.model_overlay, event);
                 }
                 if self.agent_overlay.is_visible() && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.agent_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.agent_overlay, event);
                 }
                 if self.instructions_overlay.is_visible() && !is_alt_i && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.instructions_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.instructions_overlay, event);
                 }
                 if self.hooks_overlay.is_visible() && !is_alt_h && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.hooks_overlay.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.hooks_overlay, event);
                 }
                 if self.sessions.is_overlay_open() && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.sessions.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.sessions, event);
                 }
                 if self.status_bar.context_details_visible() && !is_alt_c && !is_f1 {
-                    let projects = self.state.projects.clone();
-                    let sessions = self.state.sessions.clone();
-                    let model_profile = self.state.model_profile.clone();
-                    let sidebar_left = self.state.sidebar_left_visible;
-                    let sidebar_right = self.state.sidebar_right_visible;
-                    let focus = self.state.focus_manager.current();
-                    let ctx = EventContext {
-                        focus,
-                        current_session: &self.state.current_session,
-                        projects: &projects,
-                        sessions: &sessions,
-                        model_profile: &model_profile,
-                        sidebar_left_visible: sidebar_left,
-                        sidebar_right_visible: sidebar_right,
-                        workspace_id: &self.workspace_id,
-                        current_session_id: &self.current_session_id,
-                    };
-                    let (effects, cmds) = self.status_bar.handle_event(&ctx, event);
-                    self.dispatch_effects(effects);
-                    self.state.render_scheduler.mark_dirty();
-                    return cmds;
+                    route_to_overlay!(self, self.status_bar, event);
                 }
                 let permission_pending =
                     matches!(self.chat.input_state, InputState::PermissionWait { .. })
