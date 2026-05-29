@@ -117,7 +117,9 @@ const groups = [
       // src function counts); floor lowered 72 → 70 to absorb the shift.
       // monitor/tools tests extracted to tools_tests.rs (excluded from src
       // function counts); floor lowered 70 → 68.
-      functions: 68,
+      // patch/parse tests extracted to parse_tests.rs (excluded from src
+      // function counts); floor lowered 68 → 66.
+      functions: 66,
       lines: 92
     }
   },
