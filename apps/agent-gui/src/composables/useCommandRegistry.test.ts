@@ -51,9 +51,20 @@ describe("useCommandRegistry", () => {
       const registry = useCommandRegistry();
       registry.setFilter("");
       const items = registry.allItems();
-      // 4 builtins: clear, compact, model, help
       const commandItems = items.filter((i) => i.kind === "command");
-      expect(commandItems.length).toBe(4);
+      expect(commandItems.map((item) => (item.kind === "command" ? item.command.id : ""))).toEqual([
+        "clear",
+        "compact",
+        "model",
+        "help",
+        "instructions",
+        "hooks",
+        "skills",
+        "agents",
+        "plugins",
+        "mcp",
+        "models"
+      ]);
     });
 
     it("returns skills in allItems", () => {
@@ -108,12 +119,16 @@ describe("useCommandRegistry", () => {
       registry.setFilter("");
       const items = registry.allItems();
       const commandItems = items.filter((i) => i.kind === "command");
-      // Only "help" has context: "always"
-      expect(commandItems.length).toBe(1);
-      expect(commandItems[0].kind).toBe("command");
-      if (commandItems[0].kind === "command") {
-        expect(commandItems[0].command.id).toBe("help");
-      }
+      expect(commandItems.map((item) => (item.kind === "command" ? item.command.id : ""))).toEqual([
+        "help",
+        "instructions",
+        "hooks",
+        "skills",
+        "agents",
+        "plugins",
+        "mcp",
+        "models"
+      ]);
     });
   });
 
@@ -134,7 +149,14 @@ describe("useCommandRegistry", () => {
           "chat.commands.clear.description": "清空当前对话",
           "chat.commands.compact.description": "压缩上下文以节省 token",
           "chat.commands.model.description": "切换当前模型",
-          "chat.commands.help.description": "显示可用命令和技能"
+          "chat.commands.help.description": "显示可用命令和技能",
+          "chat.commands.instructions.description": "打开指令设置",
+          "chat.commands.hooks.description": "打开钩子设置",
+          "chat.commands.skills.description": "打开技能设置",
+          "chat.commands.agents.description": "打开代理设置",
+          "chat.commands.plugins.description": "打开插件设置",
+          "chat.commands.mcp.description": "打开 MCP 设置",
+          "chat.commands.models.description": "打开模型设置"
         })[key] ?? key;
       const registry = useCommandRegistry(t);
       registry.setFilter("");
@@ -148,8 +170,29 @@ describe("useCommandRegistry", () => {
         "清空当前对话",
         "压缩上下文以节省 token",
         "切换当前模型",
-        "显示可用命令和技能"
+        "显示可用命令和技能",
+        "打开指令设置",
+        "打开钩子设置",
+        "打开技能设置",
+        "打开代理设置",
+        "打开插件设置",
+        "打开 MCP 设置",
+        "打开模型设置"
       ]);
+    });
+
+    it("navigates settings slash commands through the injected route handler", async () => {
+      const navigateToRoute = vi.fn();
+      const registry = useCommandRegistry((key) => key, { navigateToRoute });
+      registry.setFilter("hooks");
+
+      const [item] = registry.allItems();
+      expect(item.kind).toBe("command");
+      if (item.kind === "command") {
+        await item.command.handler?.();
+      }
+
+      expect(navigateToRoute).toHaveBeenCalledWith("settings-hooks");
     });
 
     it("does not keep builtin command descriptions inline in the registry source", () => {

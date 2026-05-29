@@ -196,6 +196,27 @@
       },
       "help": {
         "description": "显示可用命令和技能"
+      },
+      "instructions": {
+        "description": "打开指令设置"
+      },
+      "hooks": {
+        "description": "打开钩子设置"
+      },
+      "skills": {
+        "description": "打开技能设置"
+      },
+      "agents": {
+        "description": "打开代理设置"
+      },
+      "plugins": {
+        "description": "打开插件设置"
+      },
+      "mcp": {
+        "description": "打开 MCP 设置"
+      },
+      "models": {
+        "description": "打开模型设置"
       }
     },
     "queueSend": "排队",

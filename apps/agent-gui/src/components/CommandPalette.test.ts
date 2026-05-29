@@ -117,8 +117,19 @@ describe("CommandPalette", () => {
       reusePinia: true
     });
     const items = wrapper.findAll(".command-palette__item");
-    // 4 builtins: clear, compact, model, help
-    expect(items.length).toBe(4);
+    expect(items.map((item) => item.find(".command-palette__label").text())).toEqual([
+      "/clear",
+      "/compact",
+      "/model",
+      "/help",
+      "/instructions",
+      "/hooks",
+      "/skills",
+      "/agents",
+      "/plugins",
+      "/mcp",
+      "/models"
+    ]);
     expect(items[0].classes()).toContain("kx-popover-option");
   });
 
