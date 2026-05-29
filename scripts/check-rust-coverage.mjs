@@ -49,8 +49,10 @@ const groups = [
       // config loader/env tests extracted to env_tests.rs (excluded from src function counts); floor lowered 29 → 27.
       // The 192-line env.rs test block also moved test lines out of T1 src,
       // shifting lines 86.93% → 84.73% (measurement shift, no regression); floor lowered 85 → 84.
-      functions: 27,
-      lines: 84
+      // config loader/profile tests extracted to profile_tests.rs (excluded from src function counts); floor lowered 27 → 25.
+      // The ~189-line profile.rs test block also moved test lines out of T1 src (measurement shift, no regression); floor lowered 84 → 83.
+      functions: 25,
+      lines: 83
     }
   },
   // Tier 2A — High-risk runtime hot path.
