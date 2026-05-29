@@ -83,7 +83,8 @@ const groups = [
       // The ~248-line mcp_registry.rs test block also moved test lines out of the T2 src tree (measurement shift, no regression); floor lowered 78 → 77.
       // runtime project tests extracted to project_tests.rs (excluded from src function counts); ~6 test fns left T2 src, functions floor lowered 21 → 19 (measurement shift, no regression).
       // anthropic/streaming tests extracted to streaming_tests.rs (excluded from src function counts); floor lowered 19 → 17.
-      functions: 17,
+      // memory/store tests extracted to store_tests.rs (excluded from src function counts); floor lowered 17 → 15.
+      functions: 15,
       lines: 77
     }
   },
