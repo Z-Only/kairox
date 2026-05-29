@@ -62,7 +62,8 @@ const groups = [
     thresholds: {
       // Latest CI baseline (138 files): functions 30.64%, lines 81.34%.
       // Floors set to floor(actual − 1); raise as runtime-side tests land.
-      functions: 29,
+      // dag_executor tests extracted to mod_tests.rs (excluded from src function counts) — floor lowered ~2pp.
+      functions: 27,
       lines: 80
     }
   },
