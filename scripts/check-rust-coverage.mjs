@@ -64,8 +64,11 @@ const groups = [
       // Latest CI baseline (138 files): functions 30.64%, lines 81.34%.
       // Floors set to floor(actual − 1); raise as runtime-side tests land.
       // dag_executor tests extracted to mod_tests.rs (excluded from src function counts) — floor lowered ~2pp.
-      functions: 27,
-      lines: 80
+      // skill_package tests extracted to mod_tests.rs (excluded from src function counts); floor lowered 27 → 25.
+      // Same extraction moved ~318 test lines out of the T2 src tree, shifting
+      // lines 81.34% → 79.94% (measurement shift, no regression); floor lowered 80 → 79.
+      functions: 25,
+      lines: 79
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
@@ -140,8 +143,12 @@ const groups = [
     thresholds: {
       // Latest CI baseline (331 files): functions 32.42%, lines 72.84%.
       // Floors set to floor(actual − 1).
+      // Cumulative inline-test extraction (monitor/tools, skill_package,
+      // app/events tests → *_tests.rs, excluded from src line counts) shifted
+      // workspace lines 71.05% → 70.99% (measurement shift, no regression);
+      // floor lowered 71 → 70.
       functions: 31,
-      lines: 71
+      lines: 70
     }
   }
 ];
