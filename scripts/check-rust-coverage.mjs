@@ -47,8 +47,10 @@ const groups = [
       // excluded from src function counts (same measurement shift, no regression).
       // config loader/mcp tests extracted to mcp_tests.rs (excluded from src function counts); floor lowered 31 → 29.
       // config loader/env tests extracted to env_tests.rs (excluded from src function counts); floor lowered 29 → 27.
+      // The 192-line env.rs test block also moved test lines out of T1 src,
+      // shifting lines 86.93% → 84.73% (measurement shift, no regression); floor lowered 85 → 84.
       functions: 27,
-      lines: 85
+      lines: 84
     }
   },
   // Tier 2A — High-risk runtime hot path.
