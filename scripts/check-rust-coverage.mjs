@@ -45,7 +45,8 @@ const groups = [
       // measurement shift (mirrors the T3 74 → 72 adjustment below).
       // Floor lowered 33 → 31: facade tests extracted to facade_tests.rs,
       // excluded from src function counts (same measurement shift, no regression).
-      functions: 31,
+      // config loader/mcp tests extracted to mcp_tests.rs (excluded from src function counts); floor lowered 31 → 29.
+      functions: 29,
       lines: 85
     }
   },
