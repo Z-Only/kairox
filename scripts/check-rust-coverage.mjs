@@ -143,8 +143,9 @@ const groups = [
       // functions 64 → 62, lines 91 → 90.
       // fs_list tests extracted to fs_list_tests.rs (excluded from src
       // function counts); floor lowered 62 → 60 (measurement shift, no regression).
-      functions: 60,
-      lines: 90
+      // search/fallback tests extracted to fallback_tests.rs (excluded from src counts); ~159 test lines left T3 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 60 → 58, lines 90 → 89.
+      functions: 58,
+      lines: 89
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
