@@ -263,6 +263,7 @@ pub enum McpContentBlockResponse {
 mod chat;
 mod draft;
 mod marketplace;
+mod monitor;
 mod plugins;
 mod project;
 mod session;
@@ -272,6 +273,7 @@ mod skills;
 pub use chat::*;
 pub use draft::*;
 pub use marketplace::*;
+pub use monitor::*;
 pub use plugins::*;
 pub use project::*;
 pub use session::*;

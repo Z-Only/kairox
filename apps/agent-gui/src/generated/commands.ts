@@ -346,6 +346,9 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("remove_catalog_source", { id })),
   setCatalogSourceEnabled: (id: string, enabled: boolean) =>
     typedError<null, string>(__TAURI_INVOKE("set_catalog_source_enabled", { id, enabled })),
+  listMonitors: () => typedError<MonitorInfoResponse[], string>(__TAURI_INVOKE("list_monitors")),
+  stopMonitor: (monitorId: string) =>
+    typedError<null, string>(__TAURI_INVOKE("stop_monitor", { monitorId })),
   listWorkspaceFiles: (workspacePath: string) =>
     typedError<WorkspaceFilesResponse, string>(
       __TAURI_INVOKE("list_workspace_files", { workspacePath })
@@ -708,6 +711,14 @@ export type MemoryEntryResponse = {
   key: string | null;
   content: string;
   accepted: boolean;
+};
+
+export type MonitorInfoResponse = {
+  monitor_id: string;
+  description: string;
+  command: string;
+  persistent: boolean;
+  timeout_ms: number;
 };
 
 export type PluginCatalogEntry = {
