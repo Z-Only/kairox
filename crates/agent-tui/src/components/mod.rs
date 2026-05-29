@@ -1,6 +1,7 @@
 pub mod agent_overlay;
 pub mod chat;
 pub mod command_palette;
+mod command_types;
 mod commands;
 mod effects;
 pub mod help_overlay;
