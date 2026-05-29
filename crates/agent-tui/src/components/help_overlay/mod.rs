@@ -6,6 +6,7 @@
 //! `crate::components::help_overlay::HelpOverlay`.
 
 mod render;
+mod shortcuts;
 mod state;
 mod types;
 
