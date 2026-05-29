@@ -64,7 +64,8 @@ const groups = [
       // Latest CI baseline (138 files): functions 30.64%, lines 81.34%.
       // Floors set to floor(actual − 1); raise as runtime-side tests land.
       // dag_executor tests extracted to mod_tests.rs (excluded from src function counts) — floor lowered ~2pp.
-      functions: 27,
+      // skill_package tests extracted to mod_tests.rs (excluded from src function counts); floor lowered 27 → 25.
+      functions: 25,
       lines: 80
     }
   },
