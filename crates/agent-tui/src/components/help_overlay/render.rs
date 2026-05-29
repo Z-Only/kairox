@@ -144,6 +144,14 @@ fn help_lines(focus: FocusTarget) -> Vec<Line<'static>> {
             key: ":skills",
             label: "list native skills",
         },
+        Shortcut {
+            key: ":monitors",
+            label: "list active monitors",
+        },
+        Shortcut {
+            key: ":monitor stop <id>",
+            label: "stop a monitor",
+        },
     ]));
     lines.push(Line::default());
     lines.push(Line::from(vec![

@@ -61,6 +61,8 @@ pub enum PaletteAction {
     PrefillSkillInstallGithub,
     PrefillSkillUpdate,
     PrefillSkillDelete,
+    MonitorList,
+    PrefillMonitorStop,
 }
 
 /// A static entry in the palette registry.
@@ -183,6 +185,18 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             ":skills",
             "List discovered native skills",
             PaletteAction::Skills,
+        ),
+        PaletteEntry::static_entry(
+            "monitors",
+            ":monitors",
+            "List active background monitors",
+            PaletteAction::MonitorList,
+        ),
+        PaletteEntry::static_entry(
+            "monitor-stop",
+            ":monitor stop <id>",
+            "Stop a running monitor by ID",
+            PaletteAction::PrefillMonitorStop,
         ),
         PaletteEntry::static_entry(
             "skills-manager",
@@ -427,6 +441,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         PaletteAction::PrefillSkillInstallGithub => Some(":skill install github "),
         PaletteAction::PrefillSkillUpdate => Some(":skill update "),
         PaletteAction::PrefillSkillDelete => Some(":skill delete "),
+        PaletteAction::PrefillMonitorStop => Some(":monitor stop "),
         PaletteAction::Clear
         | PaletteAction::Compact
         | PaletteAction::CancelSession
@@ -451,6 +466,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::SettingsProjectNext
         | PaletteAction::SettingsProjectPrevious
         | PaletteAction::RefreshSkillCatalog
+        | PaletteAction::MonitorList
         | PaletteAction::QueueAction(_)
         | PaletteAction::SwitchModel { .. }
         | PaletteAction::ActivateSkill { .. } => None,

@@ -69,7 +69,9 @@ pub async fn dispatch_commands<F>(
             | Command::CompactSession { .. }
             | Command::SwitchModel { .. }
             | Command::SetSessionApprovalPolicy { .. }
-            | Command::SetSessionSandboxPolicy { .. } => {}
+            | Command::SetSessionSandboxPolicy { .. }
+            | Command::MonitorList
+            | Command::MonitorStop { .. } => {}
 
             Command::OpenMcpOverlay
             | Command::SetMcpServerEnabled { .. }

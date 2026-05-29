@@ -1,6 +1,7 @@
 mod mcp;
 mod memory;
 mod model;
+mod monitor;
 mod session;
 
 use std::sync::Arc;
@@ -59,6 +60,10 @@ pub async fn dispatch_commands(
 
             Command::LoadMemories { .. } | Command::DeleteMemory { .. } => {
                 memory::dispatch(runtime, app, command).await;
+            }
+
+            Command::MonitorList | Command::MonitorStop { .. } => {
+                monitor::dispatch(runtime, app, command).await;
             }
 
             Command::CompactSession { .. }
