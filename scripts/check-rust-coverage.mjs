@@ -131,7 +131,9 @@ const groups = [
       // excluded from src function counts; defensive ~2pp drop (35 → 33).
       // app/events tests extracted to events_tests.rs (excluded from src
       // function counts); floor lowered 33 → 31.
-      functions: 31,
+      // app/render tests extracted to render_tests.rs (excluded from src
+      // function counts); floor lowered 31 → 29.
+      functions: 29,
       lines: 62
     }
   },
