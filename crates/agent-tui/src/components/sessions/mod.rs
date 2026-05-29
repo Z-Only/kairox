@@ -13,6 +13,7 @@
 mod actions;
 mod keys;
 mod render;
+mod render_items;
 mod state;
 mod types;
 
