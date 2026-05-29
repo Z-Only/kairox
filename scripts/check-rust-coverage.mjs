@@ -130,8 +130,12 @@ const groups = [
       // src line/function counts); floor lowered functions 66 → 64 and lines
       // 92 → 91 after CI reported lines 91.72% (measurement shift, no
       // production-code regression).
-      functions: 64,
-      lines: 91
+      // plugins manifest tests extracted to manifest_tests.rs (excluded from
+      // src counts); ~97 test lines/3 fns left T3 src, shifting functions and
+      // lines down (measurement shift, no regression); floors lowered
+      // functions 64 → 62, lines 91 → 90.
+      functions: 62,
+      lines: 90
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
