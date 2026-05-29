@@ -35,7 +35,15 @@ const groups = [
     thresholds: {
       // Latest CI baseline (40 files): functions 36.19%, lines 86.93%.
       // Floors set to floor(actual − 1) for nightly wobble.
-      functions: 35,
+      //
+      // Extracting inline `#[cfg(test)] mod tests` into `#[path]` sibling
+      // *_tests.rs files (registry.rs, projection.rs) removes those test
+      // functions from the T1 src-file function counts that previously
+      // inflated the ratio. *_tests.rs files are excluded from coverage
+      // (see isSourceFile), so the ratio drops to an honest 34.96% with no
+      // production-code regression. Floor lowered 35 → 33 to absorb the
+      // measurement shift (mirrors the T3 74 → 72 adjustment below).
+      functions: 33,
       lines: 85
     }
   },
