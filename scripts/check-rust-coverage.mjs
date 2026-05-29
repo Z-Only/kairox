@@ -89,8 +89,10 @@ const groups = [
       // memory/store tests extracted to store_tests.rs (excluded from src function counts); floor lowered 17 → 15.
       // agents/planner tests extracted to planner_tests.rs (excluded from src counts); ~184 test lines/8 fns left T2 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 15 → 13, lines 77 → 76.
       // mcp skillhub tests extracted to skillhub_tests.rs (excluded from src function counts); floor lowered 13 → 11.
-      functions: 11,
-      lines: 76
+      // memory compactor tests extracted to compactor_tests.rs (excluded from src counts); ~185 test lines/N fns left T2 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 11 → 9, lines 76 → 75.
+      functions: 9,
+      // memory compactor tests extracted to compactor_tests.rs (excluded from src counts); ~185 test lines left T2 src, shifting the T2 lines ratio down (measurement shift, no regression); floor lowered 76 → 75.
+      lines: 75
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
