@@ -18,7 +18,7 @@
 
 use std::collections::HashSet;
 
-use agent_core::events::{CompactionReason, CompactionSkipReason, EventPayload};
+use agent_core::events::{CompactionReason, CompactionSkipReason, EventPayload, MonitorStopReason};
 use agent_core::projection::{ProjectedMessage, ProjectedRole, SessionProjection};
 use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
 use agent_tui::components::chat::render_chat_stream;
@@ -897,5 +897,276 @@ fn multiple_stream_items_render_in_chronological_order() {
         output.matches("Compacting context...").count(),
         1,
         "exactly one compaction banner should render; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 14. Monitor — Running
+// ---------------------------------------------------------------------------
+
+#[test]
+fn running_monitor_renders_watching_glyph_and_description() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![make_event_at(
+        100,
+        EventPayload::MonitorStarted {
+            monitor_id: "mon_snap_1".into(),
+            description: "build watcher".into(),
+            command: "tail -f build.log".into(),
+            persistent: false,
+            timeout_ms: 300_000,
+        },
+    )];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains('⟳'),
+        "running monitor should render ⟳ glyph; got:\n{output}"
+    );
+    assert!(
+        output.contains("build watcher"),
+        "running monitor should render its description; got:\n{output}"
+    );
+    assert!(
+        output.contains("watching"),
+        "running monitor should render 'watching' label; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 15. Monitor — Running with last_line
+// ---------------------------------------------------------------------------
+
+#[test]
+fn running_monitor_with_event_renders_last_line() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_2".into(),
+                description: "log tailer".into(),
+                command: "tail -f app.log".into(),
+                persistent: false,
+                timeout_ms: 300_000,
+            },
+        ),
+        make_event_at(
+            200,
+            EventPayload::MonitorEvent {
+                monitor_id: "mon_snap_2".into(),
+                line: "ERROR: connection refused".into(),
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("log tailer"),
+        "monitor description should render; got:\n{output}"
+    );
+    assert!(
+        output.contains("ERROR: connection refused"),
+        "last_line from MonitorEvent should render; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 16. Monitor — Stopped (exit code 0)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stopped_monitor_exit_zero_renders_done_label() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_3".into(),
+                description: "build check".into(),
+                command: "make test".into(),
+                persistent: false,
+                timeout_ms: 300_000,
+            },
+        ),
+        make_event_at(
+            500,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_snap_3".into(),
+                reason: MonitorStopReason::ExitCode { code: 0 },
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains('■'),
+        "stopped monitor should render ■ glyph; got:\n{output}"
+    );
+    assert!(
+        output.contains("done"),
+        "exit-0 monitor should render 'done' label; got:\n{output}"
+    );
+    assert!(
+        !output.contains('⟳'),
+        "stopped monitor should not render ⟳ (running); got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 17. Monitor — Stopped (non-zero exit)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stopped_monitor_nonzero_exit_renders_exited_label() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_4".into(),
+                description: "test runner".into(),
+                command: "cargo test".into(),
+                persistent: false,
+                timeout_ms: 300_000,
+            },
+        ),
+        make_event_at(
+            800,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_snap_4".into(),
+                reason: MonitorStopReason::ExitCode { code: 1 },
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("exited"),
+        "non-zero exit monitor should render 'exited' label; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 18. Monitor — Stopped (timeout)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stopped_monitor_timeout_renders_timed_out_label() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_5".into(),
+                description: "long poll".into(),
+                command: "watch status".into(),
+                persistent: false,
+                timeout_ms: 60_000,
+            },
+        ),
+        make_event_at(
+            61_000,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_snap_5".into(),
+                reason: MonitorStopReason::Timeout,
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("timed out"),
+        "timeout monitor should render 'timed out' label; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 19. Monitor — Stopped (user stopped)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stopped_monitor_user_stopped_renders_stopped_label() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_6".into(),
+                description: "ci watcher".into(),
+                command: "gh run watch".into(),
+                persistent: true,
+                timeout_ms: 0,
+            },
+        ),
+        make_event_at(
+            2000,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_snap_6".into(),
+                reason: MonitorStopReason::UserStopped,
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains("stopped"),
+        "user-stopped monitor should render 'stopped' label; got:\n{output}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 20. Monitor — Failed
+// ---------------------------------------------------------------------------
+
+#[test]
+fn failed_monitor_renders_cross_glyph_and_error() {
+    let projection = projection_with_messages(vec![]);
+    let events = vec![
+        make_event_at(
+            100,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_snap_7".into(),
+                description: "broken watcher".into(),
+                command: "nonexistent-cmd".into(),
+                persistent: false,
+                timeout_ms: 300_000,
+            },
+        ),
+        make_event_at(
+            150,
+            EventPayload::MonitorFailed {
+                monitor_id: "mon_snap_7".into(),
+                error: "No such file or directory".into(),
+            },
+        ),
+    ];
+    let expanded = HashSet::new();
+
+    let output = render_to_string(80, 24, &projection, &events, &expanded);
+
+    assert!(
+        output.contains('✗'),
+        "failed monitor should render ✗ glyph; got:\n{output}"
+    );
+    assert!(
+        output.contains("failed"),
+        "failed monitor should render 'failed' label; got:\n{output}"
+    );
+    assert!(
+        output.contains("No such file or directory"),
+        "failed monitor should render error as last_line; got:\n{output}"
     );
 }
