@@ -6,6 +6,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
+use crate::components::theme;
+
 use super::state::{ModelOverlay, REASONING_EFFORTS};
 use super::types::{
     OverlayFocus, OverlayMode, ProfileDraft, ProfileEditorField, PROFILE_EDITOR_FIELDS,
@@ -30,14 +32,12 @@ pub fn render_model_overlay(
         .borders(Borders::ALL)
         .title(Span::styled(
             match overlay.mode {
-                OverlayMode::List => " 🤖 Model Profile ",
-                OverlayMode::Editor => " 🤖 Model Profile Editor ",
+                OverlayMode::List => " Model Profile ",
+                OverlayMode::Editor => " Model Profile Editor ",
             },
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            theme::title(),
         ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -82,7 +82,7 @@ fn render_model_profile_list(
     if overlay.profiles.is_empty() {
         let empty = Paragraph::new(Line::from(Span::styled(
             "No model profiles configured",
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         )));
         frame.render_widget(empty, columns[0]);
     } else {
@@ -94,9 +94,9 @@ fn render_model_profile_list(
                 let marker = if is_current { "● " } else { "  " };
                 let enabled_label = if p.enabled { "enabled " } else { "disabled" };
                 let enabled_color = if p.enabled {
-                    Color::Green
+                    theme::SUCCESS
                 } else {
-                    Color::DarkGray
+                    theme::MUTED
                 };
                 let reasoning_tag = if p.supports_reasoning { " [R]" } else { "" };
                 let writable_tag = if p.writable {
@@ -121,7 +121,7 @@ fn render_model_profile_list(
                     })
                     .unwrap_or_default();
                 let line = Line::from(vec![
-                    Span::styled(marker, Style::default().fg(Color::Green)),
+                    Span::styled(marker, Style::default().fg(theme::SUCCESS)),
                     Span::styled(enabled_label, Style::default().fg(enabled_color)),
                     Span::raw("  "),
                     Span::styled(
@@ -130,12 +130,12 @@ fn render_model_profile_list(
                     ),
                     Span::styled(
                         format!("  {}/{}", p.provider_display, p.model_display),
-                        Style::default().fg(Color::DarkGray),
+                        theme::muted(),
                     ),
-                    Span::styled(reasoning_tag, Style::default().fg(Color::Magenta)),
+                    Span::styled(reasoning_tag, Style::default().fg(theme::ACCENT_STRONG)),
                     Span::styled(
                         format!("  [{}{writable_tag}{key_tag}{test_tag}]", p.source),
-                        Style::default().fg(Color::DarkGray),
+                        theme::muted(),
                     ),
                 ]);
                 ListItem::new(line)
@@ -143,9 +143,7 @@ fn render_model_profile_list(
             .collect();
 
         let highlight = if overlay.overlay_focus == OverlayFocus::ProfileList {
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD)
+            theme::selected()
         } else {
             Style::default().bg(Color::Reset)
         };
@@ -160,26 +158,21 @@ fn render_model_profile_list(
                 let is_current = overlay.current_effort.as_deref() == Some(*effort);
                 let marker = if is_current { "● " } else { "  " };
                 let line = Line::from(vec![
-                    Span::styled(marker, Style::default().fg(Color::Green)),
+                    Span::styled(marker, Style::default().fg(theme::SUCCESS)),
                     Span::raw(*effort),
                 ]);
                 ListItem::new(line)
             })
             .collect();
         let highlight = if overlay.overlay_focus == OverlayFocus::EffortList {
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD)
+            theme::selected()
         } else {
             Style::default().bg(Color::Reset)
         };
         let effort_block = Block::default()
             .borders(Borders::LEFT)
-            .border_style(Style::default().fg(Color::DarkGray))
-            .title(Span::styled(
-                " effort ",
-                Style::default().fg(Color::Magenta),
-            ));
+            .border_style(theme::border(false))
+            .title(Span::styled(" effort ", theme::title()));
         let effort_inner = effort_block.inner(columns[1]);
         frame.render_widget(effort_block, columns[1]);
         let list = List::new(items).highlight_style(highlight);
@@ -187,17 +180,17 @@ fn render_model_profile_list(
     }
 
     let hints = Line::from(vec![
-        Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[n] new  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[u] edit  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[J/K] order  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[e] enable  ", Style::default().fg(Color::Green)),
-        Span::styled("[t] test  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[x] delete  ", Style::default().fg(Color::Red)),
-        Span::styled("[o] config  ", Style::default().fg(Color::Blue)),
-        Span::styled("[Tab] effort  ", Style::default().fg(Color::Magenta)),
-        Span::styled("[Enter] switch  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        Span::styled("[j/k] nav  ", theme::muted()),
+        Span::styled("[n] new  ", theme::title()),
+        Span::styled("[u] edit  ", theme::key()),
+        Span::styled("[J/K] order  ", theme::title()),
+        Span::styled("[e] enable  ", Style::default().fg(theme::SUCCESS)),
+        Span::styled("[t] test  ", theme::key()),
+        Span::styled("[x] delete  ", Style::default().fg(theme::DANGER)),
+        Span::styled("[o] config  ", Style::default().fg(theme::INFO)),
+        Span::styled("[Tab] effort  ", Style::default().fg(theme::ACCENT_STRONG)),
+        Span::styled("[Enter] switch  ", theme::key()),
+        Span::styled("[Esc] close", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), hint_area);
 }
@@ -230,25 +223,25 @@ fn render_model_profile_editor(area: Rect, frame: &mut Frame, overlay: &ModelOve
                 ""
             };
             ListItem::new(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Cyan)),
+                Span::styled(marker, theme::title()),
                 Span::styled(
                     format!("{label:<14}"),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
-                Span::styled(value, Style::default().fg(Color::Gray)),
-                Span::styled(lock_hint, Style::default().fg(Color::DarkGray)),
+                Span::styled(value, theme::muted()),
+                Span::styled(lock_hint, theme::muted()),
             ]))
         })
         .collect::<Vec<_>>();
     frame.render_widget(List::new(items), list_area);
 
     let hints = Line::from(vec![
-        Span::styled("[Tab/j/k] field  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
-        Span::styled("[Ctrl+T] test URL  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab/j/k] field  ", theme::muted()),
+        Span::styled("[space/y/n] enabled  ", Style::default().fg(theme::SUCCESS)),
+        Span::styled("[Ctrl+T] test URL  ", theme::key()),
+        Span::styled("[Enter] save  ", theme::key()),
+        Span::styled("[Esc] cancel", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), hint_area);
 }

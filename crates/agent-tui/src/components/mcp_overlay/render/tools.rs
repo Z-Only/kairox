@@ -1,8 +1,10 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{ListItem, ListState};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::super::state::McpOverlay;
 use super::super::types::resource_preview_key;
@@ -37,9 +39,9 @@ pub(super) fn render_tools(
                 "enabled "
             };
             let state_color = if tool.disabled {
-                Color::DarkGray
+                theme::MUTED
             } else {
-                Color::Green
+                theme::SUCCESS
             };
             let description = tool
                 .description
@@ -53,7 +55,7 @@ pub(super) fn render_tools(
                     tool.name.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(description, Style::default().fg(Color::Gray)),
+                Span::styled(description, theme::muted()),
             ]))
         })
         .collect();
@@ -103,10 +105,10 @@ pub(super) fn render_resources(
                 ),
                 Span::styled(
                     format!("  {}", clip(&resource.uri, 42)),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme::ACCENT),
                 ),
-                Span::styled(mime, Style::default().fg(Color::DarkGray)),
-                Span::styled(preview, Style::default().fg(Color::Gray)),
+                Span::styled(mime, theme::muted()),
+                Span::styled(preview, theme::muted()),
             ]))
         })
         .collect();
@@ -147,9 +149,9 @@ pub(super) fn render_prompts(
                 ),
                 Span::styled(
                     format!("  args:{}", prompt.argument_count),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme::ACCENT),
                 ),
-                Span::styled(description, Style::default().fg(Color::Gray)),
+                Span::styled(description, theme::muted()),
             ]))
         })
         .collect();

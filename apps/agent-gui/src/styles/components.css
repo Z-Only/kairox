@@ -7,9 +7,10 @@
   padding: 1px 8px;
   border-radius: var(--app-radius-sm);
   font-size: var(--app-text-sm);
+  font-weight: 650;
   line-height: 1.6;
-  background: var(--app-hover-color);
-  color: var(--app-text-color-2);
+  background: color-mix(in srgb, var(--app-primary-color) 12%, var(--app-card-color));
+  color: var(--app-primary-color);
 }
 
 /* === Cards === */
@@ -18,6 +19,7 @@
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-lg);
   overflow: hidden;
+  box-shadow: var(--app-shadow-sm);
 }
 
 .card-header {
@@ -25,6 +27,7 @@
   border-bottom: 1px solid var(--app-border-color);
   font-weight: 600;
   font-size: var(--app-text-lg);
+  background: color-mix(in srgb, var(--app-panel-color) 84%, var(--app-card-color));
 }
 
 .card-body {
@@ -40,6 +43,7 @@
   padding: 32px 16px;
   color: var(--app-text-color-3);
   font-size: var(--app-text-base);
+  line-height: 1.45;
 }
 
 /* === Divider === */
@@ -120,10 +124,12 @@
 }
 
 .tab-btn {
-  padding: 8px 16px;
+  min-height: 36px;
+  padding: 8px 14px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   border-bottom: 2px solid transparent;
+  border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
   color: var(--app-text-color-2);
   font-size: var(--app-text-lg);
   font-family: inherit;
@@ -146,14 +152,14 @@
   color: var(--app-primary-color);
   border-bottom-color: var(--app-primary-color);
   font-weight: 600;
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+  background: color-mix(in srgb, var(--app-primary-color) 10%, transparent);
 }
 
 /* === Dialog (native <dialog>) === */
 dialog {
   border: 1px solid var(--app-border-color);
-  border-radius: 10px;
-  background: var(--app-card-color);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-elevated-color);
   color: var(--app-text-color);
   padding: 0;
   max-width: 480px;
@@ -197,10 +203,11 @@ dialog.drawer {
 select,
 input,
 textarea {
+  min-height: 34px;
   padding: 6px 10px;
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-md);
-  background: var(--app-body-color);
+  background: var(--app-elevated-color);
   color: var(--app-text-color);
   font-size: var(--app-text-base);
   font-family: inherit;
@@ -219,7 +226,7 @@ input:focus,
 textarea:focus {
   outline: none;
   border-color: var(--app-primary-color);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary-color) 25%, transparent);
+  box-shadow: var(--app-focus-ring);
 }
 
 textarea {
@@ -260,6 +267,7 @@ textarea {
 .kx-tooltip-content:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
+  box-shadow: var(--app-focus-ring);
 }
 
 /* === Kairox UI primitives === */
@@ -291,6 +299,7 @@ textarea {
 .kx-icon-button:hover:not(:disabled) {
   background: var(--app-hover-color);
   color: var(--app-text-color);
+  border-color: color-mix(in srgb, var(--app-primary-color) 16%, transparent);
 }
 
 .kx-icon-button:disabled {
@@ -300,7 +309,7 @@ textarea {
 
 .kx-icon-button--default {
   border-color: var(--app-border-color);
-  background: var(--app-card-color);
+  background: var(--app-elevated-color);
 }
 
 .kx-icon-button--danger {
@@ -324,7 +333,7 @@ textarea {
 .kx-tooltip-content {
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-lg);
-  background: var(--app-card-color);
+  background: var(--app-elevated-color);
   color: var(--app-text-color);
   box-shadow: var(--app-overlay-shadow);
 }
@@ -342,7 +351,7 @@ textarea {
   gap: 8px;
   padding: 6px 8px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--app-radius-md);
   background: transparent;
   color: var(--app-text-color);
   font: inherit;
@@ -418,7 +427,7 @@ textarea {
   min-width: 0;
   gap: 2px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--app-radius-md);
   padding: 8px 10px;
   cursor: pointer;
   background: transparent;
@@ -488,7 +497,7 @@ textarea {
   padding: 5px 8px;
   border-radius: var(--app-radius-md);
   background: var(--app-text-color);
-  color: var(--app-body-color);
+  color: var(--app-card-color);
   font-size: var(--app-text-sm);
   line-height: 1.4;
 }
@@ -554,8 +563,8 @@ textarea {
 
 /* === Scrollbar === */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -563,10 +572,13 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--app-border-color);
-  border-radius: 3px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text-color-3) 42%, transparent);
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--app-text-color-3);
+  background: color-mix(in srgb, var(--app-text-color-3) 68%, transparent);
+  background-clip: content-box;
 }

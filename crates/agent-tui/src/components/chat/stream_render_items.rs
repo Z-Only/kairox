@@ -11,6 +11,8 @@ use agent_core::events::{CompactionSkipReason, MonitorStopReason};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use crate::components::theme;
+
 use super::stream::{
     ChatStreamItem, CompactionItemStatus, MessageRole, MonitorItemStatus, PermissionKind,
     ToolCallStatus,
@@ -18,8 +20,8 @@ use super::stream::{
 
 pub fn append_message(lines: &mut Vec<Line>, role: MessageRole, content: &str) {
     let (label, color) = match role {
-        MessageRole::User => ("You:", Color::Cyan),
-        MessageRole::Assistant => ("Agent:", Color::Green),
+        MessageRole::User => ("You:", theme::ACCENT),
+        MessageRole::Assistant => ("Agent:", theme::SUCCESS),
     };
     let content_lines: Vec<&str> = content.split('\n').collect();
     for (i, line) in content_lines.iter().enumerate() {
@@ -45,7 +47,7 @@ pub fn append_permission(
     };
 
     let border_style = Style::default()
-        .fg(Color::Yellow)
+        .fg(theme::WARNING)
         .add_modifier(Modifier::BOLD);
 
     let header = match kind {
@@ -65,7 +67,7 @@ pub fn append_permission(
         Span::styled(
             "tool: ",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(theme::MUTED)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(tool_id_value.to_string(), Style::default().fg(Color::White)),
@@ -77,7 +79,7 @@ pub fn append_permission(
             Span::styled(
                 prefix,
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(theme::MUTED)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(preview_line.to_string(), Style::default().fg(Color::White)),
@@ -88,19 +90,19 @@ pub fn append_permission(
         Span::styled(
             "press ",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(theme::MUTED)
                 .add_modifier(Modifier::DIM),
         ),
         Span::styled(
             "Y/N/D",
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             " to allow / deny / deny-all",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(theme::MUTED)
                 .add_modifier(Modifier::DIM),
         ),
     ]));
@@ -135,10 +137,10 @@ pub fn append_tool_call(
     };
 
     let (status_label, status_color) = match status {
-        ToolCallStatus::Requested => ("requested", Color::Yellow),
-        ToolCallStatus::Running => ("running", Color::Yellow),
-        ToolCallStatus::Completed => ("completed", Color::Green),
-        ToolCallStatus::Failed => ("failed", Color::Red),
+        ToolCallStatus::Requested => ("requested", theme::WARNING),
+        ToolCallStatus::Running => ("running", theme::WARNING),
+        ToolCallStatus::Completed => ("completed", theme::SUCCESS),
+        ToolCallStatus::Failed => ("failed", theme::DANGER),
     };
 
     let marker = if expanded { "▾" } else { "▸" };
@@ -146,13 +148,13 @@ pub fn append_tool_call(
         Span::styled(
             format!("{marker} "),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(theme::MUTED)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             tool_id.clone(),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw("  "),
@@ -165,10 +167,7 @@ pub fn append_tool_call(
     ];
     if let Some(dur) = duration_ms {
         header_spans.push(Span::raw("  "));
-        header_spans.push(Span::styled(
-            format_duration(dur),
-            Style::default().fg(Color::DarkGray),
-        ));
+        header_spans.push(Span::styled(format_duration(dur), theme::muted()));
     }
     lines.push(Line::from(header_spans));
 
@@ -178,7 +177,7 @@ pub fn append_tool_call(
                 for line in error.split('\n').take(3) {
                     lines.push(Line::from(vec![
                         Span::raw("  "),
-                        Span::styled(line.to_string(), Style::default().fg(Color::Red)),
+                        Span::styled(line.to_string(), Style::default().fg(theme::DANGER)),
                     ]));
                 }
             }
@@ -192,7 +191,7 @@ pub fn append_tool_call(
             Span::styled(
                 "output:",
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(theme::MUTED)
                     .add_modifier(Modifier::BOLD),
             ),
         ]));
@@ -206,7 +205,7 @@ pub fn append_tool_call(
     if let Some(exit) = exit_codes.get(id) {
         lines.push(Line::from(vec![
             Span::raw("  "),
-            Span::styled(format!("exit={exit}"), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("exit={exit}"), theme::muted()),
         ]));
     }
 }
@@ -227,41 +226,38 @@ pub fn append_compaction(lines: &mut Vec<Line>, item: &ChatStreamItem) {
         CompactionItemStatus::Running => {
             lines.push(Line::from(Span::styled(
                 "⟳ Compacting context...".to_string(),
-                style.fg(Color::Yellow),
+                style.fg(theme::WARNING),
             )));
         }
         CompactionItemStatus::Completed => {
             let mut spans = vec![Span::styled(
                 "✓ Compacted".to_string(),
-                style.fg(Color::Green),
+                style.fg(theme::SUCCESS),
             )];
             if let (Some(before), Some(after)) = (before_tokens, after_tokens) {
                 let pct = compaction_savings_pct(before, after);
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     format!("{before} → {after} tokens (-{pct}%)"),
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(theme::SUCCESS),
                 ));
             }
             if let Some(summary) = summary {
                 spans.push(Span::raw("  "));
-                spans.push(Span::styled(
-                    truncate_chars(summary, 80),
-                    Style::default().fg(Color::DarkGray),
-                ));
+                spans.push(Span::styled(truncate_chars(summary, 80), theme::muted()));
             }
             lines.push(Line::from(spans));
         }
         CompactionItemStatus::Failed => {
             let mut spans = vec![Span::styled(
                 "✗ Compaction failed".to_string(),
-                style.fg(Color::Red),
+                style.fg(theme::DANGER),
             )];
             if let Some(error) = summary {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     truncate_chars(error, 80),
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(theme::DANGER),
                 ));
             }
             lines.push(Line::from(spans));
@@ -277,14 +273,11 @@ pub fn append_compaction_skipped(lines: &mut Vec<Line>, reason: CompactionSkipRe
     };
     let mut spans = vec![Span::styled(
         format!("⊘ Compaction skipped: {reason_phrase}"),
-        style.fg(Color::DarkGray),
+        style.fg(theme::MUTED),
     )];
     if !matches!(reason, CompactionSkipReason::ThresholdDisabled) {
         spans.push(Span::raw("  "));
-        spans.push(Span::styled(
-            format!("(ratio {ratio:.2})"),
-            Style::default().fg(Color::DarkGray),
-        ));
+        spans.push(Span::styled(format!("(ratio {ratio:.2})"), theme::muted()));
     }
     lines.push(Line::from(spans));
 }
@@ -301,7 +294,7 @@ pub fn append_monitor(lines: &mut Vec<Line>, item: &ChatStreamItem) {
     };
 
     let (icon, label, color) = match status {
-        MonitorItemStatus::Running => ("⟳", "watching", Color::Yellow),
+        MonitorItemStatus::Running => ("⟳", "watching", theme::WARNING),
         MonitorItemStatus::Stopped(reason) => {
             let label = match reason {
                 MonitorStopReason::ExitCode { code } => {
@@ -316,12 +309,12 @@ pub fn append_monitor(lines: &mut Vec<Line>, item: &ChatStreamItem) {
                 MonitorStopReason::SessionEnded => "ended",
             };
             let color = match reason {
-                MonitorStopReason::ExitCode { code: 0 } => Color::Green,
-                _ => Color::DarkGray,
+                MonitorStopReason::ExitCode { code: 0 } => theme::SUCCESS,
+                _ => theme::MUTED,
             };
             ("■", label, color)
         }
-        MonitorItemStatus::Failed => ("✗", "failed", Color::Red),
+        MonitorItemStatus::Failed => ("✗", "failed", theme::DANGER),
     };
 
     let style = Style::default().add_modifier(Modifier::BOLD);
@@ -336,7 +329,7 @@ pub fn append_monitor(lines: &mut Vec<Line>, item: &ChatStreamItem) {
         let truncated = truncate_chars(line, 120);
         lines.push(Line::from(vec![
             Span::raw("  "),
-            Span::styled(truncated, Style::default().fg(Color::DarkGray)),
+            Span::styled(truncated, theme::muted()),
         ]));
     }
 }

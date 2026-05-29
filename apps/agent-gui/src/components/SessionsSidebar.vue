@@ -207,11 +207,13 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  background: var(--app-panel-color);
 }
 .sessions-sidebar .session-search {
   flex: none;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-panel-color);
 }
 .sessions-sidebar .session-search-row {
   display: flex;
@@ -256,13 +258,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px 4px;
+  padding: 10px 12px 6px;
 }
 .sessions-sidebar .section-heading h3 {
   margin: 0;
   color: var(--app-text-color);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--app-text-sm);
+  font-weight: 720;
 }
 .sessions-sidebar .section-actions {
   display: flex;
@@ -290,7 +292,7 @@ onMounted(() => {
 .sessions-sidebar .project-action-btn {
   min-height: 28px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-md);
   color: var(--app-text-color-2);
   font-size: 12px;
 }
@@ -320,13 +322,13 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   min-height: 40px;
-  padding: 2px 8px;
+  padding: 3px 8px;
 }
 .sessions-sidebar .project-expand-btn {
   flex-shrink: 0;
   width: 28px;
   min-height: 28px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-md);
   font-size: 13px;
 }
 .sessions-sidebar .project-title-btn {
@@ -337,7 +339,7 @@ onMounted(() => {
   align-items: flex-start;
   gap: 2px;
   padding: 6px 4px;
-  border-radius: 4px;
+  border-radius: var(--app-radius-md);
   text-align: left;
 }
 .sessions-sidebar .project-name,
@@ -381,7 +383,7 @@ onMounted(() => {
   min-height: 32px;
   padding: 6px 8px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--app-radius-md);
   cursor: pointer;
   background: transparent;
   color: var(--app-text-color);
@@ -390,7 +392,8 @@ onMounted(() => {
   text-align: left;
 }
 .sessions-sidebar .project-session-item.active {
-  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
+  background: var(--app-selected-color);
+  color: var(--app-text-color);
   font-weight: 600;
 }
 .sessions-sidebar .project-session-branch {
@@ -415,6 +418,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 36px;
   padding: 8px 12px;
   cursor: pointer;
   font-size: 13px;
@@ -424,7 +428,7 @@ onMounted(() => {
   background: var(--app-hover-color);
 }
 .sessions-sidebar .session-item.active {
-  background: color-mix(in srgb, var(--app-primary-color) 15%, transparent);
+  background: var(--app-selected-color);
   font-weight: 600;
 }
 .sessions-sidebar .session-indicator {
@@ -483,7 +487,7 @@ html.dark .sessions-sidebar .row-actions .kx-icon-button svg {
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--app-radius-md);
   cursor: pointer;
   background: transparent;
   color: var(--app-text-color-2);
@@ -513,7 +517,7 @@ html.dark .sessions-sidebar .row-actions .kx-icon-button svg {
   flex: 1;
   min-width: 0;
   border: 1px solid var(--app-primary-color);
-  border-radius: 3px;
+  border-radius: var(--app-radius-sm);
   padding: 2px 4px;
   font-size: 13px;
   outline: none;

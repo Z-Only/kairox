@@ -20,7 +20,7 @@ const isThemeSelectFocused = ref(false);
 </script>
 
 <template>
-  <div role="tabpanel">
+  <div class="general-settings" role="tabpanel">
     <div class="settings__row">
       <label for="settings-locale">{{ t("settings.locale") }}</label>
       <KxSelect
@@ -59,19 +59,33 @@ const isThemeSelectFocused = ref(false);
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-block: 0;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--app-border-color);
-}
-.settings__row:last-child {
-  border-bottom: none;
+  justify-content: space-between;
+  max-width: 520px;
+  margin-block: 0 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--app-border-color);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-card-color);
+  box-shadow: var(--app-shadow-sm);
 }
 .settings__row label {
   min-width: 100px;
+  color: var(--app-text-color);
+  font-weight: 650;
 }
 .settings__select {
   flex: 0 1 160px;
   max-width: 160px;
   text-align: center;
+}
+@media (max-width: 560px) {
+  .settings__row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings__select {
+    max-width: none;
+  }
 }
 </style>

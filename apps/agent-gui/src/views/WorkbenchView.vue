@@ -201,6 +201,7 @@ function startResize(side: "left" | "right", event: PointerEvent) {
   min-height: 0;
   overflow: hidden;
   position: relative;
+  background: var(--app-body-color);
 }
 .workbench-heading {
   position: absolute;
@@ -216,6 +217,7 @@ function startResize(side: "left" | "right", event: PointerEvent) {
 /* 统一左侧面板与中间面板的分隔线 */
 .left-sidebar {
   overflow: hidden;
+  background: var(--app-panel-color);
 }
 .workbench--left-collapsed .left-sidebar,
 .workbench--right-collapsed .right-sidebar {
@@ -228,13 +230,14 @@ function startResize(side: "left" | "right", event: PointerEvent) {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
+  background: var(--app-panel-color);
 }
 .sidebar-divider {
   position: relative;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  background: var(--app-body-color);
+  background: var(--app-panel-color);
 }
 .sidebar-divider--left {
   border-left: 1px solid var(--app-border-color);
@@ -288,8 +291,8 @@ function startResize(side: "left" | "right", event: PointerEvent) {
   height: 22px;
   border: 1px solid var(--app-border-color);
   border-radius: 6px;
-  background: var(--app-body-color);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 12%);
+  background: var(--app-elevated-color);
+  box-shadow: var(--app-shadow-sm);
   cursor: pointer;
 }
 .sidebar-toggle--left {
@@ -302,6 +305,7 @@ function startResize(side: "left" | "right", event: PointerEvent) {
 .sidebar-toggle:focus-visible {
   color: var(--app-primary-color);
   border-color: var(--app-primary-color);
+  box-shadow: var(--app-focus-ring);
 }
 .collapse-glyph {
   width: 7px;
@@ -331,5 +335,21 @@ function startResize(side: "left" | "right", event: PointerEvent) {
   /* Keep the pill pinned to the visible workbench edge even when the trace
      sidebar is collapsed so it does not clip under hidden chrome. */
   right: 10px;
+}
+@media (max-width: 900px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .left-sidebar,
+  .right-sidebar,
+  .sidebar-divider {
+    display: none;
+  }
+
+  .workbench-context-meter-pill {
+    right: 8px;
+    bottom: 86px;
+  }
 }
 </style>

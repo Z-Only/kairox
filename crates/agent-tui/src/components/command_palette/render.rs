@@ -1,10 +1,12 @@
 //! Command palette rendering — modal layout, filter input, list, and hints.
 
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::registry::PaletteEntry;
 use super::state::CommandPalette;
@@ -26,13 +28,8 @@ pub fn render_command_palette(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " ⌘ Command Palette ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(" Command Palette ", theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -56,21 +53,16 @@ pub fn render_command_palette(
     );
 
     let filter_line = Line::from(vec![
-        Span::styled(
-            "> ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("> ", theme::title()),
         Span::raw(palette.filter().to_string()),
-        Span::styled("▌", Style::default().fg(Color::Cyan)),
+        Span::styled("▌", theme::title()),
     ]);
     frame.render_widget(Paragraph::new(filter_line), filter_area);
 
     if entries.is_empty() {
         let empty = Paragraph::new(Line::from(Span::styled(
             "No matching commands",
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         )));
         frame.render_widget(empty, list_area);
     } else {
@@ -81,29 +73,25 @@ pub fn render_command_palette(
                     Span::styled(
                         e.label.as_ref(),
                         Style::default()
-                            .fg(Color::Yellow)
+                            .fg(theme::WARNING)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("  "),
-                    Span::styled(e.description.as_ref(), Style::default().fg(Color::Gray)),
+                    Span::styled(e.description.as_ref(), theme::muted()),
                 ]);
                 ListItem::new(line)
             })
             .collect();
 
-        let list = List::new(items).highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(items).highlight_style(theme::selected());
         frame.render_stateful_widget(list, list_area, list_state);
     }
 
     let hints = Line::from(vec![
-        Span::styled("[↑/↓] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[Enter] run  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Esc] close  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[type] filter", Style::default().fg(Color::Cyan)),
+        Span::styled("[up/down] nav  ", theme::muted()),
+        Span::styled("[Enter] run  ", theme::key()),
+        Span::styled("[Esc] close  ", theme::muted()),
+        Span::styled("[type] filter", theme::title()),
     ]);
     frame.render_widget(Paragraph::new(hints), hint_area);
 }

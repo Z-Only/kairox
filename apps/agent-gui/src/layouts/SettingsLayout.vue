@@ -43,9 +43,11 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 
 <template>
   <main class="settings" data-test="view-settings">
-    <h1>{{ t("settings.title") }}</h1>
+    <header class="settings__header">
+      <h1>{{ t("settings.title") }}</h1>
+    </header>
 
-    <div class="tabs" role="tablist" aria-label="Settings sections">
+    <div class="tabs settings__tabs" role="tablist" aria-label="Settings sections">
       <button
         class="tab-btn"
         role="tab"
@@ -146,39 +148,60 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 
 <style scoped>
 .settings {
-  padding: 16px;
-  width: min(100%, 1180px);
-  max-width: 1180px;
+  width: 100%;
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px 18px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--app-panel-color) 72%, transparent) 0,
+      transparent 220px
+    ),
+    var(--app-body-color);
 }
-.settings > :not(.tabs):not(h1) {
+.settings__header {
+  flex: none;
+}
+.settings h1 {
+  margin: 0;
+  color: var(--app-text-color);
+  font-size: 24px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+.settings > :not(.tabs):not(.settings__header) {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
-.settings > :not(.tabs):not(h1).settings__source-bar {
+.settings > :not(.tabs):not(.settings__header).settings__source-bar {
   flex: none;
   overflow: visible;
 }
 .tabs {
   display: flex;
-  gap: 8px;
+  flex: none;
+  gap: 4px;
   border-bottom: 1px solid var(--app-border-color);
-  margin-bottom: 12px;
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 .tab-btn {
-  padding: 8px 16px;
-  border: none;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
   border-bottom: 2px solid transparent;
   border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
-  background: none;
+  background: transparent;
   cursor: pointer;
   font-size: inherit;
+  font-weight: 600;
   color: var(--app-text-color-2);
+  white-space: nowrap;
 }
 @media (prefers-reduced-motion: no-preference) {
   .tab-btn {
@@ -190,9 +213,8 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 }
 .tab-btn[aria-selected="true"] {
   color: var(--app-primary-color);
-  border-bottom-width: 3px;
   border-bottom-color: var(--app-primary-color);
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+  background: color-mix(in srgb, var(--app-primary-color) 11%, transparent);
 }
 .tab-btn:hover {
   color: var(--app-text-color);
@@ -201,5 +223,25 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
 .tab-btn:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
+}
+@media (max-width: 720px) {
+  .settings {
+    padding: 18px 16px;
+  }
+
+  .settings h1 {
+    font-size: 22px;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 2px 4px;
+  }
+
+  .tab-btn {
+    min-height: 34px;
+    padding-inline: 12px;
+  }
 }
 </style>

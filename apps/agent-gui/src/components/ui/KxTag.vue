@@ -33,7 +33,7 @@ const props = withDefaults(
   max-width: 100%;
   gap: 4px;
   border-radius: var(--app-radius-sm);
-  font-weight: 500;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -50,32 +50,32 @@ const props = withDefaults(
 }
 
 .kx-tag--neutral {
-  background: var(--app-hover-color);
+  background: color-mix(in srgb, var(--app-primary-color) 10%, var(--app-card-color));
   color: var(--app-text-color-2);
 }
 
 .kx-tag--muted {
-  background: var(--app-muted-surface-color);
+  background: color-mix(in srgb, var(--app-muted-surface-color) 80%, var(--app-card-color));
   color: var(--app-text-color-3);
 }
 
 .kx-tag--success {
-  background: color-mix(in srgb, var(--app-success-color) 15%, transparent);
+  background: color-mix(in srgb, var(--app-success-color) 15%, var(--app-card-color));
   color: var(--app-success-color);
 }
 
 .kx-tag--warning {
-  background: color-mix(in srgb, var(--app-warning-color) 15%, transparent);
+  background: color-mix(in srgb, var(--app-warning-color) 15%, var(--app-card-color));
   color: var(--app-warning-color);
 }
 
 .kx-tag--error {
-  background: color-mix(in srgb, var(--app-error-color) 15%, transparent);
+  background: color-mix(in srgb, var(--app-error-color) 15%, var(--app-card-color));
   color: var(--app-error-color);
 }
 
 .kx-tag--info {
-  background: color-mix(in srgb, var(--app-info-color) 15%, transparent);
+  background: color-mix(in srgb, var(--app-info-color) 15%, var(--app-card-color));
   color: var(--app-info-color);
 }
 

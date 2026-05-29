@@ -2,10 +2,12 @@ use agent_core::facade::{
     PluginCatalogEntry, PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView,
 };
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::state::{non_empty_trimmed, PluginOverlay};
 use super::types::{PluginOverlayMode, PluginTab};
@@ -28,13 +30,8 @@ pub fn render_plugin_overlay(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " Plugin Manager ",
-            Style::default()
-                .fg(Color::Magenta)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Magenta));
+        .title(Span::styled(" Plugin Manager ", theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -74,17 +71,17 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &PluginOverlay) {
     for tab in [PluginTab::Installed, PluginTab::Catalog, PluginTab::Sources] {
         let style = if tab == overlay.tab {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::DarkGray)
+            theme::muted()
         };
         spans.push(Span::styled(format!(" {} ", tab.label()), style));
         spans.push(Span::raw(" "));
     }
     spans.push(Span::styled(
         format!("target: {}", target_label(overlay.install_target)),
-        Style::default().fg(Color::Cyan),
+        Style::default().fg(theme::ACCENT),
     ));
     if overlay.tab == PluginTab::Catalog || overlay.catalog_filters_active() {
         let keyword = non_empty_trimmed(&overlay.catalog_keyword).unwrap_or_else(|| "*".into());
@@ -96,7 +93,7 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &PluginOverlay) {
                 keyword,
                 overlay.catalog_marketplace_label()
             ),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(theme::ACCENT),
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
@@ -112,7 +109,7 @@ fn render_installed(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No plugins installed",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -128,9 +125,9 @@ fn render_installed(
                 "disabled"
             };
             let enabled_color = if plugin.enabled {
-                Color::Green
+                theme::SUCCESS
             } else {
-                Color::DarkGray
+                theme::MUTED
             };
             let effective = if plugin.effective { " effective" } else { "" };
             let validity = if plugin.valid { "" } else { " invalid" };
@@ -149,21 +146,17 @@ fn render_installed(
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),
-                Span::styled(plugin.description.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(plugin.description.clone(), theme::muted()),
                 Span::styled(
                     format!(" [{}{}{}{}]", plugin.scope, effective, validity, inventory),
-                    Style::default().fg(Color::DarkGray),
+                    theme::muted(),
                 ),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -178,7 +171,7 @@ fn render_catalog(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No catalog plugins available",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -194,30 +187,23 @@ fn render_catalog(
                     entry.name.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    format!("  v{version}"),
-                    Style::default().fg(Color::DarkGray),
-                ),
+                Span::styled(format!("  v{version}"), theme::muted()),
                 Span::styled(
                     format!("  @{}", entry.marketplace_id),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme::ACCENT),
                 ),
                 Span::raw("  "),
-                Span::styled(entry.description.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(entry.description.clone(), theme::muted()),
                 Span::styled(
                     format!("  -> {}", target_label(install_target)),
-                    Style::default().fg(Color::Magenta),
+                    Style::default().fg(theme::ACCENT_STRONG),
                 ),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -231,7 +217,7 @@ fn render_sources(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No marketplace sources configured",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -247,9 +233,9 @@ fn render_sources(
                 "disabled"
             };
             let enabled_color = if source.enabled {
-                Color::Green
+                theme::SUCCESS
             } else {
-                Color::DarkGray
+                theme::MUTED
             };
             let kind = if source.builtin { "builtin" } else { "user" };
             let line = Line::from(vec![
@@ -259,19 +245,15 @@ fn render_sources(
                     source.id.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(format!("  {kind}"), Style::default().fg(Color::DarkGray)),
+                Span::styled(format!("  {kind}"), theme::muted()),
                 Span::raw("  "),
-                Span::styled(source.source.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(source.source.clone(), theme::muted()),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -286,11 +268,11 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &PluginOverlay) {
         }
     };
     let hints = Line::from(vec![
-        Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled(action, Style::default().fg(Color::Yellow)),
-        Span::styled("[r] refresh  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab] tab  ", theme::muted()),
+        Span::styled("[j/k] nav  ", theme::muted()),
+        Span::styled(action, theme::key()),
+        Span::styled("[r] refresh  ", theme::title()),
+        Span::styled("[Esc] close", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), area);
 }

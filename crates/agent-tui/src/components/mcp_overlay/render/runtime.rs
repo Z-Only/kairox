@@ -1,10 +1,10 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{ListItem, ListState};
 use ratatui::Frame;
 
-use crate::components::McpServerStatusView;
+use crate::components::{theme, McpServerStatusView};
 
 use super::super::state::McpOverlay;
 use super::{clip, render_empty, render_list};
@@ -24,10 +24,10 @@ pub(super) fn render_runtime(
         .iter()
         .map(|s| {
             let (status_label, status_color) = match s.status {
-                McpServerStatusView::Running => ("running ", Color::Green),
-                McpServerStatusView::Starting => ("starting", Color::Yellow),
-                McpServerStatusView::Stopped => ("stopped ", Color::Gray),
-                McpServerStatusView::Failed => ("failed  ", Color::Red),
+                McpServerStatusView::Running => ("running ", theme::SUCCESS),
+                McpServerStatusView::Starting => ("starting", theme::WARNING),
+                McpServerStatusView::Stopped => ("stopped ", theme::MUTED),
+                McpServerStatusView::Failed => ("failed  ", theme::DANGER),
             };
             let trust_label = if s.trusted { " trusted" } else { "" };
             let health = overlay.health.get(&s.server_id);
@@ -43,9 +43,9 @@ pub(super) fn render_runtime(
                 })
                 .unwrap_or_default();
             let health_color = match health {
-                Some(state) if state.healthy => Color::Green,
-                Some(_) => Color::Red,
-                None => Color::DarkGray,
+                Some(state) if state.healthy => theme::SUCCESS,
+                Some(_) => theme::DANGER,
+                None => theme::MUTED,
             };
             let connectivity = overlay.connectivity.get(&s.server_id);
             let connectivity_label = connectivity
@@ -62,9 +62,9 @@ pub(super) fn render_runtime(
                 })
                 .unwrap_or_default();
             let connectivity_color = match connectivity {
-                Some(state) if state.connected => Color::Green,
-                Some(_) => Color::Red,
-                None => Color::DarkGray,
+                Some(state) if state.connected => theme::SUCCESS,
+                Some(_) => theme::DANGER,
+                None => theme::MUTED,
             };
             ListItem::new(Line::from(vec![
                 Span::styled(status_label, Style::default().fg(status_color)),
@@ -73,11 +73,8 @@ pub(super) fn render_runtime(
                     s.server_id.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    format!("  tools:{}", s.tool_count),
-                    Style::default().fg(Color::DarkGray),
-                ),
-                Span::styled(trust_label, Style::default().fg(Color::Magenta)),
+                Span::styled(format!("  tools:{}", s.tool_count), theme::muted()),
+                Span::styled(trust_label, Style::default().fg(theme::ACCENT_STRONG)),
                 Span::styled(health_label, Style::default().fg(health_color)),
                 Span::styled(connectivity_label, Style::default().fg(connectivity_color)),
             ]))

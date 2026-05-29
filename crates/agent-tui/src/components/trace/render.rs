@@ -6,7 +6,7 @@
 
 use agent_core::events::EventPayload;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
@@ -16,6 +16,7 @@ use super::task_tree::{
     flatten_task_tree_with_collapsed, task_row_label_with_collapsed, TaskTreeNode,
 };
 use super::{RightPanelTab, TraceKind, TraceStatus};
+use crate::components::theme;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceEntry {
@@ -113,32 +114,23 @@ pub fn extract_tool_traces(events: &[agent_core::DomainEvent]) -> Vec<TraceEntry
 }
 
 pub fn render_trace_l1(area: Rect, frame: &mut Frame, traces: &[TraceEntry], focused: bool) {
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
+    let border_style = theme::border(focused);
 
     let items: Vec<ListItem> = traces
         .iter()
         .map(|entry| {
-            let status_color = match entry.status {
-                TraceStatus::Running => Color::Yellow,
-                TraceStatus::Success => Color::Green,
-                TraceStatus::Failed => Color::Red,
-                TraceStatus::Pending => Color::Magenta,
-            };
+            let status_color = trace_status_color(entry.status);
             let icon = match entry.kind {
-                TraceKind::Tool => "▶ ",
-                TraceKind::Memory => "🧠",
+                TraceKind::Tool => "T ",
+                TraceKind::Memory => "M ",
             };
             let duration = entry
                 .duration_ms
                 .map(|d| format!(" {:.1}s", d as f64 / 1000.0))
                 .unwrap_or_default();
             let line = Line::from(vec![
-                Span::styled(icon, Style::default()),
-                Span::styled(&entry.tool_id, Style::default()),
+                Span::styled(icon, theme::muted()),
+                Span::styled(&entry.tool_id, theme::title()),
                 Span::styled(
                     format!(" {}{}", entry.status, duration),
                     Style::default().fg(status_color),
@@ -165,11 +157,7 @@ pub fn render_task_graph_with_collapsed(
     selected_index: usize,
     collapsed_task_ids: &BTreeSet<String>,
 ) {
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
+    let border_style = theme::border(focused);
 
     let rows = flatten_task_tree_with_collapsed(tasks, collapsed_task_ids);
     let items: Vec<ListItem> = rows
@@ -177,12 +165,7 @@ pub fn render_task_graph_with_collapsed(
         .enumerate()
         .map(|(index, row)| {
             let task = &row.node;
-            let status_color = match task.status {
-                TraceStatus::Running => Color::Yellow,
-                TraceStatus::Success => Color::Green,
-                TraceStatus::Failed => Color::Red,
-                TraceStatus::Pending => Color::Magenta,
-            };
+            let status_color = trace_status_color(task.status);
             let selected = focused && index == selected_index;
             let collapsed = collapsed_task_ids.contains(&task.id);
             let line = Line::from(Span::styled(
@@ -203,12 +186,12 @@ pub fn render_task_graph_with_collapsed(
 }
 
 pub fn render_task_graph_placeholder(area: Rect, frame: &mut Frame, focused: bool) {
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
-    let paragraph = Paragraph::new("No tasks yet\n\nUse F5 to cycle trace density.").block(
+    let border_style = theme::border(focused);
+    let paragraph = Paragraph::new(Line::from(Span::styled(
+        "No tasks yet\n\nUse F5 to cycle trace density.",
+        theme::muted(),
+    )))
+    .block(
         Block::default()
             .borders(Borders::LEFT)
             .title(right_panel_title(RightPanelTab::Tasks))
@@ -233,4 +216,13 @@ pub(super) fn right_panel_title(active: RightPanelTab) -> String {
     })
     .collect::<Vec<_>>()
     .join(" | ")
+}
+
+fn trace_status_color(status: TraceStatus) -> ratatui::style::Color {
+    match status {
+        TraceStatus::Running => theme::WARNING,
+        TraceStatus::Success => theme::SUCCESS,
+        TraceStatus::Failed => theme::DANGER,
+        TraceStatus::Pending => theme::ACCENT_STRONG,
+    }
 }

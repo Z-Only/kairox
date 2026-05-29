@@ -206,7 +206,7 @@ fn open_palette_entry(
         filter_text,
         WAIT_SHORT,
         &format!("{label} command filtered"),
-        |_raw, text| text.contains(expected_entry),
+        |_raw, text| has_visible_text(text, expected_entry),
     );
     terminal.send_and_wait(b"\x0d", WAIT_OVERLAY, label, result_predicate);
 }

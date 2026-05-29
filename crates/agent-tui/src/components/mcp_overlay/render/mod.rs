@@ -1,8 +1,10 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::state::McpOverlay;
 use super::types::{McpOverlayMode, McpOverlayTab};
@@ -65,13 +67,8 @@ fn render_mcp_overlay_content(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " 🔌 MCP Servers ",
-            Style::default()
-                .fg(Color::Magenta)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Magenta));
+        .title(Span::styled(" MCP Servers ", theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -149,10 +146,10 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
     ] {
         let style = if tab == overlay.tab {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::DarkGray)
+            theme::muted()
         };
         spans.push(Span::styled(format!(" {} ", tab.label()), style));
         spans.push(Span::raw(" "));
@@ -170,7 +167,7 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
                 overlay.catalog.len(),
                 overlay.catalog_trust_filter.label()
             ),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(theme::ACCENT),
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
@@ -178,10 +175,7 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
 
 pub(super) fn render_empty(area: Rect, frame: &mut Frame, label: &'static str) {
     frame.render_widget(
-        Paragraph::new(Line::from(Span::styled(
-            label,
-            Style::default().fg(Color::DarkGray),
-        ))),
+        Paragraph::new(Line::from(Span::styled(label, theme::muted()))),
         area,
     );
 }
@@ -202,11 +196,7 @@ pub(super) fn render_list(
     items: Vec<ListItem>,
     state: &mut ListState,
 ) {
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -232,10 +222,10 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &McpOverlay) {
         }
     };
     let hints = Line::from(vec![
-        Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled(action, Style::default().fg(Color::Yellow)),
-        Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab] tab  ", theme::muted()),
+        Span::styled("[j/k] nav  ", theme::muted()),
+        Span::styled(action, theme::key()),
+        Span::styled("[Esc] close", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), area);
 }

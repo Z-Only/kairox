@@ -53,12 +53,14 @@ const props = withDefaults(
   min-width: 0;
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-md, 6px);
-  background: var(--app-card-color);
+  background: var(--app-elevated-color, var(--app-card-color));
   color: var(--app-text-color);
   cursor: pointer;
   font: inherit;
+  font-weight: 600;
   line-height: 1.35;
   white-space: nowrap;
+  box-shadow: var(--app-shadow-sm, none);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -72,11 +74,12 @@ const props = withDefaults(
 }
 
 .kx-button--default {
-  background: var(--app-card-color);
+  background: var(--app-elevated-color, var(--app-card-color));
 }
 
 .kx-button--default:hover:not(:disabled) {
   background: var(--app-hover-color);
+  border-color: var(--app-border-strong-color, var(--app-border-color));
 }
 
 .kx-button--primary {
@@ -86,8 +89,8 @@ const props = withDefaults(
 }
 
 .kx-button--primary:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--app-primary-color) 85%, #000);
-  background: color-mix(in srgb, var(--app-primary-color) 85%, #000);
+  border-color: var(--app-primary-hover-color, var(--app-primary-color));
+  background: var(--app-primary-hover-color, var(--app-primary-color));
   box-shadow: 0 2px 8px color-mix(in srgb, var(--app-primary-color) 24%, transparent);
 }
 
@@ -117,6 +120,7 @@ const props = withDefaults(
 .kx-button--ghost {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
 }
 
 .kx-button--ghost:hover:not(:disabled) {
@@ -166,6 +170,7 @@ const props = withDefaults(
 .kx-button:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
+  box-shadow: var(--app-focus-ring);
 }
 
 .kx-button:disabled {

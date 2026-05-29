@@ -302,8 +302,9 @@ watch(modelPopoverOpen, (isOpen) => {
 <style scoped>
 .input-area {
   position: relative;
-  padding: 8px 16px;
-  border-top: 1px solid var(--app-border-color, #d7d7d7);
+  padding: 10px 16px 8px;
+  border-top: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-card-color) 92%, var(--app-panel-color));
 }
 .palette-container {
   position: relative;
@@ -362,8 +363,8 @@ watch(modelPopoverOpen, (isOpen) => {
   gap: 6px;
   align-items: center;
   padding: 4px 6px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
+  border: 1px solid var(--app-border-color);
+  border-radius: var(--app-radius-md);
   background: var(--app-muted-surface-color, var(--app-card-color));
   font-size: 12px;
 }
@@ -399,8 +400,8 @@ watch(modelPopoverOpen, (isOpen) => {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border: 1px dashed var(--app-border-color, #d7d7d7);
-  border-radius: 6px;
+  border: 1px dashed var(--app-border-color);
+  border-radius: var(--app-radius-md);
   background: transparent;
   color: var(--app-muted-text-color, var(--app-text-color));
   cursor: pointer;
@@ -415,6 +416,11 @@ watch(modelPopoverOpen, (isOpen) => {
   border-color: var(--app-primary-color);
   color: var(--app-primary-color);
   background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+}
+.attach-btn:focus-visible {
+  outline: 2px solid var(--app-primary-color);
+  outline-offset: 2px;
+  box-shadow: var(--app-focus-ring);
 }
 .attach-btn:disabled {
   opacity: 0.4;

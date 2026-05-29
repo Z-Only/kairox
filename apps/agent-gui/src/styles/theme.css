@@ -4,28 +4,34 @@
 
 :root {
   /* === Surface === */
-  --app-body-color: #ffffff;
-  --app-card-color: #f9fafb;
-  --app-border-color: #e5e7eb;
-  --app-hover-color: #f3f4f6;
-  --app-muted-surface-color: #f3f4f6;
+  --app-body-color: #f5f7fb;
+  --app-card-color: #ffffff;
+  --app-panel-color: #f8fafc;
+  --app-elevated-color: #ffffff;
+  --app-border-color: #dbe3ef;
+  --app-border-strong-color: #c6d3e3;
+  --app-hover-color: #eef4ff;
+  --app-muted-surface-color: #edf2f8;
+  --app-selected-color: #dbeafe;
+  --app-nav-color: #ffffff;
 
   /* === Text === */
-  --app-text-color: #1f2937;
-  --app-text-color-2: #475569;
-  --app-text-color-3: #64748b;
-  --app-muted-text-color: #475569;
+  --app-text-color: #172033;
+  --app-text-color-2: #435168;
+  --app-text-color-3: #66758c;
+  --app-muted-text-color: #435168;
 
   /* === Semantic === */
-  --app-primary-color: #3b82f6;
+  --app-primary-color: #2563eb;
+  --app-primary-hover-color: #1d4ed8;
   --app-primary-contrast-color: #fff;
-  --app-success-color: #16a34a;
-  --app-warning-color: #f59e0b;
-  --app-error-color: #ef4444;
-  --app-info-color: #3b82f6;
+  --app-success-color: #059669;
+  --app-warning-color: #d97706;
+  --app-error-color: #dc2626;
+  --app-info-color: #0891b2;
 
   /* === Code === */
-  --app-code-bg: #f1f5f9;
+  --app-code-bg: #e8eef7;
 
   /* === Spacing === */
   --app-space-1: 4px;
@@ -34,6 +40,7 @@
   --app-space-4: 16px;
   --app-space-5: 20px;
   --app-space-6: 24px;
+  --app-space-7: 32px;
 
   /* === Radius === */
   --app-radius-sm: 4px;
@@ -47,10 +54,14 @@
   --app-text-base: 13px;
   --app-text-lg: 14px;
   --app-text-xl: 16px;
+  --app-text-2xl: 20px;
 
   /* === Elevation and layering === */
-  --app-overlay-shadow: 0 12px 32px rgb(15 23 42 / 18%);
-  --app-backdrop-color: rgb(15 23 42 / 42%);
+  --app-shadow-sm: 0 1px 2px rgb(15 23 42 / 8%);
+  --app-shadow-md: 0 10px 28px rgb(15 23 42 / 12%);
+  --app-overlay-shadow: 0 18px 48px rgb(15 23 42 / 20%);
+  --app-focus-ring: 0 0 0 3px color-mix(in srgb, var(--app-primary-color) 24%, transparent);
+  --app-backdrop-color: rgb(15 23 42 / 46%);
   --app-z-dropdown: 50;
   --app-z-popover: 60;
   --app-z-palette: 70;
@@ -70,28 +81,34 @@
 
 html.dark {
   /* === Surface === */
-  --app-body-color: #0f172a;
-  --app-card-color: #1e293b;
-  --app-border-color: #334155;
-  --app-hover-color: #334155;
-  --app-muted-surface-color: #1e293b;
+  --app-body-color: #0b1220;
+  --app-card-color: #172033;
+  --app-panel-color: #101827;
+  --app-elevated-color: #1d293c;
+  --app-border-color: #2d3b50;
+  --app-border-strong-color: #40516b;
+  --app-hover-color: #223047;
+  --app-muted-surface-color: #111b2c;
+  --app-selected-color: #1d3b63;
+  --app-nav-color: #172033;
 
   /* === Text === */
-  --app-text-color: #f0f4f8;
-  --app-text-color-2: #8896ab;
-  --app-text-color-3: #94a3b8;
-  --app-muted-text-color: #8896ab;
+  --app-text-color: #f2f6fb;
+  --app-text-color-2: #b1bdd0;
+  --app-text-color-3: #8594ab;
+  --app-muted-text-color: #a8b4c8;
 
   /* === Semantic === */
   --app-primary-color: #60a5fa;
+  --app-primary-hover-color: #93c5fd;
   --app-primary-contrast-color: #0f172a;
-  --app-success-color: #22c55e;
+  --app-success-color: #34d399;
   --app-warning-color: #fbbf24;
-  --app-error-color: #f87171;
-  --app-info-color: #60a5fa;
+  --app-error-color: #fb7185;
+  --app-info-color: #22d3ee;
 
   /* === Code === */
-  --app-code-bg: #0f172a;
+  --app-code-bg: #0b1220;
 
   /* === Spacing (same as light) === */
   --app-space-1: 4px;
@@ -100,6 +117,7 @@ html.dark {
   --app-space-4: 16px;
   --app-space-5: 20px;
   --app-space-6: 24px;
+  --app-space-7: 32px;
 
   /* === Radius (same as light) === */
   --app-radius-sm: 4px;
@@ -113,10 +131,14 @@ html.dark {
   --app-text-base: 13px;
   --app-text-lg: 14px;
   --app-text-xl: 16px;
+  --app-text-2xl: 20px;
 
   /* === Elevation and layering === */
-  --app-overlay-shadow: 0 16px 36px rgb(0 0 0 / 36%);
-  --app-backdrop-color: rgb(0 0 0 / 54%);
+  --app-shadow-sm: 0 1px 2px rgb(0 0 0 / 22%);
+  --app-shadow-md: 0 12px 32px rgb(0 0 0 / 28%);
+  --app-overlay-shadow: 0 20px 56px rgb(0 0 0 / 42%);
+  --app-focus-ring: 0 0 0 3px color-mix(in srgb, var(--app-primary-color) 32%, transparent);
+  --app-backdrop-color: rgb(0 0 0 / 58%);
   --app-z-dropdown: 50;
   --app-z-popover: 60;
   --app-z-palette: 70;

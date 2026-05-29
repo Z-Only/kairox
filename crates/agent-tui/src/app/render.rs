@@ -1,11 +1,11 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 
 use crate::app_state::{InputMode, InputState};
-use crate::components::{Component, FocusTarget};
+use crate::components::{theme, Component, FocusTarget};
 
 use super::App;
 
@@ -217,11 +217,7 @@ impl App {
 
     fn render_input(&self, area: Rect, frame: &mut Frame) {
         let is_focused = self.state.focus_manager.current() == FocusTarget::Chat;
-        let border_style = if is_focused {
-            Style::default().fg(Color::Cyan)
-        } else {
-            Style::default().fg(Color::DarkGray)
-        };
+        let border_style = theme::border(is_focused);
         let mode_label = match self.chat.input_mode {
             InputMode::SingleLine => "│ ",
             InputMode::MultiLine => "│M ",
@@ -247,12 +243,7 @@ impl App {
         };
 
         let input_line = Line::from(vec![
-            Span::styled(
-                if is_focused { ">" } else { " " },
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
+            Span::styled(if is_focused { ">" } else { " " }, theme::title()),
             Span::raw(" "),
             Span::raw(display_content),
         ]);
@@ -286,18 +277,10 @@ fn file_mention_palette_height(match_count: usize) -> u16 {
 }
 
 fn render_current_session_header(area: Rect, frame: &mut Frame, metadata: &[String]) {
-    let mut spans = vec![Span::styled(
-        "Chat",
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    )];
+    let mut spans = vec![Span::styled("Chat", theme::title())];
     for part in metadata {
-        spans.push(Span::styled(" · ", Style::default().fg(Color::DarkGray)));
-        spans.push(Span::styled(
-            part.clone(),
-            Style::default().fg(Color::DarkGray),
-        ));
+        spans.push(Span::styled(" · ", theme::muted()));
+        spans.push(Span::styled(part.clone(), theme::muted()));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }

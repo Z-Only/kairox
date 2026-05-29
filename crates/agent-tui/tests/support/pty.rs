@@ -5,14 +5,14 @@ use std::time::{Duration, Instant};
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
-const ANSI_ESC: u8 = 0x1b;
-
 pub struct PtyHarness {
     reader_rx: mpsc::Receiver<Vec<u8>>,
     writer: Box<dyn Write + Send>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
     captured: Vec<u8>,
     home_dir: PathBuf,
+    rows: usize,
+    cols: usize,
 }
 
 impl PtyHarness {
@@ -86,6 +86,8 @@ impl PtyHarness {
             child,
             captured: Vec::new(),
             home_dir: temp_home,
+            rows: rows as usize,
+            cols: cols as usize,
         }
     }
 
@@ -98,21 +100,22 @@ impl PtyHarness {
         let deadline = Instant::now() + timeout;
         while Instant::now() < deadline {
             self.drain_for(Duration::from_millis(50));
-            let rendered = strip_ansi(&self.captured);
+            let rendered = self.rendered_text();
             if predicate(&self.captured, &rendered) {
                 return;
             }
             if let Ok(Some(status)) = self.child.try_wait() {
                 panic!(
                     "TUI process exited while waiting for {label}: {status:?}\nCaptured screen:\n{}",
-                    strip_ansi(&self.captured)
+                    self.rendered_text()
                 );
             }
         }
 
         panic!(
-            "timed out waiting for {label}\nCaptured screen:\n{}",
-            strip_ansi(&self.captured)
+            "timed out waiting for {label}\nCaptured screen:\n{}\nRaw tail:\n{}",
+            self.rendered_text(),
+            escaped_tail(&self.captured)
         );
     }
 
@@ -123,7 +126,6 @@ impl PtyHarness {
         label: &str,
         predicate: impl Fn(&[u8], &str) -> bool,
     ) {
-        self.captured.clear();
         self.writer
             .write_all(data)
             .expect("PTY input should be writable");
@@ -139,7 +141,11 @@ impl PtyHarness {
     }
 
     pub fn visible_screen(&self) -> String {
-        strip_ansi(&self.captured)
+        self.rendered_text()
+    }
+
+    fn rendered_text(&self) -> String {
+        render_ansi_screen(&self.captured, self.rows, self.cols)
     }
 
     fn drain_for(&mut self, timeout: Duration) {
@@ -163,39 +169,166 @@ impl Drop for PtyHarness {
 }
 
 pub fn strip_ansi(data: &[u8]) -> String {
-    let mut stripped = Vec::with_capacity(data.len());
-    let mut index = 0;
-    while index < data.len() {
-        if data[index] != ANSI_ESC {
-            stripped.push(data[index]);
-            index += 1;
-            continue;
-        }
+    render_ansi_screen(data, 60, 200)
+}
 
-        index += 1;
-        if index >= data.len() {
-            break;
-        }
+fn render_ansi_screen(data: &[u8], rows: usize, cols: usize) -> String {
+    let rows = rows.max(1);
+    let cols = cols.max(1);
+    let mut screen = vec![vec![' '; cols]; rows];
+    let mut row = 0usize;
+    let mut col = 0usize;
+    let mut saved_row = 0usize;
+    let mut saved_col = 0usize;
+    let rendered = String::from_utf8_lossy(data);
+    let mut chars = rendered.chars().peekable();
 
-        match data[index] {
-            b'[' => {
-                index += 1;
-                while index < data.len() && !matches!(data[index], b'@'..=b'~') {
-                    index += 1;
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\x1b' => match chars.next() {
+                Some('[') => {
+                    let mut params = String::new();
+                    let mut final_ch = None;
+                    for next in chars.by_ref() {
+                        if ('@'..='~').contains(&next) {
+                            final_ch = Some(next);
+                            break;
+                        }
+                        params.push(next);
+                    }
+                    apply_csi(
+                        &params,
+                        final_ch.unwrap_or_default(),
+                        &mut screen,
+                        &mut row,
+                        &mut col,
+                    );
                 }
-                index += usize::from(index < data.len());
+                Some('(' | ')') => {
+                    let _ = chars.next();
+                }
+                Some('7') => {
+                    saved_row = row;
+                    saved_col = col;
+                }
+                Some('8') => {
+                    row = saved_row.min(rows - 1);
+                    col = saved_col.min(cols - 1);
+                }
+                Some('=' | '>') | None => {}
+                Some(_) => {}
+            },
+            '\r' => col = 0,
+            '\n' => {
+                row = (row + 1).min(rows - 1);
+                col = 0;
             }
-            b'(' | b')' => {
-                index = (index + 2).min(data.len());
+            '\x08' => col = col.saturating_sub(1),
+            ch if ch.is_control() => {}
+            ch => {
+                screen[row][col] = ch;
+                col += 1;
+                if col >= cols {
+                    col = 0;
+                    row = (row + 1).min(rows - 1);
+                }
             }
-            b'=' | b'>' | b'7' | b'8' => {
-                index += 1;
-            }
-            _ => {}
         }
     }
 
-    String::from_utf8_lossy(&stripped).into_owned()
+    screen
+        .into_iter()
+        .map(|line| line.into_iter().collect::<String>().trim_end().to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn apply_csi(
+    params: &str,
+    command: char,
+    screen: &mut [Vec<char>],
+    row: &mut usize,
+    col: &mut usize,
+) {
+    let rows = screen.len();
+    let cols = screen[0].len();
+    let values = parse_csi_values(params);
+    let first = values.first().copied().unwrap_or(0);
+
+    match command {
+        'H' | 'f' => {
+            *row = values
+                .first()
+                .copied()
+                .unwrap_or(1)
+                .saturating_sub(1)
+                .min(rows - 1);
+            *col = values
+                .get(1)
+                .copied()
+                .unwrap_or(1)
+                .saturating_sub(1)
+                .min(cols - 1);
+        }
+        'A' => *row = row.saturating_sub(first.max(1)),
+        'B' => *row = (*row + first.max(1)).min(rows - 1),
+        'C' => *col = (*col + first.max(1)).min(cols - 1),
+        'D' => *col = col.saturating_sub(first.max(1)),
+        'G' => *col = first.max(1).saturating_sub(1).min(cols - 1),
+        'J' => clear_screen(screen, *row, *col, first),
+        'K' => clear_line(screen, *row, *col, first),
+        _ => {}
+    }
+}
+
+fn parse_csi_values(params: &str) -> Vec<usize> {
+    params
+        .trim_start_matches('?')
+        .split(';')
+        .filter_map(|part| part.parse::<usize>().ok())
+        .collect()
+}
+
+fn clear_screen(screen: &mut [Vec<char>], row: usize, col: usize, mode: usize) {
+    let rows = screen.len();
+    let cols = screen[0].len();
+    match mode {
+        1 => {
+            for line in screen.iter_mut().take(row) {
+                line.fill(' ');
+            }
+            screen[row][..=col.min(cols - 1)].fill(' ');
+        }
+        2 | 3 => {
+            for line in screen {
+                line.fill(' ');
+            }
+        }
+        _ => {
+            screen[row][col.min(cols - 1)..].fill(' ');
+            for line in screen.iter_mut().take(rows).skip(row + 1) {
+                line.fill(' ');
+            }
+        }
+    }
+}
+
+fn clear_line(screen: &mut [Vec<char>], row: usize, col: usize, mode: usize) {
+    let cols = screen[0].len();
+    match mode {
+        1 => screen[row][..=col.min(cols - 1)].fill(' '),
+        2 => screen[row].fill(' '),
+        _ => screen[row][col.min(cols - 1)..].fill(' '),
+    }
+}
+
+fn escaped_tail(data: &[u8]) -> String {
+    let start = data.len().saturating_sub(4000);
+    data[start..]
+        .iter()
+        .flat_map(|byte| std::ascii::escape_default(*byte))
+        .map(char::from)
+        .collect()
 }
 
 pub fn tui_command() -> Vec<String> {

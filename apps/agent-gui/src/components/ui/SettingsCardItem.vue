@@ -55,13 +55,14 @@ const props = withDefaults(
 .settings-card-item {
   min-width: 0;
   border: 1px solid var(--app-border-color);
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: var(--app-radius-lg);
+  padding: 14px;
   background: var(--app-card-color);
+  box-shadow: var(--app-shadow-sm);
 }
 
 .settings-card-item--compact {
-  padding: 10px 12px;
+  padding: 11px 12px;
 }
 
 .settings-card-item--split:not(.settings-card-item--with-actions) {
