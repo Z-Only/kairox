@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] - 2026-05-29
+
+### 🚀 Features
+
+- **core**: add monitor domain types and event variants (#629)
+- **tools**: add MonitorRegistry and monitor tools (#630) (#630)
+- **gui**: add monitor chat stream item and trace store handling (#632)
+- **tui**: add Monitor variant to ChatStreamItem and fold_stream (#631)
+- **gui**: add ChatMonitorItem component for monitor chat stream rendering (#633)
+- **runtime**: wire MonitorRegistry lifecycle cleanup on session end (#635)
+- **tui**: add monitor list and stop commands (#646)
+- **gui**: add Tauri IPC commands for monitor list and stop (#638)
+
+### 🐛 Bug Fixes
+
+- **gui**: align settings filters (#653)
+
+### 📚 Documentation
+
+- **testing**: add monitor commands to TUI-GUI parity matrix (#644)
+- **site**: add VitePress concepts page for monitor feature (#645)
+
+### 🧪 Testing
+
+- **tools**: add edge-case tests for MonitorRegistry (#636)
+- **tui**: add monitor stream fold tests for all event paths (#637)
+- **tui**: add snapshot render tests for monitor chat stream items (#640)
+- **gui**: add Vitest for useTraceStore composable (#642)
+
+### 🧹 Refactor
+
+- **tui**: extract chat stream types into dedicated module (#639)
+- **tui**: extract fold_stream tests to dedicated module (#649)
+- **tui**: extract per-row render helpers from sessions/render (#651)
+- **tui**: extract per-item render helpers from stream_render.rs (#648)
+- **tui**: extract per-tab render helpers from skills_overlay/render (#650)
+- **tui**: extract shortcut data from help_overlay/render (#652)
+- **tui**: extract input dispatch tests and deduplicate overlay routing (#647)
+- **tui**: extract data types from trace panel (#643)
+- **tui**: extract data types from mcp_overlay editor (#641)
+
 ## [0.32.0] - 2026-05-28
 
 ### 🚀 Features
@@ -29,7 +70,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 📚 Documentation
 
 - **site**: refresh policy/sandbox terminology for v0.31.0 (#539)
-- **ai**: sync AGENTS.md/CLAUDE.md with current code
 
 ### 🧪 Testing
 

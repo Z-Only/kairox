@@ -156,6 +156,15 @@ The TUI is built on `ratatui` + `crossterm`. The resolver in `crates/agent-tui/s
 | `Ctrl+M` | Toggle the MCP overlay (server status).            |
 | `Ctrl+S` | Toggle the Skills overlay.                         |
 
+### Chat panel commands
+
+The TUI chat input supports colon-prefixed commands:
+
+| Command              | Action                    |
+| -------------------- | ------------------------- |
+| `:monitors`          | List active monitors.     |
+| `:monitor stop <id>` | Stop a monitor by its ID. |
+
 ### Chat panel (focused)
 
 | Key                      | Action                                                  |
