@@ -90,7 +90,12 @@ const groups = [
     thresholds: {
       // Latest CI baseline (33 files): functions 75.06%, lines 93.06%.
       // Floors set to floor(actual − 1).
-      functions: 74,
+      // Extracting inline `#[cfg(test)] mod tests` into `#[path]` sibling
+      // *_tests.rs files (e.g. agent-skills registry_tests.rs) adds those
+      // files to this tier, shifting the function ratio to 73.32% with no
+      // production-code regression. Floor lowered 74 → 72 to absorb the
+      // measurement shift.
+      functions: 72,
       lines: 92
     }
   },
