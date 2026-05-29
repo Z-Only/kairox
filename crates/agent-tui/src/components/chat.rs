@@ -4,6 +4,7 @@ mod input;
 mod render;
 pub mod stream;
 mod stream_render;
+mod stream_render_items;
 pub mod stream_types;
 
 #[allow(unused_imports)]
