@@ -7,14 +7,14 @@
 //! the foundational test contract for the reducer — the renderer port
 //! lands in a follow-up PR.
 
-use agent_core::events::{CompactionReason, EventPayload};
+use agent_core::events::{CompactionReason, EventPayload, MonitorStopReason};
 use agent_core::projection::SessionProjection;
 use agent_core::{AgentId, DomainEvent, PrivacyClassification, SessionId, WorkspaceId};
 use chrono::{Duration as ChronoDuration, TimeZone, Utc};
 
 use agent_tui::components::chat::stream::{
-    fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, PermissionKind,
-    PermissionStatus, ToolCallStatus,
+    fold_stream, ChatStreamItem, CompactionItemStatus, MessageRole, MonitorItemStatus,
+    PermissionKind, PermissionStatus, ToolCallStatus,
 };
 
 fn make_event(payload: EventPayload) -> DomainEvent {
@@ -413,4 +413,274 @@ fn chronological_interleaving_across_item_kinds() {
         vec!["message", "permission", "tool_call", "message"],
         "expected chronological kind sequence; got {kinds:?} from items {items:?}"
     );
+}
+
+// ── Monitor fold tests ──────────────────────────────────────────────
+
+#[test]
+fn folds_monitor_started_into_running_item() {
+    let events = vec![make_event_at(
+        10,
+        EventPayload::MonitorStarted {
+            monitor_id: "mon_1".into(),
+            description: "watch build".into(),
+            command: "tail -f build.log".into(),
+            persistent: false,
+            timeout_ms: 5_000,
+        },
+    )];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 1);
+    match &items[0] {
+        ChatStreamItem::Monitor {
+            id,
+            monitor_id,
+            description,
+            status,
+            last_line,
+            timestamp_ms,
+        } => {
+            assert_eq!(id, "monitor-mon_1");
+            assert_eq!(monitor_id, "mon_1");
+            assert_eq!(description, "watch build");
+            assert_eq!(*status, MonitorItemStatus::Running);
+            assert!(last_line.is_none());
+            assert_eq!(*timestamp_ms, 10);
+        }
+        other => panic!("expected Monitor, got {other:?}"),
+    }
+}
+
+#[test]
+fn monitor_event_updates_last_line() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch".into(),
+                command: "cmd".into(),
+                persistent: false,
+                timeout_ms: 5_000,
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::MonitorEvent {
+                monitor_id: "mon_1".into(),
+                line: "first line".into(),
+            },
+        ),
+        make_event_at(
+            30,
+            EventPayload::MonitorEvent {
+                monitor_id: "mon_1".into(),
+                line: "second line".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 1);
+    if let ChatStreamItem::Monitor {
+        last_line, status, ..
+    } = &items[0]
+    {
+        assert_eq!(*status, MonitorItemStatus::Running);
+        assert_eq!(last_line.as_deref(), Some("second line"));
+    } else {
+        panic!("expected Monitor");
+    }
+}
+
+#[test]
+fn monitor_stopped_updates_status() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch".into(),
+                command: "cmd".into(),
+                persistent: false,
+                timeout_ms: 5_000,
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_1".into(),
+                reason: MonitorStopReason::ExitCode { code: 0 },
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 1);
+    if let ChatStreamItem::Monitor { status, .. } = &items[0] {
+        assert_eq!(
+            *status,
+            MonitorItemStatus::Stopped(MonitorStopReason::ExitCode { code: 0 })
+        );
+    } else {
+        panic!("expected Monitor");
+    }
+}
+
+#[test]
+fn monitor_failed_sets_error_as_last_line() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch".into(),
+                command: "cmd".into(),
+                persistent: false,
+                timeout_ms: 5_000,
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::MonitorFailed {
+                monitor_id: "mon_1".into(),
+                error: "spawn failed".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 1);
+    if let ChatStreamItem::Monitor {
+        status, last_line, ..
+    } = &items[0]
+    {
+        assert_eq!(*status, MonitorItemStatus::Failed);
+        assert_eq!(last_line.as_deref(), Some("spawn failed"));
+    } else {
+        panic!("expected Monitor");
+    }
+}
+
+#[test]
+fn multiple_monitors_fold_independently() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch A".into(),
+                command: "cmd-a".into(),
+                persistent: false,
+                timeout_ms: 5_000,
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_2".into(),
+                description: "watch B".into(),
+                command: "cmd-b".into(),
+                persistent: true,
+                timeout_ms: 60_000,
+            },
+        ),
+        make_event_at(
+            30,
+            EventPayload::MonitorEvent {
+                monitor_id: "mon_1".into(),
+                line: "output-a".into(),
+            },
+        ),
+        make_event_at(
+            40,
+            EventPayload::MonitorStopped {
+                monitor_id: "mon_1".into(),
+                reason: MonitorStopReason::Timeout,
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 2);
+    if let ChatStreamItem::Monitor {
+        monitor_id,
+        status,
+        last_line,
+        ..
+    } = &items[0]
+    {
+        assert_eq!(monitor_id, "mon_1");
+        assert_eq!(
+            *status,
+            MonitorItemStatus::Stopped(MonitorStopReason::Timeout)
+        );
+        assert_eq!(last_line.as_deref(), Some("output-a"));
+    } else {
+        panic!("expected Monitor for items[0]");
+    }
+    if let ChatStreamItem::Monitor {
+        monitor_id, status, ..
+    } = &items[1]
+    {
+        assert_eq!(monitor_id, "mon_2");
+        assert_eq!(*status, MonitorItemStatus::Running);
+    } else {
+        panic!("expected Monitor for items[1]");
+    }
+}
+
+#[test]
+fn monitor_interleaves_with_messages_chronologically() {
+    let events = vec![
+        make_event_at(
+            10,
+            EventPayload::UserMessageAdded {
+                message_id: "u1".into(),
+                content: "start monitoring".into(),
+            },
+        ),
+        make_event_at(
+            20,
+            EventPayload::MonitorStarted {
+                monitor_id: "mon_1".into(),
+                description: "watch".into(),
+                command: "cmd".into(),
+                persistent: false,
+                timeout_ms: 5_000,
+            },
+        ),
+        make_event_at(
+            30,
+            EventPayload::AssistantMessageCompleted {
+                message_id: "a1".into(),
+                content: "monitoring started".into(),
+            },
+        ),
+    ];
+    let projection = SessionProjection::from_events(&events);
+
+    let items = fold_stream(&projection, &events);
+
+    assert_eq!(items.len(), 3);
+    let kinds: Vec<&str> = items
+        .iter()
+        .map(|item| match item {
+            ChatStreamItem::Message { .. } => "message",
+            ChatStreamItem::Monitor { .. } => "monitor",
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(kinds, vec!["message", "monitor", "message"]);
 }
