@@ -4,69 +4,17 @@
 //! runtimes, atomically writes MCP server sections to `config.toml`, and
 //! (optionally) marks the entry as trusted.
 
-use crate::catalog::{
-    EnvVarSpec, InstallRequest, InstallSpec, RuntimeKind, RuntimeRequirement, ServerEntry,
-};
-use async_trait::async_trait;
+use crate::catalog::{EnvVarSpec, InstallRequest, InstallSpec, RuntimeRequirement, ServerEntry};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Outcome of an [`Installer::install`] call. Surfaced to the GUI.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum InstallOutcomeView {
-    Installed { server_id: String, started: bool },
-    RuntimeMissing { missing: Vec<RuntimeRequirement> },
-    AlreadyInstalled { server_id: String },
-    InvalidEnv { missing_keys: Vec<String> },
-}
+mod types;
 
-/// Metadata for a server persisted in the marketplace-managed MCP config.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InstalledServerRecord {
-    pub server_id: String,
-    pub catalog_id: Option<String>,
-    pub source: Option<String>,
-}
-
-/// Detects whether a host runtime is available.
-#[async_trait]
-pub trait RuntimeProbe: Send + Sync {
-    async fn is_available(&self, kind: RuntimeKind) -> bool;
-}
-
-/// Default probe using the `which` crate to look up binaries on PATH.
-pub struct OsRuntimeProbe;
-
-#[async_trait]
-impl RuntimeProbe for OsRuntimeProbe {
-    async fn is_available(&self, kind: RuntimeKind) -> bool {
-        let bin = match kind {
-            RuntimeKind::Node => "node",
-            RuntimeKind::Python => "python3",
-            RuntimeKind::Uvx => "uvx",
-            RuntimeKind::Docker => "docker",
-            RuntimeKind::Bun => "bun",
-            RuntimeKind::Deno => "deno",
-            RuntimeKind::Other => return true,
-        };
-        which::which(bin).is_ok()
-    }
-}
-
-/// Errors emitted by the installer when filesystem or TOML operations fail.
-#[derive(Debug, thiserror::Error)]
-pub enum InstallerError {
-    #[error("io: {0}")]
-    Io(String),
-    #[error("toml: {0}")]
-    Toml(String),
-    #[error("invalid: {0}")]
-    Invalid(String),
-}
+pub use types::{
+    InstallOutcomeView, InstalledServerRecord, InstallerError, OsRuntimeProbe, RuntimeProbe,
+};
 
 /// Persists marketplace installations into the unified `config.toml`.
 pub struct Installer {
@@ -374,7 +322,7 @@ fn add_trusted(doc: &mut toml_edit::DocumentMut, id: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::TrustLevel;
+    use crate::catalog::{RuntimeKind, TrustLevel};
 
     struct StaticProbe {
         available: Vec<RuntimeKind>,
