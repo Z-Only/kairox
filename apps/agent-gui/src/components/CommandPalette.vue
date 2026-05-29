@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import { useCommandRegistry, type CommandDef } from "@/composables/useCommandRegistry";
 
 const props = withDefaults(
@@ -21,7 +22,10 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const registry = useCommandRegistry(t);
+const router = useRouter();
+const registry = useCommandRegistry(t, {
+  navigateToRoute: (name) => router.push({ name })
+});
 
 const paletteEl = ref<HTMLElement | null>(null);
 const selectedIndex = ref(0);

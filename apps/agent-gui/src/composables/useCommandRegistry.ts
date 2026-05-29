@@ -17,13 +17,24 @@ export interface CommandDef {
 
 export type CommandTranslator = (key: string) => string;
 
+export interface CommandRegistryOptions {
+  navigateToRoute?: (routeName: string) => Promise<unknown> | unknown;
+}
+
 interface BuiltinCommandDef extends Omit<CommandDef, "description"> {
   descriptionKey: string;
 }
 
-export function useCommandRegistry(t: CommandTranslator = (key) => key) {
+export function useCommandRegistry(
+  t: CommandTranslator = (key) => key,
+  options: CommandRegistryOptions = {}
+) {
   const session = useSessionStore();
   const skills = useSkillsStore();
+
+  const navigate = async (routeName: string) => {
+    await options.navigateToRoute?.(routeName);
+  };
 
   const builtinCommandDefs: BuiltinCommandDef[] = [
     {
@@ -61,6 +72,55 @@ export function useCommandRegistry(t: CommandTranslator = (key) => key) {
       handler: async () => {
         // palette itself serves as the help display
       }
+    },
+    {
+      id: "instructions",
+      label: "/instructions",
+      descriptionKey: "chat.commands.instructions.description",
+      context: "always",
+      handler: async () => navigate("settings-instructions")
+    },
+    {
+      id: "hooks",
+      label: "/hooks",
+      descriptionKey: "chat.commands.hooks.description",
+      context: "always",
+      handler: async () => navigate("settings-hooks")
+    },
+    {
+      id: "skills",
+      label: "/skills",
+      descriptionKey: "chat.commands.skills.description",
+      context: "always",
+      handler: async () => navigate("settings-skills")
+    },
+    {
+      id: "agents",
+      label: "/agents",
+      descriptionKey: "chat.commands.agents.description",
+      context: "always",
+      handler: async () => navigate("settings-agents")
+    },
+    {
+      id: "plugins",
+      label: "/plugins",
+      descriptionKey: "chat.commands.plugins.description",
+      context: "always",
+      handler: async () => navigate("settings-plugins")
+    },
+    {
+      id: "mcp",
+      label: "/mcp",
+      descriptionKey: "chat.commands.mcp.description",
+      context: "always",
+      handler: async () => navigate("settings-mcp")
+    },
+    {
+      id: "models",
+      label: "/models",
+      descriptionKey: "chat.commands.models.description",
+      context: "always",
+      handler: async () => navigate("settings-models")
     }
   ];
 

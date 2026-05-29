@@ -196,6 +196,27 @@
       },
       "help": {
         "description": "Show available commands and skills"
+      },
+      "instructions": {
+        "description": "Open instructions settings"
+      },
+      "hooks": {
+        "description": "Open hook settings"
+      },
+      "skills": {
+        "description": "Open skill settings"
+      },
+      "agents": {
+        "description": "Open agent settings"
+      },
+      "plugins": {
+        "description": "Open plugin settings"
+      },
+      "mcp": {
+        "description": "Open MCP settings"
+      },
+      "models": {
+        "description": "Open model settings"
       }
     },
     "queueSend": "Queue",
