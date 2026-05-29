@@ -154,7 +154,8 @@ const groups = [
       // search/path tests extracted to path_tests.rs (excluded from src counts); ~164 test lines/16 fns left T3 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 58 → 54, lines 89 → 88.
       // plugins settings tests extracted to settings_tests.rs (excluded from src function counts); floor lowered 54 → 52.
       // fs_write tests extracted to fs_write_tests.rs (excluded from src counts); ~186 test lines/9 fns left T3 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 52 → 50, lines 88 → 87.
-      functions: 50,
+      // search/mod tests extracted to mod_tests.rs (excluded from src function counts); floor lowered 50 → 48.
+      functions: 48,
       lines: 87
     }
   },
