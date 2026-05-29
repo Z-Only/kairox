@@ -398,6 +398,12 @@ pub enum Command {
         session_id: agent_core::SessionId,
         sandbox: agent_tools::SandboxPolicy,
     },
+    /// List all active monitors in the current workspace.
+    MonitorList,
+    /// Stop a specific monitor by ID.
+    MonitorStop {
+        monitor_id: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -637,3 +637,52 @@ fn skill_catalog_install_update_delete_command_variants_carry_payloads() {
     let update_state = SkillUpdateState::UpdateAvailable;
     assert_eq!(update_state, SkillUpdateState::UpdateAvailable);
 }
+
+#[test]
+fn colon_monitors_input_dispatches_monitor_list_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":monitors");
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| matches!(command, Command::MonitorList)),
+        "expected Command::MonitorList; got {commands:?}"
+    );
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::SendMessage { .. })),
+        "expected NO SendMessage; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_monitor_stop_input_dispatches_monitor_stop_command() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":monitor stop mon_1");
+
+    assert!(
+        commands.iter().any(|command| matches!(
+            command,
+            Command::MonitorStop { monitor_id } if monitor_id == "mon_1"
+        )),
+        "expected Command::MonitorStop with mon_1; got {commands:?}"
+    );
+}
+
+#[test]
+fn colon_monitor_stop_without_id_sends_as_message() {
+    use agent_tui::components::Command;
+
+    let commands = chat_commands_for_input(":monitor stop ");
+
+    assert!(
+        !commands
+            .iter()
+            .any(|command| matches!(command, Command::MonitorStop { .. })),
+        "expected NO MonitorStop for empty id; got {commands:?}"
+    );
+}

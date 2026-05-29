@@ -232,6 +232,17 @@ impl ChatPanel {
                 {
                     self.clear_input();
                     commands.push(Command::DeleteSkillSettings { skill_id });
+                } else if trimmed == ":monitors" {
+                    self.clear_input();
+                    commands.push(Command::MonitorList);
+                } else if let Some(monitor_id) = trimmed
+                    .strip_prefix(":monitor stop ")
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+                {
+                    self.clear_input();
+                    commands.push(Command::MonitorStop { monitor_id });
                 } else if let Some(queue_action) = parse_queue_action(trimmed) {
                     self.clear_input();
                     if let Some(command) = self.apply_queue_action(queue_action, ctx) {
