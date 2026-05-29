@@ -127,6 +127,14 @@ pub fn common_commands() -> &'static [Shortcut] {
             key: ":skills",
             label: "list native skills",
         },
+        Shortcut {
+            key: ":monitors",
+            label: "list active monitors",
+        },
+        Shortcut {
+            key: ":monitor stop <id>",
+            label: "stop a monitor",
+        },
     ]
 }
 
