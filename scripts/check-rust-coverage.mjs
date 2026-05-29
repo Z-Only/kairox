@@ -126,7 +126,8 @@ const groups = [
       // function counts); floor lowered 70 → 68.
       // patch/parse tests extracted to parse_tests.rs (excluded from src
       // function counts); floor lowered 68 → 66.
-      functions: 66,
+      // skills settings tests extracted to settings_tests.rs (excluded from src function counts); floor lowered 66 → 64.
+      functions: 64,
       lines: 92
     }
   },
