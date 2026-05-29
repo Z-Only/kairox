@@ -57,7 +57,8 @@ const groups = [
       // facade/settings tests extracted to settings_tests.rs (excluded from src function counts); floor lowered 21 → 19.
       // permission tests extracted to permission_tests.rs (excluded from src function counts); 11 test fns left T1 src, floor lowered 19 → 16.
       // project_meta tests extracted to project_meta_tests.rs (excluded from src function counts); floor lowered 16 → 14.
-      functions: 14,
+      // config effective tests extracted to effective_tests.rs (excluded from src function counts); floor lowered 14 → 12.
+      functions: 12,
       lines: 81
     }
   },
