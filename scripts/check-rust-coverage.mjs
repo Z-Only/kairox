@@ -126,7 +126,9 @@ const groups = [
       // Floors already tight at floor(actual − 1).
       // workspace_recovery tests extracted to workspace_recovery_tests.rs,
       // excluded from src function counts; defensive ~2pp drop (35 → 33).
-      functions: 33,
+      // app/events tests extracted to events_tests.rs (excluded from src
+      // function counts); floor lowered 33 → 31.
+      functions: 31,
       lines: 62
     }
   },
