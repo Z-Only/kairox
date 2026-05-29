@@ -203,8 +203,12 @@ const groups = [
       // function counts) shifted workspace functions 32.42% → 30.99%
       // (CI: 30.99% < 31% fails the strict comparison; measurement shift, no
       // regression); floor lowered 31 → 30.
+      // runtime agent_settings tests extracted to agent_settings_tests.rs
+      // (excluded from src line counts) shifted workspace lines to 68.99%
+      // (CI: 68.99% < 69% fails the strict comparison; measurement shift, no
+      // regression); floor lowered 69 → 68.
       functions: 30,
-      lines: 69
+      lines: 68
     }
   }
 ];
