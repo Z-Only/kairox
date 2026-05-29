@@ -9,27 +9,27 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 ## Architecture & crate map
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  User Interfaces                                     │
-│  ┌──────────────┐  ┌──────────────────────────────┐ │
-│  │  agent-tui   │  │  agent-gui (Tauri 2 + Vue 3) │ │
-│  │  (ratatui)   │  │  Tauri commands ↔ Vue stores  │ │
-│  └──────┬───────┘  └──────────────┬───────────────┘ │
-└─────────┼─────────────────────────┼─────────────────┘
-          │                         │
-          ▼                         ▼
-┌─────────────────────────────────────────────────────┐
-│  agent-core (facade, domain types, events, IDs)     │
-│  └── AppFacade trait — the primary integration point│
-└──────────────────────────┬──────────────────────────┘
-                           │
-          ┌────────────────┼────────────────┐
-          ▼                ▼                ▼
-  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-  │agent-runtime │ │agent-memory  │ │agent-store   │
-  │LocalRuntime  │ │MemoryStore   │ │EventStore    │
-  │agents, tasks │ │ContextAsmblr │ │SqliteEventSt. │
-  └──────┬───────┘ └──────────────┘ └──────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  User Interfaces & Consumers                                          │
+│  ┌──────────────┐  ┌──────────────────────────────┐  ┌────────────┐ │
+│  │  agent-tui   │  │  agent-gui (Tauri 2 + Vue 3) │  │ agent-eval │ │
+│  │  (ratatui)   │  │  Tauri commands ↔ Vue stores  │  │(kairox-eval)│ │
+│  └──────┬───────┘  └──────────────┬───────────────┘  └─────┬──────┘ │
+└─────────┼─────────────────────────┼─────────────────────────┼────────┘
+          │                         │                         │
+          ▼                         ▼                         ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  agent-core (facade, domain types, events, IDs)                      │
+│  └── AppFacade trait — the primary integration point                 │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          ▼                    ▼                    ▼
+  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+  │agent-runtime │     │agent-memory  │     │agent-store   │
+  │LocalRuntime  │     │MemoryStore   │     │EventStore    │
+  │agents, tasks │     │ContextAsmblr │     │SqliteEventSt. │
+  └──────┬───────┘     └──────────────┘     └──────────────┘
          │
     ┌────┴─────────────┐
     ▼                  ▼
@@ -47,7 +47,7 @@ Kairox is a **local-first AI agent workbench** with a shared Rust core, a termin
 | **agent-core**    | Shared domain types, event definitions, facade trait, IDs, projections, build info                                                                                                                                        | `AppFacade`, `DomainEvent`, `EventPayload`, `SessionId`, `WorkspaceId`, `TraceEntry`, `PermissionDecision`, `TaskSnapshot`, `TaskGraphSnapshot`, `AgentRole`, `TaskState`, `BuildInfo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | **agent-runtime** | Orchestrates the agent loop, session actors, context budgets, race-free turn-end compaction, model switching, configurable agent settings, multi-agent strategies, MCP server lifecycle, permissions, DAG turn scheduling | `LocalRuntime<S, M>`, `SessionActor`, `SessionExecutionRuntime`, `PlannerAgent`, `WorkerAgent`, `ReviewerAgent`, `AgentStrategy`, `DagExecutor`, `TaskGraph`, `McpServerManager`, context budget helpers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake) with model metadata/context-window support                                                                                                        | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`, `ModelRegistry`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **agent-tools**   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools (shell, fs.read, fs.write, fs.list, patch, search)                                                                                             | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `PermissionEngine` (thin wrapper), `Tool` trait, `ToolRisk`, `McpToolAdapter`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **agent-tools**   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools (shell, fs.read, fs.write, fs.list, patch, search, monitor), MonitorRegistry for background process lifecycle                                  | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `PermissionEngine` (thin wrapper), `Tool` trait, `ToolRisk`, `McpToolAdapter`, `MonitorRegistry`, `MonitorMetadata`                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | **agent-mcp**     | MCP (Model Context Protocol) client, transports, server lifecycle, health checks, protocol types, discovery cache, marketplace catalog (built-in + remote sources)                                                        | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpServerDef`, `McpError`, `CatalogEntry`, `CatalogSource`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **agent-skills**  | Native skills system — reusable prompt, tool, and workflow capabilities, frontmatter parsing, skill registry, GUI settings, config-driven discovery                                                                       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`, `SkillScope`, `SkillSettings`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **agent-plugins** | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers                                                                                                                           | `PluginManifest`, plugin inventory and settings helpers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
