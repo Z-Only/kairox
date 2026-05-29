@@ -44,235 +44,7 @@ impl ChatPanel {
             KeyAction::SendInput
                 if !self.input_content.is_empty() || !self.pending_attachments.is_empty() =>
             {
-                let trimmed = self.input_content.trim();
-                if trimmed == ":clear" {
-                    self.clear_input();
-                    commands.push(Command::ClearSessionProjection);
-                } else if trimmed == ":compact" {
-                    self.clear_input();
-                    if let Some(session_id) = ctx.current_session_id {
-                        commands.push(Command::CompactSession {
-                            workspace_id: ctx.workspace_id.clone(),
-                            session_id: session_id.clone(),
-                        });
-                    }
-                } else if let Some(alias) = trimmed
-                    .strip_prefix(":model ")
-                    .map(str::trim)
-                    .filter(|a| !a.is_empty())
-                {
-                    let alias = alias.to_string();
-                    self.clear_input();
-                    if let Some(session_id) = ctx.current_session_id {
-                        commands.push(Command::SwitchModel {
-                            workspace_id: ctx.workspace_id.clone(),
-                            session_id: session_id.clone(),
-                            alias,
-                            reasoning_effort: None,
-                        });
-                    }
-                } else if trimmed == ":skills" {
-                    self.clear_input();
-                    commands.push(Command::ListSkills);
-                } else if trimmed == ":instructions" {
-                    self.clear_input();
-                    commands.push(Command::OpenInstructionsOverlay);
-                } else if trimmed == ":hooks" {
-                    self.clear_input();
-                    commands.push(Command::OpenHooksOverlay);
-                } else if trimmed == ":plugins" {
-                    self.clear_input();
-                    commands.push(Command::OpenPluginsOverlay);
-                } else if trimmed == ":agents" {
-                    self.clear_input();
-                    commands.push(Command::OpenAgentSettingsOverlay);
-                } else if trimmed == ":project draft" {
-                    self.clear_input();
-                    if let Some(project_id) = active_project_id(ctx) {
-                        commands.push(Command::CreateProjectDraftSession { project_id });
-                    }
-                } else if trimmed == ":project create" || trimmed.starts_with(":project create ") {
-                    let display_name = trimmed
-                        .strip_prefix(":project create")
-                        .map(str::trim)
-                        .filter(|value| !value.is_empty())
-                        .map(str::to_string);
-                    self.clear_input();
-                    commands.push(Command::CreateBlankProject { display_name });
-                } else if let Some(path) = trimmed
-                    .strip_prefix(":project import ")
-                    .map(str::trim)
-                    .filter(|path| !path.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    commands.push(Command::AddExistingProject { path });
-                } else if let Some(branch_name) = trimmed
-                    .strip_prefix(":project worktree ")
-                    .map(str::trim)
-                    .filter(|branch_name| !branch_name.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    if let Some(project_id) = active_project_id(ctx) {
-                        commands.push(Command::CreateProjectWorktreeSession {
-                            project_id,
-                            branch_name,
-                        });
-                    }
-                } else if let Some(path) = trimmed
-                    .strip_prefix(":attach ")
-                    .map(str::trim)
-                    .filter(|path| !path.is_empty())
-                {
-                    if let Some(attachment) = attachment_from_path(path) {
-                        self.push_pending_attachment(attachment);
-                    }
-                    self.clear_input();
-                } else if trimmed == ":detach" {
-                    self.pending_attachments.clear();
-                    self.clear_input();
-                } else if let Some(target) = trimmed
-                    .strip_prefix(":detach ")
-                    .map(str::trim)
-                    .filter(|target| !target.is_empty())
-                    .map(str::to_string)
-                {
-                    self.detach_attachment(&target);
-                    self.clear_input();
-                } else if let Some(skill_id) = trimmed
-                    .strip_prefix(":skill show ")
-                    .map(str::trim)
-                    .filter(|skill_id| !skill_id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    commands.push(Command::ShowSkill { skill_id });
-                } else if let Some(skill_id) = trimmed
-                    .strip_prefix(":skill activate ")
-                    .map(str::trim)
-                    .filter(|skill_id| !skill_id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    if let Some(session_id) = ctx.current_session_id {
-                        commands.push(Command::ActivateSkill {
-                            workspace_id: ctx.workspace_id.clone(),
-                            session_id: session_id.clone(),
-                            skill_id,
-                        });
-                    }
-                } else if let Some(skill_id) = trimmed
-                    .strip_prefix(":skill deactivate ")
-                    .map(str::trim)
-                    .filter(|skill_id| !skill_id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    if let Some(session_id) = ctx.current_session_id {
-                        commands.push(Command::DeactivateSkill {
-                            workspace_id: ctx.workspace_id.clone(),
-                            session_id: session_id.clone(),
-                            skill_id,
-                        });
-                    }
-                } else if trimmed == ":skill catalog" || trimmed.starts_with(":skill catalog ") {
-                    let keyword = trimmed
-                        .strip_prefix(":skill catalog")
-                        .map(str::trim)
-                        .filter(|keyword| !keyword.is_empty())
-                        .map(str::to_string);
-                    self.clear_input();
-                    commands.push(Command::ListSkillCatalog {
-                        keyword,
-                        sources: None,
-                    });
-                } else if let Some(package) = trimmed
-                    .strip_prefix(":skill install ")
-                    .map(str::trim)
-                    .filter(|package| !package.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    if let Some(source) = package
-                        .strip_prefix("github ")
-                        .map(str::trim)
-                        .filter(|source| !source.is_empty())
-                        .map(str::to_string)
-                    {
-                        commands.push(Command::InstallGithubSkill {
-                            request: agent_core::facade::InstallGithubSkillRequest {
-                                source,
-                                target: agent_core::facade::SkillInstallTarget::User,
-                            },
-                        });
-                    } else {
-                        commands.push(Command::InstallRemoteSkill {
-                            request: agent_core::facade::InstallRemoteSkillRequest {
-                                package: package.clone(),
-                                source: package,
-                                target: agent_core::facade::SkillInstallTarget::User,
-                                package_url: None,
-                            },
-                        });
-                    }
-                } else if let Some(skill_id) = trimmed
-                    .strip_prefix(":skill update ")
-                    .map(str::trim)
-                    .filter(|skill_id| !skill_id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    commands.push(Command::UpdateSkillSettings { skill_id });
-                } else if let Some(skill_id) = trimmed
-                    .strip_prefix(":skill delete ")
-                    .map(str::trim)
-                    .filter(|skill_id| !skill_id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    commands.push(Command::DeleteSkillSettings { skill_id });
-                } else if trimmed == ":monitors" {
-                    self.clear_input();
-                    commands.push(Command::MonitorList);
-                } else if let Some(monitor_id) = trimmed
-                    .strip_prefix(":monitor stop ")
-                    .map(str::trim)
-                    .filter(|id| !id.is_empty())
-                    .map(str::to_string)
-                {
-                    self.clear_input();
-                    commands.push(Command::MonitorStop { monitor_id });
-                } else if let Some(queue_action) = parse_queue_action(trimmed) {
-                    self.clear_input();
-                    if let Some(command) = self.apply_queue_action(queue_action, ctx) {
-                        commands.push(command);
-                    }
-                } else {
-                    if !self.input_content.is_empty() {
-                        self.input_history.push(self.input_content.clone());
-                    }
-                    let content = std::mem::take(&mut self.input_content);
-                    let attachments = std::mem::take(&mut self.pending_attachments);
-                    self.input_cursor = 0;
-                    self.input_history_index = None;
-
-                    if is_session_busy(ctx) {
-                        // Session is busy — hold the message locally and drain
-                        // it when the session returns to idle.
-                        self.message_queue.push(QueuedMessage {
-                            content,
-                            attachments,
-                        });
-                    } else if let Some(session_id) = ctx.current_session_id {
-                        commands.push(Command::SendMessage {
-                            workspace_id: ctx.workspace_id.clone(),
-                            session_id: session_id.clone(),
-                            content,
-                            attachments,
-                        });
-                    }
-                }
+                self.handle_send_input(ctx, &mut commands);
             }
             KeyAction::InputCharacter(c) => {
                 self.input_content.insert(self.input_cursor, c);
@@ -294,49 +66,16 @@ impl ChatPanel {
                 };
             }
             KeyAction::InputHistoryUp if !self.input_history.is_empty() => {
-                let idx = match self.input_history_index {
-                    Some(i) if i > 0 => i - 1,
-                    Some(i) => i,
-                    None => self.input_history.len() - 1,
-                };
-                self.input_history_index = Some(idx);
-                self.input_content = self.input_history[idx].clone();
-                self.input_cursor = self.input_content.len();
+                self.recall_previous_history();
             }
             KeyAction::InputHistoryDown => {
-                if let Some(i) = self.input_history_index {
-                    if i + 1 < self.input_history.len() {
-                        let next = i + 1;
-                        self.input_history_index = Some(next);
-                        self.input_content = self.input_history[next].clone();
-                    } else {
-                        self.input_history_index = None;
-                        self.input_content.clear();
-                    }
-                    self.input_cursor = self.input_content.len();
-                }
+                self.recall_next_history();
             }
             KeyAction::AllowPermission => {
-                if let InputState::PermissionWait { request_id, .. } = &self.input_state {
-                    let rid = request_id.clone();
-                    self.input_state = InputState::Normal;
-                    commands.push(Command::DecidePermission {
-                        request_id: rid,
-                        approved: true,
-                    });
-                    effects.push(CrossPanelEffect::DismissPermissionPrompt);
-                }
+                self.resolve_pending_permission(true, &mut effects, &mut commands);
             }
             KeyAction::DenyPermission | KeyAction::DenyAllPermission => {
-                if let InputState::PermissionWait { request_id, .. } = &self.input_state {
-                    let rid = request_id.clone();
-                    self.input_state = InputState::Normal;
-                    commands.push(Command::DecidePermission {
-                        request_id: rid,
-                        approved: false,
-                    });
-                    effects.push(CrossPanelEffect::DismissPermissionPrompt);
-                }
+                self.resolve_pending_permission(false, &mut effects, &mut commands);
             }
             KeyAction::Escape
                 if self.input_mode == InputMode::MultiLine && self.input_content.is_empty() =>
@@ -362,6 +101,294 @@ impl ChatPanel {
         }
 
         (effects, commands)
+    }
+
+    /// Handle a committed input line: dispatch a recognised `:`-prefixed slash
+    /// command, or fall back to sending/queueing the text as a chat message.
+    fn handle_send_input(&mut self, ctx: &EventContext, commands: &mut Vec<Command>) {
+        let trimmed = self.input_content.trim();
+        if trimmed == ":clear" {
+            self.clear_input();
+            commands.push(Command::ClearSessionProjection);
+        } else if trimmed == ":compact" {
+            self.clear_input();
+            if let Some(session_id) = ctx.current_session_id {
+                commands.push(Command::CompactSession {
+                    workspace_id: ctx.workspace_id.clone(),
+                    session_id: session_id.clone(),
+                });
+            }
+        } else if let Some(alias) = trimmed
+            .strip_prefix(":model ")
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+        {
+            let alias = alias.to_string();
+            self.clear_input();
+            if let Some(session_id) = ctx.current_session_id {
+                commands.push(Command::SwitchModel {
+                    workspace_id: ctx.workspace_id.clone(),
+                    session_id: session_id.clone(),
+                    alias,
+                    reasoning_effort: None,
+                });
+            }
+        } else if trimmed == ":skills" {
+            self.clear_input();
+            commands.push(Command::ListSkills);
+        } else if trimmed == ":instructions" {
+            self.clear_input();
+            commands.push(Command::OpenInstructionsOverlay);
+        } else if trimmed == ":hooks" {
+            self.clear_input();
+            commands.push(Command::OpenHooksOverlay);
+        } else if trimmed == ":plugins" {
+            self.clear_input();
+            commands.push(Command::OpenPluginsOverlay);
+        } else if trimmed == ":agents" {
+            self.clear_input();
+            commands.push(Command::OpenAgentSettingsOverlay);
+        } else if trimmed == ":project draft" {
+            self.clear_input();
+            if let Some(project_id) = active_project_id(ctx) {
+                commands.push(Command::CreateProjectDraftSession { project_id });
+            }
+        } else if trimmed == ":project create" || trimmed.starts_with(":project create ") {
+            let display_name = trimmed
+                .strip_prefix(":project create")
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string);
+            self.clear_input();
+            commands.push(Command::CreateBlankProject { display_name });
+        } else if let Some(path) = trimmed
+            .strip_prefix(":project import ")
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            commands.push(Command::AddExistingProject { path });
+        } else if let Some(branch_name) = trimmed
+            .strip_prefix(":project worktree ")
+            .map(str::trim)
+            .filter(|branch_name| !branch_name.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            if let Some(project_id) = active_project_id(ctx) {
+                commands.push(Command::CreateProjectWorktreeSession {
+                    project_id,
+                    branch_name,
+                });
+            }
+        } else if let Some(path) = trimmed
+            .strip_prefix(":attach ")
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+        {
+            if let Some(attachment) = attachment_from_path(path) {
+                self.push_pending_attachment(attachment);
+            }
+            self.clear_input();
+        } else if trimmed == ":detach" {
+            self.pending_attachments.clear();
+            self.clear_input();
+        } else if let Some(target) = trimmed
+            .strip_prefix(":detach ")
+            .map(str::trim)
+            .filter(|target| !target.is_empty())
+            .map(str::to_string)
+        {
+            self.detach_attachment(&target);
+            self.clear_input();
+        } else if let Some(skill_id) = trimmed
+            .strip_prefix(":skill show ")
+            .map(str::trim)
+            .filter(|skill_id| !skill_id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            commands.push(Command::ShowSkill { skill_id });
+        } else if let Some(skill_id) = trimmed
+            .strip_prefix(":skill activate ")
+            .map(str::trim)
+            .filter(|skill_id| !skill_id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            if let Some(session_id) = ctx.current_session_id {
+                commands.push(Command::ActivateSkill {
+                    workspace_id: ctx.workspace_id.clone(),
+                    session_id: session_id.clone(),
+                    skill_id,
+                });
+            }
+        } else if let Some(skill_id) = trimmed
+            .strip_prefix(":skill deactivate ")
+            .map(str::trim)
+            .filter(|skill_id| !skill_id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            if let Some(session_id) = ctx.current_session_id {
+                commands.push(Command::DeactivateSkill {
+                    workspace_id: ctx.workspace_id.clone(),
+                    session_id: session_id.clone(),
+                    skill_id,
+                });
+            }
+        } else if trimmed == ":skill catalog" || trimmed.starts_with(":skill catalog ") {
+            let keyword = trimmed
+                .strip_prefix(":skill catalog")
+                .map(str::trim)
+                .filter(|keyword| !keyword.is_empty())
+                .map(str::to_string);
+            self.clear_input();
+            commands.push(Command::ListSkillCatalog {
+                keyword,
+                sources: None,
+            });
+        } else if let Some(package) = trimmed
+            .strip_prefix(":skill install ")
+            .map(str::trim)
+            .filter(|package| !package.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            if let Some(source) = package
+                .strip_prefix("github ")
+                .map(str::trim)
+                .filter(|source| !source.is_empty())
+                .map(str::to_string)
+            {
+                commands.push(Command::InstallGithubSkill {
+                    request: agent_core::facade::InstallGithubSkillRequest {
+                        source,
+                        target: agent_core::facade::SkillInstallTarget::User,
+                    },
+                });
+            } else {
+                commands.push(Command::InstallRemoteSkill {
+                    request: agent_core::facade::InstallRemoteSkillRequest {
+                        package: package.clone(),
+                        source: package,
+                        target: agent_core::facade::SkillInstallTarget::User,
+                        package_url: None,
+                    },
+                });
+            }
+        } else if let Some(skill_id) = trimmed
+            .strip_prefix(":skill update ")
+            .map(str::trim)
+            .filter(|skill_id| !skill_id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            commands.push(Command::UpdateSkillSettings { skill_id });
+        } else if let Some(skill_id) = trimmed
+            .strip_prefix(":skill delete ")
+            .map(str::trim)
+            .filter(|skill_id| !skill_id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            commands.push(Command::DeleteSkillSettings { skill_id });
+        } else if trimmed == ":monitors" {
+            self.clear_input();
+            commands.push(Command::MonitorList);
+        } else if let Some(monitor_id) = trimmed
+            .strip_prefix(":monitor stop ")
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_string)
+        {
+            self.clear_input();
+            commands.push(Command::MonitorStop { monitor_id });
+        } else if let Some(queue_action) = parse_queue_action(trimmed) {
+            self.clear_input();
+            if let Some(command) = self.apply_queue_action(queue_action, ctx) {
+                commands.push(command);
+            }
+        } else {
+            self.send_or_queue_message(ctx, commands);
+        }
+    }
+
+    /// Persist the current input to history, then send it immediately or hold
+    /// it in the local queue while the session is busy.
+    fn send_or_queue_message(&mut self, ctx: &EventContext, commands: &mut Vec<Command>) {
+        if !self.input_content.is_empty() {
+            self.input_history.push(self.input_content.clone());
+        }
+        let content = std::mem::take(&mut self.input_content);
+        let attachments = std::mem::take(&mut self.pending_attachments);
+        self.input_cursor = 0;
+        self.input_history_index = None;
+
+        if is_session_busy(ctx) {
+            // Session is busy — hold the message locally and drain
+            // it when the session returns to idle.
+            self.message_queue.push(QueuedMessage {
+                content,
+                attachments,
+            });
+        } else if let Some(session_id) = ctx.current_session_id {
+            commands.push(Command::SendMessage {
+                workspace_id: ctx.workspace_id.clone(),
+                session_id: session_id.clone(),
+                content,
+                attachments,
+            });
+        }
+    }
+
+    /// Move backward through input history, recalling the previous entry.
+    /// Caller must ensure the history is non-empty.
+    fn recall_previous_history(&mut self) {
+        let idx = match self.input_history_index {
+            Some(i) if i > 0 => i - 1,
+            Some(i) => i,
+            None => self.input_history.len() - 1,
+        };
+        self.input_history_index = Some(idx);
+        self.input_content = self.input_history[idx].clone();
+        self.input_cursor = self.input_content.len();
+    }
+
+    /// Move forward through input history, recalling the next entry or
+    /// clearing the input once the most recent entry is passed.
+    fn recall_next_history(&mut self) {
+        if let Some(i) = self.input_history_index {
+            if i + 1 < self.input_history.len() {
+                let next = i + 1;
+                self.input_history_index = Some(next);
+                self.input_content = self.input_history[next].clone();
+            } else {
+                self.input_history_index = None;
+                self.input_content.clear();
+            }
+            self.input_cursor = self.input_content.len();
+        }
+    }
+
+    /// Resolve a pending permission prompt with the given decision, emitting
+    /// the decision command and dismissal effect when one is waiting.
+    fn resolve_pending_permission(
+        &mut self,
+        approved: bool,
+        effects: &mut Vec<CrossPanelEffect>,
+        commands: &mut Vec<Command>,
+    ) {
+        if let InputState::PermissionWait { request_id, .. } = &self.input_state {
+            let rid = request_id.clone();
+            self.input_state = InputState::Normal;
+            commands.push(Command::DecidePermission {
+                request_id: rid,
+                approved,
+            });
+            effects.push(CrossPanelEffect::DismissPermissionPrompt);
+        }
     }
 
     fn clear_input(&mut self) {
