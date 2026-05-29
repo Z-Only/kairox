@@ -24,6 +24,7 @@ function enNav(): DefaultTheme.NavItem[] {
         { text: "Runtime & Sessions", link: "/concepts/runtime-and-sessions" },
         { text: "Memory & Context", link: "/concepts/memory-and-context" },
         { text: "Permissions & Tools", link: "/concepts/permissions-and-tools" },
+        { text: "Monitors", link: "/concepts/monitors" },
         { text: "Extensibility", link: "/concepts/extensibility" }
       ]
     },
@@ -73,6 +74,7 @@ function zhNav(): DefaultTheme.NavItem[] {
         { text: "运行时与会话", link: "/zh/concepts/runtime-and-sessions" },
         { text: "记忆与上下文", link: "/zh/concepts/memory-and-context" },
         { text: "权限与工具", link: "/zh/concepts/permissions-and-tools" },
+        { text: "监控器", link: "/zh/concepts/monitors" },
         { text: "可扩展性", link: "/zh/concepts/extensibility" }
       ]
     },
@@ -124,6 +126,7 @@ function enSidebar(): DefaultTheme.Sidebar {
           { text: "Runtime & Sessions", link: "/concepts/runtime-and-sessions" },
           { text: "Memory & Context", link: "/concepts/memory-and-context" },
           { text: "Permissions & Tools", link: "/concepts/permissions-and-tools" },
+          { text: "Monitors", link: "/concepts/monitors" },
           { text: "Extensibility: MCP / Skills / Plugins", link: "/concepts/extensibility" }
         ]
       }
@@ -172,6 +175,7 @@ function zhSidebar(): DefaultTheme.Sidebar {
           { text: "运行时与会话", link: "/zh/concepts/runtime-and-sessions" },
           { text: "记忆与上下文", link: "/zh/concepts/memory-and-context" },
           { text: "权限与工具", link: "/zh/concepts/permissions-and-tools" },
+          { text: "监控器", link: "/zh/concepts/monitors" },
           { text: "可扩展性: MCP / 技能 / 插件", link: "/zh/concepts/extensibility" }
         ]
       }
