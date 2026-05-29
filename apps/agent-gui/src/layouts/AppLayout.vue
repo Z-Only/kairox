@@ -9,12 +9,18 @@ const { t } = useI18n();
   <ConfirmDialog>
     <div class="app-shell" data-test="app-shell">
       <nav class="app-nav" data-test="app-nav">
-        <RouterLink :to="{ name: 'workbench' }" data-test="nav-workbench">
-          {{ t("nav.workbench") }}
-        </RouterLink>
-        <RouterLink :to="{ name: 'settings-general' }" data-test="nav-settings">
-          {{ t("nav.settings") }}
-        </RouterLink>
+        <div class="app-nav__brand" aria-hidden="true">
+          <span class="app-nav__mark"></span>
+          <span>Kairox</span>
+        </div>
+        <div class="app-nav__links">
+          <RouterLink :to="{ name: 'workbench' }" data-test="nav-workbench">
+            {{ t("nav.workbench") }}
+          </RouterLink>
+          <RouterLink :to="{ name: 'settings-general' }" data-test="nav-settings">
+            {{ t("nav.settings") }}
+          </RouterLink>
+        </div>
       </nav>
       <RouterView />
     </div>
@@ -34,12 +40,38 @@ const { t } = useI18n();
 }
 .app-nav {
   display: flex;
-  gap: 16px;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
   padding: 6px 16px;
   border-bottom: 1px solid var(--app-border-color);
-  background: var(--app-card-color);
+  background: var(--app-nav-color);
   font-size: 13px;
+  box-shadow: var(--app-shadow-sm);
+}
+.app-nav__brand,
+.app-nav__links {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.app-nav__brand {
+  gap: 8px;
+  color: var(--app-text-color);
+  font-weight: 750;
+}
+.app-nav__mark {
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--app-primary-color) 45%, var(--app-border-color));
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(135deg, transparent 44%, var(--app-primary-color) 45% 56%, transparent 57%),
+    color-mix(in srgb, var(--app-primary-color) 14%, var(--app-card-color));
+}
+.app-nav__links {
+  gap: 6px;
 }
 .app-nav a {
   text-decoration: none;
@@ -47,6 +79,7 @@ const { t } = useI18n();
   padding: 6px 12px;
   border-radius: var(--app-radius-md);
   cursor: pointer;
+  font-weight: 600;
 }
 @media (prefers-reduced-motion: no-preference) {
   .app-nav a {
@@ -61,7 +94,19 @@ const { t } = useI18n();
 }
 .app-nav a.router-link-active {
   color: var(--app-primary-color);
-  font-weight: 600;
-  background: color-mix(in srgb, var(--app-primary-color) 8%, transparent);
+  background: color-mix(in srgb, var(--app-primary-color) 12%, transparent);
+}
+@media (max-width: 640px) {
+  .app-nav {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+
+  .app-nav__links {
+    width: 100%;
+    overflow-x: auto;
+  }
 }
 </style>

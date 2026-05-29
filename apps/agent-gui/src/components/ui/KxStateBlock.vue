@@ -50,11 +50,12 @@ const resolvedRole = computed(() => {
   padding: var(--app-space-4);
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-lg);
-  background: color-mix(in srgb, var(--app-card-color) 82%, var(--app-body-color));
+  background: color-mix(in srgb, var(--app-panel-color) 70%, var(--app-card-color));
   color: var(--app-text-color-2);
   font-size: var(--app-text-base);
   line-height: 1.45;
   text-align: center;
+  box-shadow: var(--app-shadow-sm);
 }
 
 .kx-state-block--compact {

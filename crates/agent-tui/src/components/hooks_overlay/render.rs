@@ -7,10 +7,12 @@
 use agent_core::facade::{HookSettingsView, HookTemplateView};
 use agent_core::ConfigScope;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::state::HooksOverlay;
 use super::types::{HookDraft, HookEditorField, HooksMode, HooksTab, EDITOR_FIELDS};
@@ -30,13 +32,8 @@ pub(super) fn render_hooks_overlay(area: Rect, frame: &mut Frame, overlay: &Hook
     };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            title,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(title, theme::title()))
+        .border_style(theme::border(true));
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
 
@@ -70,24 +67,24 @@ fn render_hooks_list(area: Rect, frame: &mut Frame, overlay: &HooksOverlay) {
 
     let hints = if overlay.tab == HooksTab::Templates {
         Line::from(vec![
-            Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("[Enter/u] use user  ", Style::default().fg(Color::Cyan)),
-            Span::styled("[p] use project  ", Style::default().fg(Color::Magenta)),
-            Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+            Span::styled("[j/k] nav  ", theme::muted()),
+            Span::styled("[Enter/u] use user  ", theme::title()),
+            Span::styled(
+                "[p] use project  ",
+                Style::default().fg(theme::ACCENT_STRONG),
+            ),
+            Span::styled("[Tab] tab  ", theme::muted()),
+            Span::styled("[Esc] close", theme::muted()),
         ])
     } else {
         Line::from(vec![
-            Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-            Span::styled(
-                "[n/N] new current/other  ",
-                Style::default().fg(Color::Cyan),
-            ),
-            Span::styled("[Enter/e] edit  ", Style::default().fg(Color::Yellow)),
-            Span::styled("[Space] enable  ", Style::default().fg(Color::Green)),
-            Span::styled("[x/Delete] delete  ", Style::default().fg(Color::Red)),
-            Span::styled("[r] refresh  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+            Span::styled("[j/k] nav  ", theme::muted()),
+            Span::styled("[n/N] new current/other  ", theme::title()),
+            Span::styled("[Enter/e] edit  ", theme::key()),
+            Span::styled("[Space] enable  ", Style::default().fg(theme::SUCCESS)),
+            Span::styled("[x/Delete] delete  ", Style::default().fg(theme::DANGER)),
+            Span::styled("[r] refresh  ", theme::muted()),
+            Span::styled("[Esc] close", theme::muted()),
         ])
     };
     let path_line = match overlay.tab {
@@ -102,10 +99,7 @@ fn render_hooks_list(area: Rect, frame: &mut Frame, overlay: &HooksOverlay) {
     frame.render_widget(
         Paragraph::new(vec![
             hints,
-            Line::from(Span::styled(
-                path_line,
-                Style::default().fg(Color::DarkGray),
-            )),
+            Line::from(Span::styled(path_line, theme::muted())),
         ]),
         chunks[2],
     );
@@ -139,11 +133,11 @@ fn tab_span(tab: HooksTab, active: bool, count: usize) -> Span<'static> {
         Span::styled(
             format!("[{label}]"),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         )
     } else {
-        Span::styled(format!(" {label} "), Style::default().fg(Color::DarkGray))
+        Span::styled(format!(" {label} "), theme::muted())
     }
 }
 
@@ -157,7 +151,7 @@ fn render_hook_rows(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No hooks configured",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -182,14 +176,14 @@ fn render_hook_rows(
                     Span::styled(
                         format!("{:<8}", state_label),
                         Style::default().fg(if hook.enabled {
-                            Color::Green
+                            theme::SUCCESS
                         } else {
-                            Color::DarkGray
+                            theme::MUTED
                         }),
                     ),
                     Span::styled(
                         format!(" {:<17}", hook.event),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(theme::WARNING),
                     ),
                     Span::styled(
                         format!(" {}", hook.id),
@@ -199,18 +193,14 @@ fn render_hook_rows(
                 Line::from(vec![
                     Span::styled(
                         format!("  matcher: {matcher:<16} timeout: {timeout:<6} "),
-                        Style::default().fg(Color::DarkGray),
+                        theme::muted(),
                     ),
                     Span::raw(&hook.command),
                 ]),
             ])
         })
         .collect::<Vec<_>>();
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, &mut state);
 }
 
@@ -224,7 +214,7 @@ fn render_template_rows(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No hook templates available",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -243,32 +233,22 @@ fn render_template_rows(
                 Line::from(vec![
                     Span::styled(
                         format!("{:<17}", template.event),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(theme::WARNING),
                     ),
                     Span::styled(
                         format!(" {}", template.name),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(
-                        format!(" ({})", template.id),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(format!(" ({})", template.id), theme::muted()),
                 ]),
                 Line::from(vec![
-                    Span::styled(
-                        format!("  matcher: {matcher:<16} "),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(format!("  matcher: {matcher:<16} "), theme::muted()),
                     Span::raw(&template.command),
                 ]),
             ])
         })
         .collect::<Vec<_>>();
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, &mut state);
 }
 
@@ -290,16 +270,16 @@ fn render_hooks_editor(area: Rect, frame: &mut Frame, overlay: &HooksOverlay) {
             }
             let style = if selected {
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme::WARNING)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
             Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Cyan)),
+                Span::styled(marker, theme::title()),
                 Span::styled(format!("{:<10}", editor_field_label(*field)), style),
                 Span::raw(" "),
-                Span::styled(value, Style::default().fg(Color::Gray)),
+                Span::styled(value, theme::muted()),
             ])
         })
         .collect::<Vec<_>>();
@@ -308,16 +288,16 @@ fn render_hooks_editor(area: Rect, frame: &mut Frame, overlay: &HooksOverlay) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Style::default().fg(theme::WARNING)),
         )
         .wrap(Wrap { trim: false });
     frame.render_widget(body, chunks[0]);
 
     let hints = Line::from(vec![
-        Span::styled("[Tab] field  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Del] clear  ", Style::default().fg(Color::Red)),
-        Span::styled("[Esc] list", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab] field  ", theme::muted()),
+        Span::styled("[Enter] save  ", theme::key()),
+        Span::styled("[Del] clear  ", Style::default().fg(theme::DANGER)),
+        Span::styled("[Esc] list", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), chunks[1]);
 }

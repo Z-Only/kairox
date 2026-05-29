@@ -2,12 +2,12 @@
 //! action overlay. State and key handling live in [`super::state`].
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui::Frame;
 
-use crate::components::{ProjectInfo, SessionInfo};
+use crate::components::{theme, ProjectInfo, SessionInfo};
 
 use super::render_items::{
     action_key, action_label, archived_session_row_line, project_row_line, session_row_line,
@@ -28,11 +28,7 @@ pub fn render_sessions(
     focused: bool,
     state: &mut ListState,
 ) {
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
+    let border_style = theme::border(focused);
 
     let rows = session_list_rows(projects, sessions);
     let stats = archive_stats(sessions);
@@ -72,12 +68,12 @@ pub fn render_sessions(
     };
 
     let list = List::new(items)
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-        .highlight_symbol("❯ ")
+        .highlight_style(theme::selected())
+        .highlight_symbol("> ")
         .block(
             Block::default()
                 .borders(Borders::RIGHT)
-                .title(title)
+                .title(Span::styled(title, theme::title()))
                 .border_style(border_style),
         );
     frame.render_stateful_widget(list, area, state);
@@ -100,13 +96,8 @@ pub(super) fn render_archive_manager(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " Archive Manager ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(" Archive Manager ", theme::title()))
+        .border_style(theme::border(true));
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
 
@@ -126,12 +117,12 @@ pub(super) fn render_archive_manager(
     let stats = archive_stats(sessions);
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("Total: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Total: ", theme::muted()),
             Span::styled(
                 stats.total.to_string(),
                 Style::default().add_modifier(Modifier::BOLD),
             ),
-            Span::styled("  Projects: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Projects: ", theme::muted()),
             Span::styled(
                 stats.projects.to_string(),
                 Style::default().add_modifier(Modifier::BOLD),
@@ -145,7 +136,7 @@ pub(super) fn render_archive_manager(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No archived sessions",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             chunks[1],
         );
@@ -157,21 +148,17 @@ pub(super) fn render_archive_manager(
         let mut state = ListState::default();
         state.select(Some(panel.archive_cursor.min(archived.len() - 1)));
         let list = List::new(items)
-            .highlight_style(
-                Style::default()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .highlight_symbol("❯ ");
+            .highlight_style(theme::selected())
+            .highlight_symbol("> ");
         frame.render_stateful_widget(list, chunks[1], &mut state);
     }
 
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("[Enter/r] restore  ", Style::default().fg(Color::Yellow)),
-            Span::styled("[d] delete  ", Style::default().fg(Color::Yellow)),
-            Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+            Span::styled("[j/k] nav  ", theme::muted()),
+            Span::styled("[Enter/r] restore  ", theme::key()),
+            Span::styled("[d] delete  ", theme::key()),
+            Span::styled("[Esc] close", theme::muted()),
         ])),
         chunks[2],
     );
@@ -194,13 +181,8 @@ pub(super) fn render_session_action_overlay(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " Session Actions ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(" Session Actions ", theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -221,7 +203,7 @@ pub(super) fn render_session_action_overlay(
     };
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(label, Style::default().fg(Color::DarkGray)),
+            Span::styled(label, theme::muted()),
             Span::styled(title, Style::default().add_modifier(Modifier::BOLD)),
         ])),
         chunks[0],
@@ -234,7 +216,7 @@ pub(super) fn render_session_action_overlay(
                 frame.render_widget(
                     Paragraph::new(Line::from(Span::styled(
                         "No actions available",
-                        Style::default().fg(Color::DarkGray),
+                        theme::muted(),
                     ))),
                     chunks[1],
                 );
@@ -243,28 +225,21 @@ pub(super) fn render_session_action_overlay(
                     .iter()
                     .map(|action| {
                         ListItem::new(Line::from(vec![
-                            Span::styled(
-                                format!("[{}] ", action_key(*action)),
-                                Style::default().fg(Color::Yellow),
-                            ),
+                            Span::styled(format!("[{}] ", action_key(*action)), theme::key()),
                             Span::raw(action_label(*action)),
                         ]))
                     })
                     .collect();
                 let mut state = ListState::default();
                 state.select(Some(panel.action_cursor.min(actions.len() - 1)));
-                let list = List::new(items).highlight_style(
-                    Style::default()
-                        .bg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD),
-                );
+                let list = List::new(items).highlight_style(theme::selected());
                 frame.render_stateful_widget(list, chunks[1], &mut state);
             }
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-                    Span::styled("[Enter] run  ", Style::default().fg(Color::Yellow)),
-                    Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+                    Span::styled("[j/k] nav  ", theme::muted()),
+                    Span::styled("[Enter] run  ", theme::key()),
+                    Span::styled("[Esc] close", theme::muted()),
                 ])),
                 chunks[2],
             );
@@ -272,16 +247,16 @@ pub(super) fn render_session_action_overlay(
         SessionActionMode::RenameSession { title, .. } => {
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("Title: ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Title: ", theme::key()),
                     Span::raw(title.clone()),
-                    Span::styled("▌", Style::default().fg(Color::Cyan)),
+                    Span::styled("▌", theme::title()),
                 ])),
                 chunks[1],
             );
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-                    Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+                    Span::styled("[Enter] save  ", theme::key()),
+                    Span::styled("[Esc] cancel", theme::muted()),
                 ])),
                 chunks[2],
             );
@@ -289,16 +264,16 @@ pub(super) fn render_session_action_overlay(
         SessionActionMode::RenameProject { display_name, .. } => {
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("Project: ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Project: ", theme::key()),
                     Span::raw(display_name.clone()),
-                    Span::styled("▌", Style::default().fg(Color::Cyan)),
+                    Span::styled("▌", theme::title()),
                 ])),
                 chunks[1],
             );
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-                    Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+                    Span::styled("[Enter] save  ", theme::key()),
+                    Span::styled("[Esc] cancel", theme::muted()),
                 ])),
                 chunks[2],
             );
@@ -306,16 +281,16 @@ pub(super) fn render_session_action_overlay(
         SessionActionMode::Worktree { branch_name, .. } => {
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("Branch: ", Style::default().fg(Color::Yellow)),
+                    Span::styled("Branch: ", theme::key()),
                     Span::raw(branch_name.clone()),
-                    Span::styled("▌", Style::default().fg(Color::Cyan)),
+                    Span::styled("▌", theme::title()),
                 ])),
                 chunks[1],
             );
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled("[Enter] create  ", Style::default().fg(Color::Yellow)),
-                    Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+                    Span::styled("[Enter] create  ", theme::key()),
+                    Span::styled("[Esc] cancel", theme::muted()),
                 ])),
                 chunks[2],
             );

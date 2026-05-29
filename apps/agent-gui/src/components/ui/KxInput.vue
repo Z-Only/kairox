@@ -88,7 +88,7 @@ function onInput(event: Event): void {
   padding: 6px 10px;
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-radius-md, 6px);
-  background: var(--app-card-color);
+  background: var(--app-elevated-color, var(--app-card-color));
   color: var(--app-text-color);
   font: inherit;
   font-size: var(--app-text-sm, 0.84rem);
@@ -108,11 +108,13 @@ function onInput(event: Event): void {
 
 .kx-input:focus {
   border-color: var(--app-primary-color);
+  box-shadow: var(--app-focus-ring);
 }
 
 .kx-input:focus-visible {
   outline: 2px solid var(--app-primary-color);
   outline-offset: 2px;
+  box-shadow: var(--app-focus-ring);
 }
 
 .kx-input:disabled,

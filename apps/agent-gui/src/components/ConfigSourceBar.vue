@@ -102,7 +102,7 @@ onMounted(() => {
             @change="onProjectChange"
           >
             <option v-for="opt in projectOptions" :key="opt.value" :value="opt.value">
-              {{ opt.missing ? "⚠ " : "" }}{{ opt.label }}
+              {{ opt.missing ? "Missing - " : "" }}{{ opt.label }}
             </option>
           </KxSelect>
         </div>
@@ -115,23 +115,27 @@ onMounted(() => {
 .config-source-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 2px 0;
   flex-wrap: wrap;
 }
 .segmented {
   display: inline-flex;
   border: 1px solid var(--app-border-color);
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   overflow: hidden;
+  background: var(--app-card-color);
+  box-shadow: var(--app-shadow-sm);
 }
 .segmented__btn {
+  min-height: 30px;
   padding: 4px 12px;
   border: none;
   border-right: 1px solid var(--app-border-color);
   background: transparent;
   color: var(--app-text-color-2);
-  font-size: 0.82rem;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
   cursor: pointer;
   transition:
     background 0.15s,
@@ -142,7 +146,7 @@ onMounted(() => {
 }
 .segmented__btn.active {
   background: var(--app-primary-color);
-  color: #fff;
+  color: var(--app-primary-contrast-color);
 }
 .segmented__btn:hover:not(.active) {
   background: var(--app-hover-color);
@@ -151,12 +155,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px;
-  background: color-mix(in srgb, #f59e0b 15%, transparent);
-  border: 1px solid color-mix(in srgb, #f59e0b 44%, transparent);
-  border-radius: 6px;
-  margin-bottom: 4px;
-  font-size: 0.82rem;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--app-warning-color) 14%, var(--app-card-color));
+  border: 1px solid color-mix(in srgb, var(--app-warning-color) 44%, transparent);
+  border-radius: var(--app-radius-md);
+  margin-bottom: 6px;
+  font-size: var(--app-text-sm);
   color: var(--app-text-color);
 }
 </style>

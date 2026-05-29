@@ -21,6 +21,8 @@ body,
   font-size: 14px;
   color: var(--app-text-color, #333);
   background: var(--app-body-color, #fff);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
 }
 
 #app {

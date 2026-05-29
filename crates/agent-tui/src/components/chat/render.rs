@@ -1,18 +1,18 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
 
 use agent_core::AttachmentInfo;
 
-use crate::components::QueuedMessage;
+use crate::components::{theme, QueuedMessage};
 
 /// Render the message list from a [`SessionProjection`] into the given area.
 ///
-/// - User messages are prefixed with a cyan `"You:"`.
-/// - Assistant messages are prefixed with a green `"Agent:"`.
-/// - If the session was cancelled, a yellow `[cancelled]` line is shown.
+/// - User messages are prefixed with an accent `"You:"`.
+/// - Assistant messages are prefixed with a success `"Agent:"`.
+/// - If the session was cancelled, a warning `[cancelled]` line is shown.
 /// - If `token_stream` is non-empty, the streaming text is shown with a `▌`
 ///   block cursor appended.
 ///
@@ -30,8 +30,8 @@ pub fn render_messages(
 
     for msg in &projection.messages {
         let (label, color) = match msg.role {
-            agent_core::projection::ProjectedRole::User => ("You:", Color::Cyan),
-            agent_core::projection::ProjectedRole::Assistant => ("Agent:", Color::Green),
+            agent_core::projection::ProjectedRole::User => ("You:", theme::ACCENT),
+            agent_core::projection::ProjectedRole::Assistant => ("Agent:", theme::SUCCESS),
         };
 
         let content_lines: Vec<&str> = msg.content.split('\n').collect();
@@ -50,7 +50,7 @@ pub fn render_messages(
     if !projection.token_stream.is_empty() {
         let stream_text = format!("{}▌", projection.token_stream);
         lines.push(Line::from(vec![
-            Span::styled("Agent: ", Style::default().fg(Color::Green)),
+            Span::styled("Agent: ", Style::default().fg(theme::SUCCESS)),
             Span::raw(stream_text),
         ]));
     }
@@ -58,7 +58,7 @@ pub fn render_messages(
     if projection.cancelled {
         lines.push(Line::from(Span::styled(
             "[cancelled]",
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(theme::WARNING),
         )));
     }
 
@@ -90,11 +90,11 @@ pub fn render_queue_strip(
             let marker = if idx == selected { ">" } else { " " };
             let style = if idx == selected {
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme::WARNING)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme::WARNING)
                     .add_modifier(Modifier::DIM)
             };
             Line::from(vec![Span::styled(
@@ -114,9 +114,7 @@ pub fn render_queue_strip(
     };
     lines.push(Line::from(Span::styled(
         hint,
-        Style::default()
-            .fg(Color::DarkGray)
-            .add_modifier(Modifier::DIM),
+        theme::muted().add_modifier(Modifier::DIM),
     )));
     frame.render_widget(Paragraph::new(lines), area);
 }
@@ -131,9 +129,7 @@ pub fn render_file_mention_palette(
     if matches.is_empty() {
         lines.push(Line::from(Span::styled(
             "No file matches",
-            Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(Modifier::DIM),
+            theme::muted().add_modifier(Modifier::DIM),
         )));
     } else {
         let selected = selected_index.unwrap_or(0).min(matches.len() - 1);
@@ -149,10 +145,10 @@ pub fn render_file_mention_palette(
                     let marker = if idx == selected { ">" } else { " " };
                     let style = if idx == selected {
                         Style::default()
-                            .fg(Color::Cyan)
+                            .fg(theme::ACCENT)
                             .add_modifier(Modifier::BOLD)
                     } else {
-                        Style::default().fg(Color::DarkGray)
+                        theme::muted()
                     };
                     Line::from(Span::styled(format!("{marker} @{path}"), style))
                 }),
@@ -160,9 +156,7 @@ pub fn render_file_mention_palette(
     }
     lines.push(Line::from(Span::styled(
         "Enter attach | Up/Down select | Esc close",
-        Style::default()
-            .fg(Color::DarkGray)
-            .add_modifier(Modifier::DIM),
+        theme::muted().add_modifier(Modifier::DIM),
     )));
     frame.render_widget(Paragraph::new(lines), area);
 }

@@ -1,10 +1,10 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::components::RiskLevel;
+use crate::components::{theme, RiskLevel};
 
 use super::state::PermissionModal;
 
@@ -23,24 +23,18 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, modal: &Permission
 
     let (title, risk_label, risk_color, warning) = match &request.risk_level {
         RiskLevel::Destructive => (
-            "⛔ Destructive Operation",
+            "Destructive Operation",
             "Destructive",
-            Color::Red,
+            theme::DANGER,
             "This operation cannot be undone.",
         ),
         RiskLevel::Write => (
-            "🧠 Memory Write",
+            "Memory Write",
             "Write",
-            Color::Yellow,
+            theme::WARNING,
             "This will save a memory entry.",
         ),
-        RiskLevel::McpTool { server_id: _ } => (
-            "🔌 MCP Tool",
-            "MCP",
-            Color::Magenta,
-            "",
-            // Use server_id below for the tool label
-        ),
+        RiskLevel::McpTool { server_id: _ } => ("MCP Tool", "MCP", theme::ACCENT_STRONG, ""),
     };
 
     // For MCP tools, show [MCP] server/tool in the tool label
@@ -59,21 +53,21 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, modal: &Permission
             ),
             Span::styled(
                 format!("  {} pending", modal.pending_requests.len().max(1)),
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ),
         ]),
         Line::from(Span::styled(title, Style::default().fg(risk_color))),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Tool: ", Style::default().fg(Color::Gray)),
+            Span::styled("Tool: ", theme::muted()),
             Span::raw(&tool_label),
         ]),
         Line::from(vec![
-            Span::styled("Command: ", Style::default().fg(Color::Gray)),
+            Span::styled("Command: ", theme::muted()),
             Span::raw(&request.tool_preview),
         ]),
         Line::from(vec![
-            Span::styled("Risk: ", Style::default().fg(Color::Gray)),
+            Span::styled("Risk: ", theme::muted()),
             Span::styled(risk_label, Style::default().fg(risk_color)),
         ]),
     ];
@@ -84,10 +78,7 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, modal: &Permission
 
     if modal.pending_requests.len() > 1 {
         lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "Pending queue",
-            Style::default().fg(Color::Cyan),
-        )));
+        lines.push(Line::from(Span::styled("Pending queue", theme::title())));
         for (index, pending) in modal.pending_requests.iter().take(4).enumerate() {
             let marker = if index == 0 { ">" } else { " " };
             let label = match &pending.risk_level {
@@ -107,14 +98,11 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, modal: &Permission
 
     if !modal.history.is_empty() {
         lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "Recent",
-            Style::default().fg(Color::DarkGray),
-        )));
+        lines.push(Line::from(Span::styled("Recent", theme::muted())));
         for entry in modal.history.iter().rev().take(2) {
             let status = if entry.approved { "allowed" } else { "denied" };
             lines.push(Line::from(vec![
-                Span::styled(status, Style::default().fg(Color::DarkGray)),
+                Span::styled(status, theme::muted()),
                 Span::raw(format!(" {}", entry.request.tool_id)),
             ]));
         }
@@ -123,19 +111,18 @@ pub fn render_permission_modal(area: Rect, frame: &mut Frame, modal: &Permission
 
     // Key hints — add (T) Trust option for MCP tools
     let mut key_hints = vec![
-        Span::styled("[Y] Allow once  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[N] Deny  ", Style::default().fg(Color::Gray)),
+        Span::styled("[Y] Allow once  ", theme::key()),
+        Span::styled("[N] Deny  ", theme::muted()),
     ];
     if matches!(request.risk_level, RiskLevel::McpTool { .. }) {
         key_hints.push(Span::styled(
             "[T] Trust server  ",
-            Style::default().fg(Color::Magenta),
+            Style::default()
+                .fg(theme::ACCENT_STRONG)
+                .add_modifier(Modifier::BOLD),
         ));
     }
-    key_hints.push(Span::styled(
-        "[Esc] Cancel",
-        Style::default().fg(Color::DarkGray),
-    ));
+    key_hints.push(Span::styled("[Esc] Cancel", theme::muted()));
     lines.push(Line::from(key_hints));
 
     let paragraph = Paragraph::new(lines)

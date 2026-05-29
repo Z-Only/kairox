@@ -14,6 +14,7 @@ pub mod plugin_overlay;
 pub mod sessions;
 pub mod skills_overlay;
 pub mod status_bar;
+pub mod theme;
 pub mod trace;
 mod types;
 

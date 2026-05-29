@@ -1,12 +1,12 @@
 //! Standalone render helpers for the single-line status bar.
 
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 
-use crate::components::StatusInfo;
+use crate::components::{theme, StatusInfo};
 
 use super::context_line::render_context_line_string;
 
@@ -18,8 +18,8 @@ use super::context_line::render_context_line_string;
 /// [ profile ] [ mode ] sessions: N  [MCP:N↑]  hint text  error!
 /// ```
 ///
-/// - **profile** — cyan background, bold
-/// - **permission mode** — yellow background, bold
+/// - **profile** — accent background, bold
+/// - **permission mode** — semantic background, bold
 /// - **session count** — default style
 /// - **MCP server count** — magenta, shown only if > 0
 /// - **hint** — dim
@@ -53,10 +53,7 @@ pub(super) fn render_status_bar_with_notification(
     // Profile badge
     spans.push(Span::styled(
         format!(" {} ", info.profile),
-        Style::default()
-            .bg(Color::Cyan)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD),
+        theme::badge(theme::ACCENT),
     ));
 
     spans.push(Span::raw(" "));
@@ -66,10 +63,7 @@ pub(super) fn render_status_bar_with_notification(
     if !approval.is_empty() {
         spans.push(Span::styled(
             format!(" A:{approval} "),
-            Style::default()
-                .bg(Color::Green)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
+            theme::badge(theme::SUCCESS),
         ));
         spans.push(Span::raw(" "));
     }
@@ -78,18 +72,12 @@ pub(super) fn render_status_bar_with_notification(
     let sandbox = info.sandbox_policy_label();
     if !sandbox.is_empty() {
         let bg = match sandbox {
-            "read_only" => Color::Blue,
-            "workspace_write" => Color::Cyan,
-            "danger_full_access" => Color::Red,
-            _ => Color::DarkGray,
+            "read_only" => theme::INFO,
+            "workspace_write" => theme::ACCENT,
+            "danger_full_access" => theme::DANGER,
+            _ => theme::BORDER,
         };
-        spans.push(Span::styled(
-            format!(" S:{sandbox} "),
-            Style::default()
-                .bg(bg)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD),
-        ));
+        spans.push(Span::styled(format!(" S:{sandbox} "), theme::badge(bg)));
         spans.push(Span::raw(" "));
     }
 
@@ -103,7 +91,7 @@ pub(super) fn render_status_bar_with_notification(
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             info.session_metadata.join(" · "),
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         ));
     }
 
@@ -114,7 +102,7 @@ pub(super) fn render_status_bar_with_notification(
         spans.push(Span::styled(
             format!("MCP:{}↑", info.mcp_server_count),
             Style::default()
-                .fg(Color::Magenta)
+                .fg(theme::ACCENT_STRONG)
                 .add_modifier(Modifier::BOLD),
         ));
         spans.push(Span::raw("  "));
@@ -124,7 +112,7 @@ pub(super) fn render_status_bar_with_notification(
     if !info.hint.is_empty() {
         spans.push(Span::styled(
             &info.hint,
-            Style::default().add_modifier(Modifier::DIM),
+            theme::muted().add_modifier(Modifier::DIM),
         ));
     }
 
@@ -133,7 +121,9 @@ pub(super) fn render_status_bar_with_notification(
         spans.push(Span::raw("  "));
         spans.push(Span::styled(
             err,
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme::DANGER)
+                .add_modifier(Modifier::BOLD),
         ));
     }
 
@@ -151,8 +141,10 @@ pub(super) fn render_status_bar_with_notification(
 
 fn status_notification_style(message: &str) -> Style {
     if message.starts_with('[') && message.contains("error") {
-        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(theme::DANGER)
+            .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::Green)
+        Style::default().fg(theme::SUCCESS)
     }
 }

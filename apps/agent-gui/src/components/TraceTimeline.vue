@@ -211,13 +211,16 @@ const visibleTraceEntries = computed(() =>
   max-width: 100%;
   height: 100%;
   overflow: hidden;
+  background: var(--app-panel-color);
 }
 .trace-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 36px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-panel-color);
 }
 .tab-group {
   display: flex;
@@ -238,7 +241,7 @@ const visibleTraceEntries = computed(() =>
   gap: 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-color);
-  background: var(--app-card-color);
+  background: var(--app-panel-color);
 }
 .trace-status-filters {
   flex: 1 1 auto;
@@ -255,7 +258,7 @@ const visibleTraceEntries = computed(() =>
   gap: 4px;
   padding: 4px 12px;
   border-bottom: 1px solid var(--app-border-color);
-  background: var(--app-card-color);
+  background: var(--app-panel-color);
 }
 .density-label {
   font-size: 11px;

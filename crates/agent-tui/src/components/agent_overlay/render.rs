@@ -11,6 +11,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};
 use ratatui::Frame;
 
+use crate::components::theme;
+
 use super::state::AgentOverlay;
 use super::types::{AgentDraft, AgentEditorField, AgentOverlayMode, EDITOR_FIELDS};
 
@@ -24,9 +26,9 @@ fn scope_label(scope: AgentSettingsScope) -> &'static str {
 
 fn scope_color(scope: AgentSettingsScope) -> Color {
     match scope {
-        AgentSettingsScope::Builtin => Color::DarkGray,
-        AgentSettingsScope::User => Color::Cyan,
-        AgentSettingsScope::Project => Color::Magenta,
+        AgentSettingsScope::Builtin => theme::MUTED,
+        AgentSettingsScope::User => theme::ACCENT,
+        AgentSettingsScope::Project => theme::ACCENT_STRONG,
     }
 }
 
@@ -73,13 +75,8 @@ pub fn render_agent_overlay(area: Rect, frame: &mut Frame, overlay: &AgentOverla
     };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            title,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(title, theme::title()))
+        .border_style(theme::border(true));
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
 
@@ -103,7 +100,7 @@ fn render_agent_list(area: Rect, frame: &mut Frame, overlay: &AgentOverlay) {
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No agent profiles configured",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             list_area,
         );
@@ -121,7 +118,7 @@ fn render_agent_list(area: Rect, frame: &mut Frame, overlay: &AgentOverlay) {
                     " read-only"
                 };
                 ListItem::new(Line::from(vec![
-                    Span::styled(effective_marker, Style::default().fg(Color::Green)),
+                    Span::styled(effective_marker, Style::default().fg(theme::SUCCESS)),
                     Span::styled(
                         format!("{:<7}", scope_label(agent.scope)),
                         Style::default().fg(scope_color(agent.scope)),
@@ -129,46 +126,36 @@ fn render_agent_list(area: Rect, frame: &mut Frame, overlay: &AgentOverlay) {
                     Span::styled(
                         format!(" {:<8}", state),
                         Style::default().fg(if agent.enabled {
-                            Color::Green
+                            theme::SUCCESS
                         } else {
-                            Color::DarkGray
+                            theme::MUTED
                         }),
                     ),
                     Span::styled(
                         format!(" {}", agent.name),
                         Style::default().add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(
-                        format!(" - {}", agent.description),
-                        Style::default().fg(Color::Gray),
-                    ),
-                    Span::styled(
-                        format!("{edit}{validity}"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
+                    Span::styled(format!(" - {}", agent.description), theme::muted()),
+                    Span::styled(format!("{edit}{validity}"), theme::muted()),
                 ]))
             })
             .collect::<Vec<_>>();
-        let list = List::new(items).highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(items).highlight_style(theme::selected());
         let mut state = overlay.list_state;
         frame.render_stateful_widget(list, list_area, &mut state);
     }
 
     let hints = Line::from(vec![
-        Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[n/N] new user/project  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[Enter/e] edit  ", Style::default().fg(Color::Yellow)),
+        Span::styled("[j/k] nav  ", theme::muted()),
+        Span::styled("[n/N] new user/project  ", theme::title()),
+        Span::styled("[Enter/e] edit  ", theme::key()),
         Span::styled(
             "[c/p] copy user/project  ",
-            Style::default().fg(Color::Green),
+            Style::default().fg(theme::SUCCESS),
         ),
-        Span::styled("[x] delete  ", Style::default().fg(Color::Red)),
-        Span::styled("[o] folder  ", Style::default().fg(Color::Blue)),
-        Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        Span::styled("[x] delete  ", Style::default().fg(theme::DANGER)),
+        Span::styled("[o] folder  ", Style::default().fg(theme::INFO)),
+        Span::styled("[Esc] close", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), hint_area);
 }
@@ -194,13 +181,13 @@ fn render_agent_editor(area: Rect, frame: &mut Frame, overlay: &AgentOverlay) {
             };
             let value = editor_field_value(&overlay.draft, *field);
             ListItem::new(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Cyan)),
+                Span::styled(marker, theme::title()),
                 Span::styled(
                     format!("{:<12}", editor_field_label(*field)),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
-                Span::styled(value, Style::default().fg(Color::Gray)),
+                Span::styled(value, theme::muted()),
             ]))
         })
         .collect::<Vec<_>>();
@@ -208,11 +195,11 @@ fn render_agent_editor(area: Rect, frame: &mut Frame, overlay: &AgentOverlay) {
     frame.render_widget(list, list_area);
 
     let hints = Line::from(vec![
-        Span::styled("[Tab/j/k] field  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[u/p] scope  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
-        Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-        Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab/j/k] field  ", theme::muted()),
+        Span::styled("[u/p] scope  ", theme::title()),
+        Span::styled("[space/y/n] enabled  ", Style::default().fg(theme::SUCCESS)),
+        Span::styled("[Enter] save  ", theme::key()),
+        Span::styled("[Esc] cancel", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), hint_area);
 }

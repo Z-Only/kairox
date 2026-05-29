@@ -1,8 +1,10 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
+
+use crate::components::theme;
 
 use super::editor::SKILL_SOURCE_EDITOR_FIELDS;
 use super::render_items::{
@@ -52,19 +54,14 @@ fn render_skills_overlay_content(
     frame.render_widget(Clear, modal_area);
 
     let title = match (overlay.body.is_some(), overlay.mode) {
-        (true, _) => " 🧠 Skill detail ",
-        (false, SkillOverlayMode::CatalogDetail) => " 🧠 Skill catalog detail ",
-        (false, _) => " 🧠 Skills Manager ",
+        (true, _) => " Skill detail ",
+        (false, SkillOverlayMode::CatalogDetail) => " Skill catalog detail ",
+        (false, _) => " Skills Manager ",
     };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            title,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(title, theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
@@ -85,7 +82,7 @@ fn render_skills_overlay_content(
         let header = Line::from(vec![Span::styled(
             detail.skill_id.clone(),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         )]);
         let mut lines = vec![header, Line::from("")];
@@ -96,8 +93,8 @@ fn render_skills_overlay_content(
         frame.render_widget(para, body_area);
 
         let hints = Line::from(vec![
-            Span::styled("[Esc] back  ", Style::default().fg(Color::DarkGray)),
-            Span::styled("[Ctrl+S] close", Style::default().fg(Color::DarkGray)),
+            Span::styled("[Esc] back  ", theme::muted()),
+            Span::styled("[Ctrl+S] close", theme::muted()),
         ]);
         frame.render_widget(Paragraph::new(hints), hint_area);
         return;
@@ -160,17 +157,17 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
     ] {
         let style = if tab == overlay.tab {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::DarkGray)
+            theme::muted()
         };
         spans.push(Span::styled(format!(" {} ", tab.label()), style));
         spans.push(Span::raw(" "));
     }
     spans.push(Span::styled(
         format!("target: {}", target_label(overlay.install_target)),
-        Style::default().fg(Color::Cyan),
+        Style::default().fg(theme::ACCENT),
     ));
     if overlay.tab == SkillTab::Catalog || overlay.catalog_filters_active() {
         let keyword_value = overlay.catalog_keyword_for_display().trim();
@@ -187,7 +184,7 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
                 keyword,
                 clip(&overlay.catalog_source_filter_label(), 18)
             ),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(theme::ACCENT),
         ));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
@@ -209,11 +206,11 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
         }
     };
     let hints = Line::from(vec![
-        Span::styled("[Tab] tab  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[j/k] nav  ", Style::default().fg(Color::DarkGray)),
-        Span::styled(action, Style::default().fg(Color::Yellow)),
-        Span::styled("[r] refresh  ", Style::default().fg(Color::Cyan)),
-        Span::styled("[Esc] close", Style::default().fg(Color::DarkGray)),
+        Span::styled("[Tab] tab  ", theme::muted()),
+        Span::styled("[j/k] nav  ", theme::muted()),
+        Span::styled(action, theme::key()),
+        Span::styled("[r] refresh  ", theme::title()),
+        Span::styled("[Esc] close", theme::muted()),
     ]);
     frame.render_widget(Paragraph::new(hints), area);
 }
@@ -237,7 +234,7 @@ fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) 
                 "  "
             };
             ListItem::new(Line::from(vec![
-                Span::styled(marker, Style::default().fg(Color::Cyan)),
+                Span::styled(marker, theme::title()),
                 Span::styled(
                     format!("{:<14}", skill_source_field_label(*field)),
                     Style::default().add_modifier(Modifier::BOLD),
@@ -245,7 +242,7 @@ fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) 
                 Span::raw(" "),
                 Span::styled(
                     skill_source_field_value(&overlay.source_draft, *field),
-                    Style::default().fg(Color::Gray),
+                    theme::muted(),
                 ),
             ]))
         })
@@ -253,13 +250,10 @@ fn render_source_editor(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) 
     frame.render_widget(List::new(items), list_area);
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(
-                "[Tab/Up/Down] field  ",
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled("[space/y/n] enabled  ", Style::default().fg(Color::Green)),
-            Span::styled("[Enter] save  ", Style::default().fg(Color::Yellow)),
-            Span::styled("[Esc] cancel", Style::default().fg(Color::DarkGray)),
+            Span::styled("[Tab/Up/Down] field  ", theme::muted()),
+            Span::styled("[space/y/n] enabled  ", Style::default().fg(theme::SUCCESS)),
+            Span::styled("[Enter] save  ", theme::key()),
+            Span::styled("[Esc] cancel", theme::muted()),
         ])),
         hint_area,
     );

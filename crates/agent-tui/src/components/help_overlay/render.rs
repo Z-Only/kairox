@@ -1,12 +1,12 @@
 //! Rendering functions for the help overlay.
 
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::components::FocusTarget;
+use crate::components::{theme, FocusTarget};
 
 use super::shortcuts::{
     common_commands, context_shortcuts, current_label, current_label_prefix, global_shortcuts,
@@ -29,20 +29,15 @@ pub fn render_help_overlay(area: Rect, frame: &mut Frame, overlay: &HelpOverlay)
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(
-            " Help / Keybindings ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .border_style(Style::default().fg(Color::Cyan));
+        .title(Span::styled(" Help / Keybindings ", theme::title()))
+        .border_style(theme::border(true));
 
     let inner = block.inner(modal_area);
     frame.render_widget(block, modal_area);
 
     let paragraph = Paragraph::new(help_lines(overlay.snapshot.focus))
         .wrap(Wrap { trim: true })
-        .style(Style::default().fg(Color::Gray));
+        .style(theme::muted());
     frame.render_widget(paragraph, inner);
 }
 
@@ -52,14 +47,12 @@ fn help_lines(focus: FocusTarget) -> Vec<Line<'static>> {
         Span::styled(
             current_label_prefix(focus),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             current_label(focus),
-            Style::default()
-                .fg(Color::White)
-                .add_modifier(Modifier::BOLD),
+            Style::default().add_modifier(Modifier::BOLD),
         ),
     ]));
     lines.push(Line::default());
@@ -89,7 +82,7 @@ fn section_line(label: &'static str) -> Line<'static> {
     Line::from(Span::styled(
         label,
         Style::default()
-            .fg(Color::Cyan)
+            .fg(theme::ACCENT)
             .add_modifier(Modifier::BOLD),
     ))
 }
@@ -114,6 +107,6 @@ fn shortcut_lines(shortcuts: &[Shortcut]) -> Vec<Line<'static>> {
 
 fn key_style() -> Style {
     Style::default()
-        .fg(Color::Yellow)
+        .fg(theme::WARNING)
         .add_modifier(Modifier::BOLD)
 }

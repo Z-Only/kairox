@@ -1,12 +1,11 @@
 //! Context-details popup overlay rendered above the status bar when toggled.
 
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::components::StatusInfo;
+use crate::components::{theme, StatusInfo};
 
 use super::context_line::render_context_details_lines;
 
@@ -24,7 +23,7 @@ pub(super) fn render_context_details_overlay(
     let block = Block::default()
         .title(" Context Details ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan));
+        .border_style(theme::border(true));
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let lines = detail_lines.into_iter().map(Line::from).collect::<Vec<_>>();

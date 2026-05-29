@@ -496,23 +496,34 @@ watch(
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  background: var(--app-card-color);
 }
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 36px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--app-border-color, #d7d7d7);
+  border-bottom: 1px solid var(--app-border-color);
+  background: var(--app-card-color);
 }
 .chat-header h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--app-text-lg);
+  font-weight: 720;
 }
 .message-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   position: relative;
+  background:
+    radial-gradient(
+      circle at 50% 0,
+      color-mix(in srgb, var(--app-primary-color) 5%, transparent),
+      transparent 260px
+    ),
+    var(--app-card-color);
 }
 .jump-pending-permission-cta {
   /* Float just above the chat composer, anchored to the bottom of the
@@ -527,14 +538,14 @@ watch(
   margin: 0 auto;
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid var(--app-border-color, #d7d7d7);
-  background: color-mix(in srgb, var(--app-card-color, #ffffff) 88%, transparent);
+  border: 1px solid var(--app-border-color);
+  background: color-mix(in srgb, var(--app-elevated-color) 88%, transparent);
   backdrop-filter: blur(6px);
   color: var(--app-text-color);
   font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--app-shadow-md);
   transform: translateX(-50%);
   /* `position: sticky` keeps the pill in flow; translateX centres it
      against the message-list width. */
@@ -563,7 +574,7 @@ watch(
   opacity: 0.7;
 }
 .message-list-inner {
-  padding: 12px 16px;
+  padding: 14px 16px;
 }
 .message {
   display: flex;
@@ -577,7 +588,8 @@ watch(
   line-height: 1.5;
 }
 .chat-empty-state {
-  margin: 28px 0;
+  margin: 40px auto 28px;
+  max-width: min(920px, 100%);
 }
 .message-content {
   max-width: min(760px, 82%);
@@ -590,7 +602,7 @@ watch(
   justify-content: flex-end;
 }
 .message-user .message-content {
-  color: var(--app-primary-contrast, #ffffff);
+  color: var(--app-primary-contrast-color, #ffffff);
   background: var(--app-primary-color, #0077cc);
 }
 .message-assistant,
@@ -606,7 +618,7 @@ watch(
 .message-reviewer .message-content,
 .message-system .message-content {
   color: var(--app-muted-text-color, var(--app-text-color));
-  background: var(--app-muted-surface-color, var(--app-card-color));
+  background: var(--app-muted-surface-color, var(--app-panel-color));
 }
 .message-system .message-content {
   opacity: 0.72;
@@ -626,15 +638,15 @@ watch(
 .send-error-banner {
   margin: 8px 16px 0;
   padding: 8px 10px;
-  border: 1px solid var(--app-error-color, #d03050);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--app-error-color, #d03050) 10%, transparent);
-  color: var(--app-error-color, #d03050);
+  border: 1px solid var(--app-error-color);
+  border-radius: var(--app-radius-md);
+  background: color-mix(in srgb, var(--app-error-color) 10%, transparent);
+  color: var(--app-error-color);
   font-size: 13px;
 }
 .markdown-body :deep(pre.hljs) {
   margin: 8px 0;
-  border-radius: 6px;
+  border-radius: var(--app-radius-md);
   padding: 12px;
   overflow-x: auto;
   font-size: 13px;

@@ -11,16 +11,16 @@ use agent_core::{
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use crate::components::{ProjectInfo, SessionInfo, SessionState};
+use crate::components::{theme, ProjectInfo, SessionInfo, SessionState};
 
 use super::state::SessionAction;
 
 pub fn session_state_icon(state: &SessionState) -> (&'static str, Color) {
     match state {
-        SessionState::Active => ("●", Color::Green),
-        SessionState::Idle => ("○", Color::DarkGray),
-        SessionState::Error(_) => ("✕", Color::Red),
-        SessionState::AwaitingPermission => ("⚠", Color::Yellow),
+        SessionState::Active => ("●", theme::SUCCESS),
+        SessionState::Idle => ("○", theme::MUTED),
+        SessionState::Error(_) => ("✕", theme::DANGER),
+        SessionState::AwaitingPermission => ("⚠", theme::WARNING),
     }
 }
 
@@ -31,15 +31,12 @@ pub fn project_row_line(project: &ProjectInfo, sessions: &[SessionInfo]) -> Line
         .count();
     let expanded = if project.expanded { "▾" } else { "▸" };
     let mut spans = vec![
-        Span::styled(format!("{expanded} "), Style::default().fg(Color::Cyan)),
+        Span::styled(format!("{expanded} "), Style::default().fg(theme::ACCENT)),
         Span::styled(
             project.display_name.clone(),
             Style::default().add_modifier(Modifier::BOLD),
         ),
-        Span::styled(
-            format!(" ({session_count})"),
-            Style::default().fg(Color::DarkGray),
-        ),
+        Span::styled(format!(" ({session_count})"), theme::muted()),
     ];
 
     if let Some(status) = &project.git_status {
@@ -53,7 +50,7 @@ pub fn project_row_line(project: &ProjectInfo, sessions: &[SessionInfo]) -> Line
     if let Some(summary) = &project.instruction_summary {
         spans.push(Span::styled(
             format!(" · {}", project_instruction_label(summary)),
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         ));
     }
 
@@ -73,7 +70,7 @@ pub fn archive_project_label(projects: &[ProjectInfo], session: &SessionInfo) ->
 
 pub fn archived_session_row_line(session: &SessionInfo, projects: &[ProjectInfo]) -> Line<'static> {
     let mut spans = vec![
-        Span::styled("○ ", Style::default().fg(Color::DarkGray)),
+        Span::styled("○ ", theme::muted()),
         Span::raw(session.title.clone()),
         Span::styled(
             format!(" [{}]", session.model_profile),
@@ -103,7 +100,7 @@ pub fn archived_session_row_line(session: &SessionInfo, projects: &[ProjectInfo]
     if !metadata.is_empty() {
         spans.push(Span::styled(
             format!(" · {}", metadata.join(" · ")),
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         ));
     }
 
@@ -112,7 +109,7 @@ pub fn archived_session_row_line(session: &SessionInfo, projects: &[ProjectInfo]
 
 pub fn session_row_line(session: &SessionInfo, nested: bool) -> Line<'static> {
     let (icon, icon_color) = session_state_icon(&session.state);
-    let pin = if session.pinned { "📌 " } else { "" };
+    let pin = if session.pinned { "pin " } else { "" };
     let archived = if session.archived { " [archived]" } else { "" };
     let metadata = session_metadata_label(session);
     let prefix = if nested { "  " } else { "" };
@@ -126,15 +123,12 @@ pub fn session_row_line(session: &SessionInfo, nested: bool) -> Line<'static> {
         ),
     ];
     if let Some(metadata) = metadata {
-        spans.push(Span::styled(
-            format!(" {metadata}"),
-            Style::default().fg(Color::DarkGray),
-        ));
+        spans.push(Span::styled(format!(" {metadata}"), theme::muted()));
     }
     if let SessionState::Error(e) = &session.state {
         spans.push(Span::styled(
             format!(" {e}"),
-            Style::default().fg(Color::Red),
+            Style::default().fg(theme::DANGER),
         ));
     }
     Line::from(spans)
@@ -142,14 +136,14 @@ pub fn session_row_line(session: &SessionInfo, nested: bool) -> Line<'static> {
 
 pub fn project_git_status_label(status: &ProjectGitStatus) -> (String, Color) {
     match status.kind {
-        ProjectGitStatusKind::NotInitialized => ("git not initialized".into(), Color::Yellow),
+        ProjectGitStatusKind::NotInitialized => ("git not initialized".into(), theme::WARNING),
         ProjectGitStatusKind::Clean => (
             status
                 .branch
                 .as_deref()
                 .map(|branch| format!("git {branch}"))
                 .unwrap_or_else(|| "git clean".into()),
-            Color::Green,
+            theme::SUCCESS,
         ),
         ProjectGitStatusKind::Dirty => (
             status
@@ -157,10 +151,10 @@ pub fn project_git_status_label(status: &ProjectGitStatus) -> (String, Color) {
                 .as_deref()
                 .map(|branch| format!("dirty {branch}"))
                 .unwrap_or_else(|| "dirty".into()),
-            Color::Yellow,
+            theme::WARNING,
         ),
-        ProjectGitStatusKind::Detached => ("detached".into(), Color::Yellow),
-        ProjectGitStatusKind::MissingPath => ("missing path".into(), Color::Red),
+        ProjectGitStatusKind::Detached => ("detached".into(), theme::WARNING),
+        ProjectGitStatusKind::MissingPath => ("missing path".into(), theme::DANGER),
         ProjectGitStatusKind::Error => (
             status
                 .message
@@ -168,7 +162,7 @@ pub fn project_git_status_label(status: &ProjectGitStatus) -> (String, Color) {
                 .filter(|message| !message.is_empty())
                 .map(|message| format!("git error: {message}"))
                 .unwrap_or_else(|| "git error".into()),
-            Color::Red,
+            theme::DANGER,
         ),
     }
 }

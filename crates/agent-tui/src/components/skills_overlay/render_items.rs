@@ -10,12 +10,12 @@ use agent_core::facade::{
     SkillCatalogEntry, SkillInstallTarget, SkillSettingsView, SkillSourceView,
 };
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::components::SkillEntry;
+use crate::components::{theme, SkillEntry};
 
 use super::editor::{SkillSourceDraft, SkillSourceEditorField};
 
@@ -35,7 +35,7 @@ pub fn render_discovered(
     if skills.is_empty() {
         let empty = Paragraph::new(Line::from(Span::styled(
             "No skills discovered",
-            Style::default().fg(Color::DarkGray),
+            theme::muted(),
         )));
         frame.render_widget(empty, area);
     } else {
@@ -43,29 +43,25 @@ pub fn render_discovered(
             .iter()
             .map(|s| {
                 let (marker, marker_color) = if s.active {
-                    ("● active ", Color::Green)
+                    ("● active ", theme::SUCCESS)
                 } else {
-                    ("○        ", Color::DarkGray)
+                    ("○        ", theme::MUTED)
                 };
                 let line = Line::from(vec![
                     Span::styled(marker, Style::default().fg(marker_color)),
                     Span::styled(s.id.clone(), Style::default().add_modifier(Modifier::BOLD)),
                     Span::raw("  "),
-                    Span::styled(s.description.clone(), Style::default().fg(Color::Gray)),
+                    Span::styled(s.description.clone(), theme::muted()),
                     Span::styled(
                         format!("  [{} / {}]", s.source, s.activation_mode),
-                        Style::default().fg(Color::DarkGray),
+                        theme::muted(),
                     ),
                 ]);
                 ListItem::new(line)
             })
             .collect();
 
-        let list = List::new(items).highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
+        let list = List::new(items).highlight_style(theme::selected());
         frame.render_stateful_widget(list, area, state);
     }
 }
@@ -80,7 +76,7 @@ pub fn render_installed(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No skill settings installed",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -96,9 +92,9 @@ pub fn render_installed(
                 "disabled"
             };
             let enabled_color = if skill.enabled {
-                Color::Green
+                theme::SUCCESS
             } else {
-                Color::DarkGray
+                theme::MUTED
             };
             let version = skill.version.as_deref().unwrap_or("unknown");
             let effective = if skill.effective { " effective" } else { "" };
@@ -110,29 +106,22 @@ pub fn render_installed(
                     skill.id.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    format!("  v{version}"),
-                    Style::default().fg(Color::DarkGray),
-                ),
+                Span::styled(format!("  v{version}"), theme::muted()),
                 Span::raw("  "),
-                Span::styled(skill.description.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(skill.description.clone(), theme::muted()),
                 Span::styled(
                     format!(
                         "  [{:?} / {:?} / {:?}{effective}{valid}]",
                         skill.scope, skill.install_source, skill.update_state
                     ),
-                    Style::default().fg(Color::DarkGray),
+                    theme::muted(),
                 ),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -147,7 +136,7 @@ pub fn render_catalog(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No catalog skills available",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -172,27 +161,23 @@ pub fn render_catalog(
                 ),
                 Span::styled(
                     format!("  @{}", entry.source),
-                    Style::default().fg(Color::Cyan),
+                    Style::default().fg(theme::ACCENT),
                 ),
                 Span::raw("  "),
-                Span::styled(entry.description.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(entry.description.clone(), theme::muted()),
                 Span::styled(
                     format!(
                         "  installs:{installs} stars:{stars} -> {}",
                         target_label(install_target)
                     ),
-                    Style::default().fg(Color::DarkGray),
+                    theme::muted(),
                 ),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
@@ -206,7 +191,7 @@ pub fn render_catalog_detail(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No catalog skill selected",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -240,44 +225,44 @@ pub fn render_catalog_detail(
         Line::from(vec![Span::styled(
             entry.name.clone(),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(entry.description.clone()),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Catalog: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Catalog: ", theme::muted()),
             Span::raw(entry.source.clone()),
         ]),
         Line::from(vec![
-            Span::styled("Source: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Source: ", theme::muted()),
             Span::raw(source_url.to_string()),
         ]),
         Line::from(vec![
-            Span::styled("Package: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Package: ", theme::muted()),
             Span::raw(entry.package.clone()),
         ]),
         Line::from(vec![
-            Span::styled("Download: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Download: ", theme::muted()),
             Span::raw(package_url.to_string()),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Installs: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Installs: ", theme::muted()),
             Span::raw(installs),
-            Span::styled("  Stars: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Stars: ", theme::muted()),
             Span::raw(stars),
-            Span::styled("  Security: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Security: ", theme::muted()),
             Span::raw(security),
-            Span::styled("  Rating: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Rating: ", theme::muted()),
             Span::raw(rating),
         ]),
         Line::from(vec![
-            Span::styled("Target: ", Style::default().fg(Color::DarkGray)),
+            Span::styled("Target: ", theme::muted()),
             Span::styled(
                 target_label(install_target),
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(theme::WARNING)
                     .add_modifier(Modifier::BOLD),
             ),
         ]),
@@ -296,7 +281,7 @@ pub fn render_sources(
         frame.render_widget(
             Paragraph::new(Line::from(Span::styled(
                 "No skill sources configured",
-                Style::default().fg(Color::DarkGray),
+                theme::muted(),
             ))),
             area,
         );
@@ -312,9 +297,9 @@ pub fn render_sources(
                 "disabled"
             };
             let enabled_color = if source.enabled {
-                Color::Green
+                theme::SUCCESS
             } else {
-                Color::DarkGray
+                theme::MUTED
             };
             let line = Line::from(vec![
                 Span::styled(enabled_label, Style::default().fg(enabled_color)),
@@ -325,20 +310,16 @@ pub fn render_sources(
                 ),
                 Span::styled(
                     format!("  {} p{}", source.kind, source.priority),
-                    Style::default().fg(Color::DarkGray),
+                    theme::muted(),
                 ),
                 Span::raw("  "),
-                Span::styled(source.url.clone(), Style::default().fg(Color::Gray)),
+                Span::styled(source.url.clone(), theme::muted()),
             ]);
             ListItem::new(line)
         })
         .collect();
 
-    let list = List::new(items).highlight_style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(items).highlight_style(theme::selected());
     frame.render_stateful_widget(list, area, state);
 }
 
