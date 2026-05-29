@@ -54,7 +54,8 @@ const groups = [
       // config builder tests extracted to builder_tests.rs (excluded from src counts); ~172 test lines/7 fns left T1 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 25 → 23, lines 83 → 82.
       // config loader/catalog tests extracted to catalog_tests.rs (excluded from src function counts); floor lowered 23 → 21.
       // The ~180-line catalog.rs test block also moved test lines out of T1 src (measurement shift, no regression); floor lowered 82 → 81.
-      functions: 21,
+      // facade/settings tests extracted to settings_tests.rs (excluded from src function counts); floor lowered 21 → 19.
+      functions: 19,
       lines: 81
     }
   },
