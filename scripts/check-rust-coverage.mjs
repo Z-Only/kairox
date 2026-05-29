@@ -87,7 +87,8 @@ const groups = [
       // anthropic/streaming tests extracted to streaming_tests.rs (excluded from src function counts); floor lowered 19 → 17.
       // memory/store tests extracted to store_tests.rs (excluded from src function counts); floor lowered 17 → 15.
       // agents/planner tests extracted to planner_tests.rs (excluded from src counts); ~184 test lines/8 fns left T2 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 15 → 13, lines 77 → 76.
-      functions: 13,
+      // mcp skillhub tests extracted to skillhub_tests.rs (excluded from src function counts); floor lowered 13 → 11.
+      functions: 11,
       lines: 76
     }
   },
