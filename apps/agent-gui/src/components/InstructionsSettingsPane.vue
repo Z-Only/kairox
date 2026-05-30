@@ -27,8 +27,11 @@ const effectiveInstructions = computed(() => {
   return parts.filter(Boolean).join("\n\n");
 });
 
-async function load(): Promise<void> {
+async function load(resetLoaded = true): Promise<void> {
   errorMsg.value = "";
+  if (resetLoaded) {
+    loaded.value = false;
+  }
   try {
     const result = await commands.getInstructions(scope.value, projectRoot.value);
     if (isCommandResult(result)) {
@@ -70,7 +73,7 @@ async function save(): Promise<void> {
     if (isCommandResult(result) && result.status === "error") {
       throw new Error(String(result.error));
     }
-    await load();
+    await load(false);
   } catch (e) {
     errorMsg.value = String(e);
   } finally {

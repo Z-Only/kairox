@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
 import { nextTick, ref } from "vue";
 import { setActivePinia, createPinia } from "pinia";
 import InstructionsSettingsPane from "./InstructionsSettingsPane.vue";
@@ -21,6 +22,23 @@ function mountPane(configSource: "user" | "project" = "user", configProjectId?: 
         provide: {
           configSource: ref(configSource),
           configProjectId: ref(configProjectId)
+        }
+      }
+    },
+    reusePinia: true
+  }).wrapper;
+}
+
+function mountPaneWithSource(
+  source = ref<"user" | "project">("user"),
+  projectId = ref<string | undefined>()
+) {
+  return mountWithPlugins(InstructionsSettingsPane, {
+    mount: {
+      global: {
+        provide: {
+          configSource: source,
+          configProjectId: projectId
         }
       }
     },
@@ -81,6 +99,28 @@ describe("InstructionsSettingsPane", () => {
       expect(loading.exists()).toBe(true);
       expect(loading.classes()).toContain("kx-state-block--loading");
       expect(wrapper.find('[data-test="instructions-level-system"]').exists()).toBe(false);
+    });
+
+    it("returns to loading state while reloading after scope changes", async () => {
+      const configSource = ref<"user" | "project">("user");
+      mockedInvoke.mockResolvedValueOnce({
+        system: systemInstructions,
+        user: userInstructions,
+        project: projectInstructions
+      });
+      mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
+
+      const wrapper = mountPaneWithSource(configSource);
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.find('[data-test="instructions-level-user"]').exists()).toBe(true);
+
+      configSource.value = "project";
+      await nextTick();
+
+      expect(wrapper.find('[data-test="instructions-loading"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="project-instructions"]').exists()).toBe(false);
     });
   });
 
@@ -251,6 +291,25 @@ describe("InstructionsSettingsPane", () => {
 
       const saveBtn = wrapper.find<HTMLButtonElement>('[data-test="instructions-save"]');
       expect(saveBtn.element.disabled).toBe(true);
+    });
+
+    it("keeps current instructions visible while reloading after save", async () => {
+      mockGetInstructions();
+      mockedInvoke.mockResolvedValueOnce(null);
+      mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
+
+      const wrapper = mountPane("user");
+      await nextTick();
+      await nextTick();
+
+      await wrapper
+        .find<HTMLTextAreaElement>('[data-test="user-instructions"]')
+        .setValue("Updated user");
+      await wrapper.find('[data-test="instructions-save"]').trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find('[data-test="instructions-loading"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="effective-instructions"]').exists()).toBe(true);
     });
 
     it("trims whitespace from project text before saving", async () => {
