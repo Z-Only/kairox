@@ -42,11 +42,5 @@ pub use task_types::{
 pub type Result<T> = std::result::Result<T, CoreError>;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn exposes_core_crate_name() {
-        assert_eq!(CORE_CRATE_NAME, "agent-core");
-    }
-}
+#[path = "lib_tests.rs"]
+mod tests;
