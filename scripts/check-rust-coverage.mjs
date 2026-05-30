@@ -108,8 +108,9 @@ const groups = [
       // runtime hooks tests extracted to hooks_tests.rs (excluded from src function counts); floor lowered 1 → 0.
       // the ~120-line hooks.rs test block also moved test lines out of the T2 src tree; floor lowered 71 → 70.
       // mcp stdio transport tests extracted to stdio_tests.rs (excluded from src counts); ~342 test lines left T2 src (measurement shift, no regression); lines floor lowered 70 → 68.
+      // runtime skills tests extracted to skills_tests.rs (excluded from src counts); ~168 test lines left T2 src (measurement shift, no regression); lines floor lowered 68 → 67.
       functions: 0,
-      lines: 68
+      lines: 67
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
