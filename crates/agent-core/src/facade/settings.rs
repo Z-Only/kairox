@@ -121,6 +121,29 @@ pub struct McpServerSettingsView {
     pub source: String,
     #[serde(default)]
     pub verified: bool,
+    #[serde(default)]
+    pub diagnostic_summary: String,
+}
+
+impl McpServerSettingsView {
+    pub fn refresh_diagnostic_summary(&mut self) {
+        let trust = if self.trusted { "trusted" } else { "untrusted" };
+        let tools = match self.tool_count {
+            Some(1) => "1 tool".to_string(),
+            Some(count) => format!("{count} tools"),
+            None => "unknown".to_string(),
+        };
+        let verification = if self.verified {
+            "verified"
+        } else {
+            "unverified"
+        };
+        let error = self.last_error.as_deref().unwrap_or("none");
+        self.diagnostic_summary = format!(
+            "status: {}; trust: {trust}; tools: {tools}; {verification}; error: {error}",
+            self.runtime_status
+        );
+    }
 }
 
 /// Concrete effective-view wrapper for MCP server settings.

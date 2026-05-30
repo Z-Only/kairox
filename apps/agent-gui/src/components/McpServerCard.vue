@@ -161,6 +161,13 @@ function serverToolCount(): number {
         :disabled-by="server.disabledBy"
         :data-test="`mcp-audit-${server.value.id}`"
       />
+      <p
+        v-if="server.value.diagnostic_summary"
+        class="mcp-settings__diagnostics"
+        :data-test="`mcp-diagnostics-${server.value.id}`"
+      >
+        {{ server.value.diagnostic_summary }}
+      </p>
       <KxInlineAlert
         v-if="server.value.last_error"
         tone="error"
@@ -302,6 +309,13 @@ function serverToolCount(): number {
 </template>
 
 <style scoped>
+.mcp-settings__diagnostics {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ── Collapsible tool list ── */
 .mcp-settings__tools {
   width: 100%;

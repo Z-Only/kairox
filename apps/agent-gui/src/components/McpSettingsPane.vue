@@ -47,6 +47,7 @@ function searchableServerText(server: EffectiveMcpServerView): string {
     value.id,
     value.name,
     value.description,
+    value.diagnostic_summary,
     value.transport,
     value.runtime_status,
     value.trusted ? t("mcp.trusted") : t("mcp.untrusted"),

@@ -32,6 +32,7 @@ fn setting(id: &str, enabled: bool) -> McpServerSettingsView {
         description: Some(format!("{id} settings")),
         source: "user".to_string(),
         verified: false,
+        diagnostic_summary: String::new(),
     }
 }
 

@@ -26,7 +26,7 @@ pub(super) async fn settings_view_from_file(
     let row = rows.get(server_id).ok_or_else(|| {
         CoreError::InvalidState(format!("saved MCP server was not found: {server_id}"))
     })?;
-    Ok(McpServerSettingsView {
+    let mut view = McpServerSettingsView {
         id: server_id.to_string(),
         name: server_id.to_string(),
         transport: row.transport.clone(),
@@ -40,7 +40,10 @@ pub(super) async fn settings_view_from_file(
         description: row.description.clone(),
         source: row.source.clone(),
         verified: true,
-    })
+        diagnostic_summary: String::new(),
+    };
+    view.refresh_diagnostic_summary();
+    Ok(view)
 }
 
 pub(super) fn settings_rows_from_config(

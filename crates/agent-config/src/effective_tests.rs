@@ -79,6 +79,7 @@ fn effective_settings_views_map_source_disabled_and_direct_api_keys() {
         description: None,
         source: "user_config".to_string(),
         verified: true,
+        diagnostic_summary: String::new(),
     }];
 
     let effective_mcp =

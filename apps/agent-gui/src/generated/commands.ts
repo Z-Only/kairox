@@ -876,6 +876,7 @@ export type McpServerSettingsView = {
   description: string | null;
   source: string;
   verified?: boolean;
+  diagnostic_summary?: string;
 };
 
 /**  The lifecycle status of an MCP server connection. */

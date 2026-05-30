@@ -68,7 +68,7 @@ pub async fn list_mcp_server_settings(
                 .get(&server_id)
                 .map(ToString::to_string)
                 .unwrap_or_else(|| "stopped".to_string());
-            McpServerSettingsView {
+            let mut view = McpServerSettingsView {
                 id: server_id.clone(),
                 name: server_id,
                 transport: row.transport,
@@ -82,7 +82,10 @@ pub async fn list_mcp_server_settings(
                 description: row.description,
                 verified: row.source != "defaults",
                 source: row.source,
-            }
+                diagnostic_summary: String::new(),
+            };
+            view.refresh_diagnostic_summary();
+            view
         })
         .collect::<Vec<_>>();
     views.sort_by(|left, right| left.name.cmp(&right.name));
