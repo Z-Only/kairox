@@ -106,8 +106,9 @@ const groups = [
       // the ~156-line ollama.rs test block also moved test lines out of the T2 src tree; floor lowered 72 → 71.
       // runtime hooks tests extracted to hooks_tests.rs (excluded from src function counts); floor lowered 1 → 0.
       // the ~120-line hooks.rs test block also moved test lines out of the T2 src tree; floor lowered 71 → 70.
+      // mcp stdio transport tests extracted to stdio_tests.rs (excluded from src counts); ~342 test lines left T2 src (measurement shift, no regression); lines floor lowered 70 → 68.
       functions: 0,
-      lines: 70
+      lines: 68
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
