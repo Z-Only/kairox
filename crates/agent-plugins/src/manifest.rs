@@ -41,6 +41,13 @@ pub struct PluginPermissionHints {
     pub tools: Vec<String>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PluginCompatibilityHints {
+    pub kairox_version: Option<String>,
+    pub platforms: Vec<String>,
+    pub requires: Vec<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PluginManifestView {
     pub name: String,
@@ -54,6 +61,7 @@ pub struct PluginManifestView {
     pub interface: PluginInterface,
     pub inventory: PluginComponentInventory,
     pub permissions: PluginPermissionHints,
+    pub compatibility: PluginCompatibilityHints,
     pub manifest_kind: PluginManifestKind,
     pub manifest_path: PathBuf,
     pub plugin_root: PathBuf,
@@ -92,6 +100,8 @@ struct RawPluginManifest {
     interface: Option<RawPluginInterface>,
     #[serde(default)]
     permissions: Option<RawPluginPermissions>,
+    #[serde(default)]
+    compatibility: Option<RawPluginCompatibility>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,6 +139,16 @@ struct RawPluginPermissions {
     writable_roots: Vec<String>,
     #[serde(default)]
     tools: Vec<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawPluginCompatibility {
+    #[serde(default, rename = "kairoxVersion")]
+    kairox_version: Option<String>,
+    #[serde(default)]
+    platforms: Vec<String>,
+    #[serde(default)]
+    requires: Vec<String>,
 }
 
 pub async fn read_plugin_manifest(plugin_root: &Path) -> Result<PluginManifestView> {
@@ -178,6 +198,7 @@ async fn view_from_raw(
     let inventory = build_inventory(plugin_root, &raw).await;
     let interface = raw.interface.unwrap_or_default();
     let permissions = raw.permissions.unwrap_or_default();
+    let compatibility = raw.compatibility.unwrap_or_default();
 
     PluginManifestView {
         name,
@@ -203,6 +224,11 @@ async fn view_from_raw(
             network_access: permissions.network_access,
             writable_roots: permissions.writable_roots,
             tools: permissions.tools,
+        },
+        compatibility: PluginCompatibilityHints {
+            kairox_version: compatibility.kairox_version,
+            platforms: compatibility.platforms,
+            requires: compatibility.requires,
         },
         manifest_kind,
         manifest_path,
