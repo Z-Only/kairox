@@ -431,6 +431,13 @@ fn destructive_tui_actions_require_second_keypress_before_command() {
                 hook_count: 0,
             },
             manifest_kind: "kairox".into(),
+            security: agent_core::facade::PluginSecurityMetadataView {
+                publisher: None,
+                trust: None,
+                signature: None,
+                checksum: None,
+                sha256: None,
+            },
         }
     }
 

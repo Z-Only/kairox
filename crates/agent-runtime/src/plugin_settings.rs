@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use agent_core::facade::{
-    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget, PluginSettingsView,
+    PluginComponentInventoryView, PluginDetailView, PluginInstallTarget,
+    PluginSecurityMetadataView, PluginSettingsView,
 };
 use agent_core::{ConfigScope, CoreError};
 use agent_plugins::{PluginRoot, PluginScope};
@@ -144,6 +145,13 @@ pub fn local_view_to_core_view(view: agent_plugins::PluginSettingsView) -> Plugi
             agent_plugins::PluginManifestKind::Claude => "claude",
         }
         .to_string(),
+        security: PluginSecurityMetadataView {
+            publisher: view.manifest.security.publisher,
+            trust: view.manifest.security.trust,
+            signature: view.manifest.security.signature,
+            checksum: view.manifest.security.checksum,
+            sha256: view.manifest.security.sha256,
+        },
     }
 }
 
@@ -255,5 +263,42 @@ mod tests {
         assert_eq!(views[0].settings_id, "user:github");
         assert_eq!(views[0].scope, ConfigScope::User);
         assert_eq!(views[0].manifest_kind, "kairox");
+    }
+
+    #[tokio::test]
+    async fn list_plugin_settings_maps_security_metadata() {
+        let user = tempfile::tempdir().expect("user");
+        let manifest_dir = user.path().join("signed-tools").join(".kairox-plugin");
+        fs::create_dir_all(&manifest_dir).expect("manifest dir");
+        fs::write(
+            manifest_dir.join("plugin.json"),
+            r#"{
+              "name": "signed-tools",
+              "description": "Signed tools",
+              "publisher": "Kairox Labs",
+              "trust": "community",
+              "signature": "minisign:RWQabc123",
+              "checksum": "sha256:abc123",
+              "sha256": "abc123"
+            }"#,
+        )
+        .expect("manifest");
+
+        let views = list_plugin_settings(PluginSettingsRoots {
+            user_root: Some(user.path().to_path_buf()),
+            ..PluginSettingsRoots::default()
+        })
+        .await
+        .expect("views");
+
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].security.publisher.as_deref(), Some("Kairox Labs"));
+        assert_eq!(views[0].security.trust.as_deref(), Some("community"));
+        assert_eq!(
+            views[0].security.signature.as_deref(),
+            Some("minisign:RWQabc123")
+        );
+        assert_eq!(views[0].security.checksum.as_deref(), Some("sha256:abc123"));
+        assert_eq!(views[0].security.sha256.as_deref(), Some("abc123"));
     }
 }

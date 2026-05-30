@@ -24,6 +24,16 @@ pub struct PluginComponentInventoryView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct PluginSecurityMetadataView {
+    pub publisher: Option<String>,
+    pub trust: Option<String>,
+    pub signature: Option<String>,
+    pub checksum: Option<String>,
+    pub sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PluginSettingsView {
     pub settings_id: String,
     pub id: String,
@@ -41,6 +51,7 @@ pub struct PluginSettingsView {
     pub validation_error: Option<String>,
     pub inventory: PluginComponentInventoryView,
     pub manifest_kind: String,
+    pub security: PluginSecurityMetadataView,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

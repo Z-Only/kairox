@@ -112,6 +112,37 @@ async fn reads_plugin_compatibility_metadata() {
 }
 
 #[tokio::test]
+async fn reads_plugin_security_metadata() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{
+              "name": "signed-tools",
+              "description": "Signed workflow helpers",
+              "publisher": "Kairox Labs",
+              "trust": "community",
+              "signature": "minisign:RWQabc123",
+              "checksum": "sha256:abc123",
+              "sha256": "abc123"
+            }"#,
+    )
+    .expect("manifest");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+
+    assert_eq!(plugin.security.publisher.as_deref(), Some("Kairox Labs"));
+    assert_eq!(plugin.security.trust.as_deref(), Some("community"));
+    assert_eq!(
+        plugin.security.signature.as_deref(),
+        Some("minisign:RWQabc123")
+    );
+    assert_eq!(plugin.security.checksum.as_deref(), Some("sha256:abc123"));
+    assert_eq!(plugin.security.sha256.as_deref(), Some("abc123"));
+}
+
+#[tokio::test]
 async fn reads_claude_plugin_manifest_with_folder_skill_names() {
     let dir = tempfile::tempdir().expect("tempdir");
     let manifest_dir = dir.path().join(".claude-plugin");

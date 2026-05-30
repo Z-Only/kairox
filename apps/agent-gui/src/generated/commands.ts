@@ -759,6 +759,14 @@ export type PluginMarketplaceSourceView = {
   builtin: boolean;
 };
 
+export type PluginSecurityMetadataView = {
+  publisher: string | null;
+  trust: string | null;
+  signature: string | null;
+  checksum: string | null;
+  sha256: string | null;
+};
+
 export type PluginSettingsView = {
   settings_id: string;
   id: string;
@@ -776,6 +784,7 @@ export type PluginSettingsView = {
   validation_error: string | null;
   inventory: PluginComponentInventoryView;
   manifest_kind: string;
+  security: PluginSecurityMetadataView;
 };
 
 export type ProfileDetailResponse = {

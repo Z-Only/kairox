@@ -48,6 +48,15 @@ pub struct PluginCompatibilityHints {
     pub requires: Vec<String>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PluginSecurityMetadata {
+    pub publisher: Option<String>,
+    pub trust: Option<String>,
+    pub signature: Option<String>,
+    pub checksum: Option<String>,
+    pub sha256: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PluginManifestView {
     pub name: String,
@@ -62,6 +71,7 @@ pub struct PluginManifestView {
     pub inventory: PluginComponentInventory,
     pub permissions: PluginPermissionHints,
     pub compatibility: PluginCompatibilityHints,
+    pub security: PluginSecurityMetadata,
     pub manifest_kind: PluginManifestKind,
     pub manifest_path: PathBuf,
     pub plugin_root: PathBuf,
@@ -102,6 +112,16 @@ struct RawPluginManifest {
     permissions: Option<RawPluginPermissions>,
     #[serde(default)]
     compatibility: Option<RawPluginCompatibility>,
+    #[serde(default)]
+    publisher: Option<Value>,
+    #[serde(default)]
+    trust: Option<Value>,
+    #[serde(default)]
+    signature: Option<Value>,
+    #[serde(default)]
+    checksum: Option<Value>,
+    #[serde(default)]
+    sha256: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -199,6 +219,23 @@ async fn view_from_raw(
     let interface = raw.interface.unwrap_or_default();
     let permissions = raw.permissions.unwrap_or_default();
     let compatibility = raw.compatibility.unwrap_or_default();
+    let security = PluginSecurityMetadata {
+        publisher: raw
+            .publisher
+            .and_then(|value| metadata_string(value, &["name", "id", "value"])),
+        trust: raw
+            .trust
+            .and_then(|value| metadata_string(value, &["level", "status", "state", "value"])),
+        signature: raw
+            .signature
+            .and_then(|value| metadata_string(value, &["signature", "value"])),
+        checksum: raw
+            .checksum
+            .and_then(|value| metadata_string(value, &["checksum", "sha256", "value"])),
+        sha256: raw
+            .sha256
+            .and_then(|value| metadata_string(value, &["sha256", "value"])),
+    };
 
     PluginManifestView {
         name,
@@ -230,6 +267,7 @@ async fn view_from_raw(
             platforms: compatibility.platforms,
             requires: compatibility.requires,
         },
+        security,
         manifest_kind,
         manifest_path,
         plugin_root: plugin_root.to_path_buf(),
@@ -252,6 +290,19 @@ fn repository_string(value: Value) -> Option<String> {
             .get("url")
             .and_then(Value::as_str)
             .map(ToOwned::to_owned),
+        _ => None,
+    }
+}
+
+fn metadata_string(value: Value, object_keys: &[&str]) -> Option<String> {
+    match value {
+        Value::String(value) => Some(value),
+        Value::Object(object) => object_keys.iter().find_map(|key| {
+            object
+                .get(*key)
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        }),
         _ => None,
     }
 }

@@ -70,6 +70,13 @@ function pluginSettings(overrides: Record<string, unknown> = {}) {
       hook_count: 0
     },
     manifest_kind: "claude",
+    security: {
+      publisher: null,
+      trust: null,
+      signature: null,
+      checksum: null,
+      sha256: null
+    },
     ...overrides
   };
 }
@@ -261,6 +268,45 @@ describe("PluginSettingsPane", () => {
 
       expect(wrapper.find('[data-test="plugin-row-user-broken-plugin"]').exists()).toBe(true);
       expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(false);
+    });
+
+    it("renders and searches plugin security metadata", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(
+        ok([
+          pluginSettings({
+            security: {
+              publisher: "Kairox Labs",
+              trust: "community",
+              signature: "minisign:RWQabc123",
+              checksum: "sha256:abc123",
+              sha256: "abc123"
+            }
+          }),
+          pluginSettings({
+            settings_id: "User:local-tools",
+            id: "local-tools",
+            name: "Local Tools",
+            path: "/Users/mock/.config/kairox/plugins/local-tools"
+          })
+        ])
+      );
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane();
+      await flushPromises();
+
+      const signedRow = wrapper.find('[data-test="plugin-row-user-github"]');
+      expect(signedRow.text()).toContain("Kairox Labs");
+      expect(signedRow.text()).toContain("minisign:RWQabc123");
+      expect(signedRow.text()).toContain("community");
+      expect(wrapper.find('[data-test="plugin-row-user-local-tools"]').text()).toContain(
+        "Unsigned"
+      );
+
+      await wrapper.find('[data-test="plugin-installed-search-input"]').setValue("Kairox Labs");
+
+      expect(wrapper.find('[data-test="plugin-row-user-github"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="plugin-row-user-local-tools"]').exists()).toBe(false);
     });
 
     it("shows a filtered empty state when no installed plugins match search", async () => {
