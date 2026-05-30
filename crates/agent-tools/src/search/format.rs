@@ -1,4 +1,4 @@
-use super::{SearchEngine, SearchResults};
+use super::{SearchEngine, SearchResult, SearchResults};
 
 /// Format search results for output.
 pub fn format_search_results(results: &SearchResults) -> String {
@@ -26,13 +26,30 @@ pub fn format_search_results(results: &SearchResults) -> String {
         )
     };
 
-    let lines: Vec<String> = results
-        .results
-        .iter()
-        .map(|r| format!("{}:{}:{}", r.file_path, r.line_number, r.line_content))
-        .collect();
+    let lines: Vec<String> = results.results.iter().flat_map(format_result).collect();
 
     format!("{}{}", header, lines.join("\n"))
+}
+
+fn format_result(result: &SearchResult) -> Vec<String> {
+    let mut lines = Vec::new();
+    for context in &result.context_before {
+        lines.push(format!(
+            "{}-{}-{}",
+            result.file_path, context.line_number, context.line_content
+        ));
+    }
+    lines.push(format!(
+        "{}:{}:{}",
+        result.file_path, result.line_number, result.line_content
+    ));
+    for context in &result.context_after {
+        lines.push(format!(
+            "{}-{}-{}",
+            result.file_path, context.line_number, context.line_content
+        ));
+    }
+    lines
 }
 
 #[cfg(test)]

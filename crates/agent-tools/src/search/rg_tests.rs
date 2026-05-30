@@ -72,3 +72,16 @@ fn parse_rg_json_multiple_submatches_uses_first() {
     assert_eq!(results[0].match_start, 0);
     assert_eq!(results[0].match_end, 3);
 }
+
+#[test]
+fn parse_rg_json_attaches_context_lines() {
+    let input = b"{\"type\":\"context\",\"data\":{\"path\":{\"text\":\"a.rs\"},\"line_number\":1,\"lines\":{\"text\":\"before\\n\"}}}\n{\"type\":\"match\",\"data\":{\"path\":{\"text\":\"a.rs\"},\"line_number\":2,\"lines\":{\"text\":\"needle\\n\"},\"submatches\":[{\"start\":0,\"end\":6,\"match\":{\"text\":\"needle\"}}]}}\n{\"type\":\"context\",\"data\":{\"path\":{\"text\":\"a.rs\"},\"line_number\":3,\"lines\":{\"text\":\"after\\n\"}}}\n";
+    let results = parse_rg_json_output_with_context(input, 100, 1).unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].context_before.len(), 1);
+    assert_eq!(results[0].context_before[0].line_number, 1);
+    assert_eq!(results[0].context_before[0].line_content, "before\n");
+    assert_eq!(results[0].context_after.len(), 1);
+    assert_eq!(results[0].context_after[0].line_number, 3);
+    assert_eq!(results[0].context_after[0].line_content, "after\n");
+}

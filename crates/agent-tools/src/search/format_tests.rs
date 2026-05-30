@@ -1,4 +1,4 @@
-use super::super::{SearchEngine, SearchResult, SearchResults};
+use super::super::{SearchContextLine, SearchEngine, SearchResult, SearchResults};
 use super::*;
 
 #[test]
@@ -10,6 +10,8 @@ fn format_search_results_basic() {
             line_content: "fn main() {}".into(),
             match_start: 3,
             match_end: 8,
+            context_before: vec![],
+            context_after: vec![],
         }],
         total_matches: 1,
         truncated: false,
@@ -29,6 +31,8 @@ fn format_search_results_truncated() {
             line_content: "match".into(),
             match_start: 0,
             match_end: 5,
+            context_before: vec![],
+            context_after: vec![],
         }],
         total_matches: 1,
         truncated: true,
@@ -61,6 +65,8 @@ fn format_search_results_multiple_files() {
                 line_content: "match a".into(),
                 match_start: 0,
                 match_end: 1,
+                context_before: vec![],
+                context_after: vec![],
             },
             SearchResult {
                 file_path: "b.rs".into(),
@@ -68,6 +74,8 @@ fn format_search_results_multiple_files() {
                 line_content: "match b".into(),
                 match_start: 0,
                 match_end: 1,
+                context_before: vec![],
+                context_after: vec![],
             },
             SearchResult {
                 file_path: "a.rs".into(),
@@ -75,6 +83,8 @@ fn format_search_results_multiple_files() {
                 line_content: "match c".into(),
                 match_start: 0,
                 match_end: 1,
+                context_before: vec![],
+                context_after: vec![],
             },
         ],
         total_matches: 3,
@@ -85,4 +95,33 @@ fn format_search_results_multiple_files() {
     // 3 matches in 2 distinct files
     assert!(text.contains("Found 3 matches in 2 files"));
     assert!(text.contains("[rg]"));
+}
+
+#[test]
+fn format_search_results_with_context_lines() {
+    let results = SearchResults {
+        results: vec![SearchResult {
+            file_path: "src/lib.rs".into(),
+            line_number: 10,
+            line_content: "needle".into(),
+            match_start: 0,
+            match_end: 6,
+            context_before: vec![SearchContextLine {
+                line_number: 9,
+                line_content: "before".into(),
+            }],
+            context_after: vec![SearchContextLine {
+                line_number: 11,
+                line_content: "after".into(),
+            }],
+        }],
+        total_matches: 1,
+        truncated: false,
+        engine: SearchEngine::Ripgrep,
+    };
+
+    let text = format_search_results(&results);
+    assert!(text.contains("src/lib.rs-9-before"));
+    assert!(text.contains("src/lib.rs:10:needle"));
+    assert!(text.contains("src/lib.rs-11-after"));
 }
