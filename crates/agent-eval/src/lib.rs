@@ -256,6 +256,33 @@ pub fn load_scenarios_from_str(input: &str) -> Result<Vec<EvalScenario>> {
     Ok(scenarios)
 }
 
+pub fn filter_scenarios_by_tags(
+    scenarios: &[EvalScenario],
+    include_tags: &[String],
+    exclude_tags: &[String],
+) -> Vec<EvalScenario> {
+    scenarios
+        .iter()
+        .filter(|scenario| scenario_matches_tags(scenario, include_tags, exclude_tags))
+        .cloned()
+        .collect()
+}
+
+fn scenario_matches_tags(
+    scenario: &EvalScenario,
+    include_tags: &[String],
+    exclude_tags: &[String],
+) -> bool {
+    let has_included_tag = include_tags.is_empty()
+        || include_tags
+            .iter()
+            .any(|tag| scenario.tags.iter().any(|candidate| candidate == tag));
+    let has_excluded_tag = exclude_tags
+        .iter()
+        .any(|tag| scenario.tags.iter().any(|candidate| candidate == tag));
+    has_included_tag && !has_excluded_tag
+}
+
 pub fn write_results_jsonl(path: impl AsRef<Path>, results: &[EvalResult]) -> Result<()> {
     if let Some(parent) = path.as_ref().parent() {
         if !parent.as_os_str().is_empty() {

@@ -1,6 +1,6 @@
 use agent_eval::{
-    load_scenarios, write_results_jsonl, write_summary_json, EvalHarness, EvalRunOptions,
-    EvalSummary, Result,
+    filter_scenarios_by_tags, load_scenarios, write_results_jsonl, write_summary_json, EvalHarness,
+    EvalRunOptions, EvalSummary, Result,
 };
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::path::PathBuf;
@@ -16,6 +16,7 @@ async fn main() {
 async fn run() -> Result<()> {
     let args = CliArgs::parse(std::env::args().skip(1))?;
     let scenarios = load_scenarios(&args.scenarios)?;
+    let scenarios = filter_scenarios_by_tags(&scenarios, &args.include_tags, &args.exclude_tags);
     let mut harness = EvalHarness::new(EvalRunOptions {
         workspace_root: args.workspace,
         default_profile: args.profile,
@@ -65,6 +66,8 @@ struct CliArgs {
     fake_tool_arguments: Option<serde_json::Value>,
     wait_timeout_ms: Option<u64>,
     seed_synthetic_pairs: Option<usize>,
+    include_tags: Vec<String>,
+    exclude_tags: Vec<String>,
 }
 
 impl CliArgs {
@@ -88,6 +91,8 @@ impl CliArgs {
         let mut fake_tool_arguments: Option<serde_json::Value> = None;
         let mut wait_timeout_ms: Option<u64> = None;
         let mut seed_synthetic_pairs: Option<usize> = None;
+        let mut include_tags = Vec::new();
+        let mut exclude_tags = Vec::new();
 
         let mut iter = args.into_iter().peekable();
         if iter.peek().is_some_and(|arg| arg == "run") {
@@ -148,6 +153,8 @@ impl CliArgs {
                         ))
                     })?);
                 }
+                "--tag" => include_tags.push(next_value(&mut iter, "--tag")?),
+                "--exclude-tag" => exclude_tags.push(next_value(&mut iter, "--exclude-tag")?),
                 "--help" | "-h" => return Err(agent_eval::EvalError::Cli(usage())),
                 other => {
                     return Err(agent_eval::EvalError::Cli(format!(
@@ -179,6 +186,8 @@ impl CliArgs {
             fake_tool_arguments,
             wait_timeout_ms,
             seed_synthetic_pairs,
+            include_tags,
+            exclude_tags,
         })
     }
 }
@@ -211,5 +220,5 @@ fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
 }
 
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--tag <tag>] [--exclude-tag <tag>]".into()
 }
