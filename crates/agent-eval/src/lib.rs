@@ -185,10 +185,14 @@ impl EvalHarness {
         }
         evaluate_expectations(
             &scenario.expected,
-            assistant_response.as_deref(),
-            &event_types,
-            tool_invocations,
-            tool_failures,
+            ExpectationObservation {
+                assistant_response: assistant_response.as_deref(),
+                event_types: &event_types,
+                tool_invocations,
+                tool_failures,
+                elapsed_ms,
+                context_input_tokens,
+            },
             &mut failures,
         );
         let error = failures
@@ -310,14 +314,11 @@ pub fn write_summary_json(path: impl AsRef<Path>, summary: &EvalSummary) -> Resu
 
 fn evaluate_expectations(
     expected: &EvalExpectation,
-    assistant_response: Option<&str>,
-    event_types: &[String],
-    tool_invocations: usize,
-    tool_failures: usize,
+    observed: ExpectationObservation<'_>,
     failures: &mut Vec<String>,
 ) {
     for needle in &expected.assistant_contains {
-        match assistant_response {
+        match observed.assistant_response {
             Some(response) if response.contains(needle) => {}
             Some(_) => failures.push(format!("assistant response missing substring: {needle}")),
             None => failures.push(format!("assistant response missing substring: {needle}")),
@@ -325,32 +326,62 @@ fn evaluate_expectations(
     }
 
     for event_type in &expected.event_types {
-        if !event_types.iter().any(|seen| seen == event_type) {
+        if !observed.event_types.iter().any(|seen| seen == event_type) {
             failures.push(format!("missing event type: {event_type}"));
         }
     }
 
     for event_type in &expected.forbidden_event_types {
-        if event_types.iter().any(|seen| seen == event_type) {
+        if observed.event_types.iter().any(|seen| seen == event_type) {
             failures.push(format!("forbidden event type present: {event_type}"));
         }
     }
 
     if let Some(minimum) = expected.min_tool_invocations {
-        if tool_invocations < minimum {
+        if observed.tool_invocations < minimum {
             failures.push(format!(
-                "tool invocations below minimum: expected at least {minimum}, got {tool_invocations}"
+                "tool invocations below minimum: expected at least {minimum}, got {}",
+                observed.tool_invocations
             ));
         }
     }
 
     if let Some(maximum) = expected.max_tool_failures {
-        if tool_failures > maximum {
+        if observed.tool_failures > maximum {
             failures.push(format!(
-                "tool failures above maximum: expected at most {maximum}, got {tool_failures}"
+                "tool failures above maximum: expected at most {maximum}, got {}",
+                observed.tool_failures
             ));
         }
     }
+
+    if let Some(maximum) = expected.max_elapsed_ms {
+        if observed.elapsed_ms > maximum {
+            failures.push(format!(
+                "elapsed time above maximum: expected at most {maximum} ms, got {} ms",
+                observed.elapsed_ms
+            ));
+        }
+    }
+
+    if let Some(maximum) = expected.max_context_input_tokens {
+        match observed.context_input_tokens {
+            Some(tokens) if tokens <= maximum => {}
+            Some(tokens) => failures.push(format!(
+                "context input tokens above maximum: expected at most {maximum}, got {tokens}"
+            )),
+            None => failures.push("context input tokens unavailable".into()),
+        }
+    }
+}
+
+struct ExpectationObservation<'a> {
+    assistant_response: Option<&'a str>,
+    event_types: &'a [String],
+    tool_invocations: usize,
+    tool_failures: usize,
+    elapsed_ms: u64,
+    context_input_tokens: Option<u64>,
 }
 
 fn count_events(events: &[DomainEvent], predicate: impl Fn(&EventPayload) -> bool) -> usize {

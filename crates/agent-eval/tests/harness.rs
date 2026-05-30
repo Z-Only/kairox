@@ -10,7 +10,7 @@ fn loads_jsonl_scenarios_and_skips_comments() {
 # smoke cases
 {"id":"hello","prompt":"Say hello","profile":"fake","expected":{"assistant_contains":["hello"]}}
 
-{"id":"trace","prompt":"Emit trace","expected":{"event_types":["UserMessageAdded"]}}
+{"id":"trace","prompt":"Emit trace","expected":{"event_types":["UserMessageAdded"],"max_elapsed_ms":250,"max_context_input_tokens":2048}}
 "#;
 
     let scenarios = load_scenarios_from_str(input).expect("scenarios should parse");
@@ -20,6 +20,8 @@ fn loads_jsonl_scenarios_and_skips_comments() {
     assert_eq!(scenarios[0].profile.as_deref(), Some("fake"));
     assert_eq!(scenarios[0].expected.assistant_contains, vec!["hello"]);
     assert_eq!(scenarios[1].expected.event_types, vec!["UserMessageAdded"]);
+    assert_eq!(scenarios[1].expected.max_elapsed_ms, Some(250));
+    assert_eq!(scenarios[1].expected.max_context_input_tokens, Some(2048));
 }
 
 #[test]
@@ -136,6 +138,44 @@ async fn scenario_fails_when_forbidden_event_type_is_seen() {
     assert!(result
         .failures
         .contains(&"forbidden event type present: AssistantMessageCompleted".into()));
+}
+
+#[tokio::test]
+async fn scenario_fails_when_budget_expectations_are_exceeded() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "budget-guard".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_contains: vec!["hello from Kairox".into()],
+            max_elapsed_ms: Some(0),
+            max_context_input_tokens: Some(0),
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result
+        .failures
+        .iter()
+        .any(|failure| failure.starts_with("elapsed time above maximum: expected at most 0 ms")));
+    assert!(result.failures.iter().any(|failure| failure
+        .starts_with("context input tokens above maximum: expected at most 0, got ")));
 }
 
 #[tokio::test]
