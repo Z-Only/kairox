@@ -174,6 +174,19 @@ pub struct EvalSummary {
     pub total_context_input_tokens: Option<u64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvalReport {
+    pub summary: EvalSummary,
+    pub results: Vec<EvalResult>,
+}
+
+impl EvalReport {
+    pub fn from_results(results: Vec<EvalResult>) -> Self {
+        let summary = EvalSummary::from_results(&results);
+        Self { summary, results }
+    }
+}
+
 impl EvalSummary {
     pub fn from_results(results: &[EvalResult]) -> Self {
         let total = results.len();

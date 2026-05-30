@@ -16,7 +16,8 @@ use std::time::{Duration, Instant};
 mod types;
 
 pub use types::{
-    EvalError, EvalExpectation, EvalResult, EvalRunOptions, EvalScenario, EvalSummary, Result,
+    EvalError, EvalExpectation, EvalReport, EvalResult, EvalRunOptions, EvalScenario, EvalSummary,
+    Result,
 };
 
 pub struct EvalHarness {
@@ -307,11 +308,7 @@ fn scenario_matches_tags(
 }
 
 pub fn write_results_jsonl(path: impl AsRef<Path>, results: &[EvalResult]) -> Result<()> {
-    if let Some(parent) = path.as_ref().parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
-    }
+    ensure_parent_dir(path.as_ref())?;
     let mut output = String::new();
     for result in results {
         output.push_str(&serde_json::to_string(result)?);
@@ -322,12 +319,23 @@ pub fn write_results_jsonl(path: impl AsRef<Path>, results: &[EvalResult]) -> Re
 }
 
 pub fn write_summary_json(path: impl AsRef<Path>, summary: &EvalSummary) -> Result<()> {
-    if let Some(parent) = path.as_ref().parent() {
+    ensure_parent_dir(path.as_ref())?;
+    std::fs::write(path, serde_json::to_string_pretty(summary)?)?;
+    Ok(())
+}
+
+pub fn write_report_json(path: impl AsRef<Path>, report: &EvalReport) -> Result<()> {
+    ensure_parent_dir(path.as_ref())?;
+    std::fs::write(path, serde_json::to_string_pretty(report)?)?;
+    Ok(())
+}
+
+fn ensure_parent_dir(path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
         }
     }
-    std::fs::write(path, serde_json::to_string_pretty(summary)?)?;
     Ok(())
 }
 
