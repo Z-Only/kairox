@@ -60,6 +60,8 @@ pub struct EvalExpectation {
     pub assistant_contains: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub event_types: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub forbidden_event_types: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_tool_invocations: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

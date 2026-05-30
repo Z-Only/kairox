@@ -330,6 +330,12 @@ fn evaluate_expectations(
         }
     }
 
+    for event_type in &expected.forbidden_event_types {
+        if event_types.iter().any(|seen| seen == event_type) {
+            failures.push(format!("forbidden event type present: {event_type}"));
+        }
+    }
+
     if let Some(minimum) = expected.min_tool_invocations {
         if tool_invocations < minimum {
             failures.push(format!(
