@@ -62,7 +62,8 @@ const groups = [
       // skill_dtos tests extracted to skill_dtos_tests.rs (excluded from src function counts); floor lowered 10 → 8.
       // core facade/project tests extracted to project_tests.rs (excluded from src function counts); floor lowered 8 → 6.
       // core ids tests extracted to ids_tests.rs (excluded from src function counts); floor lowered 6 → 4.
-      functions: 4,
+      // config discovery tests extracted to discovery_tests.rs (excluded from src function counts); floor lowered 4 → 2.
+      functions: 2,
       lines: 80
     }
   },
