@@ -1,6 +1,6 @@
 use agent_eval::{
-    filter_scenarios_by_tags, load_scenarios, write_results_jsonl, write_summary_json, EvalHarness,
-    EvalRunOptions, EvalSummary, Result,
+    filter_scenarios_by_tags, load_scenarios, write_report_json, write_results_jsonl,
+    write_summary_json, EvalHarness, EvalReport, EvalRunOptions, EvalSummary, Result,
 };
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
 use std::path::PathBuf;
@@ -52,6 +52,15 @@ async fn run_scenarios(args: RunArgs) -> Result<()> {
     write_results_jsonl(&args.output, &results)?;
     if let Some(summary_path) = args.summary {
         write_summary_json(summary_path, &summary)?;
+    }
+    if let Some(report_path) = args.report {
+        write_report_json(
+            report_path,
+            &EvalReport {
+                summary: summary.clone(),
+                results,
+            },
+        )?;
     }
 
     println!("{}", serde_json::to_string_pretty(&summary)?);
@@ -105,6 +114,7 @@ struct RunArgs {
     scenarios: PathBuf,
     output: PathBuf,
     summary: Option<PathBuf>,
+    report: Option<PathBuf>,
     workspace: PathBuf,
     profile: Option<String>,
     approval_policy: ApprovalPolicy,
@@ -128,6 +138,7 @@ impl RunArgs {
         let mut scenarios = None;
         let mut output = None;
         let mut summary = None;
+        let mut report = None;
         let mut workspace = std::env::current_dir()?;
         let mut profile = None;
         let mut approval_policy = ApprovalPolicy::OnRequest;
@@ -158,6 +169,7 @@ impl RunArgs {
                 "--scenarios" => scenarios = Some(next_path(&mut iter, "--scenarios")?),
                 "--output" => output = Some(next_path(&mut iter, "--output")?),
                 "--summary" => summary = Some(next_path(&mut iter, "--summary")?),
+                "--report" => report = Some(next_path(&mut iter, "--report")?),
                 "--workspace" => workspace = next_path(&mut iter, "--workspace")?,
                 "--profile" => profile = Some(next_value(&mut iter, "--profile")?),
                 "--approval-policy" => {
@@ -228,6 +240,7 @@ impl RunArgs {
                 agent_eval::EvalError::Cli(format!("missing --output\n{}", usage()))
             })?,
             summary,
+            report,
             workspace,
             profile,
             approval_policy,
@@ -338,7 +351,7 @@ fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
 }
 
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--fail-fast] [--tag <tag>] [--exclude-tag <tag>]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--report <report.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--fail-fast] [--tag <tag>] [--exclude-tag <tag>]".into()
 }
 
 fn list_usage() -> String {

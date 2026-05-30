@@ -131,6 +131,68 @@ fn smoke_fixture_runs_clean_through_cli() {
 }
 
 #[test]
+fn combined_report_json_contains_summary_and_results() {
+    let fixture = fixture_path("smoke.jsonl");
+    let bin = env!("CARGO_BIN_EXE_kairox-eval");
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let outputs = tempfile::tempdir().expect("outputs tempdir");
+    let home_dir = tempfile::tempdir().expect("home tempdir");
+    let results_path = outputs.path().join("results.jsonl");
+    let report_path = outputs.path().join("report.json");
+
+    let output = Command::new(bin)
+        .env("HOME", home_dir.path())
+        .env("USERPROFILE", home_dir.path())
+        .current_dir(workspace.path())
+        .arg("run")
+        .arg("--scenarios")
+        .arg(&fixture)
+        .arg("--output")
+        .arg(&results_path)
+        .arg("--report")
+        .arg(&report_path)
+        .arg("--workspace")
+        .arg(workspace.path())
+        .arg("--profile")
+        .arg("fake")
+        .output()
+        .expect("kairox-eval binary should execute");
+
+    assert!(
+        output.status.success(),
+        "kairox-eval exited non-zero: status={:?}\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    assert!(
+        report_path.is_file(),
+        "combined report must be written at {}",
+        report_path.display()
+    );
+
+    let report_raw = std::fs::read_to_string(&report_path).expect("report.json should be readable");
+    let report: serde_json::Value =
+        serde_json::from_str(&report_raw).expect("report.json should parse as JSON");
+
+    assert_eq!(report["summary"]["total"].as_u64(), Some(3));
+    assert_eq!(report["summary"]["failed"].as_u64(), Some(0));
+
+    let results = report["results"]
+        .as_array()
+        .expect("report results should be an array");
+    assert_eq!(results.len(), 3);
+    let scenario_ids = results
+        .iter()
+        .map(|result| result["scenario_id"].as_str().expect("scenario_id"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        scenario_ids,
+        vec!["smoke-hello", "smoke-event-trace", "smoke-no-tool-failures"]
+    );
+}
+
+#[test]
 fn smoke_tool_call_fixture_runs_clean_through_cli() {
     let fixture = fixture_path("smoke-tool-call.jsonl");
     let summary = run_cli(
