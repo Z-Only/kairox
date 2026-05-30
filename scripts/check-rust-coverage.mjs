@@ -172,8 +172,10 @@ const groups = [
       // policy/sandbox tests extracted to sandbox_tests.rs (excluded from src function counts); floor lowered 46 → 44.
       // the ~118-line sandbox.rs test block also moved test lines out of T3 src; floor lowered 86 → 85.
       // search/rg tests extracted to rg_tests.rs (excluded from src function counts); floor lowered 44 → 42.
-      functions: 42,
-      lines: 85
+      // skills frontmatter tests extracted to frontmatter_tests.rs (excluded from src function counts); floor lowered 42 → 40.
+      // the ~119-line frontmatter.rs test block also moved test lines out of T3 src (measurement shift, no regression); floor lowered 85 → 84.
+      functions: 40,
+      lines: 84
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
