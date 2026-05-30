@@ -40,6 +40,9 @@ const projectSkill = {
   path: "/repo/.kairox/skills/code-review",
   enabled: true,
   activation_mode: "manual",
+  tools: ["fs.read", "search.ripgrep"],
+  can_request_tools: ["shell"],
+  permission_summary: "tools: fs.read, search.ripgrep; can request: shell",
   install_source: "github",
   update_state: "update_available",
   effective: true,
@@ -60,6 +63,9 @@ const shadowedSkill = {
   path: "/home/user/.kairox/skills/tdd",
   enabled: true,
   activation_mode: "auto",
+  tools: [],
+  can_request_tools: [],
+  permission_summary: "no tool permissions declared",
   install_source: "registry",
   update_state: "up_to_date",
   effective: false,
@@ -80,6 +86,9 @@ const builtinSkill = {
   path: "builtin:/planning",
   enabled: true,
   activation_mode: "manual",
+  tools: [],
+  can_request_tools: [],
+  permission_summary: "no tool permissions declared",
   install_source: "builtin",
   update_state: "unknown",
   effective: true,
@@ -100,6 +109,9 @@ const invalidSkill = {
   path: "/repo/.kairox/skills/broken",
   enabled: false,
   activation_mode: "manual",
+  tools: [],
+  can_request_tools: [],
+  permission_summary: "no tool permissions declared",
   install_source: "local",
   update_state: "check_failed",
   effective: true,
@@ -199,6 +211,12 @@ describe("SkillSettingsPane", () => {
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain("manual");
     expect(wrapper.find('[data-test="skill-row-project-code-review"]').text()).toContain(
       "update available"
+    );
+    expect(wrapper.find('[data-test="skill-permissions-project-code-review"]').text()).toContain(
+      "fs.read, search.ripgrep"
+    );
+    expect(wrapper.find('[data-test="skill-permissions-project-code-review"]').text()).toContain(
+      "shell"
     );
     expect(wrapper.find('[data-test="skill-row-user-test-driven-development"]').text()).toContain(
       "shadowed by project"

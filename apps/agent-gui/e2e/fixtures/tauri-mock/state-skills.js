@@ -51,6 +51,9 @@ state.skillSettings = [
     shadowed_by: null,
     valid: true,
     validation_error: null,
+    tools: ["fs.read"],
+    can_request_tools: ["registry"],
+    permission_summary: "tools: fs.read; can request: registry",
     editable: true,
     deletable: true
   },
@@ -70,6 +73,9 @@ state.skillSettings = [
     shadowed_by: null,
     valid: true,
     validation_error: null,
+    tools: [],
+    can_request_tools: [],
+    permission_summary: "no tool permissions declared",
     editable: true,
     deletable: true
   },
@@ -89,6 +95,9 @@ state.skillSettings = [
     shadowed_by: "project-review",
     valid: true,
     validation_error: null,
+    tools: [],
+    can_request_tools: [],
+    permission_summary: "no tool permissions declared",
     editable: false,
     deletable: false
   },
@@ -108,6 +117,9 @@ state.skillSettings = [
     shadowed_by: null,
     valid: false,
     validation_error: "Missing required description",
+    tools: [],
+    can_request_tools: [],
+    permission_summary: "no tool permissions declared",
     editable: true,
     deletable: true
   },
@@ -127,6 +139,9 @@ state.skillSettings = [
     shadowed_by: null,
     valid: true,
     validation_error: null,
+    tools: ["registry.search"],
+    can_request_tools: [],
+    permission_summary: "tools: registry.search",
     editable: true,
     deletable: true
   },
@@ -146,6 +161,9 @@ state.skillSettings = [
     shadowed_by: null,
     valid: true,
     validation_error: null,
+    tools: [],
+    can_request_tools: ["github"],
+    permission_summary: "can request: github",
     editable: true,
     deletable: true
   }

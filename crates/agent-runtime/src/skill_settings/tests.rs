@@ -41,6 +41,38 @@ async fn list_skill_settings_maps_project_skill_to_editable_view() {
 }
 
 #[tokio::test]
+async fn list_skill_settings_maps_permission_declarations() {
+    let workspace_root = tempfile::tempdir().expect("workspace root");
+    let skill_directory = workspace_root.path().join("review");
+    std::fs::create_dir_all(&skill_directory).expect("skill directory should exist");
+    std::fs::write(
+        skill_directory.join("SKILL.md"),
+        "---\nname: review\ndescription: Review code\nkairox:\n  permissions:\n    tools: [\"fs.read\"]\n    can_request_tools: [\"shell\", \"search.ripgrep\"]\n---\nBody\n",
+    )
+    .expect("skill should be written");
+
+    let views = list_skill_settings_from_roots(SkillSettingsRoots {
+        workspace_root: Some(workspace_root.path().to_path_buf()),
+        user_root: None,
+        builtin_root: None,
+        plugin_roots: Vec::new(),
+    })
+    .await
+    .expect("settings should list");
+
+    let review = views
+        .iter()
+        .find(|view| view.id == "review")
+        .expect("review skill");
+    assert_eq!(review.tools, vec!["fs.read"]);
+    assert_eq!(review.can_request_tools, vec!["shell", "search.ripgrep"]);
+    assert_eq!(
+        review.permission_summary,
+        "tools: fs.read; can request: shell, search.ripgrep"
+    );
+}
+
+#[tokio::test]
 async fn installing_remote_skill_refreshes_installed_view() {
     let workspace_root = tempfile::tempdir().expect("workspace root");
     let package_manager = FakeSkillPackageManager::default();

@@ -214,6 +214,13 @@ test.describe("Settings panes backed by tauri-mock", () => {
     await expect(page.getByTestId("skill-installed-search-input")).toBeVisible();
     await page.getByTestId("skill-installed-search-input").fill("registry");
     await expect(page.getByTestId("skill-row-project-registry-review")).toBeVisible();
+    await expect(page.getByTestId("skill-row-project-project-review")).toBeVisible();
+    await expect(page.getByTestId("skill-permissions-project-project-review")).toContainText(
+      "registry"
+    );
+
+    await page.getByTestId("skill-installed-search-input").fill("update available");
+    await expect(page.getByTestId("skill-row-project-registry-review")).toBeVisible();
     await expect(page.getByTestId("skill-row-project-project-review")).toHaveCount(0);
 
     await page.getByTestId("skill-installed-search-input").fill("invalid");

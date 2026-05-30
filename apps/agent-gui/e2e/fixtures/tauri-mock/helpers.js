@@ -271,6 +271,9 @@ function createSkillSettingFromInstall(name, source, target, installSource) {
     shadowed_by: null,
     valid: true,
     validation_error: null,
+    tools: [],
+    can_request_tools: [],
+    permission_summary: "no tool permissions declared",
     editable: true,
     deletable: true
   };

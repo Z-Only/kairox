@@ -102,6 +102,27 @@ async fn discover_skill_settings_returns_stably_sorted_skills() {
 }
 
 #[tokio::test]
+async fn discover_skill_settings_keeps_permission_declarations() {
+    let root = tempfile::tempdir().expect("root");
+    let skill_directory = root.path().join("review");
+    fs::create_dir_all(&skill_directory).expect("skill directory should exist");
+    fs::write(
+        skill_directory.join("SKILL.md"),
+        "---\nname: review\ndescription: Review code\nkairox:\n  permissions:\n    tools: [\"fs.read\", \"search.ripgrep\"]\n    can_request_tools: [\"shell\"]\n---\nBody\n",
+    )
+    .expect("skill markdown should be written");
+
+    let projection =
+        discover_skill_settings(vec![SkillRoot::new(SkillSourceKind::User, root.path())])
+            .await
+            .expect("settings should discover");
+
+    let skill = &projection.skills[0];
+    assert_eq!(skill.tools, vec!["fs.read", "search.ripgrep"]);
+    assert_eq!(skill.can_request_tools, vec!["shell"]);
+}
+
+#[tokio::test]
 async fn invalid_skill_markdown_uses_frontmatter_name_after_invalid_lines() {
     let root = tempfile::tempdir().expect("root");
     let skill_directory = root.path().join("directory-name");

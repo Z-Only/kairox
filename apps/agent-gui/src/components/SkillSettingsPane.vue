@@ -112,6 +112,9 @@ function searchableSkillText(skill: EffectiveSkillView): string {
     value.scope,
     value.path,
     value.activation_mode,
+    value.permission_summary,
+    ...value.tools,
+    ...value.can_request_tools,
     value.install_source,
     value.update_state,
     formatUpdateState(value.update_state),
@@ -371,6 +374,14 @@ async function installFromGithub(): Promise<void> {
                     <dd>{{ skill.value.path }}</dd>
                   </div>
                 </SettingsItemMeta>
+                <KxInlineAlert
+                  v-if="skill.value.permission_summary"
+                  tone="info"
+                  compact
+                  :data-test="`skill-permissions-${skillSettingsTestId(skill)}`"
+                >
+                  {{ t("skills.permissions") }}: {{ skill.value.permission_summary }}
+                </KxInlineAlert>
                 <KxInlineAlert
                   v-if="skill.value.validation_error"
                   tone="error"

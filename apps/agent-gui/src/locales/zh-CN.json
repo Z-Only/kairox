@@ -451,6 +451,7 @@
     "source": "来源",
     "update": "更新",
     "path": "路径",
+    "permissions": "权限",
     "enable": "启用",
     "disable": "禁用",
     "edit": "编辑",
