@@ -66,6 +66,10 @@ pub struct EvalExpectation {
     pub min_tool_invocations: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tool_failures: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_elapsed_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_context_input_tokens: Option<u64>,
 }
 
 #[derive(Debug, Clone)]

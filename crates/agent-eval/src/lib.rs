@@ -189,6 +189,8 @@ impl EvalHarness {
             &event_types,
             tool_invocations,
             tool_failures,
+            elapsed_ms,
+            context_input_tokens,
             &mut failures,
         );
         let error = failures
@@ -314,6 +316,8 @@ fn evaluate_expectations(
     event_types: &[String],
     tool_invocations: usize,
     tool_failures: usize,
+    elapsed_ms: u64,
+    context_input_tokens: Option<u64>,
     failures: &mut Vec<String>,
 ) {
     for needle in &expected.assistant_contains {
@@ -349,6 +353,24 @@ fn evaluate_expectations(
             failures.push(format!(
                 "tool failures above maximum: expected at most {maximum}, got {tool_failures}"
             ));
+        }
+    }
+
+    if let Some(maximum) = expected.max_elapsed_ms {
+        if elapsed_ms > maximum {
+            failures.push(format!(
+                "elapsed time above maximum: expected at most {maximum} ms, got {elapsed_ms} ms"
+            ));
+        }
+    }
+
+    if let Some(maximum) = expected.max_context_input_tokens {
+        match context_input_tokens {
+            Some(tokens) if tokens <= maximum => {}
+            Some(tokens) => failures.push(format!(
+                "context input tokens above maximum: expected at most {maximum}, got {tokens}"
+            )),
+            None => failures.push("context input tokens unavailable".into()),
         }
     }
 }
