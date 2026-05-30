@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.32.x)
+## What ships today (v0.33.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -20,6 +20,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 - Shared Rust workspace with the `AppFacade` trait as the single seam between UIs and the runtime.
 - Event-sourced state with `SqliteEventStore`; sessions persist across restarts.
+- Monitor domain events for long-running background work, with lifecycle cleanup when a session ends.
 - Agent loop with per-model context windows, budget-driven prompt assembly, manual and automatic compaction, and busy-state guards.
 - Mid-session model switching with profile preservation; reasoning effort selection where supported.
 - Phase 2 DAG execution with `AgentStrategy` for multi-agent orchestration (planner / worker / reviewer).
@@ -27,7 +28,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 ### Tools, permissions, MCP
 
-- Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`.
+- Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`, plus monitor registry tools for listing and stopping background processes.
 - Orthogonal Approval × Sandbox policy engine: `ApprovalPolicy` (`Never` / `OnRequest` / `Always`) gates _when_ the user is asked; `SandboxPolicy` (`ReadOnly` / `WorkspaceWrite` / `DangerFullAccess`) gates _what_ the runtime structurally allows. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0 (PRs #517, #520).
 - MCP client with stdio and SSE transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`).
 - MCP marketplace with built-in catalog plus remote sources; one-click install with runtime requirement hints.
@@ -41,14 +42,14 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 ### UIs
 
-- **TUI** built on ratatui: three-pane layout, streaming chat, trace panel, permission overlay, command palette, settings/marketplace overlays.
-- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, inline permission flow, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions.
+- **TUI** built on ratatui: three-pane layout, streaming chat, monitor stream items, trace panel, permission overlay, command palette, settings/marketplace overlays, and monitor list/stop commands.
+- **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, monitor chat stream rendering with trace-store handling, inline permission flow, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions, and Tauri IPC controls for monitor list/stop.
 - Tauri 2 auto-update wired to GitHub Releases.
 
 ### Extensibility
 
 - Native **skills** with workspace / user / session scopes; SkillHub install support.
-- **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery.
+- **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery; permission hints and compatibility metadata for marketplace display and future install policy.
 - Configurable agent overrides per role (model, `ApprovalPolicy`, `SandboxPolicy`, skills, tool allowlists).
 
 ### Quality and CI
@@ -57,6 +58,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - Playwright frontend E2E with browser-side IPC mock.
 - `tauri-pilot` real desktop E2E scenarios.
 - Live GitHub Models smoke test gated by `GITHUB_TOKEN`.
+- `kairox-eval` headless harness with deterministic smoke, tool-call, compaction, and tag-filter scenarios; expectations cover required and forbidden event types plus tool invocation limits.
 - Per-crate coverage gates for Rust and Vue.
 
 For the full shipped list with PR links, scroll the **Near term** section of [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md).
@@ -64,12 +66,14 @@ For the full shipped list with PR links, scroll the **Near term** section of [`R
 ## What is in flight (mid term)
 
 - Broader model provider coverage and richer profile policies.
-- Continued MCP ecosystem expansion: additional transports, deeper discovery, richer marketplace metadata.
-- Signed plugin manifests and an end-to-end installation flow that composes with MCP and the tool registry.
-- Better observability and replay tooling for long-running agent work.
-- Continued runtime modularization beyond the Phase 1 `facade_runtime` split.
-- Configurable specialist subagent roles beyond planner / worker / reviewer.
-- First-class GUI surfaces for instruction editing, hook authoring, and plugin development.
+- Continued MCP ecosystem expansion: additional transports, richer discovery, server health diagnostics.
+- Signed plugin manifests, remote plugin registries, install/upgrade UX, and plugin sandboxing aligned with the `ApprovalPolicy × SandboxPolicy` engine.
+- Configurable specialist subagent roles beyond planner / worker / reviewer, with per-agent context windows, tool allowlists, and reasoning effort.
+- Background and long-running parallel agents with cancellation, resumable sessions, and durable status surfacing in TUI/GUI.
+- `kairox-eval` as a real headless/CI mode with fixtures, scripted prompts, exit codes, and JSON reports.
+- User-extensible slash commands, output styles, and statusline customization in TUI and GUI.
+- Observability and replay tooling: structured trace export, event replay over `EventStore`, and redacted diagnostics bundles.
+- Continued runtime modularization beyond `SessionActor`.
 
 ## Long-term direction
 
