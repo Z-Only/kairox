@@ -167,7 +167,8 @@ const groups = [
       // the ~167-line fs_helpers.rs test block also moved test lines out of T3 src; floor lowered 87 → 86.
       // policy/sandbox tests extracted to sandbox_tests.rs (excluded from src function counts); floor lowered 46 → 44.
       // the ~118-line sandbox.rs test block also moved test lines out of T3 src; floor lowered 86 → 85.
-      functions: 44,
+      // search/rg tests extracted to rg_tests.rs (excluded from src function counts); floor lowered 44 → 42.
+      functions: 42,
       lines: 85
     }
   },
