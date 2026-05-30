@@ -1,7 +1,7 @@
 use agent_config::Config;
 use agent_eval::{
-    load_scenarios_from_str, EvalExpectation, EvalHarness, EvalResult, EvalRunOptions,
-    EvalScenario, EvalSummary,
+    filter_scenarios_by_tags, load_scenarios_from_str, EvalExpectation, EvalHarness, EvalResult,
+    EvalRunOptions, EvalScenario, EvalSummary,
 };
 
 #[test]
@@ -20,6 +20,38 @@ fn loads_jsonl_scenarios_and_skips_comments() {
     assert_eq!(scenarios[0].profile.as_deref(), Some("fake"));
     assert_eq!(scenarios[0].expected.assistant_contains, vec!["hello"]);
     assert_eq!(scenarios[1].expected.event_types, vec!["UserMessageAdded"]);
+}
+
+#[test]
+fn filters_scenarios_by_include_and_exclude_tags() {
+    let scenarios = vec![
+        EvalScenario {
+            id: "fast".into(),
+            tags: vec!["smoke".into(), "fast".into()],
+            ..EvalScenario::default()
+        },
+        EvalScenario {
+            id: "slow".into(),
+            tags: vec!["smoke".into(), "slow".into()],
+            ..EvalScenario::default()
+        },
+        EvalScenario {
+            id: "untagged".into(),
+            ..EvalScenario::default()
+        },
+    ];
+    let include = vec!["smoke".to_string()];
+    let exclude = vec!["slow".to_string()];
+
+    let filtered = filter_scenarios_by_tags(&scenarios, &include, &exclude);
+
+    assert_eq!(
+        filtered
+            .iter()
+            .map(|scenario| scenario.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["fast"]
+    );
 }
 
 #[tokio::test]

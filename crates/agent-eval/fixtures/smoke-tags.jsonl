@@ -1,0 +1,3 @@
+# kairox-eval tag filtering smoke fixture.
+{"id":"tag-fast","prompt":"Say hello from the configured fake model","profile":"fake","tags":["smoke","fast"],"expected":{"assistant_contains":["hello from Kairox"],"max_tool_failures":0}}
+{"id":"tag-slow","prompt":"Say hello from the configured fake model","profile":"fake","tags":["smoke","slow"],"expected":{"assistant_contains":["hello from Kairox"],"max_tool_failures":0}}

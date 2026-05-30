@@ -118,3 +118,10 @@ fn smoke_compaction_fixture_runs_clean_through_cli() {
     );
     assert_all_passed(&summary, 1);
 }
+
+#[test]
+fn tag_filters_limit_cli_scenarios() {
+    let fixture = fixture_path("smoke-tags.jsonl");
+    let summary = run_cli(&fixture, ["--tag", "smoke", "--exclude-tag", "slow"]);
+    assert_all_passed(&summary, 1);
+}
