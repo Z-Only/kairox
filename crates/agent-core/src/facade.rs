@@ -31,7 +31,8 @@ pub use project::{
 };
 pub use session::{
     AgentStatusInfo, AttachmentInfo, PermissionDecision, SendMessageRequest, SessionFacade,
-    SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
+    SessionMeta, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport,
+    WorkspaceInfo,
 };
 pub use settings::{
     AgentSettingsInput, AgentSettingsScope, AgentSettingsView, EffectiveAgentView,
@@ -96,6 +97,9 @@ pub trait AppFacade:
     }
     async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>> {
         SessionFacade::get_trace(self, session_id).await
+    }
+    async fn export_trace(&self, session_id: SessionId) -> crate::Result<TraceExport> {
+        SessionFacade::export_trace(self, session_id).await
     }
     fn subscribe_session(
         &self,

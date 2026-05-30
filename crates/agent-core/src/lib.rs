@@ -28,7 +28,8 @@ pub use facade::{
     PermissionDecision, ProjectFacade, ProjectGitStatus, ProjectGitStatusKind,
     ProjectInstructionSummary, ProjectMeta, ProjectSessionBinding, ProjectSessionVisibility,
     SendMessageRequest, ServerEntry, SessionFacade, SessionMeta, SkillDetail, SkillView,
-    SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, WorkspaceInfo,
+    SkillsFacade, StartSessionRequest, TaskGraphSnapshot, TaskSnapshot, TraceEntry, TraceExport,
+    WorkspaceInfo,
 };
 pub use ids::{AgentId, ProjectId, SessionId, TaskId, WorkspaceId};
 pub use manifest::{ExtensionManifest, ExtensionType};

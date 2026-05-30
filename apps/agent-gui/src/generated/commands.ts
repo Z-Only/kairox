@@ -17,6 +17,9 @@ export const commands = {
     typedError<SessionInfoResponse, string>(__TAURI_INVOKE("start_session", { profile })),
   sendMessage: (content: string, attachments: AttachmentInfo[]) =>
     typedError<null, string>(__TAURI_INVOKE("send_message", { content, attachments })),
+  /**  Returns a structured trace export envelope for diagnostics and replay tools. */
+  exportTrace: (sessionId: string) =>
+    typedError<TraceExport, string>(__TAURI_INVOKE("export_trace", { sessionId })),
   listSessions: () => typedError<SessionInfoResponse[], string>(__TAURI_INVOKE("list_sessions")),
   listProjects: () => typedError<ProjectInfoResponse[], string>(__TAURI_INVOKE("list_projects")),
   createBlankProject: (displayName: string | null) =>
@@ -379,6 +382,8 @@ export type AddCatalogSourceRequestPayload = {
   cache_ttl_seconds: number;
 };
 
+export type AgentRole = "Planner" | "Worker" | "Reviewer";
+
 export type AgentSettingsInput = {
   scope: AgentSettingsScope;
   name: string;
@@ -459,6 +464,23 @@ export type CheckMcpHealthResponse = {
   error: string | null;
 };
 
+/**
+ *  Why a session compaction was triggered. `Threshold { ratio }` is fired
+ *  automatically by `agent_loop` when `ContextAssembled.usage.ratio()`
+ *  crosses `ContextPolicy.auto_compact_threshold`. `UserRequested` is the
+ *  manual path (TUI `:compact` / GUI button — both wired in P3).
+ */
+export type CompactionReason =
+  | { type: "UserRequested" }
+  | { type: "Threshold"; ratio: number | null };
+
+/**
+ *  Why a turn-end auto-compaction trigger did NOT enqueue a compaction.
+ *  `BelowThreshold` is intentionally not modeled — it is the steady state
+ *  and would flood the event log.
+ */
+export type CompactionSkipReason = { type: "AlreadyCompacting" } | { type: "ThresholdDisabled" };
+
 export type ConfigScope = "Builtin" | "User" | "Project" | "Local";
 
 /**  Result of a connectivity test to an MCP server. */
@@ -479,6 +501,26 @@ export type ConnectivityResult =
 export type ConnectivityTestResult = {
   ok: boolean;
   error: string | null;
+};
+
+export type ContextUsage = {
+  total_tokens: number;
+  budget_tokens: number;
+  context_window: number;
+  output_reservation: number;
+  estimator: string;
+  corrected_by_real_usage: boolean;
+};
+
+export type DomainEvent = {
+  schema_version: number;
+  workspace_id: string;
+  session_id: string;
+  timestamp: string;
+  source_agent_id: string;
+  privacy: PrivacyClassification;
+  event_type: string;
+  payload: EventPayload;
 };
 
 export type EffectiveAgentView = {
@@ -535,6 +577,162 @@ export type EffectiveSkillView = {
   writable: boolean;
   deletable: boolean;
 };
+
+export type EventPayload =
+  | { type: "WorkspaceOpened"; path: string }
+  | { type: "SessionInitialized"; model_profile: string }
+  | { type: "UserMessageAdded"; message_id: string; content: string }
+  | {
+      type: "AgentTaskCreated";
+      task_id: string;
+      title: string;
+      role: AgentRole;
+      dependencies: string[];
+    }
+  | { type: "AgentTaskStarted"; task_id: string }
+  | { type: "ContextAssembled"; usage: ContextUsage }
+  | {
+      type: "ContextCompactionStarted";
+      reason: CompactionReason;
+      before_tokens: number;
+      candidate_event_count: number;
+    }
+  | {
+      type: "ContextCompactionCompleted";
+      summary_id: string;
+      after_tokens: number;
+      fallback_used: boolean;
+    }
+  | { type: "ContextCompactionFailed"; error: string; fallback_used: boolean }
+  /**
+   *  Turn-end auto-compaction was suppressed. Emitted only for reasons
+   *  that callers/UIs may want to surface; below-threshold is silent.
+   */
+  | { type: "ContextCompactionSkipped"; reason: CompactionSkipReason; ratio: number | null }
+  | {
+      type: "CompactionSummary";
+      summary_id: string;
+      content: string;
+      replaces_event_range: [string, string];
+      reason: CompactionReason;
+      before_tokens: number;
+      after_tokens: number;
+      summarised_by_profile: string;
+    }
+  /**
+   *  Mid-session model profile change. The new profile only takes effect
+   *  at the next `send_message` (agent-loop entry) — in-flight streams
+   *  continue on the old profile end-to-end so provider-specific
+   *  tool-call formats don't get mixed mid-stream.
+   */
+  | {
+      type: "ModelProfileSwitched";
+      from_profile: string;
+      to_profile: string;
+      reasoning_effort?: string | null;
+      effective_at: string;
+      /**
+       *  Mirrors `agent_models::ModelLimits.context_window` so this
+       *  event can be consumed by `agent-core` projections without
+       *  introducing a cycle on `agent-models`.
+       */
+      context_window: number;
+      /**  Mirrors `agent_models::ModelLimits.output_limit`. */
+      output_limit: number;
+      /**
+       *  Snake-case `agent_models::LimitSource` discriminant: one of
+       *  `"user_config" | "builtin_registry" | "runtime_probe" | "fallback"`.
+       */
+      limit_source: string;
+    }
+  | { type: "ModelRequestStarted"; model_profile: string; model_id: string }
+  | { type: "ModelTokenDelta"; delta: string }
+  | { type: "ModelToolCallRequested"; tool_call_id: string; tool_id: string }
+  | { type: "PermissionRequested"; request_id: string; tool_id: string; preview: string }
+  | { type: "PermissionGranted"; request_id: string }
+  | { type: "PermissionDenied"; request_id: string; reason: string }
+  | { type: "ToolInvocationStarted"; invocation_id: string; tool_id: string }
+  | {
+      type: "ToolInvocationCompleted";
+      invocation_id: string;
+      tool_id: string;
+      output_preview: string;
+      exit_code: number | null;
+      duration_ms: number;
+      truncated: boolean;
+    }
+  | { type: "ToolInvocationFailed"; invocation_id: string; tool_id: string; error: string }
+  | { type: "FilePatchProposed"; patch_id: string; diff: string }
+  | { type: "FilePatchApplied"; patch_id: string }
+  | {
+      type: "MemoryProposed";
+      memory_id: string;
+      scope: string;
+      key: string | null;
+      content: string;
+    }
+  | {
+      type: "MemoryAccepted";
+      memory_id: string;
+      scope: string;
+      key: string | null;
+      content: string;
+    }
+  | { type: "MemoryRejected"; memory_id: string; reason: string }
+  | { type: "ReviewerFindingAdded"; finding_id: string; severity: string; message: string }
+  | { type: "AssistantMessageCompleted"; message_id: string; content: string }
+  | { type: "AgentTaskCompleted"; task_id: string }
+  | { type: "AgentTaskFailed"; task_id: string; error: string }
+  | { type: "TaskDecomposed"; parent_task_id: string; sub_task_ids: string[] }
+  | { type: "TaskBlocked"; task_id: string; blocking_task_id: string; reason: string }
+  | { type: "AgentSpawned"; agent_id: string; role: string; task_id: string }
+  | { type: "AgentIdle"; agent_id: string }
+  | { type: "TaskRetried"; task_id: string; attempt: number }
+  | { type: "TaskCancelled"; task_id: string }
+  | { type: "SessionCancelled"; reason: string }
+  | { type: "SkillDiscovered"; skill_id: string; name: string; source: string }
+  | { type: "SkillValidationFailed"; path: string; error: string }
+  | {
+      type: "SkillActivated";
+      skill_id: string;
+      name: string;
+      source: string;
+      activation_mode: string;
+    }
+  | { type: "SkillDeactivated"; skill_id: string; name: string; source: string }
+  | { type: "SkillSuggested"; skill_id: string; name: string; reason: string }
+  | { type: "McpServerStarting"; server_id: string }
+  | { type: "McpServerReady"; server_id: string; tool_count: number }
+  | { type: "McpServerStopped"; server_id: string }
+  | { type: "McpServerFailed"; server_id: string; error: string }
+  | { type: "McpToolCallStarted"; server_id: string; tool_name: string }
+  | { type: "McpToolCallCompleted"; server_id: string; tool_name: string; duration_ms: number }
+  | { type: "McpTrustGranted"; server_id: string }
+  | { type: "McpTrustRevoked"; server_id: string }
+  | { type: "CatalogRefreshed"; source: string; entry_count: number }
+  | { type: "CatalogEntryInstalling"; catalog_id: string; source: string }
+  | { type: "CatalogEntryInstalled"; catalog_id: string; source: string; server_id: string }
+  | { type: "CatalogEntryUninstalled"; server_id: string }
+  | { type: "CatalogRuntimeMissing"; catalog_id: string; missing: string[] }
+  | { type: "CatalogSourceAdded"; source: string }
+  | { type: "CatalogSourceFailed"; source: string; error: string }
+  /**
+   *  Emitted incrementally as each catalog source completes its query.
+   *  `entries` is the current state of the fully-merged, sorted list
+   *  across all providers that have responded so far.
+   */
+  | { type: "CatalogSourceResultsArrived"; source: string; entries: ServerEntry[] }
+  | {
+      type: "MonitorStarted";
+      monitor_id: string;
+      description: string;
+      command: string;
+      persistent: boolean;
+      timeout_ms: number;
+    }
+  | { type: "MonitorEvent"; monitor_id: string; line: string }
+  | { type: "MonitorStopped"; monitor_id: string; reason: MonitorStopReason }
+  | { type: "MonitorFailed"; monitor_id: string; error: string };
 
 export type HookSettingsInput = {
   scope: ConfigScope;
@@ -723,6 +921,13 @@ export type MonitorInfoResponse = {
   timeout_ms: number;
 };
 
+/**  Why a background monitor process was stopped. */
+export type MonitorStopReason =
+  | { type: "ExitCode"; code: number }
+  | { type: "Timeout" }
+  | { type: "UserStopped" }
+  | { type: "SessionEnded" };
+
 export type PluginCatalogEntry = {
   marketplace_id: string;
   name: string;
@@ -786,6 +991,8 @@ export type PluginSettingsView = {
   manifest_kind: string;
   security: PluginSecurityMetadataView;
 };
+
+export type PrivacyClassification = "minimal_trace" | "full_trace";
 
 export type ProfileDetailResponse = {
   alias: string;
@@ -887,6 +1094,30 @@ export type RemoteSkillSearchResult = {
 export type SaveDraftRequest = {
   session_id: string;
   draft_text: string;
+};
+
+/**  A single MCP server entry returned by the catalog. */
+export type ServerEntry = {
+  id: string;
+  source: string;
+  display_name: string;
+  summary: string;
+  description: string;
+  categories: string[];
+  tags: string[];
+  author: string | null;
+  homepage: string | null;
+  version: string | null;
+  /**  Lower-case trust level: "unverified" | "community" | "verified". */
+  trust: string;
+  verified: boolean;
+  icon: string | null;
+  /**  JSON-encoded `agent_mcp::catalog::InstallSpec`. */
+  install_spec_json: string;
+  /**  JSON-encoded `Vec<agent_mcp::catalog::RuntimeRequirement>`. */
+  requirements_json: string;
+  /**  JSON-encoded `Vec<agent_mcp::catalog::EnvVarSpec>`. */
+  default_env_json: string;
 };
 
 export type ServerEntryResponse = {
@@ -1037,6 +1268,15 @@ export type TaskSnapshotResponse = {
   state: string;
   dependencies: string[];
   error: string | null;
+};
+
+/**  Structured trace export envelope for diagnostics and replay tooling. */
+export type TraceExport = {
+  schema_version: number;
+  session_id: string;
+  generated_at: string;
+  event_count: number;
+  events: DomainEvent[];
 };
 
 export type WorkspaceFilesResponse = {

@@ -132,6 +132,7 @@ pub fn run() {
             crate::commands::send_message,
             crate::commands::switch_session,
             crate::commands::get_trace,
+            crate::commands::export_trace,
             crate::commands::list_sessions,
             // Project workspace commands
             crate::commands::list_projects,
