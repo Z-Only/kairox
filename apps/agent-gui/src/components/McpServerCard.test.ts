@@ -49,6 +49,7 @@ function makeServer(overrides: Partial<McpServerSettingsView> = {}): McpServerSe
     writable: true,
     config_path: "/tmp/kairox.toml",
     description: "A test MCP server",
+    diagnostic_summary: "status: running; trust: untrusted; 3 tools; unverified; error: none",
     ...overrides
   };
 }
@@ -157,6 +158,20 @@ describe("McpServerCard", () => {
       const server = toEffective(makeServer({ trusted: false }));
       const wrapper = mountCard(server);
       expect(wrapper.text()).toContain("Untrusted");
+    });
+
+    it("renders the diagnostic summary", () => {
+      const server = toEffective(
+        makeServer({
+          diagnostic_summary:
+            "status: failed; trust: trusted; tools: unknown; verified; error: timeout"
+        })
+      );
+      const wrapper = mountCard(server);
+      const summary = wrapper.find(`[data-test="mcp-diagnostics-${server.value.id}"]`);
+      expect(summary.exists()).toBe(true);
+      expect(summary.text()).toContain("tools: unknown");
+      expect(summary.text()).toContain("error: timeout");
     });
 
     it("renders overrides tag when present", () => {

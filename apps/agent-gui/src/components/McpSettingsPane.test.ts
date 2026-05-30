@@ -58,7 +58,8 @@ const githubServer: McpServerSettingsView = {
   last_error: null,
   writable: true,
   config_path: "/tmp/kairox.toml",
-  description: "GitHub automation"
+  description: "GitHub automation",
+  diagnostic_summary: "status: running; trust: untrusted; 5 tools; unverified; error: none"
 };
 
 const readonlyServer: McpServerSettingsView = {
@@ -72,7 +73,9 @@ const readonlyServer: McpServerSettingsView = {
   last_error: "connection refused",
   writable: false,
   config_path: null,
-  description: "Read-only fixture"
+  description: "Read-only fixture",
+  diagnostic_summary:
+    "status: failed; trust: trusted; tools: unknown; verified; error: connection refused"
 };
 
 function ok<T>(data: T): { status: "ok"; data: T } {
@@ -190,6 +193,16 @@ describe("McpSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="mcp-server-search-input"]').setValue("docs");
+
+    expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);
+  });
+
+  it("filters installed servers by diagnostic summary text", async () => {
+    const wrapper = mountPane();
+    await flushPromises();
+
+    await wrapper.find('[data-test="mcp-server-search-input"]').setValue("tools: unknown");
 
     expect(wrapper.find('[data-test="mcp-server-row-builtin-docs"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="mcp-server-row-github"]').exists()).toBe(false);

@@ -145,6 +145,7 @@ impl agent_core::facade::McpFacade for TuiMcpFakeFacade {
             description: Some("Alpha server".into()),
             source: "user".into(),
             verified: false,
+            diagnostic_summary: String::new(),
         }])
     }
 

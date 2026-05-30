@@ -304,6 +304,10 @@ async fn list_merges_file_runtime_and_trust_state() {
     assert!(view.trusted);
     assert!(view.writable);
     assert_eq!(view.description.as_deref(), Some("File tools"));
+    assert_eq!(
+        view.diagnostic_summary,
+        "status: stopped; trust: trusted; tools: unknown; verified; error: none"
+    );
 }
 
 #[tokio::test]
