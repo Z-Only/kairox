@@ -163,8 +163,10 @@ const groups = [
       // search/mod tests extracted to mod_tests.rs (excluded from src function counts); floor lowered 50 → 48.
       // fs_helpers tests extracted to fs_helpers_tests.rs (excluded from src function counts); floor lowered 48 → 46.
       // the ~167-line fs_helpers.rs test block also moved test lines out of T3 src; floor lowered 87 → 86.
-      functions: 46,
-      lines: 86
+      // policy/sandbox tests extracted to sandbox_tests.rs (excluded from src function counts); floor lowered 46 → 44.
+      // the ~118-line sandbox.rs test block also moved test lines out of T3 src; floor lowered 86 → 85.
+      functions: 44,
+      lines: 85
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
