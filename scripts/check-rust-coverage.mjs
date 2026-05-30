@@ -183,8 +183,9 @@ const groups = [
       // the ~119-line frontmatter.rs test block also moved test lines out of T3 src (measurement shift, no regression); floor lowered 85 → 84.
       // skills state tests extracted to state_tests.rs (excluded from src counts); ~184 test lines/fns left T3 src (measurement shift, no regression); floors lowered functions 40 → 38, lines 84 → 83.
       // search/format tests extracted to format_tests.rs (excluded from src counts); ~89 test lines/N fns left T3 src (measurement shift, no regression); floors lowered functions 38 → 36, lines 83 → 82.
+      // fs_read tests extracted to fs_read_tests.rs (~105 test lines left T3 src; measurement shift, no regression); lines floor lowered 82 → 81.
       functions: 36,
-      lines: 82
+      lines: 81
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
