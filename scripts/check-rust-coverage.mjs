@@ -59,7 +59,8 @@ const groups = [
       // project_meta tests extracted to project_meta_tests.rs (excluded from src function counts); floor lowered 16 → 14.
       // config effective tests extracted to effective_tests.rs (excluded from src function counts); floor lowered 14 → 12.
       // config loader tests extracted to loader_tests.rs (excluded from src counts); ~148 test lines/4 fns left T1 src (measurement shift, no regression); floors lowered functions 12 → 10, lines 81 → 80.
-      functions: 10,
+      // skill_dtos tests extracted to skill_dtos_tests.rs (excluded from src function counts); floor lowered 10 → 8.
+      functions: 8,
       lines: 80
     }
   },
