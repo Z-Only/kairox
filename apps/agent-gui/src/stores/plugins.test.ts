@@ -57,6 +57,13 @@ function createPluginSetting(overrides: Partial<PluginSettingsView> = {}): Plugi
       hook_count: 0
     },
     manifest_kind: "claude",
+    security: {
+      publisher: null,
+      trust: null,
+      signature: null,
+      checksum: null,
+      sha256: null
+    },
     ...overrides
   };
 }

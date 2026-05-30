@@ -22,7 +22,8 @@ pub use catalog::{
 pub use mcp::McpFacade;
 pub use plugins::{
     InstallPluginRequest, PluginCatalogEntry, PluginComponentInventoryView, PluginDetailView,
-    PluginInstallTarget, PluginMarketplaceSourceView, PluginSettingsView, PluginsFacade,
+    PluginInstallTarget, PluginMarketplaceSourceView, PluginSecurityMetadataView,
+    PluginSettingsView, PluginsFacade,
 };
 pub use project::{
     ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectInstructionSummary, ProjectMeta,

@@ -48,6 +48,7 @@ function settingsTestId(plugin: PluginSettingsView): string {
 const normalizedInstalledSearch = computed(() => installedSearch.value.trim().toLowerCase());
 
 function searchablePluginText(plugin: PluginSettingsView): string {
+  const security = plugin.security;
   return [
     plugin.settings_id,
     plugin.id,
@@ -59,6 +60,12 @@ function searchablePluginText(plugin: PluginSettingsView): string {
     plugin.install_source,
     plugin.marketplace,
     plugin.manifest_kind,
+    security?.publisher,
+    security?.trust,
+    security?.signature,
+    security?.checksum,
+    security?.sha256,
+    pluginTrustLabel(plugin),
     plugin.enabled ? t("plugins.enabled") : t("plugins.disabled"),
     plugin.effective ? "effective" : t("plugins.shadowedBy", { source: plugin.shadowed_by }),
     plugin.valid ? t("plugins.valid") : t("plugins.invalid"),
@@ -78,6 +85,24 @@ function searchablePluginText(plugin: PluginSettingsView): string {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
+}
+
+function hasSecurityProof(plugin: PluginSettingsView): boolean {
+  const security = plugin.security;
+  return Boolean(security?.signature || security?.checksum || security?.sha256);
+}
+
+function pluginTrustLabel(plugin: PluginSettingsView): string {
+  return (
+    plugin.security?.trust ??
+    (hasSecurityProof(plugin) ? t("plugins.signed") : t("plugins.unsigned"))
+  );
+}
+
+function pluginTrustTone(plugin: PluginSettingsView): "success" | "warning" | "muted" {
+  const trust = plugin.security?.trust?.toLowerCase();
+  if (trust === "trusted" || trust === "verified" || trust === "official") return "success";
+  return hasSecurityProof(plugin) ? "warning" : "muted";
 }
 
 const filteredInstalledPlugins = computed(() => {
@@ -284,6 +309,9 @@ watch(activeSubTab, (tab) => {
                 <SettingsStatusTag :tone="plugin.valid ? 'success' : 'error'">
                   {{ plugin.valid ? t("plugins.valid") : t("plugins.invalid") }}
                 </SettingsStatusTag>
+                <SettingsStatusTag :tone="pluginTrustTone(plugin)">
+                  {{ pluginTrustLabel(plugin) }}
+                </SettingsStatusTag>
                 <SettingsStatusTag v-if="!plugin.effective" tone="warning">
                   {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
                 </SettingsStatusTag>
@@ -303,6 +331,21 @@ watch(activeSubTab, (tab) => {
                 <div>
                   <dt>{{ t("plugins.manifest") }}</dt>
                   <dd>{{ plugin.manifest_kind }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("plugins.publisher") }}</dt>
+                  <dd>{{ plugin.security?.publisher ?? "-" }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t("plugins.signature") }}</dt>
+                  <dd>
+                    {{
+                      plugin.security?.signature ??
+                      plugin.security?.sha256 ??
+                      plugin.security?.checksum ??
+                      "-"
+                    }}
+                  </dd>
                 </div>
                 <div>
                   <dt>{{ t("plugins.skills") }}</dt>

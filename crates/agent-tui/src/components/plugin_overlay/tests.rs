@@ -1,7 +1,7 @@
 use super::PluginOverlay;
 use agent_core::facade::{
     PluginCatalogEntry, PluginComponentInventoryView, PluginInstallTarget,
-    PluginMarketplaceSourceView, PluginSettingsView,
+    PluginMarketplaceSourceView, PluginSecurityMetadataView, PluginSettingsView,
 };
 use agent_core::ConfigScope;
 use crossterm::event::{Event, KeyCode};
@@ -35,6 +35,13 @@ fn installed_plugin(settings_id: &str, enabled: bool) -> PluginSettingsView {
             hook_count: 0,
         },
         manifest_kind: "kairox".to_string(),
+        security: PluginSecurityMetadataView {
+            publisher: None,
+            trust: None,
+            signature: None,
+            checksum: None,
+            sha256: None,
+        },
     }
 }
 
