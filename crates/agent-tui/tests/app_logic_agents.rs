@@ -38,6 +38,7 @@ async fn tui_agent_settings_commands_call_facade_and_refresh_overlay() {
                     description: "Plans work".into(),
                     tools: vec!["search".into()],
                     model_profile: Some("reasoning".into()),
+                    reasoning_effort: Some("high".into()),
                     skills: vec!["kairox-dev-workflow".into()],
                     nickname_candidates: vec!["Planner".into()],
                     enabled: true,

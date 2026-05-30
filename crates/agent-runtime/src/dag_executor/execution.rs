@@ -69,8 +69,10 @@ where
                 .model_profile_override()
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| crate::agent_loop::latest_model_profile_for(session_events));
-            let reasoning_effort =
-                crate::agent_loop::latest_model_reasoning_effort_for(session_events);
+            let reasoning_effort = strategy
+                .reasoning_effort_override()
+                .map(|s| s.to_string())
+                .or_else(|| crate::agent_loop::latest_model_reasoning_effort_for(session_events));
 
             let model_request = agent_models::ModelRequest {
                 model_profile,

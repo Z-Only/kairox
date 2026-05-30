@@ -27,6 +27,7 @@ const workerAgent: AgentSettingsView = {
   path: "builtin://worker",
   tools: [],
   modelProfile: null,
+  reasoningEffort: null,
   skills: [],
   nicknameCandidates: ["Worker"],
   enabled: true,
@@ -47,6 +48,7 @@ const reviewerAgent: AgentSettingsView = {
   path: "/home/.config/kairox/agents/code-reviewer.md",
   tools: ["fs.read", "search"],
   modelProfile: "fast",
+  reasoningEffort: "high",
   skills: ["kairox-dev-workflow"],
   nicknameCandidates: ["Reviewer"],
   enabled: true,
@@ -97,6 +99,7 @@ describe("AgentSettingsPane", () => {
     );
     expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain("Built-in");
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("fast");
+    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').text()).toContain("high");
   });
 
   it("filters agents by search text", async () => {
@@ -114,6 +117,11 @@ describe("AgentSettingsPane", () => {
     await flushPromises();
 
     await wrapper.find('[data-test="agent-search-input"]').setValue("kairox-dev-workflow");
+
+    expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="agent-search-input"]').setValue("high");
 
     expect(wrapper.find('[data-test="agent-row-code-reviewer"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="agent-row-worker"]').exists()).toBe(false);
@@ -207,9 +215,15 @@ describe("AgentSettingsPane", () => {
     expect(wrapper.find<HTMLInputElement>('[data-test="agent-form-name"]').element.value).toBe(
       "code-reviewer"
     );
+    expect(
+      wrapper.find<HTMLInputElement>('[data-test="agent-form-reasoning-effort"]').element.value
+    ).toBe("high");
     await wrapper
       .find<HTMLInputElement>('[data-test="agent-form-description"]')
       .setValue("Review diffs.");
+    await wrapper
+      .find<HTMLInputElement>('[data-test="agent-form-reasoning-effort"]')
+      .setValue("medium ");
     await wrapper.find('[data-test="agent-save"]').trigger("click");
     await flushPromises();
 
@@ -218,6 +232,7 @@ describe("AgentSettingsPane", () => {
         scope: "User",
         name: "code-reviewer",
         description: "Review diffs.",
+        reasoningEffort: "medium",
         instructions: "Lead with findings."
       })
     );

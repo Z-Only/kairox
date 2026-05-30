@@ -385,6 +385,7 @@ export type AgentSettingsInput = {
   description: string;
   tools: string[];
   modelProfile: string | null;
+  reasoningEffort?: string | null;
   skills: string[];
   nicknameCandidates: string[];
   enabled: boolean;
@@ -401,6 +402,7 @@ export type AgentSettingsView = {
   path: string;
   tools: string[];
   modelProfile: string | null;
+  reasoningEffort?: string | null;
   skills: string[];
   nicknameCandidates: string[];
   enabled: boolean;

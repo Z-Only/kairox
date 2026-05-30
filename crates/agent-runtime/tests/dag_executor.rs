@@ -187,6 +187,84 @@ async fn dag_executor_request_model_uses_latest_reasoning_effort() {
 }
 
 #[tokio::test]
+async fn dag_executor_request_model_prefers_agent_reasoning_effort_override() {
+    let store = Arc::new(SqliteEventStore::in_memory().await.unwrap());
+    let captured_requests = Arc::new(Mutex::new(Vec::new()));
+    let model = Arc::new(RecordingModelClient::new(captured_requests.clone()));
+    let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+    let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )));
+    let pending: Arc<
+        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
+    > = Arc::new(Mutex::new(HashMap::new()));
+
+    let executor = DagExecutor::new(
+        store.clone(),
+        model,
+        event_tx,
+        tool_registry,
+        permission_engine,
+        pending,
+        None,
+        DagConfig::default(),
+        AgentSettingsRoots::default(),
+    )
+    .await
+    .with_strategy(
+        AgentRole::Planner,
+        Arc::new(FixedDecisionStrategy::new(
+            AgentRole::Planner,
+            AgentDecision::Decompose {
+                sub_tasks: vec![SubTaskDef {
+                    title: "worker task".into(),
+                    role: AgentRole::Worker,
+                    dependencies: Vec::new(),
+                    description: "ask the model".into(),
+                }],
+            },
+        )),
+    )
+    .with_strategy(
+        AgentRole::Worker,
+        Arc::new(
+            FixedDecisionStrategy::new(
+                AgentRole::Worker,
+                AgentDecision::RequestModel { tools: Vec::new() },
+            )
+            .with_reasoning_effort("low"),
+        ),
+    );
+
+    let workspace_id = WorkspaceId::from_string("wrk_dag_agent_reasoning".to_string());
+    let session_id = agent_core::SessionId::new();
+    append_model_profile_events(store.as_ref(), &workspace_id, &session_id).await;
+
+    executor
+        .execute(
+            &SendMessageRequest {
+                workspace_id,
+                session_id,
+                content: "/plan use agent reasoning effort".into(),
+                attachments: vec![],
+            },
+            &Arc::new(Mutex::new(HashMap::new())),
+        )
+        .await
+        .unwrap();
+
+    let requests = captured_requests.lock().await;
+    let request = requests.first().expect("worker should call the model");
+    assert_eq!(request.model_profile, "reasoning");
+    assert_eq!(request.reasoning_effort.as_deref(), Some("low"));
+}
+
+#[tokio::test]
 async fn dag_executor_with_replaced_planner_still_available() {
     let executor = make_executor().await.with_strategy(
         AgentRole::Planner,

@@ -78,6 +78,7 @@ pub fn agent_settings_view(
         path: format!("{name}.md"),
         tools: vec!["fs.read".into()],
         model_profile: Some("fast".into()),
+        reasoning_effort: Some("medium".into()),
         skills: vec!["kairox-dev-workflow".into()],
         nickname_candidates: vec![name.into()],
         enabled: true,

@@ -16,18 +16,20 @@ pub(super) enum AgentEditorField {
     Description,
     Tools,
     ModelProfile,
+    ReasoningEffort,
     Skills,
     Nicknames,
     Enabled,
     Instructions,
 }
 
-pub(super) const EDITOR_FIELDS: [AgentEditorField; 9] = [
+pub(super) const EDITOR_FIELDS: [AgentEditorField; 10] = [
     AgentEditorField::Scope,
     AgentEditorField::Name,
     AgentEditorField::Description,
     AgentEditorField::Tools,
     AgentEditorField::ModelProfile,
+    AgentEditorField::ReasoningEffort,
     AgentEditorField::Skills,
     AgentEditorField::Nicknames,
     AgentEditorField::Enabled,
@@ -41,6 +43,7 @@ pub(super) struct AgentDraft {
     pub(super) description: String,
     pub(super) tools_text: String,
     pub(super) model_profile: String,
+    pub(super) reasoning_effort: String,
     pub(super) skills_text: String,
     pub(super) nicknames_text: String,
     pub(super) enabled: bool,
@@ -55,6 +58,7 @@ impl AgentDraft {
             description: String::new(),
             tools_text: String::new(),
             model_profile: String::new(),
+            reasoning_effort: String::new(),
             skills_text: String::new(),
             nicknames_text: String::new(),
             enabled: true,
@@ -73,6 +77,7 @@ impl AgentDraft {
             description: view.description.clone(),
             tools_text: view.tools.join(", "),
             model_profile: view.model_profile.clone().unwrap_or_default(),
+            reasoning_effort: view.reasoning_effort.clone().unwrap_or_default(),
             skills_text: view.skills.join(", "),
             nicknames_text: view.nickname_candidates.join(", "),
             enabled: view.enabled,
@@ -88,6 +93,7 @@ impl AgentDraft {
             description: input.description,
             tools_text: input.tools.join(", "),
             model_profile: input.model_profile.unwrap_or_default(),
+            reasoning_effort: input.reasoning_effort.unwrap_or_default(),
             skills_text: input.skills.join(", "),
             nicknames_text: input.nickname_candidates.join(", "),
             enabled: input.enabled,
@@ -108,6 +114,7 @@ impl AgentDraft {
             description: description.to_string(),
             tools: split_csv(&self.tools_text),
             model_profile: trim_option(&self.model_profile),
+            reasoning_effort: trim_option(&self.reasoning_effort),
             skills: split_csv(&self.skills_text),
             nickname_candidates: split_csv(&self.nicknames_text),
             enabled: self.enabled,
@@ -126,6 +133,7 @@ impl AgentDraft {
             AgentEditorField::Description => self.description.push(ch),
             AgentEditorField::Tools => self.tools_text.push(ch),
             AgentEditorField::ModelProfile => self.model_profile.push(ch),
+            AgentEditorField::ReasoningEffort => self.reasoning_effort.push(ch),
             AgentEditorField::Skills => self.skills_text.push(ch),
             AgentEditorField::Nicknames => self.nicknames_text.push(ch),
             AgentEditorField::Enabled => match ch {
@@ -152,6 +160,9 @@ impl AgentDraft {
             AgentEditorField::ModelProfile => {
                 self.model_profile.pop();
             }
+            AgentEditorField::ReasoningEffort => {
+                self.reasoning_effort.pop();
+            }
             AgentEditorField::Skills => {
                 self.skills_text.pop();
             }
@@ -171,6 +182,7 @@ impl AgentDraft {
             AgentEditorField::Description => self.description.clear(),
             AgentEditorField::Tools => self.tools_text.clear(),
             AgentEditorField::ModelProfile => self.model_profile.clear(),
+            AgentEditorField::ReasoningEffort => self.reasoning_effort.clear(),
             AgentEditorField::Skills => self.skills_text.clear(),
             AgentEditorField::Nicknames => self.nicknames_text.clear(),
             AgentEditorField::Instructions => self.instructions.clear(),
