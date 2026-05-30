@@ -85,6 +85,31 @@ fn assert_all_passed(summary: &serde_json::Value, expected_total: u64) {
     );
 }
 
+fn run_list_cli<I, S>(fixture: &Path, extra_args: I) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let bin = env!("CARGO_BIN_EXE_kairox-eval");
+    let output = Command::new(bin)
+        .arg("list")
+        .arg("--scenarios")
+        .arg(fixture)
+        .args(extra_args)
+        .output()
+        .expect("kairox-eval binary should execute");
+
+    assert!(
+        output.status.success(),
+        "kairox-eval list exited non-zero: status={:?}\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    serde_json::from_slice(&output.stdout).expect("list JSON output should parse")
+}
+
 #[test]
 fn smoke_fixture_runs_clean_through_cli() {
     let fixture = fixture_path("smoke.jsonl");
@@ -124,4 +149,21 @@ fn tag_filters_limit_cli_scenarios() {
     let fixture = fixture_path("smoke-tags.jsonl");
     let summary = run_cli(&fixture, ["--tag", "smoke", "--exclude-tag", "slow"]);
     assert_all_passed(&summary, 1);
+}
+
+#[test]
+fn list_command_prints_filtered_scenario_ids() {
+    let fixture = fixture_path("smoke-tags.jsonl");
+    let ids = run_list_cli(
+        &fixture,
+        [
+            "--tag",
+            "smoke",
+            "--exclude-tag",
+            "slow",
+            "--format",
+            "json",
+        ],
+    );
+    assert_eq!(ids, vec!["tag-fast"]);
 }
