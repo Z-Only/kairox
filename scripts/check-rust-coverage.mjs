@@ -66,8 +66,9 @@ const groups = [
       // The ~122-line discovery.rs test block also moved test lines out of T1 src, shifting lines 80%+ → 79.67% (measurement shift, no regression); floor lowered 80 → 79.
       // core task_types tests extracted to task_types_tests.rs (excluded from src counts); ~170 test lines/fns left T1 src (measurement shift, no regression); floors lowered functions 2 → 0, lines 79 → 78.
       // config lib tests extracted to lib_tests.rs (excluded from src counts); ~83 test lines left T1 src (measurement shift, no regression); lines floor lowered 78 → 77.
+      // config loader/overlay tests extracted to overlay_tests.rs (~78 test lines left T1 src; measurement shift, no regression); lines floor lowered 77 → 76.
       functions: 0,
-      lines: 77
+      lines: 76
     }
   },
   // Tier 2A — High-risk runtime hot path.
