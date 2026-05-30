@@ -280,6 +280,57 @@ async fn fake_compaction_scenario_triggers_auto_compaction_events() {
         .contains(&"ContextCompactionCompleted".into()));
 }
 
+#[tokio::test]
+async fn fail_fast_scenario_run_stops_after_first_failure() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenarios = vec![
+        EvalScenario {
+            id: "passes-first".into(),
+            prompt: "Say hello from the configured fake model".into(),
+            expected: EvalExpectation {
+                assistant_contains: vec!["hello from Kairox".into()],
+                ..EvalExpectation::default()
+            },
+            ..EvalScenario::default()
+        },
+        EvalScenario {
+            id: "fails-second".into(),
+            prompt: "Say hello from the configured fake model".into(),
+            expected: EvalExpectation {
+                assistant_contains: vec!["text that never appears".into()],
+                ..EvalExpectation::default()
+            },
+            ..EvalScenario::default()
+        },
+        EvalScenario {
+            id: "should-not-run".into(),
+            prompt: "Say hello from the configured fake model".into(),
+            ..EvalScenario::default()
+        },
+    ];
+
+    let results = harness.run_scenarios_until_failure(&scenarios).await;
+
+    assert_eq!(
+        results
+            .iter()
+            .map(|result| result.scenario_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["passes-first", "fails-second"]
+    );
+    assert!(results[0].passed);
+    assert!(!results[1].passed);
+}
+
 #[test]
 fn summary_counts_passes_failures_and_cost_drivers() {
     let passed = EvalResult {

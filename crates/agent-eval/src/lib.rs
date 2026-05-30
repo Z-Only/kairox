@@ -217,6 +217,21 @@ impl EvalHarness {
     }
 
     pub async fn run_scenarios(&mut self, scenarios: &[EvalScenario]) -> Vec<EvalResult> {
+        self.run_scenarios_with_mode(scenarios, false).await
+    }
+
+    pub async fn run_scenarios_until_failure(
+        &mut self,
+        scenarios: &[EvalScenario],
+    ) -> Vec<EvalResult> {
+        self.run_scenarios_with_mode(scenarios, true).await
+    }
+
+    async fn run_scenarios_with_mode(
+        &mut self,
+        scenarios: &[EvalScenario],
+        fail_fast: bool,
+    ) -> Vec<EvalResult> {
         let mut results = Vec::with_capacity(scenarios.len());
         for scenario in scenarios {
             match self.run_scenario(scenario).await {
@@ -232,6 +247,10 @@ impl EvalHarness {
                     error: Some(error.to_string()),
                     ..EvalResult::default()
                 }),
+            };
+            let failed = results.last().is_some_and(|result| !result.passed);
+            if fail_fast && failed {
+                break;
             }
         }
         results

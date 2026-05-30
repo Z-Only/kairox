@@ -42,7 +42,11 @@ async fn run_scenarios(args: RunArgs) -> Result<()> {
         seed_synthetic_pairs: args.seed_synthetic_pairs,
     })
     .await?;
-    let results = harness.run_scenarios(&scenarios).await;
+    let results = if args.fail_fast {
+        harness.run_scenarios_until_failure(&scenarios).await
+    } else {
+        harness.run_scenarios(&scenarios).await
+    };
     let summary = EvalSummary::from_results(&results);
 
     write_results_jsonl(&args.output, &results)?;
@@ -114,6 +118,7 @@ struct RunArgs {
     fake_tool_arguments: Option<serde_json::Value>,
     wait_timeout_ms: Option<u64>,
     seed_synthetic_pairs: Option<usize>,
+    fail_fast: bool,
     include_tags: Vec<String>,
     exclude_tags: Vec<String>,
 }
@@ -139,6 +144,7 @@ impl RunArgs {
         let mut fake_tool_arguments: Option<serde_json::Value> = None;
         let mut wait_timeout_ms: Option<u64> = None;
         let mut seed_synthetic_pairs: Option<usize> = None;
+        let mut fail_fast = false;
         let mut include_tags = Vec::new();
         let mut exclude_tags = Vec::new();
 
@@ -201,6 +207,7 @@ impl RunArgs {
                         ))
                     })?);
                 }
+                "--fail-fast" => fail_fast = true,
                 "--tag" => include_tags.push(next_value(&mut iter, "--tag")?),
                 "--exclude-tag" => exclude_tags.push(next_value(&mut iter, "--exclude-tag")?),
                 "--help" | "-h" => return Err(agent_eval::EvalError::Cli(usage())),
@@ -234,6 +241,7 @@ impl RunArgs {
             fake_tool_arguments,
             wait_timeout_ms,
             seed_synthetic_pairs,
+            fail_fast,
             include_tags,
             exclude_tags,
         })
@@ -330,7 +338,7 @@ fn parse_sandbox_policy(raw: &str) -> Result<SandboxPolicy> {
 }
 
 fn usage() -> String {
-    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--tag <tag>] [--exclude-tag <tag>]".into()
+    "usage: kairox-eval run --scenarios <file.jsonl> --output <results.jsonl> [--summary <summary.json>] [--workspace <path>] [--profile <alias>] [--approval-policy never|on_request|always] [--sandbox-policy read_only|workspace_write|danger_full_access|json] [--include-trace] [--enable-mcp] [--enable-hooks] [--auto-compact-threshold <f32>] [--fake-emit-tool-call] [--fake-tool-id <id>] [--fake-tool-arguments <json>] [--wait-timeout-ms <u64>] [--seed-synthetic-pairs <n>] [--fail-fast] [--tag <tag>] [--exclude-tag <tag>]".into()
 }
 
 fn list_usage() -> String {
@@ -364,5 +372,24 @@ mod tests {
         assert_eq!(args.include_tags, vec!["smoke"]);
         assert_eq!(args.exclude_tags, vec!["slow"]);
         assert!(matches!(args.format, ListFormat::Json));
+    }
+
+    #[test]
+    fn parses_fail_fast_run_arg() {
+        let command = CliCommand::parse([
+            "run".to_string(),
+            "--scenarios".to_string(),
+            "fixtures.jsonl".to_string(),
+            "--output".to_string(),
+            "results.jsonl".to_string(),
+            "--fail-fast".to_string(),
+        ])
+        .expect("run command should parse");
+
+        let CliCommand::Run(args) = command else {
+            panic!("expected run command");
+        };
+
+        assert!(args.fail_fast);
     }
 }
