@@ -83,6 +83,35 @@ async fn reads_plugin_permission_hints() {
 }
 
 #[tokio::test]
+async fn reads_plugin_compatibility_metadata() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{
+              "name": "workflow-kit",
+              "description": "Workflow helpers",
+              "compatibility": {
+                "kairoxVersion": ">=0.33.0 <0.35.0",
+                "platforms": ["macos", "linux"],
+                "requires": ["node >=20", "git"]
+              }
+            }"#,
+    )
+    .expect("manifest");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+
+    assert_eq!(
+        plugin.compatibility.kairox_version.as_deref(),
+        Some(">=0.33.0 <0.35.0")
+    );
+    assert_eq!(plugin.compatibility.platforms, vec!["macos", "linux"]);
+    assert_eq!(plugin.compatibility.requires, vec!["node >=20", "git"]);
+}
+
+#[tokio::test]
 async fn reads_claude_plugin_manifest_with_folder_skill_names() {
     let dir = tempfile::tempdir().expect("tempdir");
     let manifest_dir = dir.path().join(".claude-plugin");

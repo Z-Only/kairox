@@ -3,8 +3,8 @@ pub mod marketplace;
 pub mod settings;
 
 pub use manifest::{
-    read_plugin_manifest, PluginComponentInventory, PluginInterface, PluginManifestKind,
-    PluginManifestView, PluginPermissionHints,
+    read_plugin_manifest, PluginCompatibilityHints, PluginComponentInventory, PluginInterface,
+    PluginManifestKind, PluginManifestView, PluginPermissionHints,
 };
 pub use marketplace::{parse_marketplace, MarketplaceFile, MarketplacePluginEntry};
 pub use settings::{
