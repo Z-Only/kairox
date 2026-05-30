@@ -61,7 +61,8 @@ const groups = [
       // config loader tests extracted to loader_tests.rs (excluded from src counts); ~148 test lines/4 fns left T1 src (measurement shift, no regression); floors lowered functions 12 → 10, lines 81 → 80.
       // skill_dtos tests extracted to skill_dtos_tests.rs (excluded from src function counts); floor lowered 10 → 8.
       // core facade/project tests extracted to project_tests.rs (excluded from src function counts); floor lowered 8 → 6.
-      functions: 6,
+      // core ids tests extracted to ids_tests.rs (excluded from src function counts); floor lowered 6 → 4.
+      functions: 4,
       lines: 80
     }
   },
