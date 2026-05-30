@@ -15,7 +15,7 @@ use agent_core::facade::{
     PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
     SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
 };
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
@@ -51,6 +51,7 @@ fn main() {
             agent_gui_tauri::commands::initialize_workspace,
             agent_gui_tauri::commands::start_session,
             agent_gui_tauri::commands::send_message,
+            agent_gui_tauri::commands::export_trace,
             agent_gui_tauri::commands::list_sessions,
             // Project workspace commands
             agent_gui_tauri::commands::list_projects,
@@ -198,6 +199,7 @@ fn main() {
         .typ::<ProfileInfo>()
         .typ::<ProfileDetailResponse>()
         .typ::<TaskSnapshotResponse>()
+        .typ::<TraceExport>()
         .typ::<BuildInfoResponse>()
         .typ::<MonitorInfoResponse>()
         // Skill response types

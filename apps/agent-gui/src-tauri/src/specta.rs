@@ -13,7 +13,7 @@ use agent_core::facade::{
     PluginMarketplaceSourceView, PluginSettingsView, ProfileSettingsInput, ProfileSettingsView,
     RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery, SkillFieldMappingView,
     SkillInstallSource, SkillInstallTarget, SkillSettingsDetail, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    SkillSettingsView, SkillSourceView, SkillUpdateState, TraceExport,
 };
 use agent_core::{
     ActiveSkillView, AgentRole, CompactionReason, CompactionStatus, ConfigScope, ContextSource,
@@ -37,6 +37,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             initialize_workspace,
             start_session,
             send_message,
+            export_trace,
             list_sessions,
             // Project workspace commands
             list_projects,
@@ -184,6 +185,7 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
         .typ::<ProfileDetailResponse>()
         .typ::<ProfileWithLimits>()
         .typ::<TaskSnapshotResponse>()
+        .typ::<TraceExport>()
         .typ::<BuildInfoResponse>()
         .typ::<MonitorInfoResponse>()
         // Skill response types

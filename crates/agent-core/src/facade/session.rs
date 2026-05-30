@@ -2,6 +2,7 @@
 
 use crate::projection::SessionProjection;
 use crate::{DomainEvent, ProjectId, SessionId, TaskFailureReason, TaskId, TaskState, WorkspaceId};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::ProjectSessionVisibility;
@@ -66,6 +67,31 @@ pub struct PermissionDecision {
 /// contains `f32` fields (`ContextUsage`, `CompactionReason::Threshold { ratio }`).
 pub struct TraceEntry {
     pub event: DomainEvent,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+/// Structured trace export envelope for diagnostics and replay tooling.
+pub struct TraceExport {
+    pub schema_version: u32,
+    pub session_id: SessionId,
+    pub generated_at: DateTime<Utc>,
+    #[cfg_attr(feature = "specta", specta(type = u32))]
+    pub event_count: usize,
+    pub events: Vec<DomainEvent>,
+}
+
+impl TraceExport {
+    pub fn new(session_id: SessionId, events: Vec<DomainEvent>) -> Self {
+        let event_count = events.len();
+        Self {
+            schema_version: 1,
+            session_id,
+            generated_at: Utc::now(),
+            event_count,
+            events,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,6 +169,11 @@ pub trait SessionFacade: Send + Sync {
         session_id: SessionId,
     ) -> crate::Result<SessionProjection>;
     async fn get_trace(&self, session_id: SessionId) -> crate::Result<Vec<TraceEntry>>;
+    async fn export_trace(&self, session_id: SessionId) -> crate::Result<TraceExport> {
+        let trace = self.get_trace(session_id.clone()).await?;
+        let events = trace.into_iter().map(|entry| entry.event).collect();
+        Ok(TraceExport::new(session_id, events))
+    }
     fn subscribe_session(&self, session_id: SessionId) -> BoxStream<'static, DomainEvent>;
     fn subscribe_all(&self) -> BoxStream<'static, DomainEvent>;
     async fn list_workspaces(&self) -> crate::Result<Vec<WorkspaceInfo>>;
@@ -180,7 +211,7 @@ pub trait SessionFacade: Send + Sync {
 #[cfg(test)]
 mod task_snapshot_tests {
     use super::*;
-    use crate::{AgentRole, TaskId};
+    use crate::{AgentId, AgentRole, EventPayload, PrivacyClassification, TaskId};
 
     #[test]
     fn task_snapshot_field_access() {
@@ -297,5 +328,39 @@ mod task_snapshot_tests {
         let json = serde_json::to_string(&graph).unwrap();
         let back: TaskGraphSnapshot = serde_json::from_str(&json).unwrap();
         assert_eq!(graph, back);
+    }
+
+    #[test]
+    fn trace_export_envelope_counts_events() {
+        let workspace_id = WorkspaceId::new();
+        let session_id = SessionId::new();
+        let events = vec![
+            DomainEvent::new(
+                workspace_id.clone(),
+                session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::SessionInitialized {
+                    model_profile: "fake".into(),
+                },
+            ),
+            DomainEvent::new(
+                workspace_id,
+                session_id.clone(),
+                AgentId::system(),
+                PrivacyClassification::MinimalTrace,
+                EventPayload::UserMessageAdded {
+                    message_id: "msg-1".into(),
+                    content: "hello".into(),
+                },
+            ),
+        ];
+
+        let export = TraceExport::new(session_id.clone(), events.clone());
+
+        assert_eq!(export.schema_version, 1);
+        assert_eq!(export.session_id, session_id);
+        assert_eq!(export.event_count, 2);
+        assert_eq!(export.events, events);
     }
 }

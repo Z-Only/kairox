@@ -5,7 +5,7 @@ use agent_core::facade::{
     EffectiveMcpServerView, EffectiveProfileView, EffectiveSkillView, InstallGithubSkillRequest,
     InstallRemoteSkillRequest, McpServerSettingsInput, McpServerSettingsView, ProfileSettingsInput,
     ProfileSettingsView, RemoteSkillSearchResult, SkillCatalogEntry, SkillCatalogQuery,
-    SkillSettingsDetail, SkillSettingsView, SkillSourceView,
+    SkillSettingsDetail, SkillSettingsView, SkillSourceView, TraceExport,
 };
 use agent_core::{
     AppFacade, PermissionDecision, ProjectGitStatus, ProjectGitStatusKind, ProjectId,

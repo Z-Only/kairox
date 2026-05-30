@@ -37,6 +37,21 @@ pub async fn get_trace(
         .collect())
 }
 
+/// Returns a structured trace export envelope for diagnostics and replay tools.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_trace(
+    session_id: String,
+    state: State<'_, GuiState>,
+) -> Result<TraceExport, String> {
+    let sid: agent_core::SessionId = session_id.into();
+    state
+        .runtime
+        .export_trace(sid)
+        .await
+        .map_err(|e| format!("Failed to export trace: {e}"))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn list_sessions(state: State<'_, GuiState>) -> Result<Vec<SessionInfoResponse>, String> {

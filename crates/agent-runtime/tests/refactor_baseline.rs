@@ -262,6 +262,33 @@ async fn baseline_trace_returns_session_events() {
     );
 }
 
+#[tokio::test]
+async fn baseline_trace_export_wraps_session_events() {
+    let (runtime, ws, sid) = setup_session().await;
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: ws,
+            session_id: sid.clone(),
+            content: "trace export test".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let export = runtime.export_trace(sid.clone()).await.unwrap();
+    assert_eq!(export.schema_version, 1);
+    assert_eq!(export.session_id, sid);
+    assert_eq!(export.event_count, export.events.len());
+    assert!(
+        export
+            .events
+            .iter()
+            .any(|event| event.event_type == "UserMessageAdded"),
+        "export should include the persisted user message event"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 8. Turn emits ContextAssembled event with usage data
 // ---------------------------------------------------------------------------
