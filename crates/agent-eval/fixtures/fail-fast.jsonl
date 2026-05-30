@@ -1,0 +1,4 @@
+# kairox-eval fail-fast fixtures -- second scenario fails deterministically
+{"id":"passes-first","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["hello from Kairox"]}}
+{"id":"fails-second","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["text that never appears"]}}
+{"id":"should-not-run","prompt":"Say hello from the configured fake model","profile":"fake","expected":{"assistant_contains":["hello from Kairox"]}}

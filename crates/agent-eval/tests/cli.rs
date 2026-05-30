@@ -6,7 +6,7 @@
 //! all scenarios pass.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 
 fn fixture_path(name: &str) -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -16,6 +16,29 @@ fn fixture_path(name: &str) -> PathBuf {
 }
 
 fn run_cli<I, S>(fixture: &Path, extra_args: I) -> serde_json::Value
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let (output, _outputs, _results_path, summary_path) = run_cli_output(fixture, extra_args);
+
+    assert!(
+        output.status.success(),
+        "kairox-eval exited non-zero: status={:?}\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let summary_raw =
+        std::fs::read_to_string(&summary_path).expect("summary.json should be readable");
+    serde_json::from_str(&summary_raw).expect("summary.json should parse as JSON")
+}
+
+fn run_cli_output<I, S>(
+    fixture: &Path,
+    extra_args: I,
+) -> (Output, tempfile::TempDir, PathBuf, PathBuf)
 where
     I: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
@@ -50,21 +73,11 @@ where
         .expect("kairox-eval binary should execute");
 
     assert!(
-        output.status.success(),
-        "kairox-eval exited non-zero: status={:?}\n--- stdout ---\n{}\n--- stderr ---\n{}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-
-    assert!(
         results_path.is_file(),
         "results jsonl must be written at {}",
         results_path.display()
     );
-    let summary_raw =
-        std::fs::read_to_string(&summary_path).expect("summary.json should be readable");
-    serde_json::from_str(&summary_raw).expect("summary.json should parse as JSON")
+    (output, outputs, results_path, summary_path)
 }
 
 fn assert_all_passed(summary: &serde_json::Value, expected_total: u64) {
@@ -149,6 +162,42 @@ fn tag_filters_limit_cli_scenarios() {
     let fixture = fixture_path("smoke-tags.jsonl");
     let summary = run_cli(&fixture, ["--tag", "smoke", "--exclude-tag", "slow"]);
     assert_all_passed(&summary, 1);
+}
+
+#[test]
+fn fail_fast_stops_cli_after_first_failed_scenario() {
+    let fixture = fixture_path("fail-fast.jsonl");
+    let (output, _outputs, results_path, summary_path) = run_cli_output(&fixture, ["--fail-fast"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "failing eval should exit 2\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let summary_raw =
+        std::fs::read_to_string(&summary_path).expect("summary.json should be readable");
+    let summary: serde_json::Value =
+        serde_json::from_str(&summary_raw).expect("summary.json should parse as JSON");
+    assert_eq!(summary["total"].as_u64(), Some(2), "{summary}");
+    assert_eq!(summary["passed"].as_u64(), Some(1), "{summary}");
+    assert_eq!(summary["failed"].as_u64(), Some(1), "{summary}");
+
+    let results_raw =
+        std::fs::read_to_string(&results_path).expect("results jsonl should be readable");
+    let result_ids = results_raw
+        .lines()
+        .map(|line| {
+            let result: serde_json::Value =
+                serde_json::from_str(line).expect("result line should parse as JSON");
+            result["scenario_id"]
+                .as_str()
+                .expect("scenario_id should be a string")
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(result_ids, vec!["passes-first", "fails-second"]);
 }
 
 #[test]
