@@ -95,8 +95,10 @@ const groups = [
       // agent_settings tests extracted to agent_settings_tests.rs (excluded from src counts); ~212 test lines/N fns left T2 src (measurement shift, no regression); floors lowered functions 9 → 7, lines 75 → 74.
       // mcp http_client tests extracted to http_client_tests.rs (excluded from src function counts); floor lowered 7 → 5.
       // the ~100-line http_client.rs test block also moved test lines out of the T2 src tree; floor lowered 74 → 73.
-      functions: 5,
-      lines: 73
+      // mcp streamable_http tests extracted to streamable_http_tests.rs (excluded from src function counts); floor lowered 5 → 3.
+      // the ~124-line streamable_http.rs test block also moved test lines out of the T2 src tree; floor lowered 73 → 72.
+      functions: 3,
+      lines: 72
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
