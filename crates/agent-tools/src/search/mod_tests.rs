@@ -45,6 +45,23 @@ async fn search_tool_invocation_works_with_fallback() {
 }
 
 #[tokio::test]
+async fn search_tool_accepts_context_lines_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    tokio::fs::write(dir.path().join("hello.txt"), "before\nhello\nworld\n")
+        .await
+        .unwrap();
+
+    let tool = RipgrepSearchTool::new(dir.path().to_path_buf());
+    let mut invocation = make_invocation("hello", None, None, 50);
+    invocation.arguments["context_lines"] = json!(1);
+    let output = tool.invoke(invocation).await.unwrap();
+
+    assert!(output.text.contains("hello.txt-1-before"));
+    assert!(output.text.contains("hello.txt:2:hello"));
+    assert!(output.text.contains("hello.txt-3-world"));
+}
+
+#[tokio::test]
 async fn search_tool_empty_pattern_returns_error() {
     let dir = tempfile::tempdir().unwrap();
     let tool = RipgrepSearchTool::new(dir.path().to_path_buf());
@@ -66,6 +83,7 @@ fn definition_returns_correct_id() {
     let def = tool.definition();
     assert_eq!(def.tool_id, shell::SEARCH_TOOL_ID);
     assert_eq!(def.required_capability, "search.ripgrep");
+    assert!(def.parameters["properties"]["context_lines"].is_object());
 }
 
 #[test]

@@ -20,12 +20,22 @@ pub use path::glob_matches;
 // ── Data structures ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchContextLine {
+    pub line_number: usize,
+    pub line_content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_path: String,
     pub line_number: usize,
     pub line_content: String,
     pub match_start: usize,
     pub match_end: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_before: Vec<SearchContextLine>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_after: Vec<SearchContextLine>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,11 +70,20 @@ impl RipgrepSearchTool {
         path: Option<&str>,
         file_glob: Option<&str>,
         max_results: usize,
+        context_lines: usize,
     ) -> Result<SearchResults> {
         let rg_path = path::find_rg_binary()
             .ok_or_else(|| ToolError::ExecutionFailed("rg binary not found".into()))?;
         let search_dir = path::resolve_search_path(&self.workspace_root, path)?;
-        rg::run_rg(&rg_path, &search_dir, pattern, file_glob, max_results).await
+        rg::run_rg(
+            &rg_path,
+            &search_dir,
+            pattern,
+            file_glob,
+            max_results,
+            context_lines,
+        )
+        .await
     }
 
     /// Fallback search using pure Rust regex + directory walk.
@@ -74,6 +93,7 @@ impl RipgrepSearchTool {
         path: Option<&str>,
         file_glob: Option<&str>,
         max_results: usize,
+        context_lines: usize,
     ) -> Result<SearchResults> {
         let search_dir = path::resolve_search_path(&self.workspace_root, path)?;
         fallback::run_fallback(
@@ -82,6 +102,7 @@ impl RipgrepSearchTool {
             pattern,
             file_glob,
             max_results,
+            context_lines,
         )
         .await
     }
@@ -115,6 +136,10 @@ impl Tool for RipgrepSearchTool {
                     "max_results": {
                         "type": "integer",
                         "description": "Maximum number of results to return (default: 50)"
+                    },
+                    "context_lines": {
+                        "type": "integer",
+                        "description": "Number of lines before and after each match to include (default: 0, max: 5)"
                     }
                 },
                 "required": ["pattern"]
@@ -149,21 +174,27 @@ impl Tool for RipgrepSearchTool {
             .get("max_results")
             .and_then(|v| v.as_u64())
             .unwrap_or(50) as usize;
+        let context_lines = invocation
+            .arguments
+            .get("context_lines")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0)
+            .min(5) as usize;
 
         // Try ripgrep first, fall back on any error
         let search_results = if path::find_rg_binary().is_some() {
             match self
-                .search_with_rg(pattern, path, file_glob, max_results)
+                .search_with_rg(pattern, path, file_glob, max_results, context_lines)
                 .await
             {
                 Ok(results) => results,
                 Err(_) => {
-                    self.search_with_fallback(pattern, path, file_glob, max_results)
+                    self.search_with_fallback(pattern, path, file_glob, max_results, context_lines)
                         .await?
                 }
             }
         } else {
-            self.search_with_fallback(pattern, path, file_glob, max_results)
+            self.search_with_fallback(pattern, path, file_glob, max_results, context_lines)
                 .await?
         };
 

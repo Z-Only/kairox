@@ -4,7 +4,7 @@ use regex::Regex;
 
 use crate::Result;
 
-use super::{glob_matches, SearchEngine, SearchResult, SearchResults};
+use super::{glob_matches, SearchContextLine, SearchEngine, SearchResult, SearchResults};
 
 /// Recursive async directory walk + grep.
 #[allow(clippy::too_many_arguments)]
@@ -19,6 +19,7 @@ pub async fn walk_and_grep(
     max_files: usize,
     current_depth: usize,
     max_depth: usize,
+    context_lines: usize,
 ) {
     if current_depth > max_depth || *files_visited >= max_files || results.len() >= max_results {
         return;
@@ -58,6 +59,7 @@ pub async fn walk_and_grep(
                 max_files,
                 current_depth + 1,
                 max_depth,
+                context_lines,
             ))
             .await;
         } else if path.is_file() {
@@ -81,8 +83,8 @@ pub async fn walk_and_grep(
                 Err(_) => continue, // binary or unreadable — skip
             };
 
-            // Grep line by line
-            for (i, line) in content.lines().enumerate() {
+            let lines = content.lines().collect::<Vec<_>>();
+            for (i, line) in lines.iter().enumerate() {
                 if results.len() >= max_results {
                     return;
                 }
@@ -98,11 +100,52 @@ pub async fn walk_and_grep(
                         line_content: line.to_string(),
                         match_start: m.start(),
                         match_end: m.end(),
+                        context_before: context_before(&lines, i, context_lines),
+                        context_after: context_after(&lines, i, context_lines),
                     });
                 }
             }
         }
     }
+}
+
+fn context_before(
+    lines: &[&str],
+    match_index: usize,
+    context_lines: usize,
+) -> Vec<SearchContextLine> {
+    if context_lines == 0 {
+        return Vec::new();
+    }
+    let start = match_index.saturating_sub(context_lines);
+    lines[start..match_index]
+        .iter()
+        .enumerate()
+        .map(|(offset, line)| SearchContextLine {
+            line_number: start + offset + 1,
+            line_content: (*line).to_string(),
+        })
+        .collect()
+}
+
+fn context_after(
+    lines: &[&str],
+    match_index: usize,
+    context_lines: usize,
+) -> Vec<SearchContextLine> {
+    if context_lines == 0 {
+        return Vec::new();
+    }
+    let start = match_index + 1;
+    let end = lines.len().min(start + context_lines);
+    lines[start..end]
+        .iter()
+        .enumerate()
+        .map(|(offset, line)| SearchContextLine {
+            line_number: start + offset + 1,
+            line_content: (*line).to_string(),
+        })
+        .collect()
 }
 
 /// Run fallback search using pure Rust regex + directory walk.
@@ -112,6 +155,7 @@ pub async fn run_fallback(
     pattern: &str,
     file_glob: Option<&str>,
     max_results: usize,
+    context_lines: usize,
 ) -> Result<SearchResults> {
     let re = Regex::new(pattern)
         .map_err(|e| crate::ToolError::ExecutionFailed(format!("invalid regex pattern: {}", e)))?;
@@ -132,6 +176,7 @@ pub async fn run_fallback(
         MAX_FILES,
         0,
         MAX_DEPTH,
+        context_lines,
     )
     .await;
 

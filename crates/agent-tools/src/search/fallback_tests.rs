@@ -14,7 +14,7 @@ async fn fallback_finds_pattern_in_files() {
         .await
         .unwrap();
 
-    let results = run_fallback(dir.path(), dir.path(), "hello", None, 100)
+    let results = run_fallback(dir.path(), dir.path(), "hello", None, 100, 0)
         .await
         .unwrap();
 
@@ -42,7 +42,7 @@ async fn fallback_respects_glob_filter() {
         .await
         .unwrap();
 
-    let results = run_fallback(dir.path(), dir.path(), "find", Some("*.rs"), 100)
+    let results = run_fallback(dir.path(), dir.path(), "find", Some("*.rs"), 100, 0)
         .await
         .unwrap();
 
@@ -60,12 +60,36 @@ async fn fallback_respects_max_results() {
     .await
     .unwrap();
 
-    let results = run_fallback(dir.path(), dir.path(), "match", None, 1)
+    let results = run_fallback(dir.path(), dir.path(), "match", None, 1, 0)
         .await
         .unwrap();
 
     assert_eq!(results.results.len(), 1);
     assert!(results.truncated);
+}
+
+#[tokio::test]
+async fn fallback_includes_requested_context_lines() {
+    let dir = tempfile::tempdir().unwrap();
+    tokio::fs::write(
+        dir.path().join("story.txt"),
+        "before one\nbefore two\nneedle here\nafter one\nafter two\n",
+    )
+    .await
+    .unwrap();
+
+    let results = run_fallback(dir.path(), dir.path(), "needle", None, 10, 1)
+        .await
+        .unwrap();
+
+    assert_eq!(results.results.len(), 1);
+    let result = &results.results[0];
+    assert_eq!(result.context_before.len(), 1);
+    assert_eq!(result.context_before[0].line_number, 2);
+    assert_eq!(result.context_before[0].line_content, "before two");
+    assert_eq!(result.context_after.len(), 1);
+    assert_eq!(result.context_after[0].line_number, 4);
+    assert_eq!(result.context_after[0].line_content, "after one");
 }
 
 #[tokio::test]
@@ -90,7 +114,7 @@ async fn fallback_skips_hidden_and_ignored_dirs() {
         .await
         .unwrap();
 
-    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100)
+    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100, 0)
         .await
         .unwrap();
 
@@ -110,7 +134,7 @@ async fn fallback_skips_binary_files() {
     f.write_all(&binary_data).unwrap();
     drop(f);
 
-    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100)
+    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100, 0)
         .await
         .unwrap();
 
@@ -132,7 +156,7 @@ async fn fallback_respects_max_depth() {
         .await
         .unwrap();
 
-    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100)
+    let results = run_fallback(dir.path(), dir.path(), "findme", None, 100, 0)
         .await
         .unwrap();
 
@@ -149,7 +173,7 @@ async fn fallback_limits_files_visited() {
             .unwrap();
     }
 
-    let results = run_fallback(dir.path(), dir.path(), "match", None, 100)
+    let results = run_fallback(dir.path(), dir.path(), "match", None, 100, 0)
         .await
         .unwrap();
 
