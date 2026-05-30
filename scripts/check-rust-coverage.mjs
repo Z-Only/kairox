@@ -93,8 +93,10 @@ const groups = [
       // mcp skillhub tests extracted to skillhub_tests.rs (excluded from src function counts); floor lowered 13 → 11.
       // memory compactor tests extracted to compactor_tests.rs (excluded from src counts); ~185 test lines/N fns left T2 src, shifting functions and lines down (measurement shift, no regression); floors lowered functions 11 → 9, lines 76 → 75.
       // agent_settings tests extracted to agent_settings_tests.rs (excluded from src counts); ~212 test lines/N fns left T2 src (measurement shift, no regression); floors lowered functions 9 → 7, lines 75 → 74.
-      functions: 7,
-      lines: 74
+      // mcp http_client tests extracted to http_client_tests.rs (excluded from src function counts); floor lowered 7 → 5.
+      // the ~100-line http_client.rs test block also moved test lines out of the T2 src tree; floor lowered 74 → 73.
+      functions: 5,
+      lines: 73
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
