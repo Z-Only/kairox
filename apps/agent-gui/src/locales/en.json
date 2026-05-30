@@ -611,6 +611,7 @@
     "source": "Source",
     "update": "Update",
     "path": "Path",
+    "permissions": "Permissions",
     "enable": "Enable",
     "disable": "Disable",
     "edit": "Edit",

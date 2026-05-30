@@ -22,6 +22,8 @@ pub struct LocalSkillSettingsView {
     pub path: PathBuf,
     pub enabled: bool,
     pub activation_mode: SkillActivationMode,
+    pub tools: Vec<String>,
+    pub can_request_tools: Vec<String>,
     pub install_source: String,
     pub update_available: Option<bool>,
     pub effective: bool,
@@ -122,6 +124,8 @@ async fn read_local_skill_settings_view(
         path: skill_path,
         enabled: state_entry.and_then(|entry| entry.enabled).unwrap_or(true),
         activation_mode,
+        tools: parsed_skill.permissions.tools,
+        can_request_tools: parsed_skill.permissions.can_request_tools,
         install_source: state_entry
             .and_then(|entry| entry.install_source.clone())
             .unwrap_or_else(|| default_install_source(scope).to_owned()),
@@ -153,6 +157,8 @@ fn invalid_skill_settings_view(
         activation_mode: state_entry
             .and_then(|entry| entry.activation_mode)
             .unwrap_or_default(),
+        tools: Vec::new(),
+        can_request_tools: Vec::new(),
         install_source: state_entry
             .and_then(|entry| entry.install_source.clone())
             .unwrap_or_else(|| default_install_source(scope).to_owned()),

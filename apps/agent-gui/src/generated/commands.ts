@@ -973,6 +973,9 @@ export type SkillSettingsView = {
   path: string;
   enabled: boolean;
   activation_mode: string;
+  tools: string[];
+  can_request_tools: string[];
+  permission_summary: string;
   install_source: SkillInstallSource;
   update_state: SkillUpdateState;
   effective: boolean;

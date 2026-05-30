@@ -122,6 +122,7 @@ pub(super) async fn find_skill_settings_view(
 
 fn local_view_to_core_view(view: LocalSkillSettingsView) -> SkillSettingsView {
     let scope = skill_scope_to_settings_scope(view.scope);
+    let permission_summary = permission_summary(&view.tools, &view.can_request_tools);
     SkillSettingsView {
         settings_id: skill_settings_id(scope, view.id.as_str()),
         id: view.id.as_str().to_string(),
@@ -132,6 +133,9 @@ fn local_view_to_core_view(view: LocalSkillSettingsView) -> SkillSettingsView {
         path: view.path.display().to_string(),
         enabled: view.enabled,
         activation_mode: skill_activation_mode_to_string(view.activation_mode),
+        tools: view.tools,
+        can_request_tools: view.can_request_tools,
+        permission_summary,
         install_source: install_source_from_string(&view.install_source, scope),
         update_state: update_state_from_available(view.update_available),
         effective: view.effective,
@@ -140,6 +144,19 @@ fn local_view_to_core_view(view: LocalSkillSettingsView) -> SkillSettingsView {
         validation_error: view.validation_error,
         editable: scope != SkillSettingsScope::Builtin && scope != SkillSettingsScope::Plugin,
         deletable: scope != SkillSettingsScope::Builtin && scope != SkillSettingsScope::Plugin,
+    }
+}
+
+fn permission_summary(tools: &[String], can_request_tools: &[String]) -> String {
+    match (tools.is_empty(), can_request_tools.is_empty()) {
+        (true, true) => "no tool permissions declared".to_string(),
+        (false, true) => format!("tools: {}", tools.join(", ")),
+        (true, false) => format!("can request: {}", can_request_tools.join(", ")),
+        (false, false) => format!(
+            "tools: {}; can request: {}",
+            tools.join(", "),
+            can_request_tools.join(", ")
+        ),
     }
 }
 
