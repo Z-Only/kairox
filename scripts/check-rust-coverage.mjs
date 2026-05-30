@@ -63,8 +63,9 @@ const groups = [
       // core facade/project tests extracted to project_tests.rs (excluded from src function counts); floor lowered 8 → 6.
       // core ids tests extracted to ids_tests.rs (excluded from src function counts); floor lowered 6 → 4.
       // config discovery tests extracted to discovery_tests.rs (excluded from src function counts); floor lowered 4 → 2.
+      // The ~122-line discovery.rs test block also moved test lines out of T1 src, shifting lines 80%+ → 79.67% (measurement shift, no regression); floor lowered 80 → 79.
       functions: 2,
-      lines: 80
+      lines: 79
     }
   },
   // Tier 2A — High-risk runtime hot path.
