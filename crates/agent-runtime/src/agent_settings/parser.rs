@@ -8,6 +8,7 @@ pub struct ParsedAgentMarkdown {
     pub description: String,
     pub tools: Vec<String>,
     pub model_profile: Option<String>,
+    pub reasoning_effort: Option<String>,
     pub skills: Vec<String>,
     pub nickname_candidates: Vec<String>,
     pub enabled: bool,
@@ -22,6 +23,8 @@ struct RawAgentFrontmatter {
     tools: Vec<String>,
     #[serde(default)]
     model_profile: Option<String>,
+    #[serde(default)]
+    reasoning_effort: Option<String>,
     #[serde(default)]
     skills: Vec<String>,
     #[serde(default)]
@@ -57,6 +60,7 @@ pub fn parse_agent_markdown(raw: &str) -> Result<ParsedAgentMarkdown> {
         description,
         tools: frontmatter.tools,
         model_profile: frontmatter.model_profile,
+        reasoning_effort: normalize_optional_string(frontmatter.reasoning_effort),
         skills: frontmatter.skills,
         nickname_candidates: frontmatter.nickname_candidates,
         enabled: frontmatter.enabled,
@@ -70,6 +74,7 @@ pub(super) fn render_agent_markdown(input: &AgentSettingsInput) -> Result<String
         description: Some(input.description.clone()),
         tools: input.tools.clone(),
         model_profile: input.model_profile.clone(),
+        reasoning_effort: input.reasoning_effort.clone(),
         skills: input.skills.clone(),
         nickname_candidates: input.nickname_candidates.clone(),
         enabled: input.enabled,
@@ -104,6 +109,12 @@ pub(super) fn validate_agent_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+fn normalize_optional_string(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
 #[cfg(test)]
 mod parser_tests {
     use super::*;
@@ -116,6 +127,7 @@ mod parser_tests {
             description: "Test agent".to_string(),
             tools: vec![],
             model_profile: None,
+            reasoning_effort: None,
             skills: vec![],
             nickname_candidates: vec![],
             enabled: true,
@@ -130,6 +142,7 @@ mod parser_tests {
             description: Plans the work\n\
             tools:\n  - shell\n  - search\n\
             model_profile: fast\n\
+            reasoning_effort: high\n\
             skills:\n  - skill-a\n\
             nickname_candidates:\n  - planr\n\
             enabled: true\n\
@@ -141,6 +154,7 @@ mod parser_tests {
         assert_eq!(parsed.description, "Plans the work");
         assert_eq!(parsed.tools, vec!["shell", "search"]);
         assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
+        assert_eq!(parsed.reasoning_effort.as_deref(), Some("high"));
         assert_eq!(parsed.skills, vec!["skill-a"]);
         assert_eq!(parsed.nickname_candidates, vec!["planr"]);
         assert!(parsed.enabled);
@@ -277,6 +291,7 @@ mod parser_tests {
         let mut input = agent_input("multi");
         input.tools = vec!["shell".into(), "fs.read".into()];
         input.model_profile = Some("fast".into());
+        input.reasoning_effort = Some("medium".into());
         input.skills = vec!["audit".into()];
         input.nickname_candidates = vec!["m".into(), "mu".into()];
         input.enabled = false;
@@ -286,6 +301,7 @@ mod parser_tests {
 
         assert_eq!(parsed.tools, vec!["shell", "fs.read"]);
         assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
+        assert_eq!(parsed.reasoning_effort.as_deref(), Some("medium"));
         assert_eq!(parsed.skills, vec!["audit"]);
         assert_eq!(parsed.nickname_candidates, vec!["m", "mu"]);
         assert!(!parsed.enabled);

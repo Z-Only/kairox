@@ -37,6 +37,7 @@ Rules:
 pub struct PlannerStrategy {
     system_prompt: String,
     model_profile: Option<String>,
+    reasoning_effort: Option<String>,
     skills: Vec<String>,
     tools_allowlist: Vec<String>,
 }
@@ -46,6 +47,7 @@ impl PlannerStrategy {
         Self {
             system_prompt: PLANNER_SYSTEM_PROMPT.to_string(),
             model_profile: None,
+            reasoning_effort: None,
             skills: Vec::new(),
             tools_allowlist: Vec::new(),
         }
@@ -60,6 +62,7 @@ impl PlannerStrategy {
                 view.instructions.clone()
             },
             model_profile: view.model_profile.clone(),
+            reasoning_effort: view.reasoning_effort.clone(),
             skills: view.skills.clone(),
             tools_allowlist: view.tools.clone(),
         }
@@ -183,6 +186,10 @@ impl AgentStrategy for PlannerStrategy {
 
     fn model_profile_override(&self) -> Option<&str> {
         self.model_profile.as_deref()
+    }
+
+    fn reasoning_effort_override(&self) -> Option<&str> {
+        self.reasoning_effort.as_deref()
     }
 
     fn skills(&self) -> &[String] {

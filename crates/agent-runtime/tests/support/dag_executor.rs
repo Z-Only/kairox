@@ -91,11 +91,21 @@ pub async fn make_runtime_with_session() -> (
 pub struct FixedDecisionStrategy {
     role_val: AgentRole,
     decision: AgentDecision,
+    reasoning_effort: Option<String>,
 }
 
 impl FixedDecisionStrategy {
     pub fn new(role_val: AgentRole, decision: AgentDecision) -> Self {
-        Self { role_val, decision }
+        Self {
+            role_val,
+            decision,
+            reasoning_effort: None,
+        }
+    }
+
+    pub fn with_reasoning_effort(mut self, effort: impl Into<String>) -> Self {
+        self.reasoning_effort = Some(effort.into());
+        self
     }
 }
 
@@ -130,6 +140,10 @@ impl AgentStrategy for FixedDecisionStrategy {
         _iteration: usize,
     ) -> ToolResultAction {
         ToolResultAction::Continue
+    }
+
+    fn reasoning_effort_override(&self) -> Option<&str> {
+        self.reasoning_effort.as_deref()
     }
 }
 

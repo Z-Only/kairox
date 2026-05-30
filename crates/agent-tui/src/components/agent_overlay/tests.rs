@@ -18,6 +18,7 @@ fn agent(name: &str, scope: AgentSettingsScope) -> AgentSettingsView {
         path: format!("{name}.md"),
         tools: vec!["fs.read".to_string()],
         model_profile: Some("fast".to_string()),
+        reasoning_effort: Some("medium".to_string()),
         skills: vec!["kairox-dev-workflow".to_string()],
         nickname_candidates: vec![name.to_string()],
         enabled: true,
@@ -82,6 +83,7 @@ fn save_editor_dispatches_agent_settings_input() {
         description: "Plans work".to_string(),
         tools: vec!["search".to_string()],
         model_profile: Some("reasoning".to_string()),
+        reasoning_effort: Some("high".to_string()),
         skills: vec!["kairox-dev-workflow".to_string()],
         nickname_candidates: vec!["Planner".to_string()],
         enabled: false,
@@ -95,6 +97,7 @@ fn save_editor_dispatches_agent_settings_input() {
         [Command::SaveAgentSettings { input }] if input.name == "planner"
             && input.scope == AgentSettingsScope::Project
             && input.tools == ["search"]
+            && input.reasoning_effort.as_deref() == Some("high")
             && !input.enabled
     ));
 }

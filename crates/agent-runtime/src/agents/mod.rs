@@ -119,6 +119,11 @@ pub trait AgentStrategy: Send + Sync {
         None
     }
 
+    /// Optional reasoning-effort override from agent settings.
+    fn reasoning_effort_override(&self) -> Option<&str> {
+        None
+    }
+
     /// Skills configured for this agent.
     fn skills(&self) -> &[String] {
         &[]

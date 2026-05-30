@@ -24,6 +24,8 @@ pub struct AgentSettingsInput {
     pub tools: Vec<String>,
     #[serde(rename = "modelProfile")]
     pub model_profile: Option<String>,
+    #[serde(default, rename = "reasoningEffort")]
+    pub reasoning_effort: Option<String>,
     pub skills: Vec<String>,
     #[serde(rename = "nicknameCandidates")]
     pub nickname_candidates: Vec<String>,
@@ -43,6 +45,8 @@ pub struct AgentSettingsView {
     pub tools: Vec<String>,
     #[serde(rename = "modelProfile")]
     pub model_profile: Option<String>,
+    #[serde(default, rename = "reasoningEffort")]
+    pub reasoning_effort: Option<String>,
     pub skills: Vec<String>,
     #[serde(rename = "nicknameCandidates")]
     pub nickname_candidates: Vec<String>,

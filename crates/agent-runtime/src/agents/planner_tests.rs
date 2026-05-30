@@ -115,6 +115,7 @@ async fn from_agent_view_sets_model_profile_skills_tools_and_instructions() {
         path: "builtin://default".into(),
         tools: vec!["fs.read".into(), "search".into()],
         model_profile: Some("fast".into()),
+        reasoning_effort: Some("high".into()),
         skills: vec!["kairox-dev-workflow".into()],
         nickname_candidates: vec!["Default".into()],
         enabled: true,
@@ -130,6 +131,7 @@ async fn from_agent_view_sets_model_profile_skills_tools_and_instructions() {
     let strategy = PlannerStrategy::from_agent_view(&view);
 
     assert_eq!(strategy.model_profile_override(), Some("fast"));
+    assert_eq!(strategy.reasoning_effort_override(), Some("high"));
     assert_eq!(strategy.skills(), &["kairox-dev-workflow"]);
     assert_eq!(strategy.tools_allowlist(), &["fs.read", "search"]);
 
@@ -162,6 +164,7 @@ fn from_agent_view_falls_back_to_default_prompt_when_instructions_empty() {
         path: "builtin://default".into(),
         tools: vec![],
         model_profile: None,
+        reasoning_effort: None,
         skills: vec![],
         nickname_candidates: vec![],
         enabled: true,
@@ -177,6 +180,7 @@ fn from_agent_view_falls_back_to_default_prompt_when_instructions_empty() {
     let strategy = PlannerStrategy::from_agent_view(&view);
 
     assert_eq!(strategy.model_profile_override(), None);
+    assert_eq!(strategy.reasoning_effort_override(), None);
     assert!(strategy.skills().is_empty());
     assert!(strategy.tools_allowlist().is_empty());
 }

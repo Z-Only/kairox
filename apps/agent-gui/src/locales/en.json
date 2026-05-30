@@ -546,6 +546,7 @@
     "name": "Name",
     "description": "Description",
     "modelProfile": "Model profile",
+    "reasoningEffort": "Reasoning effort",
     "skills": "Skills",
     "nicknames": "Nicknames",
     "saving": "Saving",

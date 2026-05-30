@@ -28,6 +28,7 @@ const form = reactive<AgentSettingsInput>({
   description: "",
   tools: [],
   modelProfile: null,
+  reasoningEffort: null,
   skills: [],
   nicknameCandidates: [],
   enabled: true,
@@ -86,6 +87,7 @@ function searchableAgentText(agent: AgentSettingsView): string {
     scopeLabel(agent.scope),
     agent.scope,
     agent.modelProfile,
+    agent.reasoningEffort,
     agent.tools.join(" "),
     agent.skills.join(" "),
     agent.nicknameCandidates.join(" "),
@@ -144,6 +146,7 @@ function startCreate(): void {
     description: "",
     tools: [],
     modelProfile: null,
+    reasoningEffort: null,
     skills: [],
     nicknameCandidates: [],
     enabled: true,
@@ -163,6 +166,7 @@ function editAgent(agent: AgentSettingsView): void {
     description: agent.description,
     tools: [...agent.tools],
     modelProfile: agent.modelProfile,
+    reasoningEffort: agent.reasoningEffort,
     skills: [...agent.skills],
     nicknameCandidates: [...agent.nicknameCandidates],
     enabled: agent.enabled,
@@ -188,6 +192,7 @@ async function saveAgent(): Promise<void> {
     skills: splitCsv(skillsText.value),
     nicknameCandidates: splitCsv(nicknamesText.value),
     modelProfile: form.modelProfile?.trim() || null,
+    reasoningEffort: form.reasoningEffort?.trim() || null,
     instructions: form.instructions.trimEnd()
   });
   closeEditor();
@@ -320,6 +325,10 @@ watch(
                 <dd>{{ agent.modelProfile || t("agents.defaultValue") }}</dd>
               </div>
               <div>
+                <dt>{{ t("agents.reasoningEffort") }}</dt>
+                <dd>{{ agent.reasoningEffort || t("agents.defaultValue") }}</dd>
+              </div>
+              <div>
                 <dt>{{ t("agents.tools") }}</dt>
                 <dd>
                   {{ agent.tools.length ? agent.tools.join(", ") : t("agents.defaultValue") }}
@@ -384,6 +393,13 @@ watch(
           <KxInput
             v-model="form.modelProfile"
             data-test="agent-form-model"
+            :placeholder="t('agents.defaultValue')"
+          />
+        </KxFormField>
+        <KxFormField :label="t('agents.reasoningEffort')">
+          <KxInput
+            v-model="form.reasoningEffort"
+            data-test="agent-form-reasoning-effort"
             :placeholder="t('agents.defaultValue')"
           />
         </KxFormField>

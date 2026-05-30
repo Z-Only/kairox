@@ -98,6 +98,7 @@ pub async fn copy_agent_settings(
             description: view.description,
             tools: view.tools,
             model_profile: view.model_profile,
+            reasoning_effort: view.reasoning_effort,
             skills: view.skills,
             nickname_candidates: view.nickname_candidates,
             enabled: view.enabled,

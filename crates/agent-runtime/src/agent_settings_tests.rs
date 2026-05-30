@@ -16,6 +16,7 @@ name: code-reviewer
 description: Review code for correctness and missing tests.
 tools: ["fs.read", "search"]
 model_profile: "fast"
+reasoning_effort: "high"
 skills: ["kairox-dev-workflow"]
 nickname_candidates: ["Reviewer", "Audit"]
 enabled: false
@@ -32,6 +33,7 @@ Review code like an owner.
     );
     assert_eq!(parsed.tools, vec!["fs.read", "search"]);
     assert_eq!(parsed.model_profile.as_deref(), Some("fast"));
+    assert_eq!(parsed.reasoning_effort.as_deref(), Some("high"));
     assert_eq!(parsed.skills, vec!["kairox-dev-workflow"]);
     assert_eq!(parsed.nickname_candidates, vec!["Reviewer", "Audit"]);
     assert!(!parsed.enabled);
@@ -144,6 +146,7 @@ async fn upsert_writes_agent_markdown_to_target_scope() {
         description: "Run focused tests and report failures.".into(),
         tools: vec!["shell".into()],
         model_profile: Some("fast".into()),
+        reasoning_effort: Some("medium".into()),
         skills: vec![],
         nickname_candidates: vec!["Test".into()],
         enabled: true,
@@ -159,7 +162,9 @@ async fn upsert_writes_agent_markdown_to_target_scope() {
         .expect("agent file should exist");
 
     assert_eq!(view.scope, AgentSettingsScope::Project);
+    assert_eq!(view.reasoning_effort.as_deref(), Some("medium"));
     assert!(raw.contains("name: test-runner"));
+    assert!(raw.contains("reasoning_effort: medium"));
     assert!(raw.contains("Run tests before claiming success."));
     assert!(path.starts_with(roots.workspace_root.unwrap()));
 }
