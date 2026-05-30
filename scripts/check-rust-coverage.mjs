@@ -99,8 +99,10 @@ const groups = [
       // the ~100-line http_client.rs test block also moved test lines out of the T2 src tree; floor lowered 74 → 73.
       // mcp streamable_http tests extracted to streamable_http_tests.rs (excluded from src function counts); floor lowered 5 → 3.
       // the ~124-line streamable_http.rs test block also moved test lines out of the T2 src tree; floor lowered 73 → 72.
-      functions: 3,
-      lines: 72
+      // models ollama tests extracted to ollama_tests.rs (excluded from src function counts); floor lowered 3 → 1.
+      // the ~156-line ollama.rs test block also moved test lines out of the T2 src tree; floor lowered 72 → 71.
+      functions: 1,
+      lines: 71
     }
   },
   // Tier 2B — Tauri IPC boundary. Latest CI baseline: functions 3.17%,
