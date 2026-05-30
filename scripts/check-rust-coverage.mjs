@@ -207,7 +207,8 @@ const groups = [
       // function counts); floor lowered 29 → 27.
       // scheduler tests extracted to scheduler_tests.rs (excluded from src function counts); floor lowered 27 → 25.
       functions: 25,
-      lines: 62
+      // view tests extracted to view_tests.rs: those test lines leave the gated T4 src tier's covered-lines numerator (measurement shift, not a production regression); post-shift baseline ~61-62%, floor lowered 62 → 60.
+      lines: 60
     }
   },
   // Workspace overall — anti-truncation backstop covering every counted file.
