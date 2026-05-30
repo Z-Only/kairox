@@ -4,7 +4,7 @@ pub mod settings;
 
 pub use manifest::{
     read_plugin_manifest, PluginComponentInventory, PluginInterface, PluginManifestKind,
-    PluginManifestView,
+    PluginManifestView, PluginPermissionHints,
 };
 pub use marketplace::{parse_marketplace, MarketplaceFile, MarketplacePluginEntry};
 pub use settings::{

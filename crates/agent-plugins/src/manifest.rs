@@ -32,6 +32,15 @@ pub struct PluginComponentInventory {
     pub hook_count: usize,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PluginPermissionHints {
+    pub approval_policy: Option<String>,
+    pub sandbox_policy: Option<String>,
+    pub network_access: bool,
+    pub writable_roots: Vec<String>,
+    pub tools: Vec<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PluginManifestView {
     pub name: String,
@@ -44,6 +53,7 @@ pub struct PluginManifestView {
     pub keywords: Vec<String>,
     pub interface: PluginInterface,
     pub inventory: PluginComponentInventory,
+    pub permissions: PluginPermissionHints,
     pub manifest_kind: PluginManifestKind,
     pub manifest_path: PathBuf,
     pub plugin_root: PathBuf,
@@ -80,6 +90,8 @@ struct RawPluginManifest {
     hooks: Option<Value>,
     #[serde(default)]
     interface: Option<RawPluginInterface>,
+    #[serde(default)]
+    permissions: Option<RawPluginPermissions>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,6 +115,20 @@ struct RawPluginInterface {
     logo: Option<String>,
     #[serde(default, rename = "composerIcon")]
     composer_icon: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawPluginPermissions {
+    #[serde(default, rename = "approvalPolicy")]
+    approval_policy: Option<String>,
+    #[serde(default, rename = "sandboxPolicy")]
+    sandbox_policy: Option<String>,
+    #[serde(default, rename = "networkAccess")]
+    network_access: bool,
+    #[serde(default, rename = "writableRoots")]
+    writable_roots: Vec<String>,
+    #[serde(default)]
+    tools: Vec<String>,
 }
 
 pub async fn read_plugin_manifest(plugin_root: &Path) -> Result<PluginManifestView> {
@@ -151,6 +177,7 @@ async fn view_from_raw(
     let description = raw.description.clone().unwrap_or_default();
     let inventory = build_inventory(plugin_root, &raw).await;
     let interface = raw.interface.unwrap_or_default();
+    let permissions = raw.permissions.unwrap_or_default();
 
     PluginManifestView {
         name,
@@ -170,6 +197,13 @@ async fn view_from_raw(
             composer_icon: interface.composer_icon,
         },
         inventory,
+        permissions: PluginPermissionHints {
+            approval_policy: permissions.approval_policy,
+            sandbox_policy: permissions.sandbox_policy,
+            network_access: permissions.network_access,
+            writable_roots: permissions.writable_roots,
+            tools: permissions.tools,
+        },
         manifest_kind,
         manifest_path,
         plugin_root: plugin_root.to_path_buf(),

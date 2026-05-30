@@ -44,6 +44,45 @@ async fn reads_codex_plugin_manifest_and_inventory() {
 }
 
 #[tokio::test]
+async fn reads_plugin_permission_hints() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let manifest_dir = dir.path().join(".kairox-plugin");
+    fs::create_dir_all(&manifest_dir).expect("manifest dir");
+    fs::write(
+        manifest_dir.join("plugin.json"),
+        r#"{
+              "name": "repo-tools",
+              "description": "Repository automation",
+              "permissions": {
+                "approvalPolicy": "on_request",
+                "sandboxPolicy": "workspace_write",
+                "networkAccess": true,
+                "writableRoots": ["./.kairox/plugins/repo-tools"],
+                "tools": ["shell", "fs.read"]
+              }
+            }"#,
+    )
+    .expect("manifest");
+
+    let plugin = read_plugin_manifest(dir.path()).await.expect("plugin");
+
+    assert_eq!(
+        plugin.permissions.approval_policy.as_deref(),
+        Some("on_request")
+    );
+    assert_eq!(
+        plugin.permissions.sandbox_policy.as_deref(),
+        Some("workspace_write")
+    );
+    assert!(plugin.permissions.network_access);
+    assert_eq!(
+        plugin.permissions.writable_roots,
+        vec!["./.kairox/plugins/repo-tools"]
+    );
+    assert_eq!(plugin.permissions.tools, vec!["shell", "fs.read"]);
+}
+
+#[tokio::test]
 async fn reads_claude_plugin_manifest_with_folder_skill_names() {
     let dir = tempfile::tempdir().expect("tempdir");
     let manifest_dir = dir.path().join(".claude-plugin");
