@@ -16,6 +16,11 @@ pub struct MarketplacePluginEntry {
     pub description: String,
     pub version: Option<String>,
     pub source: String,
+    pub homepage: Option<String>,
+    pub repository: Option<String>,
+    pub keywords: Vec<String>,
+    pub category: Option<String>,
+    pub trust: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +39,16 @@ struct RawMarketplacePluginEntry {
     description: Option<String>,
     #[serde(default)]
     version: Option<String>,
+    #[serde(default)]
+    homepage: Option<String>,
+    #[serde(default)]
+    repository: Option<Value>,
+    #[serde(default)]
+    keywords: Vec<String>,
+    #[serde(default)]
+    category: Option<String>,
+    #[serde(default)]
+    trust: Option<String>,
     source: Value,
 }
 
@@ -51,9 +66,25 @@ pub fn parse_marketplace(raw: &str) -> Result<MarketplaceFile> {
                 description: plugin.description.unwrap_or_default(),
                 version: plugin.version,
                 source: normalize_source(plugin.source),
+                homepage: plugin.homepage,
+                repository: plugin.repository.and_then(normalize_optional_url),
+                keywords: plugin.keywords,
+                category: plugin.category,
+                trust: plugin.trust,
             })
             .collect(),
     })
+}
+
+fn normalize_optional_url(value: Value) -> Option<String> {
+    match value {
+        Value::String(value) => Some(value),
+        Value::Object(object) => object
+            .get("url")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        _ => None,
+    }
 }
 
 fn normalize_source(source: Value) -> String {
@@ -79,7 +110,12 @@ mod tests {
                   "name": "quality-review",
                   "source": "./plugins/quality-review",
                   "description": "Review code",
-                  "version": "1.0.0"
+                  "version": "1.0.0",
+                  "homepage": "https://example.com/quality-review",
+                  "repository": {"url": "https://github.com/example/quality-review"},
+                  "keywords": ["review", "coding"],
+                  "category": "Coding",
+                  "trust": "verified"
                 }
               ]
             }"#,
@@ -89,5 +125,16 @@ mod tests {
         assert_eq!(marketplace.name, "my-plugins");
         assert_eq!(marketplace.plugins.len(), 1);
         assert_eq!(marketplace.plugins[0].source, "./plugins/quality-review");
+        assert_eq!(
+            marketplace.plugins[0].homepage.as_deref(),
+            Some("https://example.com/quality-review")
+        );
+        assert_eq!(
+            marketplace.plugins[0].repository.as_deref(),
+            Some("https://github.com/example/quality-review")
+        );
+        assert_eq!(marketplace.plugins[0].keywords, vec!["review", "coding"]);
+        assert_eq!(marketplace.plugins[0].category.as_deref(), Some("Coding"));
+        assert_eq!(marketplace.plugins[0].trust.as_deref(), Some("verified"));
     }
 }
