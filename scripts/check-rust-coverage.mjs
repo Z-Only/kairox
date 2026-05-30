@@ -177,8 +177,9 @@ const groups = [
       // search/rg tests extracted to rg_tests.rs (excluded from src function counts); floor lowered 44 → 42.
       // skills frontmatter tests extracted to frontmatter_tests.rs (excluded from src function counts); floor lowered 42 → 40.
       // the ~119-line frontmatter.rs test block also moved test lines out of T3 src (measurement shift, no regression); floor lowered 85 → 84.
-      functions: 40,
-      lines: 84
+      // skills state tests extracted to state_tests.rs (excluded from src counts); ~184 test lines/fns left T3 src (measurement shift, no regression); floors lowered functions 40 → 38, lines 84 → 83.
+      functions: 38,
+      lines: 83
     }
   },
   // Tier 4 — Floor: rendering shells and evaluation CLI. Post-#509 finally
