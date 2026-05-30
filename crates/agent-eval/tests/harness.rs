@@ -105,6 +105,40 @@ async fn runs_fake_scenario_and_records_trace_metrics() {
 }
 
 #[tokio::test]
+async fn scenario_fails_when_forbidden_event_type_is_seen() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let mut harness = EvalHarness::new(EvalRunOptions {
+        workspace_root: workspace.path().to_path_buf(),
+        default_profile: Some("fake".into()),
+        config: Some(Config::defaults()),
+        ..EvalRunOptions::default()
+    })
+    .await
+    .expect("harness should initialize");
+
+    let scenario = EvalScenario {
+        id: "forbidden-event".into(),
+        prompt: "Say hello from the configured fake model".into(),
+        expected: EvalExpectation {
+            assistant_contains: vec!["hello from Kairox".into()],
+            forbidden_event_types: vec!["AssistantMessageCompleted".into()],
+            ..EvalExpectation::default()
+        },
+        ..EvalScenario::default()
+    };
+
+    let result = harness
+        .run_scenario(&scenario)
+        .await
+        .expect("scenario should run");
+
+    assert!(!result.passed);
+    assert!(result
+        .failures
+        .contains(&"forbidden event type present: AssistantMessageCompleted".into()));
+}
+
+#[tokio::test]
 async fn fake_tool_call_scenario_emits_tool_lifecycle_events() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let mut harness = EvalHarness::new(EvalRunOptions {
