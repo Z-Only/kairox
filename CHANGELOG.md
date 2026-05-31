@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **site**: refresh roadmap for v0.33 (#731)
 - **ai**: sync assistant instructions
 - **ai**: document test organization
+- **testing**: update tui gui parity matrix
 
 ### 🧪 Testing
 
