@@ -274,6 +274,16 @@ impl CommandPalette {
                     });
                 }
             }
+            PaletteAction::ExportTrace => {
+                if let Some(session_id) = ctx.current_session_id {
+                    commands.push(Command::ExportTrace {
+                        session_id: session_id.clone(),
+                    });
+                }
+            }
+            PaletteAction::RefreshConfig => {
+                commands.push(Command::RefreshConfig);
+            }
             ref prefill => {
                 if let Some(text) = prefill_text(prefill) {
                     effects.push(CrossPanelEffect::PrefillChatInput(text.to_string()));

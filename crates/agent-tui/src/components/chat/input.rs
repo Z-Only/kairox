@@ -294,6 +294,16 @@ impl ChatPanel {
         {
             self.clear_input();
             commands.push(Command::DeleteSkillSettings { skill_id });
+        } else if trimmed == ":export" {
+            self.clear_input();
+            if let Some(session_id) = ctx.current_session_id {
+                commands.push(Command::ExportTrace {
+                    session_id: session_id.clone(),
+                });
+            }
+        } else if trimmed == ":refresh-config" {
+            self.clear_input();
+            commands.push(Command::RefreshConfig);
         } else if trimmed == ":monitors" {
             self.clear_input();
             commands.push(Command::MonitorList);

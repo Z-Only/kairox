@@ -165,7 +165,9 @@ pub async fn dispatch_commands(
             | Command::SetProjectExpanded { .. }
             | Command::RefreshProjectGitStatus { .. }
             | Command::InitProjectGit { .. }
-            | Command::ShowProjectInstructions { .. } => {
+            | Command::ShowProjectInstructions { .. }
+            | Command::ExportTrace { .. }
+            | Command::RefreshConfig => {
                 dispatch_app_command(runtime, app, command).await;
             }
         }

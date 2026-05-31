@@ -63,6 +63,8 @@ pub enum PaletteAction {
     PrefillSkillDelete,
     MonitorList,
     PrefillMonitorStop,
+    ExportTrace,
+    RefreshConfig,
 }
 
 /// A static entry in the palette registry.
@@ -396,6 +398,18 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             "Delete one installed skill setting",
             PaletteAction::PrefillSkillDelete,
         ),
+        PaletteEntry::static_entry(
+            "export-trace",
+            ":export",
+            "Export the current session trace to a JSON file",
+            PaletteAction::ExportTrace,
+        ),
+        PaletteEntry::static_entry(
+            "refresh-config",
+            "Settings: refresh config",
+            "Reload configuration files",
+            PaletteAction::RefreshConfig,
+        ),
     ];
     ENTRIES
 }
@@ -467,6 +481,8 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::SettingsProjectPrevious
         | PaletteAction::RefreshSkillCatalog
         | PaletteAction::MonitorList
+        | PaletteAction::ExportTrace
+        | PaletteAction::RefreshConfig
         | PaletteAction::QueueAction(_)
         | PaletteAction::SwitchModel { .. }
         | PaletteAction::ActivateSkill { .. } => None,
