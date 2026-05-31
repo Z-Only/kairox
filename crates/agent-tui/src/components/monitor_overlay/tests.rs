@@ -72,10 +72,7 @@ fn lists_monitors_from_snapshot() {
         }
         rendered.push('\n');
     }
-    assert!(
-        rendered.contains("mon_1"),
-        "monitor id missing: {rendered}"
-    );
+    assert!(rendered.contains("mon_1"), "monitor id missing: {rendered}");
     assert!(
         rendered.contains("Watch build logs"),
         "description missing: {rendered}"

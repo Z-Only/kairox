@@ -100,15 +100,9 @@ fn render_monitors(
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),
-                Span::styled(
-                    truncate_command(&m.command, 30),
-                    theme::muted(),
-                ),
+                Span::styled(truncate_command(&m.command, 30), theme::muted()),
                 Span::raw("  "),
-                Span::styled(
-                    format!("[{persistence}]"),
-                    theme::muted(),
-                ),
+                Span::styled(format!("[{persistence}]"), theme::muted()),
             ]);
             ListItem::new(line)
         })
