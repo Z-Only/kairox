@@ -70,6 +70,7 @@ pub async fn dispatch_commands<F>(
             | Command::SwitchModel { .. }
             | Command::SetSessionApprovalPolicy { .. }
             | Command::SetSessionSandboxPolicy { .. }
+            | Command::OpenMonitorOverlay
             | Command::MonitorList
             | Command::MonitorStop { .. } => {}
 

@@ -57,6 +57,7 @@ impl FocusManager {
                 | FocusTarget::ModelOverlay
                 | FocusTarget::AgentOverlay
                 | FocusTarget::PluginOverlay
+                | FocusTarget::MonitorOverlay
                 | FocusTarget::HooksOverlay
                 | FocusTarget::InstructionsOverlay
         ) {
@@ -74,6 +75,7 @@ impl FocusManager {
             | FocusTarget::ModelOverlay
             | FocusTarget::AgentOverlay
             | FocusTarget::PluginOverlay
+            | FocusTarget::MonitorOverlay
             | FocusTarget::HooksOverlay
             | FocusTarget::InstructionsOverlay => unreachable!(),
         };

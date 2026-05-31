@@ -9,6 +9,7 @@ pub mod hooks_overlay;
 pub mod instructions_overlay;
 pub mod mcp_overlay;
 pub mod model_overlay;
+pub mod monitor_overlay;
 pub mod permission_modal;
 pub mod plugin_overlay;
 pub mod sessions;
@@ -67,6 +68,7 @@ pub enum FocusTarget {
     PluginOverlay,
     HooksOverlay,
     InstructionsOverlay,
+    MonitorOverlay,
 }
 
 /// Read-only shared state passed to components on every event.

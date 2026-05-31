@@ -62,7 +62,7 @@ pub async fn dispatch_commands(
                 memory::dispatch(runtime, app, command).await;
             }
 
-            Command::MonitorList | Command::MonitorStop { .. } => {
+            Command::OpenMonitorOverlay | Command::MonitorList | Command::MonitorStop { .. } => {
                 monitor::dispatch(runtime, app, command).await;
             }
 

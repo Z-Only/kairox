@@ -109,6 +109,9 @@ impl App {
                 if self.plugin_overlay.is_visible() && !is_ctrl_g && !is_f1 {
                     route_to_overlay!(self, self.plugin_overlay, event);
                 }
+                if self.monitor_overlay.is_visible() && !is_f1 {
+                    route_to_overlay!(self, self.monitor_overlay, event);
+                }
                 if self.model_overlay.is_visible() && !is_ctrl_l && !is_f1 {
                     route_to_overlay!(self, self.model_overlay, event);
                 }

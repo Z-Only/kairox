@@ -3,8 +3,8 @@ use agent_core::SessionId;
 use super::{
     AgentOverlaySnapshot, CommandPaletteSnapshot, FocusTarget, HelpOverlaySnapshot,
     McpConnectivityEntry, McpOverlaySnapshot, McpPromptEntry, McpResourceEntry, McpToolEntry,
-    ModelOverlaySnapshot, ModelProfileTestResult, PermissionRequest, PluginOverlaySnapshot,
-    SessionInfo, SkillOverlaySnapshot, StatusInfo,
+    ModelOverlaySnapshot, ModelProfileTestResult, MonitorOverlaySnapshot, PermissionRequest,
+    PluginOverlaySnapshot, SessionInfo, SkillOverlaySnapshot, StatusInfo,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,6 +76,8 @@ pub enum CrossPanelEffect {
     ShowInstructionsOverlay(agent_core::facade::InstructionsView),
     ShowSystemPromptOverlay(agent_core::facade::InstructionsView),
     DismissInstructionsOverlay,
+    ShowMonitorOverlay(MonitorOverlaySnapshot),
+    DismissMonitorOverlay,
     ShowHelpOverlay(HelpOverlaySnapshot),
     DismissHelpOverlay,
 }
