@@ -110,6 +110,13 @@ impl SkillsOverlay {
                 .map(|source| Command::RemoveSkillSource {
                     source_id: source.id.clone(),
                 }),
+            (SkillTab::Search, KeyCode::Char('i') | KeyCode::Char('I')) => {
+                self.install_selected_search_result_command()
+            }
+            (SkillTab::Search, KeyCode::Char('t') | KeyCode::Char('T')) => {
+                self.toggle_install_target();
+                None
+            }
             _ => None,
         }
     }
@@ -151,6 +158,10 @@ impl SkillsOverlay {
                 commands.extend(self.handle_catalog_filter_key(key.code, key.modifiers));
                 return (effects, commands);
             }
+            SkillOverlayMode::RemoteSearchInput => {
+                commands.extend(self.handle_remote_search_input_key(key.code, key.modifiers));
+                return (effects, commands);
+            }
             SkillOverlayMode::List => {}
         }
 
@@ -176,6 +187,10 @@ impl SkillsOverlay {
                 self.catalog_keyword_draft = self.catalog_keyword.clone();
                 self.mode = SkillOverlayMode::CatalogFilter;
             }
+            KeyCode::Char('/') if self.tab == SkillTab::Search => {
+                self.search_query_draft = self.search_query.clone();
+                self.mode = SkillOverlayMode::RemoteSearchInput;
+            }
             KeyCode::Char('s') | KeyCode::Char('S') if self.tab == SkillTab::Catalog => {
                 self.cycle_catalog_source_filter();
                 commands.push(self.list_catalog_command());
@@ -194,6 +209,11 @@ impl SkillsOverlay {
                 SkillTab::Catalog => {
                     if self.selected_catalog_entry().is_some() {
                         self.mode = SkillOverlayMode::CatalogDetail;
+                    }
+                }
+                SkillTab::Search => {
+                    if let Some(cmd) = self.install_selected_search_result_command() {
+                        commands.push(cmd);
                     }
                 }
                 SkillTab::Installed | SkillTab::Sources => {}

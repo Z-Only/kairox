@@ -114,7 +114,8 @@ pub async fn dispatch_commands<F>(
             | Command::SetSkillSourceEnabled { .. }
             | Command::AddSkillSource { .. }
             | Command::RemoveSkillSource { .. }
-            | Command::RefreshSkillCatalog { .. } => {
+            | Command::RefreshSkillCatalog { .. }
+            | Command::SearchRemoteSkills { .. } => {
                 skills::dispatch(runtime, app, command).await;
             }
 

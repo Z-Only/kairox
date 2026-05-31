@@ -142,6 +142,7 @@ pub async fn dispatch_commands(
             | Command::AddSkillSource { .. }
             | Command::RemoveSkillSource { .. }
             | Command::RefreshSkillCatalog { .. }
+            | Command::SearchRemoteSkills { .. }
             | Command::SetPluginEnabled { .. }
             | Command::DeletePluginSettings { .. }
             | Command::SetPluginMarketplaceSourceEnabled { .. }

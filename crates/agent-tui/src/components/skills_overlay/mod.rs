@@ -44,6 +44,14 @@ impl Component for SkillsOverlay {
                     body: body.clone(),
                 });
             }
+            CrossPanelEffect::SkillRemoteSearchResults(results) if self.visible => {
+                self.search_results = results.clone();
+                if self.search_results.is_empty() {
+                    self.search_state.select(None);
+                } else {
+                    self.search_state.select(Some(0));
+                }
+            }
             _ => {}
         }
     }

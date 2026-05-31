@@ -3,8 +3,8 @@
 //! Key-event handling lives in [`super::keys`].
 
 use agent_core::facade::{
-    InstallRemoteSkillRequest, SkillCatalogEntry, SkillInstallTarget, SkillSettingsView,
-    SkillSourceView,
+    InstallRemoteSkillRequest, RemoteSkillSearchResult, SkillCatalogEntry, SkillInstallTarget,
+    SkillSettingsView, SkillSourceView,
 };
 use ratatui::widgets::ListState;
 
@@ -32,6 +32,10 @@ pub struct SkillsOverlay {
     pub(super) source_draft: SkillSourceDraft,
     pub(super) source_field_index: usize,
     pub(super) body: Option<BodyView>,
+    pub(super) search_results: Vec<RemoteSkillSearchResult>,
+    pub(super) search_query: String,
+    pub(super) search_query_draft: String,
+    pub(super) search_state: ListState,
 }
 
 impl Default for SkillsOverlay {
@@ -62,6 +66,10 @@ impl SkillsOverlay {
             source_draft: SkillSourceDraft::new(),
             source_field_index: 0,
             body: None,
+            search_results: Vec::new(),
+            search_query: String::new(),
+            search_query_draft: String::new(),
+            search_state: ListState::default(),
         }
     }
 
@@ -117,6 +125,10 @@ impl SkillsOverlay {
         self.source_draft = SkillSourceDraft::new();
         self.source_field_index = 0;
         self.body = None;
+        self.search_results.clear();
+        self.search_query.clear();
+        self.search_query_draft.clear();
+        self.search_state.select(None);
     }
 
     #[allow(dead_code)]
@@ -173,6 +185,7 @@ impl SkillsOverlay {
             SkillTab::Installed => self.installed.len(),
             SkillTab::Catalog => self.catalog.len(),
             SkillTab::Sources => self.sources.len(),
+            SkillTab::Search => self.search_results.len(),
         }
     }
 
@@ -182,6 +195,7 @@ impl SkillsOverlay {
             SkillTab::Installed => self.installed_state.selected(),
             SkillTab::Catalog => self.catalog_state.selected(),
             SkillTab::Sources => self.sources_state.selected(),
+            SkillTab::Search => self.search_state.selected(),
         }
     }
 
@@ -191,6 +205,7 @@ impl SkillsOverlay {
             SkillTab::Installed => self.installed_state.select(selected),
             SkillTab::Catalog => self.catalog_state.select(selected),
             SkillTab::Sources => self.sources_state.select(selected),
+            SkillTab::Search => self.search_state.select(selected),
         }
     }
 
@@ -200,6 +215,7 @@ impl SkillsOverlay {
             (self.installed.len(), &mut self.installed_state),
             (self.catalog.len(), &mut self.catalog_state),
             (self.sources.len(), &mut self.sources_state),
+            (self.search_results.len(), &mut self.search_state),
         ] {
             let selected = if len == 0 {
                 None
@@ -287,6 +303,32 @@ impl SkillsOverlay {
                     package_url: entry.package_url.clone(),
                 },
             })
+    }
+
+    pub(super) fn selected_search_result(&self) -> Option<&RemoteSkillSearchResult> {
+        self.search_state
+            .selected()
+            .and_then(|i| self.search_results.get(i))
+    }
+
+    pub(super) fn install_selected_search_result_command(&self) -> Option<Command> {
+        self.selected_search_result()
+            .map(|result| Command::InstallRemoteSkill {
+                request: InstallRemoteSkillRequest {
+                    package: result.package.clone(),
+                    source: "registry".to_string(),
+                    target: self.install_target,
+                    package_url: None,
+                },
+            })
+    }
+
+    pub(super) fn search_query_for_display(&self) -> &str {
+        if self.mode == SkillOverlayMode::RemoteSearchInput {
+            &self.search_query_draft
+        } else {
+            &self.search_query
+        }
     }
 }
 

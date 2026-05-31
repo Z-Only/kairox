@@ -80,4 +80,6 @@ pub enum CrossPanelEffect {
     DismissMonitorOverlay,
     ShowHelpOverlay(HelpOverlaySnapshot),
     DismissHelpOverlay,
+    /// Deliver remote skill search results to the skills overlay.
+    SkillRemoteSearchResults(Vec<agent_core::facade::RemoteSkillSearchResult>),
 }

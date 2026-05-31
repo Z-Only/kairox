@@ -230,6 +230,42 @@ impl SkillsOverlay {
         }
         Vec::new()
     }
+    pub(super) fn handle_remote_search_input_key(
+        &mut self,
+        key: KeyCode,
+        modifiers: KeyModifiers,
+    ) -> Vec<Command> {
+        match key {
+            KeyCode::Enter => {
+                let query = self.search_query_draft.trim().to_string();
+                if !query.is_empty() {
+                    self.search_query = query.clone();
+                    self.mode = SkillOverlayMode::List;
+                    return vec![Command::SearchRemoteSkills { query }];
+                }
+                self.mode = SkillOverlayMode::List;
+            }
+            KeyCode::Esc => {
+                self.search_query_draft = self.search_query.clone();
+                self.mode = SkillOverlayMode::List;
+            }
+            KeyCode::Backspace => {
+                self.search_query_draft.pop();
+            }
+            KeyCode::Delete => {
+                self.search_query_draft.clear();
+            }
+            KeyCode::Char('u') if modifiers.contains(KeyModifiers::CONTROL) => {
+                self.search_query_draft.clear();
+            }
+            KeyCode::Char(ch) if !modifiers.contains(KeyModifiers::CONTROL) => {
+                self.search_query_draft.push(ch);
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
     pub(super) fn handle_catalog_filter_key(
         &mut self,
         key: KeyCode,
