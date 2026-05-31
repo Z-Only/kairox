@@ -56,14 +56,17 @@ Both axes can be changed mid-session and surface in the GUI (`ChatApprovalSelect
 
 `agent-tools` ships a minimal set of built-in tools. Every built-in implements the `Tool` trait and is registered with the `ToolRegistry` at runtime startup.
 
-| Tool       | Module              | What it does                                                  | Risk   | Effect surface                    |
-| ---------- | ------------------- | ------------------------------------------------------------- | ------ | --------------------------------- |
-| `shell`    | `ShellExecTool`     | Runs a shell command and returns stdout/stderr.               | High   | Arbitrary process execution.      |
-| `fs.read`  | `fs::read`          | Reads a file's content.                                       | Low    | Read-only filesystem access.      |
-| `fs.write` | `fs::write`         | Writes content to a file (creates or overwrites).             | Medium | Filesystem mutation.              |
-| `fs.list`  | `fs::list`          | Lists directory entries.                                      | Low    | Read-only filesystem access.      |
-| `patch`    | `PatchApplyTool`    | Applies a unified diff to one or more files in the workspace. | Medium | Filesystem mutation (multi-file). |
-| `search`   | `RipgrepSearchTool` | Runs `ripgrep` over the workspace and returns matches.        | Low    | Read-only filesystem access.      |
+| Tool             | Module              | What it does                                                  | Risk   | Effect surface                    |
+| ---------------- | ------------------- | ------------------------------------------------------------- | ------ | --------------------------------- |
+| `shell.exec`     | `ShellExecTool`     | Runs a shell command and returns stdout/stderr.               | High   | Arbitrary process execution.      |
+| `fs.read`        | `fs::read`          | Reads a file's content.                                       | Low    | Read-only filesystem access.      |
+| `fs.write`       | `fs::write`         | Writes content to a file (creates or overwrites).             | Medium | Filesystem mutation.              |
+| `fs.list`        | `fs::list`          | Lists directory entries.                                      | Low    | Read-only filesystem access.      |
+| `patch.apply`    | `PatchApplyTool`    | Applies a unified diff to one or more files in the workspace. | Medium | Filesystem mutation (multi-file). |
+| `search.ripgrep` | `RipgrepSearchTool` | Runs `ripgrep` over the workspace and returns matches.        | Low    | Read-only filesystem access.      |
+| `monitor.start`  | `MonitorStartTool`  | Starts a background monitor.                                  | Low    | Monitor process lifecycle.        |
+| `monitor.list`   | `MonitorListTool`   | Lists active background monitors.                             | Low    | Read-only monitor metadata.       |
+| `monitor.stop`   | `MonitorStopTool`   | Stops a running background monitor.                           | Low    | Monitor process lifecycle.        |
 
 A tool's `PolicyEffect` (read-only / workspace write / network / destructive / unknown command) is the input the policy engine actually consults; `Risk` is the UI-facing hint shown in prompts and status bars.
 
@@ -83,7 +86,7 @@ flowchart LR
   registry --> built["Built-in tool<br/>(e.g. shell, fs.read)"]
   registry --> adapter["McpToolAdapter"]
   adapter --> client["McpClient"]
-  client --> transport["Transport<br/>(stdio / SSE)"]
+  client --> transport["Transport<br/>(stdio / SSE / Streamable HTTP)"]
   transport --> server["External MCP server<br/>(subprocess or HTTP)"]
 ```
 

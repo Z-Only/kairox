@@ -116,16 +116,16 @@ One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRe
 | Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool` |
 | Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`)                                                                                                                                 |
 
-Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
+Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, and `monitor.stop`. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
 
 ### `agent-mcp`
 
-| What           | Detail                                                                                                             |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Repo path      | [`crates/agent-mcp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-mcp)                                  |
-| Purpose        | MCP client, transports (stdio + SSE), lifecycle state machine, health checks, protocol types, marketplace catalog. |
-| Key types      | `McpClient`, `Transport`, `StdioTransport`, `SseTransport`, `ServerLifecycle`, `McpToolAdapter`, `CatalogEntry`    |
-| Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                      |
+| What           | Detail                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Repo path      | [`crates/agent-mcp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-mcp)                                                          |
+| Purpose        | MCP client, transports (stdio + SSE + Streamable HTTP), lifecycle state machine, health checks, protocol types, marketplace catalog.       |
+| Key types      | `McpClient`, `Transport`, `StdioTransport`, `SseTransport`, `StreamableHttpTransport`, `ServerLifecycle`, `McpToolAdapter`, `CatalogEntry` |
+| Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                                              |
 
 `McpToolAdapter` wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like a built-in. The marketplace catalog is pluggable (built-in static list + remote `CatalogSource`). See [Extensibility](../concepts/extensibility).
 
@@ -203,14 +203,14 @@ The Vue frontend (`apps/agent-gui/src`) consumes generated TypeScript from `apps
 
 ### `agent-eval`
 
-| What           | Detail                                                                                                                        |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Repo path      | [`crates/agent-eval`](https://github.com/Z-Only/kairox/tree/main/crates/agent-eval)                                           |
-| Purpose        | The `kairox-eval` CLI. Headless evaluation harness — runs scripted prompts against a configured runtime and collects metrics. |
-| Key types      | (binary; see `src/main.rs` and `src/lib.rs`)                                                                                  |
-| Depended on by | Standalone binary.                                                                                                            |
+| What           | Detail                                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-eval`](https://github.com/Z-Only/kairox/tree/main/crates/agent-eval)                                          |
+| Purpose        | The `kairox-eval` CLI. Headless evaluation harness — runs JSONL scenarios against a configured runtime and collects metrics. |
+| Key types      | `EvalHarness`, `EvalScenario`, `EvalExpectation`, `EvalRunOptions`, `EvalResult`, `EvalSummary`, `EvalReport`                |
+| Depended on by | Standalone binary.                                                                                                           |
 
-Eval depends on the runtime and the domain crates the same way the GUI does, but emits machine-readable output instead of pixels. It is the right tool for regression-testing prompt or model changes against a fixture corpus.
+Eval depends on the runtime and the domain crates the same way the GUI does, but emits machine-readable output instead of pixels. It supports scenario listing, tag filters, fail-fast runs, JSONL results, summary JSON, combined report JSON, and expectation checks for required/forbidden events, tool counts, failures, elapsed time, and context-token budgets.
 
 ## At a glance
 

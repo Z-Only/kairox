@@ -19,16 +19,16 @@
 | agent-memory  | Memory, context assembly, and compaction                                                                                                         | `MemoryStore`, `ContextAssembler`, `ContextCompactor`                                                            |
 | agent-models  | LLM adapters + model metadata/context windows                                                                                                    | `ModelClient`, `ModelRouter`, `ModelRegistry`                                                                    |
 | agent-tools   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools, MonitorRegistry                                                      | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PermissionEngine`, `Tool`, `MonitorRegistry` |
-| agent-mcp     | MCP client, transports (stdio/sse), lifecycle, health checks, protocol types, marketplace catalog                                                | `McpClient`, `Transport`, `ServerLifecycle`                                                                      |
+| agent-mcp     | MCP client, transports (stdio/SSE/Streamable HTTP), lifecycle, health checks, protocol types, marketplace catalog                                | `McpClient`, `Transport`, `McpTransportDef`, `ServerLifecycle`                                                   |
 | agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery                                                       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`                                                                  |
 | agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers                                                  | `PluginManifest`, plugin inventory helpers                                                                       |
 | agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config                                                            | `ProfileDef`, `build_router`                                                                                     |
 | agent-runtime | Agent loop, session-actor execution runtime, context budgets, race-free turn-end compaction, model switching, configurable agents, DAG execution | `LocalRuntime<S,M>`, `SessionActor`, `DagExecutor`, `AgentStrategy`                                              |
-| agent-eval    | Headless evaluation harness for agent loops over fixture profiles                                                                                | `kairox-eval` binary                                                                                             |
+| agent-eval    | Headless evaluation harness for JSONL scenarios with tag filters, fail-fast runs, summaries, combined reports, and scenario expectations         | `kairox-eval`, `EvalHarness`, `EvalScenario`, `EvalReport`                                                       |
 | agent-tui     | Terminal UI (ratatui), CLI flags (--version, --profile, --approval-policy, --sandbox-policy)                                                     | `App`                                                                                                            |
 | agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces                                                 | `commands.rs` → Pinia stores                                                                                     |
 
-> Built-in tools shipped by `agent-tools`: `shell` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch` (`PatchApplyTool`), `search` (`RipgrepSearchTool`), `monitor` (`MonitorCreateTool`, `MonitorListTool`, `MonitorStopTool`). External tools come from MCP servers via `McpToolAdapter`.
+> Built-in tools shipped by `agent-tools`: `shell.exec` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch.apply` (`PatchApplyTool`), `search.ripgrep` (`RipgrepSearchTool`), `monitor.start`, `monitor.list`, and `monitor.stop` (`MonitorStartTool`, `MonitorListTool`, `MonitorStopTool`). External tools come from MCP servers via `McpToolAdapter`.
 
 ## Before starting work
 
@@ -44,7 +44,16 @@
 4. Wire to UIs last: Tauri commands for GUI, `app.rs` handlers for TUI.
 5. If model/profile behavior changes, update model metadata/context-window tests and verify mid-session model switching and reasoning effort selection still respect budget limits.
 6. After changing any `#[tauri::command]` or `EventPayload`/domain type, run `just gen-types` to regenerate `apps/agent-gui/src/generated/{commands,events}.ts` (do not edit those files manually).
-7. If you add new IPC commands or events, also update the Playwright mock at `apps/agent-gui/e2e/tauri-mock.js`.
+7. If you add new IPC commands or events, also update the Playwright mock fragments under `apps/agent-gui/e2e/fixtures/tauri-mock/` and the registry/installer as needed.
+
+## Test organization
+
+- Rust crate-local tests live as sibling `src/*_tests.rs` files included by the owning module with `#[cfg(test)]` / `#[path = "..."]`; crate integration tests live under `crates/<crate>/tests/`.
+- Large Rust integration suites use `tests/<suite>/main.rs` plus suite-local `support`; fixtures belong in `tests/fixtures/`.
+- Runtime tests should use `FakeModelClient` or `ToolCallingModel`; persistence tests should use in-memory SQLite stores unless filesystem behavior is the subject.
+- Web Vitest specs are colocated as `*.test.ts` under `apps/agent-gui/src/components`, `stores`, `composables`, `router`, and feature subfolders. Use raw `mount()` for leaf components and `mountWithPlugins()` only when the test needs pinia/i18n/router.
+- Playwright E2E specs live in `apps/agent-gui/e2e/*.spec.ts`, use `installTauriMock(page)`, and keep mock command/state handlers split by domain under `e2e/fixtures/tauri-mock/`.
+- Real desktop scenarios live in `apps/agent-gui/e2e-pilot/*.toml` and should use stable `data-test` selectors.
 
 ## When bumping versions
 

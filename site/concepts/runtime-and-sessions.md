@@ -164,7 +164,7 @@ The guard exists because the previous design allowed a switch to land into a par
 
 ## MCP server lifecycle
 
-The MCP manager owns external Model Context Protocol servers — long-running subprocesses (stdio) or HTTP endpoints (SSE) that expose tools the runtime can call.
+The MCP manager owns external Model Context Protocol servers — long-running subprocesses (stdio) or HTTP endpoints (SSE / Streamable HTTP) that expose tools the runtime can call.
 
 | State      | Triggered by                                       | Side effects                                                                             |
 | ---------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------- |

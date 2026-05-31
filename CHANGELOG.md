@@ -4,6 +4,153 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0] - 2026-05-31
+
+### 🚀 Features
+
+- **gui,tui**: unify interface styling (#682)
+- **gui**: add settings slash commands (#689)
+- **plugins**: expose permission hints (#718)
+- **eval**: add scenario tag filters (#717)
+- **plugins**: enrich marketplace entries (#722)
+- **plugins**: add compatibility metadata (#723)
+- **eval**: add forbidden event expectations (#725)
+- **eval**: add scenario list command (#724)
+- **eval**: add scenario budget expectations (#764)
+- **eval**: add fail-fast runs (#757)
+- **tools**: add search context lines (#738)
+- **eval**: add combined JSON report output (#730)
+- **skills**: surface permission summaries (#739)
+- **runtime**: add agent reasoning effort overrides (#729)
+- **plugins**: surface manifest trust metadata (#737)
+- **runtime**: add structured trace export (#735)
+- **mcp**: add server diagnostic summaries (#736)
+
+### 🐛 Bug Fixes
+
+- **gui**: reset instructions reload state (#774)
+- **site**: seed release cache for local builds
+
+### 📚 Documentation
+
+- **site**: refresh roadmap for v0.33 (#731)
+- **ai**: sync assistant instructions
+- **ai**: document test organization
+- **testing**: update tui gui parity matrix
+
+### 🧪 Testing
+
+- **core**: extract facade/settings tests into dedicated module (#698)
+- **memory**: extract store tests into dedicated module (#699)
+- **tui**: extract scheduler tests into dedicated module (#701)
+- **tools**: extract search/fallback tests into dedicated module (#700)
+- **ci**: lower workspace coverage floor for Batch 19 test extraction (#750)
+
+### 🧹 Refactor
+
+- **tui**: extract command data types from commands.rs (#655)
+- **tui**: extract input dispatch helpers from chat/input.rs (#656)
+- **config**: split types.rs into domain submodules (#657)
+- **mcp**: extract installer data types into submodule (#658)
+- **eval**: extract eval data types into submodule (#659)
+- **tools**: extract MonitorRegistry tests into dedicated module (#660)
+- **runtime**: extract compaction tests into dedicated module (#661)
+- **mcp**: extract lifecycle tests into dedicated module (#662)
+- **runtime**: extract facade_projects tests into dedicated module (#664)
+- **skills**: extract registry tests into dedicated module (#663)
+- **mcp**: extract types tests into dedicated module (#665)
+- **core**: extract events tests into dedicated module (#666)
+- **core**: extract projection tests into dedicated module (#667)
+- **runtime**: extract agent_settings projection tests into dedicated module (#669)
+- **mcp**: extract catalog aggregate tests into dedicated module (#670)
+- **tools**: extract registry tests into dedicated module (#668)
+- **mcp**: extract installer tests into dedicated module (#671)
+- **core**: extract facade tests into dedicated module (#672)
+- **tools**: extract policy engine tests into dedicated module (#673)
+- **runtime**: extract dag_executor tests into dedicated module (#674)
+- **tui**: extract workspace_recovery tests into dedicated module (#675)
+- **config**: extract loader/mcp tests into dedicated module (#676)
+- **tools**: extract monitor/tools tests into dedicated module (#677)
+- **tui**: extract app/events tests into dedicated module (#678)
+- **runtime**: extract skill_package tests into dedicated module (#679)
+- **tui**: extract app/render tests into dedicated module (#681)
+- **config**: extract loader/env tests into dedicated module (#680)
+- **mcp**: extract discovery tests into dedicated module (#683)
+- **tools**: extract patch/parse tests into dedicated module (#684)
+- **config**: extract loader/profile tests into dedicated module (#685)
+- **tui**: extract focus tests into dedicated module (#687)
+- **mcp**: extract catalog/remote/mcp_registry tests into dedicated module (#688)
+- **skills**: extract settings tests into dedicated module (#686)
+- **plugins**: extract manifest tests into dedicated module (#690)
+- **tui**: extract stream_render_items tests into dedicated module (#692)
+- **config**: extract builder tests into dedicated module (#691)
+- **runtime**: extract project tests into dedicated module (#693)
+- **config**: extract loader catalog tests into dedicated module (#694)
+- **models**: extract anthropic streaming tests into dedicated module (#695)
+- **tools**: extract fs_list tests into dedicated module (#696)
+- **tui**: extract app_state tests into dedicated module (#697)
+- **tools**: extract search/path tests into dedicated module (#703)
+- **tools**: extract permission tests into dedicated module (#702)
+- **runtime**: extract planner tests into dedicated module (#704)
+- **plugins**: extract settings tests into dedicated module (#705)
+- **store**: extract project_meta tests into dedicated module (#706)
+- **mcp**: extract skillhub tests into dedicated module (#707)
+- **config**: extract effective tests into dedicated module (#708)
+- **memory**: extract compactor tests into dedicated module (#709)
+- **tools**: extract fs_write tests into dedicated module (#710)
+- **tools**: extract search module tests into dedicated module (#711)
+- **config**: extract loader tests into dedicated module (#712)
+- **runtime**: extract agent_settings tests into dedicated module (#713)
+- **core**: extract skill_dtos tests into dedicated module (#714)
+- **tools**: extract fs_helpers tests into dedicated module (#715)
+- **mcp**: extract http_client tests into dedicated module (#716)
+- **mcp**: extract streamable_http tests into dedicated module (#720)
+- **tools**: extract policy/sandbox tests into dedicated module (#721)
+- **core**: extract facade/project tests into dedicated module (#719)
+- **core**: extract ids tests into dedicated module (#726)
+- **tools**: extract search/rg tests into dedicated module (#727)
+- **models**: extract ollama tests into dedicated module (#728)
+- **runtime**: extract hooks tests into dedicated module (#733)
+- **skills**: extract frontmatter tests into dedicated module (#732)
+- **config**: extract discovery tests into dedicated module (#734)
+- **core**: extract task_types tests into dedicated module (#740)
+- **skills**: extract state tests into dedicated module (#741)
+- **mcp**: extract stdio transport tests into dedicated module (#742)
+- **config**: extract lib tests into dedicated module (#743)
+- **tools**: extract search format tests into dedicated module (#744)
+- **runtime**: extract skills tests into dedicated module (#745)
+- **config**: extract loader overlay tests into dedicated module (#747)
+- **tools**: extract fs_read tests into dedicated module (#748)
+- **mcp**: extract catalog skills aggregate tests into dedicated module (#749)
+- **core**: extract context_types tests into dedicated module (#751)
+- **skills**: extract types tests into dedicated module (#752)
+- **memory**: extract marker tests into dedicated module (#753)
+- **tools**: extract approval tests into dedicated module (#755)
+- **config**: extract limits tests into dedicated module (#754)
+- **runtime**: extract instructions_settings tests into dedicated module (#756)
+- **core**: extract build_info tests into dedicated module (#758)
+- **models**: extract model_registry tests into dedicated module (#759)
+- **tools**: extract builtin provider tests into dedicated module (#760)
+- **runtime**: extract context_budget tests into dedicated module (#763)
+- **tools**: extract decision tests into dedicated module (#762)
+- **core**: extract manifest tests into dedicated module (#761)
+- **core**: extract error tests into dedicated module (#765)
+- **tools**: extract mcp_provider tests into dedicated module (#766)
+- **runtime**: extract facade_profiles tests into dedicated module (#767)
+- **core**: extract account tests into dedicated module (#768)
+- **runtime**: extract facade_sessions tests into dedicated module (#770)
+- **plugins**: extract marketplace tests into dedicated module (#769)
+- **core**: extract lib tests into dedicated module (#771)
+- **runtime**: extract catalog_sink tests into dedicated module (#772)
+- **tui**: extract view tests into dedicated module (#773)
+- extract inline test modules into dedicated \*\_tests.rs files (#775)
+- **tests**: extract remaining inline test modules into dedicated \*\_tests.rs files (#776)
+
+### 👷 CI
+
+- preemptively lower workspace overall lines floor for Batch 18 test extraction (#746)
+- guard against reintroducing inline test modules (#777)
+
 ## [0.33.0] - 2026-05-29
 
 ### 🚀 Features
@@ -44,6 +191,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **tui**: extract input dispatch tests and deduplicate overlay routing (#647)
 - **tui**: extract data types from trace panel (#643)
 - **tui**: extract data types from mcp_overlay editor (#641)
+
+### 🔧 Miscellaneous Tasks
+
+- release v0.33.0 — version bump, changelog, and docs audit (#654)
 
 ## [0.32.0] - 2026-05-28
 

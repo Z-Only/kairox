@@ -164,7 +164,7 @@ session 进行到一半时切换模型是被支持且串行化的。流程如下
 
 ## MCP server 生命周期
 
-MCP manager 持有外部 Model Context Protocol server —— 那些长驻的子进程(stdio)或 HTTP endpoint(SSE),它们暴露 runtime 可调用的工具。
+MCP manager 持有外部 Model Context Protocol server —— 那些长驻的子进程(stdio)或 HTTP endpoint(SSE / Streamable HTTP),它们暴露 runtime 可调用的工具。
 
 | 状态       | 触发条件                                     | 副作用                                                                                 |
 | ---------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |

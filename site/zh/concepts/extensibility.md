@@ -24,29 +24,32 @@ flowchart LR
   mgr["ServerLifecycle"] --> client["McpClient"]
   client --> stdio["StdioTransport<br/>(subprocess)"]
   client --> sse["SseTransport<br/>(HTTP/SSE)"]
+  client --> http["StreamableHttpTransport<br/>(HTTP)"]
   stdio --> srv1["External MCP server<br/>(e.g. git, github, filesystem)"]
   sse --> srv2["Remote MCP service"]
+  http --> srv3["Remote MCP endpoint"]
   adapter["McpToolAdapter"] --> client
   registry["ToolRegistry"] --> adapter
 ```
 
 </div>
 
-| 组件               | 角色                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| `McpClient`        | 每个 server 一个 client。负责握手、能力发现以及 JSON-RPC 的 request/response。         |
-| `Transport`        | 抽象消息如何过线的 trait。出厂支持:`StdioTransport`、`SseTransport`。                  |
-| `ServerLifecycle`  | 跟踪 `Starting → Ready → Stopped / Failed` 的状态迁移,并以 `McpServer*` 事件形式上报。 |
-| `McpServerManager` | 位于 `agent-runtime` 顶层的协调器;读取配置、启动 server、注册 tool。                   |
-| `McpToolAdapter`   | 把一个 MCP 暴露的 tool 包成 `Tool` trait,让 runtime 像对待任何内置 tool 一样对待它。   |
-| `CatalogEntry`     | 某个 server 的 marketplace metadata(名称、描述、运行时要求、安装提示)。                |
+| 组件               | 角色                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `McpClient`        | 每个 server 一个 client。负责握手、能力发现以及 JSON-RPC 的 request/response。                   |
+| `Transport`        | 抽象消息如何过线的 trait。出厂支持:`StdioTransport`、`SseTransport`、`StreamableHttpTransport`。 |
+| `ServerLifecycle`  | 跟踪 `Starting → Ready → Stopped / Failed` 的状态迁移,并以 `McpServer*` 事件形式上报。           |
+| `McpServerManager` | 位于 `agent-runtime` 顶层的协调器;读取配置、启动 server、注册 tool。                             |
+| `McpToolAdapter`   | 把一个 MCP 暴露的 tool 包成 `Tool` trait,让 runtime 像对待任何内置 tool 一样对待它。             |
+| `CatalogEntry`     | 某个 server 的 marketplace metadata(名称、描述、运行时要求、安装提示)。                          |
 
 ### Transport
 
-| Transport | 适用场景                                           | 如何声明                                                  |
-| --------- | -------------------------------------------------- | --------------------------------------------------------- |
-| `stdio`   | 遵循 MCP stdio 约定的本地子进程(绝大多数 server)。 | 在配置里 `transport = "stdio"` 加上 `command` 与 `args`。 |
-| `sse`     | 通过 Server-Sent Events 说 MCP 的远端 HTTP 服务。  | 在配置里 `transport = "sse"` 加上 `url`,可选 `headers`。  |
+| Transport         | 适用场景                                             | 如何声明                                                    |
+| ----------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
+| `stdio`           | 遵循 MCP stdio 约定的本地子进程(绝大多数 server)。   | 在配置里 `type = "stdio"` 加上 `command` 与 `args`。        |
+| `sse`             | 通过 Server-Sent Events 说 MCP 的远端 HTTP 服务。    | 在配置里 `type = "sse"` 加上 `url`,可选 `headers`。         |
+| `streamable_http` | 使用 Streamable HTTP transport 的远端 MCP endpoint。 | 在配置里 `type = "streamable_http"` 加上 `url` 和 headers。 |
 
 stdio 是默认值,因为大多数 MCP server 都以二进制或 `npx`/`uvx` 脚本的形式发布。
 
@@ -76,23 +79,28 @@ GUI 的 marketplace 视图(`apps/agent-gui/src/views/MarketplaceView.vue` 以及
 
 ```toml
 [mcp_servers.git]
-transport = "stdio"
+type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
 
 [mcp_servers.github]
-transport = "stdio"
+type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
-env = { GITHUB_PERSONAL_ACCESS_TOKEN = "GITHUB_TOKEN" }
+env = { GITHUB_PERSONAL_ACCESS_TOKEN = "" }
 
 [mcp_servers.search]
-transport = "sse"
+type = "sse"
 url = "https://example.com/mcp"
-headers = { Authorization = "Bearer SEARCH_TOKEN" }
+headers = { Authorization = "Bearer ${SEARCH_TOKEN}" }
+
+[mcp_servers.remote-http]
+type = "streamable_http"
+url = "https://example.com/mcp"
+api_key_env = "MCP_API_TOKEN"
 ```
 
-`env` map 是按用户环境变量来解析的(值为 `"GITHUB_TOKEN"` 表示"读取名为 `GITHUB_TOKEN` 的环境变量")。完整 schema 在 [Configuration](../reference/configuration) 中。
+对于 stdio server,`env` 中的空值表示"server 启动时读取同名环境变量"。完整 schema 在 [Configuration](../reference/configuration) 中。
 
 ## Skills —— 原生 prompt / tool / workflow 能力
 
@@ -153,34 +161,58 @@ marketplace 跟 SkillHub(或等价的 skill 注册中心)集成,可以把 skill 
 
 ### Manifest
 
-```toml
-# .kairox/plugins/my-plugin/plugin.toml
-[plugin]
-name = "my-plugin"
-version = "0.2.0"
-description = "Project workflow helpers."
-homepage = "https://github.com/example/kairox-my-plugin"
+Kairox 会按顺序解析这些 plugin manifest:`.kairox-plugin/plugin.json`、`.codex-plugin/plugin.json`、`.claude-plugin/plugin.json`。MCP server inventory 可以通过 manifest 的 `mcpServers` 字段声明,也可以放在同级 `.mcp.json` 文件中。
 
-[[skills]]
-path = "skills/release-notes.md"
+```json
+{
+  "name": "my-plugin",
+  "version": "0.2.0",
+  "description": "Project workflow helpers.",
+  "homepage": "https://github.com/example/kairox-my-plugin",
+  "skills": "./skills/",
+  "mcpServers": {
+    "issue-tracker": {
+      "command": "node",
+      "args": ["./mcp/issue-tracker.js"]
+    }
+  },
+  "hooks": [
+    {
+      "event": "pre_turn",
+      "script": "./hooks/inject-context.js"
+    }
+  ],
+  "permissions": {
+    "approvalPolicy": "on_request",
+    "sandboxPolicy": "workspace_write",
+    "tools": ["shell.exec", "fs.read"]
+  },
+  "compatibility": {
+    "kairoxVersion": ">=0.34.0 <0.35.0",
+    "platforms": ["macos", "linux"],
+    "requires": ["node >=20", "git"]
+  },
+  "publisher": "Example Labs",
+  "trust": "community"
+}
+```
 
-[[skills]]
-path = "skills/triage-issue.md"
+Codex 兼容的 plugin 也经常把 MCP 声明放在 `.mcp.json` 中:
 
-[[mcp_servers]]
-name = "issue-tracker"
-transport = "stdio"
-command = "node"
-args = ["./mcp/issue-tracker.js"]
-
-[[hooks]]
-event = "pre_turn"
-script = "./hooks/inject-context.js"
+```json
+{
+  "mcpServers": {
+    "issue-tracker": {
+      "command": "node",
+      "args": ["./mcp/issue-tracker.js"]
+    }
+  }
+}
 ```
 
 ### Inventory
 
-`PluginManifest` 暴露的是一份扁平的 inventory,runtime 会在启动时遍历它。每一种贡献类型都会被路由到对应的 owning crate:
+`PluginManifestView` 暴露扁平 inventory,并带有 permission、compatibility 与 trust metadata,供设置页和 marketplace 展示。每一种贡献类型都会被路由到对应的 owning crate:
 
 | 贡献类型   | 路由到                                     |
 | ---------- | ------------------------------------------ |

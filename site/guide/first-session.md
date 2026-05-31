@@ -76,11 +76,11 @@ You will see, in order:
 1. Your message appear in the chat pane.
 2. A `TurnStarted` row in the trace pane.
 3. An `AssistantDelta` row as the model starts streaming. Text accumulates in the chat pane character by character.
-4. If the model decides to call a tool (likely `shell` for that prompt), a permission prompt overlay appears.
+4. If the model decides to call a tool (likely `shell.exec` for that prompt), a permission prompt overlay appears.
 
 ### Handle the permission prompt
 
-The overlay shows the tool name (`shell`), the exact arguments (`ls .`), and the risk classification (High, because shell can execute anything). Three options:
+The overlay shows the tool name (`shell.exec`), the exact arguments (`ls .`), and the risk classification (High, because shell can execute anything). Three options:
 
 - <kbd>Y</kbd> — allow this one call.
 - <kbd>N</kbd> — deny this one call. The model sees the denial and can re-plan.
