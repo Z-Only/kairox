@@ -144,3 +144,135 @@ enabled = false
         .expect("PreToolUse.block_rm hook should parse");
     assert!(!pre_tool.enabled);
 }
+
+#[test]
+fn config_parse_includes_lsp_and_dap_servers() {
+    let cfg = crate::loader::load_from_str(
+        r#"
+[lsp_servers.rust-analyzer]
+command = "rust-analyzer"
+args = ["--stdio"]
+cwd = "/workspace"
+languages = ["rust"]
+file_patterns = ["*.rs"]
+initialization_options = { check = { command = "clippy" } }
+auto_start = false
+
+[lsp_servers.rust-analyzer.env]
+RA_LOG = "info"
+
+[dap_servers.lldb]
+command = "codelldb"
+args = ["--port", "0"]
+cwd = "/workspace"
+languages = ["rust"]
+
+[dap_servers.lldb.env]
+RUST_LOG = "debug"
+"#,
+        "lsp.toml",
+    )
+    .expect("LSP/DAP config should parse");
+
+    let (lsp_id, lsp) = cfg
+        .lsp_servers
+        .iter()
+        .find(|(id, _)| id == "rust-analyzer")
+        .expect("rust-analyzer LSP server is loaded");
+    assert_eq!(lsp_id, "rust-analyzer");
+    assert_eq!(lsp.command, "rust-analyzer");
+    assert_eq!(lsp.args, vec!["--stdio"]);
+    assert_eq!(lsp.cwd.as_deref(), Some("/workspace"));
+    assert_eq!(lsp.languages, vec!["rust"]);
+    assert_eq!(lsp.file_patterns, vec!["*.rs"]);
+    assert_eq!(lsp.env.get("RA_LOG").map(String::as_str), Some("info"));
+    assert_eq!(
+        lsp.initialization_options
+            .as_ref()
+            .and_then(|value| value.pointer("/check/command"))
+            .and_then(serde_json::Value::as_str),
+        Some("clippy")
+    );
+    assert!(!lsp.auto_start);
+
+    let lsp_defs = cfg.lsp_server_defs();
+    let lsp_def = lsp_defs
+        .iter()
+        .find(|server| server.name == "rust-analyzer")
+        .expect("LSP server converts to runtime definition");
+    assert_eq!(lsp_def.command, "rust-analyzer");
+    assert_eq!(lsp_def.args, vec!["--stdio"]);
+    assert_eq!(lsp_def.cwd.as_deref(), Some("/workspace"));
+    assert_eq!(lsp_def.languages, vec!["rust"]);
+    assert_eq!(lsp_def.file_patterns, vec!["*.rs"]);
+    assert_eq!(lsp_def.env.get("RA_LOG").map(String::as_str), Some("info"));
+    assert_eq!(
+        lsp_def
+            .initialization_options
+            .as_ref()
+            .and_then(|value| value.pointer("/check/command"))
+            .and_then(serde_json::Value::as_str),
+        Some("clippy")
+    );
+
+    let (dap_id, dap) = cfg
+        .dap_servers
+        .iter()
+        .find(|(id, _)| id == "lldb")
+        .expect("LLDB DAP server is loaded");
+    assert_eq!(dap_id, "lldb");
+    assert_eq!(dap.command, "codelldb");
+    assert_eq!(dap.args, vec!["--port", "0"]);
+    assert_eq!(dap.cwd.as_deref(), Some("/workspace"));
+    assert_eq!(dap.languages, vec!["rust"]);
+    assert_eq!(dap.env.get("RUST_LOG").map(String::as_str), Some("debug"));
+
+    let dap_defs = cfg.dap_server_defs();
+    let dap_def = dap_defs
+        .iter()
+        .find(|server| server.name == "lldb")
+        .expect("DAP server converts to runtime definition");
+    assert_eq!(dap_def.command, "codelldb");
+    assert_eq!(dap_def.args, vec!["--port", "0"]);
+    assert_eq!(dap_def.cwd.as_deref(), Some("/workspace"));
+    assert_eq!(dap_def.languages, vec!["rust"]);
+    assert_eq!(
+        dap_def.env.get("RUST_LOG").map(String::as_str),
+        Some("debug")
+    );
+}
+
+#[test]
+fn lsp_and_dap_parse_errors_include_server_id() {
+    let lsp_error = crate::loader::load_from_str(
+        r#"
+[lsp_servers.bad-lsp]
+args = ["--stdio"]
+"#,
+        "bad-lsp.toml",
+    )
+    .expect_err("missing LSP command should fail");
+    match lsp_error {
+        ConfigError::Parse { path, message } => {
+            assert_eq!(path, "bad-lsp.toml");
+            assert!(message.contains("lsp_server 'bad-lsp'"));
+        }
+        ConfigError::Io(error) => panic!("unexpected IO error: {error}"),
+    }
+
+    let dap_error = crate::loader::load_from_str(
+        r#"
+[dap_servers.bad-dap]
+args = ["--port", "0"]
+"#,
+        "bad-dap.toml",
+    )
+    .expect_err("missing DAP command should fail");
+    match dap_error {
+        ConfigError::Parse { path, message } => {
+            assert_eq!(path, "bad-dap.toml");
+            assert!(message.contains("dap_server 'bad-dap'"));
+        }
+        ConfigError::Io(error) => panic!("unexpected IO error: {error}"),
+    }
+}
