@@ -134,10 +134,7 @@ fn render_model_profile_list(
                         theme::muted(),
                     ),
                     Span::styled(reasoning_tag, Style::default().fg(theme::ACCENT_STRONG)),
-                    Span::styled(
-                        format!("  {limits_tag}"),
-                        Style::default().fg(theme::INFO),
-                    ),
+                    Span::styled(format!("  {limits_tag}"), Style::default().fg(theme::INFO)),
                     Span::styled(
                         format!("  [{}{writable_tag}{key_tag}{test_tag}]", p.source),
                         theme::muted(),
@@ -284,7 +281,10 @@ pub(super) fn format_token_count(tokens: u64) -> String {
 /// Format context window and output limit into a compact label for the
 /// profile list, e.g. `ctx:128k/8k`. Returns an empty string when both
 /// values are absent.
-pub(super) fn format_context_limits(context_window: Option<u64>, output_limit: Option<u64>) -> String {
+pub(super) fn format_context_limits(
+    context_window: Option<u64>,
+    output_limit: Option<u64>,
+) -> String {
     match (context_window, output_limit) {
         (Some(ctx), Some(out)) => {
             format!(
