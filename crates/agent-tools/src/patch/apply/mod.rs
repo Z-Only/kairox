@@ -84,11 +84,11 @@ impl Tool for PatchApplyTool {
         // Resolve paths
         let resolved = executor::resolve_patches(&self.workspace_root, &file_patches)?;
 
-        // ── Phase 1: Validate ──────────────────────────────────────────
-        executor::validate_patches(&resolved).await?;
+        let _locks = executor::acquire_file_locks(&resolved).await;
 
-        // ── Phase 2: Apply ─────────────────────────────────────────────
-        let affected_files = executor::apply_patches(&resolved).await?;
+        // Build the final file states before writing so failures stay all-or-nothing.
+        let plan = executor::plan_patches(&resolved).await?;
+        let affected_files = executor::apply_patches(plan).await?;
 
         Ok(ToolOutput {
             text: format!(

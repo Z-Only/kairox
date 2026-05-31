@@ -78,11 +78,7 @@ where
             Ok(Some(binding)) => binding,
             _ => return None,
         };
-        repository
-            .get_project(&binding.project_id)
-            .await
-            .ok()
-            .map(|project| PathBuf::from(project.root_path))
+        Some(PathBuf::from(binding.worktree_path))
     }
 
     /// Decide whether to enqueue an auto-compaction after a turn ends.

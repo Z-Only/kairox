@@ -24,7 +24,10 @@ pub use policy::{
     ApprovalPolicy, ApprovalReason, PolicyDecision, PolicyEffect, PolicyEngine, PolicyRisk,
     SandboxPolicy,
 };
-pub use provider::{BuiltinProvider, DapToolProvider, LspToolProvider, McpToolAdapter};
+pub use provider::{
+    workspace_scoped_builtin_tool, BuiltinProvider, DapToolProvider, LspToolProvider,
+    McpToolAdapter,
+};
 pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
     ToolRegistry,
@@ -56,6 +59,8 @@ pub enum ToolError {
         expected: String,
         actual: String,
     },
+    #[error("patch context matched multiple locations near line {line}: {candidates:?}")]
+    AmbiguousPatchContext { line: usize, candidates: Vec<usize> },
 }
 
 pub type Result<T> = std::result::Result<T, ToolError>;

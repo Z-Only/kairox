@@ -3,6 +3,7 @@ use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, Monitor
 use crate::patch::PatchApplyTool;
 use crate::registry::{Tool, ToolDefinition, ToolProvider};
 use crate::search::RipgrepSearchTool;
+use crate::shell;
 use crate::shell::ShellExecTool;
 use agent_core::DomainEvent;
 use async_trait::async_trait;
@@ -57,6 +58,21 @@ impl BuiltinProvider {
 
     pub fn monitor_registry(&self) -> &Arc<MonitorRegistry> {
         &self.monitor_registry
+    }
+}
+
+pub fn workspace_scoped_builtin_tool(
+    tool_id: &str,
+    workspace_root: PathBuf,
+) -> Option<Box<dyn Tool>> {
+    match tool_id {
+        shell::SHELL_TOOL_ID => Some(Box::new(ShellExecTool::new(workspace_root))),
+        shell::SEARCH_TOOL_ID => Some(Box::new(RipgrepSearchTool::new(workspace_root))),
+        shell::PATCH_TOOL_ID => Some(Box::new(PatchApplyTool::new(workspace_root))),
+        "fs.read" => Some(Box::new(FsReadTool::new(workspace_root))),
+        "fs.write" => Some(Box::new(FsWriteTool::new(workspace_root))),
+        "fs.list" => Some(Box::new(FsListTool::new(workspace_root))),
+        _ => None,
     }
 }
 

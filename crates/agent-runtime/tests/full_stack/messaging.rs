@@ -7,8 +7,9 @@ use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use agent_tools::{ApprovalPolicy, SandboxPolicy};
+use std::fs;
 
-use super::support::{make_simple_runtime, make_tool_runtime};
+use super::support::{make_simple_runtime, make_tool_runtime, PatchThenTextModel};
 
 #[tokio::test]
 async fn full_stack_send_message_text_only() {
@@ -106,6 +107,81 @@ async fn full_stack_tool_call_with_permission_grant() {
     assert!(
         !proj.messages.is_empty(),
         "Should have messages after tool execution"
+    );
+}
+
+#[tokio::test]
+async fn project_session_patch_apply_uses_project_worktree_root() {
+    let gui_root = tempfile::tempdir().expect("gui root");
+    let project_root = tempfile::tempdir().expect("project root");
+    let project_file = project_root.path().join("selftest.txt");
+    fs::write(&project_file, "alpha\ntarget\nomega\n").expect("write project file");
+
+    let patch = "\
+--- a/selftest.txt
++++ b/selftest.txt
+@@ -1,3 +1,3 @@
+ alpha
+-target
++target-edited
+ omega
+";
+
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = PatchThenTextModel::new(patch);
+    let runtime = LocalRuntime::new(store, model)
+        .with_approval_and_sandbox(
+            ApprovalPolicy::OnRequest,
+            SandboxPolicy::WorkspaceWrite {
+                network_access: false,
+                writable_roots: vec![],
+            },
+        )
+        .with_builtin_tools(gui_root.path().to_path_buf())
+        .await;
+
+    let workspace = runtime
+        .open_workspace(gui_root.path().display().to_string())
+        .await
+        .unwrap();
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id.clone(),
+            project_root.path().display().to_string(),
+        )
+        .await
+        .unwrap();
+    let session_id = runtime
+        .create_project_draft_session(project.project_id)
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            content: "patch the project file".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        fs::read_to_string(project_file).expect("read patched project file"),
+        "alpha\ntarget-edited\nomega\n"
+    );
+    let trace = runtime.get_trace(session_id).await.unwrap();
+    let event_types: Vec<&str> = trace
+        .iter()
+        .map(|entry| entry.event.event_type.as_str())
+        .collect();
+    assert!(
+        event_types.contains(&"ToolInvocationCompleted"),
+        "expected patch.apply to complete, got {event_types:?}"
+    );
+    assert!(
+        !event_types.contains(&"ToolInvocationFailed"),
+        "patch.apply should not resolve against the GUI root"
     );
 }
 

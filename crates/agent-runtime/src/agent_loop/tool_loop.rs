@@ -6,7 +6,10 @@ use agent_core::{
 };
 use agent_models::ToolCall;
 use agent_store::EventStore;
-use agent_tools::{PermissionEngine, ToolInvocation, ToolRegistry, ToolRisk};
+use agent_tools::{
+    workspace_scoped_builtin_tool, PermissionEngine, Tool, ToolError, ToolInvocation, ToolRegistry,
+    ToolRisk,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -43,24 +46,35 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     let mut tool_results: Vec<(String, String)> = Vec::new();
 
     // Process tool calls through permission and execution
-    let registry = tool_registry.lock().await;
     for tc in tool_calls {
-        // Check permission
-        let risk = if let Some(tool) = registry.get(&tc.name).await {
-            let inv = ToolInvocation {
-                tool_id: tc.name.clone(),
-                arguments: tc.arguments.clone(),
-                workspace_id: workspace_id.to_string(),
-                preview: format!("{}({})", tc.name, tc.arguments),
-                timeout_ms: 30_000,
-                output_limit_bytes: 102_400,
-            };
-            tool.risk(&inv)
-        } else {
-            ToolRisk::read(&tc.name)
+        let preview = format!("{}({})", tc.name, tc.arguments);
+        let risk_invocation = ToolInvocation {
+            tool_id: tc.name.clone(),
+            arguments: tc.arguments.clone(),
+            workspace_id: workspace_id.to_string(),
+            preview: preview.clone(),
+            timeout_ms: 30_000,
+            output_limit_bytes: 102_400,
         };
 
-        let preview = format!("{}({})", tc.name, tc.arguments);
+        let tool: Option<Box<dyn Tool>> = if let Some(root_path) = root_path {
+            workspace_scoped_builtin_tool(&tc.name, root_path.to_path_buf())
+        } else {
+            None
+        };
+        let tool = match tool {
+            Some(tool) => Some(tool),
+            None => {
+                let registry = tool_registry.lock().await;
+                registry.get(&tc.name).await
+            }
+        };
+
+        let risk = tool
+            .as_ref()
+            .map(|tool| tool.risk(&risk_invocation))
+            .unwrap_or_else(|| ToolRisk::read(&tc.name));
+
         crate::hooks::run_hooks_logged(
             config,
             agent_config::HookEvent::PreToolUse,
@@ -157,9 +171,10 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             );
             append_and_broadcast(&**store, event_tx, &start_event).await?;
 
-            let result = registry
-                .invoke_with_permission(&*permission_engine.lock().await, invocation)
-                .await;
+            let result = match tool {
+                Some(tool) => tool.invoke(invocation).await,
+                None => Err(ToolError::NotFound(tc.name.clone())),
+            };
 
             let completion_event = match result {
                 Ok(ref output) => DomainEvent::new(
@@ -283,7 +298,6 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             ));
         }
     }
-    drop(registry);
 
     Ok(ToolLoopResult { tool_results })
 }
