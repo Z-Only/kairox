@@ -55,6 +55,49 @@ impl ModelClient for ToolThenTextModel {
     }
 }
 
+/// A model that requests a `patch.apply` call on the first request, then text.
+#[derive(Debug, Clone)]
+pub(crate) struct PatchThenTextModel {
+    call_count: Arc<AtomicUsize>,
+    patch: String,
+}
+
+impl PatchThenTextModel {
+    pub(crate) fn new(patch: &str) -> Self {
+        Self {
+            call_count: Arc::new(AtomicUsize::new(0)),
+            patch: patch.to_string(),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelClient for PatchThenTextModel {
+    async fn stream(
+        &self,
+        _request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        let count = self.call_count.fetch_add(1, Ordering::SeqCst);
+        let events: Vec<agent_models::Result<ModelEvent>> = if count == 0 {
+            vec![
+                Ok(ModelEvent::TokenDelta("Patching file...".into())),
+                Ok(ModelEvent::ToolCallRequested {
+                    tool_call_id: "call_patch_1".into(),
+                    tool_id: "patch.apply".into(),
+                    arguments: serde_json::json!({ "patch": self.patch }),
+                }),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        } else {
+            vec![
+                Ok(ModelEvent::TokenDelta("Patch complete".into())),
+                Ok(ModelEvent::Completed { usage: None }),
+            ]
+        };
+        Ok(Box::pin(futures::stream::iter(events)))
+    }
+}
+
 /// A simple echo tool for testing tool execution.
 pub(crate) struct EchoTool;
 

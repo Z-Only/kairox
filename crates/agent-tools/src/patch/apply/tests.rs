@@ -296,6 +296,140 @@ async fn patch_apply_tool_multi_hunk_applied_correctly() {
     assert!(content.contains("ggg"));
 }
 
+#[tokio::test]
+async fn patch_apply_tool_relocates_hunk_after_line_drift() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("drift.txt");
+    tokio::fs::write(&file_path, "intro\nline1\nline2\nline3\n")
+        .await
+        .unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/drift.txt
++++ b/drift.txt
+@@ -1,3 +1,3 @@
+ line1
+-line2
++line2-new
+ line3
+";
+    let result = tool.invoke(make_invocation(diff)).await.unwrap();
+    assert!(result.text.contains("Applied patch to 1 file(s)"));
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, "intro\nline1\nline2-new\nline3\n");
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_ambiguous_drift_context() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("ambiguous.txt");
+    let original = "prefix\nline1\nline2\nline3\nmiddle\nline1\nline2\nline3\n";
+    tokio::fs::write(&file_path, original).await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/ambiguous.txt
++++ b/ambiguous.txt
+@@ -20,3 +20,3 @@
+ line1
+-line2
++line2-new
+ line3
+";
+    let result = tool.invoke(make_invocation(diff)).await;
+    match result.unwrap_err() {
+        ToolError::AmbiguousPatchContext { candidates, .. } => {
+            assert_eq!(candidates, vec![2, 6]);
+        }
+        other => panic!("expected AmbiguousPatchContext, got {:?}", other),
+    }
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, original);
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_overlapping_same_file_edits() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("overlap.txt");
+    let original = "line1\nline2\nline3\n";
+    tokio::fs::write(&file_path, original).await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/overlap.txt
++++ b/overlap.txt
+@@ -1,3 +1,3 @@
+ line1
+-line2
++line2-a
+ line3
+--- a/overlap.txt
++++ b/overlap.txt
+@@ -1,3 +1,3 @@
+ line1
+-line2
++line2-b
+ line3
+";
+    let result = tool.invoke(make_invocation(diff)).await;
+    assert!(result.is_err());
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, original);
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rejects_add_only_hunk_past_eof() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("short.txt");
+    let original = "line1\n";
+    tokio::fs::write(&file_path, original).await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/short.txt
++++ b/short.txt
+@@ -100,0 +100,1 @@
++line2
+";
+    let result = tool.invoke(make_invocation(diff)).await;
+    assert!(result.is_err());
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, original);
+}
+
+#[tokio::test]
+async fn patch_apply_tool_rolls_back_when_later_file_write_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let file_path = dir.path().join("first.txt");
+    let original = "line1\nline2\nline3\n";
+    tokio::fs::write(&file_path, original).await.unwrap();
+
+    let tool = PatchApplyTool::new(dir.path().to_path_buf());
+    let diff = "\
+--- a/first.txt
++++ b/first.txt
+@@ -1,3 +1,3 @@
+ line1
+-line2
++line2-updated
+ line3
+--- /dev/null
++++ b/bad\0file.txt
+@@ -0,0 +1,1 @@
++new
+";
+    let result = tool.invoke(make_invocation(diff)).await;
+    assert!(result.is_err());
+
+    let content = tokio::fs::read_to_string(&file_path).await.unwrap();
+    assert_eq!(content, original);
+}
+
 #[test]
 fn patch_apply_tool_risk_write_for_modify() {
     let dir = tempfile::tempdir().unwrap();
