@@ -194,7 +194,14 @@ export type EventPayload =
     }
   | { type: "MonitorEvent"; monitor_id: string; line: string }
   | { type: "MonitorStopped"; monitor_id: string; reason: MonitorStopReason }
-  | { type: "MonitorFailed"; monitor_id: string; error: string };
+  | { type: "MonitorFailed"; monitor_id: string; error: string }
+  | { type: "LspServerStarting"; server_id: string; languages: string[] }
+  | { type: "LspServerReady"; server_id: string; languages: string[] }
+  | { type: "LspServerStopped"; server_id: string }
+  | { type: "LspServerFailed"; server_id: string; error: string }
+  | { type: "DapSessionStarted"; server_id: string; program: string }
+  | { type: "DapSessionStopped"; server_id: string }
+  | { type: "DapBreakpointHit"; server_id: string; file: string; line: number };
 
 /**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
