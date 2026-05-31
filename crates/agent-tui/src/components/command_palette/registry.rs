@@ -61,6 +61,7 @@ pub enum PaletteAction {
     PrefillSkillInstallGithub,
     PrefillSkillUpdate,
     PrefillSkillDelete,
+    MonitorManager,
     MonitorList,
     PrefillMonitorStop,
     ExportTrace,
@@ -187,6 +188,12 @@ pub fn builtin_entries() -> &'static [PaletteEntry] {
             ":skills",
             "List discovered native skills",
             PaletteAction::Skills,
+        ),
+        PaletteEntry::static_entry(
+            "monitor-manager",
+            "Monitors: open manager",
+            "Open the monitor manager overlay",
+            PaletteAction::MonitorManager,
         ),
         PaletteEntry::static_entry(
             "monitors",
@@ -480,6 +487,7 @@ pub fn prefill_text(action: &PaletteAction) -> Option<&'static str> {
         | PaletteAction::SettingsProjectNext
         | PaletteAction::SettingsProjectPrevious
         | PaletteAction::RefreshSkillCatalog
+        | PaletteAction::MonitorManager
         | PaletteAction::MonitorList
         | PaletteAction::ExportTrace
         | PaletteAction::RefreshConfig

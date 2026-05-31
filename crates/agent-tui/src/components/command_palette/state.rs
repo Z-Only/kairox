@@ -197,6 +197,9 @@ impl CommandPalette {
             PaletteAction::Skills => {
                 commands.push(Command::ListSkills);
             }
+            PaletteAction::MonitorManager => {
+                commands.push(Command::OpenMonitorOverlay);
+            }
             PaletteAction::MonitorList => {
                 commands.push(Command::MonitorList);
             }

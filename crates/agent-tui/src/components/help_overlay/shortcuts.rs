@@ -28,6 +28,7 @@ pub fn current_label(focus: FocusTarget) -> &'static str {
         FocusTarget::ModelOverlay => "Model selector",
         FocusTarget::AgentOverlay => "Agent settings",
         FocusTarget::PluginOverlay => "Plugin manager",
+        FocusTarget::MonitorOverlay => "Monitor manager",
         FocusTarget::HooksOverlay => "Hooks settings",
         FocusTarget::InstructionsOverlay => "Instructions settings",
     }
@@ -43,6 +44,7 @@ pub fn is_overlay_focus(focus: FocusTarget) -> bool {
             | FocusTarget::ModelOverlay
             | FocusTarget::AgentOverlay
             | FocusTarget::PluginOverlay
+            | FocusTarget::MonitorOverlay
             | FocusTarget::HooksOverlay
             | FocusTarget::InstructionsOverlay
     )
@@ -384,6 +386,24 @@ pub fn context_shortcuts(focus: FocusTarget) -> &'static [Shortcut] {
             Shortcut {
                 key: "Esc",
                 label: "close or back",
+            },
+        ],
+        FocusTarget::MonitorOverlay => &[
+            Shortcut {
+                key: "j/k",
+                label: "move selection",
+            },
+            Shortcut {
+                key: "x / Delete",
+                label: "stop selected monitor",
+            },
+            Shortcut {
+                key: "r",
+                label: "refresh list",
+            },
+            Shortcut {
+                key: "Esc",
+                label: "close",
             },
         ],
         FocusTarget::InstructionsOverlay => &[

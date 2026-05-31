@@ -200,6 +200,10 @@ impl App {
             self.plugin_overlay.render(area, frame);
         }
 
+        if self.monitor_overlay.is_visible() {
+            self.monitor_overlay.render(area, frame);
+        }
+
         if self.hooks_overlay.is_visible() {
             self.hooks_overlay.render(area, frame);
         }

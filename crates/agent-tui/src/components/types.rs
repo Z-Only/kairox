@@ -169,6 +169,12 @@ pub struct PluginOverlaySnapshot {
     pub install_target: agent_core::facade::PluginInstallTarget,
 }
 
+/// Snapshot payload for opening the monitor overlay.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MonitorOverlaySnapshot {
+    pub monitors: Vec<super::monitor_overlay::types::MonitorEntry>,
+}
+
 /// Catalog filters owned by the plugin overlay and applied by the app layer
 /// when refreshing marketplace results.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

@@ -5,7 +5,8 @@ use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 
 use crate::app::App;
-use crate::components::Command;
+use crate::components::monitor_overlay::types::MonitorEntry;
+use crate::components::{Command, CrossPanelEffect, MonitorOverlaySnapshot};
 
 use super::{push_status_error, push_status_message};
 
@@ -15,6 +16,25 @@ pub(super) async fn dispatch(
     command: Command,
 ) {
     match command {
+        Command::OpenMonitorOverlay => {
+            let Some(registry) = runtime.monitor_registry() else {
+                push_status_error(app, "[monitor] registry not initialized".into());
+                return;
+            };
+            let monitors = registry.list().await;
+            let entries: Vec<MonitorEntry> = monitors
+                .into_iter()
+                .map(|m| MonitorEntry {
+                    monitor_id: m.monitor_id,
+                    description: m.description,
+                    command: m.command,
+                    persistent: m.persistent,
+                    timeout_ms: m.timeout_ms,
+                })
+                .collect();
+            let snapshot = MonitorOverlaySnapshot { monitors: entries };
+            app.dispatch_effects(vec![CrossPanelEffect::ShowMonitorOverlay(snapshot)]);
+        }
         Command::MonitorList => {
             let Some(registry) = runtime.monitor_registry() else {
                 push_status_error(app, "[monitor] registry not initialized".into());
@@ -50,6 +70,22 @@ pub(super) async fn dispatch(
                 Err(err) => {
                     push_status_error(app, format!("[monitor] stop failed: {err}"));
                 }
+            }
+            // Refresh the overlay if it's still visible after stop.
+            if app.monitor_overlay.is_visible() {
+                let monitors = registry.list().await;
+                let entries: Vec<MonitorEntry> = monitors
+                    .into_iter()
+                    .map(|m| MonitorEntry {
+                        monitor_id: m.monitor_id,
+                        description: m.description,
+                        command: m.command,
+                        persistent: m.persistent,
+                        timeout_ms: m.timeout_ms,
+                    })
+                    .collect();
+                let snapshot = MonitorOverlaySnapshot { monitors: entries };
+                app.dispatch_effects(vec![CrossPanelEffect::ShowMonitorOverlay(snapshot)]);
             }
         }
         _ => {}

@@ -398,7 +398,9 @@ pub enum Command {
         session_id: agent_core::SessionId,
         sandbox: agent_tools::SandboxPolicy,
     },
-    /// List all active monitors in the current workspace.
+    /// Build a monitor snapshot and open the monitor overlay.
+    OpenMonitorOverlay,
+    /// List all active monitors in the current workspace (status bar only).
     MonitorList,
     /// Stop a specific monitor by ID.
     MonitorStop {

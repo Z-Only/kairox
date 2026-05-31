@@ -20,6 +20,7 @@ use crate::components::hooks_overlay::HooksOverlay;
 use crate::components::instructions_overlay::InstructionsOverlay;
 use crate::components::mcp_overlay::McpOverlay;
 use crate::components::model_overlay::ModelOverlay;
+use crate::components::monitor_overlay::MonitorOverlay;
 use crate::components::permission_modal::PermissionModal;
 use crate::components::plugin_overlay::PluginOverlay;
 use crate::components::sessions::SessionsPanel;
@@ -45,6 +46,7 @@ pub struct App {
     pub model_overlay: ModelOverlay,
     pub agent_overlay: AgentOverlay,
     pub plugin_overlay: PluginOverlay,
+    pub monitor_overlay: MonitorOverlay,
     pub hooks_overlay: HooksOverlay,
     pub instructions_overlay: InstructionsOverlay,
     pub workspace_id: WorkspaceId,
@@ -75,6 +77,7 @@ impl App {
             model_overlay: ModelOverlay::new(),
             agent_overlay: AgentOverlay::new(),
             plugin_overlay: PluginOverlay::new(),
+            monitor_overlay: MonitorOverlay::new(),
             hooks_overlay: HooksOverlay::new(),
             instructions_overlay: InstructionsOverlay::new(),
             workspace_id,
@@ -246,6 +249,16 @@ impl App {
                 {
                     self.state.focus_manager.pop();
                 }
+                CrossPanelEffect::ShowMonitorOverlay(_)
+                    if self.state.focus_manager.current() != FocusTarget::MonitorOverlay =>
+                {
+                    self.state.focus_manager.push(FocusTarget::MonitorOverlay);
+                }
+                CrossPanelEffect::DismissMonitorOverlay
+                    if self.state.focus_manager.current() == FocusTarget::MonitorOverlay =>
+                {
+                    self.state.focus_manager.pop();
+                }
                 CrossPanelEffect::ShowHooksOverlay(_)
                     if self.state.focus_manager.current() != FocusTarget::HooksOverlay =>
                 {
@@ -284,6 +297,7 @@ impl App {
             self.model_overlay.handle_effect(&effect);
             self.agent_overlay.handle_effect(&effect);
             self.plugin_overlay.handle_effect(&effect);
+            self.monitor_overlay.handle_effect(&effect);
             self.hooks_overlay.handle_effect(&effect);
             self.instructions_overlay.handle_effect(&effect);
         }
@@ -324,6 +338,8 @@ impl App {
             .set_focused(current == FocusTarget::AgentOverlay);
         self.plugin_overlay
             .set_focused(current == FocusTarget::PluginOverlay);
+        self.monitor_overlay
+            .set_focused(current == FocusTarget::MonitorOverlay);
         self.hooks_overlay
             .set_focused(current == FocusTarget::HooksOverlay);
         self.instructions_overlay
