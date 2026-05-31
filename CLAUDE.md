@@ -44,7 +44,16 @@
 4. Wire to UIs last: Tauri commands for GUI, `app.rs` handlers for TUI.
 5. If model/profile behavior changes, update model metadata/context-window tests and verify mid-session model switching and reasoning effort selection still respect budget limits.
 6. After changing any `#[tauri::command]` or `EventPayload`/domain type, run `just gen-types` to regenerate `apps/agent-gui/src/generated/{commands,events}.ts` (do not edit those files manually).
-7. If you add new IPC commands or events, also update the Playwright mock at `apps/agent-gui/e2e/tauri-mock.js`.
+7. If you add new IPC commands or events, also update the Playwright mock fragments under `apps/agent-gui/e2e/fixtures/tauri-mock/` and the registry/installer as needed.
+
+## Test organization
+
+- Rust crate-local tests live as sibling `src/*_tests.rs` files included by the owning module with `#[cfg(test)]` / `#[path = "..."]`; crate integration tests live under `crates/<crate>/tests/`.
+- Large Rust integration suites use `tests/<suite>/main.rs` plus suite-local `support`; fixtures belong in `tests/fixtures/`.
+- Runtime tests should use `FakeModelClient` or `ToolCallingModel`; persistence tests should use in-memory SQLite stores unless filesystem behavior is the subject.
+- Web Vitest specs are colocated as `*.test.ts` under `apps/agent-gui/src/components`, `stores`, `composables`, `router`, and feature subfolders. Use raw `mount()` for leaf components and `mountWithPlugins()` only when the test needs pinia/i18n/router.
+- Playwright E2E specs live in `apps/agent-gui/e2e/*.spec.ts`, use `installTauriMock(page)`, and keep mock command/state handlers split by domain under `e2e/fixtures/tauri-mock/`.
+- Real desktop scenarios live in `apps/agent-gui/e2e-pilot/*.toml` and should use stable `data-test` selectors.
 
 ## When bumping versions
 
