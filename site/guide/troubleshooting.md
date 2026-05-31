@@ -123,7 +123,7 @@ A single message — usually a pasted file or a large tool result — exceeds th
 The transport handshake is hanging. Check:
 
 - For stdio: does the `command` exist on your PATH? Try running it manually in a terminal — `npx -y @modelcontextprotocol/server-filesystem /tmp` should print MCP messages on stderr.
-- For SSE: is the `url` reachable? `curl -i <url>` should return 200 (or a streaming response).
+- For SSE or Streamable HTTP: is the `url` reachable? `curl -i <url>` should return 200 (or a streaming response).
 - For stdio servers that need env vars: is the var actually set? The empty-string convention (`MY_VAR = ""`) means "read the env var of the same name." If the env var is unset, the server starts but cannot authenticate.
 
 The server emits `McpServerStarting` → `McpServerReady` (or `McpServerFailed`) — the failure event carries a diagnostic payload visible in the trace.

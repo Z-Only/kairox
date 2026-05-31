@@ -76,11 +76,11 @@ just tui
 1. 你的消息出现在聊天区。
 2. trace 区出现一行 `TurnStarted`。
 3. 随着模型开始流式输出,trace 区出现 `AssistantDelta` 行,聊天区里的文本一个字符一个字符地累积出来。
-4. 如果模型决定调用一个 tool(对于这条 prompt,很可能是 `shell`),会弹出一个 permission 提示浮层。
+4. 如果模型决定调用一个 tool(对于这条 prompt,很可能是 `shell.exec`),会弹出一个 permission 提示浮层。
 
 ### 处理 permission 提示
 
-浮层会显示 tool 名(`shell`)、确切的参数(`ls .`),以及风险等级(High,因为 shell 可以执行任何东西)。有三个选项:
+浮层会显示 tool 名(`shell.exec`)、确切的参数(`ls .`),以及风险等级(High,因为 shell 可以执行任何东西)。有三个选项:
 
 - <kbd>Y</kbd> —— 仅允许这一次调用。
 - <kbd>N</kbd> —— 仅拒绝这一次调用。模型会感知到拒绝并可以重新规划。

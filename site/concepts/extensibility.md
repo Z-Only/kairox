@@ -24,29 +24,32 @@ flowchart LR
   mgr["ServerLifecycle"] --> client["McpClient"]
   client --> stdio["StdioTransport<br/>(subprocess)"]
   client --> sse["SseTransport<br/>(HTTP/SSE)"]
+  client --> http["StreamableHttpTransport<br/>(HTTP)"]
   stdio --> srv1["External MCP server<br/>(e.g. git, github, filesystem)"]
   sse --> srv2["Remote MCP service"]
+  http --> srv3["Remote MCP endpoint"]
   adapter["McpToolAdapter"] --> client
   registry["ToolRegistry"] --> adapter
 ```
 
 </div>
 
-| Piece              | Role                                                                                           |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `McpClient`        | One client per server. Handles handshake, capability discovery, and JSON-RPC request/response. |
-| `Transport`        | Trait abstracting how messages cross the wire. Shipped: `StdioTransport`, `SseTransport`.      |
-| `ServerLifecycle`  | Tracks `Starting → Ready → Stopped / Failed` and reports transitions as `McpServer*` events.   |
-| `McpServerManager` | Top-level coordinator inside `agent-runtime`; reads config, starts servers, registers tools.   |
-| `McpToolAdapter`   | Wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like any built-in.      |
-| `CatalogEntry`     | Marketplace metadata for a server (name, description, runtime requirements, install hint).     |
+| Piece              | Role                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `McpClient`        | One client per server. Handles handshake, capability discovery, and JSON-RPC request/response.                       |
+| `Transport`        | Trait abstracting how messages cross the wire. Shipped: `StdioTransport`, `SseTransport`, `StreamableHttpTransport`. |
+| `ServerLifecycle`  | Tracks `Starting → Ready → Stopped / Failed` and reports transitions as `McpServer*` events.                         |
+| `McpServerManager` | Top-level coordinator inside `agent-runtime`; reads config, starts servers, registers tools.                         |
+| `McpToolAdapter`   | Wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like any built-in.                            |
+| `CatalogEntry`     | Marketplace metadata for a server (name, description, runtime requirements, install hint).                           |
 
 ### Transports
 
-| Transport | When to use                                                             | How to declare                                             |
-| --------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `stdio`   | Local subprocesses that follow the MCP stdio convention (most servers). | `transport = "stdio"` plus `command` and `args` in config. |
-| `sse`     | Remote HTTP services that speak MCP over Server-Sent Events.            | `transport = "sse"` plus `url` and optional `headers`.     |
+| Transport         | When to use                                                             | How to declare                                     |
+| ----------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
+| `stdio`           | Local subprocesses that follow the MCP stdio convention (most servers). | `type = "stdio"` plus `command` and `args`.        |
+| `sse`             | Remote HTTP services that speak MCP over Server-Sent Events.            | `type = "sse"` plus `url` and optional `headers`.  |
+| `streamable_http` | Remote MCP endpoints using the Streamable HTTP transport.               | `type = "streamable_http"` plus `url` and headers. |
 
 stdio is the default because most MCP servers ship as binaries or `npx`/`uvx` scripts.
 
@@ -76,23 +79,28 @@ The GUI's marketplace view (`apps/agent-gui/src/views/MarketplaceView.vue` and s
 
 ```toml
 [mcp_servers.git]
-transport = "stdio"
+type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
 
 [mcp_servers.github]
-transport = "stdio"
+type = "stdio"
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
-env = { GITHUB_PERSONAL_ACCESS_TOKEN = "GITHUB_TOKEN" }
+env = { GITHUB_PERSONAL_ACCESS_TOKEN = "" }
 
 [mcp_servers.search]
-transport = "sse"
+type = "sse"
 url = "https://example.com/mcp"
-headers = { Authorization = "Bearer SEARCH_TOKEN" }
+headers = { Authorization = "Bearer ${SEARCH_TOKEN}" }
+
+[mcp_servers.remote-http]
+type = "streamable_http"
+url = "https://example.com/mcp"
+api_key_env = "MCP_API_TOKEN"
 ```
 
-The `env` map is resolved against the user's environment variables (a value of `"GITHUB_TOKEN"` means "read the env var named `GITHUB_TOKEN`"). The full schema lives in [Configuration](../reference/configuration).
+For stdio servers, an empty `env` value means "read the environment variable with the same name when the server starts." The full schema lives in [Configuration](../reference/configuration).
 
 ## Skills — native prompt, tool, and workflow capabilities
 
@@ -153,34 +161,58 @@ A plugin packages skills, tools, hooks, and MCP server declarations together. `a
 
 ### Manifest
 
-```toml
-# .kairox/plugins/my-plugin/plugin.toml
-[plugin]
-name = "my-plugin"
-version = "0.2.0"
-description = "Project workflow helpers."
-homepage = "https://github.com/example/kairox-my-plugin"
+Kairox resolves plugin manifests in this order: `.kairox-plugin/plugin.json`, `.codex-plugin/plugin.json`, then `.claude-plugin/plugin.json`. MCP server inventory can be declared through the manifest's `mcpServers` field or through a sibling `.mcp.json` file.
 
-[[skills]]
-path = "skills/release-notes.md"
+```json
+{
+  "name": "my-plugin",
+  "version": "0.2.0",
+  "description": "Project workflow helpers.",
+  "homepage": "https://github.com/example/kairox-my-plugin",
+  "skills": "./skills/",
+  "mcpServers": {
+    "issue-tracker": {
+      "command": "node",
+      "args": ["./mcp/issue-tracker.js"]
+    }
+  },
+  "hooks": [
+    {
+      "event": "pre_turn",
+      "script": "./hooks/inject-context.js"
+    }
+  ],
+  "permissions": {
+    "approvalPolicy": "on_request",
+    "sandboxPolicy": "workspace_write",
+    "tools": ["shell.exec", "fs.read"]
+  },
+  "compatibility": {
+    "kairoxVersion": ">=0.34.0 <0.35.0",
+    "platforms": ["macos", "linux"],
+    "requires": ["node >=20", "git"]
+  },
+  "publisher": "Example Labs",
+  "trust": "community"
+}
+```
 
-[[skills]]
-path = "skills/triage-issue.md"
+Codex-compatible plugins often keep MCP declarations in `.mcp.json` instead:
 
-[[mcp_servers]]
-name = "issue-tracker"
-transport = "stdio"
-command = "node"
-args = ["./mcp/issue-tracker.js"]
-
-[[hooks]]
-event = "pre_turn"
-script = "./hooks/inject-context.js"
+```json
+{
+  "mcpServers": {
+    "issue-tracker": {
+      "command": "node",
+      "args": ["./mcp/issue-tracker.js"]
+    }
+  }
+}
 ```
 
 ### Inventory
 
-`PluginManifest` exposes a flat inventory that the runtime walks at boot. Each kind of contribution is routed to its owning crate:
+`PluginManifestView` exposes a flat inventory plus permission, compatibility, and trust metadata for settings and marketplace display. Each kind of contribution is routed to its owning crate:
 
 | Contribution | Routed to                                           |
 | ------------ | --------------------------------------------------- |

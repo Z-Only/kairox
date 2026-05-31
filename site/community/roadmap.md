@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.33.x)
+## What ships today (v0.34.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -28,9 +28,9 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 ### Tools, permissions, MCP
 
-- Built-in tools: `shell`, `fs.read`, `fs.write`, `fs.list`, `patch`, `search`, plus monitor registry tools for listing and stopping background processes.
+- Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, plus monitor registry tools (`monitor.start`, `monitor.list`, `monitor.stop`).
 - Orthogonal Approval × Sandbox policy engine: `ApprovalPolicy` (`Never` / `OnRequest` / `Always`) gates _when_ the user is asked; `SandboxPolicy` (`ReadOnly` / `WorkspaceWrite` / `DangerFullAccess`) gates _what_ the runtime structurally allows. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0 (PRs #517, #520).
-- MCP client with stdio and SSE transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`).
+- MCP client with stdio, SSE, and Streamable HTTP transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`), and server diagnostic summaries.
 - MCP marketplace with built-in catalog plus remote sources; one-click install with runtime requirement hints.
 - MCP connectivity actions in the GUI.
 
@@ -49,8 +49,8 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 ### Extensibility
 
 - Native **skills** with workspace / user / session scopes; SkillHub install support.
-- **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery; permission hints and compatibility metadata for marketplace display and future install policy.
-- Configurable agent overrides per role (model, `ApprovalPolicy`, `SandboxPolicy`, skills, tool allowlists).
+- **Plugins** with manifests bundling skills, tools, hooks, and MCP servers; plugin-namespaced skill discovery; permission hints, compatibility metadata, and trust metadata for marketplace display and future install policy.
+- Configurable agent overrides per role (model, `ApprovalPolicy`, `SandboxPolicy`, skills, tool allowlists, reasoning effort).
 
 ### Quality and CI
 
@@ -58,7 +58,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - Playwright frontend E2E with browser-side IPC mock.
 - `tauri-pilot` real desktop E2E scenarios.
 - Live GitHub Models smoke test gated by `GITHUB_TOKEN`.
-- `kairox-eval` headless harness with deterministic smoke, tool-call, compaction, and tag-filter scenarios; expectations cover required and forbidden event types plus tool invocation limits.
+- `kairox-eval` headless harness with deterministic smoke, tool-call, compaction, and tag-filter scenarios; list mode; fail-fast runs; JSONL, summary JSON, and combined report JSON output; expectations cover required/forbidden event types, tool invocation limits, tool failure limits, elapsed time budgets, and context-token budgets.
 - Per-crate coverage gates for Rust and Vue.
 
 For the full shipped list with PR links, scroll the **Near term** section of [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/main/ROADMAP.md).
@@ -66,13 +66,13 @@ For the full shipped list with PR links, scroll the **Near term** section of [`R
 ## What is in flight (mid term)
 
 - Broader model provider coverage and richer profile policies.
-- Continued MCP ecosystem expansion: additional transports, richer discovery, server health diagnostics.
+- Continued MCP ecosystem expansion beyond Streamable HTTP: richer discovery and broader server integration polish.
 - Signed plugin manifests, remote plugin registries, install/upgrade UX, and plugin sandboxing aligned with the `ApprovalPolicy × SandboxPolicy` engine.
 - Configurable specialist subagent roles beyond planner / worker / reviewer, with per-agent context windows, tool allowlists, and reasoning effort.
 - Background and long-running parallel agents with cancellation, resumable sessions, and durable status surfacing in TUI/GUI.
-- `kairox-eval` as a real headless/CI mode with fixtures, scripted prompts, exit codes, and JSON reports.
+- Broader non-interactive and batch-run workflows built on `kairox-eval`.
 - User-extensible slash commands, output styles, and statusline customization in TUI and GUI.
-- Observability and replay tooling: structured trace export, event replay over `EventStore`, and redacted diagnostics bundles.
+- Observability and replay tooling beyond structured trace export: event replay over `EventStore` and redacted diagnostics bundles.
 - Continued runtime modularization beyond `SessionActor`.
 
 ## Long-term direction

@@ -70,9 +70,9 @@ graph TD
 - **Memory system** — durable session/user/workspace-scoped memory with `<memory>` marker protocol, keyword retrieval, and context assembly
 - **Context management** — per-model context windows, budget-driven prompt assembly, manual/automatic compaction, busy-state guards, and GUI context usage meter
 - **Model adapters** — OpenAI, Anthropic, Ollama, and fake provider for testing, with mid-session model switching and reasoning effort selection when profiles support it
-- **Tool system** — built-in tools (shell, search, patch, fs.read, fs.write, fs.list, monitor) with orthogonal Approval × Sandbox policy control and MCP (Model Context Protocol) integration
-- **MCP marketplace and connectivity** — built-in catalog plus remote sources with multi-source aggregation, one-click install, runtime-missing hints, and GUI connectivity actions
-- **Skills, plugins, and instructions** — native skills for reusable prompt/tool/workflow capabilities, plugin-namespaced skill discovery, plugin settings, hook settings, and user/project instruction settings with effective-preview support
+- **Tool system** — built-in tools (`shell.exec`, context-aware `search.ripgrep`, `patch.apply`, `fs.read`, `fs.write`, `fs.list`, `monitor.start`, `monitor.list`, `monitor.stop`) with orthogonal Approval × Sandbox policy control and MCP (Model Context Protocol) integration
+- **MCP marketplace and connectivity** — built-in catalog plus remote sources with multi-source aggregation, one-click install, runtime-missing hints, GUI connectivity actions, Streamable HTTP transport support, and server diagnostics
+- **Skills, plugins, and instructions** — native skills for reusable prompt/tool/workflow capabilities, plugin-namespaced skill discovery, plugin permission/trust/compatibility metadata, plugin settings, hook settings, and user/project instruction settings with effective-preview support
 - **Config discovery** — TOML config with profile management, env-variable API keys, and per-project `.kairox/` directory discovery
 - **Workspace flows** — project workspace management in the GUI for organizing multiple working contexts
 - **TUI application** — three-panel ratatui terminal UI with streaming chat, trace, permission prompts, command palette, queue controls, and settings/marketplace overlays
@@ -81,7 +81,7 @@ graph TD
 - **Local-first architecture** — designed for offline-friendly workflows and explicit permission control
 - **Quality gates** — parallel CI with aggregation `ci-success` job, branch-focused Rust/Vue coverage gates, type-sync checks, cargo clippy, oxlint, Stylelint, oxfmt, commitlint, tauri-pilot desktop E2E, and live model smoke tests
 - **Background monitors** — spawn background shell processes that stream stdout as session events, with timeout and persistent modes, batched delivery, and TUI/GUI rendering
-- **Evaluation harness** — headless `kairox-eval` binary for running scripted prompt suites against fixture profiles and collecting metrics
+- **Evaluation harness** — headless `kairox-eval` binary for JSONL scenarios with tag filters, list mode, fail-fast runs, expectation budgets, summaries, and combined reports
 - **E2E testing** — Playwright frontend E2E specs, tauri-pilot real desktop scenarios, expanded TUI app-logic coverage, 13 full-stack runtime tests, dedicated MCP integration tests, live GitHub Models smoke coverage, and DAG executor / AgentStrategy / GUI component coverage
 
 ## Repository layout
@@ -89,34 +89,34 @@ graph TD
 - `crates/agent-core` — shared domain types, events, IDs, projections, and application facade
 - `crates/agent-runtime` — runtime orchestration, agent loop, DAG executor, multi-agent strategies, MCP server manager
 - `crates/agent-models` — model client trait + OpenAI / Anthropic / Ollama / Fake adapters
-- `crates/agent-tools` — tool registry, permission engine, built-in tools (shell, fs.read/write/list, patch, search), MCP tool adapter
-- `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources)
+- `crates/agent-tools` — tool registry, permission engine, built-in tools (`shell.exec`, `fs.read/write/list`, `patch.apply`, `search.ripgrep`, `monitor.start/list/stop`), MCP tool adapter
+- `crates/agent-mcp` — MCP (Model Context Protocol) client, stdio + SSE + Streamable HTTP transports, server lifecycle, diagnostics, discovery cache, marketplace catalog (built-in + remote sources)
 - `crates/agent-skills` — native skills system for reusable prompt, tool, and workflow capabilities with config-driven discovery
 - `crates/agent-plugins` — plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers
 - `crates/agent-memory` — memory store, marker protocol, context assembly with tiktoken
 - `crates/agent-store` — SQLite-backed event store + metadata tables
 - `crates/agent-config` — TOML config loading, model profile discovery, MCP server config, skills config, API key resolution, `.kairox/` project config discovery
-- `crates/agent-eval` — headless evaluation harness (`kairox-eval` binary) for running scripted prompts against fixture profiles and collecting metrics
+- `crates/agent-eval` — headless evaluation harness (`kairox-eval` binary) for running JSONL scenarios with filters, expectations, summaries, reports, and metrics
 - `crates/agent-tui` — interactive ratatui terminal UI app
 - `apps/agent-gui` — Vue 3 frontend + Tauri 2 desktop app (with auto-generated specta TypeScript bindings)
 
 ## Status
 
-Kairox is in active development (current release `v0.33.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, searchable trace timeline, searchable settings surfaces, memory browser, inline chat authorization/tool/compaction flow, MCP server manager, MCP marketplace, MCP connectivity actions, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, per-session permission control, and background monitors. The TUI supports CLI flags for profile and policy selection. Sessions persist across restarts via SQLite storage.
+Kairox is in active development (current release `v0.34.0`) with a fully interactive TUI and a functional GUI featuring persistent session management, task graph visualization, searchable trace timeline, structured trace export, searchable settings surfaces, memory browser, inline chat authorization/tool/compaction flow, MCP server manager, MCP marketplace, MCP connectivity actions and diagnostics, context meter, skills system, instructions settings, hook settings, plugin settings, project workspace flows, resizable workbench sidebars, per-session permission control, and background monitors. The TUI supports CLI flags for profile and policy selection. Sessions persist across restarts via SQLite storage.
 
 Streaming tool-call handling is robust for OpenAI-compatible and Anthropic providers, with JSON Schema parameters and `CancellationToken` support for streaming cancellation. The runtime tracks per-model context windows, assembles prompts against token budgets, supports manual and automatic context compaction, allows mid-session model switching with reasoning effort selection when profiles support it, and can create isolated git worktrees for project worktree sessions.
 
 The GUI supports executable slash commands from the palette, file mentions that attach content for backend reads, draft persistence, task retry/cancel actions, session cancellation, error notifications, code syntax highlighting, a real-time status bar, agent attribution, N-level task tree visualization, context usage feedback, and polished accessibility/test selectors validated by tauri-pilot scenarios.
 
-Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer). Agent settings can override model profile, approval/sandbox policy, skills, and tool allowlists per role. Sessions execute through per-session actors (`agent-runtime/src/execution_runtime/`) with race-free turn-end compaction, and the runtime is split into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability.
+Phase 2 DAG execution with `AgentStrategy` enables multi-agent orchestration (planner / worker / reviewer). Agent settings can override model profile, approval/sandbox policy, skills, tool allowlists, and reasoning effort per role. Sessions execute through per-session actors (`agent-runtime/src/execution_runtime/`) with race-free turn-end compaction, and the runtime is split into focused modules (`agent_loop`, `dag_executor`, `event_emitter`, `mcp_manager`, `memory_handler`, `permission`, `session`, `task_graph`) for maintainability.
 
-MCP (Model Context Protocol) integration connects to external tool servers via stdio and SSE transports, with config-driven server lifecycle management, trust-based permissions, improved server discovery, in-app resource and prompt browsing, and an in-app marketplace combining a built-in catalog with remote catalog sources for one-click install. A native **skills system** provides reusable prompt, tool, and workflow capabilities with config-driven discovery, plugin-namespaced skill roots, SkillHub install support, and GUI settings management. Per-project configuration is discovered under `.kairox/` directories, and the GUI supports project workspace flows for managing multiple working contexts.
+MCP (Model Context Protocol) integration connects to external tool servers via stdio, SSE, and Streamable HTTP transports, with config-driven server lifecycle management, trust-based permissions, improved server discovery, server diagnostic summaries, in-app resource and prompt browsing, and an in-app marketplace combining a built-in catalog with remote catalog sources for one-click install. A native **skills system** provides reusable prompt, tool, and workflow capabilities with config-driven discovery, plugin-namespaced skill roots, SkillHub install support, permission summaries, and GUI settings management. Per-project configuration is discovered under `.kairox/` directories, and the GUI supports project workspace flows for managing multiple working contexts.
 
-Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell`, `patch`, and ripgrep-backed `search`. Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI.
+Built-in filesystem tools include `fs.read`, `fs.write`, and `fs.list`, alongside `shell.exec`, `patch.apply`, ripgrep-backed `search.ripgrep`, and monitor tools (`monitor.start`, `monitor.list`, `monitor.stop`). Build info (version, git hash, build time) is embedded at compile time and accessible from both TUI and GUI.
 
 The desktop app ships with Tauri 2 auto-update wired to GitHub Releases. Release packaging includes SHA256 checksums and structured artifact naming. CI runs E2E tests alongside parallel jobs with type-sync checks via `tauri-specta`, an aggregation `ci-success` job for branch protection compatibility, real desktop E2E via tauri-pilot, and a live GitHub Models smoke test.
 
-GUI test coverage spans stores, composables, and components, with additional MCP E2E tests and dedicated DAG executor / AgentStrategy / GUI component test suites. The frontend toolchain uses the Oxc toolchain (oxlint + oxfmt) for fast linting and formatting. The GUI features a complete frontend engineering foundation with vue-router, vue-i18n, and Pinia setup stores.
+GUI test coverage spans stores, composables, and components, with additional MCP E2E tests and dedicated DAG executor / AgentStrategy / GUI component test suites. The `kairox-eval` harness now supports scenario listing, tag filtering, fail-fast execution, forbidden event and budget expectations, JSONL results, summary JSON, and combined report JSON. The frontend toolchain uses the Oxc toolchain (oxlint + oxfmt) for fast linting and formatting. The GUI features a complete frontend engineering foundation with vue-router, vue-i18n, and Pinia setup stores.
 
 ## Requirements
 

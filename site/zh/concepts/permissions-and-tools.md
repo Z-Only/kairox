@@ -56,14 +56,17 @@ outline: [2, 3]
 
 `agent-tools` 出厂带了一组精简的内置工具。每一个内置工具都实现 `Tool` trait,并在 runtime 启动时注册进 `ToolRegistry`。
 
-| Tool       | 模块                | 作用                                                   | 风险   | 影响面                 |
-| ---------- | ------------------- | ------------------------------------------------------ | ------ | ---------------------- |
-| `shell`    | `ShellExecTool`     | 运行一条 shell 命令,返回 stdout/stderr。               | High   | 任意进程执行。         |
-| `fs.read`  | `fs::read`          | 读取一个文件的内容。                                   | Low    | 只读文件系统访问。     |
-| `fs.write` | `fs::write`         | 把内容写入文件(创建或覆盖)。                           | Medium | 文件系统改动。         |
-| `fs.list`  | `fs::list`          | 列出某个目录下的条目。                                 | Low    | 只读文件系统访问。     |
-| `patch`    | `PatchApplyTool`    | 对 workspace 中的一个或多个文件应用一个 unified diff。 | Medium | 文件系统改动(多文件)。 |
-| `search`   | `RipgrepSearchTool` | 在 workspace 上跑 `ripgrep` 并返回匹配。               | Low    | 只读文件系统访问。     |
+| Tool             | 模块                | 作用                                                   | 风险   | 影响面                  |
+| ---------------- | ------------------- | ------------------------------------------------------ | ------ | ----------------------- |
+| `shell.exec`     | `ShellExecTool`     | 运行一条 shell 命令,返回 stdout/stderr。               | High   | 任意进程执行。          |
+| `fs.read`        | `fs::read`          | 读取一个文件的内容。                                   | Low    | 只读文件系统访问。      |
+| `fs.write`       | `fs::write`         | 把内容写入文件(创建或覆盖)。                           | Medium | 文件系统改动。          |
+| `fs.list`        | `fs::list`          | 列出某个目录下的条目。                                 | Low    | 只读文件系统访问。      |
+| `patch.apply`    | `PatchApplyTool`    | 对 workspace 中的一个或多个文件应用一个 unified diff。 | Medium | 文件系统改动(多文件)。  |
+| `search.ripgrep` | `RipgrepSearchTool` | 在 workspace 上跑 `ripgrep` 并返回匹配。               | Low    | 只读文件系统访问。      |
+| `monitor.start`  | `MonitorStartTool`  | 启动一个后台 monitor。                                 | Low    | Monitor 进程生命周期。  |
+| `monitor.list`   | `MonitorListTool`   | 列出活跃的后台 monitor。                               | Low    | 只读 monitor metadata。 |
+| `monitor.stop`   | `MonitorStopTool`   | 停止一个正在运行的后台 monitor。                       | Low    | Monitor 进程生命周期。  |
 
 policy engine 真正读取的是 tool 的 `PolicyEffect`(只读 / workspace 写 / 网络 / 破坏性 / 未知命令);`Risk` 则是 UI 用来在 prompt 和状态栏里展示的提示。
 
@@ -83,7 +86,7 @@ flowchart LR
   registry --> built["Built-in tool<br/>(e.g. shell, fs.read)"]
   registry --> adapter["McpToolAdapter"]
   adapter --> client["McpClient"]
-  client --> transport["Transport<br/>(stdio / SSE)"]
+  client --> transport["Transport<br/>(stdio / SSE / Streamable HTTP)"]
   transport --> server["External MCP server<br/>(subprocess or HTTP)"]
 ```
 

@@ -168,7 +168,7 @@ This is why you can omit both fields for common models and still get correct bud
 
 | Field                  | Type   | Default | Notes                                                                     |
 | ---------------------- | ------ | ------- | ------------------------------------------------------------------------- |
-| `type`                 | string | —       | `"stdio"` or `"sse"`. Required.                                           |
+| `type`                 | string | —       | `"stdio"`, `"sse"`, or `"streamable_http"`. Required.                     |
 | `keep_alive`           | bool   | `false` | If true, the server stays running even when no session uses it.           |
 | `idle_timeout_secs`    | int    | `300`   | Seconds before an idle server is stopped. Ignored when `keep_alive`.      |
 | `auto_restart`         | bool   | `true`  | Restart on transport failure.                                             |
@@ -233,6 +233,19 @@ api_key_env = "MCP_API_TOKEN"
 
 The two forms are functionally equivalent for bearer auth. Use `api_key_env` when you want the runtime to construct the header for you; use `headers` when you need a non-bearer scheme or a different header name.
 
+### Streamable HTTP-specific fields
+
+`streamable_http` uses the MCP Streamable HTTP transport and accepts the same HTTP fields as `sse`: `url`, `headers`, and `api_key_env`.
+
+Example — remote MCP endpoint using Streamable HTTP:
+
+```toml
+[mcp_servers.remote-http]
+type = "streamable_http"
+url = "https://mcp.example.com/mcp"
+api_key_env = "MCP_API_TOKEN"
+```
+
 Example — persistent local server (long-running development server):
 
 ```toml
@@ -289,7 +302,7 @@ Three places consult environment variables:
 
 1. **Profile `api_key_env`.** Read once at provider client construction.
 2. **MCP stdio `env` table with empty values.** `KEY = ""` means "read the env var named `KEY` and use its value." Non-empty values are passed through literally.
-3. **MCP SSE `headers` with `${VAR}`.** `${VAR}` substrings inside header values are expanded at request time, so rotating the env var rotates the header without restarting the server.
+3. **MCP SSE / Streamable HTTP `headers` with `${VAR}`.** `${VAR}` substrings inside header values are expanded at request time, so rotating the env var rotates the header without restarting the server.
 
 If a required env var is missing, the runtime emits a startup diagnostic and the affected profile or server is marked unavailable. The other profiles and servers keep working.
 

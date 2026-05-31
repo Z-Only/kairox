@@ -123,7 +123,7 @@ just test-live    # 没设 GITHUB_TOKEN 时会自动 skip
 transport 的握手卡住了。请检查:
 
 - 对于 stdio:`command` 在你的 PATH 里存在吗?试着在终端里手动跑——`npx -y @modelcontextprotocol/server-filesystem /tmp` 应该会在 stderr 上打印 MCP 消息。
-- 对于 SSE:`url` 是否可达?`curl -i <url>` 应该返回 200(或者一个流式响应)。
+- 对于 SSE 或 Streamable HTTP:`url` 是否可达?`curl -i <url>` 应该返回 200(或者一个流式响应)。
 - 对于需要 env 变量的 stdio server:对应的 env 变量是否真的设置了?空字符串约定(`MY_VAR = ""`)的含义是“读取同名的 env 变量”。如果这个 env 变量没设,server 能起来但无法完成认证。
 
 server 会发出 `McpServerStarting` → `McpServerReady`(或 `McpServerFailed`)——失败 event 会携带可在 trace 里查看的诊断 payload。

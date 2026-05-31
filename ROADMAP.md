@@ -68,6 +68,12 @@
 - ✅ Route session execution through per-session actors with race-free turn-end compaction (#521, #522, #523, #524, #525, #533)
 - ✅ Ship VitePress documentation site with EN/ZH parity and `pages.yml` deploy (#535, #536)
 - ✅ Add headless evaluation harness crate (`agent-eval`, binary `kairox-eval`)
+- ✅ Expand `kairox-eval` for CI-style runs with scenario list/tag filters, fail-fast execution, JSONL output, summary/report JSON, forbidden-event expectations, and budget expectations (#717, #724, #725, #730, #757, #764)
+- ✅ Add MCP Streamable HTTP transport and server diagnostic summaries (#720, #736)
+- ✅ Add structured trace export for observability workflows (#735)
+- ✅ Improve search tool output with configurable context lines (#738)
+- ✅ Surface plugin permission hints, compatibility metadata, and trust metadata in marketplace flows (#718, #722, #723, #737)
+- ✅ Allow agent role overrides to include reasoning effort for capable models (#729)
 
 ## Mid term
 
@@ -81,13 +87,14 @@
 - ✅ Wire lifecycle hooks end-to-end (`agent-runtime/src/hooks.rs`, GUI hook settings #202)
 - ✅ Run sessions through per-session actors with race-free turn-end compaction (v0.31.0)
 - ✅ Ship a headless evaluation harness (`agent-eval` / `kairox-eval`) as the foundation for CI and batch runs
-- Continue expanding MCP ecosystem coverage (additional transports, richer discovery, server health diagnostics)
-- Extend the **Plugin** story: signed manifests, remote plugin registries, install/upgrade UX, plugin sandboxing aligned with the `ApprovalPolicy × SandboxPolicy` engine
+- ✅ Grow `kairox-eval` into a practical headless/CI mode for agent loops with fixtures, scripted prompts, exit codes, tag filters, fail-fast runs, JSONL results, summary/report JSON, and expectation budgets
+- ✅ Expand MCP ecosystem coverage with Streamable HTTP transport and server health diagnostic summaries
+- Continue expanding MCP ecosystem coverage with richer discovery and broader server integration polish
+- Extend the **Plugin** story: signed manifests, remote plugin registries, install/upgrade UX, and plugin sandboxing aligned with the `ApprovalPolicy × SandboxPolicy` engine
 - Expand subagent execution primitives beyond planner / worker / reviewer into configurable specialist roles with per-agent context windows, tool allowlists, and reasoning effort
 - Support background and long-running parallel agents with cancellation, resumable sessions, and durable status surfacing in TUI/GUI
-- Grow `kairox-eval` into a real headless/CI mode for agent loops (fixtures, scripted prompts, exit codes, JSON reports)
 - Add user-extensible slash commands, output styles, and statusline customization in TUI and GUI (Claude Code / Codex parity)
-- Add observability and replay tooling: structured trace export, event replay over `EventStore`, redacted diagnostics bundles
+- Add observability and replay tooling beyond structured trace export: event replay over `EventStore` and redacted diagnostics bundles
 - Continue runtime modularization beyond `SessionActor` (model router lifecycle, MCP manager isolation, hook execution boundary)
 
 ## Long term

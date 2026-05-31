@@ -168,7 +168,7 @@ supports_vision = true
 
 | 字段                   | 类型   | 默认值  | 说明                                                            |
 | ---------------------- | ------ | ------- | --------------------------------------------------------------- |
-| `type`                 | string | —       | `"stdio"` 或 `"sse"`,必填。                                     |
+| `type`                 | string | —       | `"stdio"`、`"sse"` 或 `"streamable_http"`,必填。                |
 | `keep_alive`           | bool   | `false` | 为 true 时,即便没有 session 在用,server 也会保持运行。          |
 | `idle_timeout_secs`    | int    | `300`   | server 空闲多少秒后被停止;`keep_alive` 为 true 时忽略。         |
 | `auto_restart`         | bool   | `true`  | transport 失败时是否自动重启。                                  |
@@ -233,6 +233,19 @@ api_key_env = "MCP_API_TOKEN"
 
 对 bearer 认证来说,这两种写法是等价的。希望由 runtime 帮你拼 header 时用 `api_key_env`;需要非 bearer 方案或不同 header 名时用 `headers`。
 
+### Streamable HTTP 专属字段
+
+`streamable_http` 使用 MCP Streamable HTTP transport,并接受和 `sse` 相同的 HTTP 字段:`url`、`headers` 与 `api_key_env`。
+
+示例 —— 使用 Streamable HTTP 的远端 MCP endpoint:
+
+```toml
+[mcp_servers.remote-http]
+type = "streamable_http"
+url = "https://mcp.example.com/mcp"
+api_key_env = "MCP_API_TOKEN"
+```
+
 示例 —— 长期运行的本地开发型 server:
 
 ```toml
@@ -289,7 +302,7 @@ compaction pipeline 与防止 compaction 与活动 turn 竞态的 busy-state gua
 
 1. **profile 的 `api_key_env`。** 在构建 provider 客户端时读取一次。
 2. **MCP stdio 的 `env` 表中空值。** `KEY = ""` 表示"读取名为 `KEY` 的环境变量并使用其值"。非空值则原样传入。
-3. **MCP SSE 的 `headers` 中的 `${VAR}`。** header 值中 `${VAR}` 形式的子串会在每次请求时展开,因此轮换环境变量就能轮换 header,无需重启 server。
+3. **MCP SSE / Streamable HTTP 的 `headers` 中的 `${VAR}`。** header 值中 `${VAR}` 形式的子串会在每次请求时展开,因此轮换环境变量就能轮换 header,无需重启 server。
 
 如果某个必需的环境变量缺失,runtime 会发出启动诊断,受影响的 profile 或 server 被标记为不可用,其它 profile 与 server 不受影响。
 
