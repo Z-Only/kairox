@@ -99,6 +99,7 @@ fn render_model_profile_list(
                     theme::MUTED
                 };
                 let reasoning_tag = if p.supports_reasoning { " [R]" } else { "" };
+                let limits_tag = format_context_limits(p.context_window, p.output_limit);
                 let writable_tag = if p.writable {
                     " writable"
                 } else {
@@ -133,6 +134,10 @@ fn render_model_profile_list(
                         theme::muted(),
                     ),
                     Span::styled(reasoning_tag, Style::default().fg(theme::ACCENT_STRONG)),
+                    Span::styled(
+                        format!("  {limits_tag}"),
+                        Style::default().fg(theme::INFO),
+                    ),
                     Span::styled(
                         format!("  [{}{writable_tag}{key_tag}{test_tag}]", p.source),
                         theme::muted(),
@@ -260,6 +265,37 @@ fn profile_editor_field_label(field: ProfileEditorField) -> &'static str {
         ProfileEditorField::TopK => "Top K",
         ProfileEditorField::MaxTokens => "Max tokens",
         ProfileEditorField::Enabled => "Enabled",
+    }
+}
+
+/// Format a token count into a compact human-readable form (e.g. "128k", "1M").
+pub(super) fn format_token_count(tokens: u64) -> String {
+    if tokens >= 1_000_000 && tokens % 1_000_000 == 0 {
+        format!("{}M", tokens / 1_000_000)
+    } else if tokens >= 1_000 && tokens % 1_000 == 0 {
+        format!("{}k", tokens / 1_000)
+    } else if tokens >= 1_000 {
+        format!("{:.1}k", tokens as f64 / 1_000.0)
+    } else {
+        tokens.to_string()
+    }
+}
+
+/// Format context window and output limit into a compact label for the
+/// profile list, e.g. `ctx:128k/8k`. Returns an empty string when both
+/// values are absent.
+pub(super) fn format_context_limits(context_window: Option<u64>, output_limit: Option<u64>) -> String {
+    match (context_window, output_limit) {
+        (Some(ctx), Some(out)) => {
+            format!(
+                "ctx:{}/{}",
+                format_token_count(ctx),
+                format_token_count(out)
+            )
+        }
+        (Some(ctx), None) => format!("ctx:{}", format_token_count(ctx)),
+        (None, Some(out)) => format!("out:{}", format_token_count(out)),
+        (None, None) => String::new(),
     }
 }
 

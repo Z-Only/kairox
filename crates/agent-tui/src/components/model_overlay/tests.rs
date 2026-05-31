@@ -513,3 +513,59 @@ fn render_function_handles_empty_profiles() {
         })
         .expect("render");
 }
+
+fn entry_with_limits(alias: &str, ctx: u64, out: u64) -> ModelProfileEntry {
+    ModelProfileEntry {
+        context_window: Some(ctx),
+        output_limit: Some(out),
+        ..entry(alias, false)
+    }
+}
+
+#[test]
+fn format_token_count_produces_compact_labels() {
+    use super::render::format_token_count;
+    assert_eq!(format_token_count(128_000), "128k");
+    assert_eq!(format_token_count(8_192), "8.2k");
+    assert_eq!(format_token_count(1_000_000), "1M");
+    assert_eq!(format_token_count(2_000_000), "2M");
+    assert_eq!(format_token_count(500), "500");
+    assert_eq!(format_token_count(4_096), "4.1k");
+    assert_eq!(format_token_count(16_000), "16k");
+}
+
+#[test]
+fn format_context_limits_labels() {
+    use super::render::format_context_limits;
+    assert_eq!(
+        format_context_limits(Some(128_000), Some(8_192)),
+        "ctx:128k/8.2k"
+    );
+    assert_eq!(format_context_limits(Some(200_000), None), "ctx:200k");
+    assert_eq!(format_context_limits(None, Some(4_096)), "out:4.1k");
+    assert_eq!(format_context_limits(None, None), "");
+}
+
+#[test]
+fn renders_context_limits_in_profile_list() {
+    let mut overlay = ModelOverlay::new();
+    overlay.show(snapshot(
+        vec![
+            entry_with_limits("opus", 200_000, 32_000),
+            entry("local", false),
+        ],
+        Some("opus"),
+        None,
+    ));
+    let backend = ratatui::backend::TestBackend::new(120, 30);
+    let mut terminal = ratatui::Terminal::new(backend).unwrap();
+    terminal
+        .draw(|f| overlay.render(f.area(), f))
+        .expect("render with context limits");
+
+    let text = terminal.backend().to_string();
+    assert!(
+        text.contains("ctx:200k/32k"),
+        "rendered buffer should contain context limits label: {text}"
+    );
+}
