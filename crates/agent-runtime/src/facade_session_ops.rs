@@ -18,7 +18,11 @@ where
     M: agent_models::ModelClient + 'static,
 {
     async fn open_workspace(&self, path: String) -> agent_core::Result<WorkspaceInfo> {
-        crate::session::open_workspace(&*self.store, &self.event_tx, path).await
+        let workspace_path = path.clone();
+        let info = crate::session::open_workspace(&*self.store, &self.event_tx, path).await?;
+        let root_uri = format!("file://{workspace_path}");
+        self.start_lsp_servers(&root_uri).await;
+        Ok(info)
     }
 
     async fn start_session(&self, request: StartSessionRequest) -> agent_core::Result<SessionId> {

@@ -39,6 +39,7 @@ pub struct UiRuntimeOptions {
     pub catalog_sources: Vec<CatalogSourceConfig>,
     pub enable_marketplace: bool,
     pub enable_mcp_servers: bool,
+    pub enable_lsp_servers: bool,
     pub enable_plugin_skill_roots: bool,
 }
 
@@ -82,6 +83,7 @@ impl UiRuntimeOptions {
             catalog_sources,
             enable_marketplace: true,
             enable_mcp_servers: true,
+            enable_lsp_servers: true,
             enable_plugin_skill_roots: true,
         }
     }
@@ -272,6 +274,11 @@ pub async fn build_ui_runtime_from_store(
     }
     if options.enable_mcp_servers {
         runtime = runtime.with_mcp_servers(mcp_server_defs).await;
+    }
+    if options.enable_lsp_servers {
+        let lsp_defs = options.config.lsp_server_defs();
+        let dap_defs = options.config.dap_server_defs();
+        runtime = runtime.with_lsp_servers(lsp_defs, dap_defs).await;
     }
 
     Ok(UiRuntimeBootstrap {
