@@ -314,6 +314,8 @@ pub(super) fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
         instructions: None,
         features: agent_config::FeatureFlags::default(),
         hooks: vec![],
+        lsp_servers: vec![],
+        dap_servers: vec![],
     })
 }
 
@@ -355,6 +357,8 @@ pub(super) fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Co
         instructions: None,
         features: agent_config::FeatureFlags::default(),
         hooks: vec![],
+        lsp_servers: vec![],
+        dap_servers: vec![],
     })
 }
 

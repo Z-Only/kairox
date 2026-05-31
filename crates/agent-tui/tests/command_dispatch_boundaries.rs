@@ -48,6 +48,8 @@ fn dispatch_test_config() -> Arc<Config> {
         instructions: None,
         features: FeatureFlags::default(),
         hooks: Vec::new(),
+        lsp_servers: Vec::new(),
+        dap_servers: Vec::new(),
     })
 }
 

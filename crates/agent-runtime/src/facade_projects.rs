@@ -166,6 +166,8 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        self.start_lsp_servers(&crate::lsp_manager::file_uri_from_path(&project.root_path))
+            .await;
         let model_profile = self.config.default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
@@ -211,6 +213,10 @@ where
         crate::project::create_git_worktree(&project.root_path, &branch_name, &worktree_path)
             .map_err(agent_core::CoreError::InvalidState)?;
         let worktree_path_string = worktree_path.display().to_string();
+        self.start_lsp_servers(&crate::lsp_manager::file_uri_from_path(
+            &worktree_path_string,
+        ))
+        .await;
         let model_profile = self.config.default_profile();
         let session_id = crate::session::start_session(
             &*self.store,

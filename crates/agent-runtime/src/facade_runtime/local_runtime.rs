@@ -1,7 +1,7 @@
 use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::execution_runtime::SessionExecutionRuntime;
 use crate::skill_package::{DirectDownloadPackageManager, SkillPackageManager};
-use crate::McpServerManager;
+use crate::{LspServerManager, McpServerManager};
 use agent_core::{DomainEvent, PermissionDecision};
 use agent_mcp::catalog::skills::aggregate::AggregateSkillCatalogProvider;
 use agent_mcp::catalog::{AggregateCatalogProvider, CatalogProvider};
@@ -26,6 +26,7 @@ where
     pub(crate) model: Arc<M>,
     pub(crate) permission_engine: Arc<Mutex<PermissionEngine>>,
     pub(crate) mcp_manager: Option<Arc<Mutex<McpServerManager>>>,
+    pub(crate) lsp_manager: Option<Arc<Mutex<LspServerManager>>>,
     pub(crate) tool_registry: Arc<Mutex<ToolRegistry>>,
     pub(crate) context_assembler: ContextAssembler,
     pub(crate) memory_store: Option<Arc<dyn MemoryStore>>,
@@ -95,6 +96,7 @@ where
             task_graphs: Arc::new(Mutex::new(HashMap::new())),
             session_execution: SessionExecutionRuntime::new(),
             mcp_manager: None,
+            lsp_manager: None,
             dag_executor: None,
             dag_config: DagConfig::default(),
             catalog: None,
@@ -119,6 +121,8 @@ where
                 instructions: None,
                 features: agent_config::FeatureFlags::default(),
                 hooks: vec![],
+                lsp_servers: vec![],
+                dap_servers: vec![],
             }),
             ollama_clients: HashMap::new(),
             monitor_registry: None,

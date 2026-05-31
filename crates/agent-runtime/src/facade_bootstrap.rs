@@ -3,10 +3,11 @@ use crate::dag_executor::{DagConfig, DagExecutor};
 use crate::facade_runtime::ExecutionMode;
 use crate::facade_runtime::LocalRuntime;
 use crate::skill_package::SkillPackageManager;
-use crate::McpServerManager;
+use crate::{LspServerManager, McpServerManager};
 use agent_core::PermissionDecision;
 #[cfg(test)]
 use agent_core::SendMessageRequest;
+use agent_lsp::{DapServerDef, LspServerDef};
 use agent_mcp::types::McpServerDef;
 use agent_memory::{ContextAssembler, MemoryStore};
 use agent_store::{EventStore, ProjectMetaRepository};
@@ -242,6 +243,55 @@ where
     /// Get a reference to the MCP server manager (if configured).
     pub fn mcp_manager(&self) -> Option<Arc<Mutex<McpServerManager>>> {
         self.mcp_manager.clone()
+    }
+
+    /// Configure LSP/DAP servers from parsed config definitions.
+    /// Unlike MCP, LSP servers need `root_uri` at start time — they are
+    /// registered here but auto-started later when a workspace opens.
+    pub async fn with_lsp_servers(
+        mut self,
+        lsp_configs: Vec<LspServerDef>,
+        dap_configs: Vec<DapServerDef>,
+    ) -> Self {
+        if lsp_configs.is_empty() && dap_configs.is_empty() {
+            return self;
+        }
+        let manager = LspServerManager::from_config(
+            lsp_configs,
+            dap_configs,
+            self.tool_registry.clone(),
+            self.permission_engine.clone(),
+            Some(self.event_tx.clone()),
+        );
+        self.lsp_manager = Some(Arc::new(Mutex::new(manager)));
+        self
+    }
+
+    /// Get a reference to the LSP/DAP server manager (if configured).
+    pub fn lsp_manager(&self) -> Option<Arc<Mutex<LspServerManager>>> {
+        self.lsp_manager.clone()
+    }
+
+    /// Start all configured LSP servers for a workspace.
+    /// Call after a workspace is opened (root_uri needed for LSP initialize).
+    pub async fn start_lsp_servers(&self, root_uri: &str) {
+        if let Some(manager) = self.lsp_manager() {
+            let mut mgr = manager.lock().await;
+            let results = mgr.start_auto_lsp_servers(root_uri).await;
+            for result in &results {
+                if let Err(e) = result {
+                    tracing::warn!("LSP server startup warning: {}", e);
+                }
+            }
+        }
+    }
+
+    /// Stop all LSP/DAP servers.
+    pub async fn shutdown_lsp_servers(&self) {
+        if let Some(manager) = self.lsp_manager() {
+            let mut mgr = manager.lock().await;
+            let _ = mgr.shutdown_all().await;
+        }
     }
 
     /// Check health of an MCP server: start + discover tools.

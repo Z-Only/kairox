@@ -12,7 +12,8 @@ members = [
   "apps/agent-gui/src-tauri",
   "crates/agent-mcp",
   "crates/agent-skills",
-  "crates/agent-plugins"
+  "crates/agent-plugins",
+  "crates/agent-lsp"
 ]
 resolver = "2"
 
@@ -46,10 +47,12 @@ uuid = { version = "1", features = ["serde", "v4"] }
 which = "8"
 reqwest = { version = "0.13", features = ["json", "stream", "rustls"], default-features = false }
 eventsource-stream = "0.2.3"
+lsp-types = "0.97"
 tracing = "0.1.44"
 wiremock = "0.6.5"
 async-stream = "0.3.6"
 regex = "1.12.3"
+url = "2"
 zip = "8"
 
 [profile.release]

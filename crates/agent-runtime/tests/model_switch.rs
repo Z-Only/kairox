@@ -90,6 +90,8 @@ fn two_profile_config() -> Arc<Config> {
         instructions: None,
         features: agent_config::FeatureFlags::default(),
         hooks: vec![],
+        lsp_servers: vec![],
+        dap_servers: vec![],
     })
 }
 

@@ -7,12 +7,14 @@
 mod config;
 mod context;
 mod hooks;
+mod lsp;
 mod mcp;
 mod profile;
 
 pub use config::*;
 pub use context::*;
 pub use hooks::*;
+pub use lsp::*;
 pub use mcp::*;
 pub use profile::*;
 

@@ -1,0 +1,19 @@
+[package]
+name = "agent-lsp"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "LSP and DAP client library for Kairox agent"
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["io-util"] }
+tracing.workspace = true
+lsp-types.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

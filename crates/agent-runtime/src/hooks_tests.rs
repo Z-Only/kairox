@@ -68,6 +68,8 @@ async fn run_hooks_sends_event_payload_to_command_stdin() {
             timeout_secs: Some(5),
             enabled: true,
         }],
+        lsp_servers: vec![],
+        dap_servers: vec![],
     };
     let context = HookRunContext {
         event: agent_config::HookEvent::Stop,
@@ -104,6 +106,8 @@ async fn run_hooks_skips_when_feature_flag_disabled() {
             timeout_secs: Some(5),
             enabled: true,
         }],
+        lsp_servers: vec![],
+        dap_servers: vec![],
     };
     let context = HookRunContext {
         event: agent_config::HookEvent::Stop,

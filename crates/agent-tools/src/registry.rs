@@ -119,12 +119,32 @@ impl ToolRegistry {
 
     /// Add a provider. Calls `provider.list_tools().await`, populates `index`, stores provider.
     pub async fn add_provider(&mut self, provider: Box<dyn ToolProvider>) {
+        let provider_name = provider.name().to_string();
+        if self
+            .providers
+            .iter()
+            .any(|existing| existing.name() == provider_name)
+        {
+            self.providers
+                .retain(|existing| existing.name() != provider_name);
+            self.rebuild_provider_index().await;
+        }
         let provider_idx = self.providers.len() + 1; // 1-based
         let defs = provider.list_tools().await;
         for def in defs {
             self.index.entry(def.tool_id).or_insert(provider_idx);
         }
         self.providers.push(provider);
+    }
+
+    async fn rebuild_provider_index(&mut self) {
+        self.index.retain(|_, idx| *idx == 0);
+        for (pos, provider) in self.providers.iter().enumerate() {
+            let provider_idx = pos + 1;
+            for def in provider.list_tools().await {
+                self.index.entry(def.tool_id).or_insert(provider_idx);
+            }
+        }
     }
 
     /// List definitions from internal tools only. Backward-compatible.
