@@ -267,9 +267,9 @@ fn profile_editor_field_label(field: ProfileEditorField) -> &'static str {
 
 /// Format a token count into a compact human-readable form (e.g. "128k", "1M").
 pub(super) fn format_token_count(tokens: u64) -> String {
-    if tokens >= 1_000_000 && tokens % 1_000_000 == 0 {
+    if tokens >= 1_000_000 && tokens.is_multiple_of(1_000_000) {
         format!("{}M", tokens / 1_000_000)
-    } else if tokens >= 1_000 && tokens % 1_000 == 0 {
+    } else if tokens >= 1_000 && tokens.is_multiple_of(1_000) {
         format!("{}k", tokens / 1_000)
     } else if tokens >= 1_000 {
         format!("{:.1}k", tokens as f64 / 1_000.0)
