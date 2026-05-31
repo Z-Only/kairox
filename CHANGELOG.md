@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.34.0] - 2026-05-30
+## [0.34.0] - 2026-05-31
 
 ### 🚀 Features
 
@@ -34,6 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - **site**: refresh roadmap for v0.33 (#731)
 - **ai**: sync assistant instructions
+- **ai**: document test organization
 
 ### 🧪 Testing
 
@@ -141,10 +142,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **runtime**: extract catalog_sink tests into dedicated module (#772)
 - **tui**: extract view tests into dedicated module (#773)
 - extract inline test modules into dedicated \*\_tests.rs files (#775)
+- **tests**: extract remaining inline test modules into dedicated \*\_tests.rs files (#776)
 
 ### 👷 CI
 
 - preemptively lower workspace overall lines floor for Batch 18 test extraction (#746)
+- guard against reintroducing inline test modules (#777)
 
 ## [0.33.0] - 2026-05-29
 
