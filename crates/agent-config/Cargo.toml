@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 agent-core = { path = "../agent-core" }
+agent-lsp = { path = "../agent-lsp" }
 agent-mcp = { path = "../agent-mcp" }
 agent-models = { path = "../agent-models" }
 regex.workspace = true

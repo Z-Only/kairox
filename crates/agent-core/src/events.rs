@@ -346,6 +346,33 @@ pub enum EventPayload {
         monitor_id: String,
         error: String,
     },
+    LspServerStarting {
+        server_id: String,
+        languages: Vec<String>,
+    },
+    LspServerReady {
+        server_id: String,
+        languages: Vec<String>,
+    },
+    LspServerStopped {
+        server_id: String,
+    },
+    LspServerFailed {
+        server_id: String,
+        error: String,
+    },
+    DapSessionStarted {
+        server_id: String,
+        program: String,
+    },
+    DapSessionStopped {
+        server_id: String,
+    },
+    DapBreakpointHit {
+        server_id: String,
+        file: String,
+        line: u32,
+    },
 }
 
 impl EventPayload {
@@ -413,6 +440,13 @@ impl EventPayload {
             Self::MonitorEvent { .. } => "MonitorEvent",
             Self::MonitorStopped { .. } => "MonitorStopped",
             Self::MonitorFailed { .. } => "MonitorFailed",
+            Self::LspServerStarting { .. } => "LspServerStarting",
+            Self::LspServerReady { .. } => "LspServerReady",
+            Self::LspServerStopped { .. } => "LspServerStopped",
+            Self::LspServerFailed { .. } => "LspServerFailed",
+            Self::DapSessionStarted { .. } => "DapSessionStarted",
+            Self::DapSessionStopped { .. } => "DapSessionStopped",
+            Self::DapBreakpointHit { .. } => "DapBreakpointHit",
         }
     }
 }

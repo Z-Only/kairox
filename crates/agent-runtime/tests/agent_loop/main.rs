@@ -30,6 +30,8 @@ pub(crate) fn hook_test_config(hooks: Vec<agent_config::HookConfig>) -> Arc<agen
         instructions: None,
         features: agent_config::FeatureFlags { hooks: true },
         hooks,
+        lsp_servers: vec![],
+        dap_servers: vec![],
     })
 }
 

@@ -19,6 +19,7 @@ agent-memory = { path = "../agent-memory" }
 agent-models = { path = "../agent-models" }
 agent-store = { path = "../agent-store" }
 agent-tools = { path = "../agent-tools" }
+agent-lsp = { path = "../agent-lsp" }
 agent-mcp = { path = "../agent-mcp", features = ["remote-catalog"] }
 agent-config = { path = "../agent-config" }
 agent-skills = { path = "../agent-skills" }

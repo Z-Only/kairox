@@ -226,7 +226,14 @@ impl SessionProjection {
             | EventPayload::MonitorStarted { .. }
             | EventPayload::MonitorEvent { .. }
             | EventPayload::MonitorStopped { .. }
-            | EventPayload::MonitorFailed { .. } => {}
+            | EventPayload::MonitorFailed { .. }
+            | EventPayload::LspServerStarting { .. }
+            | EventPayload::LspServerReady { .. }
+            | EventPayload::LspServerStopped { .. }
+            | EventPayload::LspServerFailed { .. }
+            | EventPayload::DapSessionStarted { .. }
+            | EventPayload::DapSessionStopped { .. }
+            | EventPayload::DapBreakpointHit { .. } => {}
         }
     }
 

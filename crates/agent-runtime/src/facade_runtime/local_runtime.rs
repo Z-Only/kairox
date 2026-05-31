@@ -119,6 +119,8 @@ where
                 instructions: None,
                 features: agent_config::FeatureFlags::default(),
                 hooks: vec![],
+                lsp_servers: vec![],
+                dap_servers: vec![],
             }),
             ollama_clients: HashMap::new(),
             monitor_registry: None,

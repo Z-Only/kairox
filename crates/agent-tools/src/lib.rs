@@ -24,7 +24,7 @@ pub use policy::{
     ApprovalPolicy, ApprovalReason, PolicyDecision, PolicyEffect, PolicyEngine, PolicyRisk,
     SandboxPolicy,
 };
-pub use provider::{BuiltinProvider, McpToolAdapter};
+pub use provider::{BuiltinProvider, DapToolProvider, LspToolProvider, McpToolAdapter};
 pub use registry::{
     require_permission, ArcTool, Tool, ToolDefinition, ToolInvocation, ToolOutput, ToolProvider,
     ToolRegistry,

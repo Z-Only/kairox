@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::context::{ContextPolicy, FeatureFlags};
 use super::hooks::{HookConfig, HookEvent};
+use super::lsp::{DapServerConfig, LspServerConfig};
 use super::mcp::McpServerConfig;
 use super::profile::{profile_supports_reasoning, ConfigSource, ProfileDef, ProfileInfo};
 
@@ -24,6 +25,10 @@ pub struct Config {
     pub features: FeatureFlags,
     /// Command hooks loaded from `[hooks.<event>.<id>]` tables.
     pub hooks: Vec<HookConfig>,
+    /// LSP server configurations from `[lsp_servers.<id>]` tables.
+    pub lsp_servers: Vec<(String, LspServerConfig)>,
+    /// DAP server configurations from `[dap_servers.<id>]` tables.
+    pub dap_servers: Vec<(String, DapServerConfig)>,
 }
 
 /// Errors that can occur during config loading.
@@ -143,6 +148,22 @@ impl Config {
                 .then_with(|| left.id.cmp(&right.id))
         });
 
+        // Merge LSP servers
+        let mut lsp_map: HashMap<String, LspServerConfig> = base.lsp_servers.into_iter().collect();
+        for (name, config) in overlay.lsp_servers {
+            lsp_map.insert(name, config);
+        }
+        let mut merged_lsp: Vec<(String, LspServerConfig)> = lsp_map.into_iter().collect();
+        merged_lsp.sort_by(|a, b| a.0.cmp(&b.0));
+
+        // Merge DAP servers
+        let mut dap_map: HashMap<String, DapServerConfig> = base.dap_servers.into_iter().collect();
+        for (name, config) in overlay.dap_servers {
+            dap_map.insert(name, config);
+        }
+        let mut merged_dap: Vec<(String, DapServerConfig)> = dap_map.into_iter().collect();
+        merged_dap.sort_by(|a, b| a.0.cmp(&b.0));
+
         Ok(Config {
             profiles: merged_profiles,
             mcp_servers: merged_mcp,
@@ -152,6 +173,8 @@ impl Config {
             instructions: merged_instructions,
             features: overlay.features,
             hooks: merged_hooks,
+            lsp_servers: merged_lsp,
+            dap_servers: merged_dap,
         })
     }
 
@@ -244,6 +267,8 @@ impl Config {
             instructions: None,
             features: FeatureFlags::default(),
             hooks: Vec::new(),
+            lsp_servers: Vec::new(),
+            dap_servers: Vec::new(),
         }
     }
 
@@ -311,6 +336,22 @@ impl Config {
     /// Convert parsed MCP server configs to agent-mcp McpServerDef instances.
     pub fn mcp_server_defs(&self) -> Vec<agent_mcp::McpServerDef> {
         self.mcp_servers
+            .iter()
+            .map(|(id, config)| config.to_server_def(id))
+            .collect()
+    }
+
+    /// Convert parsed LSP server configs to agent-lsp LspServerDef instances.
+    pub fn lsp_server_defs(&self) -> Vec<agent_lsp::LspServerDef> {
+        self.lsp_servers
+            .iter()
+            .map(|(id, config)| config.to_server_def(id))
+            .collect()
+    }
+
+    /// Convert parsed DAP server configs to agent-lsp DapServerDef instances.
+    pub fn dap_server_defs(&self) -> Vec<agent_lsp::DapServerDef> {
+        self.dap_servers
             .iter()
             .map(|(id, config)| config.to_server_def(id))
             .collect()

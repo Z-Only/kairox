@@ -22,6 +22,7 @@ pub(crate) mod facade_turn_executor;
 pub mod hooks;
 pub mod hooks_settings;
 pub mod instructions_settings;
+pub mod lsp_manager;
 pub(crate) mod marketplace_toml;
 pub mod mcp_manager;
 pub mod mcp_settings;
@@ -55,6 +56,7 @@ pub use agents::{
 pub use dag_executor::{AgentStatus, DagConfig, DagExecutor, ExecutionResult};
 pub use execution_runtime::{SessionExecutionRuntime, TurnExecutor};
 pub use facade_runtime::{ExecutionMode, LocalRuntime};
+pub use lsp_manager::LspServerManager;
 pub use mcp_manager::McpServerManager;
 pub use task_graph::{
     AgentTask, ReadinessDiagnostics, TaskDependencyBlocker, TaskGraph, TaskStateCounts,
