@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 🐛 Bug Fixes
 
 - **gui**: reset instructions reload state (#774)
+- **site**: seed release cache for local builds
 
 ### 📚 Documentation
 
