@@ -79,26 +79,38 @@ pub(crate) async fn refresh_model_overlay(
     let config = runtime.config();
     let profiles: Vec<ModelProfileEntry> = settings
         .into_iter()
-        .map(|p| ModelProfileEntry {
-            supports_reasoning: config
+        .map(|p| {
+            // Resolve context-window limits from the builtin registry when
+            // the user config doesn't set them explicitly, matching the GUI's
+            // `list_profiles_with_limits` behaviour.
+            let (context_window, output_limit) = config
                 .get_profile(&p.alias)
-                .map(agent_config::profile_supports_reasoning)
-                .unwrap_or(false),
-            alias: p.alias,
-            provider_display: p.provider,
-            model_display: p.model_id,
-            context_window: p.context_window,
-            output_limit: p.output_limit,
-            temperature: p.temperature,
-            top_p: p.top_p,
-            top_k: p.top_k,
-            max_tokens: p.max_tokens,
-            base_url: p.base_url,
-            api_key_env: p.api_key_env,
-            enabled: p.enabled,
-            writable: p.writable,
-            source: p.source,
-            has_api_key: p.has_api_key,
+                .map(|def| {
+                    let limits = agent_config::resolve_limits(def);
+                    (Some(limits.context_window), Some(limits.output_limit))
+                })
+                .unwrap_or((p.context_window, p.output_limit));
+            ModelProfileEntry {
+                supports_reasoning: config
+                    .get_profile(&p.alias)
+                    .map(agent_config::profile_supports_reasoning)
+                    .unwrap_or(false),
+                alias: p.alias,
+                provider_display: p.provider,
+                model_display: p.model_id,
+                context_window,
+                output_limit,
+                temperature: p.temperature,
+                top_p: p.top_p,
+                top_k: p.top_k,
+                max_tokens: p.max_tokens,
+                base_url: p.base_url,
+                api_key_env: p.api_key_env,
+                enabled: p.enabled,
+                writable: p.writable,
+                source: p.source,
+                has_api_key: p.has_api_key,
+            }
         })
         .collect();
     let snapshot = ModelOverlaySnapshot {

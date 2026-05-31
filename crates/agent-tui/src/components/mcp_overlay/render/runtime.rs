@@ -66,6 +66,21 @@ pub(super) fn render_runtime(
                 Some(_) => theme::DANGER,
                 None => theme::MUTED,
             };
+            let disabled_count = overlay
+                .tools
+                .get(&s.server_id)
+                .map(|tools| tools.iter().filter(|t| t.disabled).count())
+                .unwrap_or(0);
+            let tools_label = if disabled_count > 0 {
+                format!("  tools:{} ({disabled_count} off)", s.tool_count)
+            } else {
+                format!("  tools:{}", s.tool_count)
+            };
+            let tools_color = if disabled_count > 0 {
+                theme::WARNING
+            } else {
+                theme::MUTED
+            };
             ListItem::new(Line::from(vec![
                 Span::styled(status_label, Style::default().fg(status_color)),
                 Span::raw("  "),
@@ -73,7 +88,7 @@ pub(super) fn render_runtime(
                     s.server_id.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(format!("  tools:{}", s.tool_count), theme::muted()),
+                Span::styled(tools_label, Style::default().fg(tools_color)),
                 Span::styled(trust_label, Style::default().fg(theme::ACCENT_STRONG)),
                 Span::styled(health_label, Style::default().fg(health_color)),
                 Span::styled(connectivity_label, Style::default().fg(connectivity_color)),

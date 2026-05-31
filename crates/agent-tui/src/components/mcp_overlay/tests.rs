@@ -820,3 +820,53 @@ fn sources_tab_adds_and_removes_catalog_sources() {
                 && request.cache_ttl_seconds.is_none()
     ));
 }
+
+#[test]
+fn runtime_tab_shows_disabled_tool_count() {
+    let mut overlay = McpOverlay::new();
+    overlay.show(runtime_snapshot(vec![entry(
+        "alpha",
+        McpServerStatusView::Running,
+        false,
+        3,
+    )]));
+    // Load tools with one disabled
+    overlay.handle_effect(&CrossPanelEffect::McpToolsLoaded {
+        server_id: "alpha".to_string(),
+        tools: vec![
+            tool("search", false),
+            tool("write", true),
+            tool("delete", false),
+        ],
+        healthy: true,
+        error: None,
+    });
+    // Stay on runtime tab and render
+    let text = rendered_overlay(&overlay);
+    assert!(
+        text.contains("1 off"),
+        "runtime tab should show disabled tool count: {text}"
+    );
+}
+
+#[test]
+fn runtime_tab_omits_disabled_count_when_all_enabled() {
+    let mut overlay = McpOverlay::new();
+    overlay.show(runtime_snapshot(vec![entry(
+        "alpha",
+        McpServerStatusView::Running,
+        false,
+        2,
+    )]));
+    overlay.handle_effect(&CrossPanelEffect::McpToolsLoaded {
+        server_id: "alpha".to_string(),
+        tools: vec![tool("search", false), tool("write", false)],
+        healthy: true,
+        error: None,
+    });
+    let text = rendered_overlay(&overlay);
+    assert!(
+        !text.contains("off"),
+        "runtime tab should not show disabled count when all tools enabled: {text}"
+    );
+}
