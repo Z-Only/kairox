@@ -14,6 +14,7 @@ pub(super) enum SkillTab {
     Installed,
     Catalog,
     Sources,
+    Search,
 }
 
 impl SkillTab {
@@ -22,16 +23,18 @@ impl SkillTab {
             Self::Discovered => Self::Installed,
             Self::Installed => Self::Catalog,
             Self::Catalog => Self::Sources,
-            Self::Sources => Self::Discovered,
+            Self::Sources => Self::Search,
+            Self::Search => Self::Discovered,
         }
     }
 
     pub(super) fn previous(self) -> Self {
         match self {
-            Self::Discovered => Self::Sources,
+            Self::Discovered => Self::Search,
             Self::Installed => Self::Discovered,
             Self::Catalog => Self::Installed,
             Self::Sources => Self::Catalog,
+            Self::Search => Self::Sources,
         }
     }
 
@@ -41,6 +44,7 @@ impl SkillTab {
             Self::Installed => "Installed",
             Self::Catalog => "Catalog",
             Self::Sources => "Sources",
+            Self::Search => "Search",
         }
     }
 }
@@ -51,4 +55,5 @@ pub(super) enum SkillOverlayMode {
     CatalogDetail,
     CatalogFilter,
     SourceEditor,
+    RemoteSearchInput,
 }

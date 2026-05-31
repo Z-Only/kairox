@@ -242,6 +242,38 @@ where
                 }
             }
         }
+        Command::SearchRemoteSkills { query } => {
+            match AppFacade::search_remote_skills(runtime.as_ref(), query.clone()).await {
+                Ok(results) => {
+                    if app.skills_overlay.is_visible() {
+                        app.dispatch_effects(vec![CrossPanelEffect::SkillRemoteSearchResults(
+                            results,
+                        )]);
+                        app.state.render_scheduler.mark_dirty();
+                    } else {
+                        if results.is_empty() {
+                            common::push_status_message(
+                                app,
+                                format!("No remote skills found for \"{query}\""),
+                            );
+                        } else {
+                            let lines = results
+                                .iter()
+                                .map(|r| format!("- {}: {}", r.name, r.description))
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            common::push_status_message(
+                                app,
+                                format!("Remote skills for \"{query}\":\n{lines}"),
+                            );
+                        }
+                    }
+                }
+                Err(error) => {
+                    common::push_status_message(app, format!("[skill search error: {error}]"));
+                }
+            }
+        }
         Command::RefreshSkillCatalog { keyword, sources } => {
             match AppFacade::refresh_skill_catalog(runtime.as_ref()).await {
                 Ok(()) => {

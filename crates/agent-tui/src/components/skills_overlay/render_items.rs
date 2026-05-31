@@ -7,7 +7,8 @@
 //! tab's list items.
 
 use agent_core::facade::{
-    SkillCatalogEntry, SkillInstallTarget, SkillSettingsView, SkillSourceView,
+    RemoteSkillSearchResult, SkillCatalogEntry, SkillInstallTarget, SkillSettingsView,
+    SkillSourceView,
 };
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -269,6 +270,51 @@ pub fn render_catalog_detail(
     ];
 
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+}
+
+pub fn render_search_results(
+    area: Rect,
+    frame: &mut Frame,
+    results: &[RemoteSkillSearchResult],
+    state: &mut ListState,
+    install_target: SkillInstallTarget,
+) {
+    if results.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "No search results — press / to search",
+                theme::muted(),
+            ))),
+            area,
+        );
+        return;
+    }
+
+    let items: Vec<ListItem> = results
+        .iter()
+        .map(|result| {
+            let installs = result
+                .install_count
+                .map(|count| count.to_string())
+                .unwrap_or_else(|| "-".to_string());
+            let line = Line::from(vec![
+                Span::styled(
+                    result.name.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw("  "),
+                Span::styled(clip(&result.description, 40), theme::muted()),
+                Span::styled(
+                    format!("  installs:{installs} -> {}", target_label(install_target)),
+                    theme::muted(),
+                ),
+            ]);
+            ListItem::new(line)
+        })
+        .collect();
+
+    let list = List::new(items).highlight_style(theme::selected());
+    frame.render_stateful_widget(list, area, state);
 }
 
 pub fn render_sources(

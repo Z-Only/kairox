@@ -9,7 +9,8 @@ use crate::components::theme;
 use super::editor::SKILL_SOURCE_EDITOR_FIELDS;
 use super::render_items::{
     clip, render_catalog, render_catalog_detail, render_discovered, render_installed,
-    render_sources, skill_source_field_label, skill_source_field_value, target_label,
+    render_search_results, render_sources, skill_source_field_label, skill_source_field_value,
+    target_label,
 };
 use super::state::SkillsOverlay;
 use super::types::{SkillOverlayMode, SkillTab};
@@ -19,6 +20,7 @@ struct SkillsOverlayRenderState<'a> {
     installed: &'a mut ListState,
     catalog: &'a mut ListState,
     sources: &'a mut ListState,
+    search: &'a mut ListState,
 }
 
 pub(super) fn render_skills_overlay(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
@@ -30,11 +32,13 @@ pub(super) fn render_skills_overlay(area: Rect, frame: &mut Frame, overlay: &Ski
     let mut installed_state = overlay.installed_state;
     let mut catalog_state = overlay.catalog_state;
     let mut sources_state = overlay.sources_state;
+    let mut search_state = overlay.search_state;
     let mut render_state = SkillsOverlayRenderState {
         discovered: &mut discovered_state,
         installed: &mut installed_state,
         catalog: &mut catalog_state,
         sources: &mut sources_state,
+        search: &mut search_state,
     };
     render_skills_overlay_content(area, frame, overlay, &mut render_state);
 }
@@ -143,6 +147,13 @@ fn render_skills_overlay_content(
             );
         }
         SkillTab::Sources => render_sources(chunks[1], frame, &overlay.sources, state.sources),
+        SkillTab::Search => render_search_results(
+            chunks[1],
+            frame,
+            &overlay.search_results,
+            state.search,
+            overlay.install_target,
+        ),
     }
     render_hints(chunks[2], frame, overlay);
 }
@@ -154,6 +165,7 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
         SkillTab::Installed,
         SkillTab::Catalog,
         SkillTab::Sources,
+        SkillTab::Search,
     ] {
         let style = if tab == overlay.tab {
             Style::default()
@@ -187,12 +199,31 @@ fn render_tabs(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
             Style::default().fg(theme::ACCENT),
         ));
     }
+    if overlay.tab == SkillTab::Search {
+        let query_display = overlay.search_query_for_display().trim();
+        let query_label = if query_display.is_empty() {
+            "*".to_string()
+        } else {
+            clip(query_display, 24)
+        };
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            format!(
+                "query:{} results:{}",
+                query_label,
+                overlay.search_results.len()
+            ),
+            Style::default().fg(theme::ACCENT),
+        ));
+    }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
     let action = if overlay.mode == SkillOverlayMode::CatalogFilter {
         "[Enter] search  [Esc] close search  [Backspace] edit  "
+    } else if overlay.mode == SkillOverlayMode::RemoteSearchInput {
+        "[Enter] search  [Esc] cancel  [Backspace] edit  "
     } else if overlay.mode == SkillOverlayMode::CatalogDetail {
         "[Enter/i] install  [t] target  [Esc] back  "
     } else {
@@ -203,6 +234,7 @@ fn render_hints(area: Rect, frame: &mut Frame, overlay: &SkillsOverlay) {
                 "[Enter] detail  [i] install  [/] search  [s] source  [t] target  "
             }
             SkillTab::Sources => "[n] new  [e] enable source  [x] remove  ",
+            SkillTab::Search => "[/] search  [i] install  [t] target  ",
         }
     };
     let hints = Line::from(vec![

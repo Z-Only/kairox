@@ -1,7 +1,7 @@
 use super::*;
 use agent_core::facade::{
-    SkillCatalogEntry, SkillInstallSource, SkillInstallTarget, SkillSettingsScope,
-    SkillSettingsView, SkillSourceView, SkillUpdateState,
+    RemoteSkillSearchResult, SkillCatalogEntry, SkillInstallSource, SkillInstallTarget,
+    SkillSettingsScope, SkillSettingsView, SkillSourceView, SkillUpdateState,
 };
 use crossterm::event::{Event, KeyCode};
 
@@ -517,6 +517,8 @@ fn sources_tab_toggles_selected_source() {
         sources: vec![source("skillhub", true)],
         install_target: SkillInstallTarget::User,
     });
+    // Discovered -> Search -> Sources
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
     let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
 
     let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('e')));
@@ -537,6 +539,8 @@ fn sources_tab_adds_and_removes_skill_sources() {
         sources: vec![source("skillhub", true)],
         install_target: SkillInstallTarget::User,
     });
+    // Discovered -> Search -> Sources
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
     let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
 
     let (_, remove_commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('x')));
@@ -589,4 +593,200 @@ fn discovered_tab_keeps_session_activation_commands() {
         &commands[..],
         [Command::ActivateSkill { skill_id, .. }] if skill_id == "alpha"
     ));
+}
+
+fn search_result(name: &str) -> RemoteSkillSearchResult {
+    RemoteSkillSearchResult {
+        name: name.to_string(),
+        description: format!("{name} remote skill"),
+        repository: Some(format!("https://github.com/test/{name}")),
+        install_count: Some(100),
+        source_url: format!("https://registry.example/{name}"),
+        package: format!("@skills/{name}"),
+    }
+}
+
+fn open_search_tab(overlay: &mut SkillsOverlay) {
+    overlay.show(SkillOverlaySnapshot {
+        discovered: vec![entry("alpha", false)],
+        installed: vec![],
+        catalog: vec![],
+        sources: vec![],
+        install_target: SkillInstallTarget::User,
+    });
+    // Navigate to Search tab (Discovered -> Installed -> Catalog -> Sources -> Search)
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::BackTab));
+}
+
+#[test]
+fn search_tab_shows_empty_state_without_results() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+    let rendered = render_overlay_text(&overlay);
+    assert!(
+        rendered.contains("No search results"),
+        "search tab empty state missing: {rendered}"
+    );
+}
+
+#[test]
+fn search_tab_slash_opens_search_input_and_enter_emits_command() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    // Press / to enter search input mode
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+    assert!(commands.is_empty());
+
+    // Type a query
+    type_text(&mut overlay, "review");
+
+    // Press Enter to submit
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+    assert!(matches!(
+        &commands[..],
+        [Command::SearchRemoteSkills { query }] if query == "review"
+    ));
+}
+
+#[test]
+fn search_tab_esc_cancels_search_input() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+    type_text(&mut overlay, "test");
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Esc));
+    assert!(commands.is_empty());
+    // Should still be visible on Search tab, not dismissed
+    assert!(overlay.is_visible());
+}
+
+#[test]
+fn search_tab_empty_enter_does_not_emit_command() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('/')));
+    // Press Enter without typing
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+    assert!(commands.is_empty());
+}
+
+#[test]
+fn search_results_effect_populates_list() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    // Simulate receiving search results
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+        search_result("deploy"),
+    ]));
+
+    assert_eq!(overlay.search_results.len(), 2);
+    assert_eq!(overlay.search_state.selected(), Some(0));
+
+    let rendered = render_overlay_text(&overlay);
+    assert!(
+        rendered.contains("review"),
+        "search result 'review' missing: {rendered}"
+    );
+    assert!(
+        rendered.contains("deploy"),
+        "search result 'deploy' missing: {rendered}"
+    );
+}
+
+#[test]
+fn search_tab_i_installs_selected_result() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+        search_result("deploy"),
+    ]));
+
+    // Navigate to second result
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('j')));
+    assert_eq!(overlay.search_state.selected(), Some(1));
+
+    // Press i to install
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('i')));
+    assert!(matches!(
+        &commands[..],
+        [Command::InstallRemoteSkill { request }]
+            if request.package == "@skills/deploy"
+                && request.source == "registry"
+                && request.target == SkillInstallTarget::User
+                && request.package_url.is_none()
+    ));
+}
+
+#[test]
+fn search_tab_enter_installs_selected_result() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+    ]));
+
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Enter));
+    assert!(matches!(
+        &commands[..],
+        [Command::InstallRemoteSkill { request }]
+            if request.package == "@skills/review"
+                && request.source == "registry"
+                && request.target == SkillInstallTarget::User
+    ));
+}
+
+#[test]
+fn search_tab_t_toggles_install_target() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+    ]));
+
+    // Toggle target to project
+    let _ = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('t')));
+
+    // Install should use project target
+    let (_, commands) = overlay.handle_event(&test_ctx(), &key(KeyCode::Char('i')));
+    assert!(matches!(
+        &commands[..],
+        [Command::InstallRemoteSkill { request }]
+            if request.package == "@skills/review"
+                && request.target == SkillInstallTarget::Project
+    ));
+}
+
+#[test]
+fn search_results_cleared_on_hide() {
+    let mut overlay = SkillsOverlay::new();
+    open_search_tab(&mut overlay);
+
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+    ]));
+    assert_eq!(overlay.search_results.len(), 1);
+
+    overlay.hide();
+    assert!(overlay.search_results.is_empty());
+    assert_eq!(overlay.search_state.selected(), None);
+    assert!(overlay.search_query.is_empty());
+}
+
+#[test]
+fn search_results_effect_ignored_when_hidden() {
+    let mut overlay = SkillsOverlay::new();
+    // Do not open or show the overlay
+    overlay.handle_effect(&CrossPanelEffect::SkillRemoteSearchResults(vec![
+        search_result("review"),
+    ]));
+    assert!(overlay.search_results.is_empty());
 }

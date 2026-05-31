@@ -366,6 +366,10 @@ pub enum Command {
         keyword: Option<String>,
         sources: Option<Vec<String>>,
     },
+    /// Search the remote skill registry for skills matching a query.
+    SearchRemoteSkills {
+        query: String,
+    },
     /// Enable or disable one installed plugin.
     SetPluginEnabled {
         settings_id: String,
