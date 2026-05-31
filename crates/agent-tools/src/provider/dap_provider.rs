@@ -6,12 +6,18 @@ use std::sync::Arc;
 
 pub struct DapToolProvider {
     server_id: String,
+    provider_name: String,
     client: Arc<DapClient>,
 }
 
 impl DapToolProvider {
     pub fn new(server_id: String, client: Arc<DapClient>) -> Self {
-        Self { server_id, client }
+        let provider_name = format!("dap:{server_id}");
+        Self {
+            server_id,
+            provider_name,
+            client,
+        }
     }
 
     fn tool_id(&self, op: &str) -> String {
@@ -22,7 +28,7 @@ impl DapToolProvider {
 #[async_trait]
 impl ToolProvider for DapToolProvider {
     fn name(&self) -> &str {
-        &self.server_id
+        &self.provider_name
     }
 
     async fn list_tools(&self) -> Vec<ToolDefinition> {

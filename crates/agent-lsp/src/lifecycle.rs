@@ -35,6 +35,7 @@ pub struct LspServerLifecycle {
     pub def: LspServerDef,
     client: Option<Arc<LspClient>>,
     status: ServerStatus,
+    root_uri: Option<String>,
 }
 
 impl LspServerLifecycle {
@@ -43,6 +44,7 @@ impl LspServerLifecycle {
             def,
             client: None,
             status: ServerStatus::Stopped,
+            root_uri: None,
         }
     }
 
@@ -56,9 +58,12 @@ impl LspServerLifecycle {
 
     pub async fn start(&mut self, root_uri: &str) -> Result<Arc<LspClient>> {
         if let Some(client) = &self.client {
-            if self.status == ServerStatus::Running {
+            if self.status == ServerStatus::Running && self.root_uri.as_deref() == Some(root_uri) {
                 return Ok(client.clone());
             }
+            let _ = client.shutdown().await;
+            self.client = None;
+            self.root_uri = None;
         }
         self.status = ServerStatus::Starting;
 
@@ -80,6 +85,7 @@ impl LspServerLifecycle {
         })?;
 
         self.client = Some(client.clone());
+        self.root_uri = Some(root_uri.to_string());
         self.status = ServerStatus::Running;
         tracing::info!(server = %self.def.name, "LSP server started");
         Ok(client)
@@ -89,6 +95,7 @@ impl LspServerLifecycle {
         if let Some(client) = self.client.take() {
             let _ = client.shutdown().await;
         }
+        self.root_uri = None;
         self.status = ServerStatus::Stopped;
         tracing::info!(server = %self.def.name, "LSP server stopped");
         Ok(())

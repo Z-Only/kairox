@@ -80,6 +80,25 @@ async fn initialize_caches_capabilities() {
 }
 
 #[tokio::test]
+async fn initialize_converts_absolute_root_path_to_file_uri() {
+    let mock = MockTransport::new();
+    let requests = mock.requests.clone();
+    mock.enqueue_response(serde_json::json!({
+        "capabilities": {}
+    }));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    client.initialize("/tmp/test").await.unwrap();
+
+    let reqs = requests.lock().unwrap();
+    assert_eq!(reqs[0].method, "initialize");
+    assert_eq!(
+        reqs[0].params.as_ref().unwrap()["rootUri"],
+        "file:///tmp/test"
+    );
+}
+
+#[tokio::test]
 async fn goto_definition_sends_correct_method() {
     let mock = MockTransport::new();
     let requests = mock.requests.clone();
@@ -108,6 +127,50 @@ async fn goto_definition_sends_correct_method() {
 
     let reqs = requests.lock().unwrap();
     assert_eq!(reqs[1].method, "textDocument/definition");
+}
+
+#[tokio::test]
+async fn goto_definition_converts_absolute_path_to_file_uri() {
+    let mock = MockTransport::new();
+    let requests = mock.requests.clone();
+    mock.enqueue_response(serde_json::json!([]));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let locs = client
+        .goto_definition("/tmp/test/src/lib.rs", 5, 10)
+        .await
+        .unwrap();
+
+    assert!(locs.is_empty());
+
+    let reqs = requests.lock().unwrap();
+    assert_eq!(reqs[0].method, "textDocument/definition");
+    assert_eq!(
+        reqs[0].params.as_ref().unwrap()["textDocument"]["uri"],
+        "file:///tmp/test/src/lib.rs"
+    );
+}
+
+#[tokio::test]
+async fn document_symbols_converts_absolute_path_to_file_uri() {
+    let mock = MockTransport::new();
+    let requests = mock.requests.clone();
+    mock.enqueue_response(serde_json::json!([]));
+
+    let client = LspClient::new("test-server".to_string(), Box::new(mock));
+    let symbols = client
+        .document_symbols("/tmp/test/src/lib.rs")
+        .await
+        .unwrap();
+
+    assert!(symbols.is_empty());
+
+    let reqs = requests.lock().unwrap();
+    assert_eq!(reqs[0].method, "textDocument/documentSymbol");
+    assert_eq!(
+        reqs[0].params.as_ref().unwrap()["textDocument"]["uri"],
+        "file:///tmp/test/src/lib.rs"
+    );
 }
 
 #[tokio::test]

@@ -8,8 +8,10 @@ use agent_tools::permission::PermissionEngine;
 use agent_tools::provider::{DapToolProvider, LspToolProvider};
 use agent_tools::registry::ToolRegistry;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use url::Url;
 
 pub struct LspServerManager {
     lsp_servers: HashMap<String, LspServerLifecycle>,
@@ -18,6 +20,12 @@ pub struct LspServerManager {
     #[allow(dead_code)]
     permission_engine: Arc<Mutex<PermissionEngine>>,
     event_tx: Option<tokio::sync::broadcast::Sender<DomainEvent>>,
+}
+
+pub(crate) fn file_uri_from_path(path: &str) -> String {
+    Url::from_file_path(Path::new(path))
+        .map(|url| url.to_string())
+        .unwrap_or_else(|_| format!("file://{path}"))
 }
 
 impl LspServerManager {
@@ -129,6 +137,14 @@ impl LspServerManager {
             }
             results.push(result);
         }
+        let dap_ids: Vec<String> = self.dap_servers.keys().cloned().collect();
+        for id in dap_ids {
+            let result = self.start_dap_server(&id).await;
+            if let Err(ref e) = result {
+                tracing::error!("Failed to start DAP server '{}': {}", id, e);
+            }
+            results.push(result);
+        }
         results
     }
 
@@ -193,3 +209,7 @@ impl LspServerManager {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod tests;

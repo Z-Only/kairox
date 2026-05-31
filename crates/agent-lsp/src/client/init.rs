@@ -5,7 +5,7 @@ use lsp_types::{
 
 use crate::error::{LspError, Result};
 
-use super::LspClient;
+use super::{parse_uri, LspClient};
 
 impl LspClient {
     /// Perform the LSP initialize handshake.
@@ -14,9 +14,7 @@ impl LspClient {
     pub async fn initialize(&self, root_uri: &str) -> Result<&ServerCapabilities> {
         self.capabilities
             .get_or_try_init(|| async {
-                let root_uri: lsp_types::Uri = root_uri
-                    .parse()
-                    .or_else(|_| format!("file://{root_uri}").parse())
+                let root_uri = parse_uri(root_uri)
                     .map_err(|e| LspError::Init(format!("invalid root_uri: {e}")))?;
 
                 #[allow(deprecated)]

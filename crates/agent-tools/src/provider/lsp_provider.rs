@@ -6,12 +6,18 @@ use std::sync::Arc;
 
 pub struct LspToolProvider {
     server_id: String,
+    provider_name: String,
     client: Arc<LspClient>,
 }
 
 impl LspToolProvider {
     pub fn new(server_id: String, client: Arc<LspClient>) -> Self {
-        Self { server_id, client }
+        let provider_name = format!("lsp:{server_id}");
+        Self {
+            server_id,
+            provider_name,
+            client,
+        }
     }
 
     fn tool_id(&self, op: &str) -> String {
@@ -22,7 +28,7 @@ impl LspToolProvider {
 #[async_trait]
 impl ToolProvider for LspToolProvider {
     fn name(&self) -> &str {
-        &self.server_id
+        &self.provider_name
     }
 
     async fn list_tools(&self) -> Vec<ToolDefinition> {

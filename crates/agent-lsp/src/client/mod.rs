@@ -1,10 +1,12 @@
 mod init;
 
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use lsp_types::ServerCapabilities;
 use tokio::sync::{Mutex, OnceCell};
+use url::Url;
 
 use crate::error::{LspError, Result};
 use crate::transport::Transport;
@@ -274,7 +276,7 @@ fn text_document_identifier(uri: &str) -> lsp_types::TextDocumentIdentifier {
 }
 
 fn parse_uri_infallible(uri: &str) -> lsp_types::Uri {
-    uri.parse::<lsp_types::Uri>().unwrap_or_else(|_| {
+    parse_uri(uri).unwrap_or_else(|_| {
         format!("file://{uri}")
             .parse::<lsp_types::Uri>()
             .expect("fallback URI parse")
@@ -282,9 +284,21 @@ fn parse_uri_infallible(uri: &str) -> lsp_types::Uri {
 }
 
 fn parse_uri(uri: &str) -> Result<lsp_types::Uri> {
-    uri.parse::<lsp_types::Uri>()
+    normalized_uri(uri)
+        .parse::<lsp_types::Uri>()
         .or_else(|_| format!("file://{uri}").parse::<lsp_types::Uri>())
         .map_err(|e| LspError::Protocol(format!("invalid URI '{uri}': {e}")))
+}
+
+fn normalized_uri(uri_or_path: &str) -> String {
+    let path = Path::new(uri_or_path);
+    if path.is_absolute() {
+        if let Ok(url) = Url::from_file_path(path) {
+            return url.to_string();
+        }
+    }
+
+    uri_or_path.to_string()
 }
 
 fn parse_location_response(value: serde_json::Value) -> Result<Vec<lsp_types::Location>> {
