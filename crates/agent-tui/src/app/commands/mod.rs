@@ -161,7 +161,9 @@ pub async fn dispatch_commands<F>(
             | Command::OpenConfigDir
             | Command::OpenAgentsDir
             | Command::OpenSkillsDir
-            | Command::ClearSessionProjection => {
+            | Command::ClearSessionProjection
+            | Command::ExportTrace { .. }
+            | Command::RefreshConfig => {
                 common::dispatch(runtime, app, command).await;
             }
         }

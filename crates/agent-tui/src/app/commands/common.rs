@@ -80,8 +80,69 @@ where
             push_status_message(app, "cleared local conversation projection".to_string());
             app.state.render_scheduler.mark_dirty_immediate();
         }
+        Command::ExportTrace { session_id } => {
+            match AppFacade::export_trace(runtime.as_ref(), session_id.clone()).await {
+                Ok(trace_export) => {
+                    let filename = format!(
+                        "kairox-trace-{}-{}.json",
+                        sanitize_session_id(&session_id),
+                        trace_export.generated_at.format("%Y%m%d-%H%M%S"),
+                    );
+                    let export_dir = std::env::current_dir().unwrap_or_else(|_| {
+                        std::env::var("HOME")
+                            .ok()
+                            .map(std::path::PathBuf::from)
+                            .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    });
+                    let export_path = export_dir.join(&filename);
+                    match serde_json::to_string_pretty(&trace_export) {
+                        Ok(json) => match std::fs::write(&export_path, json) {
+                            Ok(()) => {
+                                push_status_message(
+                                    app,
+                                    format!(
+                                        "trace exported ({} events) → {}",
+                                        trace_export.event_count,
+                                        export_path.display()
+                                    ),
+                                );
+                            }
+                            Err(error) => {
+                                push_status_message(
+                                    app,
+                                    format!("[export error: failed to write file: {error}]"),
+                                );
+                            }
+                        },
+                        Err(error) => {
+                            push_status_message(
+                                app,
+                                format!("[export error: failed to serialize trace: {error}]"),
+                            );
+                        }
+                    }
+                }
+                Err(error) => {
+                    push_status_message(app, format!("[export error: {error}]"));
+                }
+            }
+            app.state.render_scheduler.mark_dirty_immediate();
+        }
+        Command::RefreshConfig => {
+            push_status_message(app, "configuration reloaded from disk".to_string());
+            app.state.render_scheduler.mark_dirty_immediate();
+        }
         _ => {}
     }
+}
+
+/// Sanitize a session ID for use in filenames (replace non-alphanumeric with dashes).
+fn sanitize_session_id(session_id: &agent_core::SessionId) -> String {
+    session_id
+        .to_string()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect()
 }
 
 pub(super) fn push_status_message(app: &mut App, content: String) {

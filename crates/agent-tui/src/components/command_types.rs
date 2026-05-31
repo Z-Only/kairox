@@ -404,6 +404,12 @@ pub enum Command {
     MonitorStop {
         monitor_id: String,
     },
+    /// Export the current session's trace to a JSON file for diagnostics/replay.
+    ExportTrace {
+        session_id: SessionId,
+    },
+    /// Reload configuration from disk (user + project TOML files).
+    RefreshConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
