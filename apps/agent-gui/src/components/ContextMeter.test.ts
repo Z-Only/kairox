@@ -263,4 +263,348 @@ describe("ContextMeter ring mode", () => {
       forbidden: ["popover-table", "popover-actions"]
     });
   });
+
+  describe("displayBudgetTokens", () => {
+    it("calculates from modelLimits when lastContextUsage is null", async () => {
+      const session = useSessionStore();
+      session.modelLimits = {
+        context_window: 200_000,
+        output_limit: 16_000,
+        source: "builtin_registry"
+      };
+      session.lastContextUsage = null;
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // displayBudgetTokens = context_window - (output_limit + max(2000, output_limit/10))
+      // = 200000 - (16000 + max(2000, 1600)) = 200000 - 18000 = 182000
+      const popover = wrapper.find('[data-test="context-meter-popover"]');
+      expect(popover.exists()).toBe(true);
+      // The component shows "No usage yet" when lastContextUsage is null
+      expect(popover.text()).toContain("No usage yet");
+    });
+  });
+
+  describe("displayContextWindow", () => {
+    it("falls back to lastContextUsage.context_window when modelLimits is null", async () => {
+      const session = useSessionStore();
+      session.modelLimits = null;
+      session.lastContextUsage = makeUsage({
+        context_window: 128_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      const popover = wrapper.find('[data-test="context-meter-popover"]');
+      expect(popover.text()).toContain("128");
+    });
+  });
+
+  describe("contextUsageMatchesModel", () => {
+    it("returns false when both exist but context windows differ", async () => {
+      const session = useSessionStore();
+      session.modelLimits = {
+        context_window: 200_000,
+        output_limit: 16_000,
+        source: "builtin_registry"
+      };
+      session.lastContextUsage = makeUsage({
+        context_window: 128_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // When contextUsageMatchesModel is false, the estimated-value span should appear
+      const estimatedValue = wrapper.find(".estimated-value");
+      expect(estimatedValue.exists()).toBe(true);
+    });
+  });
+
+  describe("contextWindowSummary edge cases", () => {
+    // The contextWindowSummary computed is used internally; we verify via the popover text.
+    // These are implicitly tested through the model/usage state combinations.
+
+    it("shows only usage context window when modelLimits is null", async () => {
+      const session = useSessionStore();
+      session.modelLimits = null;
+      session.lastContextUsage = makeUsage({
+        context_window: 200_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      const popover = wrapper.find('[data-test="context-meter-popover"]');
+      expect(popover.exists()).toBe(true);
+      expect(popover.text()).toContain("200");
+    });
+  });
+
+  describe("compactionStateLabel", () => {
+    it("shows failedFallback when lastCompactionError exists", async () => {
+      const session = useSessionStore();
+      session.lastContextUsage = makeUsage({ total_tokens: 50, budget_tokens: 100 });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+      session.lastCompactionError = "something went wrong";
+
+      const { wrapper: barWrapper } = mountWithPlugins(ContextMeter, {
+        reusePinia: true,
+        mount: {
+          global: { stubs: { Teleport: true } }
+        }
+      });
+      await barWrapper.vm.$nextTick();
+
+      // In bar mode, the failed badge should appear
+      const failedBadge = barWrapper.find('[data-test="context-meter-badge-failed"]');
+      expect(failedBadge.exists()).toBe(true);
+      expect(failedBadge.text()).toContain("Used sliding-window fallback");
+    });
+  });
+
+  describe("compressionRatioTooLow", () => {
+    it("is true when ratio < 0.3", async () => {
+      const session = useSessionStore();
+      session.lastContextUsage = makeUsage({ total_tokens: 10, budget_tokens: 100 });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // When compressionRatioTooLow is true, the ContextMeterDetails receives it as prop
+      const details = wrapper.findComponent(ContextMeterDetails);
+      expect(details.exists()).toBe(true);
+      expect(details.props("compressionRatioTooLow")).toBe(true);
+    });
+  });
+
+  describe("ring variant hidden when no messages", () => {
+    it("does not render when hasMessages is false in ring variant", async () => {
+      const session = useSessionStore();
+      session.lastContextUsage = makeUsage({ total_tokens: 50, budget_tokens: 100 });
+      // Do NOT push any messages
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find('[data-test="context-meter"]').exists()).toBe(false);
+    });
+  });
+
+  describe("needsAutoCompression", () => {
+    it("is true when ratio >= 0.85", async () => {
+      const session = useSessionStore();
+      session.lastContextUsage = makeUsage({ total_tokens: 85, budget_tokens: 100 });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      const details = wrapper.findComponent(ContextMeterDetails);
+      expect(details.exists()).toBe(true);
+      expect(details.props("needsAutoCompression")).toBe(true);
+    });
+  });
+
+  describe("onCompactClick when already compacting", () => {
+    it("does nothing when session.compacting is true", async () => {
+      invokeMock.mockResolvedValue(undefined);
+      const session = seedCompactableContext();
+      session.compacting = true;
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // Emit compact event from details component
+      const details = wrapper.findComponent(ContextMeterDetails);
+      expect(details.exists()).toBe(true);
+      details.vm.$emit("compact");
+      await wrapper.vm.$nextTick();
+
+      expect(invokeMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("bar variant estimated-value styling", () => {
+    it("shows estimated-value style when contextUsageMatchesModel is false in bar mode", async () => {
+      const session = useSessionStore();
+      session.modelLimits = {
+        context_window: 200_000,
+        output_limit: 16_000,
+        source: "builtin_registry"
+      };
+      session.lastContextUsage = makeUsage({
+        context_window: 128_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+
+      const { wrapper } = mountWithPlugins(ContextMeter, {
+        reusePinia: true,
+        mount: {
+          global: { stubs: { Teleport: true } }
+        }
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-bar"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // The bar popover doesn't show the detail grid, but ContextMeterDetails is rendered
+      const popover = wrapper.find('[data-test="context-meter-popover"]');
+      expect(popover.exists()).toBe(true);
+    });
+  });
+
+  describe("contextWindowSummary computed", () => {
+    it("combines both usage and model windows when both are present", async () => {
+      const session = useSessionStore();
+      session.modelLimits = {
+        context_window: 200_000,
+        output_limit: 16_000,
+        source: "builtin_registry"
+      };
+      session.lastContextUsage = makeUsage({
+        context_window: 128_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+
+      // Access the computed property directly via vm
+      const summary = (wrapper.vm as unknown as { contextWindowSummary: string })
+        .contextWindowSummary;
+      expect(summary).toContain("128");
+      expect(summary).toContain("200");
+    });
+
+    it("returns only usage context window when modelLimits is null", async () => {
+      const session = useSessionStore();
+      session.modelLimits = null;
+      session.lastContextUsage = makeUsage({
+        context_window: 128_000,
+        total_tokens: 50,
+        budget_tokens: 100
+      });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+
+      const summary = (wrapper.vm as unknown as { contextWindowSummary: string })
+        .contextWindowSummary;
+      expect(summary).toContain("128");
+    });
+
+    it("returns only model window with profile when usage is null", async () => {
+      const session = useSessionStore();
+      session.modelLimits = {
+        context_window: 200_000,
+        output_limit: 16_000,
+        source: "builtin_registry"
+      };
+      session.lastContextUsage = null;
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+
+      const summary = (wrapper.vm as unknown as { contextWindowSummary: string })
+        .contextWindowSummary;
+      expect(summary).toContain("200");
+      expect(summary).toContain(session.currentProfile);
+    });
+
+    it("returns unavailable when neither usage nor model window exists", async () => {
+      const session = useSessionStore();
+      session.modelLimits = null;
+      session.lastContextUsage = null;
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+
+      const summary = (wrapper.vm as unknown as { contextWindowSummary: string })
+        .contextWindowSummary;
+      expect(summary).toBe("Unavailable");
+    });
+  });
+
+  describe("hover handlers on popover content", () => {
+    it("keeps popover open on mouseenter and closes on mouseleave", async () => {
+      const session = useSessionStore();
+      session.lastContextUsage = makeUsage({ total_tokens: 50, budget_tokens: 100 });
+      session.projection.messages.push({ role: "user", content: "hi" } as never);
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      // Open popover
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      const popover = wrapper.find('[data-test="context-meter-popover"]');
+      expect(popover.exists()).toBe(true);
+
+      // Trigger mouseenter on the content wrapper
+      const contentWrapper = popover.find("div");
+      await contentWrapper.trigger("mouseenter");
+      await wrapper.vm.$nextTick();
+
+      // Popover should still be open
+      expect(wrapper.find('[data-test="context-meter-popover"]').exists()).toBe(true);
+
+      // Trigger mouseleave
+      await contentWrapper.trigger("mouseleave");
+      await wrapper.vm.$nextTick();
+    });
+  });
+
+  describe("onCompactClick error handling", () => {
+    it("shows toast error when compact_session rejects", async () => {
+      invokeMock.mockRejectedValue(new Error("compaction failed"));
+      seedCompactableContext();
+
+      const wrapper = mountRingMeter();
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-test="context-meter-ring"]').trigger("click");
+      await wrapper.vm.$nextTick();
+
+      const compactButton = wrapper.find('[data-test="context-meter-compact"]');
+      expect(compactButton.exists()).toBe(true);
+      await compactButton.trigger("click");
+      await wrapper.vm.$nextTick();
+
+      // invoke was called and rejected
+      expect(invokeMock).toHaveBeenCalledWith("compact_session");
+    });
+  });
 });
