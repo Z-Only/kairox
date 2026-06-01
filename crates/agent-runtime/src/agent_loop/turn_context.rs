@@ -2,6 +2,7 @@ use crate::agent_loop::AgentLoopDeps;
 use crate::context_budget;
 use crate::event_emitter::append_and_broadcast;
 use agent_core::{AgentId, DomainEvent, EventPayload, PrivacyClassification};
+use agent_models::types::ServerTool;
 use agent_models::{ModelLimits, ToolDefinition};
 use agent_store::EventStore;
 
@@ -12,6 +13,24 @@ pub(crate) struct TurnContext {
     pub(crate) budget: agent_memory::ContextBudget,
     pub(crate) system_prompt: String,
     pub(crate) tool_definitions: Vec<ToolDefinition>,
+    pub(crate) server_tools: Vec<ServerTool>,
+}
+
+pub(crate) fn server_tools_for_profile(
+    config: &agent_config::Config,
+    model_profile_alias: &str,
+) -> Vec<ServerTool> {
+    config
+        .profiles
+        .iter()
+        .find(|(alias, def)| alias == model_profile_alias && def.enabled)
+        .map(|(_, def)| {
+            agent_models::types::server_tools_from_profile(
+                def.server_tool_code_execution.unwrap_or(false),
+                def.server_tool_web_search.unwrap_or(false),
+            )
+        })
+        .unwrap_or_default()
 }
 
 /// Prepare everything the model request needs for this turn:
@@ -29,6 +48,7 @@ where
 {
     // Resolve model profile alias from session events.
     let model_profile_alias: String = super::latest_model_profile_for(session_events);
+    let server_tools = server_tools_for_profile(deps.config, &model_profile_alias);
 
     let reasoning_effort = deps
         .config
@@ -209,5 +229,6 @@ where
         budget,
         system_prompt,
         tool_definitions,
+        server_tools,
     })
 }

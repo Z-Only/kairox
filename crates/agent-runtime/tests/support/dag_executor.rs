@@ -53,6 +53,7 @@ pub async fn make_executor_with_config(
         permission_engine,
         pending,
         None,
+        Arc::new(agent_config::Config::defaults()),
         config,
         AgentSettingsRoots::default(),
     )
@@ -233,6 +234,7 @@ pub async fn make_executor_with_roots(
         permission_engine,
         pending,
         None,
+        Arc::new(agent_config::Config::defaults()),
         DagConfig::default(),
         roots,
     )

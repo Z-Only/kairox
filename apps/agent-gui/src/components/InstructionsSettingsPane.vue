@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { ConfigScope, InstructionsView } from "@/generated/commands";
 import { commands } from "@/generated/commands";
+import { useProjectStore } from "@/stores/project";
 
 const { t } = useI18n();
+const projectStore = useProjectStore();
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -16,9 +18,14 @@ const loaded = ref(false);
 
 const scope = computed<ConfigScope>(() => (configSource?.value === "project" ? "Project" : "User"));
 
-const projectRoot = computed(() =>
-  configSource?.value === "project" ? (configProjectId?.value ?? null) : null
-);
+const projectRoot = computed(() => {
+  if (configSource?.value !== "project") return null;
+  const projectId = configProjectId?.value;
+  if (!projectId) return null;
+  return (
+    projectStore.activeProjects.find((project) => project.projectId === projectId)?.rootPath ?? null
+  );
+});
 
 const effectiveInstructions = computed(() => {
   const parts: string[] = [view.value.system];
@@ -82,7 +89,7 @@ async function save(): Promise<void> {
 }
 
 watch(
-  [() => configSource?.value, () => configProjectId?.value],
+  [() => scope.value, () => projectRoot.value],
   () => {
     load();
   },

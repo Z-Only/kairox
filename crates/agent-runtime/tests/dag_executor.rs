@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 use agent_core::{
     AgentId, AgentRole, AppFacade, FailurePolicy, SendMessageRequest, TaskState, WorkspaceId,
 };
+use agent_models::types::ServerTool;
 use agent_runtime::{
     AgentDecision, AgentSettingsRoots, DagConfig, DagExecutor, SubTaskDef, TaskGraph,
 };
@@ -137,6 +138,7 @@ async fn dag_executor_request_model_uses_latest_reasoning_effort() {
         permission_engine,
         pending,
         None,
+        Arc::new(agent_config::Config::defaults()),
         DagConfig::default(),
         AgentSettingsRoots::default(),
     )
@@ -187,6 +189,103 @@ async fn dag_executor_request_model_uses_latest_reasoning_effort() {
 }
 
 #[tokio::test]
+async fn dag_executor_request_model_uses_profile_server_tools() {
+    let store = Arc::new(SqliteEventStore::in_memory().await.unwrap());
+    let captured_requests = Arc::new(Mutex::new(Vec::new()));
+    let model = Arc::new(RecordingModelClient::new(captured_requests.clone()));
+    let (event_tx, _) = tokio::sync::broadcast::channel(1024);
+    let tool_registry = Arc::new(Mutex::new(ToolRegistry::new()));
+    let permission_engine = Arc::new(Mutex::new(PermissionEngine::new(
+        ApprovalPolicy::OnRequest,
+        SandboxPolicy::WorkspaceWrite {
+            network_access: false,
+            writable_roots: vec![],
+        },
+    )));
+    let pending: Arc<
+        Mutex<HashMap<String, tokio::sync::oneshot::Sender<agent_core::PermissionDecision>>>,
+    > = Arc::new(Mutex::new(HashMap::new()));
+    let mut model_config = agent_config::Config::defaults();
+    let mut reasoning_profile = model_config
+        .profiles
+        .iter()
+        .find(|(alias, _)| alias == "fake")
+        .map(|(_, def)| def.clone())
+        .expect("default fake profile should exist");
+    reasoning_profile.server_tool_code_execution = Some(true);
+    reasoning_profile.server_tool_web_search = Some(true);
+    model_config
+        .profiles
+        .push(("reasoning".into(), reasoning_profile));
+
+    let executor = DagExecutor::new(
+        store.clone(),
+        model,
+        event_tx,
+        tool_registry,
+        permission_engine,
+        pending,
+        None,
+        Arc::new(model_config),
+        DagConfig::default(),
+        AgentSettingsRoots::default(),
+    )
+    .await
+    .with_strategy(
+        AgentRole::Planner,
+        Arc::new(FixedDecisionStrategy::new(
+            AgentRole::Planner,
+            AgentDecision::Decompose {
+                sub_tasks: vec![SubTaskDef {
+                    title: "worker task".into(),
+                    role: AgentRole::Worker,
+                    dependencies: Vec::new(),
+                    description: "ask the model".into(),
+                }],
+            },
+        )),
+    )
+    .with_strategy(
+        AgentRole::Worker,
+        Arc::new(FixedDecisionStrategy::new(
+            AgentRole::Worker,
+            AgentDecision::RequestModel { tools: Vec::new() },
+        )),
+    );
+
+    let workspace_id = WorkspaceId::from_string("wrk_dag_server_tools".to_string());
+    let session_id = agent_core::SessionId::new();
+    append_model_profile_events(store.as_ref(), &workspace_id, &session_id).await;
+
+    executor
+        .execute(
+            &SendMessageRequest {
+                workspace_id,
+                session_id,
+                content: "/plan use provider tools".into(),
+                attachments: vec![],
+            },
+            &Arc::new(Mutex::new(HashMap::new())),
+        )
+        .await
+        .unwrap();
+
+    let requests = captured_requests.lock().await;
+    let request = requests.first().expect("worker should call the model");
+    assert_eq!(
+        request.server_tools,
+        vec![
+            ServerTool::CodeExecution,
+            ServerTool::WebSearch {
+                allowed_domains: Vec::new(),
+                blocked_domains: Vec::new(),
+                user_location: None,
+            },
+        ]
+    );
+}
+
+#[tokio::test]
 async fn dag_executor_request_model_prefers_agent_reasoning_effort_override() {
     let store = Arc::new(SqliteEventStore::in_memory().await.unwrap());
     let captured_requests = Arc::new(Mutex::new(Vec::new()));
@@ -212,6 +311,7 @@ async fn dag_executor_request_model_prefers_agent_reasoning_effort_override() {
         permission_engine,
         pending,
         None,
+        Arc::new(agent_config::Config::defaults()),
         DagConfig::default(),
         AgentSettingsRoots::default(),
     )

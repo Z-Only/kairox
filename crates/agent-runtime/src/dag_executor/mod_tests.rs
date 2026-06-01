@@ -28,6 +28,7 @@ async fn make_executor() -> DagExecutor<SqliteEventStore, FakeModelClient> {
         permission_engine,
         pending,
         None,
+        Arc::new(agent_config::Config::defaults()),
         DagConfig::default(),
         AgentSettingsRoots::default(),
     )

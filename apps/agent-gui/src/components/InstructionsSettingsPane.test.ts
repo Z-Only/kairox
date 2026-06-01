@@ -6,6 +6,7 @@ import InstructionsSettingsPane from "./InstructionsSettingsPane.vue";
 import instructionsSettingsPaneSource from "./InstructionsSettingsPane.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
+import { useProjectStore } from "@/stores/project";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -49,6 +50,22 @@ function mountPaneWithSource(
 const systemInstructions = "You are a helpful assistant.";
 const userInstructions = "Always use Rust.";
 const projectInstructions = "Follow AGENTS.md.";
+const projectId = "proj-123";
+const projectRoot = "/tmp/kairox-project";
+
+function seedProject() {
+  useProjectStore().projects = [
+    {
+      projectId,
+      displayName: "Kairox Project",
+      rootPath: projectRoot,
+      removedAt: null,
+      sortOrder: 0,
+      expanded: true,
+      pathExists: true
+    }
+  ];
+}
 
 function mockGetInstructions() {
   mockedInvoke.mockResolvedValueOnce({
@@ -191,6 +208,23 @@ describe("InstructionsSettingsPane", () => {
   });
 
   describe("project level", () => {
+    it("loads project instructions with the selected project's root path", async () => {
+      seedProject();
+      mockGetInstructions();
+
+      mountPane("project", projectId);
+      await flushPromises();
+
+      expect(mockedInvoke).toHaveBeenCalledWith("get_instructions", {
+        scope: "Project",
+        projectRoot
+      });
+      expect(mockedInvoke).not.toHaveBeenCalledWith("get_instructions", {
+        scope: "Project",
+        projectRoot: projectId
+      });
+    });
+
     it("is hidden under User scope", async () => {
       mockGetInstructions();
 
@@ -257,11 +291,12 @@ describe("InstructionsSettingsPane", () => {
     });
 
     it("saves project instructions when in Project scope", async () => {
+      seedProject();
       mockGetInstructions();
       mockedInvoke.mockResolvedValueOnce(null);
       mockGetInstructions();
 
-      const wrapper = mountPane("project", "proj-123");
+      const wrapper = mountPane("project", projectId);
       await nextTick();
       await nextTick();
 
@@ -273,7 +308,11 @@ describe("InstructionsSettingsPane", () => {
 
       expect(mockedInvoke).toHaveBeenCalledWith("upsert_instructions", {
         input: { scope: "Project", text: "Updated project" },
-        projectRoot: "proj-123"
+        projectRoot
+      });
+      expect(mockedInvoke).not.toHaveBeenCalledWith("upsert_instructions", {
+        input: { scope: "Project", text: "Updated project" },
+        projectRoot: projectId
       });
     });
 
