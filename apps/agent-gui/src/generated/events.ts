@@ -201,7 +201,23 @@ export type EventPayload =
   | { type: "LspServerFailed"; server_id: string; error: string }
   | { type: "DapSessionStarted"; server_id: string; program: string }
   | { type: "DapSessionStopped"; server_id: string }
-  | { type: "DapBreakpointHit"; server_id: string; file: string; line: number };
+  | { type: "DapBreakpointHit"; server_id: string; file: string; line: number }
+  | { type: "TrajectoryStarted"; trajectory_id: string; task_id: string }
+  | {
+      type: "TrajectoryStepRecorded";
+      trajectory_id: string;
+      step_index: number;
+      action: string;
+      observation_preview: string;
+      screenshot_id: string | null;
+      duration_ms: number;
+    }
+  | {
+      type: "TrajectoryCompleted";
+      trajectory_id: string;
+      step_count: number;
+      outcome: TrajectoryOutcome;
+    };
 
 /**  The lifecycle status of an MCP server connection. */
 export type McpServerStatus =
@@ -285,3 +301,6 @@ export type TaskState =
   | "Failed"
   | "Skipped"
   | "Cancelled";
+
+/**  How a trajectory ended. */
+export type TrajectoryOutcome = "success" | "failed" | "cancelled" | "in_progress";
