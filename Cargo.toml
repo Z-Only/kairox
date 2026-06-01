@@ -49,6 +49,7 @@ reqwest = { version = "0.13", features = ["json", "stream", "rustls"], default-f
 eventsource-stream = "0.2.3"
 lsp-types = "0.97"
 tracing = "0.1.44"
+rand = "0.8"
 wiremock = "0.6.5"
 async-stream = "0.3.6"
 regex = "1.12.3"

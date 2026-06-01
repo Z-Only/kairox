@@ -41,14 +41,23 @@ impl OpenAiCompatibleClient {
             builder = builder.header(key.as_str(), value.as_str());
         }
 
-        let response = builder
-            .send()
-            .await
-            .map_err(|e| ModelError::Http(e.to_string()))?;
+        let response = builder.send().await.map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                ModelError::Connection(e.to_string())
+            } else {
+                ModelError::Http {
+                    status: e.status().map_or(0, |s| s.as_u16()),
+                    message: e.to_string(),
+                }
+            }
+        })?;
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
+            return Err(ModelError::Api {
+                status: status.as_u16(),
+                message: body,
+            });
         }
 
         Ok(stream_openai_response(response))

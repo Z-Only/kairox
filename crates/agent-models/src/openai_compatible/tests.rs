@@ -352,8 +352,8 @@ async fn maps_http_error_status_and_body_to_api_error() {
     };
 
     match err {
-        ModelError::Api(message) => {
-            assert!(message.contains("429"), "{message}");
+        ModelError::Api { status, message } => {
+            assert_eq!(status, 429);
             assert!(message.contains("rate limit exceeded"), "{message}");
         }
         other => panic!("expected ModelError::Api, got {other:?}"),
