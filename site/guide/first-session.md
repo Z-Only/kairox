@@ -4,10 +4,6 @@ description: A guided walkthrough of a real Kairox session in both the TUI and t
 outline: [2, 3]
 ---
 
-<script setup>
-import { withBase } from "vitepress";
-</script>
-
 # First Session
 
 This page walks you through one complete Kairox session end to end — in the TUI and in the GUI, with a real model, real tool calls, and a real permission prompt. By the end you will have seen the agent loop, the trace timeline, a model switch mid-session, and an automatic context compaction.
@@ -116,10 +112,12 @@ just tauri-dev
 
 The desktop window opens. The screenshot below shows the default workbench layout: sessions list on the left, chat in the center, trace + tasks on the right.
 
-<figure class="screenshot">
-  <img :src="withBase('/screenshots/workbench.png')" alt="Kairox desktop workbench" />
-  <figcaption>The desktop workbench: sessions, chat, trace, and task graph in one window.</figcaption>
-</figure>
+<ThemeScreenshot
+  light="/screenshots/workbench.png"
+  dark="/screenshots/workbench-dark.png"
+  alt="Kairox desktop workbench"
+  caption="The desktop workbench: project sessions, chat, trace, and task graph in one window."
+/>
 
 ### Configure from settings
 
@@ -133,10 +131,12 @@ Click the settings icon (top right). Settings is organized by concern:
 - **Hooks** — hook scripts and triggers.
 - **Instructions** — user and project instructions.
 
-<figure class="screenshot">
-  <img :src="withBase('/screenshots/settings.png')" alt="Kairox settings view" />
-  <figcaption>Settings surfaces every configurable piece — models, agents, MCP, skills, plugins, hooks, instructions.</figcaption>
-</figure>
+<ThemeScreenshot
+  light="/screenshots/settings.png"
+  dark="/screenshots/settings-dark.png"
+  alt="Kairox settings view"
+  caption="Settings surfaces every configurable piece — models, agents, MCP, skills, plugins, hooks, instructions."
+/>
 
 Click **Models** and confirm your profile is listed. Click the profile to make it the default for new sessions.
 
@@ -169,6 +169,13 @@ Close the window. Reopen with `just tauri-dev`. The session list, the chat histo
 ## Part 3 — Try MCP
 
 The marketplace view (top-level navigation) lists curated MCP servers — git, GitHub, filesystem, fetch, and more. Install one (the marketplace handles the runtime requirement check, downloads the server, and registers it).
+
+<ThemeScreenshot
+  light="/screenshots/mcp.png"
+  dark="/screenshots/mcp-dark.png"
+  alt="Kairox MCP marketplace in settings"
+  caption="The MCP settings page lets you switch between installed servers and the curated marketplace."
+/>
 
 Once installed, the server's tools appear in the registry. The model can call them; they pass through the same policy engine as the built-ins. The trace marks tool calls with the originating server so you can audit what spoke to what.
 

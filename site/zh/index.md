@@ -28,25 +28,24 @@ features:
 ---
 
 <script setup>
-import { onMounted } from "vue";
 import { withBase } from "vitepress";
-
-onMounted(() => {
-  localStorage.setItem("kairox.site.locale", "zh");
-});
 </script>
 
 ## 一览 Kairox
 
 <div class="screenshot-grid">
-  <figure>
-    <img :src="withBase('/screenshots/workbench.png')" alt="Kairox 桌面工作台，集成 session、聊天、trace 与任务面板" />
-    <figcaption>桌面工作台将持久 session、聊天、trace 与任务上下文集中在一个视图中。</figcaption>
-  </figure>
-  <figure>
-    <img :src="withBase('/screenshots/settings.png')" alt="Kairox 设置界面，展示模型与 agent 配置" />
-    <figcaption>覆盖 model、agent、MCP、skill、plugin、hook 与项目指令的设置面板。</figcaption>
-  </figure>
+  <ThemeScreenshot
+    light="/screenshots/workbench.png"
+    dark="/screenshots/workbench-dark.png"
+    alt="Kairox 桌面工作台，展示项目会话、聊天、trace 与任务面板"
+    caption="桌面工作台将项目会话、聊天、trace 与任务上下文集中在一个视图中。"
+  />
+  <ThemeScreenshot
+    light="/screenshots/settings.png"
+    dark="/screenshots/settings-dark.png"
+    alt="Kairox 设置界面，展示模型与 agent 配置"
+    caption="覆盖 model、agent、MCP、skill、plugin、hook 与项目指令的设置面板。"
+  />
 </div>
 
 ## 下一步去哪
