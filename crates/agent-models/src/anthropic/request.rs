@@ -98,6 +98,10 @@ impl AnthropicClient {
             }
         }
 
+        // Add cache_control breakpoints to the last N (up to 3) tool_result
+        // messages so Anthropic can cache conversation prefixes up to those points.
+        Self::add_tool_result_cache_breakpoints(&mut messages);
+
         let mut body = serde_json::json!({
             "model": self.config.default_model,
             "max_tokens": self.config.max_tokens,
@@ -106,7 +110,13 @@ impl AnthropicClient {
         });
 
         if let Some(ref system_prompt) = request.system_prompt {
-            body["system"] = serde_json::json!(system_prompt);
+            // Use content-block array format with cache_control on the last block
+            // so Anthropic can cache the system prompt across turns.
+            body["system"] = serde_json::json!([{
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }]);
         }
 
         // Tool definitions - map to Anthropic tool format if present.
@@ -169,6 +179,36 @@ impl AnthropicClient {
         }
 
         body
+    }
+
+    /// Add `cache_control: {"type": "ephemeral"}` to the last N (up to 3)
+    /// tool_result content blocks in the messages array.
+    fn add_tool_result_cache_breakpoints(messages: &mut [serde_json::Value]) {
+        const MAX_BREAKPOINTS: usize = 3;
+
+        // Collect indices of messages that contain tool_result content blocks.
+        let tool_result_indices: Vec<usize> = messages
+            .iter()
+            .enumerate()
+            .filter(|(_, msg)| {
+                msg["content"]
+                    .as_array()
+                    .is_some_and(|blocks| blocks.iter().any(|b| b["type"] == "tool_result"))
+            })
+            .map(|(i, _)| i)
+            .collect();
+
+        // Take the last N indices
+        let start = tool_result_indices.len().saturating_sub(MAX_BREAKPOINTS);
+        for &idx in &tool_result_indices[start..] {
+            if let Some(blocks) = messages[idx]["content"].as_array_mut() {
+                // Add cache_control to the last tool_result block in this message
+                if let Some(last_tr) = blocks.iter_mut().rev().find(|b| b["type"] == "tool_result")
+                {
+                    last_tr["cache_control"] = serde_json::json!({"type": "ephemeral"});
+                }
+            }
+        }
     }
 }
 

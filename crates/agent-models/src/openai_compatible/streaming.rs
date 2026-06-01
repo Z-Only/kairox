@@ -81,6 +81,8 @@ pub(super) fn parse_openai_chunk(data: &str) -> Result<Vec<OpenAiChunkEvent>> {
                         Some(crate::ModelUsage {
                             input_tokens: usage_value["prompt_tokens"].as_u64().unwrap_or(0),
                             output_tokens: usage_value["completion_tokens"].as_u64().unwrap_or(0),
+                            cache_creation_input_tokens: None,
+                            cache_read_input_tokens: None,
                         })
                     } else {
                         None

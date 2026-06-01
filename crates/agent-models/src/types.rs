@@ -126,6 +126,12 @@ impl ModelRequest {
 pub struct ModelUsage {
     pub input_tokens: u64,
     pub output_tokens: u64,
+    /// Anthropic prompt caching: tokens written to the cache during this request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_creation_input_tokens: Option<u64>,
+    /// Anthropic prompt caching: tokens read from the cache during this request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_input_tokens: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
