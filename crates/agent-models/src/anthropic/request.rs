@@ -203,10 +203,7 @@ impl AnthropicClient {
         for &idx in &tool_result_indices[start..] {
             if let Some(blocks) = messages[idx]["content"].as_array_mut() {
                 // Add cache_control to the last tool_result block in this message
-                if let Some(last_tr) = blocks
-                    .iter_mut()
-                    .rev()
-                    .find(|b| b["type"] == "tool_result")
+                if let Some(last_tr) = blocks.iter_mut().rev().find(|b| b["type"] == "tool_result")
                 {
                     last_tr["cache_control"] = serde_json::json!({"type": "ephemeral"});
                 }

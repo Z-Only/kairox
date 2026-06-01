@@ -87,8 +87,7 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                         Some(crate::ModelUsage {
                             input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
                             output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
-                            cache_creation_input_tokens: usage_value
-                                ["cache_creation_input_tokens"]
+                            cache_creation_input_tokens: usage_value["cache_creation_input_tokens"]
                                 .as_u64(),
                             cache_read_input_tokens: usage_value["cache_read_input_tokens"]
                                 .as_u64(),

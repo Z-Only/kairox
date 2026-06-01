@@ -588,12 +588,14 @@ async fn streams_multi_chunk_tool_arguments() {
 #[test]
 fn system_prompt_uses_content_block_array_with_cache_control() {
     let client = AnthropicClient::new(AnthropicConfig::default());
-    let request = ModelRequest::user_text("fast", "hello")
-        .with_system_prompt("You are a helpful assistant.");
+    let request =
+        ModelRequest::user_text("fast", "hello").with_system_prompt("You are a helpful assistant.");
 
     let body = client.build_messages_request(&request);
 
-    let system = body["system"].as_array().expect("system should be an array");
+    let system = body["system"]
+        .as_array()
+        .expect("system should be an array");
     assert_eq!(system.len(), 1);
     assert_eq!(system[0]["type"], "text");
     assert_eq!(system[0]["text"], "You are a helpful assistant.");
@@ -699,7 +701,8 @@ fn cache_control_on_five_tool_results_only_last_three() {
     let client = AnthropicClient::new(AnthropicConfig::default());
 
     // Build a conversation with 5 tool call/result pairs
-    let mut request = ModelRequest::user_text("fast", "do many things").with_tools(vec![shell_tool()]);
+    let mut request =
+        ModelRequest::user_text("fast", "do many things").with_tools(vec![shell_tool()]);
 
     for i in 1..=5 {
         request = request
@@ -770,9 +773,7 @@ fn parse_message_start_with_cache_stats() {
     let events = parse_anthropic_raw_events(data).unwrap();
     assert_eq!(events.len(), 1);
     match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
-            usage: Some(u),
-        }) => {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
             assert_eq!(u.input_tokens, 2048);
             assert_eq!(u.output_tokens, 0);
             assert_eq!(u.cache_creation_input_tokens, Some(1500));
@@ -800,9 +801,7 @@ fn parse_message_start_without_cache_stats() {
     let events = parse_anthropic_raw_events(data).unwrap();
     assert_eq!(events.len(), 1);
     match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
-            usage: Some(u),
-        }) => {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
             assert_eq!(u.input_tokens, 100);
             assert_eq!(u.cache_creation_input_tokens, None);
             assert_eq!(u.cache_read_input_tokens, None);
@@ -829,9 +828,7 @@ fn parse_message_delta_with_cache_stats() {
     let events = parse_anthropic_raw_events(data).unwrap();
     assert_eq!(events.len(), 1);
     match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
-            usage: Some(u),
-        }) => {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
             assert_eq!(u.output_tokens, 42);
             assert_eq!(u.cache_creation_input_tokens, Some(200));
             assert_eq!(u.cache_read_input_tokens, Some(1800));
@@ -853,9 +850,7 @@ fn parse_message_delta_without_cache_stats_backward_compat() {
     let events = parse_anthropic_raw_events(data).unwrap();
     assert_eq!(events.len(), 1);
     match &events[0] {
-        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
-            usage: Some(u),
-        }) => {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed { usage: Some(u) }) => {
             assert_eq!(u.input_tokens, 10);
             assert_eq!(u.output_tokens, 5);
             assert_eq!(u.cache_creation_input_tokens, None);
