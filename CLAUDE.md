@@ -20,6 +20,7 @@
 | agent-models  | LLM adapters + model metadata/context windows                                                                                                    | `ModelClient`, `ModelRouter`, `ModelRegistry`                                                                    |
 | agent-tools   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools, MonitorRegistry                                                      | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PermissionEngine`, `Tool`, `MonitorRegistry` |
 | agent-mcp     | MCP client, transports (stdio/SSE/Streamable HTTP), lifecycle, health checks, protocol types, marketplace catalog                                | `McpClient`, `Transport`, `McpTransportDef`, `ServerLifecycle`                                                   |
+| agent-lsp     | LSP/DAP client, transports, server lifecycle management for code intelligence and debugging                                                      | `LspClient`, `DapClient`, `LspServerLifecycle`, `DapServerLifecycle`                                             |
 | agent-skills  | Native skills system — reusable prompt/tool/workflow capabilities, config-driven discovery                                                       | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`                                                                  |
 | agent-plugins | Plugin manifest and inventory parsing for plugin-provided skills, tools, hooks, and MCP servers                                                  | `PluginManifest`, plugin inventory helpers                                                                       |
 | agent-config  | TOML config, profile discovery, `.kairox/` discovery, instructions, skills/MCP config                                                            | `ProfileDef`, `build_router`                                                                                     |
@@ -28,7 +29,7 @@
 | agent-tui     | Terminal UI (ratatui), CLI flags (--version, --profile, --approval-policy, --sandbox-policy)                                                     | `App`                                                                                                            |
 | agent-gui     | Desktop app (Tauri + Vue), sessions, MCP UI, model/agent/plugin/hook/skills settings, workspaces                                                 | `commands.rs` → Pinia stores                                                                                     |
 
-> Built-in tools shipped by `agent-tools`: `shell.exec` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch.apply` (`PatchApplyTool`), `search.ripgrep` (`RipgrepSearchTool`), `monitor.start`, `monitor.list`, and `monitor.stop` (`MonitorStartTool`, `MonitorListTool`, `MonitorStopTool`). External tools come from MCP servers via `McpToolAdapter`.
+> Built-in tools shipped by `agent-tools`: `shell.exec` (`ShellExecTool`), `fs.read`, `fs.write`, `fs.list`, `patch.apply` (`PatchApplyTool`), `search.ripgrep` (`RipgrepSearchTool`), `monitor.start`, `monitor.list`, and `monitor.stop` (`MonitorStartTool`, `MonitorListTool`, `MonitorStopTool`). Dynamic tools come from MCP servers via `McpToolAdapter` and from LSP/DAP servers via `LspToolProvider`/`DapToolProvider`.
 
 ## Before starting work
 
@@ -61,7 +62,7 @@ Edit all 5 files in sync: `Cargo.toml`, `Cargo.lock` (via `cargo generate-lockfi
 
 ## Commit convention
 
-Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `skills`, `plugins`, `eval`, `tui`, `gui`, `docs`, `deps`, `ci`.
+Conventional Commits with scopes: `core`, `runtime`, `models`, `tools`, `memory`, `store`, `config`, `mcp`, `lsp`, `skills`, `plugins`, `eval`, `tui`, `gui`, `docs`, `deps`, `ci`.
 
 Examples: `feat(runtime): ...`, `fix(gui): ...`, `feat(mcp): ...`, `chore(deps): ...`
 

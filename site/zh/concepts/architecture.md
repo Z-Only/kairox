@@ -34,6 +34,7 @@ flowchart TB
     MODELS["agent-models<br/>ModelClient · ModelRouter · ModelRegistry"]
     TOOLS["agent-tools<br/>ToolRegistry · PolicyEngine · built-ins"]
     MCP["agent-mcp<br/>McpClient · transports · marketplace"]
+    LSP["agent-lsp<br/>LspClient · DapClient · lifecycle"]
     SKILLS["agent-skills<br/>SkillRegistry · SkillDef · frontmatter"]
     PLUGINS["agent-plugins<br/>PluginManifest · inventory"]
     CONFIG["agent-config<br/>ProfileDef · loader · discovery"]
@@ -47,6 +48,7 @@ flowchart TB
   RUNTIME --> MODELS
   RUNTIME --> TOOLS
   RUNTIME --> MCP
+  RUNTIME --> LSP
   RUNTIME --> SKILLS
   RUNTIME --> PLUGINS
   RUNTIME --> CONFIG
@@ -95,6 +97,7 @@ flowchart TB
 | **agent-models**  | 模型提供方抽象(OpenAI 兼容、Anthropic、Ollama、Fake),并带有 metadata 与 context-window 注册表。                                                                                             | `ModelClient` trait、`ModelRequest`、`ModelRouter`、`ModelProfile`、`ModelRegistry`。                                                                                              |
 | **agent-tools**   | 工具注册表、正交的 Approval × Sandbox 策略引擎、内置工具(`shell.exec`、`fs.read`、`fs.write`、`fs.list`、`patch.apply`、`search.ripgrep`、`monitor.start/list/stop`),以及 MCP-tool 适配器。 | `ToolRegistry`、`PolicyEngine`、`ApprovalPolicy`、`SandboxPolicy`、`PolicyDecision`、`PolicyRisk`、`Tool` trait、`ToolRisk`、`McpToolAdapter`、`MonitorRegistry`。                 |
 | **agent-mcp**     | MCP(Model Context Protocol)客户端、stdio + SSE + Streamable HTTP 传输、server 生命周期、discovery 缓存、marketplace 目录(内置 + 远端来源)。                                                 | `McpClient`、`Transport` trait、`StdioTransport`、`SseTransport`、`StreamableHttpTransport`、`ServerLifecycle`、`McpServerDef`、`CatalogEntry`。                                   |
+| **agent-lsp**     | LSP 和 DAP 客户端实现、JSON-RPC transport、server 生命周期管理，用于代码智能与调试器集成。                                                                                                  | `LspClient`、`DapClient`、`LspServerDef`、`DapServerDef`、`LspServerLifecycle`、`DapServerLifecycle`、`ServerStatus`。                                                             |
 | **agent-skills**  | 原生 skills 系统 —— 可复用的 prompt / tool / workflow 能力、frontmatter 解析、注册表、GUI 设置。                                                                                            | `SkillRegistry`、`SkillDef`、`SkillFrontmatter`、`SkillScope`、`SkillSettings`。                                                                                                   |
 | **agent-plugins** | 描述插件提供的 skills、tools、hooks、MCP server 的 manifest 与 inventory。                                                                                                                  | `PluginManifest`,以及若干 inventory 辅助方法。                                                                                                                                     |
 | **agent-memory**  | 用户、workspace、session 三种作用域下的持久化记忆,基于 `tiktoken` budget 的 context 装配,以及 prompt compaction。                                                                           | `MemoryStore` trait、`SqliteMemoryStore`、`ContextAssembler`、`MemoryMarker`、`ContextCompactor`。                                                                                 |

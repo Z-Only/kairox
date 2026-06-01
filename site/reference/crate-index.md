@@ -6,14 +6,14 @@ outline: [2, 3]
 
 # Crate Index
 
-Kairox is a Cargo workspace with thirteen crates plus a Tauri app crate. This page is the at-a-glance map: one row per crate, what it owns, the types you will see most often, and what depends on it. For the architectural reasoning behind the split, see [Architecture](../concepts/architecture).
+Kairox is a Cargo workspace with fourteen crates plus a Tauri app crate. This page is the at-a-glance map: one row per crate, what it owns, the types you will see most often, and what depends on it. For the architectural reasoning behind the split, see [Architecture](../concepts/architecture).
 
 ## The dependency rule
 
 There is exactly one dependency direction in the workspace:
 
 ```text
-agent-core → agent-store, agent-memory, agent-models, agent-tools, agent-mcp, agent-skills, agent-plugins
+agent-core → agent-store, agent-memory, agent-models, agent-tools, agent-mcp, agent-lsp, agent-skills, agent-plugins
 agent-config → (uses domain types from agent-core; declarative only)
 agent-runtime → composes all of the above
 agent-tui, agent-gui-tauri, agent-eval → depend on agent-runtime (and the facade in agent-core)
@@ -31,6 +31,7 @@ flowchart TD
   models["agent-models"]
   tools["agent-tools"]
   mcp["agent-mcp"]
+  lsp["agent-lsp"]
   skills["agent-skills"]
   plugins["agent-plugins"]
   config["agent-config"]
@@ -44,6 +45,7 @@ flowchart TD
   core --> models
   core --> tools
   core --> mcp
+  core --> lsp
   core --> skills
   core --> plugins
   store --> runtime
@@ -51,6 +53,7 @@ flowchart TD
   models --> runtime
   tools --> runtime
   mcp --> runtime
+  lsp --> runtime
   skills --> runtime
   plugins --> runtime
   config --> runtime
@@ -114,9 +117,9 @@ One file per provider (Anthropic, OpenAI-compatible, Ollama, Fake). The `ModelRe
 | Repo path      | [`crates/agent-tools`](https://github.com/Z-Only/kairox/tree/main/crates/agent-tools)                                                                                               |
 | Purpose        | The `Tool` trait, the `ToolRegistry`, the orthogonal Approval × Sandbox `PolicyEngine`, and the built-in tools.                                                                     |
 | Key types      | `Tool`, `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `ApprovalReason`, `ShellExecTool`, `PatchApplyTool`, `RipgrepSearchTool` |
-| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`)                                                                                                                                 |
+| Depended on by | `agent-runtime`, `agent-mcp` (via `McpToolAdapter`), `agent-lsp` (via `LspToolProvider` / `DapToolProvider`)                                                                        |
 
-Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, and `monitor.stop`. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
+Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start`, `monitor.list`, and `monitor.stop`. Dynamic tool providers register additional tools at runtime: `McpToolAdapter` for MCP servers, `LspToolProvider` for LSP servers, and `DapToolProvider` for DAP servers. `PolicyEngine::decide(PolicyRisk)` returns a `PolicyDecision` of `Allowed`, `DeniedBySandbox { reason }`, or `NeedsApproval { reason }`; the runtime turns the latter into permission events. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0. See [Permissions & Tools](../concepts/permissions-and-tools).
 
 ### `agent-mcp`
 
@@ -128,6 +131,17 @@ Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `
 | Depended on by | `agent-runtime`, `agent-gui-tauri` (for the marketplace view)                                                                              |
 
 `McpToolAdapter` wraps an MCP-exposed tool in the `Tool` trait so the runtime treats it like a built-in. The marketplace catalog is pluggable (built-in static list + remote `CatalogSource`). See [Extensibility](../concepts/extensibility).
+
+### `agent-lsp`
+
+| What           | Detail                                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Repo path      | [`crates/agent-lsp`](https://github.com/Z-Only/kairox/tree/main/crates/agent-lsp)                                       |
+| Purpose        | LSP and DAP client implementations with JSON-RPC transport, server lifecycle, and code intelligence / debugger support. |
+| Key types      | `LspClient`, `DapClient`, `LspServerDef`, `DapServerDef`, `LspServerLifecycle`, `DapServerLifecycle`, `ServerStatus`    |
+| Depended on by | `agent-runtime`, `agent-tools` (via `LspToolProvider` / `DapToolProvider`), `agent-config`                              |
+
+LSP integration provides go-to-definition, references, completions, and diagnostics by managing language server processes. DAP integration supports debugger launch/attach workflows. Both register dynamic tools via their respective tool providers so the agent can use code intelligence as part of its workflow.
 
 ### `agent-skills`
 
