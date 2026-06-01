@@ -21,6 +21,7 @@ pub(crate) async fn execute_task_with_strategy<S, M>(
     model: &Arc<M>,
     strategies: &HashMap<AgentRole, Arc<dyn AgentStrategy>>,
     _permission_engine: &Arc<Mutex<PermissionEngine>>,
+    model_config: &agent_config::Config,
     workspace_id: &WorkspaceId,
     session_id: &agent_core::SessionId,
     graph: &TaskGraph,
@@ -69,6 +70,8 @@ where
                 .model_profile_override()
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| crate::agent_loop::latest_model_profile_for(session_events));
+            let server_tools =
+                crate::agent_loop::server_tools_for_profile(model_config, &model_profile);
             let reasoning_effort = strategy
                 .reasoning_effort_override()
                 .map(|s| s.to_string())
@@ -79,7 +82,7 @@ where
                 messages: strategy.build_context(task, graph, session_events).await,
                 system_prompt: None,
                 tools: Vec::new(),
-                server_tools: Vec::new(),
+                server_tools,
                 reasoning_effort,
             };
 
@@ -192,6 +195,7 @@ pub(crate) async fn run_reviewer_if_needed<S, M>(
     model: &Arc<M>,
     strategies: &HashMap<AgentRole, Arc<dyn AgentStrategy>>,
     permission_engine: &Arc<Mutex<PermissionEngine>>,
+    model_config: &agent_config::Config,
     workspace_id: &WorkspaceId,
     session_id: &agent_core::SessionId,
     graph: &mut TaskGraph,
@@ -254,6 +258,7 @@ where
             model,
             strategies,
             permission_engine,
+            model_config,
             workspace_id,
             session_id,
             graph,

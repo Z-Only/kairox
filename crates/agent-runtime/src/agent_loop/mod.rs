@@ -13,6 +13,7 @@ pub(crate) use stream_handler::process_model_stream;
 pub(crate) use stream_handler::StreamOutput;
 pub(crate) use tool_loop::execute_tool_calls;
 pub(crate) use turn_context::prepare_turn_context;
+pub(crate) use turn_context::server_tools_for_profile;
 pub(crate) use turn_context::TurnContext;
 
 use crate::task_graph::TaskGraph;

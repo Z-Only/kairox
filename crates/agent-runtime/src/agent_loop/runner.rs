@@ -149,6 +149,7 @@ where
         budget,
         system_prompt,
         tool_definitions,
+        server_tools,
     } = prepare_turn_context(&deps, request, &session_events).await?;
 
     // ── 4. Build model messages + request ───────────────────────────
@@ -163,7 +164,7 @@ where
         messages,
         system_prompt: Some(system_prompt),
         tools: tool_definitions,
-        server_tools: Vec::new(),
+        server_tools,
         reasoning_effort,
     };
 

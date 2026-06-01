@@ -8,6 +8,7 @@ use agent_core::{
     ActivateSkillRequest, AppFacade, ContextSource, SendMessageRequest, StartSessionRequest,
 };
 use agent_memory::{ContextAssembler, ContextRequest};
+use agent_models::types::ServerTool;
 use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::SqliteEventStore;
@@ -140,6 +141,65 @@ async fn send_message_includes_active_skill_block_in_model_request() {
     assert!(request_text.contains("<skill name=\"code-review\" source=\"workspace\">"));
     assert!(request_text.contains("Always inspect error handling before approving code."));
     assert!(request_text.contains("</active_skills>"));
+}
+
+#[tokio::test]
+async fn send_message_includes_profile_server_tools_in_model_request() {
+    let mut config = agent_config::Config::defaults();
+    let (_, fake_profile) = config
+        .profiles
+        .iter_mut()
+        .find(|(alias, _)| alias == "fake")
+        .expect("default fake profile should exist");
+    fake_profile.server_tool_code_execution = Some(true);
+    fake_profile.server_tool_web_search = Some(true);
+
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let captured_requests = Arc::new(AsyncMutex::new(Vec::new()));
+    let model = RecordingModelClient::new(captured_requests.clone());
+    let runtime = LocalRuntime::new(store, model).with_config(Arc::new(config));
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .expect("session should start");
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "use provider tools".into(),
+            attachments: vec![],
+        })
+        .await
+        .expect("send_message should complete");
+
+    let requests = captured_requests.lock().await;
+    let request = requests
+        .first()
+        .expect("model should receive one request after send_message");
+    assert_eq!(
+        request.server_tools,
+        vec![
+            ServerTool::CodeExecution,
+            ServerTool::WebSearch {
+                allowed_domains: Vec::new(),
+                blocked_domains: Vec::new(),
+                user_location: None,
+            },
+        ]
+    );
 }
 
 #[tokio::test]
