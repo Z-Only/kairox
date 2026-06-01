@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 2026-06-01
+
+### 🚀 Features
+
+- **models**: add retry and error resilience with exponential backoff (#796)
+- **memory**: add multimodal context management with image pruning strategies (#798)
+- **models**: add prompt cache optimization for Anthropic adapter (#797)
+- **models**: add server-side tool types for code execution and web search (#799)
+
 ## [0.35.0] - 2026-06-01
 
 ### 🚀 Features
