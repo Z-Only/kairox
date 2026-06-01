@@ -28,34 +28,24 @@ features:
 ---
 
 <script setup>
-import { onMounted } from "vue";
 import { withBase } from "vitepress";
-
-onMounted(() => {
-  const preferenceKey = "kairox.site.locale";
-  const language = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
-
-  if (!localStorage.getItem(preferenceKey) && language.startsWith("zh")) {
-    localStorage.setItem(preferenceKey, "zh");
-    window.location.replace(withBase("/zh/"));
-    return;
-  }
-
-  localStorage.setItem(preferenceKey, "en");
-});
 </script>
 
 ## See Kairox
 
 <div class="screenshot-grid">
-  <figure>
-    <img :src="withBase('/screenshots/workbench.png')" alt="Kairox desktop workbench with sessions, chat, trace, and task panels" />
-    <figcaption>Desktop workbench with persistent sessions, chat, trace, and task context in one view.</figcaption>
-  </figure>
-  <figure>
-    <img :src="withBase('/screenshots/settings.png')" alt="Kairox settings screen showing model and agent configuration" />
-    <figcaption>Settings surfaces for models, agents, MCP, skills, plugins, hooks, and project instructions.</figcaption>
-  </figure>
+  <ThemeScreenshot
+    light="/screenshots/workbench.png"
+    dark="/screenshots/workbench-dark.png"
+    alt="Kairox desktop workbench with a project session, chat, trace, and task panels"
+    caption="Desktop workbench with a project-scoped session, chat, trace, and task context in one view."
+  />
+  <ThemeScreenshot
+    light="/screenshots/settings.png"
+    dark="/screenshots/settings-dark.png"
+    alt="Kairox settings screen showing model and agent configuration"
+    caption="Settings surfaces for models, agents, MCP, skills, plugins, hooks, and project instructions."
+  />
 </div>
 
 ## Where to go next

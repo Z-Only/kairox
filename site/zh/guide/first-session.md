@@ -4,10 +4,6 @@ description: 在 TUI 和 GUI 里完整走一遍真实的 Kairox session,包含 p
 outline: [2, 3]
 ---
 
-<script setup>
-import { withBase } from "vitepress";
-</script>
-
 # 第一个 Session
 
 本页会带你端到端走一遍完整的 Kairox session——在 TUI 和 GUI 里都跑一次,用真实的模型、真实的 tool 调用,以及真实的 permission 提示。读完之后,你会亲眼见过 Agent loop、trace 时间线、session 中途的模型切换,以及一次自动的 context compaction。
@@ -116,10 +112,12 @@ just tauri-dev
 
 桌面窗口会打开。下面的截图展示了默认的 workbench 布局:左侧是 session 列表,中间是聊天区,右侧是 trace 加 tasks。
 
-<figure class="screenshot">
-  <img :src="withBase('/screenshots/workbench.png')" alt="Kairox 桌面 workbench" />
-  <figcaption>桌面 workbench:session 列表、聊天、trace 和 task graph 集中在一个窗口里。</figcaption>
-</figure>
+<ThemeScreenshot
+  light="/screenshots/workbench.png"
+  dark="/screenshots/workbench-dark.png"
+  alt="Kairox 桌面 workbench"
+  caption="桌面 workbench:项目 session、聊天、trace 和 task graph 集中在一个窗口里。"
+/>
 
 ### 在设置里配置
 
@@ -133,10 +131,12 @@ just tauri-dev
 - **Hooks** —— hook 脚本和触发条件。
 - **Instructions** —— 用户指令与项目指令。
 
-<figure class="screenshot">
-  <img :src="withBase('/screenshots/settings.png')" alt="Kairox 设置界面" />
-  <figcaption>设置把每一处可配置的能力都暴露出来——models、agents、MCP、skills、plugins、hooks、instructions。</figcaption>
-</figure>
+<ThemeScreenshot
+  light="/screenshots/settings.png"
+  dark="/screenshots/settings-dark.png"
+  alt="Kairox 设置界面"
+  caption="设置把每一处可配置的能力都暴露出来——models、agents、MCP、skills、plugins、hooks、instructions。"
+/>
 
 点击 **Models**,确认你的 profile 出现在列表里。点击 profile 把它设为新 session 的默认值。
 
@@ -169,6 +169,13 @@ just tauri-dev
 ## 第三部分 —— 试一下 MCP
 
 marketplace 视图(顶层导航里)列出了精挑细选过的 MCP server——git、GitHub、filesystem、fetch 等等。安装其中一个(marketplace 会处理 runtime 依赖检查、下载 server 并完成注册)。
+
+<ThemeScreenshot
+  light="/screenshots/mcp.png"
+  dark="/screenshots/mcp-dark.png"
+  alt="Kairox 设置里的 MCP marketplace"
+  caption="MCP 设置页可以在已安装 server 与 curated marketplace 之间切换。"
+/>
 
 安装完成后,server 的 tool 会出现在 registry 里。模型可以调用它们;它们会和内置 tool 一样,经过同一个 policy engine。trace 会标记 tool 调用的来源 server,让你能审计谁在与谁通信。
 

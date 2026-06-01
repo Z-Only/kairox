@@ -88,6 +88,13 @@ just tauri-dev
 
 这会同时启动 Vite 开发服务器和原生 Tauri 窗口,Vue 前端和 Rust 后端都支持热重载。
 
+<ThemeScreenshot
+  light="/screenshots/workbench.png"
+  dark="/screenshots/workbench-dark.png"
+  alt="打开项目 session 后的 Kairox 桌面 GUI"
+  caption="GUI 默认进入 workbench,项目 session、聊天、trace event、任务状态和上下文用量会一起显示。"
+/>
+
 如果首次运行时 Tauri 编译失败,几乎一定是缺少了某个平台前置条件(Linux 上的 WebKitGTK、Windows 上的 WebView2、macOS 上的 Xcode CLT)。[安装](./installation) 页面列出了所有依赖。
 
 如果你只做前端工作、不需要原生窗口,可以用:

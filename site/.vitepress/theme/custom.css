@@ -60,7 +60,9 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.screenshot-grid figure {
+.screenshot-grid figure,
+.theme-screenshot,
+.vp-doc figure.screenshot {
   overflow: hidden;
   margin: 0;
   border: 1px solid var(--kairox-border);
@@ -69,7 +71,9 @@
   box-shadow: 0 18px 38px rgb(15 23 42 / 0.08);
 }
 
-.screenshot-grid img {
+.screenshot-grid img,
+.theme-screenshot__image,
+.vp-doc figure.screenshot img {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -77,7 +81,21 @@
   object-fit: cover;
 }
 
-.screenshot-grid figcaption {
+.theme-screenshot__image--dark {
+  display: none;
+}
+
+.dark .theme-screenshot__image--light {
+  display: none;
+}
+
+.dark .theme-screenshot__image--dark {
+  display: block;
+}
+
+.screenshot-grid figcaption,
+.theme-screenshot figcaption,
+.vp-doc figure.screenshot figcaption {
   padding: 12px 14px;
   border-top: 1px solid var(--kairox-border);
   color: var(--kairox-text-muted);

@@ -88,6 +88,13 @@ just tauri-dev
 
 This starts the Vite dev server and the native Tauri window together with hot reload for both the Vue frontend and the Rust backend.
 
+<ThemeScreenshot
+  light="/screenshots/workbench.png"
+  dark="/screenshots/workbench-dark.png"
+  alt="Kairox desktop GUI after opening a project session"
+  caption="The GUI opens into the workbench, where project sessions, chat, trace events, task state, and context usage stay visible together."
+/>
+
 If Tauri fails to compile on the first run, you are almost certainly missing a platform prerequisite (WebKitGTK on Linux, WebView2 on Windows, Xcode CLT on macOS). The [Installation](./installation) page lists everything.
 
 For frontend-only work where you do not need the native window, use:
