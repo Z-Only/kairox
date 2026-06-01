@@ -20,6 +20,10 @@ const metrics = ["functions", "lines"];
 // Each file may be evaluated by multiple groups (for example, a workspace-wide
 // floor and a tier-specific gate). Stricter tiers must pass first; relaxed
 // tiers act as a safety net against report truncation.
+//
+// 2026-06-01: inline test extraction complete (CI guard active).
+// Functions floors for T1 and T2 remain at 0 pending next CI coverage run to
+// establish honest post-extraction baseline; raise to floor(actual - 1) then.
 const groups = [
   // Tier 1 — Critical: permission engine, persistence, domain types,
   // configuration loader. Defects here affect audit, security, recoverability.
