@@ -112,9 +112,14 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
-function mountPane(configSource?: "user" | "project", configProjectId?: string) {
+function mountPane(
+  configSource?: "user" | "project",
+  configProjectId?: string,
+  locale?: "en" | "zh-CN"
+) {
   const mountOptions: MountWithPluginsOptions<typeof ModelSettingsPane> = {
     reusePinia: true,
+    locale,
     mount: configSource
       ? {
           global: {
@@ -197,13 +202,20 @@ describe("ModelSettingsPane", () => {
 
     const sortSelect = wrapper.find('[data-test="model-sort-select"]');
     expect(sortSelect.exists()).toBe(true);
-    expect(sortSelect.attributes("aria-label")).toBe("Model profile sort");
+    expect(sortSelect.attributes("aria-label")).toBe("Sort model profiles");
     expect(sortSelect.findAll("option").map((option) => option.attributes("value"))).toEqual([
       "original",
       "alias",
       "provider",
       "source",
       "status"
+    ]);
+    expect(sortSelect.findAll("option").map((option) => option.text())).toEqual([
+      "Original order",
+      "Alias",
+      "Provider",
+      "Source",
+      "Status"
     ]);
 
     await sortSelect.setValue("provider");
@@ -228,6 +240,30 @@ describe("ModelSettingsPane", () => {
     expect(empty.exists()).toBe(true);
     expect(empty.text()).toContain("No model profiles match your search.");
     expect(wrapper.find('[data-test="model-list"]').exists()).toBe(false);
+  });
+
+  it("renders search and sort controls from the active locale", async () => {
+    const wrapper = mountPane("user", undefined, "zh-CN");
+    await flushPromises();
+
+    const searchInput = wrapper.find('[data-test="model-search-input"]');
+    expect(searchInput.attributes("aria-label")).toBe("搜索模型配置");
+    expect(searchInput.attributes("placeholder")).toBe("搜索模型配置");
+
+    const sortSelect = wrapper.find('[data-test="model-sort-select"]');
+    expect(sortSelect.attributes("aria-label")).toBe("模型配置排序");
+    expect(sortSelect.findAll("option").map((option) => option.text())).toEqual([
+      "原始顺序",
+      "别名",
+      "提供商",
+      "来源",
+      "状态"
+    ]);
+
+    await searchInput.setValue("does-not-exist");
+    expect(wrapper.find('[data-test="model-filter-empty-state"]').text()).toContain(
+      "没有匹配的模型配置。"
+    );
   });
 
   it("renders source and effective audit state for model profiles", async () => {
@@ -259,7 +295,12 @@ describe("ModelSettingsPane", () => {
 
   it("does not keep model pane aria chrome inline in the component source", () => {
     expectSourceMigration(modelSettingsPaneSource, {
-      forbidden: ['aria-label="Model settings"']
+      forbidden: [
+        'aria-label="Model settings"',
+        "Search model profiles",
+        "Model profile sort",
+        "Original order"
+      ]
     });
   });
 
@@ -473,7 +514,13 @@ describe("ModelSettingsPane", () => {
   it("notifies success when test profile connectivity succeeds", async () => {
     mockedCommands.testModelConnectivity.mockResolvedValue({
       status: "ok",
-      data: { ok: true, error: null }
+      data: {
+        ok: true,
+        error: null,
+        status: "chat_ready",
+        message: "Model my-model is ready to chat.",
+        response_preview: "OK"
+      }
     });
     const wrapper = mountPane("user");
     await flushPromises();
@@ -481,7 +528,31 @@ describe("ModelSettingsPane", () => {
     await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
     await flushPromises();
 
-    expect(mockNotify).toHaveBeenCalledWith("success", expect.stringContaining("my-model"));
+    expect(mockNotify).toHaveBeenCalledWith("success", "Model my-model is ready to chat.");
+  });
+
+  it("shows quota and plan failures from profile chat probes", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: {
+        ok: false,
+        error: "api error (status 429)",
+        status: "quota_or_plan_blocked",
+        message:
+          "Model my-model endpoint is reachable, but chat is blocked by quota or plan limits.",
+        response_preview: null
+      }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      "error",
+      "Model my-model endpoint is reachable, but chat is blocked by quota or plan limits."
+    );
   });
 
   it("notifies error when test profile connectivity returns error status", async () => {
@@ -774,7 +845,7 @@ describe("ModelSettingsPane", () => {
     await wrapper.find('[data-test="model-edit-test-btn"]').trigger("click");
     await flushPromises();
 
-    expect(mockedCommands.testModelConnectivity).toHaveBeenCalledWith("my-model");
+    expect(mockedCommands.testModelConnectivity).toHaveBeenCalledWith("my-model", null);
     expect(mockNotify).toHaveBeenCalledWith("success", expect.stringContaining("my-model"));
   });
 });

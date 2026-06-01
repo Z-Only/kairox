@@ -189,9 +189,9 @@ export const commands = {
     typedError<null, string>(__TAURI_INVOKE("delete_profile_settings", { alias })),
   moveProfileInOrder: (alias: string, direction: number) =>
     typedError<null, string>(__TAURI_INVOKE("move_profile_in_order", { alias, direction })),
-  testModelConnectivity: (alias: string) =>
+  testModelConnectivity: (alias: string, projectRoot: string | null) =>
     typedError<ConnectivityTestResult, string>(
-      __TAURI_INVOKE("test_model_connectivity", { alias })
+      __TAURI_INVOKE("test_model_connectivity", { alias, projectRoot })
     ),
   testUrlConnectivity: (url: string) =>
     typedError<ConnectivityTestResult, string>(__TAURI_INVOKE("test_url_connectivity", { url })),
@@ -501,6 +501,9 @@ export type ConnectivityResult =
 export type ConnectivityTestResult = {
   ok: boolean;
   error: string | null;
+  status: string;
+  message: string;
+  response_preview: string | null;
 };
 
 export type ContextUsage = {

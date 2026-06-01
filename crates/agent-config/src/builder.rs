@@ -52,21 +52,35 @@ pub fn build_ollama_clients(
     clients
 }
 
-/// Map a provider name to a client family.
-/// Known providers map to their specific client; everything else maps to
-/// `openai_compatible` since most third-party APIs follow the OpenAI protocol.
-fn provider_family(provider: &str) -> &str {
-    match provider {
+/// Map a profile definition to a client family.
+/// Known providers map to their specific client. Custom providers normally map
+/// to `openai_compatible`, but Anthropic-compatible gateways often keep their
+/// own provider name while exposing an `/anthropic` base URL.
+fn provider_family(def: &ProfileDef) -> &'static str {
+    let provider = def.provider.to_ascii_lowercase();
+    match provider.as_str() {
         "anthropic" => "anthropic",
         "ollama" => "ollama",
         "fake" => "fake",
         "openai_compatible" => "openai_compatible",
+        _ if provider.contains("anthropic") || uses_anthropic_base_url(def.base_url.as_deref()) => {
+            "anthropic"
+        }
         _ => "openai_compatible",
     }
 }
 
+fn uses_anthropic_base_url(base_url: Option<&str>) -> bool {
+    base_url
+        .map(|url| {
+            let normalized = url.trim_end_matches('/').to_ascii_lowercase();
+            normalized.ends_with("/anthropic") || normalized.contains("/anthropic/")
+        })
+        .unwrap_or(false)
+}
+
 fn build_profile(alias: &str, def: &ProfileDef) -> ModelProfile {
-    let family = provider_family(&def.provider);
+    let family = provider_family(def);
 
     let mut capabilities = match family {
         "openai_compatible" => ModelCapabilities {
@@ -161,7 +175,7 @@ fn resolve_api_key_env(alias: &str, def: &ProfileDef) -> String {
 }
 
 fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
-    match provider_family(&def.provider) {
+    match provider_family(def) {
         "openai_compatible" => {
             let base_url = def
                 .base_url

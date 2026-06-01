@@ -134,6 +134,18 @@ describe("useModelProfilesStore", () => {
     expect(store.busyAlias).toBeNull();
   });
 
+  it("testModelConnectivity forwards the project root scope", async () => {
+    const store = useModelProfilesStore();
+    mockedCommands.testModelConnectivity.mockResolvedValueOnce(ok({}));
+
+    await store.testModelConnectivity("project-model", "/tmp/project");
+
+    expect(mockedCommands.testModelConnectivity).toHaveBeenCalledWith(
+      "project-model",
+      "/tmp/project"
+    );
+  });
+
   it("openConfigFile swallows opener errors silently", async () => {
     const store = useModelProfilesStore();
     mockedCommands.openProfilesConfigFile.mockRejectedValueOnce(new Error("opener missing"));

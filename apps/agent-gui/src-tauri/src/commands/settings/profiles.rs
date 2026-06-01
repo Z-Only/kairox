@@ -1,5 +1,8 @@
-use super::config_runtime::ConnectivityTestResult;
+use super::config_runtime::{
+    classify_model_error, classify_provider_failure_message, ConnectivityTestResult,
+};
 use super::*;
+use futures::StreamExt;
 
 #[tauri::command]
 #[specta::specta]
@@ -92,64 +95,110 @@ pub async fn delete_profile_settings(
 pub async fn test_model_connectivity(
     state: State<'_, GuiState>,
     alias: String,
+    project_root: Option<String>,
 ) -> Result<ConnectivityTestResult, String> {
-    // Get the profile settings to verify it exists and is configured.
-    let profiles = state
-        .runtime
-        .list_profile_settings(None)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let profile = profiles
-        .into_iter()
-        .find(|p| p.alias == alias)
+    let config = if let Some(project_root) = project_root.as_deref().filter(|path| !path.is_empty())
+    {
+        let base_config =
+            agent_config::Config::load_with_project_root(Some(std::path::Path::new(project_root)))
+                .map_err(|e| e.to_string())?;
+        agent_runtime::ui_bootstrap::load_config_with_profiles_overlay(base_config, &state.home_dir)
+            .map_err(|e| e.to_string())?
+            .config
+    } else {
+        state.config.read().map_err(|e| e.to_string())?.clone()
+    };
+    let profile = config
+        .profiles
+        .iter()
+        .find(|(name, _)| name == &alias)
+        .map(|(_, profile)| profile.clone())
         .ok_or_else(|| format!("model profile '{}' not found", alias))?;
 
-    // If the profile has a base_url configured, try to reach it.
-    if let Some(base_url) = &profile.base_url {
-        if !base_url.is_empty() {
-            let client = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(10))
-                .build()
-                .map_err(|e| e.to_string())?;
+    Ok(probe_profile_chat_readiness(&alias, &profile, std::time::Duration::from_secs(20)).await)
+}
 
-            // Try common endpoints: the base URL itself, then /models.
-            let endpoints = [
-                base_url.clone(),
-                format!("{}/models", base_url.trim_end_matches('/')),
-            ];
+async fn probe_profile_chat_readiness(
+    alias: &str,
+    profile: &agent_config::ProfileDef,
+    timeout: std::time::Duration,
+) -> ConnectivityTestResult {
+    let subject = format!("Model {alias}");
+    if !profile.enabled {
+        return ConnectivityTestResult::failed("invalid_config", &subject, "profile is disabled");
+    }
+    if profile.provider == "fake" {
+        return ConnectivityTestResult::chat_ready(&subject, profile.response.clone());
+    }
 
-            let mut last_error: Option<String> = None;
-            for endpoint in &endpoints {
-                match client.get(endpoint).send().await {
-                    Ok(response) => {
-                        if response.status().is_success() || response.status().is_client_error() {
-                            return Ok(ConnectivityTestResult {
-                                ok: true,
-                                error: None,
-                            });
-                        }
-                        last_error = Some(format!("unexpected status: {}", response.status()));
-                    }
-                    Err(e) => {
-                        last_error = Some(format!("connection failed: {e}"));
-                    }
+    let mut probe_profile = profile.clone();
+    probe_profile.output_limit = Some(probe_profile.output_limit.unwrap_or(8).min(8));
+    probe_profile.max_tokens = Some(probe_profile.max_tokens.unwrap_or(8).min(8));
+    probe_profile.temperature = Some(0.0);
+
+    let mut probe_config = agent_config::Config::defaults();
+    probe_config.profiles = vec![(alias.to_string(), probe_profile)];
+    let router = probe_config.build_router();
+    let request = agent_models::ModelRequest::user_text(alias, "Reply with OK.");
+
+    let stream_result = match tokio::time::timeout(timeout, router.route(request)).await {
+        Ok(result) => result,
+        Err(_) => {
+            return ConnectivityTestResult::failed(
+                "network_error",
+                &subject,
+                format!("model probe timed out after {}s", timeout.as_secs()),
+            );
+        }
+    };
+    let mut stream = match stream_result {
+        Ok(stream) => stream,
+        Err(error) => return classify_model_error(&error, &subject),
+    };
+
+    let mut preview = String::new();
+    loop {
+        let event = match tokio::time::timeout(timeout, stream.next()).await {
+            Ok(Some(event)) => event,
+            Ok(None) => break,
+            Err(_) => {
+                return ConnectivityTestResult::failed(
+                    "network_error",
+                    &subject,
+                    format!("model stream timed out after {}s", timeout.as_secs()),
+                );
+            }
+        };
+
+        match event {
+            Ok(agent_models::ModelEvent::TokenDelta(delta)) => {
+                if preview.len() < 200 {
+                    preview.push_str(&delta);
                 }
             }
-
-            return Ok(ConnectivityTestResult {
-                ok: false,
-                error: last_error,
-            });
+            Ok(agent_models::ModelEvent::ToolCallRequested { .. }) => {
+                return ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview));
+            }
+            Ok(agent_models::ModelEvent::Completed { .. }) => {
+                return ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview));
+            }
+            Ok(agent_models::ModelEvent::Failed { message }) => {
+                return classify_provider_failure_message(message, &subject);
+            }
+            Err(error) => return classify_model_error(&error, &subject),
         }
     }
 
-    // No custom base_url — the profile uses default provider endpoints.
-    // Assume it's reachable if the config is valid.
-    Ok(ConnectivityTestResult {
-        ok: true,
-        error: None,
-    })
+    ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview))
+}
+
+fn non_empty_preview(preview: String) -> Option<String> {
+    let trimmed = preview.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.chars().take(200).collect())
+    }
 }
 
 #[tauri::command]
@@ -236,5 +285,52 @@ mod profile_with_limits_tests {
         assert!(json.contains("\"context_window\":128000"));
         assert!(json.contains("\"limit_source\":\"builtin_registry\""));
         assert!(json.contains("\"has_api_key\":true"));
+    }
+}
+
+#[cfg(test)]
+mod connectivity_tests {
+    use super::*;
+
+    fn fake_profile(response: &str) -> agent_config::ProfileDef {
+        agent_config::ProfileDef {
+            provider: "fake".into(),
+            model_id: "fake-model".into(),
+            base_url: None,
+            api_key: None,
+            api_key_env: None,
+            context_window: None,
+            output_limit: None,
+            response: Some(response.into()),
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
+            server_tool_code_execution: None,
+            server_tool_web_search: None,
+            enabled: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn fake_profile_reports_chat_ready_without_network() {
+        let result = probe_profile_chat_readiness(
+            "fake",
+            &fake_profile("Hello from the Kairox fake provider!"),
+            std::time::Duration::from_secs(1),
+        )
+        .await;
+
+        assert!(result.ok);
+        assert_eq!(result.status, "chat_ready");
+        assert_eq!(
+            result.response_preview.as_deref(),
+            Some("Hello from the Kairox fake provider!")
+        );
     }
 }
