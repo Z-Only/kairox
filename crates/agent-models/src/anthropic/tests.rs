@@ -923,6 +923,8 @@ fn parse_json_response_without_cache_stats_backward_compat() {
         }
         _ => panic!("expected Completed with usage"),
     }
+}
+
 // ── Server-side tool tests ─────────────────────────────────────────────
 
 #[test]

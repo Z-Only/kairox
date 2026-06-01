@@ -282,6 +282,8 @@ pub(super) fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: Some(true),
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     };
@@ -302,6 +304,8 @@ pub(super) fn test_config_with_two_profiles() -> Arc<agent_config::Config> {
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: Some(true),
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     };
@@ -341,6 +345,8 @@ pub(super) fn test_config_with_threshold(threshold: f32) -> Arc<agent_config::Co
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: Some(true),
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     };
