@@ -60,7 +60,7 @@ describe("useModelProfilesStore", () => {
 
     await store.loadProfiles("user");
 
-    expect(mockedCommands.listProfileSettings).toHaveBeenCalledWith("user");
+    expect(mockedCommands.listProfileSettings).toHaveBeenCalledWith("user", null);
     expect(store.profiles).toEqual([profile]);
     expect(store.loading).toBe(false);
     expect(store.error).toBeNull();
@@ -72,7 +72,7 @@ describe("useModelProfilesStore", () => {
 
     await store.loadProfiles();
 
-    expect(mockedCommands.listProfileSettings).toHaveBeenCalledWith(null);
+    expect(mockedCommands.listProfileSettings).toHaveBeenCalledWith(null, null);
   });
 
   it("loadProfiles records the error and clears loading when the command rejects", async () => {

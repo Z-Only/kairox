@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import ConfigSourceBar from "@/components/ConfigSourceBar.vue";
+import { useSessionStore } from "@/stores/session";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const session = useSessionStore();
 
 const activeTab = computed(() => {
   const segments = route.path.split("/");
@@ -31,6 +33,12 @@ const currentProjectId = ref<string | undefined>(undefined);
 provide("configSource", currentSource);
 provide("configProjectId", currentProjectId);
 
+function syncSourceFromCurrentConversation(): void {
+  const projectId = session.currentSessionInfo?.project_id ?? undefined;
+  currentSource.value = projectId ? "project" : "user";
+  currentProjectId.value = projectId;
+}
+
 function navigateToTab(tab: string): void {
   router.push(`/settings/${tab}`);
 }
@@ -39,6 +47,8 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
   currentSource.value = source;
   currentProjectId.value = projectId;
 }
+
+onMounted(syncSourceFromCurrentConversation);
 </script>
 
 <template>
@@ -139,7 +149,11 @@ function onSourceChange(source: "user" | "project", projectId?: string): void {
       "
       class="settings__source-bar"
     >
-      <ConfigSourceBar @source-change="onSourceChange" />
+      <ConfigSourceBar
+        :initial-source="currentSource"
+        :initial-project-id="currentProjectId"
+        @source-change="onSourceChange"
+      />
     </div>
 
     <router-view />

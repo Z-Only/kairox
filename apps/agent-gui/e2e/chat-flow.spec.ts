@@ -332,8 +332,10 @@ test("recovers the unsent ordinary session draft after reload", async ({ page })
     timeout: 10_000
   });
   await expect(page.locator(".session-item")).toHaveCount(1);
-  await expect(page.getByTestId("message-input")).toHaveValue("");
+  await expect(page.getByTestId("message-input")).toHaveValue("draft that survives reload");
 
+  await page.locator(".session-item").nth(0).click();
+  await expect(page.getByTestId("message-input")).toHaveValue("");
   await page.getByTestId("new-session-btn").click();
   await expect(page.getByTestId("message-input")).toHaveValue("draft that survives reload");
 });

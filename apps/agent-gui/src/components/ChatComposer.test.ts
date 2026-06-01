@@ -282,13 +282,16 @@ describe("model reasoning selector", () => {
       "kx-popover-option"
     );
     const popover = wrapper.find('[data-test="chat-model-popover"]');
+    const layout = wrapper.find(".chat-model-popover-layout");
     const reasoningPanel = wrapper.find('[data-test="chat-reasoning-panel"]');
     expect(reasoningPanel.exists()).toBe(true);
-    expect(reasoningPanel.element.parentElement).toBe(popover.element);
-    expect(Array.from(popover.element.children).map((child) => child.className)).toEqual([
-      "chat-model-column",
-      "chat-reasoning-panel"
+    expect(layout.exists()).toBe(true);
+    expect(reasoningPanel.element.parentElement).toBe(layout.element);
+    expect(Array.from(layout.element.children).map((child) => child.className)).toEqual([
+      "chat-model-card",
+      "chat-reasoning-panel chat-reasoning-panel--anchored"
     ]);
+    expect(popover.classes()).toContain("chat-model-popover-panel");
     expect(wrapper.find('[data-test="chat-reasoning-option-middle"]').classes()).toContain(
       "selected"
     );

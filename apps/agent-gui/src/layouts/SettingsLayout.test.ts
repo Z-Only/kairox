@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { createPinia } from "pinia";
+import { defineComponent } from "vue";
+import { createPinia, setActivePinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import { createRouter, createMemoryHistory } from "vue-router";
 import { routes } from "@/router/routes";
 import en from "@/locales/en.json";
 import SettingsLayout from "./SettingsLayout.vue";
+import { useProjectStore } from "@/stores/project";
+import { useSessionStore } from "@/stores/session";
 
 // Stub Tauri APIs that child settings panes pull in transitively.
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -21,14 +24,32 @@ function makeI18n() {
   return createI18n({ legacy: false, locale: "en", messages: { en } });
 }
 
+const ConfigSourceBarStub = defineComponent({
+  name: "ConfigSourceBar",
+  props: {
+    initialSource: {
+      type: String,
+      default: undefined
+    },
+    initialProjectId: {
+      type: String,
+      default: undefined
+    }
+  },
+  template:
+    '<div data-test="config-source-bar-stub" :data-initial-source="initialSource ?? \'\'" :data-initial-project-id="initialProjectId ?? \'\'" />'
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 /** Mount SettingsLayout at a given settings sub-route. */
-async function mountAt(path = "/settings/general") {
+async function mountAt(path = "/settings/general", seedStores?: () => void) {
   const router = makeRouter();
   const pinia = createPinia();
+  setActivePinia(pinia);
+  seedStores?.();
 
   await router.push(path);
   await router.isReady();
@@ -37,7 +58,7 @@ async function mountAt(path = "/settings/general") {
     global: {
       plugins: [router, pinia, makeI18n()],
       stubs: {
-        ConfigSourceBar: true,
+        ConfigSourceBar: ConfigSourceBarStub,
         // Stub all child route components to isolate the layout shell
         GeneralSettings: true,
         McpSettingsPane: true,
@@ -70,6 +91,57 @@ const ALL_TABS = [
 
 // Tabs that show the ConfigSourceBar
 const SOURCE_BAR_TABS = ["mcp", "skills", "plugins", "agents", "models", "instructions", "hooks"];
+
+function seedOrdinaryConversation(): void {
+  const session = useSessionStore();
+  session.sessions = [
+    {
+      id: "ordinary-session-1",
+      title: "Ordinary chat",
+      profile: "fast",
+      project_id: null,
+      worktree_path: null,
+      branch: null,
+      deleted_at: null,
+      visibility: null
+    }
+  ];
+  session.currentSessionId = "ordinary-session-1";
+}
+
+function seedProjectConversation(): void {
+  const session = useSessionStore();
+  const project = useProjectStore();
+  project.projects = [
+    {
+      projectId: "project-1",
+      displayName: "Project One",
+      rootPath: "/tmp/project-one",
+      removedAt: null,
+      sortOrder: 0,
+      expanded: true,
+      pathExists: true
+    }
+  ];
+  project.sessionsByProject = new Map([
+    [
+      "project-1",
+      [
+        {
+          sessionId: "project-session-1",
+          title: "Project chat",
+          profile: "fast",
+          projectId: "project-1",
+          worktreePath: "/tmp/project-one",
+          branch: "main",
+          visibility: "visible",
+          deletedAt: null
+        }
+      ]
+    ]
+  ]);
+  session.currentSessionId = "project-session-1";
+}
 
 describe("SettingsLayout", () => {
   // --- Rendering ---
@@ -139,6 +211,22 @@ describe("SettingsLayout", () => {
   it.each(["general", "archive"] as const)("hides ConfigSourceBar on the '%s' tab", async (tab) => {
     const { wrapper } = await mountAt(`/settings/${tab}`);
     expect(wrapper.find(".settings__source-bar").exists()).toBe(false);
+  });
+
+  it("initializes settings source as user for an ordinary conversation", async () => {
+    const { wrapper } = await mountAt("/settings/models", seedOrdinaryConversation);
+
+    const sourceBar = wrapper.get('[data-test="config-source-bar-stub"]');
+    expect(sourceBar.attributes("data-initial-source")).toBe("user");
+    expect(sourceBar.attributes("data-initial-project-id")).toBe("");
+  });
+
+  it("initializes settings source as project for the current project conversation", async () => {
+    const { wrapper } = await mountAt("/settings/models", seedProjectConversation);
+
+    const sourceBar = wrapper.get('[data-test="config-source-bar-stub"]');
+    expect(sourceBar.attributes("data-initial-source")).toBe("project");
+    expect(sourceBar.attributes("data-initial-project-id")).toBe("project-1");
   });
 
   // --- Accessibility ---

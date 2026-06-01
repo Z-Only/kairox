@@ -4,10 +4,8 @@ use agent_models::FakeModelClient;
 use agent_store::SqliteEventStore;
 use std::sync::Arc;
 
-fn config_with_three_profiles() -> Arc<agent_config::Config> {
-    Arc::new(
-        agent_config::load_from_str(
-            r#"
+fn three_profiles_toml() -> &'static str {
+    r#"
 [profiles.alpha]
 provider = "fake"
 model_id = "alpha"
@@ -19,21 +17,22 @@ model_id = "bravo"
 [profiles.charlie]
 provider = "fake"
 model_id = "charlie"
-"#,
-            "test.toml",
-        )
-        .expect("config should parse"),
-    )
+"#
 }
 
 #[tokio::test]
 async fn move_profile_in_order_uses_current_display_order_for_unordered_profiles() {
     let config_dir = tempfile::tempdir().expect("config dir");
+    std::fs::write(
+        config_dir.path().join("profiles.toml"),
+        three_profiles_toml(),
+    )
+    .expect("profiles.toml should be written");
     let store = SqliteEventStore::in_memory()
         .await
         .expect("in-memory store");
     let runtime = LocalRuntime::new(store, FakeModelClient::new(vec!["ok".into()]))
-        .with_config(config_with_three_profiles())
+        .with_config(Arc::new(agent_config::Config::defaults()))
         .with_marketplace(config_dir.path().to_path_buf())
         .expect("marketplace wiring");
 

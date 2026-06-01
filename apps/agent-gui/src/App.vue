@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { invoke } from "@tauri-apps/api/core";
 import { useTauriEvents } from "@/composables/useTauriEvents";
 import { useUpdater } from "@/composables/useUpdater";
 import { useSessionStore } from "@/stores/session";
@@ -21,25 +20,7 @@ useUpdater();
 onMounted(async () => {
   const recovered = await session.recoverSessions();
   if (recovered) return;
-
-  try {
-    const workspaceInfo: { workspace_id: string; path: string } =
-      await invoke("initialize_workspace");
-    session.workspaceId = workspaceInfo.workspace_id;
-    session.initialized = true;
-    session.sessions = await invoke("list_sessions");
-    if (session.sessions.length > 0) {
-      const lastActiveId = localStorage.getItem("kairox.last-active-session-id");
-      const targetId =
-        lastActiveId && session.sessions.some((s: { id: string }) => s.id === lastActiveId)
-          ? lastActiveId
-          : session.sessions[0].id;
-      await session.switchSession(targetId);
-    }
-  } catch (e) {
-    console.error("Failed to initialize workspace:", e);
-    ui.pushNotification("error", `Failed to initialize workspace: ${e}`);
-  }
+  await session.initializeWorkspace();
 });
 </script>
 

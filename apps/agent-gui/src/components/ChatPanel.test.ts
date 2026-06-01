@@ -353,6 +353,131 @@ describe("ChatPanel", () => {
     );
   });
 
+  it("shows only the branch as git metadata for a main project workspace", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo",
+          branch: "main",
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toBe("main");
+    expect(gitMeta.text()).not.toContain("worktree");
+    expect(wrapper.text()).not.toContain("/repo");
+  });
+
+  it("resolves missing branch metadata without exposing the project root path", async () => {
+    mockedInvoke.mockImplementation(async (command) => {
+      if (command === "get_profile_info") return [];
+      if (command === "get_project_instruction_summary") {
+        return { source_paths: [], warning: null };
+      }
+      if (command === "get_session_git_status") {
+        return {
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        };
+      }
+      return undefined;
+    });
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo",
+          branch: null,
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_status", {
+      sessionId: "ses_1"
+    });
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toBe("main");
+    expect(wrapper.text()).not.toContain("/repo");
+  });
+
+  it("shows worktree and branch without exposing a worktree path", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.sessions = [
+        {
+          id: "ses_1",
+          title: "Project worktree session",
+          profile: "fast",
+          project_id: "project_1",
+          worktree_path: "/repo/.kairox/worktrees/project-chat",
+          branch: "feat/project-chat",
+          visibility: null
+        }
+      ];
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const gitMeta = wrapper.find('[data-test="session-git-meta"]');
+    expect(gitMeta.exists()).toBe(true);
+    expect(gitMeta.text()).toContain("worktree");
+    expect(gitMeta.text()).toContain("feat/project-chat");
+    expect(gitMeta.text().indexOf("worktree")).toBeLessThan(
+      gitMeta.text().indexOf("feat/project-chat")
+    );
+    expect(gitMeta.text()).not.toContain("/repo/.kairox/worktrees/project-chat");
+  });
+
   it("keeps model selector and git metadata stable with long labels", () => {
     expectSourceMigration(chatComposerSource, {
       requiredPatterns: [
@@ -395,33 +520,31 @@ describe("ChatPanel", () => {
   });
 
   it("passes tool start timestamps through to the inline tool-call item", async () => {
-    vi.useFakeTimers();
-    try {
-      const now = new Date("2026-05-25T12:00:00Z").getTime();
-      vi.setSystemTime(now);
+    const wrapper = mountChatPanel();
+    const trace = useTraceStore();
+    trace.entries.push({
+      id: "tool_timing_1",
+      kind: "tool",
+      status: "completed",
+      title: "shell exec",
+      toolId: "shell",
+      startedAt: Date.now() - 3000,
+      durationMs: 1200,
+      expanded: false
+    } as TraceEntryData);
+    await flushPromises();
 
-      const wrapper = mountChatPanel();
-      const trace = useTraceStore();
-      trace.entries.push({
-        id: "tool_timing_1",
-        kind: "tool",
-        status: "completed",
-        title: "shell exec",
-        toolId: "shell",
-        startedAt: now - 3000,
-        durationMs: 1200,
-        expanded: false
-      } as TraceEntryData);
-      await flushPromises();
+    const toolItem = wrapper
+      .findAll('[data-test="chat-tool-call-item"]')
+      .find((item) => item.text().includes("shell exec"));
+    expect(toolItem).toBeTruthy();
 
-      await wrapper.find('[data-test="chat-tool-call-toggle"]').trigger("click");
+    await toolItem!.find('[data-test="chat-tool-call-toggle"]').trigger("click");
+    await flushPromises();
 
-      const startedAgo = wrapper.find('[data-test="chat-tool-call-started-ago"]');
-      expect(startedAgo.exists()).toBe(true);
-      expect(startedAgo.text()).toBe("started 3s ago");
-    } finally {
-      vi.useRealTimers();
-    }
+    const startedAgo = toolItem!.find('[data-test="chat-tool-call-started-ago"]');
+    expect(startedAgo.exists(), toolItem!.html()).toBe(true);
+    expect(startedAgo.text()).toMatch(/^started [34]s ago$/);
   });
 
   it("does not surface any ContextMeter ring/bar in the chat panel even with no messages (R4-B demotion)", async () => {

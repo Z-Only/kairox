@@ -280,22 +280,67 @@ const currentProject = computed(() => {
   if (!projectId) return null;
   return projectStore.projects.find((p) => p.projectId === projectId) ?? null;
 });
+const resolvedGitBranch = ref<string | null>(null);
+const resolvedGitBranchKey = ref<string | null>(null);
+
+function normalizePathForCompare(path: string): string {
+  return path.trim().replace(/[\\/]+$/, "");
+}
+
 function isWorktreeSession(sessionInfo: typeof currentSession.value): boolean {
   if (!sessionInfo?.worktree_path) return false;
+  const worktreePath = normalizePathForCompare(sessionInfo.worktree_path);
   const projectRoot = currentProject.value?.rootPath;
-  if (projectRoot) return sessionInfo.worktree_path !== projectRoot;
-  return sessionInfo.worktree_path.includes("/.worktrees/") || Boolean(sessionInfo.branch);
+  if (projectRoot) return worktreePath !== normalizePathForCompare(projectRoot);
+  return (
+    sessionInfo.worktree_path.includes("/.worktrees/") ||
+    sessionInfo.worktree_path.includes("/.kairox/worktrees/")
+  );
 }
+
+function gitBranchLookupKey(sessionInfo: NonNullable<typeof currentSession.value>): string {
+  return [sessionInfo.id, sessionInfo.project_id ?? "", sessionInfo.worktree_path ?? ""].join("::");
+}
+
+function resolvedBranchFor(sessionInfo: NonNullable<typeof currentSession.value>): string | null {
+  return resolvedGitBranchKey.value === gitBranchLookupKey(sessionInfo)
+    ? resolvedGitBranch.value
+    : null;
+}
+
+watch(
+  currentSession,
+  async (sessionInfo) => {
+    resolvedGitBranch.value = null;
+    resolvedGitBranchKey.value = null;
+    if (!sessionInfo?.project_id || sessionInfo.branch) return;
+
+    const lookupKey = gitBranchLookupKey(sessionInfo);
+    try {
+      const status = session.currentSessionId
+        ? await projectStore.getSessionGitStatus(sessionInfo.id)
+        : await projectStore.getProjectGitStatus(sessionInfo.project_id);
+      if (currentSession.value && gitBranchLookupKey(currentSession.value) === lookupKey) {
+        resolvedGitBranch.value = status.branch;
+        resolvedGitBranchKey.value = lookupKey;
+      }
+    } catch {
+      // Branch metadata is display-only; keep the composer path-free if git status fails.
+    }
+  },
+  { immediate: true }
+);
 
 const sessionGitMeta = computed(() => {
   const sessionInfo = currentSession.value;
   if (!sessionInfo?.project_id && !sessionInfo?.worktree_path) return [];
 
-  const gitMetaParts = [];
-  if (isWorktreeSession(sessionInfo) && sessionInfo.branch) gitMetaParts.push("worktree");
-  if (sessionInfo.branch) gitMetaParts.push(sessionInfo.branch);
-  else if (sessionInfo.worktree_path) gitMetaParts.push(sessionInfo.worktree_path);
-  if (!gitMetaParts.length && sessionInfo.project_id) gitMetaParts.push(sessionInfo.project_id);
+  const branch = sessionInfo.branch ?? resolvedBranchFor(sessionInfo);
+  if (!branch) return [];
+
+  const gitMetaParts: string[] = [];
+  if (isWorktreeSession(sessionInfo)) gitMetaParts.push("worktree");
+  gitMetaParts.push(branch);
   return gitMetaParts;
 });
 

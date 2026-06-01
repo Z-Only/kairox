@@ -177,9 +177,9 @@ export const commands = {
     typedError<null, string>(
       __TAURI_INVOKE("delete_hook_settings", { scope, event, id, projectRoot })
     ),
-  listProfileSettings: (sourceFilter: string | null) =>
+  listProfileSettings: (sourceFilter: string | null, projectRoot: string | null) =>
     typedError<ProfileSettingsView[], string>(
-      __TAURI_INVOKE("list_profile_settings", { sourceFilter })
+      __TAURI_INVOKE("list_profile_settings", { sourceFilter, projectRoot })
     ),
   upsertProfileSettings: (input: ProfileSettingsInput) =>
     typedError<ProfileSettingsView, string>(__TAURI_INVOKE("upsert_profile_settings", { input })),

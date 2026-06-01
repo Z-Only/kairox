@@ -22,6 +22,7 @@ import type { DomainEvent, AgentRole, EventPayload } from "@/types";
 beforeEach(() => {
   setActivePinia(createPinia());
   vi.clearAllMocks();
+  localStorage.clear();
   mockedInvoke.mockImplementation((command) => {
     if (command === "switch_session") {
       return Promise.resolve({
@@ -303,6 +304,9 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo).toBeNull();
     expect(session.composerDraftKey).toBe("new-session:ordinary");
     expect(session.projection.messages).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
+      kind: "ordinary-draft"
+    });
   });
 
   it("starts a project placeholder session with project metadata and an isolated draft key", async () => {
@@ -350,6 +354,59 @@ describe("project session metadata", () => {
 
     session.setPendingProjectBranch("feat/chat");
     expect(session.currentSessionInfo?.branch).toBe("feat/chat");
+    expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
+      kind: "project-draft",
+      projectId: "project-1",
+      branch: "feat/chat"
+    });
+  });
+
+  it("recovers a persisted project placeholder and keeps its draft key", async () => {
+    localStorage.setItem(
+      "kairox.last-workbench-state",
+      JSON.stringify({ kind: "project-draft", projectId: "project-1", branch: "feat/ui" })
+    );
+    const session = useSessionStore();
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_workspaces") {
+        return Promise.resolve([{ workspace_id: "ws1", path: "/tmp" }]);
+      }
+      if (command === "restore_workspace") return Promise.resolve(null);
+      if (command === "list_sessions") return Promise.resolve([]);
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    const recovered = await session.recoverSessions();
+
+    expect(recovered).toBe(true);
+    expect(session.currentSessionId).toBeNull();
+    expect(session.currentSessionInfo?.project_id).toBe("project-1");
+    expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
+    expect(session.currentSessionInfo?.branch).toBe("feat/ui");
+    expect(session.composerDraftKey).toBe("new-session:project:project-1");
   });
 
   it("refreshes project config before showing a project draft model list", async () => {
@@ -602,5 +659,10 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo?.worktree_path).toBe("/repo/.worktrees/project-task");
     expect(session.currentSessionInfo?.branch).toBe("feat/project-task");
     expect(session.currentSessionInfo?.visibility).toBe("draft_hidden");
+    expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
+      kind: "session",
+      sessionId: "project-session-1",
+      projectId: "project-1"
+    });
   });
 });

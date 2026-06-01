@@ -33,6 +33,7 @@ import {
 
 export const DEFAULT_REASONING_EFFORT = "low";
 export const DEFAULT_REASONING_EFFORTS = ["low", "middle", "high", "xhigh"] as const;
+const LAST_WORKBENCH_STATE_KEY = "kairox.last-workbench-state";
 
 export function uniqueSessionTitle(base: string, existingTitles: string[]): string {
   if (!existingTitles.includes(base)) return base;
@@ -125,10 +126,49 @@ type PendingSessionDraft =
   | { kind: "ordinary" }
   | { kind: "project"; projectId: string; branch: string | null };
 
+type PersistedWorkbenchState =
+  | { kind: "session"; sessionId: string; projectId: string | null }
+  | { kind: "ordinary-draft" }
+  | { kind: "project-draft"; projectId: string; branch: string | null };
+
 type LoadProfileInfoOptions = {
   force?: boolean;
   refreshConfig?: boolean;
 };
+
+function readPersistedWorkbenchState(): PersistedWorkbenchState | null {
+  try {
+    const raw = globalThis.localStorage?.getItem(LAST_WORKBENCH_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedWorkbenchState>;
+    if (parsed.kind === "ordinary-draft") return { kind: "ordinary-draft" };
+    if (parsed.kind === "project-draft" && typeof parsed.projectId === "string") {
+      return {
+        kind: "project-draft",
+        projectId: parsed.projectId,
+        branch: typeof parsed.branch === "string" && parsed.branch.trim() ? parsed.branch : null
+      };
+    }
+    if (parsed.kind === "session" && typeof parsed.sessionId === "string") {
+      return {
+        kind: "session",
+        sessionId: parsed.sessionId,
+        projectId: typeof parsed.projectId === "string" ? parsed.projectId : null
+      };
+    }
+  } catch {
+    // Best-effort restore only.
+  }
+  return null;
+}
+
+function writePersistedWorkbenchState(state: PersistedWorkbenchState): void {
+  try {
+    globalThis.localStorage?.setItem(LAST_WORKBENCH_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Best-effort persistence only.
+  }
+}
 
 export const useSessionStore = defineStore("session", () => {
   // ── state ────────────────────────────────────────────────────────
@@ -285,6 +325,11 @@ export const useSessionStore = defineStore("session", () => {
   ): Promise<void> {
     pendingSessionDraft.value = null;
     await switchToKnownSessionImpl(sessionId, target, sessionActionDeps);
+    writePersistedWorkbenchState({
+      kind: "session",
+      sessionId,
+      projectId: target.project_id ?? null
+    });
   }
 
   async function switchSession(sessionId: string): Promise<void> {
@@ -317,6 +362,11 @@ export const useSessionStore = defineStore("session", () => {
   ): Promise<{ id: string; title: string; profile: string }> {
     const result = await createSessionImpl(profile, sessionActionDeps);
     pendingSessionDraft.value = null;
+    writePersistedWorkbenchState({
+      kind: "session",
+      sessionId: result.id,
+      projectId: null
+    });
     return result;
   }
 
@@ -325,6 +375,7 @@ export const useSessionStore = defineStore("session", () => {
     currentSessionId.value = null;
     resetProjection();
     useTaskGraphStore().clearTaskGraph();
+    rememberPendingDraft();
   }
 
   async function startOrdinaryDraftSession(): Promise<void> {
@@ -358,6 +409,74 @@ export const useSessionStore = defineStore("session", () => {
       ...pending,
       branch: branch?.trim() || null
     };
+    rememberPendingDraft();
+  }
+
+  function rememberPendingDraft(): void {
+    const pending = pendingSessionDraft.value;
+    if (!pending) return;
+    if (pending.kind === "ordinary") {
+      writePersistedWorkbenchState({ kind: "ordinary-draft" });
+      return;
+    }
+    writePersistedWorkbenchState({
+      kind: "project-draft",
+      projectId: pending.projectId,
+      branch: pending.branch
+    });
+  }
+
+  async function restorePersistedWorkbenchState(): Promise<boolean> {
+    const persisted = readPersistedWorkbenchState();
+    if (!persisted) return false;
+
+    if (persisted.kind === "ordinary-draft") {
+      await startOrdinaryDraftSession();
+      return true;
+    }
+
+    const projectStore = useProjectStore();
+    if (persisted.kind === "project-draft") {
+      if (projectStore.projects.length === 0) {
+        await projectStore.loadProjects();
+      }
+      if (!projectStore.projects.some((project) => project.projectId === persisted.projectId)) {
+        return false;
+      }
+      await startProjectDraftSession(persisted.projectId);
+      if (persisted.branch) {
+        setPendingProjectBranch(persisted.branch);
+      }
+      return true;
+    }
+
+    if (persisted.projectId) {
+      if (projectStore.projects.length === 0) {
+        await projectStore.loadProjects();
+      }
+      if (projectStore.projects.some((project) => project.projectId === persisted.projectId)) {
+        await projectStore.loadProjectSessions(persisted.projectId);
+      }
+    }
+
+    const target = findSessionInfo(persisted.sessionId);
+    if (!target) return false;
+    await switchToKnownSession(persisted.sessionId, target);
+    return true;
+  }
+
+  async function restoreLastKnownSession(): Promise<void> {
+    const restoredWorkbench = await restorePersistedWorkbenchState();
+    if (restoredWorkbench) return;
+
+    const lastActiveId = globalThis.localStorage?.getItem("kairox.last-active-session-id");
+    const targetId =
+      lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
+        ? lastActiveId
+        : sessions.value[0]?.id;
+    if (targetId) {
+      await switchSession(targetId);
+    }
   }
 
   async function ensureSessionForSend(): Promise<void> {
@@ -409,14 +528,9 @@ export const useSessionStore = defineStore("session", () => {
       workspaceId.value = workspaceInfo.workspace_id;
       sessions.value = sessionList;
       initialized.value = true;
-      if (sessions.value.length > 0) {
+      if (sessions.value.length > 0 || readPersistedWorkbenchState()) {
         try {
-          const lastActiveId = globalThis.localStorage?.getItem("kairox.last-active-session-id");
-          const targetId =
-            lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
-              ? lastActiveId
-              : sessions.value[0].id;
-          await switchSession(targetId);
+          await restoreLastKnownSession();
         } catch {
           // Initial session may have minimal data — non-critical.
         }
@@ -522,13 +636,8 @@ export const useSessionStore = defineStore("session", () => {
       workspaceId.value = ws.workspace_id;
       await invoke("restore_workspace", { workspaceId: ws.workspace_id });
       sessions.value = await listOrdinarySessions();
-      if (sessions.value.length > 0) {
-        const lastActiveId = globalThis.localStorage?.getItem("kairox.last-active-session-id");
-        const targetId =
-          lastActiveId && sessions.value.some((s) => s.id === lastActiveId)
-            ? lastActiveId
-            : sessions.value[0].id;
-        await switchSession(targetId);
+      if (sessions.value.length > 0 || readPersistedWorkbenchState()) {
+        await restoreLastKnownSession();
       }
       initialized.value = true;
       return true;

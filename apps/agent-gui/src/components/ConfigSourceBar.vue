@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { useProjectStore } from "@/stores/project";
 
+const props = withDefaults(
+  defineProps<{
+    initialSource?: "user" | "project";
+    initialProjectId?: string;
+  }>(),
+  {
+    initialSource: "user",
+    initialProjectId: undefined
+  }
+);
+
 const emit = defineEmits<{
   (e: "source-change", source: "user" | "project", projectId?: string): void;
 }>();
@@ -51,6 +62,15 @@ function onSourceChange(newSource: "user" | "project"): void {
 function onProjectChange(): void {
   emit("source-change", "project", selectedProjectId.value);
 }
+
+watch(
+  () => [props.initialSource, props.initialProjectId] as const,
+  ([initialSource, initialProjectId]) => {
+    source.value = initialSource;
+    selectedProjectId.value = initialSource === "project" ? (initialProjectId ?? "") : "";
+  },
+  { immediate: true }
+);
 
 watch(
   () => projectStore.activeProjects.map((project) => project.projectId),
