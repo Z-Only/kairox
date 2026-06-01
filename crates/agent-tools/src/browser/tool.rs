@@ -20,6 +20,11 @@ impl BrowserTool {
             manager: Arc::new(PlaywrightManager::new(workspace_root)),
         }
     }
+
+    /// Returns the shared `PlaywrightManager` for use by related tools.
+    pub fn manager(&self) -> Arc<PlaywrightManager> {
+        self.manager.clone()
+    }
 }
 
 #[async_trait]

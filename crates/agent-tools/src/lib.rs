@@ -15,7 +15,7 @@ pub mod shell;
 
 pub use agent_mcp::McpServerDef;
 pub use agent_mcp::McpTransportDef;
-pub use browser::{BrowserAction, BrowserResult, BrowserState, BrowserTool};
+pub use browser::{BrowserAction, BrowserBatchTool, BrowserResult, BrowserState, BrowserTool};
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use monitor::{
     MonitorInfo, MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool,

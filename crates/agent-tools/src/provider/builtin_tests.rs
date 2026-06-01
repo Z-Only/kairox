@@ -50,7 +50,12 @@ async fn builtin_provider_lists_all_tools() {
         "missing monitor.list, got: {:?}",
         tool_ids
     );
-    assert_eq!(tools.len(), 10);
+    assert!(
+        tool_ids.contains(&"browser.batch"),
+        "missing browser.batch, got: {:?}",
+        tool_ids
+    );
+    assert_eq!(tools.len(), 11);
 }
 
 #[tokio::test]
