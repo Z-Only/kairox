@@ -103,10 +103,10 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
     }
   }
 
-  async function testModelConnectivity(alias: string) {
+  async function testModelConnectivity(alias: string, projectRoot?: string | null) {
     busyAlias.value = alias;
     try {
-      return await commands.testModelConnectivity(alias);
+      return await commands.testModelConnectivity(alias, projectRoot ?? null);
     } finally {
       busyAlias.value = null;
     }

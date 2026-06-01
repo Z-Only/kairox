@@ -41,13 +41,13 @@ const searchQuery = ref("");
 const profileSort = ref<ModelProfileSort>("original");
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
-const sortOptions: SortOption[] = [
-  { value: "original", label: "Original order" },
-  { value: "alias", label: "Alias" },
-  { value: "provider", label: "Provider" },
-  { value: "source", label: "Source" },
-  { value: "status", label: "Status" }
-];
+const sortOptions = computed<SortOption[]>(() => [
+  { value: "original", label: t("models.sortOriginal") },
+  { value: "alias", label: t("models.sortAlias") },
+  { value: "provider", label: t("models.sortProvider") },
+  { value: "source", label: t("models.sortSource") },
+  { value: "status", label: t("models.sortStatus") }
+]);
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
@@ -227,6 +227,13 @@ function buildProfileInput(alias: string, enabled: boolean) {
   };
 }
 
+function connectivityMessage(
+  result: { message?: string | null; error?: string | null },
+  fallback: string
+): string {
+  return result.message || result.error || fallback;
+}
+
 async function saveNewProfile(): Promise<void> {
   const alias = formAlias.value.trim();
   if (!alias || !formProvider.value.trim() || !formModelId.value.trim()) return;
@@ -243,14 +250,17 @@ async function saveEditProfile(): Promise<void> {
 
 async function testProfileConnectivity(profile: ProfileSettingsView): Promise<void> {
   try {
-    const result = await store.testModelConnectivity(profile.alias);
+    const result = await store.testModelConnectivity(profile.alias, projectRoot.value);
     if (result.status === "ok" && result.data.ok === true) {
-      notify("success", t("models.testSuccess", { alias: profile.alias }));
+      notify(
+        "success",
+        connectivityMessage(result.data, t("models.testSuccess", { alias: profile.alias }))
+      );
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
-          : (result.data.error ?? t("models.testFailed", { alias: profile.alias }));
+          : connectivityMessage(result.data, t("models.testFailed", { alias: profile.alias }));
       notify("error", msg);
     }
   } catch (caughtError) {
@@ -267,12 +277,12 @@ async function testFormConnectivity(): Promise<void> {
   try {
     const result = await store.testUrlConnectivity(url);
     if (result.status === "ok" && result.data.ok === true) {
-      notify("success", t("models.testSuccess", { alias: url }));
+      notify("success", connectivityMessage(result.data, t("models.testSuccess", { alias: url })));
     } else {
       const msg =
         result.status === "error"
           ? String(result.error)
-          : (result.data.error ?? t("models.testFailed", { alias: url }));
+          : connectivityMessage(result.data, t("models.testFailed", { alias: url }));
       notify("error", msg);
     }
   } catch (caughtError) {
@@ -319,21 +329,21 @@ function toggleProfile(profile: ProfileSettingsView): void {
     </SettingsState>
 
     <template v-else>
-      <SettingsFilterBar aria-label="Search model profiles" data-test="model-filters">
+      <SettingsFilterBar :aria-label="t('models.searchProfiles')" data-test="model-filters">
         <div class="settings-filter-bar__row">
           <KxInput
             v-model="searchQuery"
             type="search"
             size="compact"
-            aria-label="Search model profiles"
-            placeholder="Search model profiles"
+            :aria-label="t('models.searchProfiles')"
+            :placeholder="t('models.searchProfiles')"
             data-test="model-search-input"
           />
           <KxSelect
             v-model="profileSort"
             size="compact"
             class="model-settings__sort-select"
-            aria-label="Model profile sort"
+            :aria-label="t('models.sortProfiles')"
             data-test="model-sort-select"
           >
             <option v-for="option in sortOptions" :key="option.value" :value="option.value">
@@ -348,7 +358,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
         tone="empty"
         data-test="model-filter-empty-state"
       >
-        No model profiles match your search.
+        {{ t("models.noSearchResults") }}
       </SettingsState>
 
       <SettingsCardList

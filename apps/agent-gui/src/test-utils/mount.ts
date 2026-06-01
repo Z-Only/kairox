@@ -53,6 +53,8 @@ export interface MountWithPluginsOptions<T> {
    * are lost. Default `false`.
    */
   reusePinia?: boolean;
+  /** Initial locale for components that render translated copy. */
+  locale?: "en" | "zh-CN";
   /** Initial route to push before mount (and `await router.isReady()`). */
   initialRoute?: string;
 }
@@ -79,7 +81,10 @@ export function mountWithPlugins<T extends Component>(
   // `ComponentMountingOptions<T>` shape. The new shape is identified by the
   // presence of any of its known keys.
   const isExtendedOptions =
-    "mount" in options || "reusePinia" in options || "initialRoute" in options;
+    "mount" in options ||
+    "reusePinia" in options ||
+    "locale" in options ||
+    "initialRoute" in options;
   const extended = (isExtendedOptions ? options : {}) as MountWithPluginsOptions<T>;
   const mountOpts: ComponentMountingOptions<T> = isExtendedOptions
     ? (extended.mount ?? {})
@@ -93,7 +98,7 @@ export function mountWithPlugins<T extends Component>(
   if (pinia) setActivePinia(pinia);
   const i18n = createI18n({
     legacy: false,
-    locale: "en",
+    locale: extended.locale ?? "en",
     fallbackLocale: "en",
     messages: { en, "zh-CN": zhCN }
   });

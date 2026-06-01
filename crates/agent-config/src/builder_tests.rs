@@ -109,14 +109,50 @@ fn build_profile_sets_capabilities_per_provider() {
 
 #[test]
 fn provider_family_maps_correctly() {
-    assert_eq!(provider_family("anthropic"), "anthropic");
-    assert_eq!(provider_family("ollama"), "ollama");
-    assert_eq!(provider_family("fake"), "fake");
-    assert_eq!(provider_family("openai_compatible"), "openai_compatible");
-    assert_eq!(provider_family("deepseek"), "openai_compatible");
-    assert_eq!(provider_family("groq"), "openai_compatible");
-    assert_eq!(provider_family("xai"), "openai_compatible");
-    assert_eq!(provider_family("unknown-thing"), "openai_compatible");
+    assert_eq!(
+        provider_family(&test_profile("anthropic", None)),
+        "anthropic"
+    );
+    assert_eq!(provider_family(&test_profile("ollama", None)), "ollama");
+    assert_eq!(provider_family(&test_profile("fake", None)), "fake");
+    assert_eq!(
+        provider_family(&test_profile("openai_compatible", None)),
+        "openai_compatible"
+    );
+    assert_eq!(
+        provider_family(&test_profile("deepseek", None)),
+        "openai_compatible"
+    );
+    assert_eq!(
+        provider_family(&test_profile("groq", None)),
+        "openai_compatible"
+    );
+    assert_eq!(
+        provider_family(&test_profile("xai", None)),
+        "openai_compatible"
+    );
+    assert_eq!(
+        provider_family(&test_profile("unknown-thing", None)),
+        "openai_compatible"
+    );
+}
+
+#[test]
+fn custom_provider_with_anthropic_base_url_uses_anthropic_family() {
+    let def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+
+    assert_eq!(provider_family(&def), "anthropic");
+}
+
+#[test]
+fn custom_anthropic_gateway_profile_uses_anthropic_capabilities() {
+    let def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+    let profile = build_profile("ali-mo-claude", &def);
+
+    assert_eq!(profile.provider, "ali-mo");
+    assert!(profile.capabilities.tool_calling);
+    assert!(!profile.capabilities.json_schema);
+    assert!(profile.capabilities.reasoning_controls);
 }
 
 #[test]
@@ -173,4 +209,29 @@ frequency_penalty = 0.1
     assert_eq!(profiles[0].provider, "deepseek");
     // Should have openai_compatible default capabilities (tool_calling = true)
     assert!(profiles[0].capabilities.tool_calling);
+}
+
+fn test_profile(provider: &str, base_url: Option<&str>) -> ProfileDef {
+    ProfileDef {
+        provider: provider.into(),
+        model_id: "claude-opus-4-6".into(),
+        base_url: base_url.map(str::to_string),
+        api_key: None,
+        api_key_env: None,
+        context_window: Some(200_000),
+        output_limit: Some(16_384),
+        response: None,
+        max_tokens: None,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        headers: None,
+        supports_tools: None,
+        supports_vision: None,
+        supports_reasoning: None,
+        extra_params: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
+        enabled: true,
+    }
 }
