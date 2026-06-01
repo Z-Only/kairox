@@ -66,6 +66,94 @@ async fn invoke_screenshot() {
 }
 
 #[tokio::test]
+async fn invoke_interaction_actions() {
+    let tool = make_tool();
+
+    let click = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "click",
+            "selector": "#submit"
+        })))
+        .await
+        .unwrap();
+    assert!(click.text.contains("Clicked element: #submit"));
+
+    let typing = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "type",
+            "selector": "#search",
+            "text": "kairox"
+        })))
+        .await
+        .unwrap();
+    assert!(typing.text.contains("kairox"));
+    assert!(typing.text.contains("#search"));
+
+    let scroll = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "scroll",
+            "direction": "down",
+            "amount": 640
+        })))
+        .await
+        .unwrap();
+    assert!(scroll.text.contains("Scrolled down by 640 pixels"));
+
+    let hover = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "hover",
+            "selector": ".menu"
+        })))
+        .await
+        .unwrap();
+    assert!(hover.text.contains("Hovered over: .menu"));
+
+    let wait = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "wait",
+            "selector": ".ready",
+            "timeout_ms": 250
+        })))
+        .await
+        .unwrap();
+    assert!(wait.text.contains("Waited for .ready"));
+
+    let form_fill = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "form_fill",
+            "selector": "input[name=email]",
+            "value": "user@example.com"
+        })))
+        .await
+        .unwrap();
+    assert!(form_fill.text.contains("input[name=email]"));
+    assert!(form_fill.text.contains("user@example.com"));
+}
+
+#[tokio::test]
+async fn invoke_readonly_browser_actions() {
+    let tool = make_tool();
+
+    let text = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "get_text",
+            "selector": "main"
+        })))
+        .await
+        .unwrap();
+    assert!(text.text.contains("Text content of main"));
+
+    let state = tool
+        .invoke(make_invocation(serde_json::json!({
+            "action": "get_state"
+        })))
+        .await
+        .unwrap();
+    assert!(state.text.contains("Browser state retrieved"));
+    assert!(state.text.contains("about:blank"));
+}
+
+#[tokio::test]
 async fn invoke_invalid_action_returns_error() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({

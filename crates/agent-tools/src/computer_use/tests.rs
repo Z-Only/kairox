@@ -90,6 +90,30 @@ async fn invoke_mouse_click() {
 }
 
 #[tokio::test]
+async fn invoke_mouse_click_defaults_to_current_position() {
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "mouse_click"
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("left click (1) at current position"));
+}
+
+#[tokio::test]
+async fn invoke_mouse_drag() {
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "mouse_drag",
+        "from_x": 10,
+        "from_y": 20,
+        "to_x": 300,
+        "to_y": 400
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Dragged from (10, 20) to (300, 400)"));
+}
+
+#[tokio::test]
 async fn invoke_keyboard_type() {
     let tool = make_tool();
     let invocation = make_invocation(serde_json::json!({
@@ -110,6 +134,31 @@ async fn invoke_key_press() {
     }));
     let output = tool.invoke(invocation).await.unwrap();
     assert!(output.text.contains("Pressed keys: cmd+c"));
+}
+
+#[tokio::test]
+async fn invoke_scroll_at_coordinates() {
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "scroll",
+        "x": 50,
+        "y": 75,
+        "direction": "down",
+        "amount": 480
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Scrolled down by 480 at (50, 75)"));
+}
+
+#[tokio::test]
+async fn invoke_wait_caps_duration() {
+    let tool = make_tool();
+    let invocation = make_invocation(serde_json::json!({
+        "action": "wait",
+        "duration_ms": 1
+    }));
+    let output = tool.invoke(invocation).await.unwrap();
+    assert!(output.text.contains("Waited 1ms"));
 }
 
 #[tokio::test]
