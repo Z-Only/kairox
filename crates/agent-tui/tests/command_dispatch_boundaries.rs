@@ -30,6 +30,8 @@ fn profile(model_id: &str, supports_reasoning: bool) -> ProfileDef {
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: Some(supports_reasoning),
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     }

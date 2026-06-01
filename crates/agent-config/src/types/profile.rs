@@ -40,6 +40,12 @@ pub struct ProfileDef {
     pub supports_reasoning: Option<bool>,
     #[serde(default)]
     pub extra_params: Option<toml::Value>,
+    /// Enable the server-side code execution tool (Anthropic `code_execution_20250522`).
+    #[serde(default)]
+    pub server_tool_code_execution: Option<bool>,
+    /// Enable the server-side web search tool (Anthropic `web_search_20250305`).
+    #[serde(default)]
+    pub server_tool_web_search: Option<bool>,
     #[serde(default = "crate::default_true")]
     pub enabled: bool,
 }

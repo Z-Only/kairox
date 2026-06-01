@@ -35,6 +35,53 @@ pub struct ToolDefinition {
     pub parameters: serde_json::Value,
 }
 
+/// Server-side tools that run on the provider's infrastructure.
+///
+/// These are serialized into the `tools` array alongside regular tool
+/// definitions but use provider-specific type identifiers instead of
+/// `input_schema`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ServerTool {
+    CodeExecution,
+    WebSearch {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        allowed_domains: Vec<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        blocked_domains: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        user_location: Option<WebSearchUserLocation>,
+    },
+}
+
+/// Location hint for web search server tool.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WebSearchUserLocation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+/// Build a `Vec<ServerTool>` from profile-level boolean toggles.
+pub fn server_tools_from_profile(code_execution: bool, web_search: bool) -> Vec<ServerTool> {
+    let mut tools = Vec::new();
+    if code_execution {
+        tools.push(ServerTool::CodeExecution);
+    }
+    if web_search {
+        tools.push(ServerTool::WebSearch {
+            allowed_domains: Vec::new(),
+            blocked_domains: Vec::new(),
+            user_location: None,
+        });
+    }
+    tools
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// A request to the model, including messages, system prompt, and available tools.
 pub struct ModelRequest {
@@ -42,6 +89,8 @@ pub struct ModelRequest {
     pub messages: Vec<ModelMessage>,
     pub system_prompt: Option<String>,
     pub tools: Vec<ToolDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub server_tools: Vec<ServerTool>,
     pub reasoning_effort: Option<String>,
 }
 
@@ -57,6 +106,7 @@ impl ModelRequest {
             }],
             system_prompt: None,
             tools: Vec::new(),
+            server_tools: Vec::new(),
             reasoning_effort: None,
         }
     }
@@ -68,6 +118,11 @@ impl ModelRequest {
 
     pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
         self.tools = tools;
+        self
+    }
+
+    pub fn with_server_tools(mut self, server_tools: Vec<ServerTool>) -> Self {
+        self.server_tools = server_tools;
         self
     }
 

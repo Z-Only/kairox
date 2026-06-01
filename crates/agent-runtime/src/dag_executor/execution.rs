@@ -79,6 +79,7 @@ where
                 messages: strategy.build_context(task, graph, session_events).await,
                 system_prompt: None,
                 tools: Vec::new(),
+                server_tools: Vec::new(),
                 reasoning_effort,
             };
 

@@ -111,6 +111,8 @@ fn effective_settings_views_map_source_disabled_and_direct_api_keys() {
             supports_vision: None,
             supports_reasoning: None,
             extra_params: None,
+            server_tool_code_execution: None,
+            server_tool_web_search: None,
             enabled: true,
         },
     )];

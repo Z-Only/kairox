@@ -58,6 +58,8 @@ fn two_profile_config() -> Arc<Config> {
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     };
@@ -78,6 +80,8 @@ fn two_profile_config() -> Arc<Config> {
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         extra_params: None,
         enabled: true,
     };

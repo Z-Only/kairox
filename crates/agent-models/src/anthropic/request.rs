@@ -1,4 +1,5 @@
 use super::AnthropicClient;
+use crate::types::ServerTool;
 use crate::ModelRequest;
 
 impl AnthropicClient {
@@ -122,8 +123,9 @@ impl AnthropicClient {
         // Tool definitions - map to Anthropic tool format if present.
         // Anthropic tool names must match ^[a-zA-Z0-9_-]{1,128}$,
         // so we replace dots and other invalid chars with underscores.
-        if !request.tools.is_empty() {
-            let tools: Vec<_> = request
+        // Server-side tools are appended to the same array.
+        if !request.tools.is_empty() || !request.server_tools.is_empty() {
+            let mut tools: Vec<serde_json::Value> = request
                 .tools
                 .iter()
                 .map(|t| {
@@ -145,6 +147,12 @@ impl AnthropicClient {
                     })
                 })
                 .collect();
+
+            // Append server-side tools (code_execution, web_search)
+            for st in &request.server_tools {
+                tools.push(serialize_server_tool(st));
+            }
+
             body["tools"] = serde_json::json!(tools);
         }
 
@@ -208,6 +216,50 @@ impl AnthropicClient {
                     last_tr["cache_control"] = serde_json::json!({"type": "ephemeral"});
                 }
             }
+        }
+    }
+}
+
+fn serialize_server_tool(st: &ServerTool) -> serde_json::Value {
+    match st {
+        ServerTool::CodeExecution => {
+            serde_json::json!({
+                "type": "code_execution_20250522",
+                "name": "code_execution",
+            })
+        }
+        ServerTool::WebSearch {
+            allowed_domains,
+            blocked_domains,
+            user_location,
+        } => {
+            let mut tool = serde_json::json!({
+                "type": "web_search_20250305",
+                "name": "web_search",
+            });
+            if !allowed_domains.is_empty() {
+                tool["allowed_domains"] = serde_json::json!(allowed_domains);
+            }
+            if !blocked_domains.is_empty() {
+                tool["blocked_domains"] = serde_json::json!(blocked_domains);
+            }
+            if let Some(loc) = user_location {
+                let mut loc_obj = serde_json::Map::new();
+                if let Some(ref city) = loc.city {
+                    loc_obj.insert("city".into(), serde_json::json!(city));
+                }
+                if let Some(ref region) = loc.region {
+                    loc_obj.insert("region".into(), serde_json::json!(region));
+                }
+                if let Some(ref country) = loc.country {
+                    loc_obj.insert("country".into(), serde_json::json!(country));
+                }
+                if let Some(ref timezone) = loc.timezone {
+                    loc_obj.insert("timezone".into(), serde_json::json!(timezone));
+                }
+                tool["user_location"] = serde_json::Value::Object(loc_obj);
+            }
+            tool
         }
     }
 }

@@ -35,6 +35,10 @@ struct ProfileToml {
     supports_reasoning: Option<bool>,
     #[serde(default)]
     extra_params: Option<toml::Value>,
+    #[serde(default)]
+    server_tool_code_execution: Option<bool>,
+    #[serde(default)]
+    server_tool_web_search: Option<bool>,
     #[serde(default = "crate::default_true")]
     enabled: bool,
 }
@@ -70,6 +74,8 @@ pub(super) fn parse_profiles(
             supports_vision: profile_toml.supports_vision,
             supports_reasoning: profile_toml.supports_reasoning,
             extra_params: profile_toml.extra_params,
+            server_tool_code_execution: profile_toml.server_tool_code_execution,
+            server_tool_web_search: profile_toml.server_tool_web_search,
             enabled: profile_toml.enabled,
         };
 
