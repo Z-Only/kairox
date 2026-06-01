@@ -26,7 +26,6 @@ impl std::fmt::Display for TrajectoryId {
 
 /// A single step in an agent's trajectory.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TrajectoryStep {
     /// Sequential step number within the trajectory (0-indexed).
     pub step_index: u32,
@@ -41,7 +40,6 @@ pub struct TrajectoryStep {
     /// When this step occurred.
     pub timestamp: DateTime<Utc>,
     /// Duration of the action in milliseconds.
-    #[cfg_attr(feature = "specta", specta(type = u32))]
     pub duration_ms: u64,
 }
 
