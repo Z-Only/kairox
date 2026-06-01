@@ -72,7 +72,7 @@ impl Tool for BrowserTool {
             .manager
             .execute(action)
             .await
-            .map_err(|e| crate::ToolError::ExecutionFailed(e))?;
+            .map_err(crate::ToolError::ExecutionFailed)?;
 
         let text = serde_json::to_string_pretty(&result)
             .map_err(|e| crate::ToolError::ExecutionFailed(e.to_string()))?;

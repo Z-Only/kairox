@@ -1,4 +1,5 @@
 use crate::browser::{BrowserBatchTool, BrowserTool};
+use crate::computer_use::ComputerUseTool;
 use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
 use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool};
 use crate::patch::PatchApplyTool;
@@ -41,6 +42,8 @@ impl BuiltinProvider {
             Box::new(BrowserBatchTool::new(browser_tool.manager())) as Box<dyn Tool>;
         let browser = Box::new(browser_tool) as Box<dyn Tool>;
 
+        let computer_use = Box::new(ComputerUseTool::new()) as Box<dyn Tool>;
+
         let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root, event_tx));
         let mon_start = Box::new(MonitorStartTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_stop = Box::new(MonitorStopTool::new(monitor_registry.clone())) as Box<dyn Tool>;
@@ -60,6 +63,10 @@ impl BuiltinProvider {
         tools.insert(mon_start.definition().tool_id.clone(), Arc::from(mon_start));
         tools.insert(mon_stop.definition().tool_id.clone(), Arc::from(mon_stop));
         tools.insert(mon_list.definition().tool_id.clone(), Arc::from(mon_list));
+        tools.insert(
+            computer_use.definition().tool_id.clone(),
+            Arc::from(computer_use),
+        );
 
         Self {
             tools,

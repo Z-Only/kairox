@@ -55,7 +55,12 @@ async fn builtin_provider_lists_all_tools() {
         "missing browser.batch, got: {:?}",
         tool_ids
     );
-    assert_eq!(tools.len(), 11);
+    assert!(
+        tool_ids.contains(&"computer.use"),
+        "missing computer.use, got: {:?}",
+        tool_ids
+    );
+    assert_eq!(tools.len(), 12);
 }
 
 #[tokio::test]

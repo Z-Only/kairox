@@ -28,6 +28,7 @@ pub enum ToolEffect {
     Shell { destructive: bool },
     Network,
     Destructive,
+    Execute,
     McpInvoke,
     LspQuery,
     DebugInvoke,
@@ -77,6 +78,7 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
         (ToolEffect::Shell { destructive }, _) => PolicyEffect::Shell { destructive },
         (ToolEffect::Network, _) => PolicyEffect::Network { hosts: Vec::new() },
         (ToolEffect::Destructive, _) => PolicyEffect::Destructive,
+        (ToolEffect::Execute, _) => PolicyEffect::Shell { destructive: false },
         (ToolEffect::McpInvoke, Some(server)) => PolicyEffect::McpInvoke {
             server: server.to_string(),
         },
