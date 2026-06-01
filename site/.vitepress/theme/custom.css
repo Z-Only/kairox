@@ -81,15 +81,15 @@
   object-fit: cover;
 }
 
-.theme-screenshot__image--dark {
+.theme-screenshot .theme-screenshot__image--dark {
   display: none;
 }
 
-.dark .theme-screenshot__image--light {
+.dark .theme-screenshot .theme-screenshot__image--light {
   display: none;
 }
 
-.dark .theme-screenshot__image--dark {
+.dark .theme-screenshot .theme-screenshot__image--dark {
   display: block;
 }
 
