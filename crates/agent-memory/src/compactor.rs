@@ -105,6 +105,7 @@ impl Compactor {
             messages,
             system_prompt: None,
             tools: Vec::new(),
+            server_tools: Vec::new(),
             reasoning_effort: None,
         };
 

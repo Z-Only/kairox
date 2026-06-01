@@ -923,4 +923,112 @@ fn parse_json_response_without_cache_stats_backward_compat() {
         }
         _ => panic!("expected Completed with usage"),
     }
+// ── Server-side tool tests ─────────────────────────────────────────────
+
+#[test]
+fn builds_request_with_code_execution_server_tool() {
+    let config = AnthropicConfig::default();
+    let client = AnthropicClient::new(config);
+    let request = ModelRequest::user_text("fast", "run some code").with_server_tools(vec![
+        crate::types::ServerTool::CodeExecution,
+    ]);
+
+    let body = client.build_messages_request(&request);
+    let tools = body["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0]["type"], "code_execution_20250522");
+    assert_eq!(tools[0]["name"], "code_execution");
+}
+
+#[test]
+fn builds_request_with_web_search_server_tool_and_domain_filters() {
+    let config = AnthropicConfig::default();
+    let client = AnthropicClient::new(config);
+    let request = ModelRequest::user_text("fast", "search the web").with_server_tools(vec![
+        crate::types::ServerTool::WebSearch {
+            allowed_domains: vec!["example.com".into()],
+            blocked_domains: vec!["evil.com".into()],
+            user_location: Some(crate::types::WebSearchUserLocation {
+                city: Some("San Francisco".into()),
+                region: Some("California".into()),
+                country: Some("US".into()),
+                timezone: None,
+            }),
+        },
+    ]);
+
+    let body = client.build_messages_request(&request);
+    let tools = body["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0]["type"], "web_search_20250305");
+    assert_eq!(tools[0]["name"], "web_search");
+    assert_eq!(tools[0]["allowed_domains"][0], "example.com");
+    assert_eq!(tools[0]["blocked_domains"][0], "evil.com");
+    assert_eq!(tools[0]["user_location"]["city"], "San Francisco");
+    assert_eq!(tools[0]["user_location"]["region"], "California");
+    assert_eq!(tools[0]["user_location"]["country"], "US");
+    assert!(tools[0]["user_location"]["timezone"].is_null());
+}
+
+#[test]
+fn builds_request_mixing_regular_and_server_tools() {
+    let config = AnthropicConfig::default();
+    let client = AnthropicClient::new(config);
+    let request = ModelRequest::user_text("fast", "do stuff")
+        .with_tools(vec![crate::ToolDefinition {
+            name: "fs.read".into(),
+            description: "Read a file".into(),
+            parameters: serde_json::json!({"type": "object"}),
+        }])
+        .with_server_tools(vec![
+            crate::types::ServerTool::CodeExecution,
+            crate::types::ServerTool::WebSearch {
+                allowed_domains: Vec::new(),
+                blocked_domains: Vec::new(),
+                user_location: None,
+            },
+        ]);
+
+    let body = client.build_messages_request(&request);
+    let tools = body["tools"].as_array().unwrap();
+    // 1 regular + 2 server = 3 total
+    assert_eq!(tools.len(), 3);
+    // Regular tool first
+    assert_eq!(tools[0]["name"], "fs_read");
+    assert!(tools[0]["input_schema"].is_object());
+    // Then server tools
+    assert_eq!(tools[1]["type"], "code_execution_20250522");
+    assert_eq!(tools[2]["type"], "web_search_20250305");
+}
+
+#[test]
+fn empty_server_tools_produces_no_extra_entries() {
+    let config = AnthropicConfig::default();
+    let client = AnthropicClient::new(config);
+    let request = ModelRequest::user_text("fast", "hello");
+
+    let body = client.build_messages_request(&request);
+    // No tools at all -- the `tools` key should be absent
+    assert!(body["tools"].is_null());
+}
+
+#[test]
+fn web_search_without_domain_filters_omits_optional_fields() {
+    let config = AnthropicConfig::default();
+    let client = AnthropicClient::new(config);
+    let request = ModelRequest::user_text("fast", "search").with_server_tools(vec![
+        crate::types::ServerTool::WebSearch {
+            allowed_domains: Vec::new(),
+            blocked_domains: Vec::new(),
+            user_location: None,
+        },
+    ]);
+
+    let body = client.build_messages_request(&request);
+    let tools = body["tools"].as_array().unwrap();
+    assert_eq!(tools[0]["type"], "web_search_20250305");
+    // Empty vecs should not appear
+    assert!(tools[0]["allowed_domains"].is_null());
+    assert!(tools[0]["blocked_domains"].is_null());
+    assert!(tools[0]["user_location"].is_null());
 }

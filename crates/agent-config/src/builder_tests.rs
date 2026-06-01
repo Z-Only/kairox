@@ -70,6 +70,8 @@ fn build_profile_sets_capabilities_per_provider() {
         supports_vision: None,
         supports_reasoning: None,
         extra_params: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         enabled: true,
     };
     let profile = build_profile("fast", &fast_def);
@@ -96,6 +98,8 @@ fn build_profile_sets_capabilities_per_provider() {
         supports_vision: None,
         supports_reasoning: None,
         extra_params: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         enabled: true,
     };
     let profile = build_profile("local-code", &ollama_def);
@@ -135,6 +139,8 @@ fn capability_overrides_from_profile_def() {
         supports_vision: Some(true),
         supports_reasoning: None,
         extra_params: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         enabled: true,
     };
     let profile = build_profile("deepseek", &def);

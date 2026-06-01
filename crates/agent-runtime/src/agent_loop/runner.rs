@@ -163,6 +163,7 @@ where
         messages,
         system_prompt: Some(system_prompt),
         tools: tool_definitions,
+        server_tools: Vec::new(),
         reasoning_effort,
     };
 

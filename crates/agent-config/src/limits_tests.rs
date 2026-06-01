@@ -19,6 +19,8 @@ fn profile(provider: &str, model_id: &str, ctx: Option<u64>, out: Option<u64>) -
         supports_vision: None,
         supports_reasoning: None,
         extra_params: None,
+        server_tool_code_execution: None,
+        server_tool_web_search: None,
         enabled: true,
     }
 }

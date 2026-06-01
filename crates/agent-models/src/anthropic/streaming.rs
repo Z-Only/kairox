@@ -9,6 +9,7 @@ use std::collections::HashMap;
 /// Internal events during Anthropic SSE stream processing.
 /// Tool call arguments arrive across multiple `content_block_delta` chunks
 /// and must be accumulated before emitting a `ModelEvent::ToolCallRequested`.
+#[derive(Debug)]
 pub(super) enum AnthropicRawEvent {
     /// A regular model event (text delta, completion, error — no accumulation needed).
     Event(ModelEvent),
@@ -34,18 +35,44 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
     match event_type {
         "content_block_start" => {
             let block_type = value["content_block"]["type"].as_str().unwrap_or("");
-            if block_type == "tool_use" {
-                let id = value["content_block"]["id"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
-                let name = value["content_block"]["name"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
-                if !id.is_empty() && !name.is_empty() {
-                    events.push(AnthropicRawEvent::ToolUseStarted { id, name });
+            match block_type {
+                "tool_use" => {
+                    let id = value["content_block"]["id"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string();
+                    let name = value["content_block"]["name"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string();
+                    if !id.is_empty() && !name.is_empty() {
+                        events.push(AnthropicRawEvent::ToolUseStarted { id, name });
+                    }
                 }
+                "server_tool_use" => {
+                    // Server tool invocation — emit as text delta for display
+                    let name = value["content_block"]["name"]
+                        .as_str()
+                        .unwrap_or("server_tool");
+                    events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(
+                        format!("\n[server tool: {name}]\n"),
+                    )));
+                }
+                "web_search_tool_result" => {
+                    // Web search results from server
+                    let text = format_web_search_result(&value["content_block"]);
+                    if !text.is_empty() {
+                        events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(text)));
+                    }
+                }
+                "code_execution_tool_result" => {
+                    // Code execution results from server
+                    let text = format_code_execution_result(&value["content_block"]);
+                    if !text.is_empty() {
+                        events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(text)));
+                    }
+                }
+                _ => {}
             }
         }
         "content_block_delta" => {
@@ -169,6 +196,24 @@ pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent
                         });
                     }
                 }
+                "server_tool_use" => {
+                    let name = block["name"].as_str().unwrap_or("server_tool");
+                    events.push(ModelEvent::TokenDelta(format!(
+                        "\n[server tool: {name}]\n"
+                    )));
+                }
+                "web_search_tool_result" => {
+                    let text = format_web_search_result(block);
+                    if !text.is_empty() {
+                        events.push(ModelEvent::TokenDelta(text));
+                    }
+                }
+                "code_execution_tool_result" => {
+                    let text = format_code_execution_result(block);
+                    if !text.is_empty() {
+                        events.push(ModelEvent::TokenDelta(text));
+                    }
+                }
                 _ => {}
             }
         }
@@ -207,6 +252,83 @@ pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent
     }
 
     Ok(events)
+}
+
+/// Format a `web_search_tool_result` content block as human-readable text.
+fn format_web_search_result(block: &serde_json::Value) -> String {
+    let mut parts = Vec::new();
+    if let Some(content) = block["content"].as_array() {
+        for item in content {
+            let item_type = item["type"].as_str().unwrap_or("");
+            if item_type == "web_search_result" {
+                let title = item["title"].as_str().unwrap_or("");
+                let url = item["url"].as_str().unwrap_or("");
+                let snippet = item["encrypted_content"]
+                    .as_str()
+                    .or_else(|| item["page_content"].as_str())
+                    .unwrap_or("");
+                if !title.is_empty() || !url.is_empty() {
+                    parts.push(format!("[web result: {title} ({url})] {snippet}"));
+                }
+            }
+        }
+    }
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!("\n[web search results]\n{}\n", parts.join("\n"))
+}
+
+/// Format a `code_execution_tool_result` content block as human-readable text.
+fn format_code_execution_result(block: &serde_json::Value) -> String {
+    let mut parts = Vec::new();
+    if let Some(content) = block["content"].as_array() {
+        for item in content {
+            let item_type = item["type"].as_str().unwrap_or("");
+            match item_type {
+                "code_execution_output" => {
+                    if let Some(stdout) = item["stdout"].as_str() {
+                        if !stdout.is_empty() {
+                            parts.push(format!("[stdout] {stdout}"));
+                        }
+                    }
+                    if let Some(stderr) = item["stderr"].as_str() {
+                        if !stderr.is_empty() {
+                            parts.push(format!("[stderr] {stderr}"));
+                        }
+                    }
+                }
+                "code_execution_result" => {
+                    if let Some(return_value) = item["return_value"].as_str() {
+                        if !return_value.is_empty() {
+                            parts.push(format!("[return] {return_value}"));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    // Also check top-level stdout/stderr/return_value (flat format)
+    if let Some(stdout) = block["stdout"].as_str() {
+        if !stdout.is_empty() && parts.is_empty() {
+            parts.push(format!("[stdout] {stdout}"));
+        }
+    }
+    if let Some(stderr) = block["stderr"].as_str() {
+        if !stderr.is_empty() && parts.is_empty() {
+            parts.push(format!("[stderr] {stderr}"));
+        }
+    }
+    if let Some(rv) = block["return_value"].as_str() {
+        if !rv.is_empty() && parts.is_empty() {
+            parts.push(format!("[return] {rv}"));
+        }
+    }
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!("\n[code execution result]\n{}\n", parts.join("\n"))
 }
 
 pub(super) fn stream_anthropic_response(
