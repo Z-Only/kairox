@@ -929,9 +929,8 @@ fn parse_json_response_without_cache_stats_backward_compat() {
 fn builds_request_with_code_execution_server_tool() {
     let config = AnthropicConfig::default();
     let client = AnthropicClient::new(config);
-    let request = ModelRequest::user_text("fast", "run some code").with_server_tools(vec![
-        crate::types::ServerTool::CodeExecution,
-    ]);
+    let request = ModelRequest::user_text("fast", "run some code")
+        .with_server_tools(vec![crate::types::ServerTool::CodeExecution]);
 
     let body = client.build_messages_request(&request);
     let tools = body["tools"].as_array().unwrap();

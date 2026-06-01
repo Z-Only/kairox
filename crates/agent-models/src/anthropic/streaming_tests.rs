@@ -144,7 +144,10 @@ fn parses_server_tool_use_content_block() {
     assert_eq!(events.len(), 1);
     match &events[0] {
         AnthropicRawEvent::Event(ModelEvent::TokenDelta(t)) => {
-            assert!(t.contains("web_search"), "expected server tool name in delta: {t}");
+            assert!(
+                t.contains("web_search"),
+                "expected server tool name in delta: {t}"
+            );
         }
         other => panic!("expected TokenDelta for server_tool_use, got: {other:?}"),
     }
@@ -200,7 +203,10 @@ fn parse_json_response_handles_server_tool_use_and_results() {
     }"#;
     let events = parse_anthropic_json_response(data).unwrap();
     // Expected: text, server_tool_use delta, web_search_result delta, text, completed
-    assert!(events.len() >= 4, "expected at least 4 events, got: {events:?}");
+    assert!(
+        events.len() >= 4,
+        "expected at least 4 events, got: {events:?}"
+    );
     // First text
     assert!(matches!(&events[0], ModelEvent::TokenDelta(t) if t.contains("search")));
     // Server tool use
@@ -210,7 +216,9 @@ fn parse_json_response_handles_server_tool_use_and_results() {
     // Second text
     assert!(matches!(&events[3], ModelEvent::TokenDelta(t) if t.contains("found")));
     // Completed
-    assert!(events.iter().any(|e| matches!(e, ModelEvent::Completed { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::Completed { .. })));
 }
 
 #[test]
@@ -232,8 +240,17 @@ fn parse_json_response_handles_code_execution_result() {
     }"#;
     let events = parse_anthropic_json_response(data).unwrap();
     // server_tool_use delta + code_execution_result delta + completed
-    assert!(events.len() >= 3, "expected at least 3 events, got: {events:?}");
-    assert!(events.iter().any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("code_execution"))));
-    assert!(events.iter().any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("2"))));
-    assert!(events.iter().any(|e| matches!(e, ModelEvent::Completed { .. })));
+    assert!(
+        events.len() >= 3,
+        "expected at least 3 events, got: {events:?}"
+    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("code_execution"))));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::TokenDelta(t) if t.contains("2"))));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ModelEvent::Completed { .. })));
 }

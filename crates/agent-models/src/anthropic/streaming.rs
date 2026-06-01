@@ -54,9 +54,9 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                     let name = value["content_block"]["name"]
                         .as_str()
                         .unwrap_or("server_tool");
-                    events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(
-                        format!("\n[server tool: {name}]\n"),
-                    )));
+                    events.push(AnthropicRawEvent::Event(ModelEvent::TokenDelta(format!(
+                        "\n[server tool: {name}]\n"
+                    ))));
                 }
                 "web_search_tool_result" => {
                     // Web search results from server
@@ -198,9 +198,7 @@ pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent
                 }
                 "server_tool_use" => {
                     let name = block["name"].as_str().unwrap_or("server_tool");
-                    events.push(ModelEvent::TokenDelta(format!(
-                        "\n[server tool: {name}]\n"
-                    )));
+                    events.push(ModelEvent::TokenDelta(format!("\n[server tool: {name}]\n")));
                 }
                 "web_search_tool_result" => {
                     let text = format_web_search_result(block);
