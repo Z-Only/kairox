@@ -373,6 +373,24 @@ pub enum EventPayload {
         file: String,
         line: u32,
     },
+    TrajectoryStarted {
+        trajectory_id: String,
+        task_id: String,
+    },
+    TrajectoryStepRecorded {
+        trajectory_id: String,
+        step_index: u32,
+        action: String,
+        observation_preview: String,
+        screenshot_id: Option<String>,
+        #[cfg_attr(feature = "specta", specta(type = u32))]
+        duration_ms: u64,
+    },
+    TrajectoryCompleted {
+        trajectory_id: String,
+        step_count: u32,
+        outcome: crate::trajectory::TrajectoryOutcome,
+    },
 }
 
 impl EventPayload {
@@ -447,6 +465,9 @@ impl EventPayload {
             Self::DapSessionStarted { .. } => "DapSessionStarted",
             Self::DapSessionStopped { .. } => "DapSessionStopped",
             Self::DapBreakpointHit { .. } => "DapBreakpointHit",
+            Self::TrajectoryStarted { .. } => "TrajectoryStarted",
+            Self::TrajectoryStepRecorded { .. } => "TrajectoryStepRecorded",
+            Self::TrajectoryCompleted { .. } => "TrajectoryCompleted",
         }
     }
 }
