@@ -7,7 +7,8 @@ import type {
   RemoteSkillSearchResult,
   SkillCatalogEntry,
   SkillCatalogQuery,
-  SkillSettingsView
+  SkillSettingsView,
+  SkillSourceView
 } from "@/generated/commands";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -92,6 +93,17 @@ function createCatalogEntry(overrides: Partial<SkillCatalogEntry> = {}): SkillCa
     rating: 4.8,
     package: "skillhub/review",
     package_url: "https://registry.example/download/review",
+    ...overrides
+  };
+}
+
+function createSourceView(overrides: Partial<SkillSourceView> = {}): SkillSourceView {
+  return {
+    id: "skillhub",
+    name: "SkillHub",
+    kind: "registry",
+    url: "https://skillhub.example",
+    enabled: true,
     ...overrides
   };
 }
@@ -377,6 +389,110 @@ describe("skills store", () => {
     expect(result).toEqual(updatedSkill);
     expect(store.skillSettings).toEqual([existingSkill, updatedSkill]);
   });
+
+  it("installRemoteSkill passes package_url when provided", async () => {
+    const installedSkill = createSkillSetting({ id: "review", install_source: "registry" });
+    mockedInvoke.mockResolvedValueOnce(installedSkill);
+
+    const store = useSkillsStore();
+    await store.installRemoteSkill(
+      "@skills/review",
+      "user",
+      "https://registry.example/download/review"
+    );
+
+    expect(mockedInvoke).toHaveBeenCalledWith("install_remote_skill", {
+      request: {
+        package: "@skills/review",
+        package_url: "https://registry.example/download/review",
+        source: "registry",
+        target: "user"
+      }
+    });
+  });
+
+  it("installGithubSkill returns null on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("repo not found"));
+
+    const store = useSkillsStore();
+    const result = await store.installGithubSkill("https://github.com/bad/repo", "user");
+
+    expect(result).toBeNull();
+    expect(store.error).toContain("repo not found");
+    expect(store.settingsLoading).toBe(false);
+  });
+
+  it("updateSkill returns null and sets error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("update failed"));
+
+    const store = useSkillsStore();
+    store.skillSettings = [createSkillSetting({ id: "review" })];
+
+    const result = await store.updateSkill("user:review");
+
+    expect(result).toBeNull();
+    expect(store.error).toContain("update failed");
+    expect(store.settingsLoading).toBe(false);
+    // Existing settings preserved
+    expect(store.skillSettings).toHaveLength(1);
+  });
+
+  it("loadSkillSettings sets error and clears loading on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("settings load error"));
+
+    const store = useSkillsStore();
+    await store.loadSkillSettings();
+
+    expect(store.error).toContain("settings load error");
+    expect(store.settingsLoading).toBe(false);
+  });
+
+  it("loadSkillDetail stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("detail failed"));
+
+    const store = useSkillsStore();
+    await store.loadSkillDetail("missing-skill");
+
+    expect(store.error).toContain("detail failed");
+    expect(store.selectedSkill).toBeNull();
+  });
+
+  it("activateSkill stores error and clears activatingSkillId on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("activation failed"));
+
+    const store = useSkillsStore();
+    await store.activateSkill("bad-skill");
+
+    expect(store.error).toContain("activation failed");
+    expect(store.activatingSkillId).toBeNull();
+  });
+
+  it("deactivateSkill stores error and clears activatingSkillId on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("deactivation failed"));
+
+    const store = useSkillsStore();
+    store.activeSkills = [activeSkill];
+
+    await store.deactivateSkill("test-driven-rust");
+
+    expect(store.error).toContain("deactivation failed");
+    expect(store.activatingSkillId).toBeNull();
+    // Active skills not modified on failure
+    expect(store.activeSkills).toHaveLength(1);
+  });
+
+  it("activateSkill replaces existing active skill entry for same skill_id", async () => {
+    const updatedActiveSkill = { ...activeSkill, activation_mode: "auto" };
+    mockedInvoke.mockResolvedValueOnce(updatedActiveSkill);
+
+    const store = useSkillsStore();
+    store.activeSkills = [activeSkill];
+
+    await store.activateSkill("test-driven-rust");
+
+    expect(store.activeSkills).toHaveLength(1);
+    expect(store.activeSkills[0].activation_mode).toBe("auto");
+  });
 });
 
 function createEffectiveSkill(overrides: Partial<EffectiveSkillView> = {}): EffectiveSkillView {
@@ -420,5 +536,197 @@ describe("effective skills", () => {
 
     expect(store.effectiveSkills).toHaveLength(0);
     expect(store.error).toContain("config not available");
+  });
+});
+
+describe("catalog sources", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+  });
+
+  it("loadCatalogSources populates catalogSources", async () => {
+    const source = createSourceView();
+    mockedInvoke.mockResolvedValueOnce([source]);
+
+    const store = useSkillsStore();
+    await store.loadCatalogSources();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_skill_sources");
+    expect(store.catalogSources).toEqual([source]);
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("loadCatalogSources stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("sources unavailable"));
+
+    const store = useSkillsStore();
+    await store.loadCatalogSources();
+
+    expect(store.error).toContain("sources unavailable");
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("addCatalogSource invokes command and reloads sources", async () => {
+    const source = createSourceView({ id: "new-source" });
+    mockedInvoke
+      .mockResolvedValueOnce(null) // addSkillSource
+      .mockResolvedValueOnce([source]); // listSkillSources
+
+    const store = useSkillsStore();
+    await store.addCatalogSource(source);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("add_skill_source", { config: source });
+    expect(store.catalogSources).toEqual([source]);
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("addCatalogSource re-throws error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("bad source"));
+
+    const store = useSkillsStore();
+    await expect(store.addCatalogSource(createSourceView())).rejects.toThrow("bad source");
+
+    expect(store.error).toContain("bad source");
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("removeCatalogSource removes the source from local state", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "keep" }), createSourceView({ id: "remove" })];
+
+    await store.removeCatalogSource("remove");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("remove_skill_source", { id: "remove" });
+    expect(store.catalogSources).toEqual([createSourceView({ id: "keep" })]);
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("removeCatalogSource re-throws error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("cannot remove"));
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "src" })];
+
+    await expect(store.removeCatalogSource("src")).rejects.toThrow("cannot remove");
+    expect(store.error).toContain("cannot remove");
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("isCatalogSourceEnabled returns true when source is enabled", () => {
+    const store = useSkillsStore();
+    store.catalogSources = [
+      createSourceView({ id: "enabled-src", enabled: true }),
+      createSourceView({ id: "disabled-src", enabled: false })
+    ];
+
+    expect(store.isCatalogSourceEnabled("enabled-src")).toBe(true);
+    expect(store.isCatalogSourceEnabled("disabled-src")).toBe(false);
+    expect(store.isCatalogSourceEnabled("nonexistent")).toBe(false);
+  });
+
+  it("toggleCatalogSource toggles from enabled to disabled", async () => {
+    mockedInvoke.mockResolvedValueOnce(null); // setSkillSourceEnabled
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "src", enabled: true })];
+
+    await store.toggleCatalogSource("src");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_skill_source_enabled", {
+      id: "src",
+      enabled: false
+    });
+    expect(store.catalogSources[0].enabled).toBe(false);
+  });
+
+  it("toggleCatalogSource toggles from disabled to enabled", async () => {
+    mockedInvoke.mockResolvedValueOnce(null); // setSkillSourceEnabled
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "src", enabled: false })];
+
+    await store.toggleCatalogSource("src");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_skill_source_enabled", {
+      id: "src",
+      enabled: true
+    });
+    expect(store.catalogSources[0].enabled).toBe(true);
+  });
+
+  it("toggleCatalogSource is a no-op for unknown source", async () => {
+    const store = useSkillsStore();
+    store.catalogSources = [];
+
+    await store.toggleCatalogSource("unknown");
+
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
+  it("setCatalogSourceEnabled updates local state on success", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "src", enabled: true })];
+
+    await store.setCatalogSourceEnabled("src", false);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("set_skill_source_enabled", {
+      id: "src",
+      enabled: false
+    });
+    expect(store.catalogSources[0].enabled).toBe(false);
+  });
+
+  it("setCatalogSourceEnabled stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("toggle err"));
+
+    const store = useSkillsStore();
+    store.catalogSources = [createSourceView({ id: "src", enabled: true })];
+
+    await store.setCatalogSourceEnabled("src", false);
+
+    expect(store.error).toContain("toggle err");
+    // State not updated on failure
+    expect(store.catalogSources[0].enabled).toBe(true);
+  });
+
+  it("refreshCatalog calls command and clears search cache", async () => {
+    mockedInvoke
+      .mockResolvedValueOnce([createCatalogEntry()]) // searchCatalog initial
+      .mockResolvedValueOnce(null); // refreshSkillCatalog
+
+    const store = useSkillsStore();
+    // Populate cache
+    await store.searchCatalog({ keyword: "test" });
+    expect(store.catalogEntries).toHaveLength(1);
+
+    await store.refreshCatalog();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_skill_catalog");
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("refreshCatalog stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("refresh err"));
+
+    const store = useSkillsStore();
+    await store.refreshCatalog();
+
+    expect(store.error).toContain("refresh err");
+    expect(store.catalogLoading).toBe(false);
+  });
+
+  it("searchCatalog stores error on failure", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("search failed"));
+
+    const store = useSkillsStore();
+    await store.searchCatalog({ keyword: "test" });
+
+    expect(store.error).toContain("search failed");
+    expect(store.catalogLoading).toBe(false);
   });
 });

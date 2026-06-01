@@ -409,3 +409,321 @@ describe("project store", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("list_project_branches", { projectId: "p1" });
   });
 });
+
+describe("project store — additional coverage", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    mockDefaultInvoke();
+  });
+
+  it("addExistingProject adds a project from an existing path", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "add_existing_project") {
+        return {
+          project_id: "p3",
+          display_name: "Existing",
+          root_path: "/tmp/existing",
+          removed_at: null,
+          sort_order: 2,
+          expanded: true,
+          path_exists: true
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const project = await store.addExistingProject("/tmp/existing");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("add_existing_project", { path: "/tmp/existing" });
+    expect(project.projectId).toBe("p3");
+    expect(project.displayName).toBe("Existing");
+    expect(store.projects).toContainEqual(expect.objectContaining({ projectId: "p3" }));
+  });
+
+  it("renameProject updates the local project name without refetching", async () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "Old Name",
+        rootPath: "/tmp/demo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    await store.renameProject("p1", "New Name");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("rename_project", {
+      projectId: "p1",
+      displayName: "New Name"
+    });
+    expect(store.projects[0].displayName).toBe("New Name");
+  });
+
+  it("renameProject does not change other projects", async () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "First",
+        rootPath: "/tmp/first",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p2",
+        displayName: "Second",
+        rootPath: "/tmp/second",
+        removedAt: null,
+        sortOrder: 1,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    await store.renameProject("p1", "Renamed");
+
+    expect(store.projects[1].displayName).toBe("Second");
+  });
+
+  it("updateProjectOrder re-sorts projects by the new order", async () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "A",
+        rootPath: "/a",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p2",
+        displayName: "B",
+        rootPath: "/b",
+        removedAt: null,
+        sortOrder: 1,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p3",
+        displayName: "C",
+        rootPath: "/c",
+        removedAt: null,
+        sortOrder: 2,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    await store.updateProjectOrder(["p3", "p1", "p2"]);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("update_project_order", {
+      projectIds: ["p3", "p1", "p2"]
+    });
+    expect(store.projects.map((p) => p.projectId)).toEqual(["p3", "p1", "p2"]);
+    expect(store.projects[0].sortOrder).toBe(0);
+    expect(store.projects[1].sortOrder).toBe(1);
+    expect(store.projects[2].sortOrder).toBe(2);
+  });
+
+  it("updateProjectExpanded toggles the expanded flag locally", async () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "A",
+        rootPath: "/a",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    await store.updateProjectExpanded("p1", false);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("update_project_expanded", {
+      projectId: "p1",
+      expanded: false
+    });
+    expect(store.projects[0].expanded).toBe(false);
+  });
+
+  it("refreshProjectConfig calls refreshConfigForProject for known project", async () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "A",
+        rootPath: "/tmp/a",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    await store.refreshProjectConfig("p1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_config_for_project", {
+      projectRoot: "/tmp/a"
+    });
+  });
+
+  it("refreshProjectConfig does nothing for unknown project", async () => {
+    const store = useProjectStore();
+    store.projects = [];
+
+    await store.refreshProjectConfig("unknown");
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("refresh_config_for_project", expect.anything());
+  });
+
+  it("refreshProjectConfigRoot calls refreshConfigForProject with given path", async () => {
+    const store = useProjectStore();
+
+    await store.refreshProjectConfigRoot("/some/path");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("refresh_config_for_project", {
+      projectRoot: "/some/path"
+    });
+  });
+
+  it("restoreProjectSession normalizes the response and reloads sessions", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "restore_project_session") {
+        return {
+          project_id: "p1",
+          display_name: "Restored",
+          root_path: "/tmp/restored",
+          removed_at: null,
+          sort_order: 0,
+          expanded: true,
+          path_exists: true
+        };
+      }
+      if (command === "list_project_sessions") {
+        return [
+          {
+            id: "s1",
+            title: "Session",
+            profile: "default",
+            project_id: "p1",
+            worktree_path: "/tmp/restored",
+            branch: "main",
+            deleted_at: null,
+            visibility: "visible"
+          }
+        ];
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const project = await store.restoreProjectSession("s1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("restore_project_session", { sessionId: "s1" });
+    expect(project.projectId).toBe("p1");
+    expect(project.displayName).toBe("Restored");
+    expect(store.projects).toContainEqual(expect.objectContaining({ projectId: "p1" }));
+    expect(store.sessionsByProject.get("p1")).toHaveLength(1);
+  });
+
+  it("initProjectGit returns normalized git status", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "init_project_git") {
+        return {
+          kind: "Initialized",
+          branch: "main",
+          worktree_path: "/tmp/demo",
+          message: "Initialized empty Git repository"
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const result = await store.initProjectGit("p1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("init_project_git", { projectId: "p1" });
+    expect(result).toEqual({
+      kind: "Initialized",
+      branch: "main",
+      worktreePath: "/tmp/demo",
+      message: "Initialized empty Git repository"
+    });
+  });
+
+  it("getSessionGitStatus normalizes the backend response", async () => {
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_session_git_status") {
+        return {
+          kind: "Dirty",
+          branch: "feat/test",
+          worktree_path: "/tmp/worktree",
+          message: "2 files changed"
+        };
+      }
+      return null;
+    });
+    const store = useProjectStore();
+
+    const result = await store.getSessionGitStatus("s1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_session_git_status", { sessionId: "s1" });
+    expect(result).toEqual({
+      kind: "Dirty",
+      branch: "feat/test",
+      worktreePath: "/tmp/worktree",
+      message: "2 files changed"
+    });
+  });
+
+  it("getProjectInstructionSummary stores result and handles errors gracefully", async () => {
+    mockedInvoke.mockRejectedValueOnce(new Error("ENOENT"));
+    const store = useProjectStore();
+
+    const result = await store.getProjectInstructionSummary("p-missing");
+
+    expect(result.sourcePaths).toEqual([]);
+    expect(result.warning).toContain("ENOENT");
+    expect(store.instructionSummariesByProject.get("p-missing")).toEqual(result);
+  });
+
+  it("activeProjects filters out removed projects", () => {
+    const store = useProjectStore();
+    store.projects = [
+      {
+        projectId: "p1",
+        displayName: "Active",
+        rootPath: "/active",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      },
+      {
+        projectId: "p2",
+        displayName: "Removed",
+        rootPath: "/removed",
+        removedAt: "2026-01-01T00:00:00Z",
+        sortOrder: 1,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+
+    expect(store.activeProjects).toHaveLength(1);
+    expect(store.activeProjects[0].projectId).toBe("p1");
+  });
+});

@@ -183,6 +183,130 @@ describe("taskGraph store state management", () => {
 });
 
 describe("applyTaskEvent", () => {
+  it("AgentTaskCreated adds a new task to the list", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "AgentTaskCreated",
+      task_id: "T1",
+      title: "Plan release",
+      role: "Planner",
+      dependencies: ["T0"]
+    } as any);
+
+    expect(taskGraph.tasks).toHaveLength(1);
+    const created = taskGraph.tasks[0];
+    expect(created.id).toBe("T1");
+    expect(created.title).toBe("Plan release");
+    expect(created.role).toBe("Planner");
+    expect(created.state).toBe("Pending");
+    expect(created.dependencies).toEqual(["T0"]);
+    expect(created.retry_count).toBe(0);
+    expect(created.max_retries).toBe(3);
+  });
+
+  it("AgentTaskCreated does not duplicate an existing task", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1", title: "Original" })], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "AgentTaskCreated",
+      task_id: "T1",
+      title: "Duplicate",
+      role: "Worker",
+      dependencies: []
+    } as any);
+
+    expect(taskGraph.tasks).toHaveLength(1);
+    expect(taskGraph.tasks[0].title).toBe("Original");
+  });
+
+  it("AgentTaskStarted sets task state to Running", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1", state: "Pending" })], "session-1");
+
+    taskGraph.applyTaskEvent({ type: "AgentTaskStarted", task_id: "T1" } as any);
+
+    expect(taskGraph.tasks[0].state).toBe("Running");
+  });
+
+  it("AgentTaskStarted is a no-op for unknown task_id", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    taskGraph.applyTaskEvent({ type: "AgentTaskStarted", task_id: "T-unknown" } as any);
+
+    expect(taskGraph.tasks[0].state).toBe("Pending");
+  });
+
+  it("AgentTaskCompleted sets task state to Completed", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1", state: "Running" })], "session-1");
+
+    taskGraph.applyTaskEvent({ type: "AgentTaskCompleted", task_id: "T1" } as any);
+
+    expect(taskGraph.tasks[0].state).toBe("Completed");
+  });
+
+  it("AgentTaskFailed sets task state to Failed with error", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1", state: "Running" })], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "AgentTaskFailed",
+      task_id: "T1",
+      error: "Out of memory"
+    } as any);
+
+    const task = taskGraph.tasks[0];
+    expect(task.state).toBe("Failed");
+    expect(task.error).toBe("Out of memory");
+  });
+
+  it("TaskBlocked sets task state to Blocked with reason", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1", state: "Pending" })], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "TaskBlocked",
+      task_id: "T1",
+      reason: "Upstream task T0 failed"
+    } as any);
+
+    const task = taskGraph.tasks[0];
+    expect(task.state).toBe("Blocked");
+    expect(task.error).toBe("Upstream task T0 failed");
+  });
+
+  it("TaskBlocked uses default reason when reason is empty", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "TaskBlocked",
+      task_id: "T1",
+      reason: ""
+    } as any);
+
+    expect(taskGraph.tasks[0].error).toBe("Dependency failed");
+  });
+
+  it("TaskDecomposed is a no-op (informational only)", () => {
+    const taskGraph = useTaskGraphStore();
+    const initialTask = makeTask({ id: "T1", state: "Running" });
+    taskGraph.setTaskGraph([initialTask], "session-1");
+
+    taskGraph.applyTaskEvent({
+      type: "TaskDecomposed",
+      task_id: "T1",
+      sub_task_ids: ["T2", "T3"]
+    } as any);
+
+    expect(taskGraph.tasks).toHaveLength(1);
+    expect(taskGraph.tasks[0].state).toBe("Running");
+  });
+
   it("TaskRetried resets task to Running and updates retry_count", () => {
     const taskGraph = useTaskGraphStore();
     const task = makeTask({ id: "T1", state: "Failed", error: "boom" });
@@ -213,6 +337,16 @@ describe("applyTaskEvent", () => {
     const updated = taskGraph.tasks.find((t) => t.id === "T1");
     expect(updated?.state).toBe("Cancelled");
     expect(updated?.error).toBeNull();
+  });
+
+  it("ignores unrecognized event types without crashing", () => {
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph([makeTask({ id: "T1" })], "session-1");
+
+    // Should not throw
+    taskGraph.applyTaskEvent({ type: "UnknownEventType", task_id: "T1" } as any);
+
+    expect(taskGraph.tasks[0].state).toBe("Pending");
   });
 });
 
@@ -261,6 +395,23 @@ describe("retryTask", () => {
     await taskGraph.retryTask("T1");
 
     expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Failed to retry task"));
+  });
+
+  it("proceeds with retry when task is below max_retries", async () => {
+    mockedInvoke.mockResolvedValue(undefined);
+    const taskGraph = useTaskGraphStore();
+    taskGraph.setTaskGraph(
+      [makeTask({ id: "T1", state: "Failed", retry_count: 2, max_retries: 3 })],
+      "session-1"
+    );
+
+    await taskGraph.retryTask("T1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("retry_task", {
+      sessionId: "session-1",
+      taskId: "T1"
+    });
+    expect(mockToast.success).toHaveBeenCalled();
   });
 });
 
