@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0] - 2026-06-01
+
+### 🚀 Features
+
+- **lsp**: add native LSP and DAP support for code intelligence and debugging (#780)
+- **tui**: add trace export and config refresh commands (#782)
+- **tui**: add monitor overlay for listing and stopping monitors (#784)
+- **tui**: enhance model overlay with context limits and MCP tool states (#783)
+- **tui**: add remote skill search and install to skills overlay (#785)
+
+### 🐛 Bug Fixes
+
+- **tools**: make patch apply robust (#781)
+
+### 📚 Documentation
+
+- add project roadmap with phased capability evolution (#794)
+
+### 🧪 Testing
+
+- **gui**: supplement low-coverage store and composable tests (#787)
+- **gui**: boost coverage for ConfirmDialog, AttachmentTray, StatusBar, GeneralSettings (#789)
+- **gui**: boost coverage for FileMentionPalette, ContextMeter, McpServerFormDialog (#790)
+- **core**: boost projection and ids test coverage (#791)
+- **gui**: boost coverage for ModelSettingsPane and ArchiveSettingsPane (#792)
+
+### 🔧 Miscellaneous Tasks
+
+- calibrate coverage thresholds to current baseline (#786)
+- **gui**: raise coverage thresholds to lock in test improvements (#788)
+- **gui**: raise coverage thresholds to lock in test improvements (#793)
+
 ## [0.34.0] - 2026-05-31
 
 ### 🚀 Features
@@ -29,14 +61,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### 🐛 Bug Fixes
 
 - **gui**: reset instructions reload state (#774)
-- **site**: seed release cache for local builds
 
 ### 📚 Documentation
 
 - **site**: refresh roadmap for v0.33 (#731)
-- **ai**: sync assistant instructions
-- **ai**: document test organization
-- **testing**: update tui gui parity matrix
 
 ### 🧪 Testing
 

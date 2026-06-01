@@ -12,7 +12,7 @@ The canonical roadmap is [`ROADMAP.md`](https://github.com/Z-Only/kairox/blob/ma
 
 Kairox is in active pre-1.0 development. The roadmap is organized by horizon: what we already ship, what we are working on now, and the shape of the longer-term bet.
 
-## What ships today (v0.34.x)
+## What ships today (v0.35.x)
 
 The current release covers the foundation across runtime, UIs, MCP, skills, and packaging.
 
@@ -26,9 +26,10 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 - Phase 2 DAG execution with `AgentStrategy` for multi-agent orchestration (planner / worker / reviewer).
 - Race-free auto-compaction at turn end (PRs #531–#534).
 
-### Tools, permissions, MCP
+### Tools, permissions, MCP, LSP/DAP
 
 - Built-in tools: `shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, plus monitor registry tools (`monitor.start`, `monitor.list`, `monitor.stop`).
+- Native **LSP and DAP integration** (`agent-lsp` crate): LSP client for code intelligence (go-to-definition, references, completions, diagnostics) and DAP client for debugger integration; server lifecycle management and dynamic tool registration via `LspToolProvider` / `DapToolProvider`.
 - Orthogonal Approval × Sandbox policy engine: `ApprovalPolicy` (`Never` / `OnRequest` / `Always`) gates _when_ the user is asked; `SandboxPolicy` (`ReadOnly` / `WorkspaceWrite` / `DangerFullAccess`) gates _what_ the runtime structurally allows. The legacy single-axis `PermissionMode` enum was removed end-to-end in v0.31.0 (PRs #517, #520).
 - MCP client with stdio, SSE, and Streamable HTTP transports, lifecycle management (`McpServer{Starting,Ready,Stopped,Failed}`), and server diagnostic summaries.
 - MCP marketplace with built-in catalog plus remote sources; one-click install with runtime requirement hints.
@@ -42,7 +43,7 @@ The current release covers the foundation across runtime, UIs, MCP, skills, and 
 
 ### UIs
 
-- **TUI** built on ratatui: three-pane layout, streaming chat, monitor stream items, trace panel, permission overlay, command palette, settings/marketplace overlays, and monitor list/stop commands.
+- **TUI** built on ratatui: three-pane layout, streaming chat, monitor stream items, trace panel, permission overlay, command palette, settings/marketplace overlays, monitor list/stop commands, model overlay with context-window details, monitor overlay for listing and stopping monitors, remote skill search and install via skills overlay, and trace export / config refresh commands.
 - **GUI** built on Tauri 2 + Vue 3: persistent sessions, task graph, searchable trace timeline, memory browser, monitor chat stream rendering with trace-store handling, inline permission flow, per-session `ApprovalPolicy` and `SandboxPolicy` selectors, resizable workbench sidebars, project workspaces, settings tabs for models / agents / MCP / skills / plugins / hooks / instructions, and Tauri IPC controls for monitor list/stop.
 - Tauri 2 auto-update wired to GitHub Releases.
 

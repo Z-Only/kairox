@@ -34,6 +34,7 @@ flowchart TB
     MODELS["agent-models<br/>ModelClient · ModelRouter · ModelRegistry"]
     TOOLS["agent-tools<br/>ToolRegistry · PolicyEngine · built-ins"]
     MCP["agent-mcp<br/>McpClient · transports · marketplace"]
+    LSP["agent-lsp<br/>LspClient · DapClient · lifecycle"]
     SKILLS["agent-skills<br/>SkillRegistry · SkillDef · frontmatter"]
     PLUGINS["agent-plugins<br/>PluginManifest · inventory"]
     CONFIG["agent-config<br/>ProfileDef · loader · discovery"]
@@ -47,6 +48,7 @@ flowchart TB
   RUNTIME --> MODELS
   RUNTIME --> TOOLS
   RUNTIME --> MCP
+  RUNTIME --> LSP
   RUNTIME --> SKILLS
   RUNTIME --> PLUGINS
   RUNTIME --> CONFIG
@@ -95,6 +97,7 @@ In code, the rule is enforced at compile time — `cargo` will refuse to build a
 | **agent-models**  | Model provider abstraction (OpenAI-compatible, Anthropic, Ollama, Fake) with metadata and context-window registry.                                                                                              | `ModelClient` trait, `ModelRequest`, `ModelRouter`, `ModelProfile`, `ModelRegistry`.                                                                                              |
 | **agent-tools**   | Tool registry, orthogonal Approval × Sandbox policy engine, built-in tools (`shell.exec`, `fs.read`, `fs.write`, `fs.list`, `patch.apply`, `search.ripgrep`, `monitor.start/list/stop`), MCP-tool adapter.      | `ToolRegistry`, `PolicyEngine`, `ApprovalPolicy`, `SandboxPolicy`, `PolicyDecision`, `PolicyRisk`, `Tool` trait, `ToolRisk`, `McpToolAdapter`, `MonitorRegistry`.                 |
 | **agent-mcp**     | MCP (Model Context Protocol) client, stdio + SSE + Streamable HTTP transports, server lifecycle, discovery cache, marketplace catalog (built-in + remote sources).                                              | `McpClient`, `Transport` trait, `StdioTransport`, `SseTransport`, `StreamableHttpTransport`, `ServerLifecycle`, `McpServerDef`, `CatalogEntry`.                                   |
+| **agent-lsp**     | LSP and DAP client implementations, JSON-RPC transport, server lifecycle management for code intelligence and debugging.                                                                                        | `LspClient`, `DapClient`, `LspServerDef`, `DapServerDef`, `LspServerLifecycle`, `DapServerLifecycle`, `ServerStatus`.                                                             |
 | **agent-skills**  | Native skills system — reusable prompt/tool/workflow capabilities, frontmatter parsing, registry, GUI settings.                                                                                                 | `SkillRegistry`, `SkillDef`, `SkillFrontmatter`, `SkillScope`, `SkillSettings`.                                                                                                   |
 | **agent-plugins** | Plugin manifest and inventory for plugin-provided skills, tools, hooks, and MCP servers.                                                                                                                        | `PluginManifest`, plugin inventory helpers.                                                                                                                                       |
 | **agent-memory**  | Durable, user-, workspace-, and session-scoped memory, context assembly with `tiktoken` budgets, prompt compaction.                                                                                             | `MemoryStore` trait, `SqliteMemoryStore`, `ContextAssembler`, `MemoryMarker`, `ContextCompactor`.                                                                                 |
