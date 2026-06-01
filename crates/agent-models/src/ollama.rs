@@ -120,23 +120,32 @@ impl OllamaClient {
         let body = self.build_chat_request(&request);
         let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
 
-        let response = self
-            .http
-            .post(&url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| ModelError::Http(e.to_string()))?;
+        let response = self.http.post(&url).json(&body).send().await.map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                ModelError::Connection(e.to_string())
+            } else {
+                ModelError::Http {
+                    status: e.status().map_or(0, |s| s.as_u16()),
+                    message: e.to_string(),
+                }
+            }
+        })?;
 
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(ModelError::Api(format!("HTTP {}: {}", status, body)));
+            return Err(ModelError::Api {
+                status: status.as_u16(),
+                message: body,
+            });
         }
 
         let stream = response
             .bytes_stream()
-            .map_err(|e| ModelError::Http(e.to_string()))
+            .map_err(|e| ModelError::Http {
+                status: 0,
+                message: e.to_string(),
+            })
             .map(|chunk_result| match chunk_result {
                 Ok(bytes) => {
                     let text = String::from_utf8_lossy(&bytes);
