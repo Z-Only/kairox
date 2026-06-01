@@ -50,7 +50,7 @@ async fn builtin_provider_lists_all_tools() {
         "missing monitor.list, got: {:?}",
         tool_ids
     );
-    assert_eq!(tools.len(), 9);
+    assert_eq!(tools.len(), 10);
 }
 
 #[tokio::test]

@@ -31,6 +31,7 @@ pub enum ToolEffect {
     McpInvoke,
     LspQuery,
     DebugInvoke,
+    BrowserInteract,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +85,7 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
         },
         (ToolEffect::LspQuery, _) => PolicyEffect::Read,
         (ToolEffect::DebugInvoke, _) => PolicyEffect::Shell { destructive: false },
+        (ToolEffect::BrowserInteract, _) => PolicyEffect::Network { hosts: Vec::new() },
     };
     PolicyRisk {
         tool_id: risk.tool_id.clone(),

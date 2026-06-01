@@ -1,3 +1,4 @@
+pub mod browser;
 pub mod filesystem;
 pub mod fs_helpers;
 pub mod fs_list;
@@ -14,6 +15,7 @@ pub mod shell;
 
 pub use agent_mcp::McpServerDef;
 pub use agent_mcp::McpTransportDef;
+pub use browser::{BrowserAction, BrowserResult, BrowserState, BrowserTool};
 pub use filesystem::{FsListEntry, FsListTool, FsReadTool, FsWriteTool};
 pub use monitor::{
     MonitorInfo, MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool,

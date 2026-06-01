@@ -1,3 +1,4 @@
+use crate::browser::BrowserTool;
 use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
 use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool};
 use crate::patch::PatchApplyTool;
@@ -35,12 +36,15 @@ impl BuiltinProvider {
         let fs_write = Box::new(FsWriteTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let fs_list = Box::new(FsListTool::new(workspace_root.clone())) as Box<dyn Tool>;
 
+        let browser = Box::new(BrowserTool::new(workspace_root.clone())) as Box<dyn Tool>;
+
         let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root, event_tx));
         let mon_start = Box::new(MonitorStartTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_stop = Box::new(MonitorStopTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_list = Box::new(MonitorListTool::new(monitor_registry.clone())) as Box<dyn Tool>;
 
         tools.insert(shell.definition().tool_id.clone(), Arc::from(shell));
+        tools.insert(browser.definition().tool_id.clone(), Arc::from(browser));
         tools.insert(search.definition().tool_id.clone(), Arc::from(search));
         tools.insert(patch.definition().tool_id.clone(), Arc::from(patch));
         tools.insert(fs_read.definition().tool_id.clone(), Arc::from(fs_read));
