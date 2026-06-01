@@ -343,6 +343,43 @@ async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
 }
 
 #[tokio::test]
+async fn sends_claude_code_identity_headers() {
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+    let sse_body = "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}\n\n";
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .and(header("anthropic-beta", "claude-code-20250219"))
+        .and(header("x-app-name", "claude-code"))
+        .and(header("user-agent", "claude-code"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(sse_body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let _env = EnvVarGuard::set("KAIROX_ANTHROPIC_CLAUDE_CODE_KEY", "key");
+    let mut config = test_config(mock_server.uri(), "KAIROX_ANTHROPIC_CLAUDE_CODE_KEY");
+    config.headers = vec![
+        ("anthropic-beta".into(), "claude-code-20250219".into()),
+        ("x-app-name".into(), "claude-code".into()),
+        ("user-agent".into(), "claude-code".into()),
+    ];
+
+    let stream = AnthropicClient::new(config)
+        .stream(ModelRequest::user_text("claude", "hello"))
+        .await
+        .unwrap();
+    let events = stream.collect::<Vec<_>>().await;
+
+    assert!(events
+        .iter()
+        .any(|event| matches!(event, Ok(ModelEvent::Completed { .. }))));
+}
+
+#[tokio::test]
 async fn missing_api_key_returns_request_error_before_http() {
     let key = "KAIROX_ANTHROPIC_MISSING_CONTRACT_KEY";
     std::env::remove_var(key);

@@ -113,6 +113,7 @@ async fn upsert_writes_profile_settings() {
         max_tokens: None,
         base_url: Some("https://api.openai.com/v1".to_string()),
         api_key_env: Some("OPENAI_API_KEY".to_string()),
+        client_identity: Some("claude_code".to_string()),
     };
 
     let view = upsert_profile_settings_in_file(&config_path, &input)
@@ -132,6 +133,7 @@ async fn upsert_writes_profile_settings() {
     assert!(raw.contains("provider = \"openai_compatible\""));
     assert!(raw.contains("context_window = 128000"));
     assert!(raw.contains("temperature = "));
+    assert!(raw.contains("client_identity = \"claude_code\""));
 }
 
 #[tokio::test]
@@ -185,6 +187,7 @@ async fn upsert_preserves_other_profiles_and_unknown_fields() {
         max_tokens: None,
         base_url: None,
         api_key_env: None,
+        client_identity: None,
     };
 
     upsert_profile_settings_in_file(&config_path, &input)

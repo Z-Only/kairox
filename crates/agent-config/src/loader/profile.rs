@@ -28,6 +28,8 @@ struct ProfileToml {
     #[serde(default)]
     headers: Option<std::collections::HashMap<String, String>>,
     #[serde(default)]
+    client_identity: Option<String>,
+    #[serde(default)]
     supports_tools: Option<bool>,
     #[serde(default)]
     supports_vision: Option<bool>,
@@ -70,6 +72,7 @@ pub(super) fn parse_profiles(
             top_p: profile_toml.top_p,
             top_k: profile_toml.top_k,
             headers: profile_toml.headers,
+            client_identity: profile_toml.client_identity,
             supports_tools: profile_toml.supports_tools,
             supports_vision: profile_toml.supports_vision,
             supports_reasoning: profile_toml.supports_reasoning,

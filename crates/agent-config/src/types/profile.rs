@@ -32,6 +32,12 @@ pub struct ProfileDef {
     pub top_k: Option<u32>,
     #[serde(default)]
     pub headers: Option<HashMap<String, String>>,
+    /// Optional preset for client-identifying request headers.
+    ///
+    /// `claude_code` adds the Claude Code beta and app headers used by
+    /// Anthropic-compatible gateways that gate behavior by client identity.
+    #[serde(default)]
+    pub client_identity: Option<String>,
     #[serde(default)]
     pub supports_tools: Option<bool>,
     #[serde(default)]

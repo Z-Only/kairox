@@ -144,6 +144,7 @@ base_url = "https://api.openai.com/v1"
 temperature = 0.7
 top_p = 0.9
 top_k = 50
+client_identity = "claude_code"
 supports_tools = true
 supports_vision = false
 supports_reasoning = true
@@ -165,6 +166,7 @@ response_format = { type = "json_object" }
     assert!((def.temperature.unwrap() - 0.7).abs() < 1e-6);
     assert!((def.top_p.unwrap() - 0.9).abs() < 1e-6);
     assert_eq!(def.top_k, Some(50));
+    assert_eq!(def.client_identity.as_deref(), Some("claude_code"));
     assert_eq!(def.supports_tools, Some(true));
     assert_eq!(def.supports_vision, Some(false));
     assert_eq!(def.supports_reasoning, Some(true));

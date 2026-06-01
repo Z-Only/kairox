@@ -15,6 +15,7 @@ fn profile(provider: &str, model_id: &str, ctx: Option<u64>, out: Option<u64>) -
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,

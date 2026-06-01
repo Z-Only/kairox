@@ -66,6 +66,7 @@ fn build_profile_sets_capabilities_per_provider() {
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,
@@ -94,6 +95,7 @@ fn build_profile_sets_capabilities_per_provider() {
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,
@@ -156,6 +158,26 @@ fn custom_anthropic_gateway_profile_uses_anthropic_capabilities() {
 }
 
 #[test]
+fn claude_code_client_identity_adds_default_headers_with_user_override() {
+    let mut def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+    def.client_identity = Some("claude_code".into());
+    def.headers = Some(std::collections::HashMap::from([
+        ("x-app-ver".to_string(), "user-version".to_string()),
+        ("x-custom".to_string(), "kept".to_string()),
+    ]));
+
+    let headers = profile_headers(&def);
+
+    assert_eq!(
+        header_value(&headers, "anthropic-beta"),
+        Some("claude-code-20250219")
+    );
+    assert_eq!(header_value(&headers, "x-app-name"), Some("claude-code"));
+    assert_eq!(header_value(&headers, "x-app-ver"), Some("user-version"));
+    assert_eq!(header_value(&headers, "x-custom"), Some("kept"));
+}
+
+#[test]
 fn capability_overrides_from_profile_def() {
     let def = ProfileDef {
         provider: "deepseek".into(),
@@ -171,6 +193,7 @@ fn capability_overrides_from_profile_def() {
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: Some(false),
         supports_vision: Some(true),
         supports_reasoning: None,
@@ -226,6 +249,7 @@ fn test_profile(provider: &str, base_url: Option<&str>) -> ProfileDef {
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: None,
@@ -234,4 +258,11 @@ fn test_profile(provider: &str, base_url: Option<&str>) -> ProfileDef {
         server_tool_web_search: None,
         enabled: true,
     }
+}
+
+fn header_value<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        .map(|(_, value)| value.as_str())
 }

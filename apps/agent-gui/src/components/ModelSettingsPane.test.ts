@@ -50,6 +50,7 @@ const writableProfile = {
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
   api_key_env: "OPENAI_API_KEY",
+  client_identity: null,
   has_api_key: true,
   writable: true,
   config_path: "/tmp/profiles.toml",
@@ -69,6 +70,7 @@ const readOnlyProfile = {
   max_tokens: null,
   base_url: "https://api.openai.com/v1",
   api_key_env: "OPENAI_API_KEY",
+  client_identity: null,
   has_api_key: true,
   writable: false,
   config_path: null,
@@ -88,6 +90,7 @@ const projectOnlyProfile = {
   max_tokens: null,
   base_url: null,
   api_key_env: null,
+  client_identity: "claude_code",
   has_api_key: false,
   writable: true,
   config_path: "/tmp/profiles.toml",
@@ -793,6 +796,28 @@ describe("ModelSettingsPane", () => {
       expect.objectContaining({
         alias: "nan-test",
         temperature: null // NaN should be converted to null
+      })
+    );
+  });
+
+  it("saves Claude Code client identity from the profile form", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-form-alias"]').setValue("ali-mo-claude");
+    await wrapper.find('[data-test="model-form-provider"]').setValue("ali-mo");
+    await wrapper.find('[data-test="model-form-model-id"]').setValue("claude-opus-4-6");
+    await wrapper.find('[data-test="model-form-claude-code-identity"]').setValue(true);
+    await wrapper.find('[data-test="model-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        alias: "ali-mo-claude",
+        client_identity: "claude_code"
       })
     );
   });

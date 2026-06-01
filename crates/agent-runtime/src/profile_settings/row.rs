@@ -14,6 +14,7 @@ pub(crate) struct ProfileSettingsRow {
     pub(crate) base_url: Option<String>,
     pub(crate) api_key_env: Option<String>,
     pub(crate) api_key: Option<String>,
+    pub(crate) client_identity: Option<String>,
     /// Where this profile was found: "defaults", "profiles_toml", "user_config", "project_config"
     pub(crate) source: String,
     pub(crate) writable: bool,
@@ -74,6 +75,10 @@ pub(crate) fn profile_row_from_toml_table(
             .map(ToString::to_string),
         api_key: table
             .and_then(|t| t.get("api_key"))
+            .and_then(Item::as_str)
+            .map(ToString::to_string),
+        client_identity: table
+            .and_then(|t| t.get("client_identity"))
             .and_then(Item::as_str)
             .map(ToString::to_string),
         source: source.to_string(),

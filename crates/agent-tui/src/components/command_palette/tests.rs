@@ -19,6 +19,7 @@ fn model_profile(alias: &str) -> ModelProfileEntry {
         max_tokens: None,
         base_url: None,
         api_key_env: None,
+        client_identity: None,
         supports_reasoning: false,
         enabled: true,
         writable: true,

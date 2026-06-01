@@ -21,6 +21,7 @@ fn entry(alias: &str, supports_reasoning: bool) -> ModelProfileEntry {
         max_tokens: None,
         base_url: None,
         api_key_env: None,
+        client_identity: None,
         supports_reasoning,
         enabled: true,
         writable: true,
@@ -400,6 +401,7 @@ fn new_profile_editor_saves_full_profile_input() {
         max_tokens: Some(4096),
         base_url: Some("http://localhost:11434/v1".to_string()),
         api_key_env: Some("LOCAL_LLM_API_KEY".to_string()),
+        client_identity: None,
     });
 
     let (effects, commands) = overlay.handle_event(
@@ -482,6 +484,7 @@ fn edit_profile_editor_preserves_alias_and_enabled_state() {
         max_tokens: None,
         base_url: None,
         api_key_env: Some("ANTHROPIC_API_KEY".to_string()),
+        client_identity: None,
     });
 
     let (_, commands) =
