@@ -5,6 +5,7 @@ import { ref } from "vue";
 import { mountWithPlugins, type MountWithPluginsOptions } from "@/test-utils/mount";
 import { expectSourceMigration } from "@/test-utils/sourceGuards";
 import { commands, type EffectiveProfileView } from "@/generated/commands";
+import { useProjectStore } from "@/stores/project";
 import ModelSettingsPane from "./ModelSettingsPane.vue";
 import modelSettingsPaneSource from "./ModelSettingsPane.vue?raw";
 import modelProfileCardSource from "./ModelProfileCard.vue?raw";
@@ -111,7 +112,7 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
-function mountPane(configSource?: "user" | "project") {
+function mountPane(configSource?: "user" | "project", configProjectId?: string) {
   const mountOptions: MountWithPluginsOptions<typeof ModelSettingsPane> = {
     reusePinia: true,
     mount: configSource
@@ -119,7 +120,7 @@ function mountPane(configSource?: "user" | "project") {
           global: {
             provide: {
               configSource: ref(configSource),
-              configProjectId: ref(undefined)
+              configProjectId: ref(configProjectId)
             }
           }
         }
@@ -266,9 +267,34 @@ describe("ModelSettingsPane", () => {
     const wrapper = mountPane("user");
     await flushPromises();
 
-    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith("user");
+    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith("user", null);
     expect(mockedCommands.getEffectiveModelProfiles).not.toHaveBeenCalled();
     expect(wrapper.find('[data-test="model-row-local-code"]').exists()).toBe(false);
+  });
+
+  it("loads selected project model settings from the project root and labels project profiles", async () => {
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    mockedCommands.listProfileSettings.mockResolvedValue(ok([projectOnlyProfile]));
+
+    const wrapper = mountPane("project", "project-1");
+    await flushPromises();
+
+    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith("project", "/repo");
+    const row = wrapper.find('[data-test="model-row-local-code"]');
+    expect(row.exists()).toBe(true);
+    expect(row.text()).toContain("Project config");
+    expect(row.text()).not.toContain("Defaults");
   });
 
   it("refresh button reloads profiles", async () => {
@@ -383,7 +409,7 @@ describe("ModelSettingsPane", () => {
     await flushPromises();
 
     // When configSource is not provided (unit test context), defaults to null (user scope)
-    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith(null);
+    expect(mockedCommands.listProfileSettings).toHaveBeenLastCalledWith(null, null);
     // Profile rows should still render
     expect(wrapper.find('[data-test="model-row-my-model"]').exists()).toBe(true);
   });

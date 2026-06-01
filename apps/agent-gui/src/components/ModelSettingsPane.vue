@@ -6,6 +6,7 @@ import ModelProfileFormDialog from "@/components/ModelProfileFormDialog.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import { storeToRefs } from "pinia";
 import { useModelProfilesStore, formatError } from "@/stores/modelProfiles";
+import { useProjectStore } from "@/stores/project";
 
 type ModelProfileSort = "original" | "alias" | "provider" | "source" | "status";
 
@@ -17,6 +18,7 @@ interface SortOption {
 const { t } = useI18n();
 const { notify } = useNotifications();
 const store = useModelProfilesStore();
+const projectStore = useProjectStore();
 const { profiles, loading, error, busyAlias } = storeToRefs(store);
 
 const addDialogOpen = ref(false);
@@ -50,11 +52,22 @@ const sortOptions: SortOption[] = [
 const configSource = inject<Ref<"user" | "project">>("configSource");
 const configProjectId = inject<Ref<string | undefined>>("configProjectId");
 
+const projectRoot = computed(() => {
+  if (configSource?.value !== "project") return null;
+  const projectId = configProjectId?.value;
+  if (!projectId) return null;
+  return (
+    projectStore.activeProjects.find((project) => project.projectId === projectId)?.rootPath ?? null
+  );
+});
+
+function loadProfilesForCurrentScope(): void {
+  void store.loadProfiles(configSource?.value, projectRoot.value);
+}
+
 watch(
-  [() => configSource?.value, () => configProjectId?.value],
-  () => {
-    void store.loadProfiles(configSource?.value);
-  },
+  [() => configSource?.value, () => configProjectId?.value, () => projectRoot.value],
+  loadProfilesForCurrentScope,
   { immediate: true }
 );
 
@@ -286,7 +299,11 @@ function toggleProfile(profile: ProfileSettingsView): void {
       >
         {{ t("models.openConfigFile") }}
       </KxToolbarAction>
-      <KxToolbarAction :disabled="loading" data-test="model-refresh" @click="store.loadProfiles()">
+      <KxToolbarAction
+        :disabled="loading"
+        data-test="model-refresh"
+        @click="loadProfilesForCurrentScope()"
+      >
         {{ loading ? t("common.loading") : t("common.refresh") }}
       </KxToolbarAction>
       <KxToolbarAction variant="primary" data-test="model-add-profile" @click="openAddDialog()">

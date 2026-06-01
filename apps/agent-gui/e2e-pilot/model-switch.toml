@@ -46,7 +46,7 @@ target = "[data-test='chat-model-trigger']"
 [[step]]
 name = "model popover visible"
 action = "assert-visible"
-target = "[data-test='chat-model-popover']"
+target = "[data-test='chat-model-card']"
 
 [[step]]
 name = "at least one model option in popover"

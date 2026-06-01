@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use agent_config::Config;
+use agent_config::{Config, ConfigSource};
 use agent_core::facade::ProfileSettingsView;
 use agent_core::CoreError;
 use toml_edit::DocumentMut;
@@ -26,13 +26,15 @@ pub async fn list_profile_settings(
 ) -> agent_core::Result<Vec<ProfileSettingsView>> {
     let mut rows: BTreeMap<String, ProfileSettingsRow> = BTreeMap::new();
 
-    // Layer 1: defaults (lowest priority)
-    for (alias, def) in &config.profiles {
+    // Layer 1: built-in defaults (lowest priority). `config.profiles` is an
+    // already-merged effective view, so using it here would relabel user or
+    // project profiles as "defaults" in the settings UI.
+    for (alias, def) in Config::defaults().profiles {
         rows.insert(
-            alias.clone(),
+            alias,
             ProfileSettingsRow {
-                provider: def.provider.clone(),
-                model_id: def.model_id.clone(),
+                provider: def.provider,
+                model_id: def.model_id,
                 enabled: def.enabled,
                 context_window: def.context_window,
                 output_limit: def.output_limit,
@@ -40,13 +42,37 @@ pub async fn list_profile_settings(
                 top_p: def.top_p,
                 top_k: def.top_k,
                 max_tokens: def.max_tokens,
-                base_url: def.base_url.clone(),
-                api_key_env: def.api_key_env.clone(),
-                api_key: def.api_key.clone(),
+                base_url: def.base_url,
+                api_key_env: def.api_key_env,
+                api_key: def.api_key,
                 source: "defaults".to_string(),
                 writable: false,
             },
         );
+    }
+
+    if config.source == ConfigSource::Defaults {
+        for (alias, def) in &config.profiles {
+            rows.insert(
+                alias.clone(),
+                ProfileSettingsRow {
+                    provider: def.provider.clone(),
+                    model_id: def.model_id.clone(),
+                    enabled: def.enabled,
+                    context_window: def.context_window,
+                    output_limit: def.output_limit,
+                    temperature: def.temperature,
+                    top_p: def.top_p,
+                    top_k: def.top_k,
+                    max_tokens: def.max_tokens,
+                    base_url: def.base_url.clone(),
+                    api_key_env: def.api_key_env.clone(),
+                    api_key: def.api_key.clone(),
+                    source: "defaults".to_string(),
+                    writable: false,
+                },
+            );
+        }
     }
 
     // Layer 2: profiles.toml overrides defaults

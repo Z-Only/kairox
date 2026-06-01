@@ -18,10 +18,11 @@ pub async fn get_profile_info(state: State<'_, GuiState>) -> Result<Vec<ProfileI
 pub async fn list_profile_settings(
     state: State<'_, GuiState>,
     source_filter: Option<String>,
+    project_root: Option<String>,
 ) -> Result<Vec<ProfileSettingsView>, String> {
     state
         .runtime
-        .list_profile_settings(source_filter)
+        .list_profile_settings_for_project(source_filter, project_root)
         .await
         .map_err(|error| error.to_string())
 }

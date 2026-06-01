@@ -10,6 +10,94 @@ fn write_profiles_config_fixture(raw: &str) -> PathBuf {
 }
 
 #[tokio::test]
+async fn list_profile_settings_does_not_label_project_profiles_as_defaults_in_user_scope() {
+    let project_dir = tempfile::tempdir().expect("project dir");
+    let config_dir = project_dir.path().join(".kairox");
+    std::fs::create_dir_all(&config_dir).expect("config dir should be created");
+    let project_config_path = config_dir.join("config.toml");
+    std::fs::write(
+        &project_config_path,
+        r#"
+[profiles.project-only]
+provider = "anthropic"
+model_id = "claude-opus"
+enabled = true
+"#,
+    )
+    .expect("project config should be written");
+    let effective_config = agent_config::load_from_str(
+        r#"
+[profiles.project-only]
+provider = "anthropic"
+model_id = "claude-opus"
+enabled = true
+"#,
+        "effective-project.toml",
+    )
+    .expect("effective project config should parse");
+
+    let user_views = list_profile_settings(
+        &effective_config,
+        None,
+        None,
+        Some(&project_config_path),
+        Some("user"),
+    )
+    .await
+    .expect("user profile settings should list");
+
+    assert!(
+        user_views
+            .iter()
+            .all(|profile| profile.alias != "project-only"),
+        "project-only profile must not leak into the user scope as Defaults: {user_views:?}"
+    );
+
+    let project_views = list_profile_settings(
+        &effective_config,
+        None,
+        None,
+        Some(&project_config_path),
+        Some("project"),
+    )
+    .await
+    .expect("project profile settings should list");
+    let project_profile = project_views
+        .iter()
+        .find(|profile| profile.alias == "project-only")
+        .expect("project-only profile should be visible in project scope");
+
+    assert_eq!(project_profile.source, "project_config");
+}
+
+#[tokio::test]
+async fn list_profile_settings_preserves_runtime_defaults_profiles() {
+    let mut config = agent_config::load_from_str(
+        r#"
+[profiles.reasoning]
+provider = "fake"
+model_id = "fake-reasoning"
+enabled = true
+supports_reasoning = true
+"#,
+        "runtime-defaults.toml",
+    )
+    .expect("runtime config should parse");
+    config.source = agent_config::ConfigSource::Defaults;
+
+    let views = list_profile_settings(&config, None, None, None, None)
+        .await
+        .expect("profile settings should list");
+    let profile = views
+        .iter()
+        .find(|profile| profile.alias == "reasoning")
+        .expect("runtime defaults profile should stay visible");
+
+    assert_eq!(profile.source, "defaults");
+    assert!(!profile.writable);
+}
+
+#[tokio::test]
 async fn upsert_writes_profile_settings() {
     let config_path = write_profiles_config_fixture("");
     let input = ProfileSettingsInput {

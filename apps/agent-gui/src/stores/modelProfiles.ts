@@ -34,12 +34,15 @@ export const useModelProfilesStore = defineStore("modelProfiles", () => {
   const error = ref<string | null>(null);
   const busyAlias = ref<string | null>(null);
 
-  async function loadProfiles(sourceFilter?: string | null): Promise<void> {
+  async function loadProfiles(
+    sourceFilter?: string | null,
+    projectRoot?: string | null
+  ): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
       profiles.value = await unwrapCommandResult(
-        commands.listProfileSettings(sourceFilter ?? null)
+        commands.listProfileSettings(sourceFilter ?? null, projectRoot ?? null)
       );
     } catch (caughtError) {
       error.value = formatError(caughtError);

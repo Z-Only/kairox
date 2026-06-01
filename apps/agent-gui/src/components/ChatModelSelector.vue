@@ -24,6 +24,10 @@ const { t } = useI18n();
 
 const hoveredModelAlias = ref<string | null>(null);
 const customReasoningEffort = ref("");
+const modelCard = ref<HTMLElement | null>(null);
+const reasoningPanel = ref<HTMLElement | null>(null);
+const modelOptionEls = new Map<string, HTMLElement>();
+const reasoningAnchorY = ref(52);
 
 const hoveredModel = computed(() =>
   props.modelOptions.find((profile) => profile.alias === hoveredModelAlias.value)
@@ -66,6 +70,7 @@ function onModelHover(profile: ProfileInfo) {
   if (!profile.supports_reasoning) {
     customReasoningEffort.value = "";
   }
+  updateReasoningAnchor(profile.alias);
 }
 
 function onSelectReasoningEffort(effort: string) {
@@ -83,6 +88,40 @@ function onApplyCustomReasoning() {
 function selectModelProfile(alias: string) {
   emit("selectModel", alias);
 }
+
+function setModelOptionEl(alias: string, el: unknown): void {
+  if (el instanceof HTMLElement) {
+    modelOptionEls.set(alias, el);
+    return;
+  }
+  modelOptionEls.delete(alias);
+}
+
+function updateReasoningAnchor(alias = reasoningModel.value?.alias): void {
+  if (!alias) return;
+  void nextTick(() => {
+    const card = modelCard.value;
+    const option = modelOptionEls.get(alias);
+    if (!card || !option) return;
+    const cardRect = card.getBoundingClientRect();
+    const optionRect = option.getBoundingClientRect();
+    const panelHeight = reasoningPanel.value?.getBoundingClientRect().height || 80;
+    const panelHalfHeight = panelHeight / 2;
+    const cardHeight = cardRect.height || card.clientHeight;
+    const center = optionRect.top - cardRect.top + optionRect.height / 2;
+    const min = panelHalfHeight;
+    const max = Math.max(min, cardHeight - panelHalfHeight);
+    reasoningAnchorY.value = Math.min(Math.max(center, min), max);
+  });
+}
+
+watch(
+  [() => open.value, () => reasoningModel.value?.alias],
+  ([isOpen]) => {
+    if (isOpen) updateReasoningAnchor();
+  },
+  { flush: "post" }
+);
 </script>
 
 <template>
@@ -90,7 +129,7 @@ function selectModelProfile(alias: string) {
     v-model:open="open"
     content-data-test="chat-model-popover"
     content-class="chat-model-popover-panel"
-    width="min(92vw, 520px)"
+    width="auto"
     side="top"
     align="start"
   >
@@ -105,86 +144,95 @@ function selectModelProfile(alias: string) {
       </button>
     </template>
     <template #content>
-      <div class="chat-model-column">
-        <header class="kx-popover-panel__header chat-model-popover-header">
-          {{ t("chat.model") }}
-        </header>
-        <ul class="kx-popover-list chat-model-list">
-          <li v-for="profile in props.modelOptions" :key="profile.alias">
+      <div class="chat-model-popover-layout">
+        <div ref="modelCard" class="chat-model-card" data-test="chat-model-card">
+          <header class="kx-popover-panel__header chat-model-popover-header">
+            {{ t("chat.model") }}
+          </header>
+          <ul class="kx-popover-list chat-model-list" @scroll="updateReasoningAnchor()">
+            <li v-for="profile in props.modelOptions" :key="profile.alias">
+              <button
+                :ref="(el) => setModelOptionEl(profile.alias, el)"
+                type="button"
+                :class="[
+                  'kx-popover-option',
+                  'chat-model-option',
+                  {
+                    selected: profile.alias === selectedModelAlias,
+                    hovered: profile.alias === hoveredModelAlias,
+                    'kx-popover-option--selected': profile.alias === selectedModelAlias
+                  }
+                ]"
+                :data-test="`chat-model-option-${profile.alias}`"
+                :aria-current="profile.alias === selectedModelAlias ? 'true' : undefined"
+                :disabled="props.switchingModel"
+                @mouseenter="onModelHover(profile)"
+                @focus="onModelHover(profile)"
+                @click="selectModelProfile(profile.alias)"
+              >
+                <span class="kx-popover-option__label chat-model-option-label">
+                  {{ getModelOptionDisplay(profile) }}
+                </span>
+                <span class="kx-popover-option__meta chat-model-option-meta">
+                  {{ profile.alias }}
+                  <span v-if="profile.alias === selectedModelAlias">
+                    · {{ t("chat.currentModel") }}</span
+                  >
+                </span>
+              </button>
+            </li>
+          </ul>
+        </div>
+        <div
+          ref="reasoningPanel"
+          v-if="reasoningModel"
+          class="chat-reasoning-panel chat-reasoning-panel--anchored"
+          data-test="chat-reasoning-panel"
+          :style="{ '--chat-reasoning-anchor-y': `${reasoningAnchorY}px` }"
+        >
+          <header class="kx-popover-panel__header chat-model-popover-header">
+            {{ t("chat.reasoning") }}
+          </header>
+          <div class="chat-reasoning-list">
             <button
+              v-for="effort in reasoningOptions"
+              :key="effort"
               type="button"
               :class="[
                 'kx-popover-option',
-                'chat-model-option',
+                'chat-reasoning-option',
                 {
-                  selected: profile.alias === selectedModelAlias,
-                  hovered: profile.alias === hoveredModelAlias,
-                  'kx-popover-option--selected': profile.alias === selectedModelAlias
+                  selected: effort === activeReasoningEffort,
+                  'kx-popover-option--selected': effort === activeReasoningEffort
                 }
               ]"
-              :data-test="`chat-model-option-${profile.alias}`"
-              :aria-current="profile.alias === selectedModelAlias ? 'true' : undefined"
+              :data-test="`chat-reasoning-option-${effort}`"
               :disabled="props.switchingModel"
-              @mouseenter="onModelHover(profile)"
-              @focus="onModelHover(profile)"
-              @click="selectModelProfile(profile.alias)"
+              @click="onSelectReasoningEffort(effort)"
             >
-              <span class="kx-popover-option__label chat-model-option-label">
-                {{ getModelOptionDisplay(profile) }}
-              </span>
-              <span class="kx-popover-option__meta chat-model-option-meta">
-                {{ profile.alias }}
-                <span v-if="profile.alias === selectedModelAlias">
-                  · {{ t("chat.currentModel") }}</span
-                >
-              </span>
+              {{ effort }}
             </button>
-          </li>
-        </ul>
-      </div>
-      <div v-if="reasoningModel" class="chat-reasoning-panel" data-test="chat-reasoning-panel">
-        <header class="kx-popover-panel__header chat-model-popover-header">
-          {{ t("chat.reasoning") }}
-        </header>
-        <div class="chat-reasoning-list">
-          <button
-            v-for="effort in reasoningOptions"
-            :key="effort"
-            type="button"
-            :class="[
-              'kx-popover-option',
-              'chat-reasoning-option',
-              {
-                selected: effort === activeReasoningEffort,
-                'kx-popover-option--selected': effort === activeReasoningEffort
-              }
-            ]"
-            :data-test="`chat-reasoning-option-${effort}`"
-            :disabled="props.switchingModel"
-            @click="onSelectReasoningEffort(effort)"
-          >
-            {{ effort }}
-          </button>
+          </div>
+          <form class="chat-reasoning-custom" @submit.prevent="onApplyCustomReasoning">
+            <KxInput
+              v-model="customReasoningEffort"
+              class="chat-reasoning-custom-input"
+              data-test="chat-reasoning-custom-input"
+              :placeholder="t('chat.customReasoningPlaceholder')"
+              :disabled="props.switchingModel"
+              size="compact"
+            />
+            <button
+              class="chat-reasoning-custom-apply"
+              data-test="chat-reasoning-custom-apply"
+              type="button"
+              :disabled="props.switchingModel || !customReasoningEffort.trim()"
+              @click="onApplyCustomReasoning"
+            >
+              {{ t("chat.applyReasoning") }}
+            </button>
+          </form>
         </div>
-        <form class="chat-reasoning-custom" @submit.prevent="onApplyCustomReasoning">
-          <KxInput
-            v-model="customReasoningEffort"
-            class="chat-reasoning-custom-input"
-            data-test="chat-reasoning-custom-input"
-            :placeholder="t('chat.customReasoningPlaceholder')"
-            :disabled="props.switchingModel"
-            size="compact"
-          />
-          <button
-            class="chat-reasoning-custom-apply"
-            data-test="chat-reasoning-custom-apply"
-            type="button"
-            :disabled="props.switchingModel || !customReasoningEffort.trim()"
-            @click="onApplyCustomReasoning"
-          >
-            {{ t("chat.applyReasoning") }}
-          </button>
-        </form>
       </div>
     </template>
   </KxPopover>
@@ -222,24 +270,57 @@ function selectModelProfile(alias: string) {
       color 0.15s;
   }
 }
-.chat-model-popover-panel {
-  display: flex;
-  min-width: 240px;
-  gap: 8px;
-  align-items: stretch;
+:global(.chat-model-popover-panel) {
+  --chat-model-card-width: 360px;
+  --chat-reasoning-card-width: 216px;
+
+  width: calc(var(--chat-model-card-width) + 10px + var(--chat-reasoning-card-width));
+  max-width: calc(100vw - 24px);
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
-.chat-model-column {
-  min-width: 240px;
+.chat-model-popover-layout {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  align-items: flex-start;
+}
+.chat-model-card,
+.chat-reasoning-panel {
+  border: 1px solid var(--app-border-color);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-elevated-color);
+  color: var(--app-text-color);
+  box-shadow: var(--app-overlay-shadow);
+  padding: 12px;
+}
+.chat-model-card {
+  width: var(--chat-model-card-width);
+  min-width: 0;
+}
+.chat-model-list {
+  max-height: min(420px, calc(100vh - 180px));
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .chat-model-option {
   flex-direction: column;
   align-items: flex-start;
 }
 .chat-reasoning-panel {
-  width: 184px;
-  min-width: 184px;
-  border-left: 1px solid var(--app-border-color);
-  padding-left: 8px;
+  width: var(--chat-reasoning-card-width);
+  min-width: var(--chat-reasoning-card-width);
+}
+.chat-reasoning-panel--anchored {
+  position: absolute;
+  left: calc(var(--chat-model-card-width) + 10px);
+  top: var(--chat-reasoning-anchor-y, 52px);
+  transform: translateY(-50%);
 }
 .chat-reasoning-list {
   display: grid;
@@ -280,21 +361,25 @@ function selectModelProfile(alias: string) {
   opacity: 0.55;
   cursor: not-allowed;
 }
-@media (max-width: 560px) {
-  .chat-model-popover-panel {
+@media (max-width: 720px) {
+  :global(.chat-model-popover-panel) {
+    width: min(92vw, 360px);
+  }
+  .chat-model-popover-layout {
     flex-direction: column;
   }
+  .chat-model-card,
   .chat-reasoning-panel {
-    width: auto;
+    width: 100%;
     min-width: 0;
-    border-top: 1px solid var(--app-border-color);
-    border-left: 0;
-    padding-top: 8px;
-    padding-left: 0;
+  }
+  .chat-reasoning-panel--anchored {
+    position: static;
+    transform: none;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .chat-model-popover-panel {
+  :global(.chat-model-popover-panel) {
     animation: popover-in 0.15s ease;
   }
 }
