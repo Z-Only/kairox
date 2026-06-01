@@ -1054,6 +1054,7 @@ export type ProfileSettingsInput = {
   max_tokens: number;
   base_url: string | null;
   api_key_env: string | null;
+  client_identity: string | null;
 };
 
 export type ProfileSettingsView = {
@@ -1069,6 +1070,7 @@ export type ProfileSettingsView = {
   max_tokens: number;
   base_url: string | null;
   api_key_env: string | null;
+  client_identity: string | null;
   has_api_key: boolean;
   writable: boolean;
   config_path: string | null;

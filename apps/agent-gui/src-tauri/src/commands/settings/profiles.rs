@@ -131,10 +131,7 @@ async fn probe_profile_chat_readiness(
         return ConnectivityTestResult::chat_ready(&subject, profile.response.clone());
     }
 
-    let mut probe_profile = profile.clone();
-    probe_profile.output_limit = Some(probe_profile.output_limit.unwrap_or(8).min(8));
-    probe_profile.max_tokens = Some(probe_profile.max_tokens.unwrap_or(8).min(8));
-    probe_profile.temperature = Some(0.0);
+    let probe_profile = probe_profile(profile);
 
     let mut probe_config = agent_config::Config::defaults();
     probe_config.profiles = vec![(alias.to_string(), probe_profile)];
@@ -190,6 +187,13 @@ async fn probe_profile_chat_readiness(
     }
 
     ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview))
+}
+
+fn probe_profile(profile: &agent_config::ProfileDef) -> agent_config::ProfileDef {
+    let mut probe_profile = profile.clone();
+    probe_profile.output_limit = Some(probe_profile.output_limit.unwrap_or(8).min(8));
+    probe_profile.max_tokens = Some(probe_profile.max_tokens.unwrap_or(8).min(8));
+    probe_profile
 }
 
 fn non_empty_preview(preview: String) -> Option<String> {
@@ -307,6 +311,7 @@ mod connectivity_tests {
             top_p: None,
             top_k: None,
             headers: None,
+            client_identity: None,
             supports_tools: None,
             supports_vision: None,
             supports_reasoning: None,
@@ -332,5 +337,19 @@ mod connectivity_tests {
             result.response_preview.as_deref(),
             Some("Hello from the Kairox fake provider!")
         );
+    }
+
+    #[test]
+    fn probe_profile_preserves_temperature() {
+        let mut profile = fake_profile("ok");
+        profile.output_limit = Some(16_384);
+        profile.max_tokens = Some(16_384);
+        profile.temperature = None;
+
+        let probe = super::probe_profile(&profile);
+
+        assert_eq!(probe.output_limit, Some(8));
+        assert_eq!(probe.max_tokens, Some(8));
+        assert_eq!(probe.temperature, None);
     }
 }

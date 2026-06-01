@@ -84,6 +84,11 @@ fn seed_profile_table(table: &mut Table, def: &ProfileDef) {
             table["api_key"] = value(v.clone());
         }
     }
+    if let Some(ref v) = def.client_identity {
+        if !v.is_empty() {
+            table["client_identity"] = value(v.clone());
+        }
+    }
 }
 
 pub async fn delete_profile_in_file(config_path: &Path, alias: &str) -> agent_core::Result<()> {
@@ -129,6 +134,7 @@ async fn settings_view_from_file(
         max_tokens: row.max_tokens,
         base_url: row.base_url,
         api_key_env: row.api_key_env,
+        client_identity: row.client_identity,
         has_api_key: false,
         writable: true,
         config_path: Some(config_path.display().to_string()),
@@ -183,6 +189,7 @@ fn upsert_profile_table(document: &mut DocumentMut, input: &ProfileSettingsInput
     set_optional_int(profile_table, "max_tokens", input.max_tokens);
     set_optional_string(profile_table, "base_url", &input.base_url);
     set_optional_string(profile_table, "api_key_env", &input.api_key_env);
+    set_optional_string(profile_table, "client_identity", &input.client_identity);
 }
 
 fn ensure_profile_table<'a>(document: &'a mut DocumentMut, alias: &str) -> &'a mut Table {

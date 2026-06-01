@@ -8,6 +8,11 @@ use agent_models::{
 };
 use std::sync::Arc;
 
+const CLAUDE_CODE_CLIENT_IDENTITY: &str = "claude_code";
+const CLAUDE_CODE_BETA: &str = "claude-code-20250219";
+const CLAUDE_CODE_APP_NAME: &str = "claude-code";
+const CLAUDE_CODE_APP_VERSION: &str = "1.0.0";
+
 /// Build a `ModelRouter` from the given `Config`, registering a `ModelClient`
 /// for each profile.
 pub fn build_router(config: &Config) -> ModelRouter {
@@ -174,6 +179,47 @@ fn resolve_api_key_env(alias: &str, def: &ProfileDef) -> String {
     }
 }
 
+fn profile_headers(def: &ProfileDef) -> Vec<(String, String)> {
+    let mut headers = Vec::new();
+    if def
+        .client_identity
+        .as_deref()
+        .is_some_and(is_claude_code_client_identity)
+    {
+        headers.extend([
+            ("anthropic-beta".to_string(), CLAUDE_CODE_BETA.to_string()),
+            ("x-app-name".to_string(), CLAUDE_CODE_APP_NAME.to_string()),
+            ("x-app-ver".to_string(), CLAUDE_CODE_APP_VERSION.to_string()),
+            ("x-app".to_string(), CLAUDE_CODE_APP_NAME.to_string()),
+            ("user-agent".to_string(), CLAUDE_CODE_APP_NAME.to_string()),
+        ]);
+    }
+
+    if let Some(custom_headers) = &def.headers {
+        for (key, value) in custom_headers {
+            upsert_header(&mut headers, key.clone(), value.clone());
+        }
+    }
+
+    headers
+}
+
+fn is_claude_code_client_identity(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase().replace('-', "_");
+    normalized == CLAUDE_CODE_CLIENT_IDENTITY
+}
+
+fn upsert_header(headers: &mut Vec<(String, String)>, key: String, value: String) {
+    if let Some((_, existing_value)) = headers
+        .iter_mut()
+        .find(|(existing_key, _)| existing_key.eq_ignore_ascii_case(&key))
+    {
+        *existing_value = value;
+    } else {
+        headers.push((key, value));
+    }
+}
+
 fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
     match provider_family(def) {
         "openai_compatible" => {
@@ -183,11 +229,7 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
             let api_key_env = resolve_api_key_env(alias, def);
 
-            let headers: Vec<(String, String)> = def
-                .headers
-                .as_ref()
-                .map(|h| h.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-                .unwrap_or_default();
+            let headers = profile_headers(def);
 
             let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
                 let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());
@@ -213,11 +255,7 @@ fn build_client(alias: &str, def: &ProfileDef) -> Box<dyn ModelClient> {
                 .unwrap_or_else(|| "https://api.anthropic.com".to_string());
             let api_key_env = resolve_api_key_env(alias, def);
 
-            let headers: Vec<(String, String)> = def
-                .headers
-                .as_ref()
-                .map(|h| h.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-                .unwrap_or_default();
+            let headers = profile_headers(def);
 
             let extra_params: Option<serde_json::Value> = def.extra_params.as_ref().map(|v| {
                 let json_str = serde_json::to_string(v).unwrap_or_else(|_| "null".to_string());

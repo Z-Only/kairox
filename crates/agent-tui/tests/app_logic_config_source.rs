@@ -96,6 +96,7 @@ async fn config_source_model_save_uses_selected_project_config_path() {
                 max_tokens: None,
                 base_url: None,
                 api_key_env: None,
+                client_identity: None,
             },
         }],
     )

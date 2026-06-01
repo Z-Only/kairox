@@ -63,6 +63,7 @@ pub(super) struct ProfileDraft {
     pub(super) top_p: String,
     pub(super) top_k: String,
     pub(super) max_tokens: String,
+    pub(super) client_identity: Option<String>,
     pub(super) enabled: bool,
     pub(super) alias_editable: bool,
 }
@@ -81,6 +82,7 @@ impl ProfileDraft {
             top_p: String::new(),
             top_k: String::new(),
             max_tokens: String::new(),
+            client_identity: None,
             enabled: true,
             alias_editable: true,
         }
@@ -99,6 +101,7 @@ impl ProfileDraft {
             top_p: format_optional(entry.top_p),
             top_k: format_optional(entry.top_k),
             max_tokens: format_optional(entry.max_tokens),
+            client_identity: entry.client_identity.clone(),
             enabled: entry.enabled,
             alias_editable: false,
         }
@@ -118,6 +121,7 @@ impl ProfileDraft {
             top_p: format_optional(input.top_p),
             top_k: format_optional(input.top_k),
             max_tokens: format_optional(input.max_tokens),
+            client_identity: input.client_identity,
             enabled: input.enabled,
             alias_editable: true,
         }
@@ -144,6 +148,7 @@ impl ProfileDraft {
             max_tokens: parse_optional(&self.max_tokens),
             base_url: trim_option(&self.base_url),
             api_key_env: trim_option(&self.api_key_env),
+            client_identity: self.client_identity.clone(),
         })
     }
 

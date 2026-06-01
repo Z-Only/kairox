@@ -28,6 +28,7 @@ const topK = defineModel<string>("topK", { required: true });
 const maxTokens = defineModel<string>("maxTokens", { required: true });
 const baseUrl = defineModel<string>("baseUrl", { required: true });
 const apiKeyEnv = defineModel<string>("apiKeyEnv", { required: true });
+const claudeCodeIdentity = defineModel<boolean>("claudeCodeIdentity", { required: true });
 const advancedOpen = defineModel<boolean>("advancedOpen", { required: true });
 
 const idPrefix = computed(() => `model-${props.mode}`);
@@ -115,6 +116,16 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
             :data-test="apiKeyEnvTestId"
           />
         </KxFormField>
+        <label class="model-form__checkbox">
+          <input
+            v-model="claudeCodeIdentity"
+            type="checkbox"
+            :data-test="
+              isAddMode ? 'model-form-claude-code-identity' : 'model-edit-claude-code-identity'
+            "
+          />
+          <span>{{ t("models.claudeCodeIdentity") }}</span>
+        </label>
       </fieldset>
 
       <ModelParameterControls
@@ -189,6 +200,21 @@ const testDisabled = computed(() => (isAddMode.value ? !baseUrl.value.trim() : !
 
 .model-form__grid--2col {
   grid-template-columns: 1fr 1fr;
+}
+
+.model-form__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-text-color);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.model-form__checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 button:focus-visible {

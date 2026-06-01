@@ -292,6 +292,7 @@ where
         max_tokens: profile.max_tokens,
         base_url: profile.base_url,
         api_key_env: profile.api_key_env,
+        client_identity: profile.client_identity,
     })
 }
 
@@ -449,6 +450,7 @@ fn model_profile_entry_from_settings(
         max_tokens: profile.max_tokens,
         base_url: profile.base_url,
         api_key_env: profile.api_key_env,
+        client_identity: profile.client_identity,
         supports_reasoning: false,
         enabled: profile.enabled,
         writable: profile.writable,

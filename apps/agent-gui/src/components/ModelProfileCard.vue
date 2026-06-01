@@ -65,6 +65,10 @@ function sourceLabel(source: string): string {
       return source;
   }
 }
+
+function isClaudeCodeIdentity(value: string | null | undefined): boolean {
+  return value?.trim().toLowerCase().replaceAll("-", "_") === "claude_code";
+}
 </script>
 
 <template>
@@ -89,6 +93,9 @@ function sourceLabel(source: string): string {
         </SettingsStatusTag>
         <SettingsStatusTag v-if="profile.temperature != null">
           {{ t("models.temperature") }}: {{ profile.temperature }}
+        </SettingsStatusTag>
+        <SettingsStatusTag v-if="isClaudeCodeIdentity(profile.client_identity)">
+          {{ t("models.claudeCodeIdentity") }}
         </SettingsStatusTag>
       </template>
       <SettingsEffectiveAudit

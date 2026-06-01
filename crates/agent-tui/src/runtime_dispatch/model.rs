@@ -106,6 +106,7 @@ pub(crate) async fn refresh_model_overlay(
                 max_tokens: p.max_tokens,
                 base_url: p.base_url,
                 api_key_env: p.api_key_env,
+                client_identity: p.client_identity,
                 enabled: p.enabled,
                 writable: p.writable,
                 source: p.source,

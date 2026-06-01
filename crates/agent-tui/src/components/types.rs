@@ -131,6 +131,7 @@ pub struct ModelProfileEntry {
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
     pub api_key_env: Option<String>,
+    pub client_identity: Option<String>,
     pub supports_reasoning: bool,
     pub enabled: bool,
     pub writable: bool,

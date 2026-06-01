@@ -91,6 +91,7 @@ pub fn build_effective_profile_settings_views(
                 max_tokens: profile.max_tokens,
                 base_url: profile.base_url.clone(),
                 api_key_env: profile.api_key_env.clone(),
+                client_identity: profile.client_identity.clone(),
                 has_api_key: profile_has_api_key(profile),
                 writable: source >= ConfigScope::User,
                 config_path: None,

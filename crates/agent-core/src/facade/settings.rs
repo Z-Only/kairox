@@ -232,6 +232,7 @@ pub struct ProfileSettingsInput {
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
     pub api_key_env: Option<String>,
+    pub client_identity: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -256,6 +257,7 @@ pub struct ProfileSettingsView {
     pub max_tokens: Option<u64>,
     pub base_url: Option<String>,
     pub api_key_env: Option<String>,
+    pub client_identity: Option<String>,
     pub has_api_key: bool,
     pub writable: bool,
     pub config_path: Option<String>,

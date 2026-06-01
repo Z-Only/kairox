@@ -27,6 +27,7 @@ fn profile(model_id: &str, supports_reasoning: bool) -> ProfileDef {
         top_p: None,
         top_k: None,
         headers: None,
+        client_identity: None,
         supports_tools: None,
         supports_vision: None,
         supports_reasoning: Some(supports_reasoning),

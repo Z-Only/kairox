@@ -450,6 +450,7 @@
     "maxTokens": "Max Tokens",
     "baseUrl": "Base URL",
     "apiKeyEnv": "API Key Env",
+    "claudeCodeIdentity": "Claude Code identity",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "noProfiles": "No model profiles configured.",

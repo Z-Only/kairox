@@ -37,9 +37,14 @@ const formTopK = ref("");
 const formMaxTokens = ref("");
 const formBaseUrl = ref("");
 const formApiKeyEnv = ref("");
+const formClaudeCodeIdentity = ref(false);
 const searchQuery = ref("");
 const profileSort = ref<ModelProfileSort>("original");
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+function isClaudeCodeIdentity(value: string | null | undefined): boolean {
+  return value?.trim().toLowerCase().replaceAll("-", "_") === "claude_code";
+}
 
 const sortOptions = computed<SortOption[]>(() => [
   { value: "original", label: t("models.sortOriginal") },
@@ -99,6 +104,7 @@ function searchableProfileText(profile: ProfileSettingsView): string {
     profile.has_api_key ? t("models.hasApiKey") : t("models.noApiKey"),
     profile.base_url,
     profile.api_key_env,
+    profile.client_identity,
     profile.config_path,
     profile.context_window?.toString(),
     profile.output_limit?.toString(),
@@ -164,6 +170,7 @@ function resetForm(): void {
   formMaxTokens.value = "";
   formBaseUrl.value = "";
   formApiKeyEnv.value = "";
+  formClaudeCodeIdentity.value = false;
   advancedOpen.value = false;
   editAdvancedOpen.value = false;
 }
@@ -191,6 +198,7 @@ function openEditDialog(profile: ProfileSettingsView): void {
   formMaxTokens.value = profile.max_tokens?.toString() ?? "";
   formBaseUrl.value = profile.base_url ?? "";
   formApiKeyEnv.value = profile.api_key_env ?? "";
+  formClaudeCodeIdentity.value = isClaudeCodeIdentity(profile.client_identity);
   editAdvancedOpen.value = false;
   editDialogOpen.value = true;
 }
@@ -223,7 +231,8 @@ function buildProfileInput(alias: string, enabled: boolean) {
       : null,
     max_tokens: parseOptionalNumber(formMaxTokens.value),
     base_url: formBaseUrl.value.trim() || null,
-    api_key_env: formApiKeyEnv.value.trim() || null
+    api_key_env: formApiKeyEnv.value.trim() || null,
+    client_identity: formClaudeCodeIdentity.value ? "claude_code" : null
   };
 }
 
@@ -398,6 +407,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:max-tokens="formMaxTokens"
       v-model:base-url="formBaseUrl"
       v-model:api-key-env="formApiKeyEnv"
+      v-model:claude-code-identity="formClaudeCodeIdentity"
       v-model:advanced-open="advancedOpen"
       @close="closeAddDialog"
       @save="saveNewProfile"
@@ -420,6 +430,7 @@ function toggleProfile(profile: ProfileSettingsView): void {
       v-model:max-tokens="formMaxTokens"
       v-model:base-url="formBaseUrl"
       v-model:api-key-env="formApiKeyEnv"
+      v-model:claude-code-identity="formClaudeCodeIdentity"
       v-model:advanced-open="editAdvancedOpen"
       @close="closeEditDialog"
       @save="saveEditProfile"

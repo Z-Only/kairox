@@ -107,6 +107,7 @@ fn effective_settings_views_map_source_disabled_and_direct_api_keys() {
             top_p: None,
             top_k: None,
             headers: None,
+            client_identity: None,
             supports_tools: None,
             supports_vision: None,
             supports_reasoning: None,
