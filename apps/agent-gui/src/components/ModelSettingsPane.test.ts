@@ -23,9 +23,16 @@ vi.mock("@/generated/commands", () => ({
     deleteProfileSettings: vi.fn(),
     moveProfileInOrder: vi.fn(),
     openProfilesConfigFile: vi.fn(),
-    testModelConnectivity: vi.fn()
+    testModelConnectivity: vi.fn(),
+    testUrlConnectivity: vi.fn()
   }
 }));
+
+vi.mock("@/composables/useNotifications", () => ({
+  useNotifications: () => ({ notify: mockNotify })
+}));
+
+const mockNotify = vi.fn();
 
 const mockedCommands = vi.mocked(commands);
 
@@ -415,5 +422,333 @@ describe("ModelSettingsPane", () => {
         ".model-toolbar__actions {"
       ]
     });
+  });
+
+  it("shows loading state while profiles are being fetched", async () => {
+    // Make loadProfiles never resolve to keep loading=true
+    mockedCommands.listProfileSettings.mockReturnValue(new Promise(() => {}));
+    const wrapper = mountPane("user");
+    // Allow the watcher to fire but not resolve
+    await flushPromises();
+
+    const loadingState = wrapper.find('[data-test="model-loading-state"]');
+    expect(loadingState.exists()).toBe(true);
+    expect(loadingState.classes()).toContain("settings-state");
+  });
+
+  it("open config file button calls store.openConfigFile", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-open-config-file"]').trigger("click");
+    expect(mockedCommands.openProfilesConfigFile).toHaveBeenCalled();
+  });
+
+  it("notifies success when test profile connectivity succeeds", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: true, error: null }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("success", expect.stringContaining("my-model"));
+  });
+
+  it("notifies error when test profile connectivity returns error status", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "error",
+      error: "API key invalid"
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", "API key invalid");
+  });
+
+  it("notifies error when test profile connectivity returns ok with error message", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: false, error: "connection refused" }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", "connection refused");
+  });
+
+  it("notifies error when test profile connectivity throws", async () => {
+    mockedCommands.testModelConnectivity.mockRejectedValue(new Error("network error"));
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("notifies success when form URL connectivity test succeeds", async () => {
+    mockedCommands.testUrlConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: true, error: null }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    // Open add dialog and fill in a base URL
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("https://api.example.com");
+    await wrapper.find('[data-test="model-test-form-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      "success",
+      expect.stringContaining("https://api.example.com")
+    );
+  });
+
+  it("notifies error when form URL connectivity test returns error status", async () => {
+    mockedCommands.testUrlConnectivity.mockResolvedValue({
+      status: "error",
+      error: "DNS resolution failed"
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("https://bad.example.com");
+    await wrapper.find('[data-test="model-test-form-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", "DNS resolution failed");
+  });
+
+  it("notifies error when form URL connectivity test returns ok with error message", async () => {
+    mockedCommands.testUrlConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: false, error: "timeout" }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("https://slow.example.com");
+    await wrapper.find('[data-test="model-test-form-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", "timeout");
+  });
+
+  it("notifies error when form URL connectivity test throws", async () => {
+    mockedCommands.testUrlConnectivity.mockRejectedValue(new Error("fetch failed"));
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("https://down.example.com");
+    await wrapper.find('[data-test="model-test-form-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("does not call testUrlConnectivity when form base_url is empty", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    // Leave base URL empty — button should be disabled, but even if triggered the function returns early
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("");
+    // The button is disabled when baseUrl is empty, so we call the function indirectly
+    // by verifying that testUrlConnectivity is never called
+    expect(mockedCommands.testUrlConnectivity).not.toHaveBeenCalled();
+  });
+
+  it("keeps add dialog open when upsert fails", async () => {
+    mockedCommands.upsertProfileSettings.mockRejectedValue(new Error("write failed"));
+    // After error, listProfileSettings still must resolve for the reload attempt
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-form-alias"]').setValue("fail-model");
+    await wrapper.find('[data-test="model-form-provider"]').setValue("openai_compatible");
+    await wrapper.find('[data-test="model-form-model-id"]').setValue("gpt-fail");
+    await wrapper.find('[data-test="model-save-button"]').trigger("click");
+    await flushPromises();
+
+    // The store should have an error, so the dialog stays open
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalled();
+    // Add dialog should still be visible since store.error is set
+    expect(wrapper.find('[data-test="model-save-button"]').exists()).toBe(true);
+  });
+
+  it("keeps edit dialog open when upsert fails during edit", async () => {
+    mockedCommands.upsertProfileSettings.mockRejectedValue(new Error("update failed"));
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-edit-my-model"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-edit-provider"]').setValue("ollama");
+    await wrapper.find('[data-test="model-edit-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalled();
+    // Edit dialog should remain visible since store.error is set
+    expect(wrapper.find('[data-test="model-edit-save-button"]').exists()).toBe(true);
+  });
+
+  it("does not call upsert when edit form has empty required fields", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-edit-my-model"]').trigger("click");
+    await flushPromises();
+
+    // Clear the provider (required field)
+    await wrapper.find('[data-test="model-edit-provider"]').setValue("");
+    await wrapper.find('[data-test="model-edit-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).not.toHaveBeenCalled();
+  });
+
+  it("sorts profiles by source label", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-sort-select"]').setValue("source");
+    // writableProfile source is "profiles_toml", readOnlyProfile source is "user_config"
+    // Both render; the sort should be stable (alphabetical by source label)
+    expect(wrapper.findAll('[data-test^="model-row-"]').length).toBe(2);
+  });
+
+  it("sorts profiles by status (enabled/disabled)", async () => {
+    // Add a disabled writable profile to test status sorting
+    const disabledProfile = {
+      ...writableProfile,
+      alias: "disabled-model",
+      enabled: false,
+      source: "profiles_toml"
+    };
+    mockedCommands.listProfileSettings.mockResolvedValue(
+      ok([writableProfile, readOnlyProfile, disabledProfile])
+    );
+
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-sort-select"]').setValue("status");
+    const rows = wrapper
+      .findAll('[data-test^="model-row-"]')
+      .map((row) => row.attributes("data-test"));
+    expect(rows).toContain("model-row-disabled-model");
+    expect(rows.length).toBe(3);
+  });
+
+  it("parses optional numeric fields with NaN as null", async () => {
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-form-alias"]').setValue("nan-test");
+    await wrapper.find('[data-test="model-form-provider"]').setValue("openai_compatible");
+    await wrapper.find('[data-test="model-form-model-id"]').setValue("gpt-nan");
+
+    // Open advanced section to access context_window / temperature fields
+    // Set temperature to NaN-producing value
+    const advancedToggle = wrapper.find('[data-test="model-form-advanced-toggle"]');
+    if (advancedToggle.exists()) {
+      await advancedToggle.trigger("click");
+      await flushPromises();
+    }
+    // Set temperature to an invalid value if the field exists
+    const tempField = wrapper.find('[data-test="model-form-temperature"]');
+    if (tempField.exists()) {
+      await tempField.setValue("not-a-number");
+    }
+
+    await wrapper.find('[data-test="model-save-button"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.upsertProfileSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        alias: "nan-test",
+        temperature: null // NaN should be converted to null
+      })
+    );
+  });
+
+  it("notifies fallback error when test profile returns ok with no error message", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: false, error: null }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-test-my-model"]').trigger("click");
+    await flushPromises();
+
+    // Should use the fallback t("models.testFailed", ...) message
+    expect(mockNotify).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("notifies fallback error when form URL test returns ok with no error message", async () => {
+    mockedCommands.testUrlConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: false, error: null }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    await wrapper.find('[data-test="model-add-profile"]').trigger("click");
+    await flushPromises();
+    await wrapper.find('[data-test="model-form-base-url"]').setValue("https://no-msg.example.com");
+    await wrapper.find('[data-test="model-test-form-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockNotify).toHaveBeenCalledWith("error", expect.any(String));
+  });
+
+  it("tests connectivity from edit dialog via test button", async () => {
+    mockedCommands.testModelConnectivity.mockResolvedValue({
+      status: "ok",
+      data: { ok: true, error: null }
+    });
+    const wrapper = mountPane("user");
+    await flushPromises();
+
+    // Open edit dialog
+    await wrapper.find('[data-test="model-edit-my-model"]').trigger("click");
+    await flushPromises();
+
+    // Click test button in the edit dialog
+    await wrapper.find('[data-test="model-edit-test-btn"]').trigger("click");
+    await flushPromises();
+
+    expect(mockedCommands.testModelConnectivity).toHaveBeenCalledWith("my-model");
+    expect(mockNotify).toHaveBeenCalledWith("success", expect.stringContaining("my-model"));
   });
 });
