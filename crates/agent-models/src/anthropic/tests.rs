@@ -70,8 +70,12 @@ fn builds_anthropic_messages_request() {
 
     let body = client.build_messages_request(&request);
 
-    // System prompt should be top-level, not in messages
-    assert_eq!(body["system"], "You are helpful.");
+    // System prompt should be a content-block array with cache_control
+    let system = body["system"].as_array().unwrap();
+    assert_eq!(system.len(), 1);
+    assert_eq!(system[0]["type"], "text");
+    assert_eq!(system[0]["text"], "You are helpful.");
+    assert_eq!(system[0]["cache_control"]["type"], "ephemeral");
     let messages = body["messages"].as_array().unwrap();
     assert_eq!(messages[0]["role"], "user");
     assert_eq!(messages[1]["role"], "assistant");
@@ -311,7 +315,9 @@ async fn sends_wire_request_with_auth_headers_tools_and_provider_params() {
     assert_eq!(body["model"], "test-model");
     assert_eq!(body["max_tokens"], 2048);
     assert_eq!(body["stream"], true);
-    assert_eq!(body["system"], "Use tools when useful.");
+    let system = body["system"].as_array().unwrap();
+    assert_eq!(system[0]["text"], "Use tools when useful.");
+    assert_eq!(system[0]["cache_control"]["type"], "ephemeral");
     assert!((body["temperature"].as_f64().unwrap() - 0.2).abs() < 1e-6);
     assert!((body["top_p"].as_f64().unwrap() - 0.8).abs() < 1e-6);
     assert_eq!(body["top_k"], 40);
@@ -575,4 +581,351 @@ async fn streams_multi_chunk_tool_arguments() {
     }
 
     std::env::remove_var("KAIROX_ANTHROPIC_MULTI_KEY");
+}
+
+// ── Prompt cache optimization tests ──────────────────────────────────
+
+#[test]
+fn system_prompt_uses_content_block_array_with_cache_control() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text("fast", "hello")
+        .with_system_prompt("You are a helpful assistant.");
+
+    let body = client.build_messages_request(&request);
+
+    let system = body["system"].as_array().expect("system should be an array");
+    assert_eq!(system.len(), 1);
+    assert_eq!(system[0]["type"], "text");
+    assert_eq!(system[0]["text"], "You are a helpful assistant.");
+    assert_eq!(system[0]["cache_control"]["type"], "ephemeral");
+}
+
+#[test]
+fn no_system_prompt_omits_system_field() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text("fast", "hello");
+
+    let body = client.build_messages_request(&request);
+
+    assert!(body["system"].is_null(), "system field should be absent");
+}
+
+#[test]
+fn cache_control_on_tool_results_zero_results() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    // No tool results in the conversation
+    let request = ModelRequest::user_text("fast", "hello");
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    // No cache_control should be present on any message
+    for msg in messages {
+        if let Some(blocks) = msg["content"].as_array() {
+            for block in blocks {
+                assert!(
+                    block["cache_control"].is_null(),
+                    "no tool results, so no cache_control expected"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn cache_control_on_single_tool_result() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text("fast", "list files")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "Running ls.",
+            vec![crate::ToolCall {
+                id: "toolu_01".into(),
+                name: "shell.exec".into(),
+                arguments: serde_json::json!({"command": "ls"}),
+            }],
+        )
+        .add_tool_result("toolu_01", "file1.txt");
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    // Message 2 is the tool_result (user message)
+    let tool_result_blocks = messages[2]["content"].as_array().unwrap();
+    assert_eq!(tool_result_blocks[0]["type"], "tool_result");
+    assert_eq!(
+        tool_result_blocks[0]["cache_control"]["type"], "ephemeral",
+        "single tool result should get cache_control"
+    );
+}
+
+#[test]
+fn cache_control_on_two_tool_results() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text("fast", "do things")
+        .with_tools(vec![shell_tool()])
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "toolu_01".into(),
+                name: "shell.exec".into(),
+                arguments: serde_json::json!({"command": "ls"}),
+            }],
+        )
+        .add_tool_result("toolu_01", "result1")
+        .add_assistant_with_tools(
+            "",
+            vec![crate::ToolCall {
+                id: "toolu_02".into(),
+                name: "shell.exec".into(),
+                arguments: serde_json::json!({"command": "pwd"}),
+            }],
+        )
+        .add_tool_result("toolu_02", "result2");
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    // Both tool_result messages should have cache_control (2 <= MAX_BREAKPOINTS=3)
+    let tr1_blocks = messages[2]["content"].as_array().unwrap();
+    assert_eq!(tr1_blocks[0]["cache_control"]["type"], "ephemeral");
+
+    let tr2_blocks = messages[4]["content"].as_array().unwrap();
+    assert_eq!(tr2_blocks[0]["cache_control"]["type"], "ephemeral");
+}
+
+#[test]
+fn cache_control_on_five_tool_results_only_last_three() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+
+    // Build a conversation with 5 tool call/result pairs
+    let mut request = ModelRequest::user_text("fast", "do many things").with_tools(vec![shell_tool()]);
+
+    for i in 1..=5 {
+        request = request
+            .add_assistant_with_tools(
+                "",
+                vec![crate::ToolCall {
+                    id: format!("toolu_{i:02}"),
+                    name: "shell.exec".into(),
+                    arguments: serde_json::json!({"command": format!("cmd{i}")}),
+                }],
+            )
+            .add_tool_result(format!("toolu_{i:02}"), format!("result{i}"));
+    }
+
+    let body = client.build_messages_request(&request);
+    let messages = body["messages"].as_array().unwrap();
+
+    // Collect tool_result message indices
+    let tool_result_indices: Vec<usize> = messages
+        .iter()
+        .enumerate()
+        .filter(|(_, msg)| {
+            msg["content"]
+                .as_array()
+                .is_some_and(|blocks| blocks.iter().any(|b| b["type"] == "tool_result"))
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    assert_eq!(tool_result_indices.len(), 5);
+
+    // First two should NOT have cache_control
+    for &idx in &tool_result_indices[..2] {
+        let blocks = messages[idx]["content"].as_array().unwrap();
+        assert!(
+            blocks[0]["cache_control"].is_null(),
+            "tool_result at index {idx} should NOT have cache_control"
+        );
+    }
+
+    // Last three SHOULD have cache_control
+    for &idx in &tool_result_indices[2..] {
+        let blocks = messages[idx]["content"].as_array().unwrap();
+        assert_eq!(
+            blocks[0]["cache_control"]["type"], "ephemeral",
+            "tool_result at index {idx} should have cache_control"
+        );
+    }
+}
+
+#[test]
+fn parse_message_start_with_cache_stats() {
+    use super::streaming::parse_anthropic_raw_events;
+
+    let data = r#"{
+        "type": "message_start",
+        "message": {
+            "id": "msg_01",
+            "usage": {
+                "input_tokens": 2048,
+                "output_tokens": 0,
+                "cache_creation_input_tokens": 1500,
+                "cache_read_input_tokens": 500
+            }
+        }
+    }"#;
+
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
+            usage: Some(u),
+        }) => {
+            assert_eq!(u.input_tokens, 2048);
+            assert_eq!(u.output_tokens, 0);
+            assert_eq!(u.cache_creation_input_tokens, Some(1500));
+            assert_eq!(u.cache_read_input_tokens, Some(500));
+        }
+        _ => panic!("expected Completed with cache stats"),
+    }
+}
+
+#[test]
+fn parse_message_start_without_cache_stats() {
+    use super::streaming::parse_anthropic_raw_events;
+
+    let data = r#"{
+        "type": "message_start",
+        "message": {
+            "id": "msg_01",
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 0
+            }
+        }
+    }"#;
+
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
+            usage: Some(u),
+        }) => {
+            assert_eq!(u.input_tokens, 100);
+            assert_eq!(u.cache_creation_input_tokens, None);
+            assert_eq!(u.cache_read_input_tokens, None);
+        }
+        _ => panic!("expected Completed without cache stats"),
+    }
+}
+
+#[test]
+fn parse_message_delta_with_cache_stats() {
+    use super::streaming::parse_anthropic_raw_events;
+
+    let data = r#"{
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+        "usage": {
+            "input_tokens": 0,
+            "output_tokens": 42,
+            "cache_creation_input_tokens": 200,
+            "cache_read_input_tokens": 1800
+        }
+    }"#;
+
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
+            usage: Some(u),
+        }) => {
+            assert_eq!(u.output_tokens, 42);
+            assert_eq!(u.cache_creation_input_tokens, Some(200));
+            assert_eq!(u.cache_read_input_tokens, Some(1800));
+        }
+        _ => panic!("expected Completed with cache stats"),
+    }
+}
+
+#[test]
+fn parse_message_delta_without_cache_stats_backward_compat() {
+    use super::streaming::parse_anthropic_raw_events;
+
+    let data = r#"{
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+        "usage": {"input_tokens": 10, "output_tokens": 5}
+    }"#;
+
+    let events = parse_anthropic_raw_events(data).unwrap();
+    assert_eq!(events.len(), 1);
+    match &events[0] {
+        super::streaming::AnthropicRawEvent::Event(ModelEvent::Completed {
+            usage: Some(u),
+        }) => {
+            assert_eq!(u.input_tokens, 10);
+            assert_eq!(u.output_tokens, 5);
+            assert_eq!(u.cache_creation_input_tokens, None);
+            assert_eq!(u.cache_read_input_tokens, None);
+        }
+        _ => panic!("expected Completed"),
+    }
+}
+
+#[test]
+fn parse_json_response_with_cache_stats() {
+    use super::streaming::parse_anthropic_json_response;
+
+    let data = r#"{
+        "id": "msg_01",
+        "type": "message",
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Hello"}],
+        "stop_reason": "end_turn",
+        "usage": {
+            "input_tokens": 500,
+            "output_tokens": 10,
+            "cache_creation_input_tokens": 300,
+            "cache_read_input_tokens": 150
+        }
+    }"#;
+
+    let events = parse_anthropic_json_response(data).unwrap();
+    let completed = events
+        .iter()
+        .find(|e| matches!(e, ModelEvent::Completed { .. }))
+        .expect("should have Completed event");
+
+    match completed {
+        ModelEvent::Completed { usage: Some(u) } => {
+            assert_eq!(u.input_tokens, 500);
+            assert_eq!(u.output_tokens, 10);
+            assert_eq!(u.cache_creation_input_tokens, Some(300));
+            assert_eq!(u.cache_read_input_tokens, Some(150));
+        }
+        _ => panic!("expected Completed with usage"),
+    }
+}
+
+#[test]
+fn parse_json_response_without_cache_stats_backward_compat() {
+    use super::streaming::parse_anthropic_json_response;
+
+    let data = r#"{
+        "id": "msg_01",
+        "type": "message",
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Hi"}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 50, "output_tokens": 3}
+    }"#;
+
+    let events = parse_anthropic_json_response(data).unwrap();
+    let completed = events
+        .iter()
+        .find(|e| matches!(e, ModelEvent::Completed { .. }))
+        .expect("should have Completed event");
+
+    match completed {
+        ModelEvent::Completed { usage: Some(u) } => {
+            assert_eq!(u.input_tokens, 50);
+            assert_eq!(u.output_tokens, 3);
+            assert_eq!(u.cache_creation_input_tokens, None);
+            assert_eq!(u.cache_read_input_tokens, None);
+        }
+        _ => panic!("expected Completed with usage"),
+    }
 }

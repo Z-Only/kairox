@@ -87,6 +87,11 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                         Some(crate::ModelUsage {
                             input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
                             output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
+                            cache_creation_input_tokens: usage_value
+                                ["cache_creation_input_tokens"]
+                                .as_u64(),
+                            cache_read_input_tokens: usage_value["cache_read_input_tokens"]
+                                .as_u64(),
                         })
                     } else {
                         None
@@ -95,8 +100,27 @@ pub(super) fn parse_anthropic_raw_events(data: &str) -> Result<Vec<AnthropicRawE
                 }
             }
         }
-        "message_start" | "ping" => {
-            // No model events to emit for these
+        "message_start" => {
+            // Extract usage from message_start if present (includes cache stats).
+            let usage_value = &value["message"]["usage"];
+            if usage_value.is_object() {
+                let usage = crate::ModelUsage {
+                    input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
+                    output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
+                    cache_creation_input_tokens: usage_value["cache_creation_input_tokens"]
+                        .as_u64(),
+                    cache_read_input_tokens: usage_value["cache_read_input_tokens"].as_u64(),
+                };
+                // Emit as a Completed event so downstream consumers receive
+                // the initial input-token count and cache statistics.
+                // The final message_delta Completed will carry the output-token count.
+                events.push(AnthropicRawEvent::Event(ModelEvent::Completed {
+                    usage: Some(usage),
+                }));
+            }
+        }
+        "ping" => {
+            // No model events to emit for pings
         }
         "error" => {
             let msg = value["error"]["message"]
@@ -163,6 +187,8 @@ pub(super) fn parse_anthropic_json_response(data: &str) -> Result<Vec<ModelEvent
             Some(crate::ModelUsage {
                 input_tokens: usage_value["input_tokens"].as_u64().unwrap_or(0),
                 output_tokens: usage_value["output_tokens"].as_u64().unwrap_or(0),
+                cache_creation_input_tokens: usage_value["cache_creation_input_tokens"].as_u64(),
+                cache_read_input_tokens: usage_value["cache_read_input_tokens"].as_u64(),
             })
         } else {
             None
