@@ -47,6 +47,7 @@ pub(super) fn source_label(source: &ContextSource) -> &'static str {
         ContextSource::CompactionSummary => "Compaction summary",
         ContextSource::Skill => "Skill",
         ContextSource::ProjectInstruction => "Project instructions",
+        ContextSource::Image => "Image",
     }
 }
 
@@ -63,6 +64,7 @@ pub(super) fn source_short_label(source: &ContextSource) -> &'static str {
         ContextSource::CompactionSummary => "csum",
         ContextSource::Skill => "skill",
         ContextSource::ProjectInstruction => "proj",
+        ContextSource::Image => "img",
     }
 }
 

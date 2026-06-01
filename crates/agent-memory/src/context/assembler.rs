@@ -8,6 +8,7 @@ use crate::memory::MemoryEntry;
 use crate::store::{MemoryQuery, MemoryStore};
 
 use super::budget::ContextBudget;
+use super::image_pruning::{prune_images, ImageEntry, ImagePruningStrategy};
 use super::window::find_lowest_priority_drop;
 
 #[derive(Debug, Clone, Default)]
@@ -26,6 +27,11 @@ pub struct ContextRequest {
     /// MCP + built-in tool schemas to be injected into the model request.
     /// They're serialised once and counted as a single ToolDefinitions section.
     pub tool_definitions: Vec<agent_models::ToolDefinition>,
+    /// Images present in the conversation, ordered by position.
+    /// Each entry carries a position index and estimated token cost.
+    pub images: Vec<ImageEntry>,
+    /// Strategy for pruning images when context is tight.
+    pub image_pruning: ImagePruningStrategy,
 }
 
 #[derive(Debug, Clone)]
@@ -148,7 +154,19 @@ impl ContextAssembler {
             sections.push((ContextSource::ToolResult, text, n));
         }
 
-        // P5: Selected files (dropped first)
+        // P4.5: Images — prune first, then add survivors.
+        // Images are the lowest priority and are dropped before SelectedFile.
+        {
+            let mut images = request.images.clone();
+            prune_images(&mut images, &request.image_pruning);
+            for img in &images {
+                let text = format!("Image: {}", img.content);
+                let n = img.estimated_tokens.max(self.count_tokens(&text));
+                sections.push((ContextSource::Image, text, n));
+            }
+        }
+
+        // P5: Selected files (dropped second after images)
         for sf in &request.selected_files {
             let text = format!("Selected file: {sf}");
             let n = self.count_tokens(&text);

@@ -8,7 +8,8 @@ const sourceColorVar: Record<ContextSource, string> = {
   tool_result: "var(--src-tool-result)",
   selected_file: "var(--src-selected-file)",
   compaction_summary: "var(--src-compaction-summary)",
-  request: "var(--src-request)"
+  request: "var(--src-request)",
+  image: "var(--src-image)"
 };
 
 const sourceLabelKey: Record<ContextSource, string> = {
@@ -19,7 +20,8 @@ const sourceLabelKey: Record<ContextSource, string> = {
   tool_result: "context.sourceToolResult",
   selected_file: "context.sourceSelectedFile",
   compaction_summary: "context.sourceCompactionSummary",
-  request: "context.sourceRequest"
+  request: "context.sourceRequest",
+  image: "context.sourceImage"
 };
 
 export function useContextFormatting() {

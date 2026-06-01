@@ -14,6 +14,7 @@ pub enum ContextSource {
     SelectedFile,
     CompactionSummary,
     Skill,
+    Image,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
