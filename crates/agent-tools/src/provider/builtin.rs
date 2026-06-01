@@ -1,3 +1,5 @@
+use crate::browser::{BrowserBatchTool, BrowserTool};
+use crate::computer_use::ComputerUseTool;
 use crate::filesystem::{FsListTool, FsReadTool, FsWriteTool};
 use crate::monitor::{MonitorListTool, MonitorRegistry, MonitorStartTool, MonitorStopTool};
 use crate::patch::PatchApplyTool;
@@ -35,12 +37,24 @@ impl BuiltinProvider {
         let fs_write = Box::new(FsWriteTool::new(workspace_root.clone())) as Box<dyn Tool>;
         let fs_list = Box::new(FsListTool::new(workspace_root.clone())) as Box<dyn Tool>;
 
+        let browser_tool = BrowserTool::new(workspace_root.clone());
+        let browser_batch =
+            Box::new(BrowserBatchTool::new(browser_tool.manager())) as Box<dyn Tool>;
+        let browser = Box::new(browser_tool) as Box<dyn Tool>;
+
+        let computer_use = Box::new(ComputerUseTool::new()) as Box<dyn Tool>;
+
         let monitor_registry = Arc::new(MonitorRegistry::new(workspace_root, event_tx));
         let mon_start = Box::new(MonitorStartTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_stop = Box::new(MonitorStopTool::new(monitor_registry.clone())) as Box<dyn Tool>;
         let mon_list = Box::new(MonitorListTool::new(monitor_registry.clone())) as Box<dyn Tool>;
 
         tools.insert(shell.definition().tool_id.clone(), Arc::from(shell));
+        tools.insert(browser.definition().tool_id.clone(), Arc::from(browser));
+        tools.insert(
+            browser_batch.definition().tool_id.clone(),
+            Arc::from(browser_batch),
+        );
         tools.insert(search.definition().tool_id.clone(), Arc::from(search));
         tools.insert(patch.definition().tool_id.clone(), Arc::from(patch));
         tools.insert(fs_read.definition().tool_id.clone(), Arc::from(fs_read));
@@ -49,6 +63,10 @@ impl BuiltinProvider {
         tools.insert(mon_start.definition().tool_id.clone(), Arc::from(mon_start));
         tools.insert(mon_stop.definition().tool_id.clone(), Arc::from(mon_stop));
         tools.insert(mon_list.definition().tool_id.clone(), Arc::from(mon_list));
+        tools.insert(
+            computer_use.definition().tool_id.clone(),
+            Arc::from(computer_use),
+        );
 
         Self {
             tools,

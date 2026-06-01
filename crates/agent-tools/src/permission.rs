@@ -28,9 +28,11 @@ pub enum ToolEffect {
     Shell { destructive: bool },
     Network,
     Destructive,
+    Execute,
     McpInvoke,
     LspQuery,
     DebugInvoke,
+    BrowserInteract,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +78,7 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
         (ToolEffect::Shell { destructive }, _) => PolicyEffect::Shell { destructive },
         (ToolEffect::Network, _) => PolicyEffect::Network { hosts: Vec::new() },
         (ToolEffect::Destructive, _) => PolicyEffect::Destructive,
+        (ToolEffect::Execute, _) => PolicyEffect::Shell { destructive: false },
         (ToolEffect::McpInvoke, Some(server)) => PolicyEffect::McpInvoke {
             server: server.to_string(),
         },
@@ -84,6 +87,7 @@ fn to_policy_risk(risk: &ToolRisk, mcp_server_hint: Option<&str>) -> PolicyRisk 
         },
         (ToolEffect::LspQuery, _) => PolicyEffect::Read,
         (ToolEffect::DebugInvoke, _) => PolicyEffect::Shell { destructive: false },
+        (ToolEffect::BrowserInteract, _) => PolicyEffect::Network { hosts: Vec::new() },
     };
     PolicyRisk {
         tool_id: risk.tool_id.clone(),
