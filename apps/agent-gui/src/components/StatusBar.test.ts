@@ -90,4 +90,73 @@ describe("StatusBar", () => {
 
     expect(wrapper.find('[data-test="status-bar-sandbox"]').text()).toContain("not-json");
   });
+
+  it("shows warning dot when streaming, default dot when not streaming", async () => {
+    const session = useSessionStore();
+    session.isStreaming = true;
+    const wrapper = mountStatusBar(true);
+    await flushPromises();
+
+    expect(wrapper.find(".dot-warning").exists()).toBe(true);
+    expect(wrapper.find(".dot-default").exists()).toBe(false);
+
+    session.isStreaming = false;
+    await flushPromises();
+
+    expect(wrapper.find(".dot-default").exists()).toBe(true);
+    expect(wrapper.find(".dot-warning").exists()).toBe(false);
+  });
+
+  it("shows success dot when connected, error dot when disconnected", async () => {
+    const session = useSessionStore();
+    session.connected = true;
+    const wrapper = mountStatusBar(true);
+    await flushPromises();
+
+    expect(wrapper.find(".dot-success").exists()).toBe(true);
+    expect(wrapper.find(".dot-error").exists()).toBe(false);
+
+    session.connected = false;
+    await flushPromises();
+
+    expect(wrapper.find(".dot-error").exists()).toBe(true);
+    expect(wrapper.find(".dot-success").exists()).toBe(false);
+  });
+
+  it("falls back to raw approvalPolicy when value is not in the map", async () => {
+    const session = useSessionStore();
+    session.approvalPolicy = "custom_unknown_policy";
+    const wrapper = mountStatusBar(true);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="status-bar-approval"]').text()).toContain(
+      "custom_unknown_policy"
+    );
+  });
+
+  it("falls back to kind string for JSON sandbox with unknown kind", async () => {
+    const session = useSessionStore();
+    session.sandboxPolicy = '{"kind":"some_custom_sandbox"}';
+    const wrapper = mountStatusBar(true);
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="status-bar-sandbox"]').text()).toContain(
+      "some_custom_sandbox"
+    );
+  });
+
+  it("shows empty string for JSON sandbox with missing kind", async () => {
+    const session = useSessionStore();
+    session.sandboxPolicy = '{"network_access":false}';
+    const wrapper = mountStatusBar(true);
+    await flushPromises();
+
+    const sandboxText = wrapper.find('[data-test="status-bar-sandbox"]').text();
+    // The sandbox display should just contain the label, no kind value
+    expect(sandboxText).toContain("Sandbox");
+    // The value part should effectively be empty (just the label shows)
+    const valueSpans = wrapper.find('[data-test="status-bar-sandbox"]').findAll(".status-value");
+    expect(valueSpans.length).toBeGreaterThan(0);
+    expect(valueSpans[0].text()).toBe("");
+  });
 });
