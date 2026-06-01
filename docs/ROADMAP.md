@@ -30,7 +30,7 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | LSP / code intelligence                   | ✅ Native LSP + DAP                                   | OpenCode, Continue have similar                                      |
 | Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough            | Claude Code, Codex use provider-hosted tools                         |
 | Multimodal context management             | ✅ Image pruning strategies                           | Claude quickstarts has reference impl                                |
-| Browser / computer use                    | ❌ Not implemented                                    | Claude quickstarts, browser-use, Cline                               |
+| Browser / computer use                    | ✅ Browser tool + Computer use (simulated backends)   | Claude quickstarts, browser-use, Cline                               |
 | Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
 | Embedded SDK mode                         | ❌ Not exposed                                        | Claude Agent SDK, Goose extensible-agent                             |
 | Streaming UX                              | ⚠️ Basic event forwarding                             | Claude Code, Codex CLI have rich streaming                           |
@@ -95,7 +95,7 @@ Adopt the retry classification from computer-use best-practices:
 
 ---
 
-## Phase 2 — Environment interaction (v0.37 – v0.39)
+## Phase 2 — Environment interaction (v0.37 – v0.39) ✅
 
 The leap from "reads and writes files" to "sees and interacts with running software."
 
