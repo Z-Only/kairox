@@ -1,7 +1,7 @@
 # Kairox Roadmap
 
 > Living document. Updated as milestones ship or priorities shift.
-> Current version: **0.34.0** (2026-05-31).
+> Current version: **0.36.0** (2026-06-01).
 
 ## Design principles
 
@@ -23,13 +23,13 @@ Where Kairox stands relative to industry agents (Claude Code, Codex CLI, OpenCod
 | Multi-agent orchestration                 | ✅ Planner/Worker/Reviewer + DAG executor             | Ahead of most; Devin-style long-running is next frontier             |
 | MCP integration                           | ✅ stdio/SSE/Streamable HTTP + marketplace            | Claude Code parity                                                   |
 | Tool safety (approval + sandbox)          | ✅ Orthogonal ApprovalPolicy × SandboxPolicy          | Ahead of most; Codex CLI has similar sandbox                         |
-| Prompt caching                            | ⚠️ Basic adapter-level                                | Claude quickstarts best-practices shows optimal breakpoint placement |
+| Prompt caching                            | ✅ Cache breakpoints + hit-rate tracking              | Claude quickstarts best-practices shows optimal breakpoint placement |
 | Memory + context assembly                 | ✅ Multi-scope memory + tiktoken budgets + compaction | Competitive; RAG retrieval is gap                                    |
 | Skills + plugins                          | ✅ Native skills + plugin manifests + marketplace     | Ahead of most OSS agents                                             |
 | Eval harness                              | ✅ JSONL scenarios + tag filters + expectations       | Competitive with SWE-bench style harnesses                           |
 | LSP / code intelligence                   | ✅ Native LSP + DAP                                   | OpenCode, Continue have similar                                      |
-| Server-side tools (code exec, web search) | ❌ Not supported                                      | Claude Code, Codex use provider-hosted tools                         |
-| Multimodal context management             | ❌ No image pruning                                   | Claude quickstarts has reference impl                                |
+| Server-side tools (code exec, web search) | ✅ code_execution + web_search passthrough            | Claude Code, Codex use provider-hosted tools                         |
+| Multimodal context management             | ✅ Image pruning strategies                           | Claude quickstarts has reference impl                                |
 | Browser / computer use                    | ❌ Not implemented                                    | Claude quickstarts, browser-use, Cline                               |
 | Long-running autonomous mode              | ❌ Session-scoped only                                | Claude quickstarts autonomous-coding, Codex background tasks         |
 | Embedded SDK mode                         | ❌ Not exposed                                        | Claude Agent SDK, Goose extensible-agent                             |
