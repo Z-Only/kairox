@@ -40,25 +40,25 @@ export default defineConfig({
       // Aggregate (no glob) is the workspace floor.
       // Baseline: 2026-06-01 — floor(actual - 1), only raised.
       thresholds: {
-        statements: 89,
-        branches: 82,
-        functions: 88,
-        lines: 90,
-        // T3 — components aggregate: stmts 85.89, br 80.22, fn 87.02, ln 86.37
+        statements: 91,
+        branches: 85,
+        functions: 90,
+        lines: 92,
+        // T3 — components aggregate: stmts 90.68, br 85.86, fn 89.90, ln 91.27
         "src/components/**/*.{ts,vue}": {
-          statements: 84,
-          branches: 79,
-          functions: 86,
-          lines: 85
+          statements: 89,
+          branches: 84,
+          functions: 88,
+          lines: 90
         },
         // T3 — views aggregate: stmts 95.23, br 84.00, fn 93.75, ln 95.00
         "src/views/**/*.vue": {
-          statements: 90,
+          statements: 94,
           branches: 83,
-          functions: 78,
-          lines: 90
+          functions: 92,
+          lines: 94
         },
-        // T2 — stores aggregate: stmts 95.06, br 85.39, fn 95.18, ln 96.44
+        // T2 — stores aggregate: stmts 95.13, br 85.39, fn 95.53, ln 96.52
         "src/stores/**/*.ts": {
           statements: 94,
           branches: 84,
