@@ -46,7 +46,8 @@ export type ContextSource =
   | "history"
   | "tool_result"
   | "selected_file"
-  | "compaction_summary";
+  | "compaction_summary"
+  | "image";
 
 /** Mirrors `crates/agent-core/src/context_types.rs::ContextUsage`. */
 export interface ContextUsage {

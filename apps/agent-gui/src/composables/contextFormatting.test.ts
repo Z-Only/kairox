@@ -17,7 +17,8 @@ const ALL_SOURCES: ContextSource[] = [
   "history",
   "tool_result",
   "selected_file",
-  "compaction_summary"
+  "compaction_summary",
+  "image"
 ];
 
 describe("useContextFormatting", () => {

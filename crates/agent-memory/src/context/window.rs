@@ -11,6 +11,7 @@ pub(super) fn find_lowest_priority_drop(
     sections: &[(ContextSource, String, u64)],
 ) -> Option<usize> {
     let drop_order = [
+        ContextSource::Image,
         ContextSource::SelectedFile,
         ContextSource::ToolResult,
         ContextSource::History,

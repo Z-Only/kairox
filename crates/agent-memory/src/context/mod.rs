@@ -3,6 +3,7 @@
 
 mod assembler;
 mod budget;
+pub mod image_pruning;
 mod window;
 
 #[cfg(test)]
@@ -11,3 +12,4 @@ mod tests;
 pub use agent_core::{ContextSource, ContextUsage};
 pub use assembler::{ContextAssembler, ContextBundle, ContextRequest};
 pub use budget::ContextBudget;
+pub use image_pruning::{ImageEntry, ImagePruningStrategy};
