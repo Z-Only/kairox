@@ -40,16 +40,16 @@ export default defineConfig({
       // Aggregate (no glob) is the workspace floor.
       // Baseline: 2026-06-01 — floor(actual - 1), only raised.
       thresholds: {
-        statements: 87,
-        branches: 81,
-        functions: 86,
-        lines: 88,
-        // T3 — components aggregate: stmts 87.71, br 82.84, fn 88.31, ln 88.59
+        statements: 89,
+        branches: 82,
+        functions: 88,
+        lines: 90,
+        // T3 — components aggregate: stmts 85.89, br 80.22, fn 87.02, ln 86.37
         "src/components/**/*.{ts,vue}": {
-          statements: 86,
-          branches: 81,
-          functions: 87,
-          lines: 87
+          statements: 84,
+          branches: 79,
+          functions: 86,
+          lines: 85
         },
         // T3 — views aggregate: stmts 95.23, br 84.00, fn 93.75, ln 95.00
         "src/views/**/*.vue": {
@@ -58,19 +58,19 @@ export default defineConfig({
           functions: 78,
           lines: 90
         },
-        // T2 — stores aggregate: stmts 85.11, br 77.57, fn 83.16, ln 86.88
+        // T2 — stores aggregate: stmts 95.06, br 85.39, fn 95.18, ln 96.44
         "src/stores/**/*.ts": {
-          statements: 84,
-          branches: 76,
-          functions: 82,
-          lines: 85
+          statements: 94,
+          branches: 84,
+          functions: 94,
+          lines: 95
         },
-        // T2 — composables aggregate: stmts 89.20, br 81.25, fn 87.24, ln 90.65
+        // T2 — composables aggregate: stmts 92.40, br 86.45, fn 89.26, ln 94.11
         "src/composables/**/*.ts": {
-          statements: 88,
-          branches: 80,
-          functions: 86,
-          lines: 89
+          statements: 91,
+          branches: 85,
+          functions: 88,
+          lines: 93
         },
         // T1 — utils aggregate: stmts 95.83, br 100, fn 100, ln 95.83
         "src/utils/**/*.ts": {
