@@ -10,6 +10,7 @@ pub mod ids;
 pub mod manifest;
 pub mod projection;
 pub mod task_types;
+pub mod trajectory;
 
 pub const CORE_CRATE_NAME: &str = "agent-core";
 
@@ -39,6 +40,7 @@ pub use projection::{
 pub use task_types::{
     AgentRole, BackoffStrategy, FailurePolicy, RetryConfig, TaskFailureReason, TaskState,
 };
+pub use trajectory::{TrajectoryId, TrajectoryMeta, TrajectoryOutcome, TrajectoryStep};
 
 pub type Result<T> = std::result::Result<T, CoreError>;
 

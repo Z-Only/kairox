@@ -16,21 +16,25 @@ if [ "$(uname -s)" = "Linux" ] && [ -z "${CXX:-}" ] && command -v clang++ >/dev/
   export CXX=clang++
 fi
 
+echo "Rust coverage: preparing output directories"
 mkdir -p "$coverage_dir"
 rm -f "$coverage_dir"/rust*.lcov
 
+echo "Rust coverage: resolving ${toolchain} toolchain paths"
 host_triple="$(rustc "+${toolchain}" -vV | awk '/^host:/ { print $2 }')"
 rust_sysroot="$(rustc "+${toolchain}" --print sysroot)"
 llvm_bin="${rust_sysroot}/lib/rustlib/${host_triple}/bin"
 
 install_grcov() {
   if command -v grcov >/dev/null 2>&1; then
+    echo "Rust coverage: found grcov on PATH" >&2
     command -v grcov
     return
   fi
 
   local cached_grcov="${coverage_dir}/bin/grcov"
   if [ -x "$cached_grcov" ]; then
+    echo "Rust coverage: found cached grcov at ${cached_grcov}" >&2
     printf '%s\n' "$cached_grcov"
     return
   fi
@@ -52,6 +56,7 @@ install_grcov() {
 
   mkdir -p "${coverage_dir}/bin"
   tmpdir="$(mktemp -d)"
+  echo "Rust coverage: downloading grcov ${grcov_version} for ${os}/${arch}" >&2
   curl -L --retry 3 --fail \
     "https://github.com/mozilla/grcov/releases/download/${grcov_version}/${asset}" \
     | tar -xjf - -C "$tmpdir"
@@ -100,7 +105,9 @@ print_lcov_breakdown() {
     | sed 's/^/[diag]   /'
 }
 
+echo "Rust coverage: locating grcov ${grcov_version}"
 grcov="$(install_grcov)"
+echo "Rust coverage: using grcov at ${grcov}"
 
 # Run instrumented tests for the entire workspace in one cargo invocation.
 # Running every -p in one pass keeps every test binary on disk while grcov
@@ -121,7 +128,9 @@ grcov="$(install_grcov)"
 # We also avoid `cargo llvm-cov --lcov` because that path calls llvm-cov
 # export over every object at once and the SIGSEGV becomes terminal there
 # (see PR #505 close comment). Profraw → grcov → lcov stays.
+echo "Rust coverage: cleaning prior llvm-cov data"
 cargo "+${toolchain}" llvm-cov clean --workspace
+echo "Rust coverage: running instrumented workspace tests"
 cargo "+${toolchain}" llvm-cov \
   -p agent-core \
   -p agent-runtime \

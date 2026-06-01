@@ -233,7 +233,10 @@ impl SessionProjection {
             | EventPayload::LspServerFailed { .. }
             | EventPayload::DapSessionStarted { .. }
             | EventPayload::DapSessionStopped { .. }
-            | EventPayload::DapBreakpointHit { .. } => {}
+            | EventPayload::DapBreakpointHit { .. }
+            | EventPayload::TrajectoryStarted { .. }
+            | EventPayload::TrajectoryStepRecorded { .. }
+            | EventPayload::TrajectoryCompleted { .. } => {}
         }
     }
 
