@@ -15,6 +15,7 @@ fn make_invocation(args: serde_json::Value) -> ToolInvocation {
         tool_id: BROWSER_BATCH_TOOL_ID.to_string(),
         arguments: args,
         workspace_id: "test".to_string(),
+        session_id: "ses_test".into(),
         preview: String::new(),
         timeout_ms: 30_000,
         output_limit_bytes: 1024 * 1024,

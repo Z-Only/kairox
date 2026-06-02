@@ -25,6 +25,8 @@ pub struct MonitorInfo {
 struct MonitorHandle {
     info: MonitorInfo,
     abort_handle: tokio::task::AbortHandle,
+    workspace_id: WorkspaceId,
+    session_id: SessionId,
 }
 
 pub struct MonitorRegistry {
@@ -103,6 +105,8 @@ impl MonitorRegistry {
         let handle = MonitorHandle {
             info,
             abort_handle: join_handle.abort_handle(),
+            workspace_id: workspace_id.clone(),
+            session_id: session_id.clone(),
         };
         self.monitors
             .lock()
@@ -130,6 +134,16 @@ impl MonitorRegistry {
         let mut monitors = self.monitors.lock().await;
         if let Some(handle) = monitors.remove(monitor_id) {
             handle.abort_handle.abort();
+            let _ = self.event_tx.send(DomainEvent::new(
+                handle.workspace_id,
+                handle.session_id,
+                AgentId::system(),
+                PrivacyClassification::FullTrace,
+                EventPayload::MonitorStopped {
+                    monitor_id: monitor_id.to_string(),
+                    reason: MonitorStopReason::UserStopped,
+                },
+            ));
             Ok(())
         } else {
             Err(crate::ToolError::NotFound(format!("monitor {monitor_id}")))

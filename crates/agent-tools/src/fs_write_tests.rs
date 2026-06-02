@@ -10,6 +10,7 @@ fn make_invocation(tool_id: &str, args: serde_json::Value) -> ToolInvocation {
         tool_id: tool_id.into(),
         arguments: args,
         workspace_id: "wrk_test".into(),
+        session_id: "ses_test".into(),
         preview: format!("{tool_id}()"),
         timeout_ms: 5_000,
         output_limit_bytes: 102_400,

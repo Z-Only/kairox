@@ -30,6 +30,7 @@ fn make_invocation(patch: &str) -> ToolInvocation {
         tool_id: PATCH_TOOL_ID.to_string(),
         arguments: serde_json::json!({ "patch": patch }),
         workspace_id: "test".to_string(),
+        session_id: "ses_test".to_string(),
         preview: format!("patch apply: {} bytes", patch.len()),
         timeout_ms: 5000,
         output_limit_bytes: 10240,
