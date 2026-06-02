@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
 import { mountWithPlugins } from "@/test-utils/mount";
 import ChatMessageItem from "@/components/chat/ChatMessageItem.vue";
+import chatMessageItemSource from "@/components/chat/ChatMessageItem.vue?raw";
 
 // ChatMessageItem itself does not call `useI18n` or `useRouter`, but we use
 // `mountWithPlugins` to stay consistent with sibling chat-stream item specs
@@ -50,6 +51,8 @@ describe("ChatMessageItem", () => {
     expect(body.exists()).toBe(true);
     expect(body.element.tagName).toBe("DIV");
     expect(body.find("ol").exists()).toBe(true);
+    expect(chatMessageItemSource).toContain("list-style-position: inside");
+    expect(chatMessageItemSource).toContain("padding-left: 0");
   });
 
   it.each(["planner", "worker", "reviewer"] as const)(

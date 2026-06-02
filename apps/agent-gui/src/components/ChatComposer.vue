@@ -138,6 +138,7 @@ function dropQueuedMessage(targetIndex: number): void {
 
 onMounted(() => {
   void session.loadProfileInfo();
+  void skillsStore.loadSkills();
 });
 
 watch(modelPopoverOpen, (isOpen) => {
@@ -149,25 +150,6 @@ watch(modelPopoverOpen, (isOpen) => {
 
 <template>
   <div class="input-area">
-    <div class="palette-container">
-      <CommandPalette
-        ref="commandPaletteRef"
-        :visible="showCommandPalette"
-        :filter-text="paletteFilter"
-        @select-command="onSelectCommand"
-        @select-skill="onSelectSkill"
-        @select-model-profile="onSelectModelProfile"
-        @close="closePalettes"
-      />
-      <FileMentionPalette
-        ref="fileMentionPaletteRef"
-        :visible="showMentionPalette"
-        :filter-text="paletteFilter"
-        :workspace-path="props.workspacePath"
-        @select-file="(path: string) => onSelectFile(path, props.workspacePath)"
-        @close="closePalettes"
-      />
-    </div>
     <AttachmentTray
       :attachments="attachments"
       :disabled="false"
@@ -230,6 +212,25 @@ watch(modelPopoverOpen, (isOpen) => {
           </KxActionButton>
         </div>
       </div>
+    </div>
+    <div class="palette-container">
+      <CommandPalette
+        ref="commandPaletteRef"
+        :visible="showCommandPalette"
+        :filter-text="paletteFilter"
+        @select-command="onSelectCommand"
+        @select-skill="onSelectSkill"
+        @select-model-profile="onSelectModelProfile"
+        @close="closePalettes"
+      />
+      <FileMentionPalette
+        ref="fileMentionPaletteRef"
+        :visible="showMentionPalette"
+        :filter-text="paletteFilter"
+        :workspace-path="props.workspacePath"
+        @select-file="(path: string) => onSelectFile(path, props.workspacePath)"
+        @close="closePalettes"
+      />
     </div>
     <div class="input-row">
       <button
@@ -312,6 +313,7 @@ watch(modelPopoverOpen, (isOpen) => {
 }
 .palette-container {
   position: relative;
+  z-index: 20;
 }
 .composer-meta {
   display: flex;

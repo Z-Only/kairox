@@ -54,6 +54,7 @@ pub(crate) async fn load_active_skill_blocks(
     skill_registry: &Option<Arc<dyn agent_skills::SkillRegistry>>,
     active_skills: &Arc<Mutex<HashMap<String, Vec<String>>>>,
     session_id: &agent_core::SessionId,
+    session_events: &[agent_core::DomainEvent],
 ) -> agent_core::Result<Vec<String>> {
     let Some(registry) = skill_registry else {
         return Ok(Vec::new());
@@ -61,18 +62,16 @@ pub(crate) async fn load_active_skill_blocks(
     let session_key = session_id.to_string();
     let skill_ids = {
         let mut active_skills = active_skills.lock().await;
-        let Some(session_skills) = active_skills.get_mut(&session_key) else {
-            return Ok(Vec::new());
-        };
-        session_skills.retain(|skill_id| {
+        let mut skill_ids = active_skills
+            .get(&session_key)
+            .cloned()
+            .unwrap_or_else(|| crate::skills::active_skill_ids_from_events(session_events));
+        skill_ids.retain(|skill_id| {
             registry
                 .get(&agent_skills::SkillId::new(skill_id.clone()))
                 .is_some()
         });
-        let skill_ids = session_skills.clone();
-        if session_skills.is_empty() {
-            active_skills.remove(&session_key);
-        }
+        active_skills.insert(session_key.clone(), skill_ids.clone());
         skill_ids
     };
 

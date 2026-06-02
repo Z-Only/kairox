@@ -3,8 +3,10 @@ mod support;
 use std::sync::Arc;
 
 use agent_core::{ActivateSkillRequest, AppFacade, EventPayload, StartSessionRequest};
+use agent_models::FakeModelClient;
+use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
-use agent_store::EventStore;
+use agent_store::{EventStore, SqliteEventStore};
 
 use support::skills_helpers::{build_runtime_with_skill_registry, write_test_skill};
 
@@ -70,6 +72,61 @@ async fn manual_activation_lists_active_skills_for_that_session() {
             EventPayload::SkillActivated { skill_id, .. } if skill_id == "code-review"
         )
     }));
+}
+
+#[tokio::test]
+async fn active_skills_replay_from_events_after_runtime_recreation() {
+    let skill_root = tempfile::tempdir().expect("skill root should be created");
+    write_test_skill(
+        skill_root.path(),
+        "code-review",
+        "Review code changes",
+        "Use a careful review checklist.",
+    );
+    let registry = Arc::new(
+        FileSkillRegistry::discover(vec![SkillRoot::new(
+            SkillSourceKind::Workspace,
+            skill_root.path(),
+        )])
+        .await
+        .expect("skill registry should discover test skill"),
+    );
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let runtime = LocalRuntime::new(store.clone(), FakeModelClient::new(vec!["ok".into()]))
+        .with_skill_registry(registry.clone());
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .expect("session should start");
+    let active_skill = runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id,
+            session_id: session_id.clone(),
+            skill_id: "code-review".into(),
+        })
+        .await
+        .expect("manual skill activation should succeed");
+
+    let restored_runtime = LocalRuntime::new(store, FakeModelClient::new(vec!["ok".into()]))
+        .with_skill_registry(registry);
+    let active_skills = restored_runtime
+        .list_active_skills(session_id)
+        .await
+        .expect("active skills should replay from SkillActivated events");
+
+    assert_eq!(active_skills, vec![active_skill]);
 }
 
 #[tokio::test]

@@ -155,6 +155,7 @@ where
         deps.skill_registry,
         deps.active_skills,
         &request.session_id,
+        session_events,
     )
     .await?;
 

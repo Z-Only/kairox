@@ -80,6 +80,10 @@ beforeEach(() => {
   mockedInvoke.mockImplementation(async (command) => {
     if (command === "refresh_config") return null;
     if (command === "get_profile_info") return useSessionStore().profileInfos;
+    if (command === "list_skills") return [];
+    if (command === "list_active_skills") return [];
+    if (command === "set_session_approval_policy") return "always";
+    if (command === "set_session_sandbox_policy") return '{"kind":"read_only"}';
     return null;
   });
 });
@@ -90,6 +94,14 @@ describe("composer textarea chrome", () => {
       required: ["KxTextarea", 'data-test="message-input"'],
       forbidden: [".message-input {", ".message-input:focus", ".message-input:disabled"]
     });
+  });
+
+  it("loads skills on mount so the command palette can activate discovered skills", async () => {
+    mountChatComposer();
+    await flushPromises();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_skills");
+    expect(mockedInvoke).toHaveBeenCalledWith("list_active_skills");
   });
 });
 
@@ -118,12 +130,17 @@ describe("composer metadata", () => {
 
     const footer = wrapper.find(".composer-footer");
     const meta = wrapper.find(".composer-meta");
+    const paletteContainer = wrapper.find(".palette-container");
     const inputRow = wrapper.find(".input-row");
     const contextPill = wrapper.find('[data-test="composer-context-meter-pill"]');
 
     expect(footer.exists()).toBe(true);
     expect(meta.exists()).toBe(true);
+    expect(paletteContainer.exists()).toBe(true);
     expect(contextPill.exists()).toBe(true);
+    expect(paletteContainer.element.compareDocumentPosition(inputRow.element)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
     expect(inputRow.element.compareDocumentPosition(footer.element)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
@@ -190,7 +207,6 @@ describe("approval policy selector", () => {
   });
 
   it("invokes set_session_approval_policy when an option is clicked", async () => {
-    mockedInvoke.mockResolvedValueOnce("always");
     const { wrapper, session } = mountChatComposer();
     session.approvalPolicy = "on_request";
     await wrapper.vm.$nextTick();
@@ -240,7 +256,6 @@ describe("sandbox policy selector", () => {
 
   it("invokes set_session_sandbox_policy with canonical JSON when an option is clicked", async () => {
     const targetJson = '{"kind":"read_only"}';
-    mockedInvoke.mockResolvedValueOnce(targetJson);
     const { wrapper, session } = mountChatComposer();
     session.sandboxPolicy = '{"kind":"workspace_write","network_access":false,"writable_roots":[]}';
     await wrapper.vm.$nextTick();

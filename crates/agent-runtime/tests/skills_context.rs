@@ -9,6 +9,7 @@ use agent_core::{
 };
 use agent_memory::{ContextAssembler, ContextRequest};
 use agent_models::types::ServerTool;
+use agent_models::FakeModelClient;
 use agent_runtime::LocalRuntime;
 use agent_skills::{FileSkillRegistry, SkillRoot, SkillSourceKind};
 use agent_store::SqliteEventStore;
@@ -114,6 +115,84 @@ async fn send_message_includes_active_skill_block_in_model_request() {
         .expect("manual skill activation should succeed");
 
     runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "review this patch".into(),
+            attachments: vec![],
+        })
+        .await
+        .expect("send_message should complete");
+
+    let requests = captured_requests.lock().await;
+    let request = requests
+        .first()
+        .expect("model should receive one request after send_message");
+    let request_text = std::iter::once(request.system_prompt.as_deref().unwrap_or_default())
+        .chain(
+            request
+                .messages
+                .iter()
+                .map(|message| message.content.as_str()),
+        )
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(request_text.contains("<active_skills>"));
+    assert!(request_text.contains("<skill name=\"code-review\" source=\"workspace\">"));
+    assert!(request_text.contains("Always inspect error handling before approving code."));
+    assert!(request_text.contains("</active_skills>"));
+}
+
+#[tokio::test]
+async fn recreated_runtime_injects_active_skills_from_events_without_listing_first() {
+    let skill_root = tempfile::tempdir().expect("skill root should be created");
+    write_test_skill(
+        skill_root.path(),
+        "code-review",
+        "Review code changes",
+        "Always inspect error handling before approving code.",
+    );
+    let registry = Arc::new(
+        FileSkillRegistry::discover(vec![SkillRoot::new(
+            SkillSourceKind::Workspace,
+            skill_root.path(),
+        )])
+        .await
+        .expect("skill registry should discover test skill"),
+    );
+    let store = SqliteEventStore::in_memory()
+        .await
+        .expect("in-memory event store");
+    let runtime = LocalRuntime::new(store.clone(), FakeModelClient::new(vec!["ok".into()]))
+        .with_skill_registry(registry.clone());
+
+    let workspace = runtime
+        .open_workspace(".".into())
+        .await
+        .expect("workspace should open");
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fake".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .expect("session should start");
+    runtime
+        .activate_skill(ActivateSkillRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            session_id: session_id.clone(),
+            skill_id: "code-review".into(),
+        })
+        .await
+        .expect("manual skill activation should succeed");
+
+    let captured_requests = Arc::new(AsyncMutex::new(Vec::new()));
+    let model = RecordingModelClient::new(captured_requests.clone());
+    let restored_runtime = LocalRuntime::new(store, model).with_skill_registry(registry);
+    restored_runtime
         .send_message(SendMessageRequest {
             workspace_id: workspace.workspace_id,
             session_id,

@@ -24,14 +24,31 @@ vi.mock("@/stores/session", () => ({
 
 vi.mock("@/stores/skills", () => ({
   useSkillsStore: () => ({
-    activeSkills: [
+    skills: [
       {
-        skill_id: "code-review",
+        id: "code-review",
         name: "Code Review",
+        description: "Review code changes",
         source: "project",
-        activation_mode: "manual"
+        activation_mode: "manual",
+        keywords: [],
+        tools: [],
+        can_request_tools: [],
+        valid: true,
+        validation_error: null
       },
-      { skill_id: "test-gen", name: "Test Generator", source: "project", activation_mode: "manual" }
+      {
+        id: "test-gen",
+        name: "Test Generator",
+        description: "Generate tests",
+        source: "project",
+        activation_mode: "manual",
+        keywords: [],
+        tools: [],
+        can_request_tools: [],
+        valid: true,
+        validation_error: null
+      }
     ]
   })
 }));
@@ -67,7 +84,7 @@ describe("useCommandRegistry", () => {
       ]);
     });
 
-    it("returns skills in allItems", () => {
+    it("returns discovered skills in allItems before they are active", () => {
       const registry = useCommandRegistry();
       registry.setFilter("");
       const items = registry.allItems();

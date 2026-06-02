@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { installTauriMock } from "./helpers/tauriMock";
 
 // R4-B: the primary in-workbench ContextMeter ring was demoted to the
-// secondary ContextMeterPill mounted in WorkbenchView. The compaction
+// secondary ContextMeterPill mounted in the ChatComposer footer. The compaction
 // signal itself now lives inline in the chat stream
 // (`ChatCompactionItem`, PRs #471-#477). These selectors target the pill
 // trigger; the popover content selectors (`context-meter-popover`,
@@ -20,7 +20,8 @@ test.describe("ContextMeterPill (P3)", () => {
   });
 
   test("renders the pill after the first message", async ({ page }) => {
-    await expect(page.locator('[data-test="workbench-context-meter-pill"]')).toBeVisible();
+    await expect(page.locator('[data-test="workbench-context-meter-pill"]')).toHaveCount(0);
+    await expect(page.locator('[data-test="composer-context-meter-pill"]')).toBeVisible();
     await expect(page.locator('[data-test="context-meter-pill-trigger"]')).toBeVisible();
     await expect(page.locator('[data-test="context-meter-pill-pct"]')).toContainText("%");
   });
