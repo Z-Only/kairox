@@ -315,13 +315,16 @@ describe("model reasoning selector", () => {
     await wrapper.vm.$nextTick();
 
     const trigger = wrapper.find('[data-test="chat-model-trigger"]');
-    expect(trigger.text()).toContain("Anthropic · Claude Sonnet 4 20250514 · low");
+    expect(trigger.text()).toContain("Anthropic · Claude Sonnet 4 20250514");
+    expect(trigger.text()).not.toContain("· low");
 
     await trigger.trigger("click");
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
-    expect(wrapper.find('[data-test="chat-reasoning-option-low"]').classes()).toContain("selected");
+    expect(wrapper.find('[data-test="chat-reasoning-option-low"]').classes()).not.toContain(
+      "selected"
+    );
   });
 
   it("hides reasoning levels when hovering a non-reasoning model", async () => {

@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import {
-  DEFAULT_REASONING_EFFORT,
-  DEFAULT_REASONING_EFFORTS,
-  formatProfileDisplay
-} from "@/stores/session";
+import { DEFAULT_REASONING_EFFORTS, formatProfileDisplay } from "@/stores/session";
 import type { ProfileInfo } from "@/types";
 
 const props = defineProps<{
@@ -48,9 +44,7 @@ const reasoningModel = computed(() => {
   return current?.supports_reasoning ? current : null;
 });
 
-const activeReasoningEffort = computed(
-  () => props.currentReasoningEffort ?? DEFAULT_REASONING_EFFORT
-);
+const activeReasoningEffort = computed(() => props.currentReasoningEffort);
 
 const reasoningOptions = computed(() => {
   const options: string[] = [...DEFAULT_REASONING_EFFORTS];
@@ -202,8 +196,9 @@ watch(
                 'kx-popover-option',
                 'chat-reasoning-option',
                 {
-                  selected: effort === activeReasoningEffort,
-                  'kx-popover-option--selected': effort === activeReasoningEffort
+                  selected: activeReasoningEffort && effort === activeReasoningEffort,
+                  'kx-popover-option--selected':
+                    activeReasoningEffort && effort === activeReasoningEffort
                 }
               ]"
               :data-test="`chat-reasoning-option-${effort}`"

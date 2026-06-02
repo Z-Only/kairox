@@ -80,6 +80,19 @@ describe("ChatModelSelector", () => {
     expect(wrapper.emitted("selectModel")).toEqual([["smart", "high"]]);
   });
 
+  it("does not select a default reasoning effort when none is set", async () => {
+    const wrapper = mountSelector({
+      currentProfile: "smart",
+      currentReasoningEffort: null
+    });
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+
+    expect(wrapper.find('[data-test="chat-reasoning-panel"]').exists()).toBe(true);
+    expect(wrapper.findAll(".chat-reasoning-option.selected")).toHaveLength(0);
+    expect(wrapper.findAll(".chat-reasoning-option.kx-popover-option--selected")).toHaveLength(0);
+  });
+
   it("renders reasoning controls in a separate anchored card beside the model list", async () => {
     const wrapper = mountSelector();
 

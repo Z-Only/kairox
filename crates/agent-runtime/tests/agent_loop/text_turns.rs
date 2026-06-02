@@ -6,6 +6,8 @@ use agent_runtime::LocalRuntime;
 use agent_store::SqliteEventStore;
 use async_trait::async_trait;
 use futures::{stream, stream::BoxStream};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 struct EarlyUsageThenTextModel;
@@ -34,6 +36,25 @@ impl ModelClient for EarlyUsageThenTextModel {
                     cache_read_input_tokens: None,
                 }),
             }),
+        ])))
+    }
+}
+
+#[derive(Clone)]
+struct RecordingTextModel {
+    requests: Arc<Mutex<Vec<ModelRequest>>>,
+}
+
+#[async_trait]
+impl ModelClient for RecordingTextModel {
+    async fn stream(
+        &self,
+        request: ModelRequest,
+    ) -> agent_models::Result<BoxStream<'static, agent_models::Result<ModelEvent>>> {
+        self.requests.lock().await.push(request);
+        Ok(Box::pin(stream::iter(vec![
+            Ok(ModelEvent::TokenDelta("reply".into())),
+            Ok(ModelEvent::Completed { usage: None }),
         ])))
     }
 }
@@ -82,6 +103,75 @@ async fn agent_loop_stops_when_no_tool_calls() {
     assert_eq!(projection.messages.len(), 2);
     assert_eq!(projection.messages[0].content, "hello");
     assert_eq!(projection.messages[1].content, "Just a text response");
+}
+
+#[tokio::test]
+async fn reasoning_capable_profile_does_not_default_effort() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let mut config = agent_config::Config::defaults();
+    config.profiles.push((
+        "ali-mo-claude".into(),
+        agent_config::ProfileDef {
+            provider: "ali-mo".into(),
+            model_id: "claude-opus-4-6".into(),
+            base_url: Some("https://example.invalid".into()),
+            api_key: Some("test-key".into()),
+            api_key_env: None,
+            context_window: Some(200_000),
+            output_limit: Some(32_000),
+            response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            client_identity: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
+            server_tool_code_execution: None,
+            server_tool_web_search: None,
+            enabled: true,
+        },
+    ));
+    let runtime = LocalRuntime::new(
+        store,
+        RecordingTextModel {
+            requests: requests.clone(),
+        },
+    )
+    .with_config(Arc::new(config));
+
+    let workspace = runtime
+        .open_workspace("/tmp/test-no-default-reasoning".into())
+        .await
+        .unwrap();
+    let session_id = runtime
+        .start_session(StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "ali-mo-claude".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        })
+        .await
+        .unwrap();
+
+    runtime
+        .send_message(SendMessageRequest {
+            workspace_id: workspace.workspace_id,
+            session_id,
+            content: "hello".into(),
+            attachments: vec![],
+        })
+        .await
+        .unwrap();
+
+    let requests = requests.lock().await;
+    let request = requests.first().expect("model should be called");
+    assert_eq!(request.model_profile, "ali-mo-claude");
+    assert_eq!(request.reasoning_effort, None);
 }
 
 #[tokio::test]

@@ -33,7 +33,6 @@ import {
   type SessionActionDeps
 } from "@/stores/sessionActions";
 
-export const DEFAULT_REASONING_EFFORT = "low";
 export const DEFAULT_REASONING_EFFORTS = ["low", "middle", "high", "xhigh"] as const;
 const LAST_WORKBENCH_STATE_KEY = "kairox.last-workbench-state";
 
@@ -286,16 +285,20 @@ export const useSessionStore = defineStore("session", () => {
     profileInfos.value.find((profile) => profile.alias === currentProfile.value)
   );
 
+  const sortedProfileInfos = computed(() =>
+    [...profileInfos.value].sort((a, b) => a.alias.localeCompare(b.alias))
+  );
+
   const activeProfileDisplay = computed(() => {
     const profile = activeProfileInfo.value;
     if (!profile) {
-      const firstProfile = profileInfos.value[0];
+      const firstProfile = sortedProfileInfos.value[0];
       if (firstProfile) return formatProfileDisplay(firstProfile);
       return currentProfile.value;
     }
     const display = formatProfileDisplay(profile);
     if (!profile.supports_reasoning) return display;
-    return `${display} · ${currentReasoningEffort.value ?? DEFAULT_REASONING_EFFORT}`;
+    return currentReasoningEffort.value ? `${display} · ${currentReasoningEffort.value}` : display;
   });
 
   // ── actions ──────────────────────────────────────────────────────
