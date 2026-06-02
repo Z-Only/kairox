@@ -385,6 +385,40 @@ describe("trace store", () => {
       );
       expect(trace.entries[0].status).toBe("failed");
     });
+
+    it("PermissionDenied fails the same-id model tool-call entry", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelToolCallRequested",
+          tool_call_id: "toolu-deny-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionRequested",
+          request_id: "toolu-deny-1",
+          tool_id: "shell.exec",
+          preview: 'shell.exec({"command":"touch denied.txt"})'
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionDenied",
+          request_id: "toolu-deny-1",
+          reason: "denied by user"
+        })
+      );
+
+      const tool = trace.entries.find((entry) => entry.kind === "tool");
+      const permission = trace.entries.find((entry) => entry.kind === "permission");
+      expect(tool?.id).toBe("tool-toolu-deny-1");
+      expect(tool?.status).toBe("failed");
+      expect(tool?.outputPreview).toBe("denied by user");
+      expect(permission?.status).toBe("failed");
+    });
   });
 
   // -----------------------------------------------------------

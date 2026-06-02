@@ -197,6 +197,13 @@ export const useTraceStore = defineStore("trace", () => {
       case "PermissionDenied": {
         updateEntry(p.request_id, {
           status: "failed",
+          reason: p.reason,
+          rawEvent: rawJson(event)
+        });
+        updateEntry(toolEntryId(p.request_id), {
+          status: "failed",
+          outputPreview: p.reason,
+          reason: p.reason,
           rawEvent: rawJson(event)
         });
         break;
