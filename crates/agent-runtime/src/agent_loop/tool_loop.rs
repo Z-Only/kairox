@@ -13,6 +13,7 @@ use agent_tools::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 
 /// Result of executing a batch of tool calls.
 pub(crate) struct ToolLoopResult {
@@ -42,6 +43,7 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
     root_task_id: &TaskId,
     config: &agent_config::Config,
     root_path: Option<&std::path::Path>,
+    turn_cancellation: &CancellationToken,
 ) -> agent_core::Result<ToolLoopResult> {
     let mut tool_results: Vec<(String, String)> = Vec::new();
 
@@ -172,7 +174,15 @@ pub(crate) async fn execute_tool_calls<S: EventStore + 'static>(
             append_and_broadcast(&**store, event_tx, &start_event).await?;
 
             let result = match tool {
-                Some(tool) => tool.invoke(invocation).await,
+                Some(tool) => {
+                    tokio::select! {
+                        biased;
+                        _ = turn_cancellation.cancelled() => {
+                            Err(ToolError::ExecutionFailed("cancelled by user".into()))
+                        }
+                        result = tool.invoke(invocation) => result,
+                    }
+                }
                 None => Err(ToolError::NotFound(tc.name.clone())),
             };
 

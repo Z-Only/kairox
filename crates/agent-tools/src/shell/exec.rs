@@ -100,7 +100,8 @@ impl Tool for ShellExecTool {
         cmd.args(&args)
             .current_dir(&self.workspace_root)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
 
         apply_sandbox_env(&mut cmd);
 

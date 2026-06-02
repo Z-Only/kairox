@@ -166,6 +166,29 @@ async fn shell_exec_timeout_returns_error() {
 }
 
 #[tokio::test]
+async fn dropping_shell_exec_future_kills_child_process() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join("should_not_exist.txt");
+    let command = format!(
+        "sh -lc 'sleep 1; printf SHOULD_NOT_EXIST > {}'",
+        marker.display()
+    );
+    let tool = ShellExecTool::new(dir.path().to_path_buf());
+    let invocation = make_invocation_with_timeout(&command, 5_000);
+
+    let task = tokio::spawn(async move { tool.invoke(invocation).await });
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    task.abort();
+    let _ = task.await;
+    tokio::time::sleep(Duration::from_millis(1_200)).await;
+
+    assert!(
+        !marker.exists(),
+        "aborting shell.exec should kill the child before it writes the marker"
+    );
+}
+
+#[tokio::test]
 async fn shell_exec_empty_command_returns_error() {
     let dir = tempfile::tempdir().unwrap();
     let tool = ShellExecTool::new(dir.path().to_path_buf());

@@ -319,6 +319,7 @@ where
             &root_task_id,
             deps.config,
             deps.root_path.as_deref(),
+            &cancel_token,
         )
         .await?;
 
