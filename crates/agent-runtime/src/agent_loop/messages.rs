@@ -1,5 +1,7 @@
 use agent_core::{DomainEvent, EventPayload};
 
+const CANCELLED_TURN_ASSISTANT_MESSAGE: &str = "[The previous response was cancelled by the user. Do not continue or answer that cancelled request unless the user explicitly asks.]";
+
 fn flush_pending_tool_calls(
     messages: &mut Vec<agent_models::ModelMessage>,
     pending_tool_calls: &mut Vec<agent_models::ToolCall>,
@@ -14,6 +16,31 @@ fn flush_pending_tool_calls(
         tool_calls: std::mem::take(pending_tool_calls),
         tool_call_id: None,
     });
+}
+
+fn close_cancelled_turn(
+    messages: &mut Vec<agent_models::ModelMessage>,
+    pending_tool_calls: &mut Vec<agent_models::ToolCall>,
+) {
+    pending_tool_calls.clear();
+    while messages
+        .last()
+        .is_some_and(|m| m.role == "assistant" && !m.tool_calls.is_empty())
+    {
+        messages.pop();
+    }
+
+    let should_close_turn = messages
+        .last()
+        .is_some_and(|message| message.role != "assistant");
+    if should_close_turn {
+        messages.push(agent_models::ModelMessage {
+            role: "assistant".into(),
+            content: CANCELLED_TURN_ASSISTANT_MESSAGE.into(),
+            tool_calls: Vec::new(),
+            tool_call_id: None,
+        });
+    }
 }
 
 pub fn build_model_messages(
@@ -137,6 +164,9 @@ pub fn build_model_messages(
                     tool_calls: Vec::new(),
                     tool_call_id: Some(request_id.clone()),
                 });
+            }
+            EventPayload::SessionCancelled { .. } => {
+                close_cancelled_turn(&mut messages, &mut pending_tool_calls);
             }
             _ => {}
         }

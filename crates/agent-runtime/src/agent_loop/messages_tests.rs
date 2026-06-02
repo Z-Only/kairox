@@ -230,3 +230,73 @@ fn build_model_messages_replays_permission_denial_as_tool_result() {
     assert_eq!(messages[4].role, "user");
     assert_eq!(messages[4].content, "try workspace write");
 }
+
+#[test]
+fn build_model_messages_closes_cancelled_turn_before_next_user_message() {
+    let base = chrono::Utc::now();
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let make_at = |payload: EventPayload, secs: i64| -> DomainEvent {
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+        .with_timestamp(base + chrono::Duration::seconds(secs))
+    };
+
+    let events = vec![
+        make_at(
+            EventPayload::UserMessageAdded {
+                message_id: "u0".into(),
+                content: "write a very long numbered list".into(),
+            },
+            0,
+        ),
+        make_at(
+            EventPayload::ModelTokenDelta {
+                delta: "partial answer".into(),
+            },
+            1,
+        ),
+        make_at(
+            EventPayload::SessionCancelled {
+                reason: "user requested cancellation".into(),
+            },
+            2,
+        ),
+        make_at(
+            EventPayload::AgentTaskFailed {
+                task_id: agent_core::TaskId::new(),
+                error: "cancelled by user".into(),
+            },
+            3,
+        ),
+        make_at(
+            EventPayload::UserMessageAdded {
+                message_id: "u1".into(),
+                content: "AFTER-CANCEL-OK".into(),
+            },
+            4,
+        ),
+    ];
+
+    let messages = build_model_messages("AFTER-CANCEL-OK", &events);
+
+    assert_eq!(
+        messages
+            .iter()
+            .map(|message| message.role.as_str())
+            .collect::<Vec<_>>(),
+        vec!["user", "assistant", "user"],
+        "{messages:#?}"
+    );
+    assert_eq!(messages[0].content, "write a very long numbered list");
+    assert!(
+        messages[1].content.contains("cancelled by the user"),
+        "{messages:#?}"
+    );
+    assert_eq!(messages[2].content, "AFTER-CANCEL-OK");
+}
