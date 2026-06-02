@@ -37,11 +37,12 @@ base64 = "0.22"
 futures.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml = { workspace = true }
 toml_edit = { version = "0.25", features = ["serde"] }
 reqwest.workspace = true
 specta = "=2.0.0-rc.25"
 specta-typescript = "0.0.12"
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset", "devtools"] }
 tauri-plugin-dialog = "2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 tokio = { workspace = true, features = [
@@ -56,6 +57,9 @@ tauri-plugin-pilot = { git = "https://github.com/mpiton/tauri-pilot", tag = "v0.
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [features]
 pilot = ["dep:tauri-plugin-pilot"]

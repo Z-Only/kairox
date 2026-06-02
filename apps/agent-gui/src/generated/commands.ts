@@ -11,6 +11,9 @@ export const commands = {
   refreshConfig: () => typedError<null, string>(__TAURI_INVOKE("refresh_config")),
   refreshConfigForProject: (projectRoot: string) =>
     typedError<null, string>(__TAURI_INVOKE("refresh_config_for_project", { projectRoot })),
+  getGuiSettings: () => typedError<GuiSettingsView, string>(__TAURI_INVOKE("get_gui_settings")),
+  setGuiDevtoolsEnabled: (enabled: boolean) =>
+    typedError<GuiSettingsView, string>(__TAURI_INVOKE("set_gui_devtools_enabled", { enabled })),
   initializeWorkspace: () =>
     typedError<WorkspaceInfoResponse, string>(__TAURI_INVOKE("initialize_workspace")),
   startSession: (profile: string) =>
@@ -759,6 +762,12 @@ export type EventPayload =
       step_count: number;
       outcome: TrajectoryOutcome;
     };
+
+export type GuiSettingsView = {
+  devtools_enabled: boolean;
+  default_devtools_enabled: boolean;
+  requires_restart: boolean;
+};
 
 export type HookSettingsInput = {
   scope: ConfigScope;

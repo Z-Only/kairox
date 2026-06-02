@@ -7,6 +7,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useStorage, usePreferredDark } from "@vueuse/core";
+import { commands, type GuiSettingsView } from "@/generated/commands";
 
 export type NotificationLevel = "info" | "success" | "warning" | "error";
 export interface NotificationItem {
@@ -24,6 +25,29 @@ export interface ToastItem {
   message: string;
   type: NotificationLevel;
   duration: number;
+}
+
+type CommandResult<T> = { status: "ok"; data: T } | { status: "error"; error: string };
+
+function isCommandResult<T>(value: unknown): value is CommandResult<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    ((value as { status: unknown }).status === "ok" ||
+      (value as { status: unknown }).status === "error")
+  );
+}
+
+async function unwrapCommandResult<T>(resultPromise: Promise<T | CommandResult<T>>): Promise<T> {
+  const result = await resultPromise;
+  if (!isCommandResult<T>(result)) return result;
+  if (result.status === "ok") return result.data;
+  throw new Error(result.error);
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export const useUiStore = defineStore("ui", () => {
@@ -71,6 +95,44 @@ export const useUiStore = defineStore("ui", () => {
 
   function setLocale(next: SupportedLocale) {
     locale.value = next;
+  }
+
+  // ── GUI settings ───────────────────────────────────────
+  const devtoolsEnabled = ref(false);
+  const devtoolsDefaultEnabled = ref(false);
+  const devtoolsRequiresRestart = ref(false);
+  const guiSettingsLoading = ref(false);
+  const guiSettingsError = ref<string | null>(null);
+
+  function applyGuiSettings(settings: GuiSettingsView): void {
+    devtoolsEnabled.value = settings.devtools_enabled;
+    devtoolsDefaultEnabled.value = settings.default_devtools_enabled;
+    devtoolsRequiresRestart.value = settings.requires_restart;
+  }
+
+  async function loadGuiSettings(): Promise<void> {
+    guiSettingsLoading.value = true;
+    guiSettingsError.value = null;
+    try {
+      applyGuiSettings(await unwrapCommandResult(commands.getGuiSettings()));
+    } catch (error) {
+      guiSettingsError.value = formatError(error);
+    } finally {
+      guiSettingsLoading.value = false;
+    }
+  }
+
+  async function setDevtoolsEnabled(enabled: boolean): Promise<void> {
+    const previous = devtoolsEnabled.value;
+    devtoolsEnabled.value = enabled;
+    guiSettingsError.value = null;
+    try {
+      applyGuiSettings(await unwrapCommandResult(commands.setGuiDevtoolsEnabled(enabled)));
+    } catch (error) {
+      devtoolsEnabled.value = previous;
+      guiSettingsError.value = formatError(error);
+      throw error;
+    }
   }
 
   // ── Sidebar (future-proof) ──────────────────────────────
@@ -161,6 +223,13 @@ export const useUiStore = defineStore("ui", () => {
     setTheme,
     locale,
     setLocale,
+    devtoolsEnabled,
+    devtoolsDefaultEnabled,
+    devtoolsRequiresRestart,
+    guiSettingsLoading,
+    guiSettingsError,
+    loadGuiSettings,
+    setDevtoolsEnabled,
     sidebarCollapsed,
     leftSidebarCollapsed,
     rightSidebarCollapsed,

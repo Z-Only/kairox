@@ -22,6 +22,7 @@ pub struct GuiState {
     pub forwarder_handle: Mutex<Option<JoinHandle<()>>>,
     pub profiles_config_path: Option<std::path::PathBuf>,
     pub home_dir: std::path::PathBuf,
+    pub devtools_enabled_at_startup: bool,
 }
 
 impl GuiState {
@@ -39,6 +40,7 @@ impl GuiState {
             forwarder_handle: Mutex::new(None),
             profiles_config_path: None,
             home_dir: std::path::PathBuf::from("."),
+            devtools_enabled_at_startup: false,
         }
     }
 

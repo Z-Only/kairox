@@ -20,7 +20,7 @@ use agent_core::facade::{
 use agent_core::{ActiveSkillView, ConfigScope, SkillDetail, SkillView};
 use agent_gui_tauri::commands::{
     AddCatalogSourceRequestPayload, BuildInfoResponse, CatalogQueryRequest,
-    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult,
+    CatalogSourceViewResponse, CheckMcpHealthResponse, ConnectivityTestResult, GuiSettingsView,
     InstallOutcomeResponse, InstallRequestPayload, InstalledEntryResponse, McpContentBlockResponse,
     McpPromptDefResponse, McpResourceDefResponse, McpServerStatusResponse, McpToolDefResponse,
     McpToolStatesResponse, MemoryEntryResponse, MonitorInfoResponse, ProfileDetailResponse,
@@ -48,6 +48,8 @@ fn main() {
             agent_gui_tauri::commands::get_profile_info,
             agent_gui_tauri::commands::refresh_config,
             agent_gui_tauri::commands::refresh_config_for_project,
+            agent_gui_tauri::commands::get_gui_settings,
+            agent_gui_tauri::commands::set_gui_devtools_enabled,
             agent_gui_tauri::commands::initialize_workspace,
             agent_gui_tauri::commands::start_session,
             agent_gui_tauri::commands::send_message,
@@ -201,6 +203,7 @@ fn main() {
         .typ::<TaskSnapshotResponse>()
         .typ::<TraceExport>()
         .typ::<BuildInfoResponse>()
+        .typ::<GuiSettingsView>()
         .typ::<MonitorInfoResponse>()
         // Skill response types
         .typ::<SkillView>()
