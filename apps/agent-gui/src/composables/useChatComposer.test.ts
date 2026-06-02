@@ -422,6 +422,37 @@ describe("useChatComposer", () => {
     });
   });
 
+  it("refreshes current session metadata after a placeholder send succeeds", async () => {
+    const refreshCurrentSessionMetadata = vi.fn(async () => undefined);
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    (
+      session as ChatComposerSession & {
+        refreshCurrentSessionMetadata: (firstMessageContent?: string) => Promise<void>;
+      }
+    ).refreshCurrentSessionMetadata = refreshCurrentSessionMetadata;
+    const { composer, invokeFn } = createComposer({ session });
+    composer.inputText.value = "hello from project placeholder";
+
+    await composer.sendMessage();
+
+    expect(invokeFn).toHaveBeenCalledWith("send_message", {
+      content: "hello from project placeholder",
+      attachments: []
+    });
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledTimes(1);
+    expect(refreshCurrentSessionMetadata).toHaveBeenCalledWith("hello from project placeholder");
+    expect(refreshCurrentSessionMetadata.mock.invocationCallOrder[0]).toBeGreaterThan(
+      invokeFn.mock.invocationCallOrder[0]
+    );
+  });
+
   it("clears sent attachments after materializing a placeholder session", async () => {
     const session = createSession({
       currentSessionId: null,

@@ -295,6 +295,41 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  function updateSessionMetadata(
+    sessionId: string,
+    patch: Partial<Pick<SessionInfoResponse, "title" | "visibility">>
+  ): void {
+    let ordinaryChanged = false;
+    sessions.value = sessions.value.map((session) => {
+      if (session.id !== sessionId) return session;
+      ordinaryChanged = true;
+      return { ...session, ...patch };
+    });
+    if (ordinaryChanged) return;
+
+    const projectStore = useProjectStore();
+    let projectChanged = false;
+    const nextSessionsByProject = new Map(projectStore.sessionsByProject);
+    for (const [projectId, projectSessions] of nextSessionsByProject.entries()) {
+      const nextSessions = projectSessions.map((projectSession) => {
+        if (projectSession.sessionId !== sessionId) return projectSession;
+        projectChanged = true;
+        return {
+          ...projectSession,
+          title: patch.title ?? projectSession.title,
+          visibility: patch.visibility ?? projectSession.visibility
+        };
+      });
+      if (projectChanged) {
+        nextSessionsByProject.set(projectId, nextSessions);
+        break;
+      }
+    }
+    if (projectChanged) {
+      projectStore.sessionsByProject = nextSessionsByProject;
+    }
+  }
+
   async function persistCurrentModelSelection(settings: PendingSessionSettings): Promise<void> {
     const sessionId = currentSessionId.value;
     if (!sessionId) {
@@ -599,6 +634,29 @@ export const useSessionStore = defineStore("session", () => {
     await applyPendingSessionSettings(settings);
   }
 
+  async function refreshCurrentSessionMetadata(firstMessageContent?: string): Promise<void> {
+    const sessionId = currentSessionId.value;
+    if (!sessionId) return;
+
+    if (firstMessageContent !== undefined) {
+      updateSessionMetadata(sessionId, {
+        title: temporaryTitleFromFirstMessage(firstMessageContent),
+        visibility: "visible"
+      });
+      return;
+    }
+
+    const target = findSessionInfo(sessionId);
+    if (target?.project_id) {
+      await useProjectStore().loadProjectSessions(target.project_id);
+      return;
+    }
+
+    if (target) {
+      sessions.value = await listOrdinarySessions();
+    }
+  }
+
   async function deleteSession(sessionId: string) {
     await deleteSessionImpl(sessionId, sessionActionDeps, switchSession);
   }
@@ -785,6 +843,7 @@ export const useSessionStore = defineStore("session", () => {
     startProjectDraftSession,
     setPendingProjectBranch,
     ensureSessionForSend,
+    refreshCurrentSessionMetadata,
     deleteSession,
     renameSession,
     initializeWorkspace,

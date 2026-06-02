@@ -8,7 +8,7 @@ import {
 } from "@/stores/session";
 import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
-import { useProjectStore } from "@/stores/project";
+import { useProjectStore, type ProjectSessionInfo } from "@/stores/project";
 import { traceState } from "@/composables/useTraceStore";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -709,6 +709,110 @@ describe("project session metadata", () => {
     await session.ensureSessionForSend();
     expect(createWorktree).toHaveBeenCalledWith("project-1", "feat/chat");
     expect(session.currentSessionId).toBe("wt-1");
+  });
+
+  it("refreshes current project session metadata from the project session list", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    const placeholder: ProjectSessionInfo = {
+      sessionId: "draft-1",
+      title: "New Session",
+      profile: "ali-mo-claude",
+      projectId: "project-1",
+      worktreePath: "/repo",
+      branch: "main",
+      visibility: "draft_hidden",
+      deletedAt: null,
+      approvalPolicy: "always",
+      sandboxPolicy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+    };
+    projectStore.sessionsByProject = new Map([["project-1", [placeholder]]]);
+    session.currentSessionId = "draft-1";
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "list_project_sessions") {
+        return Promise.resolve([
+          {
+            id: "draft-1",
+            title: "请严格按顺序调用工具验证工作区写入",
+            profile: "ali-mo-claude",
+            project_id: "project-1",
+            worktree_path: "/repo",
+            branch: "main",
+            visibility: "visible",
+            deleted_at: null,
+            approval_policy: "always",
+            sandbox_policy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+
+    await (
+      session as typeof session & {
+        refreshCurrentSessionMetadata: () => Promise<void>;
+      }
+    ).refreshCurrentSessionMetadata();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_project_sessions", {
+      projectId: "project-1"
+    });
+    expect(projectStore.sessionsByProject.get("project-1")?.[0].title).toBe(
+      "请严格按顺序调用工具验证工作区写入"
+    );
+    expect(session.currentSessionInfo?.title).toBe("请严格按顺序调用工具验证工作区写入");
+  });
+
+  it("optimistically titles a materialized project session from the first message", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.sessionsByProject = new Map([
+      [
+        "project-1",
+        [
+          {
+            sessionId: "draft-1",
+            title: "New Session",
+            profile: "ali-mo-claude",
+            projectId: "project-1",
+            worktreePath: "/repo",
+            branch: "main",
+            visibility: "draft_hidden",
+            deletedAt: null,
+            approvalPolicy: "always",
+            sandboxPolicy: '{"kind":"workspace_write","network_access":false,"writable_roots":[]}'
+          }
+        ]
+      ]
+    ]);
+    session.currentSessionId = "draft-1";
+
+    await session.refreshCurrentSessionMetadata(
+      "请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。"
+    );
+
+    const updated = projectStore.sessionsByProject.get("project-1")?.[0];
+    expect(updated?.title).toBe("请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。");
+    expect(updated?.visibility).toBe("visible");
+    expect(session.currentSessionInfo?.title).toBe(
+      "请不要调用工具，直接用中文回复 TITLE-REFRESH-9B2C-PASS。"
+    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith("list_project_sessions", {
+      projectId: "project-1"
+    });
   });
 
   it("applies pending model and policy selections when materializing a project session", async () => {
