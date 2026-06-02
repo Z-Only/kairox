@@ -113,6 +113,21 @@ where
     }
 }
 
+impl<S> LocalRuntime<S, agent_models::ModelRouter>
+where
+    S: EventStore + 'static,
+{
+    /// Rebuild the live router from refreshed model profile config.
+    ///
+    /// `update_config` refreshes the runtime's config snapshot, but GUI and
+    /// TUI runtimes also keep a `ModelRouter` instance for request routing.
+    /// Without replacing the router, newly added profiles are visible in
+    /// settings and switch-model validation but still fail at send time.
+    pub fn refresh_model_router_from_config(&self, config: &agent_config::Config) {
+        self.model.replace_with(config.build_router());
+    }
+}
+
 impl<S> SwitchModelOperation<S>
 where
     S: EventStore + 'static,

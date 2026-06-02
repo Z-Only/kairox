@@ -520,6 +520,13 @@ export const useSessionStore = defineStore("session", () => {
   async function startProjectDraftSession(projectId: string): Promise<void> {
     resetForPendingDraft({ kind: "project", projectId, branch: null });
     const projectStore = useProjectStore();
+    if (!projectStore.projects.some((project) => project.projectId === projectId)) {
+      try {
+        await projectStore.loadProjects();
+      } catch (error) {
+        console.error("Failed to load project metadata:", error);
+      }
+    }
     await projectStore.refreshProjectConfig(projectId);
     selectAvailableDraftProfile();
     try {

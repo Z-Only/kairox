@@ -428,7 +428,7 @@ fn trace_event(entry: TraceEntry) -> DomainEvent {
 /// workspace; callers can override via `options.fake_tool_id` and
 /// `options.fake_tool_arguments`.
 fn install_fake_tool_call(router: &mut ModelRouter, options: &EvalRunOptions) -> Result<()> {
-    let profile = router.get_profile("fake").cloned().ok_or_else(|| {
+    let profile = router.get_profile("fake").ok_or_else(|| {
         EvalError::Cli(
             "--fake-emit-tool-call requested but the loaded config has no `fake` profile"
                 .to_string(),

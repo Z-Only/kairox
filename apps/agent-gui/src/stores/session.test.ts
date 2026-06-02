@@ -372,6 +372,50 @@ describe("project session metadata", () => {
     });
   });
 
+  it("loads project metadata before opening a project placeholder from an empty project store", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    projectStore.projects = [];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "list_projects") {
+        return Promise.resolve([
+          {
+            project_id: "project-1",
+            display_name: "Demo",
+            root_path: "/repo",
+            removed_at: null,
+            sort_order: 0,
+            expanded: true,
+            path_exists: true
+          }
+        ]);
+      }
+      if (command === "refresh_config_for_project") {
+        return Promise.resolve(null);
+      }
+      if (command === "get_profile_info") {
+        return Promise.resolve([]);
+      }
+      if (command === "get_project_git_status") {
+        return Promise.resolve({
+          kind: "clean",
+          branch: "main",
+          worktree_path: "/repo",
+          message: null
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_projects");
+    expect(projectStore.projects[0]?.displayName).toBe("Demo");
+    expect(session.currentSessionInfo?.project_id).toBe("project-1");
+    expect(session.currentSessionInfo?.worktree_path).toBe("/repo");
+    expect(session.currentSessionInfo?.branch).toBe("main");
+  });
+
   it("recovers a persisted project placeholder and keeps its draft key", async () => {
     localStorage.setItem(
       "kairox.last-workbench-state",
