@@ -208,6 +208,18 @@ describe("ChatPanel", () => {
     });
   });
 
+  it("keeps assistant replies inside the central chat column without horizontal clipping", () => {
+    expectSourceMigration(chatPanelSource, {
+      requiredPatterns: [
+        /\.message-list\s*\{[\s\S]*overflow-x:\s*hidden/,
+        /\.message-list-inner\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.chat-stream-item\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.message\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%/,
+        /\.message\s+:deep\(\.message-content\)\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*min\(760px,\s*100%\)/
+      ]
+    });
+  });
+
   it("opens a model selector from the composer badge and marks the current model", async () => {
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "get_profile_info") {

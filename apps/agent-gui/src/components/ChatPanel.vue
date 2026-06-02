@@ -560,6 +560,7 @@ watch(
 .message-list {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   position: relative;
   background:
@@ -619,10 +620,21 @@ watch(
   opacity: 0.7;
 }
 .message-list-inner {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   padding: 14px 16px;
 }
+.chat-stream-item {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
 .message {
+  box-sizing: border-box;
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -637,11 +649,13 @@ watch(
   max-width: min(920px, 100%);
 }
 .message :deep(.message-content) {
-  max-width: min(760px, 82%);
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: min(760px, 100%);
   border-radius: var(--app-radius-xl);
   padding: 10px 12px;
   white-space: pre-wrap;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 .message-user {
   justify-content: flex-end;
