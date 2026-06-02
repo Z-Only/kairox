@@ -114,6 +114,10 @@ export function useChatComposer(options: UseChatComposerOptions) {
   watch(
     currentDraftKey,
     async (newId, oldId) => {
+      if (oldId !== undefined) {
+        queuedMessages.value = [];
+        sendingQueuedId.value = null;
+      }
       const inputBeforeLoad = inputText.value;
       if (oldId && inputText.value.trim()) {
         await draftStore.saveDraft(oldId, inputText.value);
@@ -131,10 +135,6 @@ export function useChatComposer(options: UseChatComposerOptions) {
         }
       } else if (inputText.value === inputBeforeLoad) {
         inputText.value = "";
-      }
-      if (oldId !== undefined && currentDraftKey() === newId) {
-        queuedMessages.value = [];
-        sendingQueuedId.value = null;
       }
     },
     { immediate: true }

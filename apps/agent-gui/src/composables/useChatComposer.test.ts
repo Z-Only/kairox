@@ -422,6 +422,57 @@ describe("useChatComposer", () => {
     });
   });
 
+  it("preserves queued messages when materialized draft loading finishes late", async () => {
+    let resolveMaterializedDraft!: (value: string) => void;
+    const materializedDraft = new Promise<string>((resolve) => {
+      resolveMaterializedDraft = resolve;
+    });
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:ordinary",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = "ses_new";
+      })
+    });
+    const draftStore = {
+      loadDraft: vi.fn((sessionId: string) =>
+        sessionId === "ses_new" ? materializedDraft : Promise.resolve("")
+      ),
+      saveDraft: vi.fn(async () => undefined),
+      clearDraft: vi.fn(async () => undefined)
+    };
+    const { composer, invokeFn } = createComposer({ session, draftStore });
+
+    composer.inputText.value = "first live message";
+    await composer.sendMessage();
+    session.isStreaming = true;
+    composer.inputText.value = "queued follow up";
+
+    await composer.sendMessage();
+
+    expect(composer.queuedMessages.value.map((message) => message.content)).toEqual([
+      "queued follow up"
+    ]);
+
+    resolveMaterializedDraft("");
+    await vi.runAllTimersAsync();
+
+    expect(composer.queuedMessages.value.map((message) => message.content)).toEqual([
+      "queued follow up"
+    ]);
+
+    session.isStreaming = false;
+    await vi.runAllTimersAsync();
+
+    expect(invokeFn).toHaveBeenCalledTimes(2);
+    expect(invokeFn).toHaveBeenLastCalledWith("send_message", {
+      content: "queued follow up",
+      attachments: []
+    });
+    expect(composer.queuedMessages.value).toEqual([]);
+  });
+
   it("refreshes current session metadata after a placeholder send succeeds", async () => {
     const refreshCurrentSessionMetadata = vi.fn(async () => undefined);
     const session = createSession({
