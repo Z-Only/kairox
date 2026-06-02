@@ -70,7 +70,7 @@ function onModelHover(profile: ProfileInfo) {
 function onSelectReasoningEffort(effort: string) {
   const profile = reasoningModel.value;
   if (!profile) return;
-  emit("selectModel", profile.alias, effort);
+  selectModelProfile(profile.alias, effort);
 }
 
 function onApplyCustomReasoning() {
@@ -79,8 +79,13 @@ function onApplyCustomReasoning() {
   onSelectReasoningEffort(effort);
 }
 
-function selectModelProfile(alias: string) {
-  emit("selectModel", alias);
+function selectModelProfile(alias: string, reasoningEffort?: string) {
+  open.value = false;
+  if (reasoningEffort === undefined) {
+    emit("selectModel", alias);
+    return;
+  }
+  emit("selectModel", alias, reasoningEffort);
 }
 
 function setModelOptionEl(alias: string, el: unknown): void {

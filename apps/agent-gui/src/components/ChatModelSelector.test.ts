@@ -67,6 +67,15 @@ describe("ChatModelSelector", () => {
     expect(wrapper.emitted("selectModel")).toEqual([["fast"]]);
   });
 
+  it("requests the popover to close after selecting a concrete model option", async () => {
+    const wrapper = mountSelector({ currentProfile: "smart", open: true });
+
+    await wrapper.find('[data-test="chat-model-option-fast"]').trigger("click");
+
+    expect(wrapper.emitted("selectModel")).toEqual([["fast"]]);
+    expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
+  });
+
   it("emits the hovered reasoning model and built-in effort", async () => {
     const wrapper = mountSelector();
 
@@ -78,6 +87,16 @@ describe("ChatModelSelector", () => {
     await wrapper.find('[data-test="chat-reasoning-option-high"]').trigger("click");
 
     expect(wrapper.emitted("selectModel")).toEqual([["smart", "high"]]);
+  });
+
+  it("requests the popover to close after selecting a reasoning effort", async () => {
+    const wrapper = mountSelector({ open: true });
+
+    await wrapper.find('[data-test="chat-model-option-smart"]').trigger("focus");
+    await wrapper.find('[data-test="chat-reasoning-option-high"]').trigger("click");
+
+    expect(wrapper.emitted("selectModel")).toEqual([["smart", "high"]]);
+    expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
   });
 
   it("does not select a default reasoning effort when none is set", async () => {
