@@ -25,7 +25,7 @@ where
     /// Inject the loaded `Config` so the runtime can resolve `ModelLimits`
     /// per session. Called by every production wiring site after `Config::load()`.
     pub fn with_config(mut self, config: Arc<agent_config::Config>) -> Self {
-        self.config = config;
+        self.config = crate::facade_runtime::RuntimeConfig::from_arc(config);
         self
     }
 
@@ -56,8 +56,8 @@ where
         session_id: &SessionId,
         model_profile_alias: &str,
     ) {
-        let profile_def = self
-            .config
+        let config = self.config();
+        let profile_def = config
             .profiles
             .iter()
             .find(|(alias, _)| alias == model_profile_alias)
@@ -99,7 +99,7 @@ where
             store: self.store.clone(),
             event_tx: self.event_tx.clone(),
             session_states: self.session_states.clone(),
-            config: self.config.clone(),
+            config: self.config(),
             ollama_clients: self.ollama_clients.clone(),
         };
         let queued_session_id = session_id.clone();

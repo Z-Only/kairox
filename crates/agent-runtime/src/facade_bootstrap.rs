@@ -470,7 +470,7 @@ where
                 self.permission_engine.clone(),
                 self.pending_permissions.clone(),
                 self.memory_store.clone(),
-                self.config.clone(),
+                self.config(),
                 self.dag_config.clone(),
                 self.agent_settings_roots.clone(),
             )
@@ -491,7 +491,7 @@ where
                 self.permission_engine.clone(),
                 self.pending_permissions.clone(),
                 self.memory_store.clone(),
-                self.config.clone(),
+                self.config(),
                 config,
                 self.agent_settings_roots.clone(),
             )

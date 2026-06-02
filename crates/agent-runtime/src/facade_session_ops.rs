@@ -61,8 +61,9 @@ where
             }
         }
 
+        let config = self.config();
         crate::hooks::run_hooks_logged(
-            &self.config,
+            &config,
             agent_config::HookEvent::SessionStart,
             "*",
             None,

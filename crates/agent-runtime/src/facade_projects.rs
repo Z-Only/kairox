@@ -168,7 +168,7 @@ where
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
         self.start_lsp_servers(&crate::lsp_manager::file_uri_from_path(&project.root_path))
             .await;
-        let model_profile = self.config.default_profile();
+        let model_profile = self.config().default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,
@@ -217,7 +217,7 @@ where
             &worktree_path_string,
         ))
         .await;
-        let model_profile = self.config.default_profile();
+        let model_profile = self.config().default_profile();
         let session_id = crate::session::start_session(
             &*self.store,
             &self.event_tx,

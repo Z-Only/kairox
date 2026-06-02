@@ -37,8 +37,9 @@ where
                     .ok()
                     .map(|d| d.join(".kairox").join("config.toml"))
             });
+        let config = self.config();
         crate::profile_settings::list_profile_settings(
-            &self.config,
+            &config,
             profiles_toml_path.as_deref(),
             user_config_path.as_deref(),
             project_config_path.as_deref(),
@@ -75,13 +76,9 @@ where
                 "config dir not configured; cannot write profile settings".into(),
             )
         })?;
-        crate::profile_settings::set_profile_enabled_in_file(
-            &config_path,
-            &alias,
-            enabled,
-            &self.config,
-        )
-        .await
+        let config = self.config();
+        crate::profile_settings::set_profile_enabled_in_file(&config_path, &alias, enabled, &config)
+            .await
     }
 
     pub(crate) async fn delete_profile_settings(&self, alias: String) -> agent_core::Result<()> {

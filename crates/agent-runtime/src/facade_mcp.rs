@@ -44,8 +44,9 @@ where
                     .ok()
                     .map(|d| d.join(".kairox").join("config.toml"))
             });
+        let config = self.config();
         crate::mcp_settings::list_mcp_server_settings(
-            &self.config,
+            &config,
             user_config_path.as_deref(),
             project_config_path.as_deref(),
             source_filter.as_deref(),

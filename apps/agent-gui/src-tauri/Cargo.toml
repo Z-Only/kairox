@@ -59,6 +59,7 @@ tauri-plugin-pilot = { git = "https://github.com/mpiton/tauri-pilot", tag = "v0.
 tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
+async-trait.workspace = true
 tempfile.workspace = true
 
 [features]

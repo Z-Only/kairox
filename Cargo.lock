@@ -95,6 +95,7 @@ dependencies = [
  "agent-skills",
  "agent-store",
  "agent-tools",
+ "async-trait",
  "base64 0.22.1",
  "futures",
  "reqwest",

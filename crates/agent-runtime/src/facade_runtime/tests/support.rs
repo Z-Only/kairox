@@ -247,7 +247,7 @@ where
         runtime.permission_engine.clone(),
         runtime.pending_permissions.clone(),
         runtime.memory_store.clone(),
-        runtime.config.clone(),
+        runtime.config(),
         runtime.dag_config.clone(),
         runtime.agent_settings_roots.clone(),
     )
@@ -425,7 +425,7 @@ where
         runtime.permission_engine.clone(),
         runtime.pending_permissions.clone(),
         runtime.memory_store.clone(),
-        runtime.config.clone(),
+        runtime.config(),
         runtime.dag_config.clone(),
         runtime.agent_settings_roots.clone(),
     )
