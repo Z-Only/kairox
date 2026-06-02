@@ -636,7 +636,7 @@ watch(
   margin: 40px auto 28px;
   max-width: min(920px, 100%);
 }
-.message-content {
+.message :deep(.message-content) {
   max-width: min(760px, 82%);
   border-radius: var(--app-radius-xl);
   padding: 10px 12px;
@@ -646,7 +646,7 @@ watch(
 .message-user {
   justify-content: flex-end;
 }
-.message-user .message-content {
+.message-user :deep(.message-content) {
   color: var(--app-primary-contrast-color, #ffffff);
   background: var(--app-primary-color, #0077cc);
 }
@@ -657,15 +657,15 @@ watch(
 .message-system {
   justify-content: flex-start;
 }
-.message-assistant .message-content,
-.message-planner .message-content,
-.message-worker .message-content,
-.message-reviewer .message-content,
-.message-system .message-content {
+.message-assistant :deep(.message-content),
+.message-planner :deep(.message-content),
+.message-worker :deep(.message-content),
+.message-reviewer :deep(.message-content),
+.message-system :deep(.message-content) {
   color: var(--app-muted-text-color, var(--app-text-color));
   background: var(--app-muted-surface-color, var(--app-panel-color));
 }
-.message-system .message-content {
+.message-system :deep(.message-content) {
   opacity: 0.72;
   font-style: italic;
 }

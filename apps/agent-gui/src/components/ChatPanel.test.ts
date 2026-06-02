@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import ChatPanel from "./ChatPanel.vue";
+import chatPanelSource from "./ChatPanel.vue?raw";
 import chatComposerSource from "./ChatComposer.vue?raw";
 import chatModelSelectorSource from "./ChatModelSelector.vue?raw";
 import { mountWithPlugins } from "@/test-utils/mount";
@@ -190,6 +191,21 @@ describe("ChatPanel", () => {
     expect(streamIndicator.find(".cursor").exists()).toBe(true);
     expect(streamIndicator.find(".message-role").exists()).toBe(false);
     expect(streamIndicator.text()).not.toContain("Agent");
+  });
+
+  it("keeps message bubble styles scoped through ChatMessageItem internals", () => {
+    expectSourceMigration(chatPanelSource, {
+      required: [
+        ".message :deep(.message-content)",
+        ".message-user :deep(.message-content)",
+        ".message-assistant :deep(.message-content)"
+      ],
+      forbiddenPatterns: [
+        /^\.message-content\s*\{/m,
+        /^\.message-user\s+\.message-content/m,
+        /^\.message-assistant\s+\.message-content/m
+      ]
+    });
   });
 
   it("opens a model selector from the composer badge and marks the current model", async () => {
