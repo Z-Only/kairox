@@ -2,6 +2,8 @@ use super::config_runtime::{
     classify_model_error, classify_provider_failure_message, ConnectivityTestResult,
 };
 use super::*;
+
+const PROBE_CHAT_OUTPUT_LIMIT: u64 = 256;
 use futures::{stream::BoxStream, StreamExt};
 
 const EMPTY_MODEL_RESPONSE_ERROR: &str =
@@ -213,8 +215,18 @@ async fn probe_chat_stream(
 
 fn probe_profile(profile: &agent_config::ProfileDef) -> agent_config::ProfileDef {
     let mut probe_profile = profile.clone();
-    probe_profile.output_limit = Some(probe_profile.output_limit.unwrap_or(8).min(8));
-    probe_profile.max_tokens = Some(probe_profile.max_tokens.unwrap_or(8).min(8));
+    probe_profile.output_limit = Some(
+        probe_profile
+            .output_limit
+            .unwrap_or(PROBE_CHAT_OUTPUT_LIMIT)
+            .min(PROBE_CHAT_OUTPUT_LIMIT),
+    );
+    probe_profile.max_tokens = Some(
+        probe_profile
+            .max_tokens
+            .unwrap_or(PROBE_CHAT_OUTPUT_LIMIT)
+            .min(PROBE_CHAT_OUTPUT_LIMIT),
+    );
     probe_profile
 }
 
@@ -442,7 +454,7 @@ mod connectivity_tests {
     }
 
     #[test]
-    fn probe_profile_preserves_temperature() {
+    fn probe_profile_preserves_temperature_and_uses_nonstarving_output_budget() {
         let mut profile = fake_profile("ok");
         profile.output_limit = Some(16_384);
         profile.max_tokens = Some(16_384);
@@ -450,8 +462,8 @@ mod connectivity_tests {
 
         let probe = super::probe_profile(&profile);
 
-        assert_eq!(probe.output_limit, Some(8));
-        assert_eq!(probe.max_tokens, Some(8));
+        assert_eq!(probe.output_limit, Some(PROBE_CHAT_OUTPUT_LIMIT));
+        assert_eq!(probe.max_tokens, Some(PROBE_CHAT_OUTPUT_LIMIT));
         assert_eq!(probe.temperature, None);
     }
 }
