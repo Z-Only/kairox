@@ -358,6 +358,11 @@ const isEmptyProjectChat = computed(
     session.projection.messages.length === 0 &&
     !session.projection.token_stream
 );
+const currentProjectDisplayName = computed(() => currentProject.value?.displayName.trim() ?? "");
+const projectDraftContextText = computed(() => {
+  if (!isEmptyProjectChat.value || !currentProjectDisplayName.value) return null;
+  return t("chat.projectDraftContext", { project: currentProjectDisplayName.value });
+});
 const projectInstructionSummaryText = computed(() => {
   const projectId = currentProjectId.value;
   if (!projectId || !isEmptyProjectChat.value) return null;
@@ -428,6 +433,13 @@ watch(
           </template>
           {{ t("chat.emptyState") }}
         </KxEmptyState>
+        <div
+          v-if="projectDraftContextText"
+          class="project-draft-context"
+          data-test="project-draft-context"
+        >
+          {{ projectDraftContextText }}
+        </div>
         <template v-for="item in chatStream" :key="item.id">
           <div
             class="chat-stream-item"
@@ -643,6 +655,14 @@ watch(
   color: var(--app-muted-text-color, var(--app-text-color));
   font-size: 12px;
   line-height: 1.5;
+}
+.project-draft-context {
+  max-width: min(920px, 100%);
+  margin: -16px auto 12px;
+  color: var(--app-muted-text-color, var(--app-text-color));
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 .chat-empty-state {
   margin: 40px auto 28px;

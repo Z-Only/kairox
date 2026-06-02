@@ -236,7 +236,8 @@
     "queuedEditAria": "Edit this queued message",
     "queuedDeleteAria": "Delete this queued message",
     "queuedAttachments": "{count} file(s)",
-    "emptyState": "Start a conversation"
+    "emptyState": "Start a conversation",
+    "projectDraftContext": "Project: {project}"
   },
   "context": {
     "title": "Context",

@@ -140,6 +140,7 @@ beforeEach(() => {
     if (command === "get_project_instruction_summary") {
       return { source_paths: [], warning: null };
     }
+    if (command === "list_project_branches") return [];
     return undefined;
   });
 });
@@ -414,6 +415,38 @@ describe("ChatPanel", () => {
     expect(gitMeta.text()).toBe("main");
     expect(gitMeta.text()).not.toContain("worktree");
     expect(wrapper.text()).not.toContain("/repo");
+  });
+
+  it("shows the project name below the empty state for a pending project draft", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.currentSessionId = null;
+      session.pendingSessionDraft = {
+        kind: "project",
+        projectId: "project_1",
+        branch: null
+      };
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Kairox",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    await flushPromises();
+
+    const emptyState = wrapper.find('[data-test="chat-empty-state"]');
+    expect(emptyState.exists()).toBe(true);
+    expect(emptyState.text()).toContain("Start a conversation");
+
+    const projectContext = wrapper.find('[data-test="project-draft-context"]');
+    expect(projectContext.exists()).toBe(true);
+    expect(projectContext.text()).toContain("Kairox");
   });
 
   it("resolves missing branch metadata without exposing the project root path", async () => {

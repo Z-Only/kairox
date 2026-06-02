@@ -8,6 +8,15 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useStorage, usePreferredDark } from "@vueuse/core";
 import { commands, type GuiSettingsView } from "@/generated/commands";
+import {
+  LOCALE_STORAGE_KEY,
+  markLocalePreferenceExplicit,
+  normalizeStoredLocale,
+  readStoredLocalePreference,
+  type SupportedLocale
+} from "@/locales/localePreference";
+
+export type { SupportedLocale } from "@/locales/localePreference";
 
 export type NotificationLevel = "info" | "success" | "warning" | "error";
 export interface NotificationItem {
@@ -17,7 +26,6 @@ export interface NotificationItem {
   timestamp: number;
 }
 export type ThemeMode = "auto" | "light" | "dark";
-export type SupportedLocale = "system" | "en" | "zh-CN";
 export type WorkbenchSidebarSide = "left" | "right";
 
 export interface ToastItem {
@@ -85,15 +93,21 @@ export const useUiStore = defineStore("ui", () => {
   // ── Locale ──────────────────────────────────────────────
   // `flush: "sync"` so that `setLocale(...)` reflects in localStorage in the
   // same tick — the surrounding test suite asserts persistence synchronously.
-  const locale = useStorage<SupportedLocale>("kairox.locale", "system", undefined, {
-    flush: "sync",
-    serializer: {
-      read: (v) => (v === "system" || v === "zh-CN" || v === "en" ? v : "system"),
-      write: (v) => v
+  const locale = useStorage<SupportedLocale>(
+    LOCALE_STORAGE_KEY,
+    readStoredLocalePreference(),
+    undefined,
+    {
+      flush: "sync",
+      serializer: {
+        read: normalizeStoredLocale,
+        write: (v) => v
+      }
     }
-  });
+  );
 
   function setLocale(next: SupportedLocale) {
+    markLocalePreferenceExplicit();
     locale.value = next;
   }
 
