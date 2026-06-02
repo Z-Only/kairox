@@ -170,6 +170,42 @@ async fn upsert_writes_agent_markdown_to_target_scope() {
 }
 
 #[tokio::test]
+async fn project_root_override_writes_project_agent_to_selected_project() {
+    let startup_workspace = tempfile::tempdir().expect("startup workspace tempdir");
+    let selected_project = tempfile::tempdir().expect("selected project tempdir");
+    let user = tempfile::tempdir().expect("user tempdir");
+    let default_roots = roots(startup_workspace.path(), user.path());
+    let selected_roots = roots_for_project(&default_roots, Some(selected_project.path()));
+    let input = AgentSettingsInput {
+        scope: AgentSettingsScope::Project,
+        name: "default".into(),
+        description: "Project-specific default agent.".into(),
+        tools: vec![],
+        model_profile: None,
+        reasoning_effort: None,
+        skills: vec![],
+        nickname_candidates: vec![],
+        enabled: true,
+        instructions: "Use the selected project override.".into(),
+    };
+
+    let view = upsert_agent_settings(selected_roots.clone(), input)
+        .await
+        .expect("project agent should save");
+    let saved_path = PathBuf::from(&view.path);
+
+    assert!(saved_path.starts_with(selected_project.path().join(".kairox/agents")));
+    assert!(!startup_workspace
+        .path()
+        .join(".kairox/agents/default.md")
+        .exists());
+    assert!(selected_roots
+        .workspace_root
+        .expect("selected workspace root")
+        .starts_with(selected_project.path()));
+}
+
+#[tokio::test]
 async fn deleting_builtin_agent_is_rejected() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let user = tempfile::tempdir().expect("user tempdir");

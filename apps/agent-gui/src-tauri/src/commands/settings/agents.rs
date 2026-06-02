@@ -6,10 +6,11 @@ use agent_core::facade::{AgentSettingsInput, AgentSettingsScope, AgentSettingsVi
 #[specta::specta]
 pub async fn list_agent_settings(
     state: State<'_, GuiState>,
+    project_root: Option<String>,
 ) -> Result<Vec<AgentSettingsView>, String> {
     state
         .runtime
-        .list_agent_settings()
+        .list_agent_settings_for_project(project_root)
         .await
         .map_err(|error| error.to_string())
 }
@@ -19,10 +20,11 @@ pub async fn list_agent_settings(
 pub async fn upsert_agent_settings(
     state: State<'_, GuiState>,
     input: AgentSettingsInput,
+    project_root: Option<String>,
 ) -> Result<AgentSettingsView, String> {
     state
         .runtime
-        .upsert_agent_settings(input)
+        .upsert_agent_settings_for_project(input, project_root)
         .await
         .map_err(|error| error.to_string())
 }
@@ -32,10 +34,11 @@ pub async fn upsert_agent_settings(
 pub async fn delete_agent_settings(
     state: State<'_, GuiState>,
     agent_id: String,
+    project_root: Option<String>,
 ) -> Result<(), String> {
     state
         .runtime
-        .delete_agent_settings(agent_id)
+        .delete_agent_settings_for_project(agent_id, project_root)
         .await
         .map_err(|error| error.to_string())
 }
@@ -46,20 +49,24 @@ pub async fn copy_agent_settings(
     state: State<'_, GuiState>,
     agent_id: String,
     scope: AgentSettingsScope,
+    project_root: Option<String>,
 ) -> Result<AgentSettingsView, String> {
     state
         .runtime
-        .copy_agent_settings(agent_id, scope)
+        .copy_agent_settings_for_project(agent_id, scope, project_root)
         .await
         .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn open_agents_dir(state: State<'_, GuiState>) -> Result<Option<String>, String> {
+pub async fn open_agents_dir(
+    state: State<'_, GuiState>,
+    project_root: Option<String>,
+) -> Result<Option<String>, String> {
     let Some(agents_dir) = state
         .runtime
-        .open_agents_dir()
+        .open_agents_dir_for_project(project_root)
         .await
         .map_err(|error| error.to_string())?
     else {

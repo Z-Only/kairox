@@ -203,16 +203,19 @@ export const commands = {
   openConfigDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_config_dir")),
   openProfilesConfigFile: () =>
     typedError<string | null, string>(__TAURI_INVOKE("open_profiles_config_file")),
-  openAgentsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_agents_dir")),
-  listAgentSettings: () =>
-    typedError<AgentSettingsView[], string>(__TAURI_INVOKE("list_agent_settings")),
-  upsertAgentSettings: (input: AgentSettingsInput) =>
-    typedError<AgentSettingsView, string>(__TAURI_INVOKE("upsert_agent_settings", { input })),
-  deleteAgentSettings: (agentId: string) =>
-    typedError<null, string>(__TAURI_INVOKE("delete_agent_settings", { agentId })),
-  copyAgentSettings: (agentId: string, scope: AgentSettingsScope) =>
+  openAgentsDir: (projectRoot: string | null) =>
+    typedError<string | null, string>(__TAURI_INVOKE("open_agents_dir", { projectRoot })),
+  listAgentSettings: (projectRoot: string | null) =>
+    typedError<AgentSettingsView[], string>(__TAURI_INVOKE("list_agent_settings", { projectRoot })),
+  upsertAgentSettings: (input: AgentSettingsInput, projectRoot: string | null) =>
     typedError<AgentSettingsView, string>(
-      __TAURI_INVOKE("copy_agent_settings", { agentId, scope })
+      __TAURI_INVOKE("upsert_agent_settings", { input, projectRoot })
+    ),
+  deleteAgentSettings: (agentId: string, projectRoot: string | null) =>
+    typedError<null, string>(__TAURI_INVOKE("delete_agent_settings", { agentId, projectRoot })),
+  copyAgentSettings: (agentId: string, scope: AgentSettingsScope, projectRoot: string | null) =>
+    typedError<AgentSettingsView, string>(
+      __TAURI_INVOKE("copy_agent_settings", { agentId, scope, projectRoot })
     ),
   openSkillsDir: () => typedError<string | null, string>(__TAURI_INVOKE("open_skills_dir")),
   listSkillSettings: () =>
