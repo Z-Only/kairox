@@ -827,7 +827,9 @@ describe("project session metadata", () => {
             worktreePath: "/repo/.worktrees/project-task",
             branch: "feat/project-task",
             deletedAt: null,
-            visibility: "draft_hidden"
+            visibility: "draft_hidden",
+            approvalPolicy: "always",
+            sandboxPolicy: '{"kind":"danger_full_access"}'
           }
         ]
       ]
@@ -841,6 +843,8 @@ describe("project session metadata", () => {
     });
     expect(session.currentSessionId).toBe("project-session-1");
     expect(session.currentProfile).toBe("slow");
+    expect(session.approvalPolicy).toBe("always");
+    expect(session.sandboxPolicy).toBe('{"kind":"danger_full_access"}');
     expect(session.projection.messages).toEqual([]);
     expect(session.currentSessionInfo?.project_id).toBe("project-1");
     expect(session.currentSessionInfo?.worktree_path).toBe("/repo/.worktrees/project-task");

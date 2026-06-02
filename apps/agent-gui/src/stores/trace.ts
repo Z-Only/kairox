@@ -39,6 +39,12 @@ export const useTraceStore = defineStore("trace", () => {
     }
   }
 
+  function toolEntryId(invocationId: string): string {
+    // Tool and permission events share provider tool_call_id values; keep
+    // the raw id available for resolve_permission-backed prompt entries.
+    return `tool-${invocationId}`;
+  }
+
   function applyTraceEvent(event: DomainEvent) {
     const p = event.payload;
     switch (p.type) {
@@ -120,7 +126,7 @@ export const useTraceStore = defineStore("trace", () => {
 
       case "ModelToolCallRequested": {
         pushEntry({
-          id: p.tool_call_id,
+          id: toolEntryId(p.tool_call_id),
           kind: "tool",
           status: "running",
           toolId: p.tool_id,
@@ -134,7 +140,7 @@ export const useTraceStore = defineStore("trace", () => {
 
       case "ToolInvocationStarted": {
         pushEntry({
-          id: p.invocation_id,
+          id: toolEntryId(p.invocation_id),
           kind: "tool",
           status: "running",
           toolId: p.tool_id,
@@ -147,7 +153,7 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "ToolInvocationCompleted": {
-        updateEntry(p.invocation_id, {
+        updateEntry(toolEntryId(p.invocation_id), {
           status: "completed",
           durationMs: p.duration_ms,
           outputPreview: p.output_preview,
@@ -159,7 +165,7 @@ export const useTraceStore = defineStore("trace", () => {
       }
 
       case "ToolInvocationFailed": {
-        updateEntry(p.invocation_id, {
+        updateEntry(toolEntryId(p.invocation_id), {
           status: "failed",
           rawEvent: rawJson(event)
         });

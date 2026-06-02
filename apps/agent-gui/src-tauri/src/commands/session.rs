@@ -325,6 +325,20 @@ pub async fn set_session_sandbox_policy(
     serde_json::to_string(&sandbox).map_err(|e| e.to_string())
 }
 
+fn session_policy_value<'a>(
+    session_id: &SessionId,
+    ordinary_sessions: &'a [SessionMeta],
+    project_sessions: &'a [SessionMeta],
+    select_policy: impl Fn(&'a SessionMeta) -> Option<&'a str>,
+) -> Option<String> {
+    ordinary_sessions
+        .iter()
+        .chain(project_sessions.iter())
+        .find(|session| session.session_id.as_str() == session_id.as_str())
+        .and_then(select_policy)
+        .map(str::to_string)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn get_session_approval_policy(state: State<'_, GuiState>) -> Result<String, String> {
@@ -341,9 +355,28 @@ pub async fn get_session_approval_policy(state: State<'_, GuiState>) -> Result<S
         .list_sessions(&workspace_id)
         .await
         .map_err(|e| format!("Failed to list sessions: {e}"))?;
-    if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-        if let Some(ref approval) = session.approval_policy {
-            return Ok(approval.clone());
+    if let Some(approval) = session_policy_value(&session_id, &sessions, &[], |session| {
+        session.approval_policy.as_deref()
+    }) {
+        return Ok(approval);
+    }
+    let projects = state
+        .runtime
+        .list_projects(&workspace_id)
+        .await
+        .map_err(|e| format!("Failed to list projects: {e}"))?;
+    for project in projects {
+        let project_sessions = state
+            .runtime
+            .list_project_sessions(project.project_id)
+            .await
+            .map_err(|e| format!("Failed to list project sessions: {e}"))?;
+        if let Some(approval) =
+            session_policy_value(&session_id, &[], &project_sessions, |session| {
+                session.approval_policy.as_deref()
+            })
+        {
+            return Ok(approval);
         }
     }
     Ok(agent_tools::ApprovalPolicy::default().to_string())
@@ -365,9 +398,28 @@ pub async fn get_session_sandbox_policy(state: State<'_, GuiState>) -> Result<St
         .list_sessions(&workspace_id)
         .await
         .map_err(|e| format!("Failed to list sessions: {e}"))?;
-    if let Some(session) = sessions.iter().find(|s| s.session_id == session_id) {
-        if let Some(ref sandbox) = session.sandbox_policy {
-            return Ok(sandbox.clone());
+    if let Some(sandbox) = session_policy_value(&session_id, &sessions, &[], |session| {
+        session.sandbox_policy.as_deref()
+    }) {
+        return Ok(sandbox);
+    }
+    let projects = state
+        .runtime
+        .list_projects(&workspace_id)
+        .await
+        .map_err(|e| format!("Failed to list projects: {e}"))?;
+    for project in projects {
+        let project_sessions = state
+            .runtime
+            .list_project_sessions(project.project_id)
+            .await
+            .map_err(|e| format!("Failed to list project sessions: {e}"))?;
+        if let Some(sandbox) =
+            session_policy_value(&session_id, &[], &project_sessions, |session| {
+                session.sandbox_policy.as_deref()
+            })
+        {
+            return Ok(sandbox);
         }
     }
     serde_json::to_string(&agent_tools::SandboxPolicy::default()).map_err(|e| e.to_string())
@@ -555,6 +607,47 @@ mod compact_session_command_tests {
         // removed this fails to compile, which is exactly the signal we want
         // before `collect_commands![]` / `generate_handler![]` blow up.
         let _ = compact_session;
+    }
+}
+#[cfg(test)]
+mod session_policy_lookup_tests {
+    use super::session_policy_value;
+    use agent_core::{SessionId, SessionMeta, WorkspaceId};
+
+    fn meta(id: &str, approval_policy: Option<&str>, sandbox_policy: Option<&str>) -> SessionMeta {
+        SessionMeta {
+            session_id: SessionId::from_string(id.to_string()),
+            workspace_id: WorkspaceId::from_string("wrk_test".to_string()),
+            title: "Test".into(),
+            model_profile: "fake".into(),
+            model_id: None,
+            provider: None,
+            approval_policy: approval_policy.map(str::to_string),
+            sandbox_policy: sandbox_policy.map(str::to_string),
+            project_id: None,
+            worktree_path: None,
+            branch: None,
+            visibility: None,
+            deleted_at: None,
+            created_at: "2026-06-02T00:00:00Z".into(),
+            updated_at: "2026-06-02T00:00:00Z".into(),
+        }
+    }
+
+    #[test]
+    fn policy_lookup_includes_project_sessions() {
+        let session_id = SessionId::from_string("ses_project".to_string());
+        let ordinary_sessions = vec![meta("ses_other", Some("never"), None)];
+        let project_sessions = vec![meta("ses_project", Some("always"), None)];
+
+        let policy = session_policy_value(
+            &session_id,
+            &ordinary_sessions,
+            &project_sessions,
+            |session| session.approval_policy.as_deref(),
+        );
+
+        assert_eq!(policy.as_deref(), Some("always"));
     }
 }
 #[cfg(test)]

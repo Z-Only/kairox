@@ -24,6 +24,8 @@ export interface ProjectSessionInfo {
   branch: string | null;
   visibility: string | null;
   deletedAt: string | null;
+  approvalPolicy: string | null;
+  sandboxPolicy: string | null;
 }
 
 export interface ProjectGitStatusInfo {
@@ -81,7 +83,9 @@ function normalizeProjectSession(response: SessionInfoResponse): ProjectSessionI
     worktreePath: response.worktree_path,
     branch: response.branch,
     visibility: response.visibility,
-    deletedAt: response.deleted_at
+    deletedAt: response.deleted_at,
+    approvalPolicy: response.approval_policy,
+    sandboxPolicy: response.sandbox_policy
   };
 }
 
@@ -127,7 +131,9 @@ function createDraftSessionPlaceholder(
     worktreePath: project?.rootPath ?? null,
     branch: branch ?? null,
     visibility: "draft_hidden",
-    deletedAt: null
+    deletedAt: null,
+    approvalPolicy: null,
+    sandboxPolicy: null
   };
 }
 
@@ -250,7 +256,9 @@ export const useProjectStore = defineStore("project", () => {
       worktreePath,
       branch,
       visibility: "visible",
-      deletedAt: null
+      deletedAt: null,
+      approvalPolicy: null,
+      sandboxPolicy: null
     };
 
     const projectSessions = sessionsByProject.value.get(projectId) ?? [];

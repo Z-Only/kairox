@@ -189,7 +189,7 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries).toHaveLength(1);
-      expect(trace.entries[0].id).toBe("tc-1");
+      expect(trace.entries[0].id).toBe("tool-tc-1");
       expect(trace.entries[0].status).toBe("running");
       expect(trace.entries[0].toolId).toBe("shell");
       expect(trace.entries[0].title).toContain("shell");
@@ -210,7 +210,7 @@ describe("trace store", () => {
         })
       );
       expect(trace.entries).toHaveLength(1);
-      expect(trace.entries[0].id).toBe("inv-1");
+      expect(trace.entries[0].id).toBe("tool-inv-1");
       expect(trace.entries[0].status).toBe("running");
     });
 
@@ -300,6 +300,60 @@ describe("trace store", () => {
       expect(entry.status).toBe("pending");
       expect(entry.expanded).toBe(true);
       expect(entry.title).toBe("rm -rf /");
+    });
+
+    it("keeps permission prompts separate from same-id tool calls", () => {
+      const trace = useTraceStore();
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ModelToolCallRequested",
+          tool_call_id: "toolu-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "PermissionRequested",
+          request_id: "toolu-1",
+          tool_id: "shell.exec",
+          preview: 'shell.exec({"command":"printf ok"})'
+        })
+      );
+
+      expect(trace.entries).toHaveLength(2);
+      const permission = trace.entries.find((entry) => entry.kind === "permission");
+      const tool = trace.entries.find((entry) => entry.kind === "tool");
+      expect(permission?.id).toBe("toolu-1");
+      expect(permission?.status).toBe("pending");
+      expect(permission?.title).toContain("printf ok");
+      expect(tool?.id).not.toBe(permission?.id);
+      expect(tool?.toolId).toBe("shell.exec");
+
+      trace.applyTraceEvent(mkEvent({ type: "PermissionGranted", request_id: "toolu-1" }));
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationStarted",
+          invocation_id: "toolu-1",
+          tool_id: "shell.exec"
+        })
+      );
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "ToolInvocationCompleted",
+          invocation_id: "toolu-1",
+          tool_id: "shell.exec",
+          output_preview: "APPROVAL-GRANT-6F2D",
+          exit_code: 0,
+          duration_ms: 12,
+          truncated: false
+        })
+      );
+
+      expect(permission?.status).toBe("completed");
+      expect(tool?.status).toBe("completed");
+      expect(tool?.outputPreview).toBe("APPROVAL-GRANT-6F2D");
+      expect(tool?.exitCode).toBe(0);
     });
 
     it("PermissionGranted marks entry as completed", () => {

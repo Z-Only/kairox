@@ -119,7 +119,9 @@ function normalizeProjectSessionInfo(projectSession: ProjectSessionInfo): Sessio
     worktree_path: projectSession.worktreePath,
     branch: projectSession.branch,
     visibility: projectSession.visibility,
-    deleted_at: projectSession.deletedAt
+    deleted_at: projectSession.deletedAt,
+    approval_policy: projectSession.approvalPolicy,
+    sandbox_policy: projectSession.sandboxPolicy
   };
 }
 
