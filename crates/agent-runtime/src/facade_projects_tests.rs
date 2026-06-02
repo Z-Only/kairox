@@ -33,6 +33,33 @@ async fn create_project_draft_session_registers_idle_actor() {
 }
 
 #[tokio::test]
+async fn list_project_branches_returns_empty_for_non_git_project() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["hello".into()]);
+    let runtime = LocalRuntime::new(store, model);
+    let project_root = tempfile::tempdir().expect("project root");
+
+    let workspace = runtime
+        .open_workspace(project_root.path().display().to_string())
+        .await
+        .unwrap();
+    let project = runtime
+        .add_existing_project(
+            workspace.workspace_id,
+            project_root.path().display().to_string(),
+        )
+        .await
+        .unwrap();
+
+    let branches = runtime
+        .list_project_branches(project.project_id)
+        .await
+        .unwrap();
+
+    assert!(branches.is_empty());
+}
+
+#[tokio::test]
 async fn project_removal_stops_archived_session_actor_and_restore_restarts_it() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["hello".into()]);

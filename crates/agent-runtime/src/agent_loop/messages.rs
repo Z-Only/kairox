@@ -129,6 +129,15 @@ pub fn build_model_messages(
                     tool_call_id: Some(invocation_id.clone()),
                 });
             }
+            EventPayload::PermissionDenied { request_id, reason } => {
+                flush_pending_tool_calls(&mut messages, &mut pending_tool_calls);
+                messages.push(agent_models::ModelMessage {
+                    role: "tool".into(),
+                    content: format!("Permission denied: {}", reason),
+                    tool_calls: Vec::new(),
+                    tool_call_id: Some(request_id.clone()),
+                });
+            }
             _ => {}
         }
     }

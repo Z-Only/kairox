@@ -127,6 +127,13 @@ type PendingSessionDraft =
   | { kind: "ordinary" }
   | { kind: "project"; projectId: string; branch: string | null };
 
+type PendingSessionSettings = {
+  profile: string;
+  reasoningEffort: string | null;
+  approval: string;
+  sandboxJson: string;
+};
+
 type PersistedWorkbenchState =
   | { kind: "session"; sessionId: string; projectId: string | null }
   | { kind: "ordinary-draft" }
@@ -249,6 +256,85 @@ export const useSessionStore = defineStore("session", () => {
       sessions.value.find((session) => session.id === sessionId) ??
       findProjectSessionInfo(sessionId)
     );
+  }
+
+  function capturePendingSessionSettings(): PendingSessionSettings {
+    return {
+      profile: currentProfile.value,
+      reasoningEffort: currentReasoningEffort.value,
+      approval: approvalPolicy.value,
+      sandboxJson: sandboxPolicy.value
+    };
+  }
+
+  function updateSessionProfile(sessionId: string, profile: string): void {
+    const session = sessions.value.find((entry) => entry.id === sessionId);
+    if (session) {
+      session.profile = profile;
+      return;
+    }
+
+    const projectStore = useProjectStore();
+    let changed = false;
+    const nextSessionsByProject = new Map(projectStore.sessionsByProject);
+    for (const [projectId, projectSessions] of nextSessionsByProject.entries()) {
+      const nextSessions = projectSessions.map((projectSession) => {
+        if (projectSession.sessionId !== sessionId) return projectSession;
+        changed = true;
+        return { ...projectSession, profile };
+      });
+      if (changed) {
+        nextSessionsByProject.set(projectId, nextSessions);
+        break;
+      }
+    }
+    if (changed) {
+      projectStore.sessionsByProject = nextSessionsByProject;
+    }
+  }
+
+  async function persistCurrentModelSelection(settings: PendingSessionSettings): Promise<void> {
+    const sessionId = currentSessionId.value;
+    if (!sessionId) {
+      throw new Error("No active session");
+    }
+    const payload: {
+      sessionId: string;
+      profileAlias: string;
+      reasoningEffort?: string;
+    } = {
+      sessionId,
+      profileAlias: settings.profile
+    };
+    if (settings.reasoningEffort) {
+      payload.reasoningEffort = settings.reasoningEffort;
+    }
+    await invoke("switch_model", payload);
+    currentProfile.value = settings.profile;
+    currentReasoningEffort.value = settings.reasoningEffort;
+    updateSessionProfile(sessionId, settings.profile);
+  }
+
+  async function persistApprovalPolicy(approval: string): Promise<string> {
+    const result: string = await invoke("set_session_approval_policy", { approval });
+    approvalPolicy.value = result;
+    const session = sessions.value.find((s) => s.id === currentSessionId.value);
+    if (session) session.approval_policy = result;
+    return result;
+  }
+
+  async function persistSandboxPolicy(sandboxJson: string): Promise<string> {
+    const result: string = await invoke("set_session_sandbox_policy", { sandboxJson });
+    sandboxPolicy.value = result;
+    const session = sessions.value.find((s) => s.id === currentSessionId.value);
+    if (session) session.sandbox_policy = result;
+    return result;
+  }
+
+  async function applyPendingSessionSettings(settings: PendingSessionSettings): Promise<void> {
+    await persistCurrentModelSelection(settings);
+    await persistApprovalPolicy(settings.approval);
+    await persistSandboxPolicy(settings.sandboxJson);
   }
 
   const currentSessionInfo = computed<SessionInfoResponse | null>(() => {
@@ -484,9 +570,11 @@ export const useSessionStore = defineStore("session", () => {
 
   async function ensureSessionForSend(): Promise<void> {
     if (currentSessionId.value) return;
+    const settings = capturePendingSessionSettings();
     const pending = pendingSessionDraft.value;
     if (pending?.kind !== "project") {
-      await createSession();
+      await createSession(settings.profile);
+      await applyPendingSessionSettings(settings);
       return;
     }
 
@@ -504,6 +592,7 @@ export const useSessionStore = defineStore("session", () => {
         ? await projectStore.createProjectWorktreeSession(pending.projectId, selectedBranch)
         : await projectStore.createProjectDraftSession(pending.projectId);
     await switchProjectSession(projectSession);
+    await applyPendingSessionSettings(settings);
   }
 
   async function deleteSession(sessionId: string) {
@@ -603,12 +692,13 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   async function setApprovalPolicy(approval: string): Promise<void> {
+    if (!currentSessionId.value) {
+      approvalPolicy.value = approval;
+      return;
+    }
     const ui = useUiStore();
     try {
-      const result: string = await invoke("set_session_approval_policy", { approval });
-      approvalPolicy.value = result;
-      const session = sessions.value.find((s) => s.id === currentSessionId.value);
-      if (session) session.approval_policy = result;
+      await persistApprovalPolicy(approval);
     } catch (e) {
       console.error("Failed to set approval policy:", e);
       ui.pushNotification("error", `Failed to set approval policy: ${e}`);
@@ -616,12 +706,13 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   async function setSandboxPolicy(sandboxJson: string): Promise<void> {
+    if (!currentSessionId.value) {
+      sandboxPolicy.value = sandboxJson;
+      return;
+    }
     const ui = useUiStore();
     try {
-      const result: string = await invoke("set_session_sandbox_policy", { sandboxJson });
-      sandboxPolicy.value = result;
-      const session = sessions.value.find((s) => s.id === currentSessionId.value);
-      if (session) session.sandbox_policy = result;
+      await persistSandboxPolicy(sandboxJson);
     } catch (e) {
       console.error("Failed to set sandbox policy:", e);
       ui.pushNotification("error", `Failed to set sandbox policy: ${e}`);

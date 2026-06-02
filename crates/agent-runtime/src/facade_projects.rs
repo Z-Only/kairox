@@ -1,7 +1,7 @@
 use crate::facade_runtime::LocalRuntime;
 use agent_core::{
-    ProjectFacade, ProjectGitStatus, ProjectId, ProjectInstructionSummary, ProjectMeta, SessionId,
-    SessionMeta, WorkspaceId,
+    ProjectFacade, ProjectGitStatus, ProjectGitStatusKind, ProjectId, ProjectInstructionSummary,
+    ProjectMeta, SessionId, SessionMeta, WorkspaceId,
 };
 use agent_store::EventStore;
 use async_trait::async_trait;
@@ -251,6 +251,10 @@ where
             .get_project(project_id.as_str())
             .await
             .map_err(|error| agent_core::CoreError::InvalidState(error.to_string()))?;
+        let git_status = crate::project::get_git_status(&project.root_path);
+        if matches!(git_status.kind, ProjectGitStatusKind::NotInitialized) {
+            return Ok(Vec::new());
+        }
         crate::project::list_git_branches(&project.root_path)
             .map_err(agent_core::CoreError::InvalidState)
     }

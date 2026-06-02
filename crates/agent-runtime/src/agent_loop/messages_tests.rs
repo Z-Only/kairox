@@ -162,3 +162,71 @@ fn build_model_messages_replays_tool_use_before_tool_result() {
     assert_eq!(messages[4].role, "user");
     assert_eq!(messages[4].content, "run pwd next");
 }
+
+#[test]
+fn build_model_messages_replays_permission_denial_as_tool_result() {
+    let base = chrono::Utc::now();
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let make_at = |payload: EventPayload, secs: i64| -> DomainEvent {
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+        .with_timestamp(base + chrono::Duration::seconds(secs))
+    };
+
+    let events = vec![
+        make_at(
+            EventPayload::UserMessageAdded {
+                message_id: "u0".into(),
+                content: "write a file".into(),
+            },
+            0,
+        ),
+        make_at(
+            EventPayload::ModelToolCallRequested {
+                tool_call_id: "call_write".into(),
+                tool_id: "fs.write".into(),
+            },
+            1,
+        ),
+        make_at(
+            EventPayload::PermissionDenied {
+                request_id: "call_write".into(),
+                reason: "read-only sandbox blocks writes".into(),
+            },
+            2,
+        ),
+        make_at(
+            EventPayload::AssistantMessageCompleted {
+                message_id: "a0".into(),
+                content: "READONLY-DENIED-PASS".into(),
+            },
+            3,
+        ),
+    ];
+
+    let messages = build_model_messages("try workspace write", &events);
+
+    assert_eq!(messages.len(), 5, "{messages:#?}");
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(messages[1].role, "assistant");
+    assert_eq!(messages[1].tool_calls.len(), 1, "{messages:#?}");
+    assert_eq!(messages[1].tool_calls[0].id, "call_write");
+    assert_eq!(messages[2].role, "tool");
+    assert_eq!(messages[2].tool_call_id.as_deref(), Some("call_write"));
+    assert!(
+        messages[2]
+            .content
+            .contains("read-only sandbox blocks writes"),
+        "{messages:#?}"
+    );
+    assert_eq!(messages[3].role, "assistant");
+    assert!(messages[3].tool_calls.is_empty(), "{messages:#?}");
+    assert_eq!(messages[4].role, "user");
+    assert_eq!(messages[4].content, "try workspace write");
+}

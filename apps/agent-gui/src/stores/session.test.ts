@@ -624,6 +624,95 @@ describe("project session metadata", () => {
     expect(session.currentSessionId).toBe("wt-1");
   });
 
+  it("applies pending model and policy selections when materializing a project session", async () => {
+    const session = useSessionStore();
+    const projectStore = useProjectStore();
+    const readOnlySandbox = '{"kind":"read_only"}';
+    projectStore.projects = [
+      {
+        projectId: "project-1",
+        displayName: "Demo",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    vi.spyOn(projectStore, "getProjectGitStatus").mockResolvedValue({
+      kind: "clean",
+      branch: "main",
+      worktreePath: "/repo",
+      message: null
+    });
+    vi.spyOn(projectStore, "createProjectDraftSession").mockResolvedValue({
+      sessionId: "draft-1",
+      title: "New Session",
+      profile: "fake",
+      projectId: "project-1",
+      worktreePath: "/repo",
+      branch: "main",
+      visibility: "draft_hidden",
+      deletedAt: null
+    });
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "refresh_config_for_project") return Promise.resolve(null);
+      if (command === "get_profile_info") return Promise.resolve([]);
+      if (command === "switch_session") {
+        return Promise.resolve({
+          messages: [],
+          task_titles: [],
+          task_graph: { tasks: [] },
+          token_stream: "",
+          cancelled: false,
+          last_context_usage: null,
+          model_limits: null,
+          compaction: { type: "Idle" }
+        });
+      }
+      if (command === "get_trace") return Promise.resolve([]);
+      if (command === "switch_model") return Promise.resolve(null);
+      if (command === "set_session_approval_policy") {
+        return Promise.resolve((args as { approval: string }).approval);
+      }
+      if (command === "set_session_sandbox_policy") {
+        return Promise.resolve((args as { sandboxJson: string }).sandboxJson);
+      }
+      return Promise.resolve(null);
+    });
+
+    await session.startProjectDraftSession("project-1");
+    session.currentProfile = "ali-mo-claude";
+    session.currentReasoningEffort = "xhigh";
+    await session.setApprovalPolicy("always");
+    await session.setSandboxPolicy(readOnlySandbox);
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson: readOnlySandbox
+    });
+
+    await session.ensureSessionForSend();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("switch_model", {
+      sessionId: "draft-1",
+      profileAlias: "ali-mo-claude",
+      reasoningEffort: "xhigh"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_approval_policy", {
+      approval: "always"
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_session_sandbox_policy", {
+      sandboxJson: readOnlySandbox
+    });
+    expect(session.currentProfile).toBe("ali-mo-claude");
+    expect(session.currentReasoningEffort).toBe("xhigh");
+    expect(session.approvalPolicy).toBe("always");
+    expect(session.sandboxPolicy).toBe(readOnlySandbox);
+  });
+
   it("switches to a project session through standard store side effects and exposes current session metadata", async () => {
     const session = useSessionStore();
     const projectStore = useProjectStore();

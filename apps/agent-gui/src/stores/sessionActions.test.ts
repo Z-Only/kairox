@@ -138,7 +138,7 @@ describe("switchToKnownSession", () => {
     expect(deps.currentProfile.value).toBe("opus");
   });
 
-  it("replays trace events and captures ModelProfileSwitched reasoning_effort", async () => {
+  it("replays trace events and captures ModelProfileSwitched profile state", async () => {
     const deps = makeDeps();
     const target = makeSessionInfo("s2", "Other");
     const traceEvent: DomainEvent = {
@@ -166,6 +166,7 @@ describe("switchToKnownSession", () => {
 
     await switchToKnownSession("s2", target, deps);
 
+    expect(deps.currentProfile.value).toBe("opus");
     expect(deps.currentReasoningEffort.value).toBe("high");
     expect(mockedApplyTraceEvent).toHaveBeenCalledWith(traceEvent);
   });
