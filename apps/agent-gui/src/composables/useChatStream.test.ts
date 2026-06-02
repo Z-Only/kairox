@@ -187,6 +187,34 @@ describe("buildChatStream", () => {
     expect(result.some((item) => item.kind === "compaction")).toBe(false);
   });
 
+  it("places each turn's trace entries after the user prompt and before the assistant output", () => {
+    const messages: ChatStreamMessageInput[] = [
+      { role: "user", content: "first prompt" },
+      { role: "assistant", content: "first answer" },
+      { role: "user", content: "second prompt" },
+      { role: "assistant", content: "second answer" }
+    ];
+    const entries: TraceEntryData[] = [
+      toolEntry({ id: "ctx-1", toolId: "context", startedAt: 10 }),
+      toolEntry({ id: "task-1", toolId: "task", startedAt: 11 }),
+      toolEntry({ id: "ctx-2", toolId: "context", startedAt: 20 }),
+      toolEntry({ id: "task-2", toolId: "task", startedAt: 21 })
+    ];
+
+    const result = buildChatStream(messages, entries, idle);
+
+    expect(result.map((item) => item.id)).toEqual([
+      "msg-0",
+      "ctx-1",
+      "task-1",
+      "msg-1",
+      "msg-2",
+      "ctx-2",
+      "task-2",
+      "msg-3"
+    ]);
+  });
+
   it("appends exactly one ChatCompactionStreamItem at the end when compaction.type === 'Running'", () => {
     const running: CompactionStatus = { type: "Running" };
     const messages: ChatStreamMessageInput[] = [{ role: "user", content: "hello" }];

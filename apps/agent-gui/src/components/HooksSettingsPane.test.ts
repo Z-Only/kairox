@@ -57,8 +57,13 @@ const hooksSettings = {
   projectConfigPath: null
 };
 
-function mountPane(configSource: "user" | "project" = "user", configProjectId?: string) {
+function mountPane(
+  configSource: "user" | "project" = "user",
+  configProjectId?: string,
+  locale?: "en" | "zh-CN"
+) {
   return mountWithPlugins(HooksSettingsPane, {
+    locale,
     mount: {
       global: {
         provide: {
@@ -212,6 +217,18 @@ describe("HooksSettingsPane", () => {
     expect(rowIds).toEqual(["hook-row-alpha", "hook-row-zeta"]);
   });
 
+  it("localizes hook search and sort controls in Chinese", async () => {
+    mockedInvoke.mockResolvedValueOnce(hooksSettings);
+
+    const wrapper = mountPane("user", undefined, "zh-CN");
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="hook-search-input"]').attributes("placeholder")).toBe(
+      "搜索钩子"
+    );
+    expect(wrapper.get('[data-test="hook-sort-select"]').text()).toContain("原始顺序");
+  });
+
   it("shows a filtered empty state when no hooks match search", async () => {
     mockedInvoke.mockResolvedValueOnce(hooksSettings);
 
@@ -242,6 +259,17 @@ describe("HooksSettingsPane", () => {
       required: ["width: 100%"],
       forbidden: ["width: min(100%, 760px)"],
       forbiddenPatterns: [/\.hooks-pane__list\s*\{[^}]*max-width:/]
+    });
+  });
+
+  it("does not keep hook search and sort copy inline in the component source", () => {
+    expectSourceMigration(hooksSettingsPaneSource, {
+      forbidden: [
+        'aria-label="Search hooks"',
+        'placeholder="Search hooks"',
+        "Original order",
+        "No hooks match your search."
+      ]
     });
   });
 

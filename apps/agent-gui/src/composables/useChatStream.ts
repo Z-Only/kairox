@@ -7,12 +7,11 @@
  * {@link useChatStream} wraps the same fold in a Vue `computed` over the
  * Pinia session + trace stores.
  *
- * Ordering for this lane is deliberately deterministic — all message
- * items in their original projection order, then all trace-derived items
- * sorted by `TraceEntryData.startedAt` ascending (insertion order if the
- * timestamps are equal), then the compaction item if present. True
- * chronological interleaving across message / trace timestamps ships in a
- * later PR; this lane only commits to an order that tests can pin.
+ * Ordering for this lane is deliberately deterministic — messages stay in
+ * projection order, while trace-derived items are sorted by
+ * `TraceEntryData.startedAt` ascending (insertion order if timestamps are
+ * equal) and grouped into user turns. A trace group is inserted directly
+ * after its user prompt and before the assistant output for that turn.
  *
  * Wiring into ChatPanel happens in a follow-up PR — this composable is
  * pure read-only and does not mutate either store.
@@ -51,8 +50,13 @@ export function buildChatStream(
   compaction: CompactionStatus
 ): ChatStreamItem[] {
   const items: ChatStreamItem[] = [];
+  const traceItems = buildTraceStreamItems(traceEntries);
+  const traceGroups = groupTraceItemsByTurn(traceItems);
+  let traceGroupIndex = 0;
 
-  // 1. Messages first, in projection order, with stable index-based ids.
+  // 1. Messages stay in projection order, with stable index-based ids. Each
+  //    user message owns the next trace group, so context/task cards appear
+  //    before the assistant answer for that same turn.
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index];
     const messageItem: ChatMessageStreamItem = {
@@ -65,10 +69,38 @@ export function buildChatStream(
       messageItem.sourceAgentId = message.sourceAgentId;
     }
     items.push(messageItem);
+    if (message.role === "user" && traceGroupIndex < traceGroups.length) {
+      items.push(...traceGroups[traceGroupIndex]);
+      traceGroupIndex++;
+    }
   }
 
-  // 2. Trace-derived items, sorted by `startedAt` ascending (stable —
-  //    equal timestamps preserve insertion order).
+  // 2. Sessions can have trace entries without a projected user message
+  //    (restored legacy state, background events, or partial turns). Keep
+  //    those visible after all projected messages.
+  for (; traceGroupIndex < traceGroups.length; traceGroupIndex++) {
+    items.push(...traceGroups[traceGroupIndex]);
+  }
+
+  // 3. Compaction item appended last when the status is anything other
+  //    than Idle.
+  if (compaction.type !== "Idle") {
+    const compactionItem: ChatCompactionStreamItem = {
+      kind: "compaction",
+      id: `compaction-${compaction.type}`,
+      status: compaction
+    };
+    items.push(compactionItem);
+  }
+
+  return items;
+}
+
+function buildTraceStreamItems(traceEntries: ReadonlyArray<TraceEntryData>): ChatStreamItem[] {
+  const traceItems: ChatStreamItem[] = [];
+
+  // Trace-derived items, sorted by `startedAt` ascending (stable — equal
+  // timestamps preserve insertion order).
   const traceEntriesSorted = [...traceEntries]
     .map((entry, insertionIndex) => ({ entry, insertionIndex }))
     .sort((a, b) => {
@@ -77,24 +109,23 @@ export function buildChatStream(
       return a.insertionIndex - b.insertionIndex;
     });
 
-  // 2a. Walk the sorted trace entries, collapsing runs of ≥2 consecutive
-  //     pending permission items into a single `permission_group`. Tool
-  //     calls, resolved permissions (which return `null` from
-  //     `traceEntryToStreamItem`), or any other non-permission item all
-  //     break the run.
+  // Walk the sorted trace entries, collapsing runs of ≥2 consecutive pending
+  // permission items into a single `permission_group`. Tool calls, resolved
+  // permissions (which return `null` from `traceEntryToStreamItem`), or any
+  // other non-permission item all break the run.
   //
-  //     We carry the source `TraceEntryData` alongside each pending
-  //     permission so the group builder can read `startedAt` from the
-  //     source without smuggling it through the stream-item layer.
+  // We carry the source `TraceEntryData` alongside each pending permission so
+  // the group builder can read `startedAt` from the source without smuggling it
+  // through the stream-item layer.
   type PendingRunEntry = { item: ChatPermissionStreamItem; source: TraceEntryData };
   let pendingRun: PendingRunEntry[] = [];
   const flushPendingRun = () => {
     if (pendingRun.length === 0) return;
     if (pendingRun.length === 1) {
       // Lone pending permission stays as the original `Permission` variant.
-      items.push(pendingRun[0].item);
+      traceItems.push(pendingRun[0].item);
     } else {
-      items.push(buildPermissionGroup(pendingRun));
+      traceItems.push(buildPermissionGroup(pendingRun));
     }
     pendingRun = [];
   };
@@ -111,23 +142,28 @@ export function buildChatStream(
       pendingRun.push({ item: traceItem, source: entry });
     } else {
       flushPendingRun();
-      items.push(traceItem);
+      traceItems.push(traceItem);
     }
   }
   flushPendingRun();
 
-  // 3. Compaction item appended last when the status is anything other
-  //    than Idle.
-  if (compaction.type !== "Idle") {
-    const compactionItem: ChatCompactionStreamItem = {
-      kind: "compaction",
-      id: `compaction-${compaction.type}`,
-      status: compaction
-    };
-    items.push(compactionItem);
+  return traceItems;
+}
+
+function groupTraceItemsByTurn(traceItems: ReadonlyArray<ChatStreamItem>): ChatStreamItem[][] {
+  const groups: ChatStreamItem[][] = [];
+  let currentGroup: ChatStreamItem[] = [];
+
+  for (const item of traceItems) {
+    currentGroup.push(item);
+    if (item.kind === "tool_call" && item.toolId === "task") {
+      groups.push(currentGroup);
+      currentGroup = [];
+    }
   }
 
-  return items;
+  if (currentGroup.length > 0) groups.push(currentGroup);
+  return groups;
 }
 
 function traceEntryToStreamItem(entry: TraceEntryData): ChatStreamItem | null {

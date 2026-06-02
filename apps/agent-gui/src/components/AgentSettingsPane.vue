@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useAgentSettingsStore } from "@/stores/agentSettings";
 import ModalDialog from "@/components/ui/ModalDialog.vue";
-import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
@@ -11,7 +10,6 @@ import type {
   AgentSettingsView
 } from "@/generated/commands";
 
-type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 type AgentSortOrder = "original" | "name" | "scope" | "status";
 
 const store = useAgentSettingsStore();
@@ -22,6 +20,12 @@ const selectedAgentId = ref<string | null>(null);
 const editorDialogOpen = ref(false);
 const searchQuery = ref("");
 const sortOrder = ref<AgentSortOrder>("original");
+const sortOptions = computed<Array<{ value: AgentSortOrder; label: string }>>(() => [
+  { value: "original", label: t("agents.sortOriginal") },
+  { value: "name", label: t("agents.sortName") },
+  { value: "scope", label: t("agents.sortScope") },
+  { value: "status", label: t("agents.sortStatus") }
+]);
 const form = reactive<AgentSettingsInput>({
   scope: "User",
   name: "",
@@ -65,19 +69,6 @@ function scopeLabel(scope: AgentSettingsScope | "Builtin" | "Local"): string {
   if (scope === "Project") return t("agents.scopeProject");
   if (scope === "Local") return t("agents.scopeLocal");
   return t("agents.scopeUser");
-}
-
-function sourceTone(scope: AgentSettingsScope | "Builtin" | "Local"): SourceTone {
-  switch (scope) {
-    case "Builtin":
-      return "source-builtin";
-    case "Project":
-      return "source-project";
-    case "Local":
-      return "source-local";
-    default:
-      return "source-user";
-  }
 }
 
 function searchableAgentText(agent: AgentSettingsView): string {
@@ -248,27 +239,26 @@ watch(
     </SettingsState>
 
     <template v-else>
-      <SettingsFilterBar aria-label="Search agents" data-test="agent-filters">
+      <SettingsFilterBar :aria-label="t('agents.searchPlaceholder')" data-test="agent-filters">
         <div class="settings-filter-bar__row">
           <KxInput
             v-model="searchQuery"
             type="search"
             size="compact"
-            aria-label="Search agents"
-            placeholder="Search agents"
+            :aria-label="t('agents.searchPlaceholder')"
+            :placeholder="t('agents.searchPlaceholder')"
             data-test="agent-search-input"
           />
           <KxSelect
             v-model="sortOrder"
             size="compact"
-            aria-label="Agent sort"
+            :aria-label="t('agents.sortAria')"
             data-test="agent-sort-select"
             class="agent-settings__sort-select"
           >
-            <option value="original">Original order</option>
-            <option value="name">Name</option>
-            <option value="scope">Scope</option>
-            <option value="status">Status</option>
+            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
           </KxSelect>
         </div>
       </SettingsFilterBar>
@@ -278,7 +268,7 @@ watch(
         tone="empty"
         data-test="agent-filter-empty-state"
       >
-        No agents match your search.
+        {{ t("agents.filterEmpty") }}
       </SettingsState>
 
       <SettingsCardList v-else :aria-label="t('agents.title')" data-test="agent-list">
@@ -308,16 +298,6 @@ watch(
                 {{ agent.valid ? t("agents.valid") : t("agents.invalid") }}
               </SettingsStatusTag>
             </template>
-
-            <SettingsEffectiveAudit
-              :source="scopeLabel(agent.scope)"
-              :source-tone="sourceTone(agent.scope)"
-              :enabled="agent.enabled"
-              :effective="agent.effective"
-              :shadowed-by="agent.shadowedBy"
-              :valid="agent.valid"
-              :data-test="`agent-audit-${slugify(agent.name)}-${agent.scope.toLowerCase()}`"
-            />
 
             <SettingsItemMeta wrap-values>
               <div>

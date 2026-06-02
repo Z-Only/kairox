@@ -199,6 +199,40 @@ fn builds_chat_request_with_empty_assistant_text_and_tool_calls() {
     assert_eq!(tool_calls[0]["id"], "call_xyz");
 }
 
+#[test]
+fn omits_empty_content_only_chat_messages() {
+    let client = OpenAiCompatibleClient::new(OpenAiCompatibleConfig {
+        base_url: "https://api.openai.com/v1".into(),
+        api_key_env: "OPENAI_API_KEY".into(),
+        default_model: "gpt-4.1".into(),
+        headers: vec![],
+        capability_overrides: None,
+        temperature: None,
+        top_p: None,
+        extra_params: None,
+    });
+    let request = ModelRequest::user_text("fast", "hello")
+        .with_system_prompt("  \n\t  ")
+        .add_message("assistant", "")
+        .add_message("user", "   ")
+        .add_message("assistant", "answer");
+
+    let body = client.build_chat_request(&request).unwrap();
+
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["role"], "user");
+    assert_eq!(messages[0]["content"], "hello");
+    assert_eq!(messages[1]["role"], "assistant");
+    assert_eq!(messages[1]["content"], "answer");
+    assert!(
+        messages.iter().all(|message| !message["content"]
+            .as_str()
+            .is_some_and(|text| text.trim().is_empty())),
+        "empty plain text messages should not be sent to provider gateways"
+    );
+}
+
 #[tokio::test]
 async fn streams_from_wiremock_server() {
     use wiremock::matchers::{method, path};

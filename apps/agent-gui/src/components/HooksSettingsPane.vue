@@ -44,13 +44,13 @@ const events = [
   "PostToolUse",
   "Stop"
 ];
-const hookSortOptions: Array<{ value: HookSortKey; label: string }> = [
-  { value: "original", label: "Original order" },
-  { value: "event", label: "Event" },
-  { value: "id", label: "ID" },
-  { value: "status", label: "Status" },
-  { value: "timeout", label: "Timeout" }
-];
+const hookSortOptions = computed<Array<{ value: HookSortKey; label: string }>>(() => [
+  { value: "original", label: t("hooks.sortOriginal") },
+  { value: "event", label: t("hooks.sortEvent") },
+  { value: "id", label: t("hooks.sortId") },
+  { value: "status", label: t("hooks.sortStatus") },
+  { value: "timeout", label: t("hooks.sortTimeout") }
+]);
 const hookSortCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base"
@@ -323,7 +323,7 @@ watch(
           <template v-else>
             <SettingsFilterBar
               class="hooks-pane__filter"
-              aria-label="Search hooks"
+              :aria-label="t('hooks.searchPlaceholder')"
               data-test="hook-filters"
             >
               <div class="settings-filter-bar__row">
@@ -331,15 +331,15 @@ watch(
                   v-model="searchQuery"
                   type="search"
                   size="compact"
-                  aria-label="Search hooks"
-                  placeholder="Search hooks"
+                  :aria-label="t('hooks.searchPlaceholder')"
+                  :placeholder="t('hooks.searchPlaceholder')"
                   data-test="hook-search-input"
                   class="hooks-pane__search-input"
                 />
                 <KxSelect
                   v-model="hookSort"
                   size="compact"
-                  aria-label="Hook sort"
+                  :aria-label="t('hooks.sortAria')"
                   data-test="hook-sort-select"
                   class="hooks-pane__sort-select"
                 >
@@ -359,7 +359,7 @@ watch(
               tone="empty"
               data-test="hooks-filter-empty"
             >
-              No hooks match your search.
+              {{ t("hooks.filterEmpty") }}
             </SettingsState>
 
             <SettingsCardList

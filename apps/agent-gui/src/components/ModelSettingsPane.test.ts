@@ -269,18 +269,15 @@ describe("ModelSettingsPane", () => {
     );
   });
 
-  it("renders source and effective audit state for model profiles", async () => {
+  it("renders source and status in the primary model profile row", async () => {
     const wrapper = mountPane("user");
     await flushPromises();
 
-    const audit = wrapper.find('[data-test="model-audit-my-model"]');
-    expect(audit.exists()).toBe(true);
-    expect(audit.text()).toContain("Source");
-    expect(audit.text()).toContain("profiles.toml");
-    expect(audit.text()).toContain("State");
-    expect(audit.text()).toContain("Enabled");
-    expect(audit.text()).toContain("Effective");
-    expect(audit.text()).toContain("Active");
+    const row = wrapper.find('[data-test="model-row-my-model"]');
+    expect(row.exists()).toBe(true);
+    expect(row.text()).toContain("profiles.toml");
+    expect(row.text()).toContain("Enabled");
+    expect(wrapper.find('[data-test="model-audit-my-model"]').exists()).toBe(false);
   });
 
   it("uses shared card content hierarchy for profile rows", () => {

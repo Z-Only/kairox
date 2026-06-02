@@ -2,7 +2,10 @@ use super::config_runtime::{
     classify_model_error, classify_provider_failure_message, ConnectivityTestResult,
 };
 use super::*;
-use futures::StreamExt;
+use futures::{stream::BoxStream, StreamExt};
+
+const EMPTY_MODEL_RESPONSE_ERROR: &str =
+    "model returned an empty response; check model availability, quota, or plan";
 
 #[tauri::command]
 #[specta::specta]
@@ -148,12 +151,22 @@ async fn probe_profile_chat_readiness(
             );
         }
     };
-    let mut stream = match stream_result {
+    let stream = match stream_result {
         Ok(stream) => stream,
         Err(error) => return classify_model_error(&error, &subject),
     };
 
+    probe_chat_stream(&subject, stream, timeout).await
+}
+
+async fn probe_chat_stream(
+    subject: &str,
+    mut stream: BoxStream<'static, agent_models::Result<agent_models::ModelEvent>>,
+    timeout: std::time::Duration,
+) -> ConnectivityTestResult {
     let mut preview = String::new();
+    let mut saw_output = false;
+
     loop {
         let event = match tokio::time::timeout(timeout, stream.next()).await {
             Ok(Some(event)) => event,
@@ -161,7 +174,7 @@ async fn probe_profile_chat_readiness(
             Err(_) => {
                 return ConnectivityTestResult::failed(
                     "network_error",
-                    &subject,
+                    subject,
                     format!("model stream timed out after {}s", timeout.as_secs()),
                 );
             }
@@ -169,24 +182,33 @@ async fn probe_profile_chat_readiness(
 
         match event {
             Ok(agent_models::ModelEvent::TokenDelta(delta)) => {
+                if !delta.trim().is_empty() {
+                    saw_output = true;
+                }
                 if preview.len() < 200 {
                     preview.push_str(&delta);
                 }
             }
             Ok(agent_models::ModelEvent::ToolCallRequested { .. }) => {
-                return ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview));
+                return ConnectivityTestResult::chat_ready(subject, non_empty_preview(preview));
             }
             Ok(agent_models::ModelEvent::Completed { .. }) => {
-                return ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview));
+                if saw_output {
+                    return ConnectivityTestResult::chat_ready(subject, non_empty_preview(preview));
+                }
             }
             Ok(agent_models::ModelEvent::Failed { message }) => {
-                return classify_provider_failure_message(message, &subject);
+                return classify_provider_failure_message(message, subject);
             }
-            Err(error) => return classify_model_error(&error, &subject),
+            Err(error) => return classify_model_error(&error, subject),
         }
     }
 
-    ConnectivityTestResult::chat_ready(&subject, non_empty_preview(preview))
+    if saw_output {
+        ConnectivityTestResult::chat_ready(subject, non_empty_preview(preview))
+    } else {
+        ConnectivityTestResult::failed("empty_response", subject, EMPTY_MODEL_RESPONSE_ERROR)
+    }
 }
 
 fn probe_profile(profile: &agent_config::ProfileDef) -> agent_config::ProfileDef {
@@ -295,6 +317,7 @@ mod profile_with_limits_tests {
 #[cfg(test)]
 mod connectivity_tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     fn fake_profile(response: &str) -> agent_config::ProfileDef {
         agent_config::ProfileDef {
@@ -322,6 +345,50 @@ mod connectivity_tests {
         }
     }
 
+    fn anthropic_profile(base_url: String) -> agent_config::ProfileDef {
+        agent_config::ProfileDef {
+            provider: "anthropic".into(),
+            model_id: "anthropic/claude-haiku-4.5".into(),
+            base_url: Some(base_url),
+            api_key: Some("test-key".into()),
+            api_key_env: None,
+            context_window: None,
+            output_limit: None,
+            response: None,
+            max_tokens: None,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            headers: None,
+            client_identity: None,
+            supports_tools: None,
+            supports_vision: None,
+            supports_reasoning: None,
+            extra_params: None,
+            server_tool_code_execution: None,
+            server_tool_web_search: None,
+            enabled: true,
+        }
+    }
+
+    async fn serve_anthropic_once(body: &'static str) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 4096];
+            let bytes = socket.read(&mut request).await.unwrap();
+            let request = String::from_utf8_lossy(&request[..bytes]);
+            assert!(request.starts_with("POST /v1/messages "));
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            socket.write_all(response.as_bytes()).await.unwrap();
+        });
+        format!("http://{addr}")
+    }
+
     #[tokio::test]
     async fn fake_profile_reports_chat_ready_without_network() {
         let result = probe_profile_chat_readiness(
@@ -336,6 +403,41 @@ mod connectivity_tests {
         assert_eq!(
             result.response_preview.as_deref(),
             Some("Hello from the Kairox fake provider!")
+        );
+    }
+
+    #[tokio::test]
+    async fn anthropic_probe_requires_actual_chat_output() {
+        std::env::set_var("NO_PROXY", "127.0.0.1,localhost");
+        let base_url = serve_anthropic_once(
+            r#"{
+                "id": "msg_test",
+                "type": "message",
+                "role": "assistant",
+                "model": "anthropic/claude-haiku-4.5",
+                "content": [],
+                "stop_reason": "end_turn",
+                "usage": { "input_tokens": 3, "output_tokens": 0 }
+            }"#,
+        )
+        .await;
+        let profile = anthropic_profile(base_url);
+
+        let result = probe_profile_chat_readiness(
+            "claude-haiku",
+            &profile,
+            std::time::Duration::from_secs(2),
+        )
+        .await;
+
+        assert!(!result.ok);
+        assert_eq!(result.status, "empty_response");
+        assert!(
+            result
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("empty response")),
+            "expected empty response error, got {result:?}"
         );
     }
 

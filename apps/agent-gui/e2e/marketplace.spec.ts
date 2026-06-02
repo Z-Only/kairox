@@ -202,11 +202,13 @@ test.describe("Settings panes backed by tauri-mock", () => {
 
     // Switch to project config source to see project-scoped skills
     await page.getByTestId("source-btn-project").click();
-    await expect(page.getByTestId("skill-row-project-project-review")).toContainText(
-      "Project Review"
-    );
-    await expect(page.getByTestId("skill-audit-project-project-review")).toContainText("Source");
-    await expect(page.getByTestId("skill-audit-project-project-review")).toContainText("Active");
+    const projectReviewRow = page.getByTestId("skill-row-project-project-review");
+    await expect(projectReviewRow).toContainText("Project Review");
+    await expect(projectReviewRow).toContainText("Project");
+    await expect(projectReviewRow).toContainText("Enabled");
+    await expect(projectReviewRow).toContainText("Effective");
+    await expect(projectReviewRow).toContainText("Source");
+    await expect(page.getByTestId("skill-audit-project-project-review")).toHaveCount(0);
     await expect(page.getByTestId("skill-invalid-project-invalid-workspace-skill")).toContainText(
       "Missing required description"
     );
@@ -272,9 +274,10 @@ test.describe("Settings panes backed by tauri-mock", () => {
   test("shows effective audit state on model profile settings", async ({ page }) => {
     await page.getByTestId("settings-tab-models").click();
 
-    await expect(page.getByTestId("model-audit-fast")).toContainText("Source");
-    await expect(page.getByTestId("model-audit-fast")).toContainText("Enabled");
-    await expect(page.getByTestId("model-audit-fast")).toContainText("Active");
+    const fastRow = page.getByTestId("model-row-fast");
+    await expect(fastRow).toContainText("profiles.toml");
+    await expect(fastRow).toContainText("Enabled");
+    await expect(page.getByTestId("model-audit-fast")).toHaveCount(0);
   });
 
   test("adds a remote skill catalog source from the discover drawer", async ({ page }) => {

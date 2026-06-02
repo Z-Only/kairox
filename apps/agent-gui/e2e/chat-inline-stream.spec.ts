@@ -4,9 +4,9 @@
  * Locks in four guarantees of the unified ChatPanel feed:
  *
  *   A. Messages and tool-call rows render together in the same chat
- *      container. `useChatStream` orders messages first (projection
- *      order) and trace items after them (sorted by `startedAt`); this
- *      test pins that deterministic order so future reorders are caught.
+ *      container. Trace items are grouped with the turn and render before
+ *      the assistant output they explain, so the process is visible while
+ *      reading the response.
  *
  *   B. A permission prompt rendered inline by `ChatPermissionItem` can
  *      be accepted via its Allow button and disappears from the stream
@@ -54,7 +54,7 @@ test("A. messages and tool-call row render together in chat stream", async ({ pa
   await expect(chatMessages.nth(1)).toHaveAttribute("data-role", "assistant");
   await expect(chatMessages.nth(1)).toContainText("Listed /tmp for you.");
 
-  // Messages render first, tool calls after — and only real tool calls.
+  // Trace items render before the assistant output they explain.
   const toolRows = messageList.getByTestId("chat-tool-call-item");
   await expect(toolRows).toHaveCount(1);
   await expect(toolRows.nth(0)).toContainText("shell");
@@ -67,7 +67,7 @@ test("A. messages and tool-call row render together in chat stream", async ({ pa
     );
     return items.map((node) => node.getAttribute("data-test"));
   });
-  expect(orderedKinds.slice(0, 2)).toEqual(["chat-message", "chat-message"]);
+  expect(orderedKinds.slice(0, 3)).toEqual(["chat-message", "chat-tool-call-item", "chat-message"]);
   expect(orderedKinds.filter((k) => k === "chat-tool-call-item")).toHaveLength(1);
 });
 

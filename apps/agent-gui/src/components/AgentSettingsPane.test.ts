@@ -65,8 +65,8 @@ function ok<T>(data: T): { status: "ok"; data: T } {
   return { status: "ok", data };
 }
 
-function mountPane() {
-  return mountWithPlugins(AgentSettingsPane, { reusePinia: true }).wrapper;
+function mountPane(locale?: "en" | "zh-CN") {
+  return mountWithPlugins(AgentSettingsPane, { reusePinia: true, locale }).wrapper;
 }
 
 function renderedAgentIds(wrapper: ReturnType<typeof mountPane>): string[] {
@@ -167,6 +167,16 @@ describe("AgentSettingsPane", () => {
     expect(renderedAgentIds(wrapper)).toEqual(["Project:alpha-builder", "User:zeta-builder"]);
   });
 
+  it("localizes agent search and sort controls in Chinese", async () => {
+    const wrapper = mountPane("zh-CN");
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="agent-search-input"]').attributes("placeholder")).toBe(
+      "搜索智能体"
+    );
+    expect(wrapper.get('[data-test="agent-sort-select"]').text()).toContain("原始顺序");
+  });
+
   it("shows a filtered empty state when no agents match search", async () => {
     const wrapper = mountPane();
     await flushPromises();
@@ -179,7 +189,7 @@ describe("AgentSettingsPane", () => {
     expect(wrapper.find('[data-test="agent-list"]').exists()).toBe(false);
   });
 
-  it("renders a consistent effective-state audit for shadowed agents", async () => {
+  it("keeps shadowed state in the summary tags without duplicating the effective audit row", async () => {
     mockedCommands.listAgentSettings.mockResolvedValueOnce(
       ok([
         {
@@ -195,15 +205,10 @@ describe("AgentSettingsPane", () => {
     await flushPromises();
 
     const audit = wrapper.find('[data-test="agent-audit-worker-builtin"]');
-    expect(audit.exists()).toBe(true);
-    expect(audit.text()).toContain("Source");
-    expect(audit.text()).toContain("Built-in");
-    expect(audit.text()).toContain("State");
-    expect(audit.text()).toContain("Enabled");
-    expect(audit.text()).toContain("Effective");
-    expect(audit.text()).toContain("Shadowed by User:worker");
-    expect(audit.text()).toContain("Validity");
-    expect(audit.text()).toContain("Valid");
+    expect(audit.exists()).toBe(false);
+    expect(wrapper.find('[data-test="agent-row-worker"]').text()).toContain(
+      "Shadowed by User:worker"
+    );
   });
 
   it("loads selected agent into the editor and saves changes", async () => {
@@ -284,7 +289,13 @@ describe("AgentSettingsPane", () => {
         "tag-success",
         "tag-warning",
         "tag-error",
-        "border-bottom: 1px solid var(--app-border-color)"
+        "border-bottom: 1px solid var(--app-border-color)",
+        'aria-label="Search agents"',
+        'placeholder="Search agents"',
+        "Original order",
+        "No agents match your search.",
+        "SettingsEffectiveAudit",
+        "agent-audit-"
       ]
     });
   });

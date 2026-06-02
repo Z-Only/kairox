@@ -74,7 +74,7 @@ onMounted(syncSourceFromCurrentConversation);
         data-test="settings-tab-mcp"
         @click="navigateToTab('mcp')"
       >
-        MCP
+        {{ t("settings.mcp") }}
       </button>
       <button
         class="tab-btn"
@@ -83,7 +83,7 @@ onMounted(syncSourceFromCurrentConversation);
         data-test="settings-tab-skills"
         @click="navigateToTab('skills')"
       >
-        Skills
+        {{ t("settings.skills") }}
       </button>
       <button
         class="tab-btn"
@@ -92,7 +92,7 @@ onMounted(syncSourceFromCurrentConversation);
         data-test="settings-tab-plugins"
         @click="navigateToTab('plugins')"
       >
-        Plugins
+        {{ t("settings.plugins") }}
       </button>
       <button
         class="tab-btn"
@@ -101,7 +101,7 @@ onMounted(syncSourceFromCurrentConversation);
         data-test="settings-tab-agents"
         @click="navigateToTab('agents')"
       >
-        Agents
+        {{ t("settings.agents") }}
       </button>
       <button
         class="tab-btn"

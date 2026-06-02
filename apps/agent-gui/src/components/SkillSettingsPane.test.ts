@@ -148,9 +148,10 @@ const remoteSkill: SkillCatalogEntry = {
   package_url: "https://api.skillhub.cn/api/v1/download?slug=docs-helper"
 };
 
-function mountPane(configSource?: "user" | "project") {
+function mountPane(configSource?: "user" | "project", locale?: "en" | "zh-CN") {
   return mountWithPlugins(SkillSettingsPane, {
     reusePinia: true,
+    locale,
     mount: configSource
       ? {
           global: {
@@ -190,9 +191,25 @@ describe("SkillSettingsPane", () => {
       forbidden: [
         'aria-label="Skills settings"',
         'aria-label="Skill sections"',
-        'placeholder="https://github.com/org/repo/tree/main/path/to/skill"'
+        'placeholder="https://github.com/org/repo/tree/main/path/to/skill"',
+        'aria-label="Search installed skills"',
+        'placeholder="Search installed skills"',
+        "Original order",
+        "No installed skills match your search.",
+        "SettingsEffectiveAudit",
+        "skill-audit-"
       ]
     });
+  });
+
+  it("localizes installed skill search and sort controls in Chinese", async () => {
+    const wrapper = mountPane(undefined, "zh-CN");
+    await flushPromises();
+
+    expect(
+      wrapper.get('[data-test="skill-installed-search-input"]').attributes("placeholder")
+    ).toBe("搜索已安装技能");
+    expect(wrapper.get('[data-test="skill-installed-sort-select"]').text()).toContain("原始顺序");
   });
 
   it("renders installed skills with scope, enabled, activation, effective, update, and invalid states", async () => {
@@ -222,11 +239,7 @@ describe("SkillSettingsPane", () => {
       "shadowed by project"
     );
     const shadowedAudit = wrapper.find('[data-test="skill-audit-user-test-driven-development"]');
-    expect(shadowedAudit.exists()).toBe(true);
-    expect(shadowedAudit.text()).toContain("Source");
-    expect(shadowedAudit.text()).toContain("User");
-    expect(shadowedAudit.text()).toContain("Effective");
-    expect(shadowedAudit.text()).toContain("Shadowed by project");
+    expect(shadowedAudit.exists()).toBe(false);
     expect(wrapper.find('[data-test="skill-row-project-broken-skill"]').text()).toContain(
       "Missing SKILL.md frontmatter"
     );

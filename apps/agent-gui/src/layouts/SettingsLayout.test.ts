@@ -6,6 +6,7 @@ import { createI18n } from "vue-i18n";
 import { createRouter, createMemoryHistory } from "vue-router";
 import { routes } from "@/router/routes";
 import en from "@/locales/en.json";
+import zhCN from "@/locales/zh-CN.json";
 import SettingsLayout from "./SettingsLayout.vue";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -20,8 +21,13 @@ function makeRouter() {
   return createRouter({ history: createMemoryHistory(), routes });
 }
 
-function makeI18n() {
-  return createI18n({ legacy: false, locale: "en", messages: { en } });
+function makeI18n(locale: "en" | "zh-CN" = "en") {
+  return createI18n({
+    legacy: false,
+    locale,
+    fallbackLocale: "en",
+    messages: { en, "zh-CN": zhCN }
+  });
 }
 
 const ConfigSourceBarStub = defineComponent({
@@ -45,7 +51,11 @@ beforeEach(() => {
 });
 
 /** Mount SettingsLayout at a given settings sub-route. */
-async function mountAt(path = "/settings/general", seedStores?: () => void) {
+async function mountAt(
+  path = "/settings/general",
+  seedStores?: () => void,
+  locale: "en" | "zh-CN" = "en"
+) {
   const router = makeRouter();
   const pinia = createPinia();
   setActivePinia(pinia);
@@ -56,7 +66,7 @@ async function mountAt(path = "/settings/general", seedStores?: () => void) {
 
   const wrapper = mount(SettingsLayout, {
     global: {
-      plugins: [router, pinia, makeI18n()],
+      plugins: [router, pinia, makeI18n(locale)],
       stubs: {
         ConfigSourceBar: ConfigSourceBarStub,
         // Stub all child route components to isolate the layout shell
@@ -165,6 +175,16 @@ describe("SettingsLayout", () => {
     for (const tab of ALL_TABS) {
       expect(wrapper.find(`[data-test="settings-tab-${tab}"]`).exists()).toBe(true);
     }
+  });
+
+  it("renders mainstream Chinese terminology for extension tabs", async () => {
+    const { wrapper } = await mountAt("/settings/skills", undefined, "zh-CN");
+
+    expect(wrapper.get('[data-test="settings-tab-mcp"]').text()).toBe("MCP");
+    expect(wrapper.get('[data-test="settings-tab-skills"]').text()).toBe("技能");
+    expect(wrapper.get('[data-test="settings-tab-plugins"]').text()).toBe("插件");
+    expect(wrapper.get('[data-test="settings-tab-agents"]').text()).toBe("智能体");
+    expect(wrapper.get('[data-test="settings-tab-hooks"]').text()).toBe("钩子");
   });
 
   it("highlights the active tab matching the current route", async () => {

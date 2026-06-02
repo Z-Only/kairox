@@ -3,12 +3,10 @@ import { usePluginsStore } from "@/stores/plugins";
 import type { PluginInstallTarget, PluginSettingsView } from "@/generated/commands";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
-import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
 import SettingsItemSummary from "@/components/ui/SettingsItemSummary.vue";
 import SettingsStatusTag from "@/components/ui/SettingsStatusTag.vue";
 
-type SourceTone = "source-builtin" | "source-user" | "source-project" | "source-local";
 type InstalledPluginSort = "original" | "name" | "scope" | "status" | "validity";
 
 const store = usePluginsStore();
@@ -21,13 +19,13 @@ const search = ref("");
 const selectedMarketplaceId = ref<string | null>(null);
 const sourceSettingsOpen = ref(false);
 
-const installedSortOptions: Array<{ value: InstalledPluginSort; label: string }> = [
-  { value: "original", label: "Original order" },
-  { value: "name", label: "Name" },
-  { value: "scope", label: "Scope" },
-  { value: "status", label: "Status" },
-  { value: "validity", label: "Validity" }
-];
+const installedSortOptions = computed<Array<{ value: InstalledPluginSort; label: string }>>(() => [
+  { value: "original", label: t("plugins.sortOriginal") },
+  { value: "name", label: t("plugins.sortName") },
+  { value: "scope", label: t("plugins.sortScope") },
+  { value: "status", label: t("plugins.sortStatus") },
+  { value: "validity", label: t("plugins.sortValidity") }
+]);
 
 const installTarget = computed<PluginInstallTarget>(() =>
   configSource?.value === "project" ? "project" : "user"
@@ -154,19 +152,6 @@ const displayedInstalledPlugins = computed(() => {
     .map(({ plugin }) => plugin);
 });
 
-function sourceTone(source: string): SourceTone {
-  switch (source.toLowerCase()) {
-    case "builtin":
-      return "source-builtin";
-    case "project":
-      return "source-project";
-    case "local":
-      return "source-local";
-    default:
-      return "source-user";
-  }
-}
-
 async function refreshInstalled(): Promise<void> {
   await store.loadPlugins();
 }
@@ -246,21 +231,21 @@ watch(activeSubTab, (tab) => {
 
       <template v-else>
         <SettingsFilterBar
-          aria-label="Search installed plugins"
+          :aria-label="t('plugins.installedSearchPlaceholder')"
           data-test="plugin-installed-filters"
         >
           <div class="settings-filter-bar__row">
             <KxInput
               v-model="installedSearch"
               type="search"
-              aria-label="Search installed plugins"
-              placeholder="Search installed plugins"
+              :aria-label="t('plugins.installedSearchPlaceholder')"
+              :placeholder="t('plugins.installedSearchPlaceholder')"
               data-test="plugin-installed-search-input"
               size="compact"
             />
             <KxSelect
               :model-value="installedSort"
-              aria-label="Installed plugin sort"
+              :aria-label="t('plugins.installedSortAria')"
               data-test="plugin-installed-sort-select"
               class="plugin-installed-sort-select"
               size="compact"
@@ -282,7 +267,7 @@ watch(activeSubTab, (tab) => {
           tone="empty"
           data-test="plugin-installed-filter-empty"
         >
-          No installed plugins match your search.
+          {{ t("plugins.installedFilterEmpty") }}
         </SettingsState>
 
         <SettingsCardList
@@ -316,16 +301,6 @@ watch(activeSubTab, (tab) => {
                   {{ t("plugins.shadowedBy", { source: plugin.shadowed_by }) }}
                 </SettingsStatusTag>
               </template>
-
-              <SettingsEffectiveAudit
-                :source="plugin.scope"
-                :source-tone="sourceTone(plugin.scope)"
-                :enabled="plugin.enabled"
-                :effective="plugin.effective"
-                :shadowed-by="plugin.shadowed_by"
-                :valid="plugin.valid"
-                :data-test="`plugin-audit-${settingsTestId(plugin)}`"
-              />
 
               <SettingsItemMeta wrap-values>
                 <div>

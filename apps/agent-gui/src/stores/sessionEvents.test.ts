@@ -10,6 +10,7 @@ import type {
 } from "@/types";
 import {
   emptyProjection,
+  appendAssistantErrorMessage,
   applySessionEvent,
   setProjectionFromSnapshot,
   resetProjectionState,
@@ -243,6 +244,21 @@ describe("applySessionEvent — task events", () => {
     expect(ctx.projection.value.messages).toHaveLength(1);
     expect(ctx.projection.value.messages[0].role).toBe("assistant");
     expect(ctx.projection.value.messages[0].content).toContain("boom");
+    expect(ctx.projection.value.token_stream).toBe("");
+    expect(ctx.isStreaming.value).toBe(false);
+  });
+
+  it("deduplicates a repeated AgentTaskFailed error already reported by the composer", () => {
+    const ctx = makeCtx({ isStreaming: ref(true) });
+    appendAssistantErrorMessage(ctx.projection.value, "boom");
+
+    applySessionEvent(
+      makeEvent({ type: "AgentTaskFailed", task_id: "t1", agent_id: "a1", error: "boom" }),
+      ctx,
+      makeAgentsStore()
+    );
+
+    expect(ctx.projection.value.messages).toEqual([{ role: "assistant", content: "[error] boom" }]);
     expect(ctx.projection.value.token_stream).toBe("");
     expect(ctx.isStreaming.value).toBe(false);
   });

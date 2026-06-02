@@ -3,7 +3,6 @@ import { useSkillsStore } from "@/stores/skills";
 import type { ConfigScope, EffectiveSkillView, SkillInstallTarget } from "@/generated/commands";
 import { commands } from "@/generated/commands";
 import SkillDiscoverList from "@/components/skills/SkillDiscoverList.vue";
-import SettingsEffectiveAudit from "@/components/ui/SettingsEffectiveAudit.vue";
 import SettingsCardItem from "@/components/ui/SettingsCardItem.vue";
 import SettingsCardList from "@/components/ui/SettingsCardList.vue";
 import SettingsItemMeta from "@/components/ui/SettingsItemMeta.vue";
@@ -21,13 +20,15 @@ const installTarget = ref<ConfigScope>("User");
 const busySkillId = ref<string | null>(null);
 const installedSearchQuery = ref("");
 const installedSortMode = ref<InstalledSkillSortMode>("original");
-const installedSortOptions: Array<{ value: InstalledSkillSortMode; label: string }> = [
-  { value: "original", label: "Original order" },
-  { value: "name", label: "Name" },
-  { value: "scope", label: "Scope" },
-  { value: "status", label: "Status" },
-  { value: "update_state", label: "Update state" }
-];
+const installedSortOptions = computed<Array<{ value: InstalledSkillSortMode; label: string }>>(
+  () => [
+    { value: "original", label: t("skills.sortOriginal") },
+    { value: "name", label: t("skills.sortName") },
+    { value: "scope", label: t("skills.sortScope") },
+    { value: "status", label: t("skills.sortStatus") },
+    { value: "update_state", label: t("skills.sortUpdateState") }
+  ]
+);
 const skillSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 const skillCatalogInstallTarget = computed<SkillInstallTarget>(
   () => installTarget.value.toLowerCase() as SkillInstallTarget
@@ -260,7 +261,7 @@ async function installFromGithub(): Promise<void> {
 
         <template v-else>
           <SettingsFilterBar
-            aria-label="Search installed skills"
+            :aria-label="t('skills.installedSearchPlaceholder')"
             data-test="skill-installed-filters"
           >
             <div class="settings-filter-bar__row">
@@ -268,13 +269,13 @@ async function installFromGithub(): Promise<void> {
                 v-model="installedSearchQuery"
                 type="search"
                 size="compact"
-                aria-label="Search installed skills"
-                placeholder="Search installed skills"
+                :aria-label="t('skills.installedSearchPlaceholder')"
+                :placeholder="t('skills.installedSearchPlaceholder')"
                 data-test="skill-installed-search-input"
               />
               <KxSelect
                 v-model="installedSortMode"
-                aria-label="Installed skill sort"
+                :aria-label="t('skills.installedSortAria')"
                 data-test="skill-installed-sort-select"
                 size="compact"
                 class="skill-settings__sort-select"
@@ -295,7 +296,7 @@ async function installFromGithub(): Promise<void> {
             tone="empty"
             data-test="skill-installed-filter-empty"
           >
-            No installed skills match your search.
+            {{ t("skills.installedFilterEmpty") }}
           </SettingsState>
 
           <SettingsCardList
@@ -343,18 +344,6 @@ async function installFromGithub(): Promise<void> {
                     {{ skill.value.valid ? t("skills.valid") : t("skills.invalid") }}
                   </SettingsStatusTag>
                 </template>
-
-                <SettingsEffectiveAudit
-                  :source="skill.source"
-                  :source-tone="sourceTone(skill.source)"
-                  :enabled="skill.enabled"
-                  :effective="skill.value.effective"
-                  :shadowed-by="skill.value.shadowed_by"
-                  :overrides="skill.overrides"
-                  :disabled-by="skill.disabledBy"
-                  :valid="skill.value.valid"
-                  :data-test="`skill-audit-${skillSettingsTestId(skill)}`"
-                />
 
                 <SettingsItemMeta columns="four">
                   <div>

@@ -213,6 +213,39 @@ fn builds_anthropic_request_with_empty_assistant_text_and_tool_calls() {
     assert_eq!(result_blocks[0]["tool_use_id"], "toolu_02");
 }
 
+#[test]
+fn omits_empty_text_only_messages_from_anthropic_request() {
+    let client = AnthropicClient::new(AnthropicConfig::default());
+    let request = ModelRequest::user_text("fast", "hello")
+        .with_system_prompt("  \n\t  ")
+        .add_message("assistant", "")
+        .add_message("assistant", "   ")
+        .add_message("user", "next");
+
+    let body = client.build_messages_request(&request);
+
+    assert!(body["system"].is_null(), "empty system prompt is invalid");
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["role"], "user");
+    assert_eq!(messages[0]["content"], "hello");
+    assert_eq!(messages[1]["role"], "user");
+    assert_eq!(messages[1]["content"], "next");
+
+    for message in messages {
+        if let Some(blocks) = message["content"].as_array() {
+            for block in blocks {
+                if block["type"] == "text" {
+                    assert!(
+                        !block["text"].as_str().unwrap_or_default().trim().is_empty(),
+                        "Anthropic rejects empty text content blocks"
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[tokio::test]
 async fn streams_from_wiremock_server() {
     use wiremock::matchers::{method, path};

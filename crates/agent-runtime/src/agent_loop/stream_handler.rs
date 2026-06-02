@@ -10,6 +10,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
+const EMPTY_MODEL_RESPONSE_ERROR: &str =
+    "model returned an empty response; check model availability, quota, or plan";
+
 /// Output from processing a single model stream.
 pub(crate) struct StreamOutput {
     pub(crate) assistant_text: String,
@@ -119,17 +122,19 @@ where
                 } else {
                     strip_memory_markers(&assistant_text)
                 };
-                let event = DomainEvent::new(
-                    request.workspace_id.clone(),
-                    request.session_id.clone(),
-                    AgentId::system(),
-                    PrivacyClassification::FullTrace,
-                    EventPayload::AssistantMessageCompleted {
-                        message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
-                        content: display_content,
-                    },
-                );
-                append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+                if !display_content.is_empty() {
+                    let event = DomainEvent::new(
+                        request.workspace_id.clone(),
+                        request.session_id.clone(),
+                        AgentId::system(),
+                        PrivacyClassification::FullTrace,
+                        EventPayload::AssistantMessageCompleted {
+                            message_id: format!("msg_{}", uuid::Uuid::new_v4().simple()),
+                            content: display_content,
+                        },
+                    );
+                    append_and_broadcast(&**deps.store, deps.event_tx, &event).await?;
+                }
             }
             Ok(agent_models::ModelEvent::Failed { message }) => {
                 emit_model_request_failure(
@@ -157,6 +162,21 @@ where
                 return Err(agent_core::CoreError::InvalidState(error_msg));
             }
         }
+    }
+
+    if !cancel_token.is_cancelled() && assistant_text.trim().is_empty() && tool_calls.is_empty() {
+        emit_model_request_failure(
+            &**deps.store,
+            deps.event_tx,
+            request,
+            root_task_id,
+            deps.task_graphs,
+            EMPTY_MODEL_RESPONSE_ERROR,
+        )
+        .await;
+        return Err(agent_core::CoreError::InvalidState(
+            EMPTY_MODEL_RESPONSE_ERROR.to_string(),
+        ));
     }
 
     Ok(StreamOutput {

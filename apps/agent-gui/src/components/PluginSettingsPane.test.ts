@@ -34,9 +34,10 @@ function err(error: string): { status: "error"; error: string } {
   return { status: "error", error };
 }
 
-function mountPane(configSource: "user" | "project" = "user") {
+function mountPane(configSource: "user" | "project" = "user", locale?: "en" | "zh-CN") {
   return mountWithPlugins(PluginSettingsPane, {
     reusePinia: true,
+    locale,
     mount: {
       global: {
         provide: { configSource: ref(configSource) }
@@ -141,20 +142,41 @@ describe("PluginSettingsPane", () => {
       expect(row.text()).toContain("GitHub");
       expect(row.text()).toContain("User");
       const audit = wrapper.find('[data-test="plugin-audit-builtin-github"]');
-      expect(audit.exists()).toBe(true);
-      expect(audit.text()).toContain("Source");
-      expect(audit.text()).toContain("Builtin");
-      expect(audit.text()).toContain("Effective");
-      expect(audit.text()).toContain("Shadowed by User:github");
-      expect(audit.text()).toContain("Validity");
-      expect(audit.text()).toContain("Valid");
+      expect(audit.exists()).toBe(false);
     });
 
     it("uses shared card content hierarchy instead of plugin-local title and meta css", () => {
       expectSourceMigration(pluginSettingsPaneSource, {
         required: ["SettingsItemSummary", "SettingsItemMeta", "SettingsStatusTag"],
-        forbidden: [".plugin-row__title", ".plugin-meta", "tag-success", "tag-warning", "tag-error"]
+        forbidden: [
+          ".plugin-row__title",
+          ".plugin-meta",
+          "tag-success",
+          "tag-warning",
+          "tag-error",
+          'aria-label="Search installed plugins"',
+          'placeholder="Search installed plugins"',
+          "Original order",
+          "No installed plugins match your search.",
+          "SettingsEffectiveAudit",
+          "plugin-audit-"
+        ]
       });
+    });
+
+    it("localizes installed plugin search and sort controls in Chinese", async () => {
+      mockedCommands.listPluginSettings.mockResolvedValue(ok([pluginSettings()]));
+      mockedCommands.listPluginMarketplaceSources.mockResolvedValue(ok([]));
+
+      const { wrapper } = mountPane("user", "zh-CN");
+      await flushPromises();
+
+      expect(
+        wrapper.get('[data-test="plugin-installed-search-input"]').attributes("placeholder")
+      ).toBe("搜索已安装插件");
+      expect(wrapper.get('[data-test="plugin-installed-sort-select"]').text()).toContain(
+        "原始顺序"
+      );
     });
 
     it("filters installed plugins by search text", async () => {

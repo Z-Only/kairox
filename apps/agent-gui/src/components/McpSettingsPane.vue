@@ -18,14 +18,14 @@ const addServerMode = ref<"git" | "manual">("manual");
 const addServerDropdownOpen = ref(false);
 const serverSearchQuery = ref("");
 const serverSortMode = ref<McpServerSortMode>("original");
-const serverSortOptions: Array<{ value: McpServerSortMode; label: string }> = [
-  { value: "original", label: "Original order" },
-  { value: "name", label: "Name" },
-  { value: "source", label: "Source" },
-  { value: "transport", label: "Transport" },
-  { value: "status", label: "Status" },
-  { value: "trust", label: "Trust" }
-];
+const serverSortOptions = computed<Array<{ value: McpServerSortMode; label: string }>>(() => [
+  { value: "original", label: t("mcp.sortOriginal") },
+  { value: "name", label: t("mcp.sortName") },
+  { value: "source", label: t("mcp.sortSource") },
+  { value: "transport", label: t("mcp.sortTransport") },
+  { value: "status", label: t("mcp.sortStatus") },
+  { value: "trust", label: t("mcp.sortTrust") }
+]);
 const serverSortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 const configSource = inject<Ref<"user" | "project">>("configSource");
@@ -231,7 +231,7 @@ function closeAddServerDialog(): void {
         <template v-else>
           <SettingsFilterBar
             class="mcp-settings__filter"
-            aria-label="Search MCP servers"
+            :aria-label="t('mcp.serverSearchPlaceholder')"
             data-test="mcp-server-filters"
           >
             <div class="settings-filter-bar__row">
@@ -239,13 +239,13 @@ function closeAddServerDialog(): void {
                 v-model="serverSearchQuery"
                 type="search"
                 size="compact"
-                aria-label="Search MCP servers"
-                placeholder="Search MCP servers"
+                :aria-label="t('mcp.serverSearchPlaceholder')"
+                :placeholder="t('mcp.serverSearchPlaceholder')"
                 data-test="mcp-server-search-input"
               />
               <KxSelect
                 :model-value="serverSortMode"
-                aria-label="MCP server sort"
+                :aria-label="t('mcp.serverSortAria')"
                 data-test="mcp-server-sort-select"
                 size="compact"
                 class="mcp-settings__sort-select"
@@ -267,7 +267,7 @@ function closeAddServerDialog(): void {
             tone="empty"
             data-test="mcp-server-filter-empty"
           >
-            No MCP servers match your search.
+            {{ t("mcp.serverFilterEmpty") }}
           </SettingsState>
 
           <SettingsCardList

@@ -89,13 +89,13 @@ test.describe("Agents Settings", () => {
     await expect(workerRows).toHaveCount(2);
     await expect(workerRows.nth(0)).toContainText("Built-in");
     await expect(workerRows.nth(1)).toContainText("User");
-    await expect(agentRow(page, "worker", "Builtin")).toContainText("Shadowed by User:worker");
-    await expect(page.getByTestId("agent-audit-worker-builtin")).toContainText("Source");
-    await expect(page.getByTestId("agent-audit-worker-builtin")).toContainText(
-      "Shadowed by User:worker"
-    );
-    await expect(agentRow(page, "worker", "User")).toContainText("Effective");
-    await expect(page.getByTestId("agent-audit-worker-user")).toContainText("Active");
+    const builtinWorker = agentRow(page, "worker", "Builtin");
+    await expect(builtinWorker).toContainText("Shadowed by User:worker");
+    await expect(page.getByTestId("agent-audit-worker-builtin")).toHaveCount(0);
+
+    const userWorker = agentRow(page, "worker", "User");
+    await expect(userWorker).toContainText("Effective");
+    await expect(page.getByTestId("agent-audit-worker-user")).toHaveCount(0);
   });
 
   test("creates, verifies, and deletes a project-scoped agent", async ({ page }) => {

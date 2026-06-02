@@ -5,7 +5,11 @@ impl OpenAiCompatibleClient {
     pub(super) fn build_chat_request(&self, request: &ModelRequest) -> Result<serde_json::Value> {
         let mut messages = Vec::new();
 
-        if let Some(ref system_prompt) = request.system_prompt {
+        if let Some(system_prompt) = request
+            .system_prompt
+            .as_ref()
+            .filter(|prompt| has_non_empty_text(prompt))
+        {
             messages.push(serde_json::json!({
                 "role": "system",
                 "content": system_prompt,
@@ -32,7 +36,7 @@ impl OpenAiCompatibleClient {
                     .collect();
                 let mut msg_json = serde_json::json!({
                     "role": "assistant",
-                    "content": if msg.content.is_empty() { serde_json::Value::Null } else { serde_json::json!(msg.content) },
+                    "content": if has_non_empty_text(&msg.content) { serde_json::json!(msg.content) } else { serde_json::Value::Null },
                 });
                 msg_json["tool_calls"] = serde_json::json!(tool_calls_json);
                 messages.push(msg_json);
@@ -45,6 +49,9 @@ impl OpenAiCompatibleClient {
                     "content": msg.content,
                 }));
             } else {
+                if !has_non_empty_text(&msg.content) {
+                    continue;
+                }
                 messages.push(serde_json::json!({
                     "role": msg.role,
                     "content": msg.content,
@@ -95,4 +102,8 @@ impl OpenAiCompatibleClient {
 
         Ok(body)
     }
+}
+
+fn has_non_empty_text(value: &str) -> bool {
+    !value.trim().is_empty()
 }

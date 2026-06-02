@@ -98,14 +98,10 @@ beforeEach(() => {
 
 describe("McpServerCard", () => {
   describe("source migration guard", () => {
-    it("uses SettingsCardItem, SettingsItemSummary, SettingsStatusTag, and SettingsEffectiveAudit", () => {
+    it("uses shared summary/status chrome without duplicating the effective audit row", () => {
       expectSourceMigration(mcpServerCardSource, {
-        required: [
-          "SettingsCardItem",
-          "SettingsItemSummary",
-          "SettingsStatusTag",
-          "SettingsEffectiveAudit"
-        ]
+        required: ["SettingsCardItem", "SettingsItemSummary", "SettingsStatusTag"],
+        forbidden: ["SettingsEffectiveAudit", "mcp-audit-"]
       });
     });
   });
@@ -638,10 +634,10 @@ describe("McpServerCard", () => {
       expect(wrapper.find('[data-test="mcp-server-row-my-server"]').exists()).toBe(true);
     });
 
-    it("sets data-test on the audit element", () => {
+    it("does not render a duplicate audit element below summary tags", () => {
       const server = toEffective(makeServer());
       const wrapper = mountCard(server);
-      expect(wrapper.find(`[data-test="mcp-audit-${server.value.id}"]`).exists()).toBe(true);
+      expect(wrapper.find(`[data-test="mcp-audit-${server.value.id}"]`).exists()).toBe(false);
     });
   });
 });

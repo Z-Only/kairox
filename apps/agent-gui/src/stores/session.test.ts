@@ -9,6 +9,7 @@ import {
 import type { SessionInfoResponse } from "@/types";
 import { useAgentsStore } from "@/stores/agents";
 import { useProjectStore } from "@/stores/project";
+import { traceState } from "@/composables/useTraceStore";
 import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -296,6 +297,15 @@ describe("project session metadata", () => {
     const session = useSessionStore();
     session.currentSessionId = "regular-1";
     session.projection.messages = [{ role: "user", content: "stale" }];
+    traceState.entries.push({
+      id: "ctx-stale",
+      kind: "tool",
+      status: "completed",
+      toolId: "context",
+      title: "Context assembled",
+      startedAt: Date.now(),
+      expanded: false
+    });
 
     await session.startOrdinaryDraftSession();
 
@@ -304,6 +314,7 @@ describe("project session metadata", () => {
     expect(session.currentSessionInfo).toBeNull();
     expect(session.composerDraftKey).toBe("new-session:ordinary");
     expect(session.projection.messages).toEqual([]);
+    expect(traceState.entries).toEqual([]);
     expect(JSON.parse(localStorage.getItem("kairox.last-workbench-state") ?? "{}")).toEqual({
       kind: "ordinary-draft"
     });
