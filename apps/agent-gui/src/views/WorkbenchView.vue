@@ -4,7 +4,6 @@ import { useUiStore } from "@/stores/ui";
 import SessionsSidebar from "@/components/SessionsSidebar.vue";
 import ChatPanel from "@/components/ChatPanel.vue";
 import TraceTimeline from "@/components/TraceTimeline.vue";
-import ContextMeterPill from "@/components/ContextMeterPill.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -186,10 +185,6 @@ function startResize(side: "left" | "right", event: PointerEvent) {
     <aside class="right-sidebar" :aria-hidden="rightSidebarCollapsed ? 'true' : undefined">
       <TraceTimeline />
     </aside>
-    <ContextMeterPill
-      class="workbench-context-meter-pill"
-      data-test="workbench-context-meter-pill"
-    />
   </main>
 </template>
 
@@ -321,21 +316,6 @@ function startResize(side: "left" | "right", event: PointerEvent) {
 .collapse-glyph--collapse-right {
   transform: rotate(45deg);
 }
-/* The demoted ContextMeter pill floats in the bottom-right corner so it
-   stays visible without occupying composer real estate or duplicating the
-   inline compaction signal now rendered by `ChatCompactionItem`. */
-.workbench-context-meter-pill {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  z-index: 3;
-  pointer-events: auto;
-}
-.workbench--right-collapsed .workbench-context-meter-pill {
-  /* Keep the pill pinned to the visible workbench edge even when the trace
-     sidebar is collapsed so it does not clip under hidden chrome. */
-  right: 10px;
-}
 @media (max-width: 900px) {
   .workbench {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -345,11 +325,6 @@ function startResize(side: "left" | "right", event: PointerEvent) {
   .right-sidebar,
   .sidebar-divider {
     display: none;
-  }
-
-  .workbench-context-meter-pill {
-    right: 8px;
-    bottom: 86px;
   }
 }
 </style>

@@ -518,10 +518,9 @@ describe("ChatPanel", () => {
   it("no longer renders the primary ContextMeter ring inside the composer input row (R4-B demotion)", async () => {
     // R4-B moved the primary context-usage signal out of the chat
     // composer: compaction is now rendered inline in the chat stream
-    // (`ChatCompactionItem`, PRs #471-#477) and the diagnostic meter is
-    // surfaced via the demoted `ContextMeterPill` mounted in
-    // `WorkbenchView`. The composer's input row should be free of any
-    // `<ContextMeter>` mount in either ring or bar variant.
+    // (`ChatCompactionItem`, PRs #471-#477). The compact footer pill may
+    // live near the composer, but the input row itself should stay free of
+    // any heavy `<ContextMeter>` mount in either ring or bar variant.
     const wrapper = mountChatPanel((session) => {
       session.lastContextUsage = makeUsage();
       session.projection.messages = [{ role: "user", content: "hi" }] as never;

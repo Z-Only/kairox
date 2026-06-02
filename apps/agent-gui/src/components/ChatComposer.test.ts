@@ -63,10 +63,10 @@ function mountChatComposer() {
       },
       global: {
         stubs: {
-          // ContextMeter is no longer mounted from ChatComposer — the
-          // demoted ContextMeterPill lives in WorkbenchView. We only stub
-          // out heavy children that still mount inside the composer.
-          AttachmentTray: true
+          AttachmentTray: true,
+          ContextMeterPill: {
+            template: '<div data-test="context-meter-pill" />'
+          }
         }
       }
     }
@@ -103,6 +103,37 @@ describe("legacy policy selector cleanup", () => {
 });
 
 describe("composer metadata", () => {
+  it("renders model, policy, branch metadata below the input row with context on the right", async () => {
+    const { wrapper, session } = mountChatComposer();
+    session.lastContextUsage = {
+      total_tokens: 12_000,
+      budget_tokens: 180_000,
+      context_window: 200_000,
+      output_reservation: 20_000,
+      by_source: [["history", 12_000]],
+      estimator: "cl100k_base",
+      corrected_by_real_usage: false
+    };
+    await wrapper.vm.$nextTick();
+
+    const footer = wrapper.find(".composer-footer");
+    const meta = wrapper.find(".composer-meta");
+    const inputRow = wrapper.find(".input-row");
+    const contextPill = wrapper.find('[data-test="composer-context-meter-pill"]');
+
+    expect(footer.exists()).toBe(true);
+    expect(meta.exists()).toBe(true);
+    expect(contextPill.exists()).toBe(true);
+    expect(inputRow.element.compareDocumentPosition(footer.element)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(footer.element.compareDocumentPosition(contextPill.element)).toBe(
+      Node.DOCUMENT_POSITION_CONTAINED_BY | Node.DOCUMENT_POSITION_FOLLOWING
+    );
+    expect(inputRow.find(".composer-meta").exists()).toBe(false);
+    expect(inputRow.find('[data-test="context-meter-pill"]').exists()).toBe(false);
+  });
+
   it("renders pending project branch control after approval and sandbox controls", async () => {
     const { wrapper, session } = mountChatComposer();
     const projectStore = useProjectStore();
