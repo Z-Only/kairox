@@ -422,6 +422,29 @@ describe("useChatComposer", () => {
     });
   });
 
+  it("does not save sent placeholder text back into the old draft key", async () => {
+    const session = createSession({
+      currentSessionId: null,
+      composerDraftKey: "new-session:project:p1",
+      ensureSessionForSend: vi.fn(async () => {
+        session.currentSessionId = "ses_new";
+        session.composerDraftKey = null;
+      })
+    });
+    const { composer, draftStore } = createComposer({ session });
+    composer.inputText.value = "hello from project placeholder";
+
+    await composer.sendMessage();
+    await vi.runAllTimersAsync();
+
+    expect(draftStore.saveDraft).not.toHaveBeenCalledWith(
+      "new-session:project:p1",
+      "hello from project placeholder"
+    );
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("new-session:project:p1");
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_new");
+  });
+
   it("preserves queued messages when materialized draft loading finishes late", async () => {
     let resolveMaterializedDraft!: (value: string) => void;
     const materializedDraft = new Promise<string>((resolve) => {
@@ -535,7 +558,7 @@ describe("useChatComposer", () => {
       // watcher can clear the textarea before the accepted send returns.
       if (composerRef) composerRef.inputText.value = "";
     });
-    const { composer } = createComposer({ session, invokeFn });
+    const { composer, draftStore } = createComposer({ session, invokeFn });
     composerRef = composer;
     composer.inputText.value = "read this";
     composer.addFilePaths(["/repo/docs/notes.md"]);
@@ -549,6 +572,8 @@ describe("useChatComposer", () => {
     });
     expect(composer.inputText.value).toBe("");
     expect(composer.attachments.value).toEqual([]);
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("new-session:project:p1");
+    expect(draftStore.clearDraft).toHaveBeenCalledWith("ses_new");
   });
 
   it("keeps placeholder text when first send fails after materialization", async () => {

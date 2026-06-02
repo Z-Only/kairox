@@ -99,6 +99,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
   const switchingModel = ref(false);
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
   let skipNextDraftLoad = false;
+  let skipNextDraftSaveKey: string | null = null;
 
   function clearDraftTimer() {
     if (draftTimer) {
@@ -119,7 +120,11 @@ export function useChatComposer(options: UseChatComposerOptions) {
         sendingQueuedId.value = null;
       }
       const inputBeforeLoad = inputText.value;
-      if (oldId && inputText.value.trim()) {
+      const skipOldDraftSave = Boolean(oldId && oldId === skipNextDraftSaveKey);
+      if (skipOldDraftSave) {
+        skipNextDraftSaveKey = null;
+      }
+      if (oldId && inputText.value.trim() && !skipOldDraftSave) {
         await draftStore.saveDraft(oldId, inputText.value);
       }
       if (newId) {
@@ -310,15 +315,26 @@ export function useChatComposer(options: UseChatComposerOptions) {
 
   async function invokeSend(content: string, attachmentsToSend: Attachment[]) {
     if (!session.currentSessionId) {
+      const draftKeyBeforeMaterialization = currentDraftKey();
       skipNextDraftLoad = true;
+      skipNextDraftSaveKey = draftKeyBeforeMaterialization;
       try {
         await session.ensureSessionForSend?.();
       } catch (error) {
         skipNextDraftLoad = false;
+        skipNextDraftSaveKey = null;
         throw error;
       }
       if (!session.currentSessionId) {
         skipNextDraftLoad = false;
+        skipNextDraftSaveKey = null;
+      }
+      if (
+        draftKeyBeforeMaterialization &&
+        skipNextDraftSaveKey === draftKeyBeforeMaterialization &&
+        currentDraftKey() === draftKeyBeforeMaterialization
+      ) {
+        skipNextDraftSaveKey = null;
       }
     }
     if (!session.currentSessionId) {
@@ -349,6 +365,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
     const attachmentsAtSend = attachments.value;
     const content = draftAtSend.trim();
     if (!content && attachmentsAtSend.length === 0) return;
+    clearDraftTimer();
 
     if (isQueueing.value) {
       await enqueueMessage(content, attachmentsAtSend);
@@ -363,9 +380,15 @@ export function useChatComposer(options: UseChatComposerOptions) {
         await clearComposer(draftKeyAtSend);
       } else if (attachmentsUnchanged && inputText.value === "") {
         attachments.value = [];
+        await clearCurrentDraft(draftKeyAtSend);
+      } else if (draftKeyAtSend?.startsWith("new-session:")) {
+        await draftStore.clearDraft(draftKeyAtSend);
       }
     } catch (e) {
       console.error("Failed to send message:", e);
+      if (draftKeyAtSend && inputText.value === draftAtSend) {
+        await draftStore.saveDraft(draftKeyAtSend, draftAtSend);
+      }
       session.reportSendError?.(String(e));
       notify("error", t("chat.sendFailed", { error: String(e) }));
     }
