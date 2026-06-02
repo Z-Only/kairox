@@ -22,7 +22,7 @@ export function migrateLegacyLocaleDefault(storage: Storage | null = browserStor
   try {
     const stored = storage.getItem(LOCALE_STORAGE_KEY);
     const explicit = storage.getItem(LOCALE_EXPLICIT_STORAGE_KEY);
-    if (stored === "en" && explicit !== "true") {
+    if ((stored === "en" || stored === "zh-CN") && explicit !== "true") {
       storage.setItem(LOCALE_STORAGE_KEY, "system");
     }
   } catch {

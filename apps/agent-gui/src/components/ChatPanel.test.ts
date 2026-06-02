@@ -449,6 +449,56 @@ describe("ChatPanel", () => {
     expect(projectContext.text()).toContain("Kairox");
   });
 
+  it("shows the project name below the empty state for a hidden project draft session", async () => {
+    const wrapper = mountChatPanel((session) => {
+      session.currentSessionId = "ses_project_draft";
+      session.projection.messages = [];
+      session.projection.token_stream = "";
+      session.lastSendError = null;
+      session.isStreaming = false;
+    });
+    const projectStore = useProjectStore();
+    projectStore.projects = [
+      {
+        projectId: "project_1",
+        displayName: "Compiler Tools",
+        rootPath: "/repo",
+        removedAt: null,
+        sortOrder: 0,
+        expanded: true,
+        pathExists: true
+      }
+    ];
+    projectStore.sessionsByProject = new Map([
+      [
+        "project_1",
+        [
+          {
+            sessionId: "ses_project_draft",
+            title: "New Session",
+            profile: "fast",
+            projectId: "project_1",
+            worktreePath: "/repo",
+            branch: "main",
+            visibility: "draft_hidden",
+            deletedAt: null,
+            approvalPolicy: null,
+            sandboxPolicy: null
+          }
+        ]
+      ]
+    ]);
+    await flushPromises();
+
+    const emptyState = wrapper.find('[data-test="chat-empty-state"]');
+    expect(emptyState.exists()).toBe(true);
+    expect(emptyState.text()).toContain("Start a conversation");
+
+    const projectContext = wrapper.find('[data-test="project-draft-context"]');
+    expect(projectContext.exists()).toBe(true);
+    expect(projectContext.text()).toContain("Compiler Tools");
+  });
+
   it("resolves missing branch metadata without exposing the project root path", async () => {
     mockedInvoke.mockImplementation(async (command) => {
       if (command === "get_profile_info") return [];
