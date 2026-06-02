@@ -147,13 +147,31 @@ fn custom_provider_with_anthropic_base_url_uses_anthropic_family() {
 }
 
 #[test]
-fn custom_anthropic_gateway_profile_uses_anthropic_capabilities() {
+fn custom_anthropic_gateway_profile_uses_anthropic_transport_capabilities() {
     let def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
     let profile = build_profile("ali-mo-claude", &def);
 
     assert_eq!(profile.provider, "ali-mo");
     assert!(profile.capabilities.tool_calling);
     assert!(!profile.capabilities.json_schema);
+    assert!(!profile.capabilities.reasoning_controls);
+}
+
+#[test]
+fn custom_anthropic_gateway_does_not_infer_reasoning_controls() {
+    let def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+    let profile = build_profile("ali-mo-claude", &def);
+
+    assert!(!profile.capabilities.reasoning_controls);
+}
+
+#[test]
+fn custom_anthropic_gateway_can_enable_reasoning_controls_explicitly() {
+    let mut def = test_profile("ali-mo", Some("https://idealab.example.com/api/anthropic"));
+    def.supports_reasoning = Some(true);
+
+    let profile = build_profile("ali-mo-claude", &def);
+
     assert!(profile.capabilities.reasoning_controls);
 }
 

@@ -76,6 +76,18 @@ describe("ChatModelSelector", () => {
     expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
   });
 
+  it("hides the popover content after selecting a concrete model option", async () => {
+    const wrapper = mountSelector({ currentProfile: "smart" });
+
+    await wrapper.find('[data-test="chat-model-trigger"]').trigger("click");
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(true);
+
+    await wrapper.find('[data-test="chat-model-option-fast"]').trigger("click");
+    await nextTick();
+
+    expect(wrapper.find('[data-test="chat-model-popover"]').exists()).toBe(false);
+  });
+
   it("emits the hovered reasoning model and built-in effort", async () => {
     const wrapper = mountSelector();
 
