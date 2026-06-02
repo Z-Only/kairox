@@ -273,7 +273,6 @@ where
         crate::memory_handler::store_memory_markers(
             &**deps.store,
             deps.event_tx,
-            deps.permission_engine,
             deps.memory_store,
             &request.workspace_id,
             &request.session_id,

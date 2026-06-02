@@ -50,6 +50,31 @@ export const useMemoryStore = defineStore("memory", () => {
     }
   }
 
+  async function acceptMemoryItem(id: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("accept_memory", { id });
+      const item = memories.value.find((m) => m.id === id);
+      if (item) {
+        item.accepted = true;
+      }
+    } catch (e) {
+      console.error("Failed to accept memory:", e);
+      ui.pushNotification("error", `Failed to accept memory: ${e}`);
+    }
+  }
+
+  async function rejectMemoryItem(id: string): Promise<void> {
+    const ui = useUiStore();
+    try {
+      await invoke("reject_memory", { id });
+      memories.value = memories.value.filter((m) => m.id !== id);
+    } catch (e) {
+      console.error("Failed to reject memory:", e);
+      ui.pushNotification("error", `Failed to reject memory: ${e}`);
+    }
+  }
+
   function setMemoryFilter(next: typeof filter.value): void {
     filter.value = next;
     void loadMemories();
@@ -62,6 +87,8 @@ export const useMemoryStore = defineStore("memory", () => {
     searchQuery,
     loadMemories,
     deleteMemoryItem,
+    acceptMemoryItem,
+    rejectMemoryItem,
     setMemoryFilter
   };
 });

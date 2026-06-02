@@ -130,6 +130,14 @@ async function promptDelete(id: string, content: string) {
     void memory.deleteMemoryItem(id);
   }
 }
+
+function acceptMemory(id: string) {
+  void memory.acceptMemoryItem(id);
+}
+
+function rejectMemory(id: string) {
+  void memory.rejectMemoryItem(id);
+}
 </script>
 
 <template>
@@ -237,6 +245,26 @@ async function promptDelete(id: string, content: string) {
         <span class="memory-content">{{ mem.content }}</span>
         <div class="memory-actions">
           <KxIconButton
+            v-if="!mem.accepted"
+            class="memory-accept-btn"
+            :label="t('memory.accept')"
+            :title="t('memory.accept')"
+            data-test="memory-accept-btn"
+            @click="acceptMemory(mem.id)"
+          >
+            ✓
+          </KxIconButton>
+          <KxIconButton
+            v-if="!mem.accepted"
+            class="memory-reject-btn"
+            :label="t('memory.reject')"
+            :title="t('memory.reject')"
+            data-test="memory-reject-btn"
+            @click="rejectMemory(mem.id)"
+          >
+            ×
+          </KxIconButton>
+          <KxIconButton
             class="memory-delete-btn"
             :label="t('common.delete')"
             :title="t('common.delete')"
@@ -342,10 +370,14 @@ async function promptDelete(id: string, content: string) {
   top: 8px;
   right: 8px;
   display: none;
+  align-items: center;
+  gap: 4px;
 }
 .memory-item:hover .memory-actions {
-  display: block;
+  display: flex;
 }
+.memory-accept-btn,
+.memory-reject-btn,
 .memory-delete-btn {
   background: none;
   border: none;
@@ -355,6 +387,11 @@ async function promptDelete(id: string, content: string) {
   line-height: 1;
   border-radius: 50%;
 }
+.memory-accept-btn:hover {
+  background: var(--app-success-color-suppl, #edf8ee);
+  color: var(--app-success-color, #18a058);
+}
+.memory-reject-btn:hover,
 .memory-delete-btn:hover {
   background: var(--app-hover-color, #f0f4f8);
 }

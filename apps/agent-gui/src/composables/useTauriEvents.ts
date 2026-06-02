@@ -11,6 +11,7 @@ import { useUiStore } from "@/stores/ui";
 import { useMcpStore } from "@/stores/mcp";
 import { useAgentsStore } from "@/stores/agents";
 import { useCatalogStore } from "@/stores/catalog";
+import { useMemoryStore } from "@/stores/memory";
 
 export function useTauriEvents() {
   const session = useSessionStore();
@@ -19,6 +20,7 @@ export function useTauriEvents() {
   const mcp = useMcpStore();
   const agents = useAgentsStore();
   const catalog = useCatalogStore();
+  const memory = useMemoryStore();
 
   // Capture the unlisten promise synchronously so tryOnScopeDispose
   // can register cleanup before any await boundary — calling it after
@@ -42,6 +44,14 @@ export function useTauriEvents() {
 
       // Route agent lifecycle events to the agents store.
       agents.applyAgentEvent(domainEvent.payload);
+
+      if (
+        domainEvent.payload.type === "MemoryProposed" ||
+        domainEvent.payload.type === "MemoryAccepted" ||
+        domainEvent.payload.type === "MemoryRejected"
+      ) {
+        void memory.loadMemories();
+      }
     }
 
     // MCP and catalog source events are global, not session-scoped.

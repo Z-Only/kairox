@@ -112,6 +112,28 @@ describe("PermissionPrompt", () => {
       decision: "deny"
     });
   });
+
+  it("invokes accept_memory on memory Accept click", async () => {
+    mockedInvoke.mockResolvedValueOnce(undefined);
+    const wrapper = mount(PermissionPrompt, {
+      props: { entry: memoryEntry }
+    });
+    await wrapper.find('[data-test="permission-allow"]').trigger("click");
+    expect(mockedInvoke).toHaveBeenCalledWith("accept_memory", {
+      id: "mem_1"
+    });
+  });
+
+  it("invokes reject_memory on memory Reject click", async () => {
+    mockedInvoke.mockResolvedValueOnce(undefined);
+    const wrapper = mount(PermissionPrompt, {
+      props: { entry: memoryEntry }
+    });
+    await wrapper.find('[data-test="permission-deny"]').trigger("click");
+    expect(mockedInvoke).toHaveBeenCalledWith("reject_memory", {
+      id: "mem_1"
+    });
+  });
 });
 
 describe("PermissionPrompt MCP trust UI", () => {

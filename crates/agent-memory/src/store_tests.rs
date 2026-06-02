@@ -49,6 +49,61 @@ async fn unaccepted_memories_excluded_from_query() {
 }
 
 #[tokio::test]
+async fn query_including_pending_returns_unaccepted_memories() {
+    let store = test_store().await;
+    let entry = MemoryEntry::new(MemoryScope::Workspace, "Needs review".into(), false);
+    store.store(entry.clone()).await.unwrap();
+
+    let results = store
+        .query_including_pending(MemoryQuery {
+            scope: None,
+            keywords: vec!["review".into()],
+            limit: 10,
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, entry.id);
+    assert!(!results[0].accepted);
+}
+
+#[tokio::test]
+async fn get_returns_entry_by_id() {
+    let store = test_store().await;
+    let entry = MemoryEntry::new(MemoryScope::User, "Remember this".into(), false);
+    store.store(entry.clone()).await.unwrap();
+
+    let found = store.get(&entry.id).await.unwrap();
+
+    assert_eq!(found, Some(entry));
+}
+
+#[tokio::test]
+async fn set_accepted_promotes_pending_memory() {
+    let store = test_store().await;
+    let entry = MemoryEntry::new(MemoryScope::Workspace, "Promote me".into(), false);
+    store.store(entry.clone()).await.unwrap();
+
+    store.set_accepted(&entry.id, true).await.unwrap();
+
+    let results = store
+        .query(MemoryQuery {
+            scope: Some(MemoryScope::Workspace),
+            keywords: vec!["Promote".into()],
+            limit: 10,
+            session_id: None,
+            workspace_id: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert!(results[0].accepted);
+}
+
+#[tokio::test]
 async fn delete_removes_entry() {
     let store = test_store().await;
     let entry = MemoryEntry::new(MemoryScope::Session, "temp".into(), true);

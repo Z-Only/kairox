@@ -133,7 +133,7 @@ pub async fn query_memories(
     });
     let entries = state
         .memory_store
-        .query(MemoryQuery {
+        .query_including_pending(MemoryQuery {
             scope,
             keywords: keywords.unwrap_or_default(),
             limit: limit.unwrap_or(50) as usize,
@@ -143,6 +143,42 @@ pub async fn query_memories(
         .await
         .map_err(|e| e.to_string())?;
     Ok(entries.into_iter().map(MemoryEntryResponse::from).collect())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn accept_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current.clone().ok_or("No active session")?
+    };
+    state
+        .runtime
+        .accept_memory(&id, workspace_id, session_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn reject_memory(state: State<'_, GuiState>, id: String) -> Result<(), String> {
+    let workspace_id = {
+        let ws = state.workspace_id.lock().await;
+        ws.clone().ok_or("Workspace not initialized")?
+    };
+    let session_id = {
+        let current = state.current_session_id.lock().await;
+        current.clone().ok_or("No active session")?
+    };
+    state
+        .runtime
+        .reject_memory(&id, workspace_id, session_id, "Rejected by user".into())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

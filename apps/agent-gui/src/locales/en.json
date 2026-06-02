@@ -31,6 +31,8 @@
     "searchPlaceholder": "Search memories...",
     "emptyHint": "No memories",
     "noMatchingStatusHint": "No memories match this status filter",
+    "accept": "Accept",
+    "reject": "Reject",
     "deleteConfirm": "Delete this memory?"
   },
   "nav": {

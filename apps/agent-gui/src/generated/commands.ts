@@ -77,6 +77,8 @@ export const commands = {
     typedError<MemoryEntryResponse[], string>(
       __TAURI_INVOKE("query_memories", { scope, keywords, limit })
     ),
+  acceptMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("accept_memory", { id })),
+  rejectMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("reject_memory", { id })),
   deleteMemory: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_memory", { id })),
   listWorkspaces: () =>
     typedError<WorkspaceInfoResponse[], string>(__TAURI_INVOKE("list_workspaces")),

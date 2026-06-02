@@ -192,6 +192,37 @@ describe("MemoryBrowser", () => {
     expect(wrapper.text()).toContain("No memories match this status filter");
   });
 
+  it("shows accept and reject actions for pending memories", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "user", key: "lang", content: "Pending memory", accepted: false }
+    ];
+    const acceptSpy = vi.spyOn(memory, "acceptMemoryItem").mockResolvedValue();
+    const rejectSpy = vi.spyOn(memory, "rejectMemoryItem").mockResolvedValue();
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('[data-test="memory-accept-btn"]').trigger("click");
+    await wrapper.find('[data-test="memory-reject-btn"]').trigger("click");
+
+    expect(acceptSpy).toHaveBeenCalledWith("m1");
+    expect(rejectSpy).toHaveBeenCalledWith("m1");
+  });
+
+  it("does not show accept or reject actions for accepted memories", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      { id: "m1", scope: "user", key: "lang", content: "Accepted memory", accepted: true }
+    ];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-accept-btn"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="memory-reject-btn"]').exists()).toBe(false);
+  });
+
   it("changes active scope filter via select element", async () => {
     const { wrapper } = mountBrowser();
     await flushPromises();
@@ -230,6 +261,25 @@ describe("MemoryBrowser", () => {
     expect(wrapper.find('[data-test="memory-item"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="memory-refresh-btn"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="memory-delete-btn"]').exists()).toBe(true);
+  });
+
+  it("audit anchors: exposes stable pending memory approval selectors", async () => {
+    const { wrapper } = mountBrowser();
+    await flushPromises();
+    const memory = useMemoryStore();
+    memory.memories = [
+      {
+        id: "m1",
+        scope: "user",
+        key: "lang",
+        content: "Rust",
+        accepted: false
+      }
+    ];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-test="memory-accept-btn"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="memory-reject-btn"]').exists()).toBe(true);
   });
 
   it("audit anchors: exposes stable empty memory pilot selector", async () => {

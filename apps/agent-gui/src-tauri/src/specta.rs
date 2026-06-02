@@ -61,6 +61,8 @@ pub fn create_specta() -> tauri_specta::Builder<tauri::Wry> {
             get_project_instruction_summary,
             resolve_permission,
             query_memories,
+            accept_memory,
+            reject_memory,
             delete_memory,
             list_workspaces,
             rename_session,

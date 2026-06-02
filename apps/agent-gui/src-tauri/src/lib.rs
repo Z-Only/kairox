@@ -163,6 +163,8 @@ pub fn run() {
             crate::commands::get_project_instruction_summary,
             crate::commands::resolve_permission,
             crate::commands::query_memories,
+            crate::commands::accept_memory,
+            crate::commands::reject_memory,
             crate::commands::delete_memory,
             crate::commands::list_workspaces,
             crate::commands::rename_session,
