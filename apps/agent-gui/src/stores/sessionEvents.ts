@@ -58,6 +58,7 @@ export function applySessionEvent(
   switch (p.type) {
     case "UserMessageAdded": {
       ctx.lastSendError.value = null;
+      ctx.projection.value.cancelled = false;
       ctx.projection.value.messages.push({
         role: "user",
         content: p.content

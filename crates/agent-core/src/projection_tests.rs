@@ -116,6 +116,47 @@ fn projects_token_deltas_tasks_and_cancellation() {
 }
 
 #[test]
+fn clears_cancelled_state_when_a_followup_turn_starts() {
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let events = vec![
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: "m1".into(),
+                content: "long request".into(),
+            },
+        ),
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::MinimalTrace,
+            EventPayload::SessionCancelled {
+                reason: "user stopped".into(),
+            },
+        ),
+        DomainEvent::new(
+            workspace_id,
+            session_id,
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            EventPayload::UserMessageAdded {
+                message_id: "m2".into(),
+                content: "continue".into(),
+            },
+        ),
+    ];
+
+    let projection = SessionProjection::from_events(&events);
+
+    assert!(!projection.cancelled);
+}
+
+#[test]
 fn compaction_status_serializes_with_internal_tag() {
     let s = CompactionStatus::Idle;
     let json = serde_json::to_value(&s).unwrap();

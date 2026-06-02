@@ -172,6 +172,16 @@ export const useTraceStore = defineStore("trace", () => {
         break;
       }
 
+      case "AgentTaskFailed": {
+        updateEntry(p.task_id, {
+          status: "failed",
+          reason: p.error,
+          outputPreview: p.error,
+          rawEvent: rawJson(event)
+        });
+        break;
+      }
+
       case "PermissionRequested": {
         pushEntry({
           id: p.request_id,

@@ -70,6 +70,33 @@ describe("trace store", () => {
       trace.applyTraceEvent(event);
       expect(trace.entries).toHaveLength(1);
     });
+
+    it("marks an existing task entry as failed on AgentTaskFailed", () => {
+      const trace = useTraceStore();
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "AgentTaskCreated",
+          task_id: "t-cancelled",
+          title: "Long model turn",
+          role: "Planner",
+          dependencies: []
+        })
+      );
+
+      trace.applyTraceEvent(
+        mkEvent({
+          type: "AgentTaskFailed",
+          task_id: "t-cancelled",
+          agent_id: "agent-1",
+          error: "cancelled by user"
+        })
+      );
+
+      expect(trace.entries).toHaveLength(1);
+      expect(trace.entries[0].status).toBe("failed");
+      expect(trace.entries[0].reason).toBe("cancelled by user");
+      expect(trace.entries[0].rawEvent).toContain("AgentTaskFailed");
+    });
   });
 
   // -----------------------------------------------------------

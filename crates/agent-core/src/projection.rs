@@ -64,6 +64,7 @@ impl SessionProjection {
     pub fn apply(&mut self, event: &DomainEvent) {
         match &event.payload {
             EventPayload::UserMessageAdded { content, .. } => {
+                self.cancelled = false;
                 self.messages.push(ProjectedMessage {
                     role: ProjectedRole::User,
                     content: content.clone(),

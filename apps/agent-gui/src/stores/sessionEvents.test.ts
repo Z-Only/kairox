@@ -121,6 +121,24 @@ describe("applySessionEvent — message events", () => {
     expect(ctx.lastSendError.value).toBeNull();
   });
 
+  it("clears the previous cancellation marker on UserMessageAdded", () => {
+    const projection = emptyProjection();
+    projection.cancelled = true;
+    const ctx = makeCtx({
+      projection: ref(projection) as Ref<SessionProjection>,
+      isStreaming: ref(false)
+    });
+
+    applySessionEvent(
+      makeEvent({ type: "UserMessageAdded", message_id: "m1", content: "continue" }),
+      ctx,
+      makeAgentsStore()
+    );
+
+    expect(ctx.projection.value.cancelled).toBe(false);
+    expect(ctx.isStreaming.value).toBe(true);
+  });
+
   it("accumulates ModelTokenDelta into token_stream", () => {
     const ctx = makeCtx();
     const agents = makeAgentsStore();
