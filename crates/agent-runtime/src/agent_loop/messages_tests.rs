@@ -90,3 +90,75 @@ fn build_model_messages_substitutes_compaction_summary_for_event_range() {
     // (d) The trailing "latest" user turn must still be present.
     assert_eq!(messages.last().map(|m| m.content.as_str()), Some("latest"));
 }
+
+#[test]
+fn build_model_messages_replays_tool_use_before_tool_result() {
+    let base = chrono::Utc::now();
+    let workspace_id = WorkspaceId::new();
+    let session_id = SessionId::new();
+    let make_at = |payload: EventPayload, secs: i64| -> DomainEvent {
+        DomainEvent::new(
+            workspace_id.clone(),
+            session_id.clone(),
+            AgentId::system(),
+            PrivacyClassification::FullTrace,
+            payload,
+        )
+        .with_timestamp(base + chrono::Duration::seconds(secs))
+    };
+
+    let events = vec![
+        make_at(
+            EventPayload::UserMessageAdded {
+                message_id: "u0".into(),
+                content: "read fixture".into(),
+            },
+            0,
+        ),
+        make_at(
+            EventPayload::ModelToolCallRequested {
+                tool_call_id: "call_read".into(),
+                tool_id: "fs.read".into(),
+            },
+            1,
+        ),
+        make_at(
+            EventPayload::ToolInvocationCompleted {
+                invocation_id: "call_read".into(),
+                tool_id: "fs.read".into(),
+                output_preview: "KAIROX_PILOT_ATTACHMENT_7F3C9A".into(),
+                exit_code: None,
+                duration_ms: 4,
+                truncated: false,
+            },
+            2,
+        ),
+        make_at(
+            EventPayload::AssistantMessageCompleted {
+                message_id: "a0".into(),
+                content: "TOOL-READ-PASS KAIROX_PILOT_ATTACHMENT_7F3C9A".into(),
+            },
+            3,
+        ),
+    ];
+
+    let messages = build_model_messages("run pwd next", &events);
+
+    assert_eq!(messages.len(), 5, "{messages:#?}");
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(messages[0].content, "read fixture");
+    assert_eq!(messages[1].role, "assistant");
+    assert_eq!(messages[1].tool_calls.len(), 1, "{messages:#?}");
+    assert_eq!(messages[1].tool_calls[0].id, "call_read");
+    assert_eq!(messages[1].tool_calls[0].name, "fs.read");
+    assert_eq!(messages[2].role, "tool");
+    assert_eq!(messages[2].tool_call_id.as_deref(), Some("call_read"));
+    assert_eq!(messages[3].role, "assistant");
+    assert!(messages[3].tool_calls.is_empty(), "{messages:#?}");
+    assert_eq!(
+        messages[3].content,
+        "TOOL-READ-PASS KAIROX_PILOT_ATTACHMENT_7F3C9A"
+    );
+    assert_eq!(messages[4].role, "user");
+    assert_eq!(messages[4].content, "run pwd next");
+}
