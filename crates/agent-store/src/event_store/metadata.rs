@@ -100,6 +100,29 @@ impl SqliteEventStore {
         Ok(())
     }
 
+    pub async fn update_session_model_profile(
+        &self,
+        session_id: &str,
+        model_profile: &str,
+        model_id: Option<&str>,
+        provider: Option<&str>,
+    ) -> crate::Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE kairox_sessions
+             SET model_profile = ?1, model_id = ?2, provider = ?3, updated_at = ?4
+             WHERE session_id = ?5",
+        )
+        .bind(model_profile)
+        .bind(model_id)
+        .bind(provider)
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn soft_delete_session(&self, session_id: &str) -> crate::Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         sqlx::query(

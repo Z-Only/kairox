@@ -57,6 +57,16 @@ impl EventStore for NonSqliteEventStore {
         Ok(())
     }
 
+    async fn update_session_model_profile(
+        &self,
+        _session_id: &str,
+        _model_profile: &str,
+        _model_id: Option<&str>,
+        _provider: Option<&str>,
+    ) -> agent_store::Result<()> {
+        Ok(())
+    }
+
     async fn soft_delete_session(&self, _session_id: &str) -> agent_store::Result<()> {
         Ok(())
     }

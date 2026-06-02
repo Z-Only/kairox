@@ -33,6 +33,7 @@ export interface ChatComposerSession {
   reportSendError?: (message: string) => void;
   ensureSessionForSend?: () => Promise<void>;
   refreshCurrentSessionMetadata?: (firstMessageContent?: string) => Promise<void>;
+  updateSessionProfile?: (sessionId: string, profile: string) => void;
 }
 
 interface UseChatComposerOptions {
@@ -482,6 +483,7 @@ export function useChatComposer(options: UseChatComposerOptions) {
       await invokeFn("switch_model", payload);
       session.currentProfile = alias;
       session.currentReasoningEffort = reasoningEffort ?? null;
+      session.updateSessionProfile?.(session.currentSessionId, alias);
       modelPopoverOpen.value = false;
     } catch (e) {
       console.error("Failed to switch model:", e);

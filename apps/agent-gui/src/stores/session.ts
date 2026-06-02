@@ -835,6 +835,7 @@ export const useSessionStore = defineStore("session", () => {
     activeProfileInfo,
     activeProfileDisplay,
     findSessionInfo,
+    updateSessionProfile,
     // actions
     reportSendError,
     applyEvent,

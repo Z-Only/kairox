@@ -520,6 +520,17 @@ describe("useChatComposer", () => {
     expect(modelPopoverOpen.value).toBe(false);
   });
 
+  it("updates current session metadata after switching models", async () => {
+    const updateSessionProfile = vi.fn();
+    const session = createSession({ updateSessionProfile });
+    const modelPopoverOpen = { value: true };
+    const { composer } = createComposer({ session });
+
+    await composer.selectModelProfile("smart", modelPopoverOpen);
+
+    expect(updateSessionProfile).toHaveBeenCalledWith("ses_1", "smart");
+  });
+
   it("updates the pending session model without IPC before first send", async () => {
     const session = createSession({ currentSessionId: null });
     const modelPopoverOpen = { value: true };

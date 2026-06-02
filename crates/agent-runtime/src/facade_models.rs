@@ -208,6 +208,16 @@ where
         );
         crate::event_emitter::append_and_broadcast(&*store, &event_tx, &event).await?;
 
+        store
+            .update_session_model_profile(
+                session_id.as_str(),
+                &profile_alias,
+                Some(profile_def.model_id.as_str()),
+                Some(profile_def.provider.as_str()),
+            )
+            .await
+            .map_err(|e| agent_core::CoreError::InvalidState(e.to_string()))?;
+
         // Refresh cached limits so the next send_message's agent loop does not
         // re-derive from the old profile.
         set_session_limits_in_state(&session_states, &session_id, new_limits).await;

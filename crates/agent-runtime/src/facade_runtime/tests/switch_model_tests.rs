@@ -76,6 +76,45 @@ async fn switch_model_appends_event_and_updates_session_limits() {
 }
 
 #[tokio::test]
+async fn switch_model_updates_session_metadata_profile() {
+    let store = SqliteEventStore::in_memory().await.unwrap();
+    let model = FakeModelClient::new(vec!["hi".into()]);
+    let runtime = LocalRuntime::new(store, model).with_config(test_config_with_two_profiles());
+    let rt = &runtime as &dyn AppFacade;
+
+    let workspace = AppFacade::open_workspace(rt, "/tmp/ws".into())
+        .await
+        .unwrap();
+    let session_id = AppFacade::start_session(
+        rt,
+        StartSessionRequest {
+            workspace_id: workspace.workspace_id.clone(),
+            model_profile: "fast".into(),
+            approval_policy: None,
+            sandbox_policy: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    runtime
+        .switch_model(session_id.clone(), "opus".into(), None)
+        .await
+        .expect("switch should succeed");
+
+    let sessions = AppFacade::list_sessions(rt, &workspace.workspace_id)
+        .await
+        .unwrap();
+    let switched = sessions
+        .into_iter()
+        .find(|session| session.session_id == session_id)
+        .expect("switched session should remain listed");
+    assert_eq!(switched.model_profile, "opus");
+    assert_eq!(switched.model_id.as_deref(), Some("fake-opus"));
+    assert_eq!(switched.provider.as_deref(), Some("fake"));
+}
+
+#[tokio::test]
 async fn switch_model_rejects_unknown_alias() {
     let store = SqliteEventStore::in_memory().await.unwrap();
     let model = FakeModelClient::new(vec!["hi".into()]);
